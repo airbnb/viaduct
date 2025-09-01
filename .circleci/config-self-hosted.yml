@@ -3,9 +3,12 @@ version: 2.1
 workflows:
   build-workflow:
     jobs:
-      - runner
+      - check-connection
+      - sync:
+          requires:
+            - check-connection
 jobs:
-  runner:
+  Check-conection:
     machine: true
     resource_class: gperalta-primehire/gperalta-self-hosted
     steps:
@@ -47,4 +50,8 @@ jobs:
 
 
 
- 
+  Sync:
+      machine: true
+      resource_class: gperalta-primehire/gperalta-self-hosted
+      steps:
+        - checkout  

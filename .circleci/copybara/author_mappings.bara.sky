@@ -1,0 +1,2 @@
+# Default author for unmapped contributors
+DEFAULT_AUTHOR = "Viaduct Maintainers <test@test.com>"

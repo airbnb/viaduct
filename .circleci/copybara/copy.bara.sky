@@ -1,0 +1,21 @@
+# Exports historical commits from --- to --- by creating
+# a pull request in ---.
+# After our flows are solidified, --- will clone into ---
+
+load("author_mappings", "AUTHOR_MAPPINGS")
+
+core.workflow(
+    name = "sync_to_dest",
+    mode = "ITERATIVE",
+    origin = git.github_origin(
+        url = "git@github.com:gperalta-primehire/viaduct.git",
+        ref = "main",
+    ),
+    destination = git.destination(
+        url = "git@github.com:gperalta-primehire/viaduct-test-target.git",
+        push = "refs/heads/sync",
+    ),
+    origin_files = glob(["README.md"]),
+    authoring = authoring.pass_thru(default = DEFAULT_AUTHOR),  # pass through all, except empty committer
+    transformations = [],
+)

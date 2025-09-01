@@ -1,0 +1,108 @@
+########################## viaduct #################################################
+
+# Exports historical commits from airbnb/treehouse:projects/viaduct/oss to airbnb/viaduct-test by creating
+# a pull request in airbnb/viaduct-test.
+# After our flows are solidified, airbnb/viaduct-test will clone into airbnb/viaduct
+load("author_mappings", "AUTHOR_MAPPINGS", "DEFAULT_AUTHOR", "add_all_coauthors", "transform_authors")
+load("message_scrubber", "strip_commit_body_keep_metadata")
+
+load("author_mappings", "AUTHOR_MAPPINGS")
+
+core.workflow(
+    name = "sync_to_dest",
+    mode = "ITERATIVE",
+    origin = git.github_origin(
+        url = "git@github.com:gperalta-primehire/viaduct.git",
+        ref = "main",
+    ),
+    destination = git.destination(
+        url = "git@github.com:gperalta-primehire/viaduct-test-target.git",
+        push = "refs/heads/sync",
+    ),
+    origin_files = glob(["README.md"]),
+    authoring = authoring.pass_thru(default = DEFAULT_AUTHOR),  # pass through all, except empty committer
+    transformations = [],
+)
+
+######################### treehouse ##################################################
+
+# Exports historical commits from airbnb/treehouse:projects/viaduct/oss to airbnb/viaduct-test by creating
+# a pull request in airbnb/viaduct-test.
+# After our flows are solidified, airbnb/viaduct-test will clone into airbnb/viaduct
+load("author_mappings", "AUTHOR_MAPPINGS", "DEFAULT_AUTHOR", "add_all_coauthors", "transform_authors")
+load("message_scrubber", "strip_commit_body_keep_metadata")
+
+core.workflow(
+    name = "treehouse-to-external-backfill",
+    mode = "ITERATIVE",
+    origin = git.origin(
+        url = "file:///jorb/repo",
+        ref = "master",
+        partial_fetch = True,
+        describe_version = False,
+    ),
+    origin_files = glob(
+        include = ["projects/viaduct/oss/**", "config/kotlin/detekt.yml"],
+        exclude = [
+            "**/ALLOWED_DEPS",
+            "**/*.bara.sky",
+            "**/_infra/**",
+            "**/src/airbnb/**",
+            "**/src/airbnbtest/**",
+            "**/BUILD.bazel",
+            "**/bazel/**",
+            "projects/viaduct/oss/detekt.yml",  # Exclude the symlink, we move the original already.
+        ],
+    ),
+    destination = git.destination(
+        url = "https://github.com/airbnb/viaduct",
+        fetch = "main",
+    ),
+    authoring = authoring.pass_thru(default = DEFAULT_AUTHOR),  # pass through all, except empty committer
+    transformations = [
+        core.move("projects/viaduct/oss/", ""),
+        core.move("config/kotlin/detekt.yml", "detekt.yml"),
+        core.transform([transform_authors, strip_commit_body_keep_metadata]),
+    ],
+)
+
+# Workflow for migrating a single specific commit as init attributing to everyone uncommented in author map.
+core.workflow(
+    name = "initial-commit",
+    mode = "SQUASH",
+    origin = git.origin(
+        url = "org-4@git.musta.ch:airbnb/treehouse.git",  # For initial commit we should use this
+        ref = "master",  # Will be overridden by source_ref argument
+        partial_fetch = True,
+        describe_version = False,
+    ),
+    origin_files = glob(
+        include = ["projects/viaduct/oss/**", "config/kotlin/detekt.yml"],
+        exclude = [
+            "**/ALLOWED_DEPS",
+            "**/*.bara.sky",
+            "**/_infra/**",
+            "**/src/airbnb/**",
+            "**/src/airbnbtest/**",
+            "**/BUILD.bazel",
+            "**/bazel/**",
+            "projects/viaduct/oss/detekt.yml",  # Exclude the symlink, we move the original already.
+        ],
+    ),
+    destination = git.destination(
+        url = "https://github.com/airbnb/viaduct",  # can be overridden, see copybara_local_to_external_init.sh
+        fetch = "main",
+    ),
+    # For initial commit, overwrite all authors with default
+    authoring = authoring.overwrite(DEFAULT_AUTHOR),
+    transformations = [
+        core.move("projects/viaduct/oss/", ""),
+        core.move("config/kotlin/detekt.yml", "detekt.yml"),
+        # Replace the commit message for initial commit
+        metadata.replace_message(
+            "༼ つ ◕_◕ ༽つ Viaduct",
+        ),
+        # Add all uncommented authors as co-authors for initial commit
+        core.transform([add_all_coauthors]),
+    ],
+)
