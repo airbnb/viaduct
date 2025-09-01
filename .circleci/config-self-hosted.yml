@@ -19,8 +19,6 @@ jobs:
   check-connection:
     machine: true
     resource_class: gperalta-primehire/gperalta-self-hosted
-    environment:
-      COPYBARA_TAG: << pipeline.parameters.copybara_tag >>
     steps:
       - run:
           name: Checking conection to Github Cloud 
@@ -61,6 +59,8 @@ jobs:
   sync:
       machine: true
       resource_class: gperalta-primehire/gperalta-self-hosted
+      environment:
+        COPYBARA_TAG: << pipeline.parameters.copybara_tag >>
       steps:
         - checkout  
 
