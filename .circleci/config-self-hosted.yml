@@ -25,10 +25,16 @@ jobs:
             test "${code:0:1}" = "2"
 
       - run:
-          name: Checking conection to Github Enterprise
+          name: Checking connection to GitHub Enterprise (optimized)
           command: |
             URL="https://git.musta.ch/api/v3/repos/airbnb/treehouse"
-            code=$(curl -sS -D /tmp/headers.txt -o /tmp/body.json -w "%{http_code}" \
+            code=$(curl -sS \
+              --connect-timeout 5 \
+              --max-time 15 \
+              --retry 3 \
+              --retry-delay 2 \
+              --retry-all-errors \
+              -D /tmp/headers.txt -o /tmp/body.json -w "%{http_code}" \
               -H "Authorization: Bearer ${GH_PAT_TREEHOUSE}" \
               -H "Accept: application/vnd.github+json" "$URL")
             echo "== Response headers =="; cat /tmp/headers.txt
@@ -38,6 +44,7 @@ jobs:
               echo "✅ Access to Github Enterprise repository"
             fi
             test "${code:0:1}" = "2"
+
 
 
  
