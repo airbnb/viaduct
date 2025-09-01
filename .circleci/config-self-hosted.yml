@@ -8,7 +8,7 @@ workflows:
           requires:
             - check-connection
 jobs:
-  check-conection:
+  check-connection:
     machine: true
     resource_class: gperalta-primehire/gperalta-self-hosted
     steps:
