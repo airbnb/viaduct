@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://viaduct.airbnb.tech">
     <img src=".github/viaduct_logo.jpg" alt="Viaduct logo" width="200">
-  </a>
+  </a> 
 </p>
 <p align="center">
     <b>Viaduct is a GraphQL-based system that provides a unified interface for accessing and interacting with any data source.</b>
@@ -9,7 +9,7 @@
 <p align="center">
     See the <a href="https://viaduct.airbnb.tech/docs/">User Manual</a> for deployment instructions and end user documentation.
 </p>
-
+ 
 # Vision
 
 Viaduct is an open source data-oriented service mesh. As an open source initiative, Viaduct is committed to fostering an inclusive and collaborative community where external developers can contribute, innovate, and help shape the future of data-oriented development.
