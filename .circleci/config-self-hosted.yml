@@ -20,7 +20,22 @@ jobs:
             echo "✅ Access to private repository"
 
       - run:
-          name: Check GHES access (full response)
+          name: Checking conection to Github Cloud 
+          command: |
+            URL="https://api.github.com/repos/airbnb/viaduct"
+            code=$(curl -sS -D /tmp/headers.txt -o /tmp/body.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GH_PAT}" \
+              -H "Accept: application/vnd.github+json" "$URL")
+            echo "== Response headers =="; cat /tmp/headers.txt
+            echo "== Body =="; (jq . /tmp/body.json || cat /tmp/body.json)
+            echo "HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "✅ Access to to Github Cloud repository"
+            fi
+            test "${code:0:1}" = "2"
+
+      - run:
+          name: Checking conection to Github Enterprise
           command: |
             URL="https://git.musta.ch/api/v3/repos/airbnb/treehouse"
             code=$(curl -sS -D /tmp/headers.txt -o /tmp/body.json -w "%{http_code}" \
@@ -30,7 +45,7 @@ jobs:
             echo "== Body =="; (jq . /tmp/body.json || cat /tmp/body.json)
             echo "HTTP $code"
             if [ "$code" = "200" ]; then
-              echo "✅ Access to private repository"
+              echo "✅ Access to Github Enterprise repository"
             fi
             test "${code:0:1}" = "2"
 
