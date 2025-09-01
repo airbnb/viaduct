@@ -39,4 +39,6 @@ information about reporting vulnerabilities.
 
 * Mac OS X or Linux
 * JDK 11+, 64-bit
-   asddsa
+* asddsa
+* jhgdhdhjd
+  
