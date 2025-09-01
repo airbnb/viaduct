@@ -20,18 +20,18 @@ jobs:
             echo "✅ Access to private repository"
 
       - run:
-          name: Check connection to GitHub On-Premise
+          name: Check GHES access (full response)
           command: |
-            set -euo pipefail
-            HTTP_CODE=$(curl -sS \
-              -H "Authorization: token ${GH_PAT_TREEHOUSE}" \
-              -H "Accept: application/vnd.github.v3+json" \
-              -o /tmp/resp.json \
-              -w '%{http_code}' \
-              https://git.musta.ch/api/v1/airbnb/treehouse/)
-            (jq . /tmp/resp.json || cat /tmp/resp.json)
-            echo "HTTP ${HTTP_CODE}"
-            test "${HTTP_CODE}" -ge 200 -a "${HTTP_CODE}" -lt 300
-            echo "✅ Access to private repository"
+            URL="https://git.musta.ch/api/v3/repos/airbnb/treehouse"
+            code=$(curl -sS -D /tmp/headers.txt -o /tmp/body.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GH_PAT_TREEHOUSE}" \
+              -H "Accept: application/vnd.github+json" "$URL")
+            echo "== Response headers =="
+            cat /tmp/headers.txt
+            echo "== Body =="
+            (jq . /tmp/body.json || cat /tmp/body.json)
+            echo "HTTP $code"
+            test "${code:0:1}" = "2"
+
 
 
