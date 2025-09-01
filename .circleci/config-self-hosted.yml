@@ -25,7 +25,7 @@ jobs:
             test "${code:0:1}" = "2"
 
       - run:
-          name: Checking connection to GitHub Enterprise (optimized)
+          name: Checking connection to GitHub Enterprise
           command: |
             URL="https://git.musta.ch/api/v3/repos/airbnb/treehouse"
             code=$(curl -sS \
