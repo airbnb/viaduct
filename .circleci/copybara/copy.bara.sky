@@ -2,7 +2,7 @@
 # a pull request in ---.
 # After our flows are solidified, --- will clone into ---
 
-load("author_mappings", "AUTHOR_MAPPINGS")
+load("author_mappings", "DEFAULT_AUTHOR")
 
 core.workflow(
     name = "sync_to_dest",
