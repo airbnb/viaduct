@@ -1,5 +1,13 @@
 version: 2.1
 
+#orbs:
+#  slack: circleci/slack@4.12.5
+
+parameters:
+  copybara_tag:
+    type: string
+    default: "v20250818"  
+
 workflows:
   build-workflow:
     jobs:
@@ -53,3 +61,46 @@ jobs:
       resource_class: gperalta-primehire/gperalta-self-hosted
       steps:
         - checkout  
+
+        - run:
+            name: Install tools (brew)
+            command: |
+              brew update
+              brew install git jq bazelisk openjdk@11
+              echo 'export JAVA_HOME=$(/usr/libexec/java_home -v 11)' >> $BASH_ENV
+              echo 'export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"' >> $BASH_ENV
+              source $BASH_ENV
+              java -version
+              bazelisk version
+
+        - run:
+            name: Clone Copybara
+            command: |
+              if [ ! -d copybara ]; then
+                git clone https://github.com/google/copybara.git
+              fi
+              cd copybara
+              git fetch --tags --quiet || true
+              git checkout "$COPYBARA_TAG" 2>/dev/null || git checkout master
+
+        - run:
+            name: Build Copybara
+            command: |
+              cd copybara
+              bazelisk shutdown || true
+              bazelisk build //java/com/google/copybara
+
+        - run:
+            name: Run Copybara
+            command: |
+              cd copybara
+              ./bazel-bin/java/com/google/copybara/copybara ../.circleci/copybara/copy.bara.sky sync_to_dest
+
+  #      - slack/notify:
+  #          event: pass
+  #          template: basic_success_1
+
+  #      - slack/notify:
+  #          event: fail
+  #          template: basic_fail_1
+
