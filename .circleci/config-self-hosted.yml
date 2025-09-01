@@ -26,11 +26,12 @@ jobs:
             code=$(curl -sS -D /tmp/headers.txt -o /tmp/body.json -w "%{http_code}" \
               -H "Authorization: Bearer ${GH_PAT_TREEHOUSE}" \
               -H "Accept: application/vnd.github+json" "$URL")
-            echo "== Response headers =="
-            cat /tmp/headers.txt
-            echo "== Body =="
-            (jq . /tmp/body.json || cat /tmp/body.json)
+            echo "== Response headers =="; cat /tmp/headers.txt
+            echo "== Body =="; (jq . /tmp/body.json || cat /tmp/body.json)
             echo "HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "✅ Access to private repository"
+            fi
             test "${code:0:1}" = "2"
 
 
