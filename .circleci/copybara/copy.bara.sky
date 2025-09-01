@@ -9,7 +9,7 @@ core.workflow(
     mode = "ITERATIVE",
     origin = git.github_origin(
         url = "git@github.com:gperalta-primehire/viaduct.git",
-        ref = "main",
+        ref = "circleci-project-setup",
     ),
     destination = git.destination(
         url = "git@github.com:gperalta-primehire/viaduct-test-target.git",
