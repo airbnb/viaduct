@@ -9,16 +9,6 @@ jobs:
     machine: true
     resource_class: gperalta-primehire/gperalta-self-hosted
     steps:
-      - run: echo "Hi I'm on Runners!"
-      - run:
-          name: Checking conection to Github Cloud 
-          command: |
-            curl -f \
-              -H "Authorization: token ${GH_PAT}" \
-              -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/airbnb/viaduct
-            echo "✅ Access to private repository"
-
       - run:
           name: Checking conection to Github Cloud 
           command: |
