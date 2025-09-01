@@ -20,11 +20,18 @@ jobs:
             echo "✅ Access to private repository"
 
       - run:
-          name: Checking conection to Github On-Premise
+          name: Check connection to GitHub On-Premise
           command: |
-            curl -f \
+            set -euo pipefail
+            HTTP_CODE=$(curl -sS \
               -H "Authorization: token ${GH_PAT_TREEHOUSE}" \
               -H "Accept: application/vnd.github.v3+json" \
-              https://git.musta.ch/api/v1/airbnb/treehouse/
+              -o /tmp/resp.json \
+              -w '%{http_code}' \
+              https://git.musta.ch/api/v1/airbnb/treehouse/)
+            (jq . /tmp/resp.json || cat /tmp/resp.json)
+            echo "HTTP ${HTTP_CODE}"
+            test "${HTTP_CODE}" -ge 200 -a "${HTTP_CODE}" -lt 300
             echo "✅ Access to private repository"
+
 
