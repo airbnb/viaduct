@@ -18,3 +18,13 @@ jobs:
               -H "Accept: application/vnd.github.v3+json" \
               https://api.github.com/repos/airbnb/viaduct
             echo "✅ Access to private repository"
+
+      - run:
+          name: Checking conection to Github On-Premise
+          command: |
+            curl -fsS \
+              -H "Authorization: token ${GH_PAT_TREEHOUSE}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://git.musta.ch/api/v1/airbnb/treehouse/
+            echo "✅ Access to private repository"
+
