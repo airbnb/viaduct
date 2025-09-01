@@ -16,5 +16,5 @@ jobs:
             curl -fsS \
               -H "Authorization: token ${GH_PAT}" \
               -H "Accept: application/vnd.github.v3+json" \
-              https://github.com/airbnb/viaduct
+              https://api.github.com/repos/airbnb/viaduct
             echo "✅ Access to private repository"
