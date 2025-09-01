@@ -96,8 +96,7 @@ jobs:
             name: Run Copybara
             command: |
               cd copybara
-              ./bazel-bin/java/com/google/copybara/copybara ../.circleci/copybara/copy.bara.sky sync_to_dest --init-history
-
+              ./bazel-bin/java/com/google/copybara/copybara ../.circleci/copybara/copy.bara.sky sync_to_dest
   #      - slack/notify:
   #          event: pass
   #          template: basic_success_1
