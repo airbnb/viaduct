@@ -8,7 +8,7 @@ workflows:
           requires:
             - check-connection
 jobs:
-  Check-conection:
+  check-conection:
     machine: true
     resource_class: gperalta-primehire/gperalta-self-hosted
     steps:
@@ -48,9 +48,7 @@ jobs:
             fi
             test "${code:0:1}" = "2"
 
-
-
-  Sync:
+  sync:
       machine: true
       resource_class: gperalta-primehire/gperalta-self-hosted
       steps:
