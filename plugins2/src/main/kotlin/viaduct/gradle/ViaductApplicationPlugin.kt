@@ -62,7 +62,6 @@ class ViaductApplicationPlugin : Plugin<Project> {
             isCanBeResolved = true
             attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION) }
         }
-        val artifacts = allPartitions.incoming.artifactView({}).files
 
         val generateCentralSchemaTask = tasks.register<Sync>("generateViaductCentralSchema") {
             group = "viaduct"

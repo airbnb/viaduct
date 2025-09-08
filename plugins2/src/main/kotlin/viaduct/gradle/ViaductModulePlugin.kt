@@ -1,6 +1,5 @@
 package viaduct.gradle
 
-import java.io.File
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
@@ -14,7 +13,6 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
-import org.gradle.kotlin.dsl.create
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 
 open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
@@ -30,14 +28,13 @@ class ViaductModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit = with(project) {
         // Create module extension
         val moduleExt = extensions.create("viaductModule", ViaductModuleExtension::class.java, objects)
-        
+
         // If we've been applied inside the viaduct-application plugin, then we want a default of "",
         // but if it's not in viaduct-application then there is no convention and needs to be set
         // explicitly
         pluginManager.withPlugin("viaduct-application") {
             moduleExt.modulePackageSuffix.convention("")
         }
-
         // Create Configurations
         val schemaPartitionCfg = configurations.create(ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING).apply {
             description = "Consumable configuration containing the module's schema partition (aka, 'local schema')."
@@ -48,14 +45,14 @@ class ViaductModulePlugin : Plugin<Project> {
             }
         }
 
-        val centralSchemaIncomingCfg = configurations.create(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_INCOMING).apply {
-            description = "Resolvable configuration for the central schema (used to generate resolver base classes)."
-            isCanBeConsumed = false
-            isCanBeResolved = true
-            attributes {
-                attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA)
+        val centralSchemaIncomingCfg =
+            configurations.create(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_INCOMING).apply {
+                description = "Resolvable configuration for the central schema (used to generate resolver base classes)."isCanBeConsumed = false
+                isCanBeResolved = true
+                attributes {
+                    attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA)
+                }
             }
-        }
 
         val grtIncomingCfg = configurations.create(ViaductPluginCommon.Configs.GRT_CLASSES_INCOMING).apply {
             description = "Resolvable configuration for the GRT jar file."
@@ -67,7 +64,10 @@ class ViaductModulePlugin : Plugin<Project> {
                 // These will make us more friendly to IDEs and other tools
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
                 attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
-                attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements::class.java, LibraryElements.JAR))
+                attribute(
+                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                    objects.named(LibraryElements::class.java, LibraryElements.JAR)
+                )
             }
         }
 
@@ -128,13 +128,7 @@ class ViaductModulePlugin : Plugin<Project> {
             val kotlinExt = extensions.getByType(KotlinJvmProjectExtension::class.java)
 
             kotlinExt.sourceSets.named("main") {
-                kotlin.srcDir(resolverBasesDir)
-            }
-
-            // Make Kotlin compilation depend on resolver base generation
-            // TODO - is there a better way to do this?
-            tasks.named("compileKotlin") {
-                dependsOn(generateResolverBasesTask)
+                kotlin.srcDir(generateResolverBasesTask.map { it.outputs.files })
             }
         }
     }
@@ -185,7 +179,7 @@ class ViaductModulePlugin : Plugin<Project> {
     ): TaskProvider<JavaExec> {
         // Build a FileCollection from the plugin's classloader URLs (includes plugin impl deps like :tenant:codegen)
         val pluginClasspath = files(ViaductPluginCommon.getClassPathElements(this@ViaductModulePlugin::class.java))
-        
+
         val generateResolverBasesTask = tasks.register<JavaExec>("generateViaductResolverBases") {
             group = "viaduct"
             description = "Generate resolver base Kotlin sources from central schema and module partition."
