@@ -1,5 +1,6 @@
 package viaduct.gradle
 
+import centralSchemaDirectoryName
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
@@ -14,6 +15,8 @@ import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
+import resolverBasesDirectory
+import schemaPartitionDirectory
 
 open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
     /** Kotlin package name suffix for this module (may be empty). */
@@ -71,12 +74,9 @@ class ViaductModulePlugin : Plugin<Project> {
             }
         }
 
-        // Create a Provider for intra-gradle-project wiring
-        val resolverBasesDir = layout.buildDirectory.dir("viaduct/resolverBases")
-
-        // Create Tasks  
+        // Create Tasks
         prepareSchemaPartitionTask(moduleExt, schemaPartitionCfg)
-        val generateResolverBasesTask = generateResolverBasesTask(moduleExt, centralSchemaIncomingCfg, resolverBasesDir)
+        val generateResolverBasesTask = generateResolverBasesTask(moduleExt, centralSchemaIncomingCfg, resolverBasesDirectory())
 
         // Register Configurations (between this gradle project the viaduct-application project.
         rootProject.pluginManager.withPlugin("viaduct-application") {
@@ -138,7 +138,6 @@ class ViaductModulePlugin : Plugin<Project> {
         schemaPartitionCfg: Configuration,
     ): TaskProvider<*> {
         val graphqlSrcDir: Directory = layout.projectDirectory.dir("src/main/viaduct/schema")
-        val partitionDstDir = layout.buildDirectory.dir("viaduct/schemaPartition")
 
         // Our codegen tools use the directory path of schema files to determine which module it
         // belongs to.  This imposes a restriction on our build tools include the
@@ -155,7 +154,7 @@ class ViaductModulePlugin : Plugin<Project> {
 
         // Copy whatever exists into a normalized partition directory, under the computed prefix
         val prepareSchemaPartitionTask = tasks.register<Sync>("prepareViaductSchemaPartition") {
-            into(partitionDstDir) // Overall destination
+            into(schemaPartitionDirectory()) // Overall destination
 
             val prefixPath = prefixPathProvider.get()
             from(graphqlSrcDir) {
@@ -165,7 +164,7 @@ class ViaductModulePlugin : Plugin<Project> {
             includeEmptyDirs = false
         }
 
-        schemaPartitionCfg.outgoing.artifact(partitionDstDir) {
+        schemaPartitionCfg.outgoing.artifact(schemaPartitionDirectory()) {
             builtBy(prepareSchemaPartitionTask)
         }
 
@@ -222,7 +221,7 @@ class ViaductModulePlugin : Plugin<Project> {
                     "--tenant_package_prefix", pkgPrefix,
                     "--tenant_pkg", pkg,
                     "--resolver_generated_directory", resolverBasesDirPath,
-                    "--tenant_from_source_name_regex", "viaduct/centralSchema/partition/(.*)/graphql",
+                    "--tenant_from_source_name_regex", "$centralSchemaDirectoryName/partition/(.*)/graphql",
                 )
             }
         }
