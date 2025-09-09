@@ -97,7 +97,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
 
         val generateGRTClassesTask = tasks.register<JavaExec>("generateViaductGRTClassFiles") {
             // Make sure central schema exists first
-            dependsOn(generateCentralSchemaTask) // TODO - I think we can remove if we have a dedicated task
+            dependsOn(generateCentralSchemaTask) // TODO: we need a dedicated task where the central schema files are inputs we can properly wire in
 
             inputs.dir(centralSchemaDir).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("viaductCentralSchemaDir")
             outputs.dir(grtClassesDirectory()).withPropertyName("viaductGRTClassesDir")
