@@ -1,0 +1,62 @@
+version: 2.1
+
+parameters:
+  src_repo:
+    type: string
+    default: "github.com/airbnb/viaduct.git"
+  dst_repo:
+    type: string
+    default: "github.com/viaduct-graphql/startwars.git"
+  gh_repo:
+    type: string
+    default: "viaduct-graphql/startwars-copybara"
+  workflow_file:
+    type: string
+    default: "copybara-sync-starwars.yml"
+
+jobs:
+  check_and_trigger:
+    docker:
+      - image: cimg/base:stable
+    environment:
+      SRC_DIR: "source"
+      DST_DIR: "target"
+      SRC_SUBPATH: "demoapps/starwars"
+    steps:
+      - run:
+          name: Clone repositories
+          command: |
+            git clone --depth=1 "https://viaductbot:${GH_PAT}@<< pipeline.parameters.src_repo >>" "$SRC_DIR"
+            git clone --depth=1 "https://viaductbot:${GH_PAT}@<< pipeline.parameters.dst_repo >>" "$DST_DIR"
+            rm -rf "$DST_DIR/.git" "$DST_DIR/.github"
+      - run:
+          name: Calculate hashes
+          command: |
+            SRC_HASH=$(cd "$SRC_DIR/$SRC_SUBPATH" && find . -type f ! -path './.git/*' ! -path './.github/*' -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')
+            DST_HASH=$(cd "$DST_DIR" && find . -type f ! -path './.git/*' ! -path './.github/*' -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')
+            echo "SRC_HASH=$SRC_HASH" > /tmp/shas
+            echo "DST_HASH=$DST_HASH" >> /tmp/shas
+      - run:
+          name: Show hashes
+          command: |
+            cat /tmp/shas
+      - run:
+          name: Trigger GitHub workflow if different 
+          command: |
+            source /tmp/shas
+            if [ "$SRC_HASH" != "$DST_HASH" ]; then
+              echo "Differences detected, triggering workflow..."
+              curl -sS -X POST \
+                -H "Authorization: Bearer ${GH_PAT}" \
+                -H "Accept: application/vnd.github+json" \
+                -H "Content-Type: application/json" \
+                "https://api.github.com/repos/<< pipeline.parameters.gh_repo >>/actions/workflows/<< pipeline.parameters.workflow_file >>/dispatches" \
+                -d '{"ref":"main"}'
+            else
+              echo "No changes detected."
+            fi
+
+workflows:
+  search_changes_and_trigger:
+    jobs:
+      - check_and_trigger
