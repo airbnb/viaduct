@@ -1,7 +1,6 @@
 package viaduct.gradle
 
 import centralSchemaDirectory
-import centralSchemaDirectoryName
 import grtClassesDirectory
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -15,9 +14,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
-import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.register
-import org.gradle.language.jvm.tasks.ProcessResources
 
 open class ViaductApplicationExtension(objects: org.gradle.api.model.ObjectFactory) {
     /** Kotlin package name for generated GRT classes. */
@@ -131,7 +128,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
             includeEmptyDirs = false
 
             dependsOn(generateGRTClassesTask) // TODO - I think we can remove if we have a dedicated task
-            from(grtClassesDir) // class files
+            from(grtClassesDirectory()) // class files
 
             dependsOn(generateCentralSchemaTask) // TODO - I think we can remove if we have a dedicated task
             from(centralSchemaDir) { // central schema is in GRT file (for now) - supports testing use case

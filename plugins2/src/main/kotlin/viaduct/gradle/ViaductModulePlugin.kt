@@ -50,7 +50,8 @@ class ViaductModulePlugin : Plugin<Project> {
 
         val centralSchemaIncomingCfg =
             configurations.create(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_INCOMING).apply {
-                description = "Resolvable configuration for the central schema (used to generate resolver base classes)."isCanBeConsumed = false
+                description = "Resolvable configuration for the central schema (used to generate resolver base classes)."
+                isCanBeConsumed = false
                 isCanBeResolved = true
                 attributes {
                     attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA)
