@@ -3,16 +3,17 @@ version: 2.1
 parameters:
   src_repo:
     type: string
-    default: "github.com/airbnb/viaduct.git"
+    default: "github.com/airbnb/viaduct.git" # Source repository
   dst_repo:
     type: string
-    default: "github.com/viaduct-graphql/startwars.git"
+    default: "github.com/viaduct-graphql/startwars.git" # Target repository
   gh_repo:
-    type: string
-    default: "viaduct-graphql/startwars"
+    type: string 
+    default: "viaduct-graphql/startwars" # GH Action repo
   workflow_file:
     type: string
-    default: "copybara-sync-starwars.yml"
+    default: "copybara-sync-starwars.yml" # Pipeline name
+# Requirement: Create GH PAT and assing to environment variable GH_PAT 
 
 jobs:
   check_and_trigger:
