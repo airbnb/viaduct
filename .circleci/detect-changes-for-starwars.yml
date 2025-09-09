@@ -52,7 +52,7 @@ jobs:
                 -H "Accept: application/vnd.github+json" \
                 -H "Content-Type: application/json" \
                 "https://api.github.com/repos/<< pipeline.parameters.gh_repo >>/actions/workflows/<< pipeline.parameters.workflow_file >>/dispatches" \
-                -d '{"ref":"main"}'
+                -d '{"ref":"master"}'
             else
               echo "No changes detected."
             fi
