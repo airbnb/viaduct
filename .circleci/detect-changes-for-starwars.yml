@@ -9,7 +9,7 @@ parameters:
     default: "github.com/viaduct-graphql/starwars.git" # Target repository
   gh_repo:
     type: string 
-    default: "viaduct-graphql/startwars" # GH Action repo
+    default: "viaduct-graphql/starwars" # GH Action repo
   workflow_file:
     type: string
     default: "copybara-sync-starwars.yml" # Pipeline name
