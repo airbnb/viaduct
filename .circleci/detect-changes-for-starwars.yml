@@ -38,10 +38,6 @@ jobs:
             echo "SRC_HASH=$SRC_HASH" > /tmp/shas
             echo "DST_HASH=$DST_HASH" >> /tmp/shas
       - run:
-          name: Show hashes
-          command: |
-            cat /tmp/shas
-      - run:
           name: Trigger GitHub workflow if different 
           command: |
             source /tmp/shas
