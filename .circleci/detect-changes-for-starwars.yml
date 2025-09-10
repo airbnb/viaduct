@@ -6,7 +6,7 @@ parameters:
     default: "github.com/airbnb/viaduct.git" # Source repository
   dst_repo:
     type: string
-    default: "github.com/viaduct-graphql/startwars.git" # Target repository
+    default: "github.com/viaduct-graphql/starwars.git" # Target repository
   gh_repo:
     type: string 
     default: "viaduct-graphql/startwars" # GH Action repo
