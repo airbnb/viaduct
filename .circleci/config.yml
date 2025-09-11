@@ -21,9 +21,25 @@ commands:
       steps:
         type: steps
     steps:
-      - gradle/with_cache:
-          cache_key: "v1-{{ checksum \"build.gradle.kts\" }}-{{ checksum \"gradle/libs.versions.toml\" }}"
-          steps: << parameters.steps >>
+      - restore_cache:
+          name: "Restore Gradle Dependencies (Partial Caching)"
+          keys:
+            # Primary: Exact match on lock files and gradle version
+            - v5-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-{{ checksum "build.gradle.kts" }}
+            # Secondary: Match on lock files only (partial restore)
+            - v5-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-
+            # Tertiary: Match on gradle version only (basic restore)
+            - v5-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-
+            # Fallback: Any gradle cache for this architecture
+            - v5-gradle-deps-{{ arch }}-
+      - << parameters.steps >>
+      - save_cache:
+          name: "Save Gradle Dependencies Cache"
+          key: v5-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-{{ checksum "build.gradle.kts" }}
+          paths:
+            - ~/.gradle/caches
+            - ~/.gradle/wrapper
+            - .gradle
 
   fail-step:
     parameters:
