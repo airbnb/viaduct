@@ -98,8 +98,7 @@ There are three demo applications:
 
 - [cli-starter](https://github.com/airbnb/viaduct/blob/main/demoapps/cli-starter/) - the simplest possible starting point for a Viaduct application.
 - [spring-starter](https://github.com/airbnb/viaduct/blob/main/demoapps/spring-starter/README.md) - a simple integration of Viaduct with Spring.
-- [starwars](https://github.com/airbnb/viaduct/blob/main/demoapps/starwars/README.md) - a comprehensive demo of Viaduct's features
-  Viaduct.
+- [starwars](https://github.com/airbnb/viaduct/blob/main/demoapps/starwars/README.md) - a comprehensive demo of Viaduct's features.
 
 ## Development
 
