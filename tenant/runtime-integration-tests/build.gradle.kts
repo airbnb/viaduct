@@ -1,10 +1,15 @@
 plugins {
     id("conventions.kotlin")
+    id("jacoco-integration-tests")
     id("test-feature-app")
     id("conventions.kotlin-static-analysis")
 }
 
 viaductFeatureApp {}
+
+viaductIntegrationCoverage {
+    baseProject(":tenant:tenant-runtime")
+}
 
 sourceSets {
     named("main") {

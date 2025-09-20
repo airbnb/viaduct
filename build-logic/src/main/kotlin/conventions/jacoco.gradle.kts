@@ -10,8 +10,12 @@ jacoco {
     toolVersion = libs.findVersion("jacoco").get().toString()
 }
 
-tasks.named<Test>("test") {
-    finalizedBy(tasks.named("jacocoTestReport"))
+tasks.withType<Test>().configureEach {
+    // Recommended JaCoCo settings when running on JDK 17+
+    extensions.configure(JacocoTaskExtension::class) {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
 }
 
 tasks.named<JacocoReport>("jacocoTestReport") {
