@@ -8,7 +8,7 @@ plugins {
 viaductFeatureApp {}
 
 viaductIntegrationCoverage {
-    baseProject(":tenant:tenant-runtime")
+    baseProject(":core:tenant:tenant-runtime")
 }
 
 sourceSets {

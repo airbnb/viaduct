@@ -14,7 +14,6 @@ import org.gradle.testing.jacoco.tasks.JacocoReport
 import viaduct.gradle.internal.IntegrationCoverageExt
 
 private val FULL_REPORT_TASK_NAME = "jacocoFullCoverageReport"
-private val INCLUDED_BUILD_NAME = "core"
 
 val ext = extensions.create(
     "viaductIntegrationCoverage",
@@ -84,7 +83,7 @@ val unpackBaseSources by tasks.registering(Sync::class) {
     // However, configurations alone were not enough to force execution of the :sourcesJar task.
     // TODO - fix this (maybe a proper task subclass would fix this).
     dependsOn(providers.provider {
-        gradle.includedBuild(INCLUDED_BUILD_NAME).task("${ext.baseProjectPath.get()}:sourcesJar")
+        gradle.includedBuild(ext.includedBuildName.get()).task("${ext.baseProjectPath.get()}:sourcesJar")
     })
 }
 
