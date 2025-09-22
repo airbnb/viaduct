@@ -21,7 +21,6 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
-import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.kotlin.dsl.register
@@ -29,6 +28,7 @@ import org.gradle.process.CommandLineArgumentProvider
 import viaduct.gradle.ViaductPluginCommon.addViaductDependencies
 import viaduct.gradle.ViaductPluginCommon.addViaductTestFixtures
 import viaduct.gradle.ViaductPluginCommon.applyViaductBOM
+import viaduct.gradle.tasks.GenerateViaductCentralSchemaTask
 import viaduct.graphql.utils.DefaultSchemaProvider
 
 class ViaductApplicationPlugin : Plugin<Project> {
@@ -51,7 +51,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
                 }
             }
 
-            val generateCentralSchemaTask = generateCentralSchemaTask(centralSchemaDirectory())
+            val generateCentralSchemaTask = generateCentralSchemaTask()
             val generateGRTsTask = generateGRTsTask(
                 appExt = appExt,
                 centralSchemaDir = centralSchemaDirectory(),
@@ -62,7 +62,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
         }
 
     /** Synchronize all modules schema partition's into a single directory. */
-    private fun Project.generateCentralSchemaTask(centralSchemaDir: Provider<Directory>): TaskProvider<*> {
+    private fun Project.generateCentralSchemaTask(): TaskProvider<GenerateViaductCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {
             description = "Resolvable configuration where all viaduct-module plugins send their schema partitions."
             isCanBeConsumed = false
@@ -70,26 +70,20 @@ class ViaductApplicationPlugin : Plugin<Project> {
             attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION) }
         }
 
-        val generateCentralSchemaTask = tasks.register<Sync>("generateViaductCentralSchema") {
-            group = "viaduct"
-            description = "Collect schema files from all modules into a single directory."
-
-            into(centralSchemaDir)
-
-            // Bring in partitions under a stable prefix
-            from(allPartitions.incoming.artifactView {}.files) {
-                into("partition")
-                include("**/*.graphqls")
-            }
-
+        val generateCentralSchemaTask = tasks.register<GenerateViaductCentralSchemaTask>("generateViaductCentralSchema") {
             // Generate the base SDL file as a deterministic output (no project access at execution)
             // We set it up as part of the Sync's work inputs by precomputing content here.
             // The content is stable (no timestamps etc.).
-            doLast {
-                val baseFile = centralSchemaDir.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
-                val allSchemaFiles = centralSchemaDir.get().asFileTree.matching { include("**/*.graphqls") }.files
-                baseFile.writeText(DefaultSchemaProvider.getDefaultSDL(existingSDLFiles = allSchemaFiles.toList()))
-            }
+            val precomputedSdl = DefaultSchemaProvider.getSDL()
+//            doLast {
+//                val baseFile = centralSchemaDir.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
+//                val allSchemaFiles = centralSchemaDir.get().asFileTree.matching { include("**/*.graphqls") }.files
+//                baseFile.writeText(DefaultSchemaProvider.getDefaultSDL(existingSDLFiles = allSchemaFiles.toList()))
+//            }
+
+            schemaPartitions.setFrom(allPartitions.incoming.artifactView {}.files)
+            sdl.set(precomputedSdl)
+            outputDirectory.set(centralSchemaDirectory())
         }
 
         configurations.create(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING).apply {
@@ -102,7 +96,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
             isCanBeConsumed = true
             isCanBeResolved = false
             attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA) }
-            outgoing.artifact(centralSchemaDir) { builtBy(generateCentralSchemaTask) }
+            outgoing.artifact(generateCentralSchemaTask)
         }
 
         return generateCentralSchemaTask
@@ -216,6 +210,6 @@ class ViaductApplicationPlugin : Plugin<Project> {
 
     companion object {
         private const val CODEGEN_MAIN_CLASS = "viaduct.tenant.codegen.cli.SchemaObjectsBytecode\$Main"
-        private const val BUILTIN_SCHEMA_FILE = "BUILTIN_SCHEMA.graphqls"
+        const val BUILTIN_SCHEMA_FILE = "BUILTIN_SCHEMA.graphqls"
     }
 }
