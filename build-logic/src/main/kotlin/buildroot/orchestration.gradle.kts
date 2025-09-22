@@ -5,6 +5,7 @@
  *   - Creates local subproject aggregates (no cycles with root tasks):
  *       :orchestrationBuildAll         -> all subprojects' `build`
  *       :orchestrationCheckAll         -> all subprojects' `check`
+ *       :orchestrationCleanAll         -> all subprojects' `clean`
  *       :orchestrationTestAll          -> all subprojects' `Test` tasks
  *       :orchestrationPublishAllToMavenLocal
  *       :orchestrationPublishAllToMavenCentral
@@ -162,6 +163,11 @@ registerSubprojectAggregate(
     taskNames = setOf("check")
 )
 registerSubprojectAggregate(
+    aggregateName = "orchestrationCleanAll",
+    description = "[orchestration] Cleans all SUBPROJECTS in THIS build.",
+    taskNames = setOf("clean")
+)
+registerSubprojectAggregate(
     aggregateName = "orchestrationTestAll",
     description = "[orchestration] Tests all SUBPROJECTS in THIS build.",
     taskTypes = listOf(Test::class.java)
@@ -196,6 +202,12 @@ if (gradle.parent != null) {
         description = "Checks all subprojects in this included build."
     )
     aliasConventionalTaskToAggregate(
+        conventionalName = "clean",
+        aggregateName = "orchestrationCleanAll",
+        group = "build",
+        description = "Cleans all subprojects in this included build."
+    )
+    aliasConventionalTaskToAggregate(
         conventionalName = "test",
         aggregateName = "orchestrationTestAll",
         group = "verification",
@@ -228,6 +240,12 @@ if (gradle.parent == null) {
     ensureTask("check", "verification", "Runs checks across root and participating included builds.") {
         dependsOn(tasksNamedInSubprojects("check"))
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationCheckAll") })
+    }
+
+    // check: root subprojects + included builds' aggregate
+    ensureTask("clean", "build", "Runs clean across root and participating included builds.") {
+        dependsOn(tasksNamedInSubprojects("clean"))
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationCleanAll") })
     }
 
     // test: root subprojects' Test tasks + included builds' aggregate
