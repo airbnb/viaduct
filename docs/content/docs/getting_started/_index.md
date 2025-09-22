@@ -83,7 +83,7 @@ plugins {
 }
 ```
 
-You can see the two Viaduct plugins appearing here.  Viaduct applications are structured as multi-project Gradle builds.  The root project must contain the _application_ plugin shown above: this plugin coordinates certain build processes across the engine application.  In addition, one or more projects also apply the _module_ plugin, which indicates that that project contains application code (in our case, the code found in `HelloWorldResolvers.kt`).  As this example shows, a Viaduct application can be as simple as a single project build, in which case both plugins are applied to taht one project.
+You can see the two Viaduct plugins appearing here.  Viaduct applications are structured as multi-project Gradle builds.  The root project must contain the _application_ plugin shown above: this plugin coordinates certain build processes across the engine application.  In addition, one or more projects also apply the _module_ plugin, which indicates that that project contains application code (in our case, the code found in `HelloWorldResolvers.kt`).  As this example shows, a Viaduct application can be as simple as a single project build, in which case both plugins are applied to that one project.
 
 ## Extending the Application
 
