@@ -1,6 +1,3 @@
-import com.vanniktech.maven.publish.GradlePublishPlugin
-import org.gradle.kotlin.dsl.get
-
 plugins {
     `kotlin-dsl`
     id("conventions.kotlin")

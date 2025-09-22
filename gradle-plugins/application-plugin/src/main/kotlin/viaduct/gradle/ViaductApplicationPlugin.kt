@@ -2,33 +2,21 @@ package viaduct.gradle
 
 import centralSchemaDirectory
 import grtClassesDirectory
-import java.io.File
-import javax.inject.Inject
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.Directory
-import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.FileTree
-import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputFiles
-import org.gradle.api.tasks.JavaExec
-import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.PathSensitive
-import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.kotlin.dsl.register
-import org.gradle.process.CommandLineArgumentProvider
 import viaduct.gradle.ViaductPluginCommon.addViaductDependencies
 import viaduct.gradle.ViaductPluginCommon.addViaductTestFixtures
 import viaduct.gradle.ViaductPluginCommon.applyViaductBOM
 import viaduct.gradle.tasks.GenerateViaductCentralSchemaTask
+import viaduct.gradle.tasks.GenerateViaductGRTClassFilesTask
 import viaduct.graphql.utils.DefaultSchemaProvider
 
 class ViaductApplicationPlugin : Plugin<Project> {
@@ -70,21 +58,22 @@ class ViaductApplicationPlugin : Plugin<Project> {
             attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION) }
         }
 
-        val generateCentralSchemaTask = tasks.register<GenerateViaductCentralSchemaTask>("generateViaductCentralSchema") {
-            // Generate the base SDL file as a deterministic output (no project access at execution)
-            // We set it up as part of the Sync's work inputs by precomputing content here.
-            // The content is stable (no timestamps etc.).
-            val precomputedSdl = DefaultSchemaProvider.getSDL()
+        val generateCentralSchemaTask =
+            tasks.register<GenerateViaductCentralSchemaTask>("generateViaductCentralSchema") {
+                // Generate the base SDL file as a deterministic output (no project access at execution)
+                // We set it up as part of the Sync's work inputs by precomputing content here.
+                // The content is stable (no timestamps etc.).
+                val precomputedSdl = DefaultSchemaProvider.getSDL()
 //            doLast {
 //                val baseFile = centralSchemaDir.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
 //                val allSchemaFiles = centralSchemaDir.get().asFileTree.matching { include("**/*.graphqls") }.files
 //                baseFile.writeText(DefaultSchemaProvider.getDefaultSDL(existingSDLFiles = allSchemaFiles.toList()))
 //            }
 
-            schemaPartitions.setFrom(allPartitions.incoming.artifactView {}.files)
-            sdl.set(precomputedSdl)
-            outputDirectory.set(centralSchemaDirectory())
-        }
+                schemaPartitions.setFrom(allPartitions.incoming.artifactView {}.files)
+                sdl.set(precomputedSdl)
+                outputDirectory.set(centralSchemaDirectory())
+            }
 
         configurations.create(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING).apply {
             description = """
@@ -102,71 +91,20 @@ class ViaductApplicationPlugin : Plugin<Project> {
         return generateCentralSchemaTask
     }
 
-    /** Command line args for GRT bytecode generation, config-cache friendly. */
-    abstract class GrtArgs
-        @Inject
-        constructor(
-            private val objects: org.gradle.api.model.ObjectFactory
-        ) : CommandLineArgumentProvider {
-            @get:PathSensitive(PathSensitivity.RELATIVE)
-            @get:InputFiles
-            abstract val schemaFiles: ConfigurableFileCollection
-
-            @get:Input
-            abstract val grtPackageName: Property<String>
-
-            @get:OutputDirectory
-            abstract val outputDir: DirectoryProperty
-
-            override fun asArguments(): Iterable<String> {
-                val schemaCsv = schemaFiles.files.map(File::getAbsolutePath).sorted().joinToString(",")
-                return listOf(
-                    "--schema_files",
-                    schemaCsv,
-                    "--pkg_for_generated_classes",
-                    grtPackageName.get(),
-                    "--generated_directory",
-                    outputDir.get().asFile.absolutePath
-                )
-            }
-        }
-
     /** Call the bytecode-generator to generate GRT files. */
     private fun Project.generateGRTsTask(
         appExt: ViaductApplicationExtension,
-        centralSchemaDir: Provider<Directory>,
-        generateCentralSchemaTask: TaskProvider<*>,
+        centralSchemaDir: Provider<Directory>, // TODO: remove
+        generateCentralSchemaTask: TaskProvider<GenerateViaductCentralSchemaTask>,
     ): TaskProvider<Jar> {
         val pluginClasspath = files(ViaductPluginCommon.getClassPathElements(this@ViaductApplicationPlugin::class.java))
 
-        // Build a file collection for all schema files inside the central schema dir (no project access at execution)
-        val centralSchemaFiles: Provider<FileTree> =
-            centralSchemaDir.map { dir ->
-                // Use Directory API to avoid Task.project at execution
-                dir.asFileTree.matching { include("**/*.graphqls") }
-            }
-
-        val generateGRTClassesTask = tasks.register<JavaExec>("generateViaductGRTClassFiles") {
-            // No group: don't want this to appear in task list
-            description = "Generate compiled GRT class files from the central schema."
-
-            dependsOn(generateCentralSchemaTask)
-
-            // Inputs/outputs are declared via the args provider as well as outputs below
-            outputs.dir(grtClassesDirectory()).withPropertyName("viaductGRTClassesDir")
-
+        val generateGRTClassesTask = tasks.register<GenerateViaductGRTClassFilesTask>("generateViaductGRTClassFiles") {
+            grtClassesDirectory.set(grtClassesDirectory())
+            schemaFiles.setFrom(generateCentralSchemaTask.flatMap { it.outputDirectory.map { dir -> dir.asFileTree.matching { include("**/*.graphqls") }.files } })
+            grtPackageName.set(appExt.grtPackageName)
             classpath = pluginClasspath
             mainClass.set(CODEGEN_MAIN_CLASS)
-
-            // Use a typed, cache-safe argument provider
-            argumentProviders.add(
-                objects.newInstance(GrtArgs::class.java).apply {
-                    // Add the files from the provider without touching project at execution
-                    schemaFiles.from(centralSchemaFiles)
-                    grtPackageName.set(appExt.grtPackageName)
-                    outputDir.set(grtClassesDirectory())
-                }
-            )
         }
 
         val generateGRTsTask = tasks.register<Jar>("generateViaductGRTs") {
@@ -188,14 +126,18 @@ class ViaductApplicationPlugin : Plugin<Project> {
         }
 
         configurations.create(ViaductPluginCommon.Configs.GRT_CLASSES_OUTGOING).apply {
-            description = "Consumable configuration for the jar file containing the GRT classes plus the central schema's graphqls file."
+            description =
+                "Consumable configuration for the jar file containing the GRT classes plus the central schema's graphqls file."
             isCanBeConsumed = true
             isCanBeResolved = false
             attributes {
                 attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.GRT_CLASSES)
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
                 attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
-                attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements::class.java, LibraryElements.JAR))
+                attribute(
+                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                    objects.named(LibraryElements::class.java, LibraryElements.JAR)
+                )
             }
             outgoing.artifact(generateGRTsTask.flatMap { it.archiveFile })
         }
