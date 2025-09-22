@@ -1,5 +1,5 @@
 plugins {
-    id("kotlin-project-without-tests")
+    id("conventions.kotlin-without-tests")
     id("test-tenant")
 }
 

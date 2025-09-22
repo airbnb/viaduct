@@ -1,5 +1,6 @@
 ![CircleCI](https://img.shields.io/circleci/build/github/airbnb/viaduct)
-![Maven Central Version](https://img.shields.io/maven-central/v/com.airbnb.viaduct/runtime)
+![Maven Central Version](https://img.shields.io/maven-central/v/com.airbnb.viaduct/bom)
+![Gradle Plugin Portal Version](https://img.shields.io/gradle-plugin-portal/v/com.airbnb.viaduct.application-gradle-plugin)
 
 <p align="center">
   <a href="https://airbnb.io/viaduct">
@@ -30,78 +31,31 @@ This vision embodies our commitment to creating a thriving open source project t
 
 ## Getting Started
 
-Using a set of scripts bundled with the Viaduct release, this document will walk you through the process of running a very simple Viaduct application.  Viaduct comes with built-in, Gradle-based tooling for building, testing, and running your sample application.  This guide uses that tooling and assumes a basic familiarity with Gradle.
+To get you started with Viaduct, we have a created a number of small demonstration applications you can play with.  You can find these at [github.com/viaduct-graphql](https://github.com/viaduct-graphql).  To get started with the simplest of these, make a local clone of the [CLI starter](https://github.com/viaduct-graphql/cli-starter):
 
-### System Requirements
-
-Java 21 must be on the path or available via `JAVA_HOME`.
-
-### Running the Simple Application
-
-Viaduct comes with a number of demonstration applications you can find in the `demoapps` directory.  Let’s start with the `demoapps/cli-starter` application.  Change into that directory and type:
-
-```
-./gradlew -q run --args="'{ author }'"
+```shell
+git clone https://github.com/viaduct-graphql/cli-starter.git
 ```
 
-This command will build the simple application run a graphql query with Viaduct.
+In the root of that cloned repo, type:
 
-### Using Viaduct in your own application
+```shell
+./gradlew -q run --args="'{ greeting }'"
+```
 
-Currently, Viaduct is only published to Maven Central as snapshot versions. To use Viaduct in your own application, add the following to your `build.gradle.kts` file:
+and you should see:
 
-```kotlin
-plugins {
-  id("com.airbnb.viaduct.application-gradle-plugin") version "0.2.0-SNAPSHOT"
-}
-
-
-repositories {
-  maven {
-    name = "Central Portal Snapshots"
-    url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-
-    // Only search this repository for the specific dependency
-    content {
-      includeModule("com.airbnb.viaduct", "runtime")
-    }
+```shell
+{
+  "data" : {
+    "greeting" : "Hello, World!"
   }
-  mavenCentral()
-}
-
-dependencies {
-  implementation("com.airbnb.viaduct:runtime:0.2.0-SNAPSHOT")
 }
 ```
 
-And add the following to your `settings.gradle.kts` file:
+To continue on from here, see our [Getting Started](https://airbnb.io/viaduct/docs/getting_started/) guide.
 
-```kotlin
-pluginManagement {
-    plugins {
-        id("com.airbnb.viaduct.application-gradle-plugin") version "0.2.0-SNAPSHOT"
-        id("com.airbnb.viaduct.module-gradle-plugin") version "0.2.0-SNAPSHOT"
-    }
-    repositories {
-        mavenLocal()
-        gradlePluginPortal()
-        maven {
-            name = "Central Portal Snapshots"
-            url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-        }
-    }
-}
-```
-
-### Going further
-
-There are three demo applications:
-
-- [cli-starter](https://github.com/airbnb/viaduct/blob/main/demoapps/cli-starter/) - the simplest possible starting point for a Viaduct application.
-- [spring-starter](https://github.com/airbnb/viaduct/blob/main/demoapps/spring-starter/README.md) - a simple integration of Viaduct with Spring.
-- [starwars](https://github.com/airbnb/viaduct/blob/main/demoapps/starwars/README.md) - a comprehensive demo of Viaduct's features.
-
-## Development
+## Contributing
 
 Learn about development for Viaduct:
 
@@ -109,20 +63,6 @@ Learn about development for Viaduct:
 * [Security policy](SECURITY.md)
 
 Further information in the [contribution guide](CONTRIBUTING.md) includes different roles, like contributors, reviewers, and maintainers, related processes, and other aspects.
-
-### Publishing to Sonatype
-
-From the `plugins` directory:
-
-```shell
-./gradlew publishPlugins --no-configuration-cache
-```
-
-From the root directory:
-
-```shell
-./gradlew :runtime:publishAllPublicationsToSonatypeRepository :runtime:publishSonatypeDeployment --no-configuration-cache
-```
 
 ## Security
 

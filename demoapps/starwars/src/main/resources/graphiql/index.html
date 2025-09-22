@@ -33,6 +33,8 @@
       rel="stylesheet"
       href="https://esm.sh/@graphiql/plugin-explorer/dist/style.css"
     />
+    <!-- Babel standalone for JSX transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <!--
      * Note:
      * The ?standalone flag bundles the module along with all of its `dependencies`, excluding `peerDependencies`, into a single JavaScript file.
@@ -64,17 +66,37 @@
       import { GraphiQL, HISTORY_PLUGIN } from 'graphiql';
       import { createGraphiQLFetcher } from '@graphiql/toolkit';
       import { explorerPlugin } from '@graphiql/plugin-explorer';
+      import { loadJSX } from '/js/jsx-loader.js';
       import 'graphiql/setup-workers/esm.sh';
 
       const fetcher = createGraphiQLFetcher({
         url: '/graphql',
       });
 
-      // Create explorer plugin and set it as the visible plugin to open by default
-      const explorer = explorerPlugin();
-      const plugins = [HISTORY_PLUGIN, explorer];
+      // Load JSX plugin and initialize
+      async function initializeGraphiQL() {
+        try {
+          const pluginModule = await loadJSX('/js/global-id-plugin.jsx');
+          const createGlobalIdPlugin = pluginModule.createGlobalIdPlugin;
 
-      const defaultQuery = `
+          // Create plugins
+          const explorer = explorerPlugin();
+          const globalIdPlugin = createGlobalIdPlugin(React);
+          const plugins = [HISTORY_PLUGIN, explorer, globalIdPlugin];
+
+          // Initialize GraphiQL with plugins
+          renderGraphiQL(plugins);
+        } catch (error) {
+          console.error('Failed to load JSX plugin:', error);
+          // Fallback: render GraphiQL without the global ID plugin
+          const explorer = explorerPlugin();
+          const plugins = [HISTORY_PLUGIN, explorer];
+          renderGraphiQL(plugins);
+        }
+      }
+
+      function renderGraphiQL(plugins) {
+        const defaultQuery = `
 
 query GetNode {
   node(id: "Q2hhcmFjdGVyOjE=") {
@@ -93,19 +115,24 @@ query GetNode {
 
 `;
 
-      function App() {
-        return React.createElement(GraphiQL, {
-          fetcher,
-          plugins,
-          visiblePlugin: explorer, // Open explorer by default
-          defaultQuery,
-          defaultEditorToolsVisibility: true,
-        });
+        function App() {
+          const explorer = plugins.find(p => p.title === 'Explorer');
+          return React.createElement(GraphiQL, {
+            fetcher,
+            plugins,
+            visiblePlugin: explorer, // Open explorer by default
+            defaultQuery,
+            defaultEditorToolsVisibility: true,
+          });
+        }
+
+        const container = document.getElementById('graphiql');
+        const root = ReactDOM.createRoot(container);
+        root.render(React.createElement(App));
       }
 
-      const container = document.getElementById('graphiql');
-      const root = ReactDOM.createRoot(container);
-      root.render(React.createElement(App));
+      // Initialize the application
+      initializeGraphiQL();
     </script>
   </head>
   <body>

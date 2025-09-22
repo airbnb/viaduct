@@ -2,8 +2,8 @@ plugins {
     `java-library`
     `maven-publish`
     `java-test-fixtures`
-    id("kotlin-static-analysis")
-    id("kotlin-project")
+    id("conventions.kotlin-static-analysis")
+    id("conventions.kotlin")
     signing
 }
 

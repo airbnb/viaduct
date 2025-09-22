@@ -27,12 +27,12 @@ The server will start on `http://localhost:8080`
 With the server running, you can use the following `curl` command to send graphql queries:
 
 ```bash
-curl 'http://localhost:8080/graphql' -H 'content-type: application/json' --data-raw '{"query":"{ helloWorld }"}'
+curl 'http://localhost:8080/graphql' -H 'content-type: application/json' --data-raw '{"query":"{ greeting }"}'
 ```
 
 You should see the following output:
 ```json
-{"data":{"helloWorld":"Hello World!"}}
+{"data":{"greeting":"Hello World!"}}
 ```
 
 #### GraphiQL
@@ -45,7 +45,7 @@ Then, run the following query
 
 ```graphql
 query HelloWorld {
-  helloWorld
+  greeting
 }
 ```
 
@@ -53,8 +53,8 @@ You should see this response
 
 ```
 {
-  "data" {
-    "helloWorld": "Hello World!"
+  "data": {
+    "greeting": "Hello, World!"
   }
 }
 ```

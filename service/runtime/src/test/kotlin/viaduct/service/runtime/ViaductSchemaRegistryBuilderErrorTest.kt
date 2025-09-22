@@ -82,7 +82,7 @@ class ViaductSchemaRegistryBuilderErrorTest {
             .withFullSchemaFromSdl(invalidSchema)
 
         // Should throw SchemaProblem, not IllegalStateException
-        val exception = assertThrows<graphql.schema.idl.errors.SchemaProblem> {
+        assertThrows<SchemaProblem> {
             builder.build(mockCoroutineInterop)
         }
     }

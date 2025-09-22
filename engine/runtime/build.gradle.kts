@@ -1,8 +1,8 @@
 plugins {
-    id("kotlin-project")
+    id("conventions.kotlin")
     id("me.champeau.jmh").version("0.7.3")
     `java-test-fixtures`
-    id("kotlin-static-analysis")
+    id("conventions.kotlin-static-analysis")
 }
 
 viaductPublishing {

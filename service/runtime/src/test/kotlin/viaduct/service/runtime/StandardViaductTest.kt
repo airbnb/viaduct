@@ -320,6 +320,10 @@ class StandardViaductTest {
                 extend type Query @scope(to: ["scope2"]) {
                   field2: String
                 }
+
+                type Foo implements Node @scope(to: ["*"]) { # Ensure Query.node/s get created
+                  id: ID!
+                }
             """.trimIndent()
         )
 

@@ -3,6 +3,7 @@ package viaduct.api.internal
 import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
 import java.lang.reflect.InvocationTargetException
+import java.util.Locale.getDefault
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -209,7 +210,7 @@ class InputLikeBaseTest {
     fun `test arguments type`() {
         val argumentName = "O2_ArgumentedField_Arguments"
         val typeName = argumentName.split("_").first()
-        val fieldName = argumentName.split("_")[1].decapitalize()
+        val fieldName = argumentName.split("_")[1].replaceFirstChar { it.lowercase(getDefault()) }
         val arguments = gqlSchema.schema.getObjectType(typeName).getField(fieldName).arguments
         val fields = arguments.map {
             val builder = GraphQLInputObjectField.Builder()

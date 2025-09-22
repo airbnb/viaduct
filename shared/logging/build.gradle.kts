@@ -1,6 +1,6 @@
 plugins {
-    id("kotlin-project-without-tests")
-    id("kotlin-static-analysis")
+    id("conventions.kotlin-without-tests")
+    id("conventions.kotlin-static-analysis")
 }
 
 dependencies {

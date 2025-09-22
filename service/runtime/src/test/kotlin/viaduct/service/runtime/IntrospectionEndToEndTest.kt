@@ -2,7 +2,6 @@
 
 package viaduct.service.runtime
 
-import graphql.schema.idl.RuntimeWiring
 import io.mockk.mockk
 import kotlin.test.assertEquals
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,8 +25,6 @@ class IntrospectionEndToEndTest {
         override fun isEnabled(flag: Flag) = true
     }
 
-    val wiring = RuntimeWiring.MOCKED_WIRING // TODO: Replace with injected OSS/modern-only wiring
-
     val sdl =
         """
         extend type Query @scope(to: ["publicScope"]) {
@@ -36,6 +33,10 @@ class IntrospectionEndToEndTest {
 
         extend type Query @scope(to: ["unregisteredScope"]) {
           scopeUnregisteredQuery: String @resolver
+        }
+
+        type Foo implements Node @scope(to: ["*"]) { # Ensure Query.node/s get created
+          id: ID!
         }
         """
 
@@ -143,6 +144,7 @@ class IntrospectionEndToEndTest {
             val queries = (result.toSpecification()["data"] as Map<*, *>).let { data ->
                 (data["__schema"] as Map<*, *>).let { schema ->
                     (schema["types"] as List<*>).let { types ->
+                        @Suppress("UNCHECKED_CAST")
                         val queryType = types.find { (it as? Map<String, Any?>)?.get("name") == "Query" }
                         (queryType as Map<*, *>).let { queries ->
                             (queries["fields"] as List<*>).let { fields ->

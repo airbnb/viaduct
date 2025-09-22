@@ -1,10 +1,10 @@
 plugins {
     `java-library`
-    id("kotlin-project")
+    id("conventions.kotlin")
     `maven-publish`
     `java-test-fixtures`
-    id("kotlin-static-analysis")
-    id("dokka")
+    id("conventions.kotlin-static-analysis")
+    id("conventions.dokka")
 }
 
 viaductPublishing {
@@ -37,11 +37,3 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.strikt.core)
 }
-
-// afterEvaluate {
-//     // TODO: a hack for the sake of this dependency-analysis task...
-//     tasks.named("explodeCodeSourceTest") {
-//         dependsOn(tasks.named("generateApischemaSchemaObjects"))
-//         dependsOn(tasks.named("generateApischemaTenant"))
-//     }
-// }

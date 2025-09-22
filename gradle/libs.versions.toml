@@ -39,7 +39,7 @@ dependency-analysis = "1.33.0"
 jacoco = "0.8.11"
 dokka = "2.0.0"
 gradle-maven-publish = "0.34.0"
-gradle-enterprise = "3.19.2"
+develocity = "3.19.2"
 foojay-resolver-convention = "1.0.0"
 
 [plugins]
@@ -50,7 +50,7 @@ dependency-analysis = { id = "com.autonomousapps.dependency-analysis", version.r
 jacoco = { id = "jacoco", version.ref = "jacoco" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 gradle-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "gradle-maven-publish" }
-gradle-enterprise = { id = "com.gradle.develocity", version.ref = "gradle-enterprise" }
+develocity = { id = "com.gradle.develocity", version.ref = "develocity" }
 foojay-resolver-convention = { id = "org.gradle.toolchains.foojay-resolver-convention", version.ref = "foojay-resolver-convention" }
 
 [libraries]

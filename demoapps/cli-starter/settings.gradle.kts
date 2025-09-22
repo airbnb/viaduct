@@ -1,5 +1,3 @@
-rootProject.name = "viaduct-cli-starter"
-
 val viaductVersion: String by settings
 
 dependencyResolutionManagement {

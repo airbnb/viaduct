@@ -157,6 +157,17 @@ class ViaductModulePlugin : Plugin<Project> {
                     kotlin.srcDir(generateResolverBasesTask.map { it.outputs.files })
                 }
             }
+
+            // Convenience task for module-level codegen
+            tasks.register("viaductCodegen") {
+                group = "viaduct"
+                description = "Run Viaduct code generation for this module (GRTs + resolver bases)"
+
+                dependsOn(generateResolverBasesTask)
+
+                // Express GRT dependency via configuration files (config-cache safe)
+                inputs.files(grtIncomingCfg.incoming.files).withPropertyName("grtClasses").optional(false)
+            }
         }
 
     private fun Project.prepareSchemaPartitionTask(
@@ -171,7 +182,7 @@ class ViaductModulePlugin : Plugin<Project> {
         }
 
         val prepareSchemaPartitionTask = tasks.register<Sync>("prepareViaductSchemaPartition") {
-            group = "viaduct"
+            // No group: don't want this to appear in task list
             description = "Prepare this module's schema partition."
 
             into(schemaPartitionDirectory())

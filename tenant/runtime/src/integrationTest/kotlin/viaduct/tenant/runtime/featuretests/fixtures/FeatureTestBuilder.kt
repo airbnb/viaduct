@@ -149,7 +149,7 @@ class FeatureTestBuilder {
 
         val objectSelections = objectValueFragment?.let { SelectionsParser.parse(coordinate.first, it) }
         val querySelections = queryValueFragment?.let {
-            val sdl = checkNotNull(this.sdl) {
+            checkNotNull(this.sdl) {
                 "Cannot set queryValueFragment before setting sdl"
             }
             SelectionsParser.parse("Query", it)

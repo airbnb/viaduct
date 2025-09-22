@@ -194,7 +194,8 @@ class ViaductSchemaRegistryAndBuilderTest {
     @Test
     fun `default schema test - full integration test with FromSdl factory`() {
         val sdl = """
-            type User {
+            type User implements Node {
+              id: ID!
               name: String
             }
 
@@ -310,8 +311,10 @@ class ViaductSchemaRegistryAndBuilderTest {
         assertNotNull(schema.schema.getDirective("backingData"), "Schema should contain @backingData directive")
         assertNotNull(schema.schema.getDirective("scope"), "Schema should contain @scope directive")
 
-        // Verify Node interface and BackingData scalar were added
-        assertNotNull(schema.schema.getType("Node"), "Schema should contain Node interface")
+        // Verify Node interface was not added, because sdl contains no implementation of Node
+        assertNull(schema.schema.getType("Node"), "Schema should not contain Node interface")
+
+        // verify BackingData scalar was added
         assertNotNull(schema.schema.getType("BackingData"), "Schema should contain BackingData scalar")
     }
 

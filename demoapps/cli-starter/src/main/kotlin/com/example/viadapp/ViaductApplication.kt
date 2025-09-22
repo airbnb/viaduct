@@ -19,7 +19,7 @@ const val SCHEMA_ID = "publicSchema"
 
 fun main(argv: Array<String>) {
     val rootLogger = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME) as Logger
-    rootLogger.level = Level.WARN
+    rootLogger.level = Level.ERROR
 
     // Create a Viaduct engine using the BasicViaductFactory
     val viaduct = BasicViaductFactory.create(

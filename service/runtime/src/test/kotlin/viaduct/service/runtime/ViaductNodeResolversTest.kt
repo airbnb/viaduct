@@ -325,8 +325,7 @@ class ViaductNodeResolversTest {
         // Testing the resolver directly to bypass GraphQL type coercion and validation.
         @Test
         fun `errors with a non-string global id`() {
-            val mockBootstrapper = ViaductQueryNodeResolverModuleBootstrapper()
-            val fieldResolver = mockBootstrapper.fieldResolverExecutors(MockSchema.minimal).first { it.first.second == "node" }.second
+            val fieldResolver = ViaductQueryNodeResolverModuleBootstrapper.queryNodeResolver
 
             val mockSelector = FieldResolverExecutor.Selector(
                 arguments = mapOf("id" to 123), // Non-string id
@@ -345,8 +344,7 @@ class ViaductNodeResolversTest {
 
         @Test
         fun `errors with a non-list ids argument`() {
-            val mockBootstrapper = ViaductQueryNodeResolverModuleBootstrapper()
-            val fieldResolver = mockBootstrapper.fieldResolverExecutors(MockSchema.minimal).first { it.first.second == "nodes" }.second
+            val fieldResolver = ViaductQueryNodeResolverModuleBootstrapper.queryNodesResolver
 
             val mockSelector = FieldResolverExecutor.Selector(
                 arguments = mapOf("ids" to "123"), // Non-list ids

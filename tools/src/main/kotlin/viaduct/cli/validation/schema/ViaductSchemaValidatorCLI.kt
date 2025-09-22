@@ -37,26 +37,26 @@ fun main(args: Array<String>) = ViaductSchemaValidatorCLI().main(args)
 fun validateSchema(schemaPath: File): List<GraphQLError> {
     println("Resolving from absolute path: ${schemaPath.absolutePath}")
 
-    try {
+    return try {
         println("Attempting to validate ${schemaPath.name}...")
-        var schemaContent: String? = null
 
         if (schemaPath.isDirectory) {
             println("Attempting to validate directory ${schemaPath.absolutePath}")
-            schemaContent = readSchemaFromDirectory(schemaPath)
+            val schemaContent = readSchemaFromDirectory(schemaPath)
             validateSchemaContent(schemaContent)
         } else {
             schemaPath.inputStream().use { stream ->
                 validateSchemaContent(InputStreamReader(stream, StandardCharsets.UTF_8))
             }
         }
-        return emptyList()
+
+        emptyList()
     } catch (e: SchemaProblem) {
         return e.errors
     } catch (e: GraphQLException) {
-        return listOf(ValidationError.newValidationError().description(e.message).build())
+        return listOf(createValidationError(e.message))
     } catch (e: Exception) {
-        return listOf(ValidationError.newValidationError().description(e.message).build())
+        return listOf(createValidationError(e.message))
     }
 }
 
@@ -66,6 +66,11 @@ fun readSchemaFromDirectory(schemaFile: File): String {
         it.readText()
     }.joinToString(separator = "\n")
 }
+
+private fun createValidationError(message: String? = "") =
+    ValidationError.newValidationError()
+        .description(message)
+        .build()
 
 private fun validateSchemaContent(schemaContent: Reader) {
     val schemaParser = SchemaParser()

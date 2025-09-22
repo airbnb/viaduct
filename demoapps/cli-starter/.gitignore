@@ -1,24 +1,60 @@
+# ----------------------------------------
+# Gradle
+# ----------------------------------------
 HELP.md
-.gradle
+.gradle/
 build/
+out/
 !gradle/wrapper/gradle-wrapper.jar
+**/build/
+**/out/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-# Ignore OS X Desktop Services store
-.DS_Store
-._.DS_Store
-.tddium*
-/.shelf
+# ----------------------------------------
+# IntelliJ IDEA
+# ----------------------------------------
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
 
+# ----------------------------------------
+# NetBeans
+# ----------------------------------------
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ----------------------------------------
+# VSCode
+# ----------------------------------------
+.vscode/
+
+# ----------------------------------------
+# Kotlin
+# ----------------------------------------
+*.kts~
+*.main.kts
+.kotlin/
+
+# ----------------------------------------
 # VIM & EMACS
+# ----------------------------------------
 *~
 *#*
 *.#*
 *.sw[a-z]
 .tags
 
-### STS ###
+# ----------------------------------------
+# STS
+# ----------------------------------------
 .apt_generated
 .classpath
 .factorypath
@@ -30,24 +66,57 @@ bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
+# ----------------------------------------
+# Eclipse
+# ----------------------------------------
+.project
+.classpath
+.settings/
+bin/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+# ----------------------------------------
+# JetBrains Rider
+# ----------------------------------------
+.idea/
+*.sln
+*.csproj
+*.user
+*.unityproj
 
-### VS Code ###
-.vscode/
+# ----------------------------------------
+# OS & Editor
+# ----------------------------------------
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+.tddium*
+/.shelf
 
-### Kotlin ###
-.kotlin
+# ----------------------------------------
+# Env files and secrets
+# ----------------------------------------
+.env
+.env.*
+.envrc
+*.key
+*.pem
+*.crt
+*.jks
+
+# ----------------------------------------
+# Ignore test outputs
+# ----------------------------------------
+test-results/
+test-output/
+reports/
+
+# ----------------------------------------
+# Ignore generated sources
+# ----------------------------------------
+**/generated/
+**/generated-sources/

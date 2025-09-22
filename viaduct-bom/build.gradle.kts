@@ -1,10 +1,7 @@
-import com.vanniktech.maven.publish.JavaPlatform
-
 plugins {
     `java-platform`
     `maven-publish`
-    id("com.vanniktech.maven.publish") version "0.34.0"
-    id("viaduct-publishing")
+    id("conventions.viaduct-publishing")
 }
 
 viaductPublishing {

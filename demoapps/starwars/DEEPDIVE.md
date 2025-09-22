@@ -191,6 +191,13 @@ type Species @scope(to: ["default", "extras"]) {
 }
 ```
 
+> To query scoped fields, include the `X-Viaduct-Scope` header in your request:
+> ```
+> {
+>     "X-Viaduct-Scope": "extras"
+> }
+> ```
+
 **Implementation**: The demo demonstrates both default scope access and restricted "extras" scope fields.
 
 ### @idOf

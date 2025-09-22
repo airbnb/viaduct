@@ -33,6 +33,7 @@ import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.instrumentation.ResolverInstrumentation
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
+import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.FlagManager
@@ -280,13 +281,45 @@ class StandardViaduct internal constructor(
                 } ?: false
 
                 if (isCausedByDispatcherRegistryFactory) {
-                    throw GraphQLBuildError(
-                        "Invalid DispatcherRegistryFactory configuration. " +
-                            "This is likely invalid schema or fragment configuration.",
-                        e
-                    )
+                    throw throwDispatcherRegistryError(e)
                 }
                 throw e
+            }
+        }
+
+        /**
+         * If attempting to create a [StandardViaduct] results in a Guice exception,
+         * call this method to potentially unwrap it.  We don't unwrap _all_ Guice
+         * exceptions, but where we have high confidence that cause of the Guice
+         * exception would be more informative to the Service Engineer configuring
+         * Viaduct -- for example, if we detect an invalid required selection set --
+         * then we will unwrap the exception to give the Service Engineer a better
+         * experience in trying to diagnose the problem.
+         *
+         * @param exception The exception thrown by Guice
+         *
+         * @return GraphQLBuildError with proper details
+         */
+        private fun throwDispatcherRegistryError(exception: ProvisionException): GraphQLBuildError {
+            return when (exception.cause) {
+                is RequiredSelectionsAreInvalid -> GraphQLBuildError(
+                    "Found GraphQL validation errors: %s".format(
+                        (exception.cause as RequiredSelectionsAreInvalid).errors,
+                    ),
+                    exception.cause
+                )
+
+                is IllegalArgumentException -> GraphQLBuildError(
+                    "Illegal Argument found : %s".format(
+                        exception.cause?.message,
+                    ),
+                    exception.cause
+                )
+
+                else -> GraphQLBuildError(
+                    "Invalid DispatcherRegistryFactory configuration. " + "This is likely invalid schema or fragment configuration.",
+                    exception
+                )
             }
         }
     }

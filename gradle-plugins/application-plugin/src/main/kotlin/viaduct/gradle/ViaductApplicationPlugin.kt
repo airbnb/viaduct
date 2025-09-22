@@ -87,7 +87,8 @@ class ViaductApplicationPlugin : Plugin<Project> {
             // The content is stable (no timestamps etc.).
             doLast {
                 val baseFile = centralSchemaDir.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
-                baseFile.writeText(DefaultSchemaProvider.getSDL())
+                val allSchemaFiles = centralSchemaDir.get().asFileTree.matching { include("**/*.graphqls") }.files
+                baseFile.writeText(DefaultSchemaProvider.getDefaultSDL(existingSDLFiles = allSchemaFiles.toList()))
             }
         }
 
@@ -152,7 +153,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
             }
 
         val generateGRTClassesTask = tasks.register<JavaExec>("generateViaductGRTClassFiles") {
-            group = "viaduct"
+            // No group: don't want this to appear in task list
             description = "Generate compiled GRT class files from the central schema."
 
             dependsOn(generateCentralSchemaTask)

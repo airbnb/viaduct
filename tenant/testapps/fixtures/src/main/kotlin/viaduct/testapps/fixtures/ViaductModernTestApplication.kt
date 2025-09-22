@@ -52,7 +52,6 @@ open class ViaductModernTestApplication(
     protected val standardViaduct = StandardViaduct.Builder()
         .withFlagManager(flagManager)
         .withTenantAPIBootstrapperBuilder(ViaductTenantAPIBootstrapper.Builder().tenantPackageFinder(tenantPackageFinder))
-        // .withoutDefaultQueryNodeResolvers() // Disabling system level node resolvers for test
         .withCheckerExecutorFactoryCreator { schema -> TestAppCheckerExecutorFactoryImpl(schema) }
         .withSchemaRegistryBuilder(viaductSchemaRegistryBuilder)
         .build()

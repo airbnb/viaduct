@@ -1,6 +1,6 @@
 plugins {
-    id("kotlin-project")
-    id("kotlin-static-analysis")
+    id("conventions.kotlin")
+    id("conventions.kotlin-static-analysis")
     id("test-classdiff")
 }
 
@@ -18,14 +18,14 @@ sourceSets {
         resources.setSrcDirs(emptyList<File>())
     }
     named("test") {
-        resources.srcDir("${rootDir}/tenant/codegen/src/integrationTest/resources")
+        resources.srcDir("$rootDir/tenant/codegen/src/integrationTest/resources")
     }
 }
 
 kotlin {
     sourceSets {
         val test by getting {
-            kotlin.srcDir("${rootDir}/tenant/codegen/src/integrationTest/kotlin")
+            kotlin.srcDir("$rootDir/tenant/codegen/src/integrationTest/kotlin")
         }
     }
 }

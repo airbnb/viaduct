@@ -1,10 +1,12 @@
+import viaduct.gradle.internal.repoRoot
+
 plugins {
     `java-library`
     `maven-publish`
     `java-test-fixtures`
-    id("kotlin-project")
-    id("kotlin-static-analysis")
-    id("dokka")
+    id("conventions.kotlin")
+    id("conventions.kotlin-static-analysis")
+    id("conventions.dokka")
 }
 
 viaductPublishing {
@@ -30,10 +32,10 @@ dependencies {
 
 dokka {
     dokkaPublications.html {
-        outputDirectory.set(rootProject.layout.projectDirectory.dir("docs/static/apis/"))
+        outputDirectory.set(repoRoot().dir("docs/static/apis/"))
         includes.from(layout.projectDirectory.file("module.md"))
     }
     pluginsConfiguration.html {
-        customStyleSheets.from(rootProject.file("docs/kdoc-service-styles.css"))
+        customStyleSheets.from(repoRoot().file("docs/kdoc-service-styles.css"))
     }
 }

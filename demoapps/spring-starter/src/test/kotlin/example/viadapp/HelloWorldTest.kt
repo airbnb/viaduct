@@ -2,7 +2,7 @@ package com.example.viadapp
 
 import io.kotest.assertions.json.shouldEqualJson
 import io.kotest.matchers.shouldBe
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -70,7 +70,7 @@ class HelloWorldTest(
         )
         val response = restTemplate.postForEntity("/graphql", request, String::class.java)
 
-        Assertions.assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
         response.body!! shouldEqualJson
             """
                 {
@@ -112,7 +112,7 @@ class HelloWorldTest(
 
         val response = restTemplate.postForEntity("/graphql", request, String::class.java)
 
-        Assertions.assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
         response.body!! shouldEqualJson
             """
             {
@@ -158,7 +158,7 @@ class HelloWorldTest(
 
         val response = restTemplate.postForEntity("/graphql", request, String::class.java)
 
-        Assertions.assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
         response.body!! shouldEqualJson
             """
             {
@@ -204,7 +204,7 @@ class HelloWorldTest(
 
         val response = restTemplate.postForEntity("/graphql", request, String::class.java)
 
-        Assertions.assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
         response.body!! shouldEqualJson
             """
             {

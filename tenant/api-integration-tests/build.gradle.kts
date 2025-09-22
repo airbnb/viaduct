@@ -1,7 +1,7 @@
 plugins {
-    id("kotlin-project")
+    id("conventions.kotlin")
     id("test-feature-app")
-    id("kotlin-static-analysis")
+    id("conventions.kotlin-static-analysis")
 }
 
 viaductFeatureApp {}
@@ -12,14 +12,14 @@ sourceSets {
         resources.setSrcDirs(emptyList<File>())
     }
     named("test") {
-        resources.srcDir("${rootDir}/tenant/api/src/integrationTest/resources")
+        resources.srcDir("$rootDir/tenant/api/src/integrationTest/resources")
     }
 }
 
 kotlin {
     sourceSets {
         val test by getting {
-            kotlin.srcDir("${rootDir}/tenant/api/src/integrationTest/kotlin")
+            kotlin.srcDir("$rootDir/tenant/api/src/integrationTest/kotlin")
         }
     }
 }

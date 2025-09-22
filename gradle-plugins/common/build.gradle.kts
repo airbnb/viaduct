@@ -1,8 +1,8 @@
 
 plugins {
-    id("kotlin-project")
-    id("kotlin-static-analysis")
-    id("viaduct-publishing")
+    id("conventions.kotlin")
+    id("conventions.kotlin-static-analysis")
+    id("conventions.viaduct-publishing")
 }
 
 dependencies {

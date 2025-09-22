@@ -13,7 +13,6 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.mocks.toViaductBuilder
-import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.service.runtime.ViaductSchemaRegistryBuilder
 
 @ExperimentalCoroutinesApi
@@ -615,7 +614,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `queryValueFragment referencing non-existent field should fail at build time`() {
-        assertThrows<RequiredSelectionsAreInvalid> {
+        assertThrows<GraphQLBuildError> {
             try {
                 MockTenantModuleBootstrapper("extend type Query { existingField: String, result: String }") {
                     fieldWithValue("Query" to "existingField", "value")
@@ -679,7 +678,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `queryValueFragment with wrong type condition should fail at build time`() {
-        assertThrows<RequiredSelectionsAreInvalid> {
+        assertThrows<GraphQLBuildError> {
             try {
                 MockTenantModuleBootstrapper("extend type Query { field: String, result: String } extend type Mutation { dummy: String }") {
                     fieldWithValue("Query" to "field", "value")

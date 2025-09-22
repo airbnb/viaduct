@@ -1,12 +1,9 @@
-import com.vanniktech.maven.publish.GradlePublishPlugin
-import org.gradle.kotlin.dsl.get
-
 plugins {
     `kotlin-dsl`
-    id("kotlin-project")
-    id("kotlin-static-analysis")
+    id("conventions.kotlin")
+    id("conventions.kotlin-static-analysis")
     id("com.gradle.plugin-publish") version "2.0.0"
-    id("viaduct-publishing")
+    id("conventions.viaduct-publishing")
 }
 
 java {

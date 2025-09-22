@@ -68,8 +68,8 @@ Until we have CI for our site, deployment is manual.
 
 ```bash
 cd $VIADUCT_REPO
-./gradlew :tenant:tenant-api:dokkaGenerate
-./gradlew :service:dokkaGenerate
+./gradlew :core:tenant:tenant-api:dokkaGenerate
+./gradlew :core:service:dokkaGenerate
 cd docs
 hugo build
 VIADUCT_SITE_BUILD=`mktemp -d`
@@ -91,8 +91,8 @@ KDocs are split into two: one for tenant developers and one for service/platform
 These are generated via Gradle:
 
 ```bash
-./gradlew :tenant:tenant-api:dokkaGenerate
-./gradlew :service:dokkaGenerate
+./gradlew :core:tenant:tenant-api:dokkaGenerate
+./gradlew :core:service:dokkaGenerate
 ```
 
 That task outputs HTML files to `docs/static/apis` and from there they are automatically included in the Hugo build.

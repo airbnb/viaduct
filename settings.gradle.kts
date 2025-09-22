@@ -1,19 +1,16 @@
-import settings.includeNamed
+import viaduct.gradle.internal.includeNamed
 
 pluginManagement {
     repositories {
         gradlePluginPortal()
     }
-    includeBuild("build-logic-settings")
-    includeBuild("build-logic-root")
     includeBuild("build-logic")
     includeBuild("build-test-plugins")
 }
 
 plugins {
-    id("common")
-    id("build-scans")
-    kotlin("jvm") version "1.9.24" apply(false) // TODO: for some reason the dependency analysis plugin won't work without this...
+    id("settings.common")
+    id("settings.build-scans")
 }
 
 rootProject.name = "viaduct"

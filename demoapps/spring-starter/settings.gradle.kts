@@ -1,5 +1,3 @@
-rootProject.name = "viaduct-spring-starter"
-
 val viaductVersion: String by settings
 
 dependencyResolutionManagement {

@@ -1,6 +1,8 @@
+import viaduct.gradle.internal.repoRoot
+
 plugins {
     id("org.jetbrains.dokka")
-    id("dokka")
+    id("conventions.dokka")
 }
 
 dependencies {
@@ -10,10 +12,10 @@ dependencies {
 
 dokka {
     dokkaPublications.html {
-        outputDirectory.set(rootProject.layout.projectDirectory.dir("docs/static/apis/service"))
+        outputDirectory.set(repoRoot().dir("docs/static/apis/service"))
         includes.from(layout.projectDirectory.file("module.md"))
     }
     pluginsConfiguration.html {
-        customStyleSheets.from(rootProject.file("docs/kdoc-service-styles.css"))
+        customStyleSheets.from(repoRoot().file("docs/kdoc-service-styles.css"))
     }
 }

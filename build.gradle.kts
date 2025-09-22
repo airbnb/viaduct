@@ -1,9 +1,7 @@
-import org.gradle.internal.extensions.core.serviceOf
-
 plugins {
-    id("dependency-analysis")
-    id("orchestration")
-    id("versioning")
+    id("buildroot.dependency-analysis")
+    id("buildroot.orchestration")
+    id("buildroot.versioning")
     jacoco
     `jacoco-report-aggregation`
 }
