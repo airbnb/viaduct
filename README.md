@@ -69,6 +69,8 @@ Further information in the [contribution guide](CONTRIBUTING.md) includes differ
 See the project [security policy](SECURITY.md) for
 information about reporting vulnerabilities.
 
+change 4
+
 ## Build requirements
 
 * Mac OS X or Linux
