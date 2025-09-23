@@ -56,18 +56,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
         }
 
         val generateCentralSchemaTask = tasks.register<GenerateViaductCentralSchemaTask>("generateViaductCentralSchema") {
-            // Generate the base SDL file as a deterministic output (no project access at execution)
-            // We set it up as part of the Sync's work inputs by precomputing content here.
-            // The content is stable (no timestamps etc.).
-            val precomputedSdl = DefaultSchemaProvider.getSDL()
-//            doLast {
-//                val baseFile = centralSchemaDir.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
-//                val allSchemaFiles = centralSchemaDir.get().asFileTree.matching { include("**/*.graphqls") }.files
-//                baseFile.writeText(DefaultSchemaProvider.getDefaultSDL(existingSDLFiles = allSchemaFiles.toList()))
-//            }
-
             schemaPartitions.setFrom(allPartitions.incoming.artifactView {}.files)
-            sdl.set(precomputedSdl)
             outputDirectory.set(centralSchemaDirectory())
         }
 
