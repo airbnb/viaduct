@@ -9,9 +9,11 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
 import javax.inject.Inject
 
+@DisableCachingByDefault(because = "Does only copying of files and writing some pre-calculated input into one file")
 abstract class GenerateViaductCentralSchemaTask @Inject constructor(
     private var fileSystemOperations: FileSystemOperations
 ) : DefaultTask() {

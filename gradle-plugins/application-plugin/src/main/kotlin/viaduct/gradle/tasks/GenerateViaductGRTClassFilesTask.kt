@@ -3,13 +3,17 @@ package viaduct.gradle.tasks
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.process.CommandLineArgumentProvider
 import java.io.File
 
+@CacheableTask
 abstract class GenerateViaductGRTClassFilesTask : JavaExec() {
 
     init {
@@ -18,6 +22,7 @@ abstract class GenerateViaductGRTClassFilesTask : JavaExec() {
     }
 
     @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val schemaFiles: ConfigurableFileCollection
 
     @get:Input
