@@ -34,7 +34,7 @@ abstract class GenerateViaductGRTClassFilesTask : JavaExec() {
     override fun exec() {
         argumentProviders.add(
             GrtArgs(
-                schemaFiles.files.map(File::getAbsolutePath).sorted().joinToString(","),
+                schemaFiles.files.map(File::getAbsolutePath),
                 grtPackageName.get(),
                 grtClassesDirectory.get().asFile.absolutePath
             )
@@ -44,13 +44,13 @@ abstract class GenerateViaductGRTClassFilesTask : JavaExec() {
 
 
     class GrtArgs(
-        val schemaFiles: String,
+        val schemaFiles: List<String>,
         val packageName: String,
         val generatedDirectory: String
     ) : CommandLineArgumentProvider {
         override fun asArguments(): Iterable<String> {
             return listOf(
-                "--schema_files", schemaFiles,
+                "--schema_files", schemaFiles.sorted().joinToString(","),
                 "--pkg_for_generated_classes", packageName,
                 "--generated_directory", generatedDirectory
             )

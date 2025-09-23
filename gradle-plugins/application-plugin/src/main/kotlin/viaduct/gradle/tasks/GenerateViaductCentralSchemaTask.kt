@@ -14,6 +14,12 @@ import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.graphql.utils.DefaultSchemaProvider
 import javax.inject.Inject
 
+/**
+ * This task gathers the various partitions of the schema and
+ * stores them in a stable location. Based on that location it
+ * generates the complete default schema in SDL format as a String
+ * and stores it in a file.
+ */
 @CacheableTask
 abstract class GenerateViaductCentralSchemaTask @Inject constructor(
     private var fileSystemOperations: FileSystemOperations
@@ -34,7 +40,6 @@ abstract class GenerateViaductCentralSchemaTask @Inject constructor(
     @TaskAction
     fun taskAction() {
         fileSystemOperations.sync {
-            // Bring in partitions under a stable prefix
             from(schemaPartitions) {
                 into("partition")
                 include("**/*.graphqls")
