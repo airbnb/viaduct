@@ -119,6 +119,7 @@ jobs:
         run: ./gradlew :core:service:dokkaGenerate
 
       - name: Build hugo site
+        working-directory: ./docs
         run: hugo build \
           --baseURL https://airbnb.io/viaduct \
           --cacheDir "${{ runner.temp }}/hugo_cache" \
