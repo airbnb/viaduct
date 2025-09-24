@@ -223,15 +223,33 @@ jobs:
                   }
                   echo "✅ Coverage report generated successfully"
                 when: always
-      - fail-step:
-          message: "JaCoCo coverage report generation failed"
-      # Store test results for CircleCI UI
-      - store_test_results:
-          path: build/test-results
 
-      # Store JaCoCo coverage reports
+            - run:
+                name: Generate aggregated test report
+                command: |
+                  echo "📋 Generating aggregated test report..."
+                  ./gradlew testAggregateTestReport --no-scan --no-configuration-cache || {
+                    echo "❌ Failed to generate test report"
+                    exit 1
+                  }
+                  echo "✅ Test report generated successfully"
+                when: always
+      - fail-step:
+          message: "Report generation failed"
+
+      # Store test results for CircleCI UI (aggregated)
+      - store_test_results:
+          path: build/reports/tests
+
+      # Store JaCoCo coverage reports (both individual and aggregated)
+      - store_artifacts:
+          path: build/reports/jacoco
+          destination: coverage-reports
+
+      # Store all other reports for debugging
       - store_artifacts:
           path: build/reports
+          destination: all-reports
 
   detekt:
     executor: kotlin-gradle-executor

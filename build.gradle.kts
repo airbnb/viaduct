@@ -4,6 +4,7 @@ plugins {
     id("buildroot.versioning")
     jacoco
     `jacoco-report-aggregation`
+    `test-report-aggregation`
 }
 
 
@@ -40,12 +41,39 @@ dependencies {
 //    jacocoAggregation(project(":tenant:testapps:policycheck"))
 //    jacocoAggregation(project(":tenant:testapps:resolver"))
 //    jacocoAggregation(project(":tenant:testapps:schemaregistration"))
+
+    // Dependencies for test report aggregation - same modules as jacoco
+    testReportAggregation(libs.viaduct.engine.api)
+    testReportAggregation(libs.viaduct.engine.runtime)
+    testReportAggregation(libs.viaduct.service.api)
+    testReportAggregation(libs.viaduct.service.runtime)
+    testReportAggregation(libs.viaduct.shared.arbitrary)
+    testReportAggregation(libs.viaduct.shared.dataloader)
+    testReportAggregation(libs.viaduct.shared.deferred)
+    testReportAggregation(libs.viaduct.shared.graphql)
+    testReportAggregation(libs.viaduct.shared.invariants)
+    testReportAggregation(libs.viaduct.shared.logging)
+    testReportAggregation(libs.viaduct.shared.codegen)
+    testReportAggregation(libs.viaduct.shared.utils)
+    testReportAggregation(libs.viaduct.shared.viaductschema)
+    testReportAggregation(libs.viaduct.snipped.errors)
+    testReportAggregation(libs.viaduct.tenant.api)
+    testReportAggregation(libs.viaduct.tenant.codegen)
+    testReportAggregation(libs.viaduct.tenant.runtime)
+
+    // Integration test modules
+    testReportAggregation(project(":tenant:api-integration-tests"))
+    testReportAggregation(project(":tenant:runtime-integration-tests"))
+    testReportAggregation(project(":tenant:codegen-integration-tests"))
 }
 
 // Configure the coverage report in the reporting block
 reporting {
     reports {
         val testCodeCoverageReport by creating(JacocoCoverageReport::class) {
+            testSuiteName = "test"
+        }
+        val testAggregateTestReport by creating(AggregateTestReport::class) {
             testSuiteName = "test"
         }
     }
