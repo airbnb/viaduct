@@ -96,10 +96,12 @@ jobs:
           echo "Gradle: $(gradle --version)"
 
       - name: Install Node.js dependencies
+        working-directory: ./docs
         run: |
           [[ -f package-lock.json || -f npm-shrinkwrap.json ]] && npm ci || true
 
       - name: Install postcss
+        working-directory: ./docs
         run: npm install -D autoprefixer postcss postcss-cli
 
       - name: Configure Git
