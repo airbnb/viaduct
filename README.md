@@ -8,7 +8,7 @@
   </a> 
 </p>
 <p align="center">
-    <b>Viaduct is a GraphQL-based system that provides a unified interface for accessing and interacting with any data source.</b>
+    <b>Viaduct is a GraphQL-based system that provides a unified interface for accessing and interacting with any data source.</b> 
 </p>
 <p align="center">
     See the <a href="https://airbnb.io/viaduct/docs/">User Manual</a> for deployment instructions and end user documentation.
