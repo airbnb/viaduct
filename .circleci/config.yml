@@ -214,32 +214,21 @@ jobs:
                   echo "✅ Test execution completed"
 
             - run:
-                name: Generate JaCoCo aggregated coverage report
+                name: Generate coverage and test reports
                 command: |
-                  echo "📊 Generating JaCoCo aggregated coverage report..."
-                  ./gradlew testCodeCoverageReport --no-scan --no-configuration-cache || {
-                    echo "❌ Failed to generate coverage report"
+                  echo "📊 Generating aggregated coverage and test reports..."
+                  ./gradlew testAndCoverage --no-scan --no-configuration-cache || {
+                    echo "❌ Failed to generate reports"
                     exit 1
                   }
-                  echo "✅ Coverage report generated successfully"
-                when: always
-
-            - run:
-                name: Generate aggregated test report
-                command: |
-                  echo "📋 Generating aggregated test report..."
-                  ./gradlew testAggregateTestReport --no-scan --no-configuration-cache || {
-                    echo "❌ Failed to generate test report"
-                    exit 1
-                  }
-                  echo "✅ Test report generated successfully"
+                  echo "✅ Reports generated successfully"
                 when: always
       - fail-step:
           message: "Report generation failed"
 
-      # Store test results for CircleCI UI (aggregated)
+      # Store test results for CircleCI UI (JUnit XML files)
       - store_test_results:
-          path: build/reports/tests
+          path: build/test-results-for-circleci
 
       # Store JaCoCo coverage reports (both individual and aggregated)
       - store_artifacts:

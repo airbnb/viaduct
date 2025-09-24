@@ -4,7 +4,6 @@ plugins {
     id("buildroot.versioning")
     jacoco
     `jacoco-report-aggregation`
-    `test-report-aggregation`
 }
 
 
@@ -42,29 +41,6 @@ dependencies {
 //    jacocoAggregation(project(":tenant:testapps:resolver"))
 //    jacocoAggregation(project(":tenant:testapps:schemaregistration"))
 
-    // Dependencies for test report aggregation - same modules as jacoco
-    testReportAggregation(libs.viaduct.engine.api)
-    testReportAggregation(libs.viaduct.engine.runtime)
-    testReportAggregation(libs.viaduct.service.api)
-    testReportAggregation(libs.viaduct.service.runtime)
-    testReportAggregation(libs.viaduct.shared.arbitrary)
-    testReportAggregation(libs.viaduct.shared.dataloader)
-    testReportAggregation(libs.viaduct.shared.deferred)
-    testReportAggregation(libs.viaduct.shared.graphql)
-    testReportAggregation(libs.viaduct.shared.invariants)
-    testReportAggregation(libs.viaduct.shared.logging)
-    testReportAggregation(libs.viaduct.shared.codegen)
-    testReportAggregation(libs.viaduct.shared.utils)
-    testReportAggregation(libs.viaduct.shared.viaductschema)
-    testReportAggregation(libs.viaduct.snipped.errors)
-    testReportAggregation(libs.viaduct.tenant.api)
-    testReportAggregation(libs.viaduct.tenant.codegen)
-    testReportAggregation(libs.viaduct.tenant.runtime)
-
-    // Integration test modules
-    testReportAggregation(project(":tenant:api-integration-tests"))
-    testReportAggregation(project(":tenant:runtime-integration-tests"))
-    testReportAggregation(project(":tenant:codegen-integration-tests"))
 }
 
 // Configure the coverage report in the reporting block
@@ -73,8 +49,59 @@ reporting {
         val testCodeCoverageReport by creating(JacocoCoverageReport::class) {
             testSuiteName = "test"
         }
-        val testAggregateTestReport by creating(AggregateTestReport::class) {
-            testSuiteName = "test"
+    }
+}
+
+// Task to collect JUnit XML test results for CircleCI
+tasks.register<Copy>("collectTestResults") {
+    description = "Collects JUnit XML test results from all modules for CircleCI"
+    group = "verification"
+
+    // Make sure tests have run first
+    mustRunAfter("test")
+
+    from(fileTree(".") {
+        include("**/build/test-results/test/*.xml")
+    })
+    into("build/test-results-for-circleci")
+
+    // Rename files to avoid conflicts
+    rename { filename ->
+        val sourceFile = source.find { it.name == filename }
+        if (sourceFile != null) {
+            val relativePath = rootDir.toPath().relativize(sourceFile.toPath())
+            relativePath.toString()
+                .replace("/build/test-results/test/", "_")
+                .replace("/", "_")
+                .replace("\\", "_")
+        } else {
+            filename
+        }
+    }
+
+    doLast {
+        val outputDir = File(rootDir, "build/test-results-for-circleci")
+        var totalTests = 0
+        var totalFiles = 0
+
+        outputDir.listFiles { file -> file.name.endsWith(".xml") }?.forEach { xmlFile ->
+            totalFiles++
+
+            // Count tests in this file
+            val content = xmlFile.readText()
+            val testsMatch = Regex("""tests="(\d+)"""").find(content)
+            if (testsMatch != null) {
+                totalTests += testsMatch.groupValues[1].toInt()
+            }
+        }
+
+        println("✅ Test results collected for CircleCI:")
+        println("   - Total XML files: $totalFiles")
+        println("   - Total tests: $totalTests")
+        println("   - Output directory: ${outputDir.absolutePath}")
+
+        if (totalFiles == 0) {
+            println("⚠️  Warning: No test result files found. Make sure tests have been run first.")
         }
     }
 }
@@ -103,15 +130,18 @@ tasks.register<JacocoCoverageVerification>("testCodeCoverageVerification") {
 
 // CircleCI-friendly task to run tests and generate coverage
 tasks.register("testAndCoverage") {
-    description = "Runs tests and generates coverage reports for CircleCI"
+    description = "Runs tests and generates coverage reports and collects test results for CircleCI"
     group = "verification"
 
-    dependsOn("testCodeCoverageReport")
+    dependsOn("testCodeCoverageReport", "collectTestResults")
 
     doLast {
         println("Coverage reports generated:")
         println("- Individual module XML reports: */build/reports/jacoco/test/jacocoTestReport.xml")
         println("- Aggregated XML report: build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml")
         println("- Aggregated HTML report: build/reports/jacoco/testCodeCoverageReport/html/index.html")
+        println()
+        println("Test results collected:")
+        println("- CircleCI JUnit XML files: build/test-results-for-circleci/")
     }
 }
