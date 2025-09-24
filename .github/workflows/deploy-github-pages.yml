@@ -140,6 +140,7 @@ jobs:
           key: ${{ steps.cache-restore.outputs.cache-primary-key }}
 
       - name: Upload artifact
+        working-directory: ./docs
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./public
