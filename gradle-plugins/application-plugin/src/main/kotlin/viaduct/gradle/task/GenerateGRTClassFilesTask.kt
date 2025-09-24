@@ -1,4 +1,4 @@
-package viaduct.gradle.tasks
+package viaduct.gradle.task
 
 import java.io.File
 import org.gradle.api.file.ConfigurableFileCollection
@@ -11,10 +11,9 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
-import org.gradle.process.CommandLineArgumentProvider
 
 @CacheableTask
-abstract class GenerateViaductGRTClassFilesTask : JavaExec() {
+abstract class GenerateGRTClassFilesTask : JavaExec() {
     init {
         // No group: don't want this to appear in task list
         description = "Generate compiled GRT class files from the central schema."
@@ -31,30 +30,16 @@ abstract class GenerateViaductGRTClassFilesTask : JavaExec() {
     abstract val grtClassesDirectory: DirectoryProperty
 
     override fun exec() {
-        argumentProviders.add(
-            GrtArgs(
-                schemaFiles.files.map(File::getAbsolutePath),
+        argumentProviders.add {
+            listOf(
+                "--schema_files",
+                schemaFiles.files.map(File::getAbsolutePath).sorted().joinToString(","),
+                "--pkg_for_generated_classes",
                 grtPackageName.get(),
+                "--generated_directory",
                 grtClassesDirectory.get().asFile.absolutePath
             )
-        )
-        super.exec()
-    }
-
-    class GrtArgs(
-        val schemaFiles: List<String>,
-        val packageName: String,
-        val generatedDirectory: String
-    ) : CommandLineArgumentProvider {
-        override fun asArguments(): Iterable<String> {
-            return listOf(
-                "--schema_files",
-                schemaFiles.sorted().joinToString(","),
-                "--pkg_for_generated_classes",
-                packageName,
-                "--generated_directory",
-                generatedDirectory
-            )
         }
+        super.exec()
     }
 }

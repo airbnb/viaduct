@@ -15,8 +15,8 @@ import org.gradle.kotlin.dsl.register
 import viaduct.gradle.ViaductPluginCommon.addViaductDependencies
 import viaduct.gradle.ViaductPluginCommon.addViaductTestFixtures
 import viaduct.gradle.ViaductPluginCommon.applyViaductBOM
-import viaduct.gradle.tasks.GenerateViaductCentralSchemaTask
-import viaduct.gradle.tasks.GenerateViaductGRTClassFilesTask
+import viaduct.gradle.task.AssembleCentralSchemaTask
+import viaduct.gradle.task.GenerateGRTClassFilesTask
 
 class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
@@ -38,15 +38,15 @@ class ViaductApplicationPlugin : Plugin<Project> {
                 }
             }
 
-            val generateCentralSchemaTask = generateCentralSchemaTask()
-            val generateGRTsTask = generateGRTsTask(appExt, generateCentralSchemaTask)
+            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
+            val generateGRTsTask = setupGenerateGRTsTask(appExt, assembleCentralSchemaTask)
 
             setupConsumableConfigurationForGRT(generateGRTsTask.flatMap { it.archiveFile })
 
             this.dependencies.add("api", files(generateGRTsTask.flatMap { it.archiveFile }))
         }
 
-    private fun Project.generateCentralSchemaTask(): TaskProvider<GenerateViaductCentralSchemaTask> {
+    private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {
             description = "Resolvable configuration where all viaduct-module plugins send their schema partitions."
             isCanBeConsumed = false
@@ -54,7 +54,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
             attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION) }
         }
 
-        val generateCentralSchemaTask = tasks.register<GenerateViaductCentralSchemaTask>("generateViaductCentralSchema") {
+        val generateCentralSchemaTask = tasks.register<AssembleCentralSchemaTask>("generateViaductCentralSchema") {
             schemaPartitions.setFrom(allPartitions.incoming.artifactView {}.files)
             outputDirectory.set(centralSchemaDirectory())
         }
@@ -76,13 +76,13 @@ class ViaductApplicationPlugin : Plugin<Project> {
     }
 
     /** Call the bytecode-generator to generate GRT files. */
-    private fun Project.generateGRTsTask(
+    private fun Project.setupGenerateGRTsTask(
         appExt: ViaductApplicationExtension,
-        generateCentralSchemaTask: TaskProvider<GenerateViaductCentralSchemaTask>,
+        generateCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,
     ): TaskProvider<Jar> {
         val pluginClasspath = files(ViaductPluginCommon.getClassPathElements(this@ViaductApplicationPlugin::class.java))
 
-        val generateGRTClassesTask = tasks.register<GenerateViaductGRTClassFilesTask>("generateViaductGRTClassFiles") {
+        val generateGRTClassesTask = tasks.register<GenerateGRTClassFilesTask>("generateViaductGRTClassFiles") {
             grtClassesDirectory.set(grtClassesDirectory())
             schemaFiles.setFrom(generateCentralSchemaTask.flatMap { it.outputDirectory.map { dir -> dir.asFileTree.matching { include("**/*.graphqls") }.files } })
             grtPackageName.set(appExt.grtPackageName)
