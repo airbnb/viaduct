@@ -2,6 +2,7 @@ package viaduct.gradle.task
 
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
@@ -11,8 +12,12 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.slf4j.LoggerFactory
+import viaduct.gradle.ViaductApplicationPlugin
 import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
+import viaduct.gradle.ViaductBasicSchemaValidator
 import viaduct.graphql.utils.DefaultSchemaProvider
+import java.io.File
 
 /**
  * This task gathers the various partitions of the schema and
@@ -47,9 +52,24 @@ abstract class AssembleCentralSchemaTask
                 }
                 into(outputDirectory.get())
             }
-
             val allSchemaFiles = outputDirectory.get().asFileTree.matching { include("**/*.graphqls") }.files
+
             val sdl = DefaultSchemaProvider.getDefaultSDL(existingSDLFiles = allSchemaFiles.toList())
-            outputDirectory.get().asFile.resolve(BUILTIN_SCHEMA_FILE).writeText(sdl)
+            val sdlFile = outputDirectory.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
+            sdlFile.writeText(sdl)
+
+            validateCompleteSchema(allSchemaFiles + sdlFile)
+        }
+
+    private fun validateCompleteSchema(schemaFiles: Collection<File>) {
+            val logger = LoggerFactory.getLogger(ViaductApplicationPlugin::class.java)
+            val validator = ViaductBasicSchemaValidator(logger)
+            val errors = validator.validateSchema(schemaFiles)
+            if (errors.isNotEmpty()) {
+                errors.forEach { logger.error(it.message ?: it.toString()) }
+                throw GradleException("GraphQL schema validation failed. See errors above.")
+            } else {
+                logger.info("GraphQL schema validation successful.")
+            }
         }
     }
