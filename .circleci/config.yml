@@ -2,9 +2,10 @@ version: 2.1
 
 orbs:
   gradle: circleci/gradle@3.0.0
-
+  slack: circleci/slack@4.12.5
+  
 executors:
-  kotlin-gradle-executor:
+  kotlin-gradle-executor: 
     docker:
       - image: cimg/openjdk:21.0
     working_directory: ~/project
@@ -41,32 +42,6 @@ commands:
             - ~/.gradle/wrapper
             - .gradle
 
-  fail-step:
-    parameters:
-      message:
-        type: string
-    steps:
-      - run:
-          name: Build Failure Handler
-          command: |
-            echo "❌ FAILURE: << parameters.message >>"
-            echo "📋 Build Information:"
-            echo "  - Job: ${CIRCLE_JOB}"
-            echo "  - Build: ${CIRCLE_BUILD_NUM}"
-            echo "  - Branch: ${CIRCLE_BRANCH}"
-            echo "  - SHA: ${CIRCLE_SHA1}"
-            echo "  - Workflow ID: ${CIRCLE_WORKFLOW_ID}"
-            echo "  - Node: ${CIRCLE_NODE_INDEX:-0}"
-            echo "⏰ Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-            echo "🔗 Build URL: ${CIRCLE_BUILD_URL}"
-            echo ""
-            echo "💡 Troubleshooting tips:"
-            echo "  1. Check the logs above for specific error messages"
-            echo "  2. Verify all dependencies are properly installed"
-            echo "  3. Review recent changes that might have caused this failure"
-            exit 1
-          when: on_fail
-
   setup-gradle:
     steps:
       - run:
@@ -80,16 +55,27 @@ commands:
             chmod +x ./gradlew
             echo "✅ Gradle wrapper permissions set successfully"
 
+  send-error:
+    steps:
+      - run:
+          name: Send alerts to slack when something fails
+          when: on_fail
+          #Clone the repo to be sure that script circleci_pipeline_metadata.sh is always available.
+          command: |
+            git clone --depth=1 "https://github.com/airbnb/viaduct.git" script_metadata
+            chmod +x script_metadata/.circleci/scripts/circleci_pipeline_metadata.sh
+            ./script_metadata/.circleci/scripts/circleci_pipeline_metadata.sh
+        
+      - slack/notify:
+          event: fail
+
 jobs:
   build:
     executor: kotlin-gradle-executor
     steps:
       - checkout
 
-
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed"
 
       # Use Gradle orb for optimal caching
       - gradle-with-cache:
@@ -103,8 +89,6 @@ jobs:
                     exit 1
                   }
                   echo "✅ Dependencies downloaded successfully"
-      - fail-step:
-          message: "Dependency download failed"
 
       - gradle-with-cache:
           steps:
@@ -115,8 +99,6 @@ jobs:
                   ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
                   ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
                   echo "✅ Project built successfully"
-      - fail-step:
-          message: "Project build failed"
 
       - run:
           name: Collect build artifacts
@@ -157,8 +139,6 @@ jobs:
       #               exit 1
       #             }
       #             echo "✅ Dokka documentation generated successfully"
-      # - fail-step:
-      #     message: "Dokka documentation generation failed"
 
       # - run:
       #     name: Dump Dokka problem report
@@ -183,6 +163,8 @@ jobs:
             - "*/build"
             - build/package
 
+      - send-error
+
   test:
     executor: kotlin-gradle-executor
     steps:
@@ -192,12 +174,8 @@ jobs:
       # Restore workspace from build job
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in test job"
 
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in test job"
 
       - gradle-with-cache:
           steps:
@@ -221,8 +199,6 @@ jobs:
                   }
                   echo "✅ Reports generated successfully"
                 when: always
-      - fail-step:
-          message: "Report generation failed"
 
       # Store test results for CircleCI UI (JUnit XML files)
       - store_test_results:
@@ -237,6 +213,8 @@ jobs:
       - store_artifacts:
           path: build/reports
           destination: all-reports
+          
+      - send-error
 
   detekt:
     executor: kotlin-gradle-executor
@@ -244,12 +222,8 @@ jobs:
       - checkout
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in detekt job"
 
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in detekt job"
 
       - gradle-with-cache:
           steps:
@@ -262,12 +236,12 @@ jobs:
                     exit 1
                   }
                   echo "✅ Detekt analysis passed"
-      - fail-step:
-          message: "Detekt static analysis failed"
 
       - store_artifacts:
           path: build/reports/detekt
           destination: detekt-reports
+          
+      - send-error
 
   ktlint:
     executor: kotlin-gradle-executor
@@ -275,12 +249,8 @@ jobs:
       - checkout
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in ktlint job"
 
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in ktlint job"
 
       - gradle-with-cache:
           steps:
@@ -293,23 +263,18 @@ jobs:
                     exit 1
                   }
                   echo "✅ Ktlint formatting check passed"
-      - fail-step:
-          message: "Ktlint code formatting check failed"
+
+      - send-error
 
   docs:
     executor: kotlin-gradle-executor
     steps:
       - checkout
 
-
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in docs job"
 
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in docs job"
 
       - gradle-with-cache:
           steps:
@@ -322,12 +287,12 @@ jobs:
                     exit 1
                   }
                   echo "✅ Javadoc generated successfully"
-      - fail-step:
-          message: "Javadoc generation failed"
 
       - store_artifacts:
           path: build/docs/javadoc
           destination: javadoc
+
+      - send-error
 
   coverage-verification:
     executor: kotlin-gradle-executor
@@ -337,12 +302,8 @@ jobs:
 
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in coverage-verification job"
 
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in coverage-verification job"
 
       - gradle-with-cache:
           steps:
@@ -357,8 +318,8 @@ jobs:
                     exit 1
                   }
                   echo "✅ Coverage thresholds met successfully"
-      - fail-step:
-          message: "Coverage threshold verification failed"
+
+      - send-error
 
   deploy-docs:
     docker:
@@ -376,8 +337,6 @@ jobs:
               exit 1
             }
             echo "✅ Git installed successfully"
-      - fail-step:
-          message: "Git installation failed"
 
       - attach_workspace:
           at: ~/project/
@@ -397,8 +356,6 @@ jobs:
               exit 1
             }
             echo "✅ Documentation verification completed"
-      - fail-step:
-          message: "Documentation verification failed"
 
       - run:
           name: Deploy Dokka HTML to GitHub Pages
@@ -415,8 +372,8 @@ jobs:
               exit 1
             }
             echo "✅ Documentation deployed successfully"
-      - fail-step:
-          message: "Documentation deployment failed"
+
+      - send-error
 
 workflows:
   build-and-test:
