@@ -14,7 +14,7 @@ executors:
       # Improve build performance in CI
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       # Disable build scans in CI to avoid network timeouts
-      GRADLE_SCAN: "false"
+      GRADLE_SCAN: "false" 
 
 commands:
   gradle-with-cache:
