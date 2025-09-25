@@ -41,6 +41,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
             }
 
             val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
+            setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
 
             // Create validate schema task at project level
             val validateSchemaTask = tasks.register("validateViaductSchema") {
@@ -67,7 +68,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
                 }
             }
 
-            val generateGRTsTask = setupGenerateGRTsTask(appExt, generateCentralSchemaTask = assembleCentralSchemaTask, validateSchemaTask = validateSchemaTask)
+            val generateGRTsTask = setupGenerateGRTsTask(appExt, assembleCentralSchemaTask, validateSchemaTask)
 
             setupConsumableConfigurationForGRT(generateGRTsTask.flatMap { it.archiveFile })
 
@@ -87,26 +88,13 @@ class ViaductApplicationPlugin : Plugin<Project> {
             outputDirectory.set(centralSchemaDirectory())
         }
 
-        configurations.create(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING).apply {
-            description = """
-              Consumable configuration consisting of a directory containing all schema fragments.  This directory
-              is organized as a top-level file named $BUILTIN_SCHEMA_FILE, plus directories named "parition[/module-name]/graphql",
-              where module-name is the modulePackageSuffix of the module with dots replaced by slashes (this segment is
-              not present if the suffix is blank).
-            """.trimIndent()
-            isCanBeConsumed = true
-            isCanBeResolved = false
-            attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA) }
-            outgoing.artifact(assembleCentralSchemaTask)
-        }
-
         return assembleCentralSchemaTask
     }
 
     /** Call the bytecode-generator to generate GRT files. */
     private fun Project.setupGenerateGRTsTask(
         appExt: ViaductApplicationExtension,
-        generateCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,
+        assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,
         validateSchemaTask: TaskProvider<*>,
     ): TaskProvider<Jar> {
         val pluginClasspath = files(ViaductPluginCommon.getClassPathElements(this@ViaductApplicationPlugin::class.java))
@@ -114,7 +102,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
         val generateGRTClassesTask = tasks.register<GenerateGRTClassFilesTask>("generateViaductGRTClassFiles") {
             dependsOn(validateSchemaTask)
             grtClassesDirectory.set(grtClassesDirectory())
-            schemaFiles.setFrom(generateCentralSchemaTask.flatMap { it.outputDirectory.map { dir -> dir.asFileTree.matching { include("**/*.graphqls") }.files } })
+            schemaFiles.setFrom(assembleCentralSchemaTask.flatMap { it.outputDirectory.map { dir -> dir.asFileTree.matching { include("**/*.graphqls") }.files } })
             grtPackageName.set(appExt.grtPackageName)
             classpath = pluginClasspath
             mainClass.set(CODEGEN_MAIN_CLASS)
@@ -129,7 +117,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
 
             from(generateGRTClassesTask.flatMap { it.grtClassesDirectory })
 
-            from(generateCentralSchemaTask.flatMap { it.outputDirectory }) {
+            from(assembleCentralSchemaTask.flatMap { it.outputDirectory }) {
                 into("viaduct/centralSchema")
                 exclude(BUILTIN_SCHEMA_FILE)
                 includeEmptyDirs = false
@@ -137,6 +125,21 @@ class ViaductApplicationPlugin : Plugin<Project> {
         }
 
         return generateGRTsTask
+    }
+
+    private fun Project.setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>) {
+        configurations.create(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING).apply {
+            description = """
+              Consumable configuration consisting of a directory containing all schema fragments.  This directory
+              is organized as a top-level file named $BUILTIN_SCHEMA_FILE, plus directories named "parition[/module-name]/graphql",
+              where module-name is the modulePackageSuffix of the module with dots replaced by slashes (this segment is
+              not present if the suffix is blank).
+            """.trimIndent()
+            isCanBeConsumed = true
+            isCanBeResolved = false
+            attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA) }
+            outgoing.artifact(assembleCentralSchemaTask)
+        }
     }
 
     private fun Project.setupConsumableConfigurationForGRT(artifact: Provider<RegularFile>) {
