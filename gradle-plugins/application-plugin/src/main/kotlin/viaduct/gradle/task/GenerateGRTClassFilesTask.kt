@@ -14,10 +14,6 @@ import org.gradle.api.tasks.PathSensitivity
 
 @CacheableTask
 abstract class GenerateGRTClassFilesTask : JavaExec() {
-    init {
-        // No group: don't want this to appear in task list
-        description = "Generate compiled GRT class files from the central schema."
-    }
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -29,7 +25,10 @@ abstract class GenerateGRTClassFilesTask : JavaExec() {
     @get:OutputDirectory
     abstract val grtClassesDirectory: DirectoryProperty
 
-    override fun exec() {
+    init {
+        // No group: don't want this to appear in task list
+        description = "Generate compiled GRT class files from the central schema."
+
         argumentProviders.add {
             listOf(
                 "--schema_files",
@@ -40,6 +39,5 @@ abstract class GenerateGRTClassFilesTask : JavaExec() {
                 grtClassesDirectory.get().asFile.absolutePath
             )
         }
-        super.exec()
     }
 }

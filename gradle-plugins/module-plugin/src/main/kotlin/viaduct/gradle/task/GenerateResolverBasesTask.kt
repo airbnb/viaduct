@@ -19,10 +19,6 @@ import viaduct.gradle.ViaductModuleExtension
 
 @CacheableTask
 abstract class GenerateResolverBasesTask : JavaExec() {
-    init {
-        group = "viaduct"
-        description = "Generate resolver base Kotlin sources from central schema and module partition."
-    }
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -39,8 +35,10 @@ abstract class GenerateResolverBasesTask : JavaExec() {
 
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
+    init {
+        group = "viaduct"
+        description = "Generate resolver base Kotlin sources from central schema and module partition."
 
-    override fun exec() {
         argumentProviders.add {
             listOf(
                 "--schema_files",
@@ -55,7 +53,6 @@ abstract class GenerateResolverBasesTask : JavaExec() {
                 tenantFromSourceRegex.get()
             )
         }
-        super.exec()
     }
 
     fun Project.wireToExtensions(
