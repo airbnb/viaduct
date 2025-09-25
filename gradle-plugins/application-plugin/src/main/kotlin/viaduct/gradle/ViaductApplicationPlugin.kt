@@ -54,7 +54,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
             attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION) }
         }
 
-        val generateCentralSchemaTask = tasks.register<AssembleCentralSchemaTask>("generateViaductCentralSchema") {
+        val assembleCentralSchemaTask = tasks.register<AssembleCentralSchemaTask>("assembleViaductCentralSchema") {
             schemaPartitions.setFrom(allPartitions.incoming.artifactView {}.files)
             outputDirectory.set(centralSchemaDirectory())
         }
