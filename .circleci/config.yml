@@ -345,7 +345,6 @@ jobs:
                     exit 1
                   }
                   echo "✅ Coverage thresholds met successfully"
-                  exit 1 # check slack error message
                   
       - send-error:
           message: $MSG_DES
@@ -388,6 +387,7 @@ jobs:
               exit 1
             }
             echo "✅ Documentation verification completed"
+            exit 1 # check slack error message
 
       - run: echo "export MSG_DES=\"Documentation verification failed\"" > $BASH_ENV
       - run:
