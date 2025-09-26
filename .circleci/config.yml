@@ -78,13 +78,13 @@ jobs:
     steps:
       - checkout
 
-
       - setup-gradle
       - send-error:
           message: "Gradle setup failed"
 
       # Use Gradle orb for optimal caching
       - gradle-with-cache:
+          message: "Dependency download failed"
           steps:
             - run:
                 name: Download dependencies
@@ -97,7 +97,7 @@ jobs:
                   }
                   echo "✅ Dependencies downloaded successfully"
       - send-error:
-          message: "Dependency download failed"
+          #message: "Dependency download failed"
 
       - gradle-with-cache:
           steps:
