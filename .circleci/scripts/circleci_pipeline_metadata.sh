@@ -1,4 +1,7 @@
 set -euo pipefail
+
+MSG_DES="${1:-}"
+
 sudo apt-get update -y && sudo apt-get install -y jq
 
 VCS="github"
@@ -10,6 +13,7 @@ JOB_URL="https://app.circleci.com/pipelines/${VCS}/${CIRCLE_PROJECT_USERNAME}/${
 
 MSG="$(cat <<EOF
 ----------- Circle-Ci Error -------------
+Description: $MSG_DES
 
 project_name=${CIRCLE_PROJECT_REPONAME}
 org=${CIRCLE_PROJECT_USERNAME}
