@@ -105,7 +105,7 @@ jobs:
                   ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
                   echo "✅ Project built successfully"
 
-      - run: echo "export MSG_DES=\"Error Collect build artifacts\"" > $BASH_ENV
+      - run: echo "export MSG_DES=\"Failed to collect build artifacts\"" > $BASH_ENV
       - run:
           name: Collect build artifacts
           command: |
@@ -127,8 +127,6 @@ jobs:
 
             echo "✅ Collected:"
             find build/package -type f -maxdepth 2 -print
-
-            exit 1 # check slack error message
 
       - store_artifacts:
           path: build/package
@@ -210,6 +208,7 @@ jobs:
                     exit 1
                   }
                   echo "✅ Reports generated successfully"
+                  exit 1 # check slack error message
                 when: always
 
       # Store test results for CircleCI UI (JUnit XML files)
