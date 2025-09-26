@@ -191,7 +191,6 @@ jobs:
             - run:
                 name: Run tests
                 command: |
-                  exit 1 # check slack error message
                   echo "🧪 Running tests..."
                   ./gradlew test --no-scan --continue || {
                     echo "⚠️ Some tests failed, but continuing"
@@ -203,6 +202,7 @@ jobs:
             - run:
                 name: Generate coverage and test reports
                 command: |
+                  exit 1 # check slack error message
                   echo "📊 Generating aggregated coverage and test reports..."
                   ./gradlew testAndCoverage --no-scan --no-configuration-cache || {
                     echo "❌ Failed to generate reports"
@@ -367,6 +367,7 @@ jobs:
             }
             echo "✅ Git installed successfully"
 
+      - run: echo "export MSG_DES=\"Failed to restore workspace in deploy-docs job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project/
 
@@ -403,8 +404,6 @@ jobs:
               exit 1
             }
             echo "✅ Documentation deployed successfully"
-      - send-error:
-          message: "Documentation deployment failed"
 
       - send-error:
           message: $MSG_DES
