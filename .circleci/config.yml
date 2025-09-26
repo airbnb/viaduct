@@ -84,7 +84,6 @@ jobs:
       
       # Use Gradle orb for optimal caching
       - gradle-with-cache:
-          message: "Dependency download failed"
           steps:
             - run:
                 name: Download dependencies
