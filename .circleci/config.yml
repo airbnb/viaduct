@@ -78,14 +78,11 @@ jobs:
     steps:
       - checkout
 
+      - run: echo "export MSG_DES=\"Gradle setup failed\"" > $BASH_ENV
       - setup-gradle
 
-      #- run: echo "export MSG_DES=Gradle setup failed" >> $BASH_ENV
-
-      - run: echo "export MSG_DES=\"Gradle setup failed\"" > $BASH_ENV
-
-      
       # Use Gradle orb for optimal caching
+      - run: echo "export MSG_DES=Dependency download failed"  > $BASH_ENV 
       - gradle-with-cache:
           steps:
             - run:
@@ -98,9 +95,8 @@ jobs:
                     exit 1
                   }
                   echo "✅ Dependencies downloaded successfully"
-                  
-      - run: echo "export MSG_DES=Dependency download failed"  > $BASH_ENV
 
+      - run: echo "export MSG_DES=Project build failed" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -110,8 +106,6 @@ jobs:
                   ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
                   ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
                   echo "✅ Project built successfully"
-      
-      - run: echo "export MSG_DES=Project build failed" > $BASH_ENV
 
       - run:
           name: Collect build artifacts
