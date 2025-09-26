@@ -82,7 +82,7 @@ jobs:
       - setup-gradle
 
       # Use Gradle orb for optimal caching
-      - run: echo "export MSG_DES=Dependency download failed"  > $BASH_ENV 
+      - run: echo "export MSG_DES=\"Dependency download failed\""  > $BASH_ENV 
       - gradle-with-cache:
           steps:
             - run:
@@ -96,7 +96,7 @@ jobs:
                   }
                   echo "✅ Dependencies downloaded successfully"
 
-      - run: echo "export MSG_DES=Project build failed" > $BASH_ENV
+      - run: echo "export MSG_DES=\"Project build failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
