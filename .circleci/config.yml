@@ -208,7 +208,6 @@ jobs:
                     exit 1
                   }
                   echo "✅ Reports generated successfully"
-                  exit 1 # check slack error message
                 when: always
 
       # Store test results for CircleCI UI (JUnit XML files)
@@ -252,6 +251,7 @@ jobs:
                     exit 1
                   }
                   echo "✅ Detekt analysis passed"
+                  exit 1 # check slack error message
 
       - store_artifacts:
           path: build/reports/detekt
