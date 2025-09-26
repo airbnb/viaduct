@@ -80,7 +80,10 @@ jobs:
 
       - setup-gradle
 
-      - run: echo "export MSG_DES=Gradle setup failed" >> $BASH_ENV
+      #- run: echo "export MSG_DES=Gradle setup failed" >> $BASH_ENV
+
+      - run: echo "export MSG_DES=\"Gradle setup failed\"" >> $BASH_ENV
+
       
       # Use Gradle orb for optimal caching
       - gradle-with-cache:
