@@ -88,7 +88,6 @@ jobs:
             - run:
                 name: Download dependencies
                 command: |
-                  exit 1 # check slack error message
                   echo "📥 Downloading Gradle dependencies..."
                   ./gradlew dependencies --no-scan || {
                     echo "❌ Failed to download dependencies"
@@ -134,6 +133,7 @@ jobs:
           destination: package
 
       # TODO: Enable Dokka documentation generation
+      # - run: echo "export MSG_DES=\"Dokka documentation generation failed\"" > $BASH_ENV
       # Currently disabled due to complex multi-module conflicts and dependency issues
       # - gradle-with-cache:
       #     steps:
@@ -146,9 +146,6 @@ jobs:
       #               exit 1
       #             }
       #             echo "✅ Dokka documentation generated successfully"
-      # - send-error:
-      #     message: "Dokka documentation generation failed"
-
       # - run:
       #     name: Dump Dokka problem report
       #     command: |
@@ -181,21 +178,20 @@ jobs:
       - checkout
 
       # Restore workspace from build job
+      - run: echo "export MSG_DES=\"Failed to restore workspace in test job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - send-error:
-          message: "Failed to restore workspace in test job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in test job\"" > $BASH_ENV
       - setup-gradle
       
-      - send-error:
-          message: "Gradle setup failed in test job"
-
       - gradle-with-cache:
           steps:
+            - run: echo "export MSG_DES=\"Error running tests\"" > $BASH_ENV
             - run:
                 name: Run tests
                 command: |
+                  exit 1 # check slack error message
                   echo "🧪 Running tests..."
                   ./gradlew test --no-scan --continue || {
                     echo "⚠️ Some tests failed, but continuing"
@@ -203,6 +199,7 @@ jobs:
                   }
                   echo "✅ Test execution completed"
 
+            - run: echo "export MSG_DES=\"Report generation failed\"" > $BASH_ENV
             - run:
                 name: Generate coverage and test reports
                 command: |
@@ -213,8 +210,6 @@ jobs:
                   }
                   echo "✅ Reports generated successfully"
                 when: always
-      - send-error:
-          message: "Report generation failed"
 
       # Store test results for CircleCI UI (JUnit XML files)
       - store_test_results:
@@ -229,6 +224,9 @@ jobs:
       - store_artifacts:
           path: build/reports
           destination: all-reports
+
+      - send-error:
+          message: $MSG_DES
 
   detekt:
     executor: kotlin-gradle-executor
