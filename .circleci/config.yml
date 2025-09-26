@@ -251,7 +251,6 @@ jobs:
                     exit 1
                   }
                   echo "✅ Detekt analysis passed"
-                  exit 1 # check slack error message
 
       - store_artifacts:
           path: build/reports/detekt
@@ -284,6 +283,7 @@ jobs:
                     exit 1
                   }
                   echo "✅ Ktlint formatting check passed"
+                  exit 1 # check slack error message
 
       - send-error:
           message: $MSG_DES
