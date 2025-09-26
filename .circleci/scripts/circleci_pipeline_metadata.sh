@@ -32,8 +32,6 @@ EOF
 MSG="${MSG//%PIPELINE_URL%/${PIPELINE_URL}}"
 MSG="${MSG//%WORKFLOW_URL%/${WORKFLOW_URL}}"
 
-echo "DEBUG MSG:"
-echo "$MSG"
 
 # Construye JSON con jq; preserva saltos de línea como \n
 PAYLOAD="$(jq -n --arg t "$MSG" '{text:$t}')"
