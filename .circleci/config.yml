@@ -42,6 +42,7 @@ commands:
             - ~/.gradle/wrapper
             - .gradle
 
+  # Send alerts to Slack
   send-error:
     parameters:
       message:
