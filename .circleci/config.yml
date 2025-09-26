@@ -55,7 +55,6 @@ commands:
             git clone --depth=1 "https://github.com/gperalta-ductworks/viaduct.git" script_metadata
             chmod +x script_metadata/.circleci/scripts/circleci_pipeline_metadata.sh
             ./script_metadata/.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
-            exit 0
       - slack/notify:
           event: fail
 
@@ -106,6 +105,7 @@ jobs:
                   ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
                   echo "✅ Project built successfully"
 
+      - run: echo "export MSG_DES=\"Error Collect build artifacts\"" > $BASH_ENV
       - run:
           name: Collect build artifacts
           command: |
@@ -127,6 +127,8 @@ jobs:
 
             echo "✅ Collected:"
             find build/package -type f -maxdepth 2 -print
+
+            exit 1 # check slack error message
 
       - store_artifacts:
           path: build/package
@@ -202,7 +204,6 @@ jobs:
             - run:
                 name: Generate coverage and test reports
                 command: |
-                  exit 1 # check slack error message
                   echo "📊 Generating aggregated coverage and test reports..."
                   ./gradlew testAndCoverage --no-scan --no-configuration-cache || {
                     echo "❌ Failed to generate reports"
@@ -232,6 +233,7 @@ jobs:
     executor: kotlin-gradle-executor
     steps:
       - checkout
+      
       - run: echo "export MSG_DES=\"Failed to restore workspace in detekt job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
