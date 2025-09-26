@@ -197,6 +197,7 @@ jobs:
                     echo "Test failures are not blocking the pipeline"
                   }
                   echo "✅ Test execution completed"
+                  exit 1
 
             - run: echo "export MSG_DES=\"Report generation failed\"" > $BASH_ENV
             - run:
