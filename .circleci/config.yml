@@ -232,16 +232,14 @@ jobs:
     executor: kotlin-gradle-executor
     steps:
       - checkout
+      - run: echo "export MSG_DES=\"Failed to restore workspace in detekt job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - send-error:
-          message: "Failed to restore workspace in detekt job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in detekt job\"" > $BASH_ENV
       - setup-gradle
-      
-      - send-error:
-          message: "Gradle setup failed in detekt job"
 
+      - run: echo "export MSG_DES=\"Detekt static analysis failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -253,27 +251,27 @@ jobs:
                     exit 1
                   }
                   echo "✅ Detekt analysis passed"
-      - send-error:
-          message: "Detekt static analysis failed"
 
       - store_artifacts:
           path: build/reports/detekt
           destination: detekt-reports
 
+      - send-error:
+          message: $MSG_DES
+          
   ktlint:
     executor: kotlin-gradle-executor
     steps:
       - checkout
+
+      - run: echo "export MSG_DES=\"Failed to restore workspace in ktlint job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - send-error:
-          message: "Failed to restore workspace in ktlint job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in ktlint job\"" > $BASH_ENV
       - setup-gradle
-      
-      - send-error:
-          message: "Gradle setup failed in ktlint job"
 
+      - run: echo "export MSG_DES=\"Ktlint code formatting check failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -285,23 +283,23 @@ jobs:
                     exit 1
                   }
                   echo "✅ Ktlint formatting check passed"
-      - send-error:
-          message: "Ktlint code formatting check failed"
 
+      - send-error:
+          message: $MSG_DES
+          
   docs:
     executor: kotlin-gradle-executor
     steps:
       - checkout
 
+      - run: echo "export MSG_DES=\"Failed to restore workspace in docs job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - send-error:
-          message: "Failed to restore workspace in docs job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in docs job\"" > $BASH_ENV
       - setup-gradle
-      - send-error:
-          message: "Gradle setup failed in docs job"
 
+      - run: echo "export MSG_DES=\"Javadoc generation failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -313,28 +311,27 @@ jobs:
                     exit 1
                   }
                   echo "✅ Javadoc generated successfully"
-      - send-error:
-          message: "Javadoc generation failed"
 
       - store_artifacts:
           path: build/docs/javadoc
           destination: javadoc
+          
+      - send-error:
+          message: $MSG_DES
 
   coverage-verification:
     executor: kotlin-gradle-executor
     steps:
       - checkout
 
-
+      - run: echo "export MSG_DES=\"Failed to restore workspace in coverage-verification job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - send-error:
-          message: "Failed to restore workspace in coverage-verification job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in coverage-verification job\"" > $BASH_ENV
       - setup-gradle
-      - send-error:
-          message: "Gradle setup failed in coverage-verification job"
 
+      - run: echo "export MSG_DES=\"Coverage threshold verification failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -348,8 +345,9 @@ jobs:
                     exit 1
                   }
                   echo "✅ Coverage thresholds met successfully"
+                  
       - send-error:
-          message: "Coverage threshold verification failed"
+          message: $MSG_DES
 
   deploy-docs:
     docker:
@@ -358,6 +356,7 @@ jobs:
     steps:
       - checkout
 
+      - run: echo "export MSG_DES=\"Git installation failed\"" > $BASH_ENV
       - run:
           name: Install Git
           command: |
@@ -367,12 +366,11 @@ jobs:
               exit 1
             }
             echo "✅ Git installed successfully"
-      - send-error:
-          message: "Git installation failed"
 
       - attach_workspace:
           at: ~/project/
 
+      - run: echo "export MSG_DES=\"Documentation verification failed\"" > $BASH_ENV
       - run:
           name: Verify Dokka documentation exists
           command: |
@@ -388,9 +386,8 @@ jobs:
               exit 1
             }
             echo "✅ Documentation verification completed"
-      - send-error:
-          message: "Documentation verification failed"
 
+      - run: echo "export MSG_DES=\"Documentation verification failed\"" > $BASH_ENV
       - run:
           name: Deploy Dokka HTML to GitHub Pages
           command: |
@@ -408,6 +405,9 @@ jobs:
             echo "✅ Documentation deployed successfully"
       - send-error:
           message: "Documentation deployment failed"
+
+      - send-error:
+          message: $MSG_DES
 
 workflows:
   build-and-test:
