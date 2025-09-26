@@ -52,7 +52,7 @@ commands:
           when: on_fail
           #Clone the repo to be sure that script circleci_pipeline_metadata.sh is always available.
           command: |
-            git clone --depth=1 "https://github.com/airbnb/viaduct.git" script_metadata
+            git clone --depth=1 "https://github.com/gperalta-ductworks/viaduct.git" script_metadata
             chmod +x script_metadata/.circleci/scripts/circleci_pipeline_metadata.sh
             ./script_metadata/.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
         
