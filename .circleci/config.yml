@@ -79,9 +79,9 @@ jobs:
       - checkout
 
       - setup-gradle
-      - send-error:
-          message: "Gradle setup failed"
 
+      - run: echo "export MSG_DES=Gradle setup failed" >> $BASH_ENV
+      
       # Use Gradle orb for optimal caching
       - gradle-with-cache:
           message: "Dependency download failed"
@@ -96,8 +96,8 @@ jobs:
                     exit 1
                   }
                   echo "✅ Dependencies downloaded successfully"
-      - send-error:
-          #message: "Dependency download failed"
+                  
+      - run: echo "export MSG_DES=Dependency download failed"  >> $BASH_ENV
 
       - gradle-with-cache:
           steps:
@@ -108,8 +108,8 @@ jobs:
                   ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
                   ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
                   echo "✅ Project built successfully"
-      - send-error:
-          message: "Project build failed"
+      
+      - run: echo "export MSG_DES=Project build failed" >> $BASH_ENV
 
       - run:
           name: Collect build artifacts
@@ -175,6 +175,9 @@ jobs:
             - .gradle
             - "*/build"
             - build/package
+
+      - send-error:
+          message: $MSG_DES
 
   test:
     executor: kotlin-gradle-executor
