@@ -245,7 +245,6 @@ jobs:
             - run:
                 name: Run Detekt Static Analysis
                 command: |
-                  exit 1 # checkin send error to slack
                   echo "🧹 Running Detekt static analysis..."
                   ./gradlew detekt --no-daemon --max-workers=1 || {
                     echo "❌ Detekt found code style violations"
@@ -278,6 +277,7 @@ jobs:
             - run:
                 name: Run Ktlint Code Formatting Check
                 command: |
+                  exit 1 # checkin send error to slack
                   echo "🧹 Running Ktlint code formatting check..."
                   ./gradlew ktlintCheck --no-daemon --max-workers=1 || {
                     echo "❌ Ktlint found code formatting violations"
