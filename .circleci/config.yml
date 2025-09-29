@@ -55,11 +55,13 @@ commands:
           when: on_fail
           #Clone the repo to be sure that script circleci_pipeline_metadata.sh is always available.
           command: |
+            ls
+            pwd
             #git clone --depth=1 "https://github.com/gperalta-ductworks/viaduct.git" script_metadata
-            chmod +x .circleci/scripts/circleci_pipeline_metadata.sh
-            /.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
-      - slack/notify:
-          event: fail
+            #chmod +x .circleci/scripts/circleci_pipeline_metadata.sh
+            #/.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
+      #- slack/notify:
+          #event: fail
 
   setup-gradle:
     steps:
