@@ -48,15 +48,10 @@ commands:
       message:
         type: string
     steps:
-      #- checkout
       - run:
           name: Send alerts to slack when something fails
           when: on_fail
-          #Clone the repo to be sure that script circleci_pipeline_metadata.sh is always available.
           command: |
-            ls
-            pwd
-            #git clone --depth=1 "https://github.com/gperalta-ductworks/viaduct.git" script_metadata
             chmod +x /home/circleci/project/.circleci/scripts/circleci_pipeline_metadata.sh
             /home/circleci/project/.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
             
