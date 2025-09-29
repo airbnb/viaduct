@@ -277,7 +277,6 @@ jobs:
             - run:
                 name: Run Ktlint Code Formatting Check
                 command: |
-                  exit 1 # checkin send error to slack
                   echo "🧹 Running Ktlint code formatting check..."
                   ./gradlew ktlintCheck --no-daemon --max-workers=1 || {
                     echo "❌ Ktlint found code formatting violations"
@@ -306,6 +305,7 @@ jobs:
             - run:
                 name: Generate Javadoc
                 command: |
+                  exit 1 # checkin send error to slack
                   echo "📝 Generating Javadoc documentation..."
                   ./gradlew javadoc --no-scan || {
                     echo "❌ Javadoc generation failed"
