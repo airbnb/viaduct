@@ -48,7 +48,7 @@ commands:
       message:
         type: string
     steps:
-      - checkout
+      #- checkout
       
       - run:
           name: Send alerts to slack when something fails
@@ -80,7 +80,7 @@ jobs:
   build:
     executor: kotlin-gradle-executor
     steps:
-      #- checkout
+      - checkout
 
       - run: echo "export MSG_DES=\"Gradle setup failed\"" > $BASH_ENV
       - setup-gradle
