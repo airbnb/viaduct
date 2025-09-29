@@ -337,7 +337,6 @@ jobs:
             - run:
                 name: Verify coverage thresholds
                 command: |
-                  exit 1 # checkin send error to slack
                   echo "🎯 Verifying coverage thresholds..."
                   # Skip report generation since it was already done in test job
                   ./gradlew testCodeCoverageVerification --no-scan --no-configuration-cache -x testCodeCoverageReport || {
