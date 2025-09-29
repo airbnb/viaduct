@@ -49,7 +49,6 @@ commands:
         type: string
     steps:
       #- checkout
-      
       - run:
           name: Send alerts to slack when something fails
           when: on_fail
