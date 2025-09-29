@@ -48,14 +48,16 @@ commands:
       message:
         type: string
     steps:
+      - checkout
+      
       - run:
           name: Send alerts to slack when something fails
           when: on_fail
           #Clone the repo to be sure that script circleci_pipeline_metadata.sh is always available.
           command: |
-            git clone --depth=1 "https://github.com/gperalta-ductworks/viaduct.git" script_metadata
-            chmod +x script_metadata/.circleci/scripts/circleci_pipeline_metadata.sh
-            ./script_metadata/.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
+            #git clone --depth=1 "https://github.com/gperalta-ductworks/viaduct.git" script_metadata
+            chmod +x .circleci/scripts/circleci_pipeline_metadata.sh
+            /.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
       - slack/notify:
           event: fail
 
@@ -88,6 +90,7 @@ jobs:
             - run:
                 name: Download dependencies
                 command: |
+                  exit 1 # checkin send error to slack
                   echo "📥 Downloading Gradle dependencies..."
                   ./gradlew dependencies --no-scan || {
                     echo "❌ Failed to download dependencies"
