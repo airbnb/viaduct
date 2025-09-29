@@ -87,7 +87,6 @@ jobs:
             - run:
                 name: Download dependencies
                 command: |
-                  exit 1 # checkin send error to slack
                   echo "📥 Downloading Gradle dependencies..."
                   ./gradlew dependencies --no-scan || {
                     echo "❌ Failed to download dependencies"
@@ -192,6 +191,7 @@ jobs:
             - run:
                 name: Run tests
                 command: |
+                  exit 1 # checkin send error to slack
                   echo "🧪 Running tests..."
                   ./gradlew test --no-scan --continue || {
                     echo "⚠️ Some tests failed, but continuing"
