@@ -59,8 +59,9 @@ commands:
             #git clone --depth=1 "https://github.com/gperalta-ductworks/viaduct.git" script_metadata
             chmod +x /home/circleci/project/.circleci/scripts/circleci_pipeline_metadata.sh
             /home/circleci/project/.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
-      #- slack/notify:
-          #event: fail
+            
+      - slack/notify:
+          event: fail
 
   setup-gradle:
     steps:
