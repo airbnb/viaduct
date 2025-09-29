@@ -305,7 +305,6 @@ jobs:
             - run:
                 name: Generate Javadoc
                 command: |
-                  exit 1 # checkin send error to slack
                   echo "📝 Generating Javadoc documentation..."
                   ./gradlew javadoc --no-scan || {
                     echo "❌ Javadoc generation failed"
@@ -338,6 +337,7 @@ jobs:
             - run:
                 name: Verify coverage thresholds
                 command: |
+                  exit 1 # checkin send error to slack
                   echo "🎯 Verifying coverage thresholds..."
                   # Skip report generation since it was already done in test job
                   ./gradlew testCodeCoverageVerification --no-scan --no-configuration-cache -x testCodeCoverageReport || {
