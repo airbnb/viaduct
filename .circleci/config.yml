@@ -57,8 +57,8 @@ commands:
             ls
             pwd
             #git clone --depth=1 "https://github.com/gperalta-ductworks/viaduct.git" script_metadata
-            #chmod +x .circleci/scripts/circleci_pipeline_metadata.sh
-            #/.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
+            chmod +x /home/circleci/project/.circleci/scripts/circleci_pipeline_metadata.sh
+            /home/circleci/project/.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
       #- slack/notify:
           #event: fail
 
