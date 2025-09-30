@@ -75,7 +75,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
             grtClassesDirectory.set(grtClassesDirectory())
             schemaFiles.setFrom(assembleCentralSchemaTask.flatMap { it.outputDirectory.map { dir -> dir.asFileTree.matching { include("**/*.graphqls") }.files } })
             grtPackageName.set(appExt.grtPackageName)
-            classpath = pluginClasspath
+            classpath.setFrom(pluginClasspath)
             mainClass.set(CODEGEN_MAIN_CLASS)
         }
 

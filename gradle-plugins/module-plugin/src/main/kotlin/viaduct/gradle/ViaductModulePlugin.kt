@@ -183,7 +183,7 @@ class ViaductModulePlugin : Plugin<Project> {
             )
             wireToExtensions(moduleExt, appExt)
             tenantFromSourceRegex.set("$centralSchemaDirectoryName/partition/(.*)/graphql")
-            classpath = files(ViaductPluginCommon.getClassPathElements(this@ViaductModulePlugin::class.java))
+            classpath.setFrom(files(ViaductPluginCommon.getClassPathElements(this@ViaductModulePlugin::class.java)))
             mainClass.set(RESOLVER_CODEGEN_MAIN_CLASS)
         }
     }

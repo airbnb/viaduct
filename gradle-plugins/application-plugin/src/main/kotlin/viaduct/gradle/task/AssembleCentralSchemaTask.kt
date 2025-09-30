@@ -1,5 +1,6 @@
 package viaduct.gradle.task
 
+import java.io.File
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -17,7 +18,6 @@ import viaduct.gradle.ViaductApplicationPlugin
 import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductBasicSchemaValidator
 import viaduct.graphql.utils.DefaultSchemaProvider
-import java.io.File
 
 /**
  * This task gathers the various partitions of the schema and
@@ -61,7 +61,7 @@ abstract class AssembleCentralSchemaTask
             validateCompleteSchema(allSchemaFiles + sdlFile)
         }
 
-    private fun validateCompleteSchema(schemaFiles: Collection<File>) {
+        private fun validateCompleteSchema(schemaFiles: Collection<File>) {
             val logger = LoggerFactory.getLogger(ViaductApplicationPlugin::class.java)
             val validator = ViaductBasicSchemaValidator(logger)
             val errors = validator.validateSchema(schemaFiles)
