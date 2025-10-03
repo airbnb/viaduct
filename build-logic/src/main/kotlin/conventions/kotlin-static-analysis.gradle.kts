@@ -5,6 +5,7 @@ import viaduct.gradle.internal.repoRoot
 plugins {
     id("io.gitlab.arturbosch.detekt")
     id("org.jlleitschuh.gradle.ktlint")
+    id("detekt.viaduct-detekt-rules")
 }
 
 val detektConfigFile = providers.provider { repoRoot().file("detekt.yml") }

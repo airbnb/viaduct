@@ -11,6 +11,7 @@ import graphql.language.Node
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.VariableReference
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLOutputType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -23,6 +24,7 @@ import strikt.assertions.isNotNull
 import strikt.assertions.isNull
 import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSetRegistry
@@ -45,27 +47,15 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 
 class QueryPlanTest {
     @Test
-    fun `field`() {
+    fun `scalar field`() {
         Fixture("type Query { x:Int }") {
-            expectThat(mkPlan("{x}")) {
+            expectThat(buildPlan("{x}")) {
                 checkEquals(
-                    QueryPlan(
+                    mkQueryPlan(
                         SelectionSet(
-                            listOf(
-                                Field(
-                                    "x",
-                                    Constraints(emptyList(), possibleTypes = setOf(query)),
-                                    GJField("x"),
-                                    null,
-                                    emptyList(),
-                                    emptyMap()
-                                )
-                            )
+                            mkField("x", typeConstraint(query))
                         ),
-                        Fragments.empty,
-                        emptyList(),
-                        query,
-                        emptyList()
+                        parentType = query
                     )
                 )
             }
@@ -80,25 +70,17 @@ class QueryPlanTest {
             .build()
 
         Fixture("type Query { x:Int }") {
-            expectThat(mkPlan("{x @skip(if:\$var) }")) {
+            expectThat(buildPlan("{x @skip(if:\$var) }")) {
                 checkEquals(
-                    QueryPlan(
+                    mkQueryPlan(
                         SelectionSet(
-                            listOf(
-                                Field(
-                                    "x",
-                                    Constraints(listOf(skipDir), possibleTypes = setOf(query)),
-                                    GJField.newField("x").directive(skipDir).build(),
-                                    null,
-                                    emptyList(),
-                                    emptyMap()
-                                )
+                            mkField(
+                                "x",
+                                Constraints(listOf(skipDir), possibleTypes = setOf(query)),
+                                GJField.newField("x").directive(skipDir).build()
                             )
                         ),
-                        Fragments.empty,
-                        emptyList(),
-                        query,
-                        emptyList(),
+                        parentType = query
                     )
                 )
             }
@@ -108,39 +90,23 @@ class QueryPlanTest {
     @Test
     fun `field with subselections`() {
         Fixture("type Query { q:Query }") {
-            expectThat(mkPlan("{ q { __typename } }")) {
+            expectThat(buildPlan("{ q { __typename } }")) {
                 checkEquals(
-                    QueryPlan(
+                    mkQueryPlan(
                         SelectionSet(
-                            listOf(
-                                Field(
+                            mkField(
+                                "q",
+                                Constraints(emptyList(), possibleTypes = setOf(query)),
+                                GJField(
                                     "q",
-                                    Constraints(emptyList(), possibleTypes = setOf(query)),
-                                    GJField(
-                                        "q",
-                                        GJSelectionSet(listOf(GJField("__typename")))
-                                    ),
-                                    SelectionSet(
-                                        listOf(
-                                            Field(
-                                                "__typename",
-                                                Constraints(emptyList(), possibleTypes = setOf(query)),
-                                                GJField("__typename"),
-                                                null,
-                                                emptyList(),
-                                                emptyMap()
-                                            )
-                                        )
-                                    ),
-                                    emptyList(),
-                                    emptyMap()
+                                    GJSelectionSet(listOf(GJField("__typename")))
+                                ),
+                                SelectionSet(
+                                    mkField("__typename", typeConstraint(query))
                                 )
                             )
                         ),
-                        Fragments.empty,
-                        emptyList(),
-                        query,
-                        emptyList(),
+                        parentType = query
                     )
                 )
             }
@@ -150,32 +116,18 @@ class QueryPlanTest {
     @Test
     fun `inline fragment`() {
         Fixture("type Query { x:Int }") {
-            expectThat(mkPlan("{ ... { x } }")) {
+            expectThat(buildPlan("{ ... { x } }")) {
                 checkEquals(
-                    QueryPlan(
+                    mkQueryPlan(
                         SelectionSet(
-                            listOf(
-                                InlineFragment(
-                                    SelectionSet(
-                                        listOf(
-                                            Field(
-                                                "x",
-                                                Constraints(emptyList(), possibleTypes = setOf(query)),
-                                                GJField("x"),
-                                                null,
-                                                emptyList(),
-                                                emptyMap()
-                                            )
-                                        )
-                                    ),
-                                    Constraints(emptyList(), possibleTypes = setOf(query)),
-                                )
+                            InlineFragment(
+                                SelectionSet(
+                                    mkField("x", typeConstraint(query))
+                                ),
+                                Constraints(emptyList(), possibleTypes = setOf(query)),
                             )
                         ),
-                        Fragments.empty,
-                        emptyList(),
-                        query,
-                        emptyList(),
+                        parentType = query
                     )
                 )
             }
@@ -185,7 +137,7 @@ class QueryPlanTest {
     @Test
     fun `fragment spread`() {
         Fixture("type Query { x:Int }") {
-            val plan = mkPlan(
+            val plan = buildPlan(
                 """
                     { ... F }
                     fragment F on Query { x }
@@ -193,33 +145,20 @@ class QueryPlanTest {
             )
             expectThat(plan) {
                 checkEquals(
-                    QueryPlan(
+                    mkQueryPlan(
                         SelectionSet(
-                            listOf(
-                                FragmentSpread("F", Constraints(emptyList(), possibleTypes = setOf(query))),
-                            )
+                            FragmentSpread("F", Constraints(emptyList(), possibleTypes = setOf(query))),
                         ),
-                        Fragments(
+                        fragments = Fragments(
                             mapOf(
                                 "F" to FragmentDefinition(
                                     SelectionSet(
-                                        listOf(
-                                            Field(
-                                                "x",
-                                                Constraints(emptyList(), possibleTypes = setOf(query)),
-                                                GJField("x"),
-                                                null,
-                                                emptyList(),
-                                                emptyMap()
-                                            )
-                                        )
+                                        mkField("x", typeConstraint(query))
                                     )
                                 )
                             )
                         ),
-                        emptyList(),
-                        query,
-                        emptyList(),
+                        parentType = query
                     )
                 )
             }
@@ -234,26 +173,18 @@ class QueryPlanTest {
                 .fieldResolverEntry("Query" to "x", "y")
                 .build()
         ) {
-            val plan = mkPlan("{x}")
+            val plan = buildPlan("{x}")
             expectThat(plan) {
                 checkEquals(
-                    QueryPlan(
+                    mkQueryPlan(
                         SelectionSet(
-                            listOf(
-                                Field(
-                                    "x",
-                                    Constraints(emptyList(), listOf(query)),
-                                    GJField("x"),
-                                    null,
-                                    childPlans = listOf(mkPlan("{y}")),
-                                    fieldTypeChildPlans = emptyMap(),
-                                )
+                            mkField(
+                                "x",
+                                typeConstraint(query),
+                                childPlans = listOf(buildPlan("{y}")),
                             )
                         ),
-                        Fragments.empty,
-                        variablesResolvers = emptyList(),
-                        query,
-                        emptyList()
+                        parentType = query
                     )
                 )
             }
@@ -273,52 +204,38 @@ class QueryPlanTest {
             .fieldResolverEntry("Query" to "x", "y(a:\$vara)", varResolvers)
             .build()
         Fixture("type Query { x:Int, y(a:Int):Int, z:Int }", reg) {
-            val plan = mkPlan("{x}")
+            val plan = buildPlan("{x}")
             expectThat(plan) {
                 checkEquals(
-                    QueryPlan(
+                    mkQueryPlan(
                         SelectionSet(
-                            listOf(
-                                Field(
-                                    "x",
-                                    Constraints(emptyList(), listOf(query)),
-                                    GJField("x"),
-                                    null,
-                                    childPlans = listOf(
-                                        QueryPlan(
-                                            SelectionSet(
-                                                listOf(
-                                                    Field(
-                                                        "y",
-                                                        Constraints(emptyList(), listOf(query)),
-                                                        GJField(
-                                                            "y",
-                                                            listOf(
-                                                                Argument("a", VariableReference("vara"))
-                                                            )
-                                                        ),
-                                                        null,
-                                                        childPlans = emptyList(),
-                                                        fieldTypeChildPlans = emptyMap()
+                            mkField(
+                                "x",
+                                typeConstraint(query),
+                                childPlans = listOf(
+                                    mkQueryPlan(
+                                        SelectionSet(
+                                            mkField(
+                                                "y",
+                                                typeConstraint(query),
+                                                GJField(
+                                                    "y",
+                                                    listOf(
+                                                        Argument("a", VariableReference("vara"))
                                                     )
                                                 )
-                                            ),
-                                            Fragments.empty,
-                                            variablesResolvers = varResolvers,
-                                            query,
-                                            listOf(
-                                                mkPlan("{z}")
                                             )
+                                        ),
+                                        variablesResolvers = varResolvers,
+                                        parentType = query,
+                                        childPlans = listOf(
+                                            buildPlan("{z}")
                                         )
-                                    ),
-                                    fieldTypeChildPlans = emptyMap()
+                                    )
                                 )
                             )
                         ),
-                        Fragments.empty,
-                        variablesResolvers = emptyList(),
-                        query,
-                        emptyList()
+                        parentType = query
                     )
                 )
             }
@@ -337,63 +254,37 @@ class QueryPlanTest {
                 .build()
         ) {
             val objectX = schema.getObjectType("ObjectX")!!
-            val plan = mkPlan("{x{y}}")
+            val plan = buildPlan("{x{y}}")
             expectThat(plan) {
                 checkEquals(
-                    QueryPlan(
+                    mkQueryPlan(
                         SelectionSet(
-                            listOf(
-                                Field(
-                                    resultKey = "x",
-                                    constraints = Constraints(emptyList(), listOf(query)),
-                                    field = GJField(
-                                        "x",
-                                        GJSelectionSet(
-                                            listOf(GJField("y"))
+                            Field(
+                                resultKey = "x",
+                                constraints = typeConstraint(query),
+                                field = GJField(
+                                    "x",
+                                    GJSelectionSet(
+                                        listOf(GJField("y"))
+                                    )
+                                ),
+                                selectionSet = SelectionSet(
+                                    mkField("y", typeConstraint(objectX))
+                                ),
+                                childPlans = emptyList(),
+                                fieldTypeChildPlans = mapOf(
+                                    objectX to listOf(
+                                        mkQueryPlan(
+                                            SelectionSet(
+                                                mkField("z", typeConstraint(objectX))
+                                            ),
+                                            parentType = objectX
                                         )
-                                    ),
-                                    selectionSet = SelectionSet(
-                                        listOf(
-                                            Field(
-                                                "y",
-                                                Constraints(emptyList(), listOf(objectX)),
-                                                GJField("y"),
-                                                null,
-                                                emptyList(),
-                                                emptyMap()
-                                            )
-                                        )
-                                    ),
-                                    childPlans = emptyList(),
-                                    fieldTypeChildPlans = mapOf(
-                                        objectX to listOf(
-                                            QueryPlan(
-                                                SelectionSet(
-                                                    listOf(
-                                                        Field(
-                                                            "z",
-                                                            Constraints(emptyList(), listOf(objectX)),
-                                                            GJField("z"),
-                                                            null,
-                                                            emptyList(),
-                                                            emptyMap()
-                                                        )
-                                                    )
-                                                ),
-                                                Fragments.empty,
-                                                variablesResolvers = emptyList(),
-                                                objectX,
-                                                emptyList()
-                                            )
-                                        )
-                                    ),
-                                )
+                                    )
+                                ),
                             )
                         ),
-                        fragments = Fragments.empty,
-                        variablesResolvers = emptyList(),
-                        parentType = query,
-                        childPlans = emptyList()
+                        parentType = query
                     )
                 )
             }
@@ -428,83 +319,48 @@ class QueryPlanTest {
         ) {
             val objectX = schema.getObjectType("ObjectX")!!
             val objectY = schema.getObjectType("ObjectY")!!
-            val plan = mkPlan("{node{y}}")
+            val plan = buildPlan("{node{y}}")
             expectThat(plan) {
                 checkEquals(
-                    QueryPlan(
+                    mkQueryPlan(
                         SelectionSet(
-                            listOf(
-                                Field(
-                                    resultKey = "node",
-                                    constraints = Constraints(emptyList(), listOf(query)),
-                                    field = GJField(
-                                        "node",
-                                        GJSelectionSet(
-                                            listOf(GJField("y"))
-                                        )
-                                    ),
-                                    selectionSet = SelectionSet(
-                                        listOf(
-                                            Field(
-                                                "y",
-                                                Constraints(emptyList(), listOf(objectX, objectY)),
-                                                GJField("y"),
-                                                null,
-                                                emptyList(),
-                                                emptyMap()
-                                            )
-                                        )
-                                    ),
-                                    childPlans = emptyList(),
-                                    fieldTypeChildPlans = mapOf(
-                                        objectX to listOf(
-                                            QueryPlan(
-                                                SelectionSet(
-                                                    listOf(
-                                                        Field(
-                                                            "id",
-                                                            Constraints(emptyList(), listOf(objectX)),
-                                                            GJField("id"),
-                                                            null,
-                                                            emptyList(),
-                                                            emptyMap()
-                                                        )
-                                                    )
-                                                ),
-                                                Fragments.empty,
-                                                variablesResolvers = emptyList(),
-                                                objectX,
-                                                emptyList()
-                                            )
-                                        ),
-                                        objectY to listOf(
-                                            QueryPlan(
-                                                SelectionSet(
-                                                    listOf(
-                                                        Field(
-                                                            "z",
-                                                            Constraints(emptyList(), listOf(objectY)),
-                                                            GJField("z"),
-                                                            null,
-                                                            emptyList(),
-                                                            emptyMap()
-                                                        )
-                                                    )
-                                                ),
-                                                Fragments.empty,
-                                                variablesResolvers = emptyList(),
-                                                objectY,
-                                                emptyList()
-                                            )
-                                        ),
+                            mkField(
+                                resultKey = "node",
+                                constraints = Constraints(emptyList(), listOf(query)),
+                                field = GJField(
+                                    "node",
+                                    GJSelectionSet(
+                                        listOf(GJField("y"))
                                     )
+                                ),
+                                selectionSet = SelectionSet(
+                                    mkField(
+                                        "y",
+                                        Constraints(emptyList(), listOf(objectX, objectY))
+                                    )
+                                ),
+                                childPlans = emptyList(),
+                                fieldTypeChildPlans = mapOf(
+                                    objectX to listOf(
+                                        mkQueryPlan(
+                                            SelectionSet(
+                                                mkField("id", typeConstraint(objectX))
+                                            ),
+                                            parentType = objectX
+                                        )
+                                    ),
+                                    objectY to listOf(
+                                        mkQueryPlan(
+                                            SelectionSet(
+                                                mkField("z", typeConstraint(objectY))
+                                            ),
+                                            parentType = objectY
+                                        )
+                                    ),
                                 )
                             )
                         ),
-                        fragments = Fragments.empty,
-                        variablesResolvers = emptyList(),
-                        parentType = query,
-                        childPlans = emptyList()
+                        parentType = query
                     )
                 )
             }
@@ -538,6 +394,186 @@ class QueryPlanTest {
         assertEquals(0, QueryPlan.cacheSize)
     }
 
+    @Test
+    fun `QueryPlanBuilder -- inCheckerContext`() {
+        Fixture(
+            "type Query { x:Int, y:Int z:Int }",
+            MockRequiredSelectionSetRegistry.builder()
+                .fieldCheckerEntry("Query" to "x", "y")
+                .fieldResolverEntry("Query" to "x", "z")
+                .build()
+        ) {
+            // inCheckerContext = true
+            expectThat(buildPlan("{x}", inCheckerContext = true)) {
+                checkEquals(
+                    mkQueryPlan(
+                        SelectionSet(
+                            mkField(
+                                "x",
+                                typeConstraint(query),
+                                childPlans = listOf(
+                                    // Includes resolver plan but not checker plan
+                                    mkQueryPlan(
+                                        SelectionSet(
+                                            mkField("z", typeConstraint(query))
+                                        ),
+                                        parentType = query
+                                    )
+                                )
+                            )
+                        ),
+                        parentType = query
+                    )
+                )
+            }
+
+            // inCheckerContext = false
+            expectThat(buildPlan("{x}", inCheckerContext = false)) {
+                checkEquals(
+                    mkQueryPlan(
+                        SelectionSet(
+                            mkField(
+                                "x",
+                                typeConstraint(query),
+                                childPlans = listOf(
+                                    mkQueryPlan(
+                                        SelectionSet(
+                                            mkField("z", typeConstraint(query)),
+                                        ),
+                                        parentType = query
+                                    ),
+                                    // Includes checker plan
+                                    mkQueryPlan(
+                                        SelectionSet(
+                                            mkField("y", typeConstraint(query)),
+                                        ),
+                                        parentType = query
+                                    )
+                                )
+                            )
+                        ),
+                        parentType = query
+                    )
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- inCheckerContext excludes type checker child plans`() {
+        // Test that field type child plans are not built when in checker context
+        Fixture(
+            """
+                type Query { x:ObjectX }
+                type ObjectX { y:Int, z:Int }
+            """.trimIndent(),
+            MockRequiredSelectionSetRegistry.builder()
+                .typeCheckerEntry("ObjectX", "z")
+                .build()
+        ) {
+            val objectX = schema.getObjectType("ObjectX")!!
+
+            // Build checker query plan - should not have field type child plans
+            val checkerPlan = buildPlan("{x{y}}", inCheckerContext = true)
+            expectThat(checkerPlan) {
+                checkEquals(
+                    mkQueryPlan(
+                        SelectionSet(
+                            Field(
+                                resultKey = "x",
+                                constraints = typeConstraint(query),
+                                field = GJField(
+                                    "x",
+                                    GJSelectionSet(
+                                        listOf(GJField("y"))
+                                    )
+                                ),
+                                selectionSet = SelectionSet(
+                                    mkField("y", typeConstraint(objectX))
+                                ),
+                                childPlans = emptyList(),
+                                fieldTypeChildPlans = emptyMap(), // Empty because inCheckerContext = true
+                            )
+                        ),
+                        parentType = query
+                    )
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- checker with variable resolver RSS maintains inCheckerContext`() {
+        val varResolvers = VariablesResolver.fromSelectionSetVariables(
+            SelectionsParser.parse("Query", "z"),
+            ParsedSelections.empty("Query"),
+            listOf(
+                FromObjectFieldVariable("vara", "z")
+            )
+        )
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry(
+                "Query" to "x",
+                "y(a:\$vara)",
+                varResolvers
+            )
+            .fieldResolverEntry("Query" to "z", "zz") // Should be included
+            .fieldCheckerEntry("Query" to "z", "x") // Should not be included
+            .build()
+        Fixture("type Query { x:Int, y(a:Int):Int, z:Int zz:String}", reg) {
+            // Build a normal plan that triggers the checker
+            val plan = buildPlan("{x}")
+            expectThat(plan) {
+                checkEquals(
+                    mkQueryPlan(
+                        SelectionSet(
+                            mkField(
+                                "x",
+                                typeConstraint(query),
+                                childPlans = listOf(
+                                    mkQueryPlan(
+                                        SelectionSet(
+                                            mkField(
+                                                "y",
+                                                typeConstraint(query),
+                                                GJField(
+                                                    "y",
+                                                    listOf(
+                                                        Argument("a", VariableReference("vara"))
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        variablesResolvers = varResolvers,
+                                        parentType = query,
+                                        childPlans = listOf(
+                                            mkQueryPlan(
+                                                SelectionSet(
+                                                    mkField("z", typeConstraint(query))
+                                                ),
+                                                parentType = query,
+                                                // This should be built in checker context, so only includes child plan for z's resolver
+                                                childPlans = listOf(
+                                                    mkQueryPlan(
+                                                        SelectionSet(
+                                                            mkField("zz", typeConstraint(query))
+                                                        ),
+                                                        parentType = query
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        parentType = query
+                    )
+                )
+            }
+        }
+    }
+
     private class Fixture(
         sdl: String,
         val requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
@@ -550,7 +586,10 @@ class QueryPlanTest {
             fn(this)
         }
 
-        fun mkPlan(doc: String): QueryPlan = mkPlan(doc, ViaductSchema(schema), requiredSelectionSetRegistry)
+        fun buildPlan(
+            doc: String,
+            inCheckerContext: Boolean = false
+        ): QueryPlan = buildPlan(doc, ViaductSchema(schema), requiredSelectionSetRegistry, inCheckerContext)
     }
 }
 
@@ -669,16 +708,33 @@ internal fun <T : Node<*>> Assertion.Builder<T>.checkEquals(exp: T): Assertion.B
         get { AstPrinter.printAst(this) }.isEqualTo(AstPrinter.printAst(exp))
     }
 
-internal fun mkPlan(
+internal fun buildPlan(
     doc: String,
     schema: ViaductSchema,
     requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
+    inCheckerContext: Boolean = false
 ): QueryPlan =
     runExecutionTest {
         mkQPParameters(doc, schema, requiredSelectionSetRegistry).let { params ->
-            QueryPlan.build(params, doc.asDocument)
+            QueryPlan.build(params, doc.asDocument, inCheckerContext = inCheckerContext)
         }
     }
+
+private fun mkQueryPlan(
+    selectionSet: SelectionSet,
+    fragments: Fragments = Fragments.empty,
+    variablesResolvers: List<VariablesResolver> = emptyList(),
+    parentType: GraphQLOutputType,
+    childPlans: List<QueryPlan> = emptyList(),
+    attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
+) = QueryPlan(
+    selectionSet,
+    fragments,
+    variablesResolvers,
+    parentType,
+    childPlans,
+    attribution
+)
 
 internal fun mkQPParameters(
     doc: String,
@@ -692,3 +748,21 @@ internal fun mkQPParameters(
         // passing false here as it is not relevant for the tests we are running here given empty RSS registry
         executeAccessChecksInModstrat = false
     )
+
+private fun mkField(
+    resultKey: String,
+    constraints: Constraints,
+    field: GJField? = null,
+    selectionSet: SelectionSet? = null,
+    childPlans: List<QueryPlan> = emptyList(),
+    fieldTypeChildPlans: Map<GraphQLObjectType, List<QueryPlan>> = emptyMap()
+) = QueryPlan.Field(
+    resultKey = resultKey,
+    constraints = constraints,
+    field = field ?: GJField(resultKey),
+    selectionSet = selectionSet,
+    childPlans = childPlans,
+    fieldTypeChildPlans = fieldTypeChildPlans
+)
+
+private fun typeConstraint(type: GraphQLObjectType) = Constraints(emptyList(), listOf(type))

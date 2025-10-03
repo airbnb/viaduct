@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.arbitrary.common
 
 import io.kotest.common.ExperimentalKotest
@@ -13,7 +15,7 @@ import io.kotest.property.asSample
 import io.kotest.property.checkAll
 import java.lang.AssertionError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import viaduct.invariants.InvariantChecker
 
 /** Convert an arb to an infinite [kotlin.sequences.Sequence] */
@@ -41,7 +43,7 @@ fun <T> Gen<T>.minViolation(
 fun <T> Gen<T>.checkInvariants(
     iter: Int? = null,
     fn: PropertyContext.(T, InvariantChecker) -> Unit
-) = runBlockingTest {
+) = runBlocking {
     val cfg = PropTestConfig(iterations = iter)
     checkAll(cfg) {
         val check = InvariantChecker()

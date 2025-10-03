@@ -68,7 +68,7 @@ data class Packages(val expected: String, val actual: String) {
 
 object ClassNames {
     val NoScalars: Predicate<TypeDef> = Predicate { it.kind != TypeDefKind.SCALAR }
-    val IsEligible: Predicate<TypeDef> = Predicate { (it as? Object)?.isEligible(ViaductBaseTypeMapper()) ?: true }
+    val IsEligible: Predicate<TypeDef> = Predicate { (it as? Object)?.isEligible(ViaductBaseTypeMapper(mkSchema(""))) ?: true }
 
     fun isEligibleWith(baseTypeMapper: BaseTypeMapper): Predicate<TypeDef> = Predicate { (it as? Object)?.isEligible(baseTypeMapper) ?: true }
 

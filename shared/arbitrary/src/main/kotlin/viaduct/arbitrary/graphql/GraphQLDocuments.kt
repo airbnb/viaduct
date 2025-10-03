@@ -41,7 +41,7 @@ import java.util.LinkedList
 import kotlin.math.max
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
-import viaduct.utils.graphql.allChildren
+import viaduct.graphql.utils.allChildren
 
 /**
  * Generate an arbitrary GraphQL [Document] for the provided schema and config.
@@ -183,10 +183,7 @@ private class GraphQLOperationGen(env: Env) : Env by env {
             OperationDefinition.Operation.SUBSCRIPTION -> DirectiveLocation.SUBSCRIPTION
         }
 
-        val ctx = SelectionsBuilder()
-            .let { sb ->
-                Ctx(schemas, sb, objectType, db.fragments, variables, db.incrementalLabels, isSubscriptionOperation = objectType == schemas.schema.subscriptionType)
-            }
+        val ctx = Ctx(schemas, SelectionsBuilder(), objectType, db.fragments, variables, db.incrementalLabels, isSubscriptionOperation = objectType == schemas.schema.subscriptionType)
 
         return OperationDefinition.newOperationDefinition()
             .name(name)

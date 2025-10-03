@@ -12,6 +12,7 @@ import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.FieldResolverDispatcher
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.ProxyEngineObjectData
@@ -190,7 +191,7 @@ class ResolverDataFetcher(
     private fun getCheckerProxyEODMap(
         environment: DataFetchingEnvironment,
         engineResult: ObjectEngineResult
-    ): Map<String, ProxyEngineObjectData> {
+    ): Map<String, CheckerProxyEngineObjectData> {
         check(checkerDispatcher != null) {
             "Checker executor should not be null when getting checker proxyEOD map."
         }
@@ -200,7 +201,7 @@ class ResolverDataFetcher(
             environment.findLocalContextForType<EngineExecutionContextImpl>().rawSelectionSetFactory
         return checkerSelectionSetMap.mapValues { (_, rss) ->
             val selectionSet = rss?.let { selectionSetFactory.rawSelectionSet(rss.selections, emptyMap()) }
-            ProxyEngineObjectData(
+            CheckerProxyEngineObjectData(
                 engineResult,
                 "missing from checker RSS",
                 selectionSet

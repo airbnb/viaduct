@@ -3,45 +3,58 @@
 package viaduct.tenant.runtime.execution.idof
 
 import org.junit.jupiter.api.Test
-import viaduct.api.Resolver
-import viaduct.api.globalid.GlobalID
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.execution.idof.resolverbases.QueryResolvers
+import viaduct.graphql.test.assertMatches
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
-
-@Resolver
-class Query_UserResolver : QueryResolvers.User() {
-    override suspend fun resolve(ctx: Context): User {
-        @Suppress("UNCHECKED_CAST")
-        return User.Builder(ctx)
-            .id(ctx.arguments.id as GlobalID<User>)
-            .name("Alice")
-            .build()
-    }
-}
 
 class IdOfFeatureAppTest : FeatureAppTestBase() {
     override var sdl = """
         |#START_SCHEMA
         | extend type Query {
-        |   user(id: ID! @idOf(type: "User")): User @resolver
+        |   userFromInput(id: HostID): User @resolver
+        |   userFromArgument(id: ID! @idOf(type: "User")): User @resolver
+        |   entityFromID(id: ID! @idOf(type: "Entity")): Entity @resolver
         | }
         |
-        | type User implements Node {
+        | input HostID {
+        |   id: ID! @idOf(type: "User")
+        | }
+        |
+        | interface Entity implements Node {
         |   id: ID!
+        |   lastModified: DateTime
+        | }
+        |
+        | type User implements Entity & Node @resolver {
+        |   id: ID!
+        |   lastModified: DateTime
         |   name: String
+        |   cohostID: ID @idOf(type: "User")
+        |   cohost: User @resolver
+        | }
+        |
+        | type BadType implements Node {
+        |   id: ID!
+        | }
+        |
+        | type BadEntityType implements Entity & Node {
+        |   id: ID!
+        |   lastModified: DateTime
         | }
         |#END_SCHEMA
     """.trimMargin()
 
+    val aliceID = createGlobalIdString(User.Reflection, "alice@yahoo.com")
+    val bobID = createGlobalIdString(User.Reflection, "bob@hotmail.com")
+    val badID = createGlobalIdString(BadType.Reflection, "123")
+    val badEntityID = createGlobalIdString(BadEntityType.Reflection, "123")
+
     @Test
     fun `idOf directive works when a valid user id is used`() {
-        val generatedId = createGlobalIdString(User.Reflection, "123")
-
         execute(
             query = """
                 query {
-                    user(id: "$generatedId") {
+                    userFromArgument(id: "$aliceID") {
                         id
                         name
                     }
@@ -49,8 +62,8 @@ class IdOfFeatureAppTest : FeatureAppTestBase() {
             """.trimIndent()
         ).assertEquals {
             "data" to {
-                "user" to {
-                    "id" to generatedId
+                "userFromArgument" to {
+                    "id" to aliceID
                     "name" to "Alice"
                 }
             }
@@ -58,37 +71,131 @@ class IdOfFeatureAppTest : FeatureAppTestBase() {
     }
 
     @Test
-    fun `idOf directive throws the correct error message when an invalid global ID is used`() {
+    fun `id from input-type works`() {
         execute(
             query = """
                 query {
-                    user(id: "123") {
-                        id
-                        name
+                    userFromInput(id: { id: "$bobID" }) {
+                        ...on User {
+                            name
+                            cohost {
+                               name
+                            }
+                        }
                     }
                 }
             """.trimIndent()
         ).assertEquals {
             "data" to {
-                "user" to null
+                "userFromInput" to {
+                    "name" to "Bob"
+                    "cohost" to {
+                        "name" to "Alice"
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `polymorphic arguments work`() {
+        execute(
+            query = """
+                query {
+                    entityFromID(id: "$aliceID") {
+                        ...on User {
+                            name
+                            cohost {
+                               name
+                            }
+                        }
+                    }
+                }
+            """.trimIndent()
+        ).assertEquals {
+            "data" to {
+                "entityFromID" to {
+                    "name" to "Alice"
+                    "cohost" to {
+                        "name" to "Bob"
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `idOf directive throws the correct error message when a syntactically-incorrect global ID`() {
+        execute(
+            query = """
+                query {
+                    userFromArgument(id: "123") {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent()
+        ).assertMatches {
+            "data" to {
+                "userFromArgument" to null
             }
             "errors" to arrayOf(
                 {
-                    "message" to "viaduct.api.ViaductFrameworkException: InputLikeBase.get failed for Query_User_Arguments.id " +
-                        "(java.lang.IllegalArgumentException: Expected GlobalID \"123\" to be a Base64-encoded string with the decoded format " +
-                        "'<type name>:<internal ID>', got decoded value �m)"
-                    "locations" to arrayOf(
-                        {
-                            "line" to 2
-                            "column" to 5
-                        }
-                    )
-                    "path" to listOf("user")
+                    "message" to ".*viaduct.api.ViaductFrameworkException.*"
+                    "path" to listOf("userFromArgument")
                     "extensions" to {
-                        "fieldName" to "user"
-                        "parentType" to "Query"
                         "classification" to "DataFetchingException"
                     }
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `polymorphic given non-entity`() {
+        execute(
+            query = """
+                query {
+                    entityFromID(id: "$badID") {
+                        ...on User {
+                            name
+                            cohost {
+                               name
+                            }
+                        }
+                    }
+                }
+            """.trimIndent()
+        ).assertMatches {
+            "errors" to arrayOf(
+                {
+                    "message" to ".*IllegalArgumentException.*Non-entity.*"
+                    "path" to listOf("entityFromID")
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `polymorphic given non-user`() {
+        execute(
+            query = """
+                query {
+                    entityFromID(id: "$badEntityID") {
+                        ...on User {
+                            name
+                            cohost {
+                               name
+                            }
+                        }
+                    }
+                }
+            """.trimIndent()
+        ).assertMatches {
+            "errors" to arrayOf(
+                {
+                    "message" to ".*IllegalArgumentException.*user entities.*"
+                    "path" to listOf("entityFromID")
                 }
             )
         }

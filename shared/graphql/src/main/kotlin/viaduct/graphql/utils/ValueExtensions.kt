@@ -76,7 +76,7 @@ private typealias TraversalContext = VariableUsageInfo
 fun AbstractNode<*>.collectVariableUsages(
     schema: GraphQLSchema,
     variableName: String,
-    coordinate: Pair<String, String> // Coordinate
+    typeName: String,
 ): Set<VariableUsageInfo> {
     val visitor = object : TraverserVisitorStub<Node<*>>() {
         val usages = mutableSetOf<VariableUsageInfo>()
@@ -91,7 +91,7 @@ fun AbstractNode<*>.collectVariableUsages(
 
                     when (parentNode) {
                         is graphql.language.Field -> {
-                            val parentType = when (coordinate.first) {
+                            val parentType = when (typeName) {
                                 "Query" -> schema.queryType
                                 "Mutation" -> schema.mutationType
                                 "Subscription" -> schema.subscriptionType

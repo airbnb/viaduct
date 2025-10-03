@@ -1,6 +1,7 @@
 package viaduct.demoapp.starwars.data
 
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicInteger
 import viaduct.demoapp.starwars.Constants.UNKNOWN_DIAMETER
 
 /**
@@ -92,9 +93,10 @@ object StarWarsData {
     )
 
     // Main characters from Star Wars
-    val characters = listOf(
+    var charactersIdSequence = AtomicInteger(1)
+    val characters = mutableListOf(
         Character(
-            id = "1",
+            id = "${charactersIdSequence.andIncrement}",
             name = "Luke Skywalker",
             birthYear = "19BBY",
             eyeColor = "blue",
@@ -106,7 +108,7 @@ object StarWarsData {
             speciesId = "1"
         ),
         Character(
-            id = "2",
+            id = "${charactersIdSequence.andIncrement}",
             name = "Princess Leia",
             birthYear = "19BBY",
             eyeColor = "brown",
@@ -118,7 +120,7 @@ object StarWarsData {
             speciesId = "1"
         ),
         Character(
-            id = "3",
+            id = "${charactersIdSequence.andIncrement}",
             name = "Han Solo",
             birthYear = "29BBY",
             eyeColor = "brown",
@@ -130,7 +132,7 @@ object StarWarsData {
             speciesId = "1"
         ),
         Character(
-            id = "4",
+            id = "${charactersIdSequence.andIncrement}",
             name = "Darth Vader",
             birthYear = "41.9BBY",
             eyeColor = "yellow",
@@ -142,7 +144,7 @@ object StarWarsData {
             speciesId = "1"
         ),
         Character(
-            id = "5",
+            id = "${charactersIdSequence.andIncrement}",
             name = "Obi-Wan Kenobi",
             birthYear = "57BBY",
             eyeColor = "blue-gray",
@@ -266,6 +268,18 @@ object StarWarsData {
             climates = listOf("temperate"),
             terrains = listOf("grass"),
             surfaceWater = 70F
+        ),
+        Planet(
+            id = "6",
+            name = "Kashyyyk",
+            diameter = 12765,
+            rotationPeriod = 26,
+            orbitalPeriod = 381,
+            gravity = 1f,
+            population = 45000000f,
+            climates = listOf("tropical"),
+            terrains = listOf("jungle", "forest", "lakes"),
+            surfaceWater = 60f
         )
     )
 
@@ -287,6 +301,18 @@ object StarWarsData {
                 specialAbilities = listOf("Force sensitivity (rare)", "Adaptability", "Innovation"),
                 technologicalLevel = "Advanced"
             )
+        ),
+        Species(
+            id = "2",
+            name = "Wookiee",
+            classification = "mammal",
+            designation = "sentient",
+            averageHeight = 210f,
+            averageLifespan = 400,
+            eyeColors = listOf("blue", "brown", "green"),
+            hairColors = listOf("brown", "black"),
+            language = "Shyriiwook",
+            homeworldId = "5"
         )
     )
 
@@ -308,17 +334,17 @@ object StarWarsData {
     )
 
     // Relationship mappings
-    val characterFilmRelations = mapOf(
-        "1" to listOf("1", "2", "3"), // Luke in all three films
-        "2" to listOf("1", "2", "3"), // Leia in all three films
-        "3" to listOf("1", "2", "3"), // Han in all three films
-        "4" to listOf("1", "2", "3"), // Vader in all three films
-        "5" to listOf("1", "2", "3") // Obi-Wan in all three films
+    val characterFilmRelations = mutableMapOf(
+        "1" to mutableListOf("1", "2", "3"), // Luke in all three films
+        "2" to mutableListOf("1", "2", "3"), // Leia in all three films
+        "3" to mutableListOf("1", "2", "3"), // Han in all three films
+        "4" to mutableListOf("1", "2", "3"), // Vader in all three films
+        "5" to mutableListOf("1", "2", "3") // Obi-Wan in all three films
     )
 
-    val filmCharacterRelations = mapOf(
-        "1" to listOf("1", "2", "3", "4", "5"), // A New Hope characters
-        "2" to listOf("1", "2", "3", "4", "5"), // Empire characters
-        "3" to listOf("1", "2", "3", "4", "5") // Return of the Jedi characters
+    val filmCharacterRelations = mutableMapOf(
+        "1" to mutableListOf("1", "2", "3", "4", "5"), // A New Hope characters
+        "2" to mutableListOf("1", "2", "3", "4", "5"), // Empire characters
+        "3" to mutableListOf("1", "2", "3", "4", "5") // Return of the Jedi characters
     )
 }

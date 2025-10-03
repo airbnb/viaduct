@@ -60,6 +60,7 @@ viaduct-engine-runtime = { module = "com.airbnb.viaduct:engine-runtime", version
 viaduct-tenant-api = { module = "com.airbnb.viaduct:tenant-api", version.ref = "project" }
 viaduct-tenant-runtime = { module = "com.airbnb.viaduct:tenant-runtime", version.ref = "project" }
 viaduct-tenant-codegen = { module = "com.airbnb.viaduct:tenant-codegen", version.ref = "project" }
+viaduct-tenant-wiring = { module = "com.airbnb.viaduct:wiring", version.ref = "project" }
 
 viaduct-service-api = { module = "com.airbnb.viaduct:service-api", version.ref = "project" }
 viaduct-service-runtime = { module = "com.airbnb.viaduct:service-runtime", version.ref = "project" }
@@ -74,6 +75,7 @@ viaduct-shared-invariants = { module = "com.airbnb.viaduct:shared-invariants", v
 viaduct-shared-logging = { module = "com.airbnb.viaduct:shared-logging", version.ref = "project" }
 viaduct-shared-utils = { module = "com.airbnb.viaduct:shared-utils", version.ref = "project" }
 viaduct-shared-viaductschema = { module = "com.airbnb.viaduct:shared-viaductschema", version.ref = "project" }
+viaduct-shared-mapping = { module = "com.airbnb.viaduct:shared-mapping", version.ref = "project" }
 
 viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version.ref = "project" }
 
@@ -85,6 +87,7 @@ kotlinx-coroutines-debug = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-
 kotlinx-coroutines-jdk8 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8", version.ref = "kotlinx" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx" }
 kotlinx-metadata-jvm = { module = "org.jetbrains.kotlinx:kotlinx-metadata-jvm", version.ref = "kotlinx-metadata" }
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 
 # Other libraries
 antlr-st4 = { module = "org.antlr:ST4", version.ref = "antlr-st4" }
@@ -129,3 +132,4 @@ checker-qual = { module = "org.checkerframework:checker-qual", version.ref = "ch
 # Linting
 konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
+detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }

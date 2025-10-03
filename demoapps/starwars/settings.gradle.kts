@@ -1,5 +1,3 @@
-rootProject.name = "viaduct-starwars-demoapp"
-
 val viaductVersion: String by settings
 
 dependencyResolutionManagement {

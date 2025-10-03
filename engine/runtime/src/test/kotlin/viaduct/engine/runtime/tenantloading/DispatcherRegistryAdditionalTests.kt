@@ -17,6 +17,7 @@ import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.Samples
+import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.runtime.NodeResolverDispatcherImpl
 import viaduct.engine.runtime.validation.Validator
 
@@ -121,7 +122,7 @@ class DispatcherRegistryAdditionalTests {
             }
             type("NodeType1") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    viaduct.engine.api.mocks.MockEngineObjectData(
+                    mkEngineObjectData(
                         Samples.testSchema.schema.getObjectType("TestNode"),
                         mapOf("id" to id)
                     )
@@ -139,7 +140,7 @@ class DispatcherRegistryAdditionalTests {
                 nodeBatchedExecutor { selectors, _ ->
                     selectors.associate { selector ->
                         selector to Result.success(
-                            viaduct.engine.api.mocks.MockEngineObjectData(
+                            mkEngineObjectData(
                                 Samples.testSchema.schema.getObjectType("TestNode"),
                                 mapOf("id" to selector.id)
                             )
@@ -172,7 +173,7 @@ class DispatcherRegistryAdditionalTests {
             // Regular node resolver
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    viaduct.engine.api.mocks.MockEngineObjectData(
+                    mkEngineObjectData(
                         Samples.testSchema.schema.getObjectType("TestNode"),
                         mapOf("id" to id, "type" to "regular")
                     )
@@ -183,7 +184,7 @@ class DispatcherRegistryAdditionalTests {
                 nodeBatchedExecutor { selectors, _ ->
                     selectors.associate { selector ->
                         selector to Result.success(
-                            viaduct.engine.api.mocks.MockEngineObjectData(
+                            mkEngineObjectData(
                                 Samples.testSchema.schema.getObjectType("TestNode"),
                                 mapOf("id" to selector.id, "type" to "batch")
                             )

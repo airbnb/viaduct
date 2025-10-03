@@ -1,10 +1,9 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.tenant.runtime.context
 
 import io.mockk.mockk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -60,8 +59,8 @@ class FieldExecutionContextImplTest {
     )
 
     @Test
-    fun properties() =
-        runBlockingTest {
+    fun properties(): Unit =
+        runBlocking {
             val ctx = mk()
             assertEquals(Obj, ctx.objectValue)
             assertEquals(Q, ctx.queryValue)
@@ -88,8 +87,8 @@ class FieldExecutionContextImplTest {
     }
 
     @Test
-    fun query() =
-        runBlockingTest {
+    fun query(): Unit =
+        runBlocking {
             val ctx = mk()
             ctx.selectionsFor(Query.Reflection, "__typename").also {
                 assertTrue(it.contains(Query.Reflection.Fields.__typename))

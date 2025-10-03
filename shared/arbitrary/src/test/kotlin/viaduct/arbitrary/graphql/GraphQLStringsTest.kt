@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.graphql
 
@@ -9,16 +9,15 @@ import graphql.schema.GraphQLSchema
 import io.kotest.property.Arb
 import io.kotest.property.forAll
 import io.kotest.property.forNone
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 
 class GraphQLStringsTest : KotestPropertyBase() {
     @Test
-    fun `Arb_graphQLName produces spec-compliant names`() =
-        runBlockingTest {
+    fun `Arb_graphQLName produces spec-compliant names`(): Unit =
+        runBlocking {
             val patt = Regex("^[a-z,A-Z,_][a-z,A-Z,_,0-9,]*")
             Arb.graphQLName().forAll {
                 it.matches(patt)
@@ -26,8 +25,8 @@ class GraphQLStringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb_graphQLName produces names that are valid GraphQL type names`() =
-        runBlockingTest {
+    fun `Arb_graphQLName produces names that are valid GraphQL type names`(): Unit =
+        runBlocking {
             val placeholder =
                 GraphQLFieldDefinition.newFieldDefinition()
                     .name("placeholder")
@@ -50,14 +49,14 @@ class GraphQLStringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb_graphQLName does not produce introspection names`() =
-        runBlockingTest {
+    fun `Arb_graphQLName does not produce introspection names`(): Unit =
+        runBlocking {
             Arb.graphQLName(1..4).forNone { it.startsWith("__") }
         }
 
     @Test
-    fun `Arb_graphQLFieldName produces names that are valid GraphQL field names`() =
-        runBlockingTest {
+    fun `Arb_graphQLFieldName produces names that are valid GraphQL field names`(): Unit =
+        runBlocking {
             val query =
                 GraphQLObjectType.newObject()
                     .name("Query")
@@ -84,14 +83,14 @@ class GraphQLStringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb_graphQLFieldName does not produce introspection names`() =
-        runBlockingTest {
+    fun `Arb_graphQLFieldName does not produce introspection names`(): Unit =
+        runBlocking {
             Arb.graphQLFieldName().forNone { it.startsWith("__") }
         }
 
     @Test
-    fun `BanFieldNames`() =
-        runBlockingTest {
+    fun `BanFieldNames`(): Unit =
+        runBlocking {
             // create a ban list of single-letter field names, a-m and A-M
             val banned = CharRange('a', 'm').fold(emptySet<String>()) { acc, ch ->
                 acc + ch.toString() + ch.uppercase()

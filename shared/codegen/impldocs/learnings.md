@@ -1,6 +1,21 @@
 # Intro
 We've learned a lot of intricacies of Kotlin-to-bytecode translation.  We probably should've started documenting these earlier, but we didn't.  I'm starting a document now under the theory of "better late than never".
 
+# kotlinp
+
+`kotlinp` is a tool for examining JVM class files similar to Java's `javap`.  It provides Kotlin type information that is encoded in JVM annotations and thus is not readily observable using `javap` output.
+
+Unfortunately I haven't yet found `kotlinp` included in any pre-built Kotlin distribution.  Here are instructions I got from JetBrains on building it yourself (courtesy Alexander Udalov):
+
+> We have a tool in the [Kotlin repository](https://github.com/JetBrains/kotlin) that prints all metadata found in the `class/kotlin_module` file, it is located in `libraries/tools/kotlinp`. Unfortunately, it is only an internal tool, it is not a part of any stable Kotlin release yet. To use it, you'll need to clone and compile the Kotlin project. Here are instructions in case you need it:
+> 
+> 1) Configure the project according to ReadMe
+> 2) Run `./gradlew :tools:kotlinp-jvm:shadowJar`
+> 3) Run kotlinp via `java -cp $KOTLIN/libraries/tools/kotlinp/jvm/build/libs/kotlinp-jvm-shadow.jar org.jetbrains.kotlin.kotlinp.jvm.Main` (replace `$KOTLIN` with the path to the project). Use `-verbose` to output a bit more information.
+
+(This worked for me on Sept 2025 off the Kotlin master branch using openjdk version "1.8.0_362".)
+
+
 # Default Parameters
 
 Kotlin does not use method overloading to handle default parameters the way Java does.  Instead, if a function `f` has default parameters, then Kotlin will generate a synthetic function `f$default` that uses a bit vector to determine where defaults are needed. When the compiler compiles a call to `f` where default param-values are needed, the call will be compiled into a call to `f$default`, passing placeholder values where defaults are needed, and using the bit vector to indicate which are placeholder values.
@@ -23,7 +38,7 @@ Here's what the compiler generates for `bar`:
 public final double bar(double, java.lang.Double, double, double);
   descriptor: (DLjava/lang/Double;DD)D
   flags: ACC_PUBLIC, ACC_FINAL
-  Code: ... omitted for bevity ...
+  Code: ... omitted for brevity ...
 
 public static double bar$default(Foo, double, java.lang.Double, double, double, int, java.lang.Object);
   descriptor: (LFoo;DLjava/lang/Double;DDILjava/lang/Object;)D
@@ -59,7 +74,7 @@ public static double bar$default(Foo, double, java.lang.Double, double, double, 
 Note that `foo$default` takes three more arguments than does `foo`:
 
 * The first argument to `foo$default` is the `this` argument to `foo`.  `foo$default` is a static method: we're not sure why, we think it has to do with how overrides work, but it doesn't impact our code generation so we haven't pursued the matter.
-* The second-to-last argument to `foo$default` is an integer that's treated as bit vector indicating for which parameters a default value is needed.  There is a bit in this vector for all parameters, even those not needing a default.  You can see this on line 20, where the constant `8 == 1<<3` is used to check the bit vector for the 4th argument (`d`), even though the 3rd argument (`c`) takes no default.  Where a function has more than 32 parameters, the Kotlin compiler will add multiple of these bit-vector parameters to accomodate.
+* The second-to-last argument to `foo$default` is an integer that's treated as bit vector indicating for which parameters a default value is needed.  There is a bit in this vector for all parameters, even those not needing a default.  You can see this on line 20, where the constant `8 == 1<<3` is used to check the bit vector for the 4th argument (`d`), even though the 3rd argument (`c`) takes no default.  Where a function has more than 32 parameters, the Kotlin compiler will add multiple of these bit-vector parameters to accommodate.
 * The last argument is also a bit of a mystery to us.  If `Foo` was an `open` class, then `foo$default` would check to ensure that this argument is `null`, and if not throw an exception with the message "Super calls with default arguments not supported in this target."  We emulate this behavior, and we always pass null for this last argument when compiling calls.
 
 Here's what the compiler generates for `baz`:
@@ -259,7 +274,7 @@ public final class D {
   ... and a lot more ...
 ```
 
-As you can see, the Kotlin compiler introduces co- and contravariant signature attributes for the backing fields of properties to properly and exhustively take into account the possibility of subclasses.  In the case of final classes (like `String`), no such attributes are introduced.  But in the case of our invented `H` class which is open, and the case of enumerations which are implicitly open because of the "anonymous subclass" issue.
+As you can see, the Kotlin compiler introduces co- and contravariant signature attributes for the backing fields of properties to properly and exhaustively take into account the possibility of subclasses.  In the case of final classes (like `String`), no such attributes are introduced.  But in the case of our invented `H` class which is open, and the case of enumerations which are implicitly open because of the "anonymous subclass" issue.
 
 (Not shown here is the following: in "output" positions - such as the return-type of the getters for these properties - no such variance-transformations are applied.  In "input" positions - such as the arguments to constructors and copy-functions - these variance-transformations _are_ applied.)
 
@@ -502,6 +517,79 @@ Some things to notice:
 - in the case of the `read` method, the bridged method is different only by output type. Attempting this in
   java or kotlin would normally generate a "conflicting overloads" compiler error, though this is allowed
   in bytecode because the method calls can be resolved using the const pool
+  
+
+# Variance of "inputs"
+
+Our library includes significant code devoted to computing the `KmType` metadata for GraphQL fields.  This code includes logic for computing the "variance" of type parameters.  "Variance" is what is designated by the keywords `out` and `in`, where `out` means roughly "covariance" (ie, subtypes allowed) and `in` means "contravariance" (ie, supertypes allowed).  In the Kotlin metadata library, the third form of variance, _invariance_ is also represented explicitly.
+
+GraphQL fields are used in "output positions" (e.g., returned by getters) and "input positions" (i.e., arguments to things).  There are two major "input positions" for which we generate code: the arguments to setters, and also the arguments to the `Continuation` functions we generate for suspending getter functions.
+
+Java bytecode uses special attributes called "signatures" to capture variance information.  You might remember `? super` -- that's similar to Kotlin's `in` -- and `? extends` is similar to `out`.
+
+What we noticed in codegen for the continuation-inputs of suspend functions is that in Java explicit variances are put into arguments.  The next subsection below gives examples illustrating this point.  Right now, our code generator forces the output of variances in Java signatures by putting them into the `KmType`s for those arguments.  If we didn't do this, our Km-to-Ct translator would have to recapitulate Kotlin's logic, which would be complicated.  So we took a shortcut here.  This means that in our `@Metadata` attributes for Kotlin code, we sometimes include redundant variance specifications for things like function and constructor arguments, but that doesn't seem to cause any harm.
+
+Let's look at the specific way in which we modify variances.
+
+## Variance of suspend-function continuations
+
+The issue raised here is very apparent as we look at what happens when the return-type of a Kotlin suspend function gets translated into the _input_ type for the suspend function's `Continuation` type parameter.  Consider the following Kotlin file:
+
+```kotlin
+interface Node
+interface NodeId<out T : Node>
+
+abstract class AbstractNode : Node
+class FinalNode : Node
+
+class FooFactory {
+    suspend fun asNode(): Node = TODO()
+    suspend fun asAbstractNode(): NodeId<AbstractNode> = TODO()
+    suspend fun asFinalNode(): FinalNode = TODO()
+    suspend fun asNodeId(): NodeId<Node> = TODO()
+    suspend fun asFinalNodeId(): NodeId<FinalNode> = TODO()
+
+    suspend fun list1A(): List<Node> = TODO()
+    suspend fun list1F(): List<FinalNode> = TODO()
+
+    suspend fun list2A(): List<NodeId<AbstractNode>> = TODO()
+    suspend fun list2F(): List<NodeId<FinalNode>> = TODO()
+
+    suspend fun mapFF(): Map<String, String> = TODO()
+    suspend fun mapFA(): Map<String, Node> = TODO()
+    suspend fun mapF2A(): Map<String, NodeId<Node>> = TODO()
+}
+```
+Running `javap` against what the Kotlin compiler generates for `FooFactory` yields:
+
+```
+public final class FooFactory {
+  public FooFactory();
+  public final java.lang.Object asNode(kotlin.coroutines.Continuation<? super Node>);
+  public final java.lang.Object asAbstractNode(kotlin.coroutines.Continuation<? super NodeId<? extends AbstractNode>>);
+  public final java.lang.Object asFinalNode(kotlin.coroutines.Continuation<? super FinalNode>);
+  public final java.lang.Object asNodeId(kotlin.coroutines.Continuation<? super NodeId<? extends Node>>);
+  public final java.lang.Object asFinalNodeId(kotlin.coroutines.Continuation<? super NodeId<FinalNode>>);
+
+  public final java.lang.Object list1A(kotlin.coroutines.Continuation<? super java.util.List<? extends Node>>);
+  public final java.lang.Object list1F(kotlin.coroutines.Continuation<? super java.util.List<FinalNode>>);
+
+  public final java.lang.Object list2A(kotlin.coroutines.Continuation<? super java.util.List<? extends NodeId<? extends AbstractNode>>>);
+  public final java.lang.Object list2F(kotlin.coroutines.Continuation<? super java.util.List<? extends NodeId<FinalNode>>>);
+
+  public final java.lang.Object mapFF(kotlin.coroutines.Continuation<? super java.util.Map<java.lang.String, java.lang.String>>);
+  public final java.lang.Object mapFA(kotlin.coroutines.Continuation<? super java.util.Map<java.lang.String, ? extends Node>>);
+  public final java.lang.Object mapF2A(kotlin.coroutines.Continuation<? super java.util.Map<java.lang.String, ? extends NodeId<? extends Node>>>);
+}
+```
+As a reminder, `? extends` in the JVM corresponds to `out` variance in Kotlin, while `? super` corresponds to `in`.
+
+The pattern is this: if the return type of a suspend function admits subtypes (e.g., `List<Node>` or `NodeId<Node>`), then the argument to the corresponding continuation needs to have an `out` variance -- and this is true "all the way in" (e.g., `List<List<Node>>`).  However, if the return type does not admit subtypes, then the corresponding argument has no explicit variance.
+
+We apply the same pattern when generating `KmType`s for input arguments.  We do this in two places, in the continuation arguments just discussed, and for the setter function of `Builder` classes.  In the type-translation functions, you'll see the argument `isInput`: this tells the translator whether we'd like it to generate a type for an output position (ie, a return type) or an input position (ie, an argument type).
+
+As suggested earlier, we haven't dug fully into this behavior.  In particular, we're not sure where the Kotlin compiler puts variances in _its_ metadata -- it seems to be explicit about them for function arguments, but not for constructor arguments (see the `includeVariance` argument to some functions in 
+`KmMetadataDiff.kt`).  Thus we're not sure if what we're seeing in the Java signatures simply reflects the variances directly as appear in the Kotlin metadata, or if there are further rules guiding Java signatures.  As a practical matter, however, we haven't experienced any issues with the Kotlin compiler _consuming_ the metadata we're generating, so it doesn't seem like minor differences matter.
 
 
 # Known limitations
@@ -515,7 +603,7 @@ We implemented exactly what we needed to in order to support Viaduct GRTs, and n
 
 ### Javassist resolves constructor overloading at classfile-creation time:
 if you give it code to compile that references
-a non-existant constructor variant, it won't complain until you attempt to write out the classfile.  (Might also be
+a non-existent constructor variant, it won't complain until you attempt to write out the classfile.  (Might also be
 true for methods - haven't tested.)
 
 ### Default values for introspection schema
@@ -564,27 +652,5 @@ suspend fun <def.testFnName>(ctx: KotlinTesterContext) {
 }
 ```
 
-When Kotlin compiles, it creates an `isObjectType()` method. However, StringTemplate, in its attempts to call `getIsObjectType()`, `isIsObjectType()`, or `hasIsObjectType()` methods, cannot find them because they don't exist. StringTemplate will then try accessing the field `isObjectType` directly, in accordance with its documentation on [accessing properties of model objects](https://github.com/antlr/stringtemplate4/blob/master/doc/introduction.md#accessing-properties-of-model-objects). However, Kotlin blocks direct access to this field, restricting access something through the `isObjectType()` method. This leaves StringTemplate unable to access `isObjectType`.
+When Kotlin compiles, it creates an `isObjectType()` method. However, StringTemplate, in its attempts to call `getIsObjectType()`, `isIsObjectType()`, or `hasIsObjectType()` methods, cannot find them because they don't exist. StringTemplate will then try accessing the field `isObjectType` directly, in accordance with its documentation on [accessing properties of model objects](https://github.com/antlr/stringtemplate4/blob/master/doc/introduction.md#accessing-properties-of-model-objects). However, Kotlin blocks direct access to this field, restricting access to something through the `isObjectType()` method. This leaves StringTemplate unable to access `isObjectType`.
 
-### Variance in Kotlin Metadata
-
-TL;DR: The Kotlin @Metadata annotation generated by bytecodegen includes variance for parameter types, whereas the @Metadata
-annotation produced by the Kotlin compiler doesn't.
-
-The kotlinx-metadata library uses `KmType` to represent all types, including return types and value parameter types. `KmType`
-supports including variance for arguments via `KmTypeProjection`. One interesting thing we uncovered in classfile diff testing
-is that the @Metadata annotation produced by the Kotlin compiler includes variance in some places like function return types,
-but not in constructor and function parameter types. We would need to bend over backwards to match the compiler behavior by
-omitting variance from value params because in the "KmToCt" layer we rely on this Km variance information
-to set the equivalent wildcard in the Ct generic signatures.
-
-#### Variance of input `List` types
-Kotlin compiler includes variance for **arguments** in **function return types**. Hence it is important to
-match the compiler behavior in bytecodegen.
-
-More specifically we care about variance for arguments, i.e. when kmType with [isInput] = true, and especially when it is
-list type, as `List` type is defined as `interface List<out E>` and this would actually apply to any type with an covariant
-type parameter (the "out" keyword for the type param E).
-The general rule is, **the variance of subclassable base list type is `OUT` and the rest is `INVARIANT`**.
-That is, if the type is an interface or open class (which includes enums), the variance is OUT; if it's a final class,
-the variance is INVARIANT.

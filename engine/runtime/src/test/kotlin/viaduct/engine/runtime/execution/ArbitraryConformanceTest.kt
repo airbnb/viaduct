@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime.execution
 
 import graphql.schema.idl.SchemaPrinter
@@ -8,7 +10,7 @@ import io.kotest.property.arbitrary.take
 import io.kotest.property.checkAll
 import kotlin.math.sqrt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CompoundingWeight
@@ -244,8 +246,8 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
     }
 
     @Test
-    fun `arb arb arb`() =
-        runBlockingTest {
+    fun `arb arb arb`(): Unit =
+        runBlocking {
             /** test execution of arbitrary requests against arbitrary schemas that use arbitrary wiring */
 
             // use the default config, but tune it down to create smaller schemas

@@ -1,10 +1,14 @@
 package viaduct.tenant.codegen.bytecode.config
 
+import kotlinx.metadata.KmClassifier
 import kotlinx.metadata.KmType
+import kotlinx.metadata.KmTypeProjection
 import kotlinx.metadata.KmVariance
+import kotlinx.metadata.isNullable
 import viaduct.codegen.km.KmClassFilesBuilder
 import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.JavaIdName
+import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductExtendedSchema
 import viaduct.tenant.codegen.bytecode.config.cfg.REFLECTION_NAME
@@ -17,7 +21,8 @@ interface BaseTypeMapper {
     fun mapBaseType(
         type: ViaductExtendedSchema.TypeExpr,
         pkg: KmName,
-        field: ViaductExtendedSchema.HasDefaultValue?
+        field: ViaductExtendedSchema.HasDefaultValue? = null,
+        isInput: Boolean = false,
     ): KmType?
 
     /**
@@ -51,17 +56,20 @@ interface BaseTypeMapper {
      * Provides the GlobalID type appropriate for this mapper.
      * Modern mode uses viaduct.api.globalid.GlobalID (parameterized type).
      */
-    fun getGlobalIdType(): viaduct.codegen.utils.JavaBinaryName
+    fun getGlobalIdType(): JavaBinaryName
 }
 
 /**
  * Viaduct implementation of BaseTypeMapper that handles standard cases.
  */
-class ViaductBaseTypeMapper : BaseTypeMapper {
+class ViaductBaseTypeMapper(
+    val schema: ViaductExtendedSchema,
+) : BaseTypeMapper {
     override fun mapBaseType(
         type: ViaductExtendedSchema.TypeExpr,
         pkg: KmName,
-        field: ViaductExtendedSchema.HasDefaultValue?
+        field: ViaductExtendedSchema.HasDefaultValue?,
+        isInput: Boolean,
     ): KmType? {
         val baseTypeDef = type.baseTypeDef
 
@@ -69,7 +77,7 @@ class ViaductBaseTypeMapper : BaseTypeMapper {
         if (baseTypeDef.isBackingDataType) {
             return type.backingDataType()
         } else if (baseTypeDef.isID) {
-            return type.idKmType(pkg, this, field)
+            return type.idKmType(pkg, field, isInput)
         }
 
         return null // Let extension function handle default case
@@ -118,5 +126,62 @@ class ViaductBaseTypeMapper : BaseTypeMapper {
 
     override fun getGlobalIdType(): JavaBinaryName {
         return JavaBinaryName("viaduct.api.globalid.GlobalID")
+    }
+
+    /**
+     * Constructs a KmType for a TypeExpr representing an ID scalar.
+     * For `Foo` a GraphQL node-composite-output type, when:
+     *   ID is not the `id` of a node-type and has no @idOf on it -> String
+     *   isInput == false || Foo is Object -> viaduct.api.globalid.GlobalID<Foo>
+     *   else -> viaduct.api.globalid.GlobalID<out Foo>
+     *
+     * See the `learnings.md` section on "input types" for more information.
+     *
+     * @param pkg containing generated GRTs
+     * @param field field this type-expr is from, it that's where it's from
+     * @param isInput type is being used in an input context, e.g., as
+     *   setter for a field or the continuation param of a suspend fun
+     */
+    internal fun ViaductExtendedSchema.TypeExpr.idKmType(
+        pkg: KmName,
+        field: ViaductExtendedSchema.HasDefaultValue?,
+        isInput: Boolean = false,
+    ): KmType {
+        val idTypeName = this@ViaductBaseTypeMapper.getGlobalIdType().asKmName // The "GlobalID" in GlobalID<Foo>
+        val grtTypeName = field?.grtNameForIdParam() // The "Foo" in GlobalID<Foo>
+
+        if (grtTypeName == null || schema.types[grtTypeName] == null) {
+            return KmType().also {
+                it.classifier = KmClassifier.Class(Km.STRING.toString())
+                it.isNullable = this.baseTypeNullable
+                if (this@ViaductBaseTypeMapper.useGlobalIdTypeAlias()) {
+                    it.abbreviatedType = KmType().also {
+                        it.classifier = KmClassifier.TypeAlias(idTypeName.toString())
+                    }
+                }
+            }
+        }
+
+        // TODO be strict about idOf references (https://app.asana.com/1/150975571430/project/1207604899751448/task/1211505368235519)
+        //   (exception here doesn't get thrown because of null-check in if-statement above -- remove that eventually)
+        val grtBaseTypeDef = schema.types[grtTypeName]
+            ?: throw IllegalStateException(
+                "Bad validation: @idOf most likely not checked" +
+                    " (${field.containingDef.name}.${field.name} @idOf: $grtTypeName)" +
+                    " Schema: ${schema.types.keys.joinToString(",")}"
+            )
+
+        val notGraphQLObjectType = (grtBaseTypeDef.kind != ViaductExtendedSchema.TypeDefKind.OBJECT)
+
+        val variance = if (isInput && notGraphQLObjectType) {
+            KmVariance.OUT
+        } else {
+            KmVariance.INVARIANT
+        }
+
+        return idTypeName.asType().also {
+            it.arguments += KmTypeProjection(variance, pkg.append("/$grtTypeName").asType())
+            it.isNullable = this.baseTypeNullable
+        }
     }
 }

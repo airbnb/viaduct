@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
+import viaduct.service.runtime.SchemaRegistryConfiguration
 import viaduct.tenant.runtime.execution.scopes.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
@@ -53,14 +54,18 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
     @Nested
     @DisplayName("Scopes 1 tests")
     inner class Scopes1Test {
-        private val scopeId = "SCHEMA_ID_1"
+        private val schemaId = "SCHEMA_ID_1"
         private val scopes = setOf("SCOPE1")
 
         @BeforeEach
         fun setup() {
-            withSchemaRegistryBuilder {
-                registerScopedSchema(scopeId, scopes)
-            }
+            withSchemaRegistryConfiguration(
+                SchemaRegistryConfiguration
+                    .fromSdl(
+                        sdl,
+                        scopes = setOf(SchemaRegistryConfiguration.ScopeConfig(schemaId, scopes))
+                    )
+            )
         }
 
         @Test
@@ -73,7 +78,7 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
                     }
                 }
                 """.trimIndent(),
-                scopeId = scopeId
+                schemaId = schemaId
             ).assertEquals {
                 "data" to {
                     "scope1Value" to {
@@ -93,7 +98,7 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
                     }
                 }
                 """.trimIndent(),
-                scopeId = scopeId
+                schemaId = schemaId
             ).assertEquals {
                 "errors" to arrayOf(
                     {
@@ -123,7 +128,7 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
                     }
                 }
                 """.trimIndent(),
-                scopeId = "SCHEMA_ID_2"
+                schemaId = "SCHEMA_ID_2"
             ).assertEquals {
                 "errors" to arrayOf(
                     {
@@ -148,10 +153,15 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
 
         @BeforeEach
         fun setup() {
-            withSchemaRegistryBuilder {
-                registerScopedSchema(scopeId1, scopes1)
-                registerScopedSchema(scopeId2, scopes2)
-            }
+            withSchemaRegistryConfiguration(
+                SchemaRegistryConfiguration.fromSdl(
+                    sdl,
+                    scopes = setOf(
+                        SchemaRegistryConfiguration.ScopeConfig(scopeId1, scopes1),
+                        SchemaRegistryConfiguration.ScopeConfig(scopeId2, scopes2)
+                    )
+                )
+            )
         }
 
         @Test
@@ -164,7 +174,7 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
                     }
                 },
                 """.trimIndent(),
-                scopeId = "SCHEMA_ID_1",
+                schemaId = "SCHEMA_ID_1",
             ).assertEquals {
                 "data" to {
                     "scope1Value" to {
@@ -184,7 +194,7 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
                     }
                 }
                 """.trimIndent(),
-                scopeId = "SCHEMA_ID_2",
+                schemaId = "SCHEMA_ID_2",
             ).assertEquals {
                 "data" to {
                     "scope2Value" to {

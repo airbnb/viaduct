@@ -12,6 +12,7 @@ import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
+import graphql.schema.GraphQLType
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
@@ -32,6 +33,7 @@ import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.VariablesResolver
@@ -216,8 +218,8 @@ fun FieldResolverExecutor.invoke(
 ) = runBlocking(MockNextTickDispatcher()) {
     val selector = FieldResolverExecutor.Selector(
         arguments = arguments,
-        objectValue = MockEngineObjectData(fullSchema.schema.getObjectType(coord.first), objectValue),
-        queryValue = MockEngineObjectData(fullSchema.schema.queryType, queryValue),
+        objectValue = mkEngineObjectData(fullSchema.schema.getObjectType(coord.first), objectValue),
+        queryValue = mkEngineObjectData(fullSchema.schema.queryType, queryValue),
         selections = selections,
     )
     batchResolve(listOf(selector), context)[selector]?.getOrNull()
@@ -232,7 +234,7 @@ fun CheckerExecutor.invoke(
     context: EngineExecutionContext = ContextMocks(fullSchema).engineExecutionContext,
 ) = runBlocking(MockNextTickDispatcher()) {
     val objectType = fullSchema.schema.getObjectType(coord.first)!!
-    val objectMap = objectDataMap.mapValues { (_, it) -> MockEngineObjectData(objectType, it) }
+    val objectMap = objectDataMap.mapValues { (_, it) -> mkEngineObjectData(objectType, it) }
     execute(arguments, objectMap, context)
 }
 
@@ -373,6 +375,37 @@ class MockTenantModuleBootstrapper(
     }
 }
 
+fun mkEngineObjectData(
+    graphQLObjectType: GraphQLObjectType,
+    data: Map<String, Any?>,
+): ResolvedEngineObjectData {
+    fun cvt(
+        type: GraphQLType,
+        value: Any?
+    ): Any? =
+        @Suppress("UNCHECKED_CAST")
+        when (type) {
+            is GraphQLNonNull -> cvt(type.wrappedType as GraphQLOutputType, value)
+            is GraphQLList -> (value as List<*>?)?.map {
+                cvt(type.wrappedType as GraphQLOutputType, it)
+            }
+
+            is GraphQLObjectType -> (value as Map<String, Any?>?)?.let { mkEngineObjectData(type, it) }
+            is GraphQLCompositeType -> throw IllegalArgumentException("don't know how to wrap type $type with value $value")
+            else -> value
+        }
+
+    return ResolvedEngineObjectData
+        .Builder(graphQLObjectType)
+        .apply {
+            data.forEach { (fname, value) ->
+                val cvtValue = cvt(graphQLObjectType.getFieldDefinition(fname).type, value)
+                put(fname, cvtValue)
+            }
+        }.build()
+}
+
+@Deprecated("Use mkEngineObjectData instead (we don't need to fake this class)")
 data class MockEngineObjectData(override val graphQLObjectType: GraphQLObjectType, val data: Map<String, Any?>) : EngineObjectData {
     override suspend fun fetch(selection: String): Any? = data[selection]
 
@@ -500,7 +533,7 @@ object Samples {
         // Add node resolver for TestNode
         type("TestNode") {
             nodeUnbatchedExecutor { id, _, _ ->
-                MockEngineObjectData(
+                mkEngineObjectData(
                     testSchema.schema.getObjectType("TestNode"),
                     mapOf("id" to id)
                 )
@@ -512,7 +545,7 @@ object Samples {
             nodeBatchedExecutor { selectors, _ ->
                 selectors.associateWith { selector ->
                     Result.success(
-                        MockEngineObjectData(
+                        mkEngineObjectData(
                             testSchema.schema.getObjectType("TestBatchNode"),
                             mapOf("id" to selector.id)
                         )

@@ -112,10 +112,8 @@ jobs:
                 name: Build project (without tests)
                 command: |
                   echo "🔨 Building project (without tests)..."
-                  ./gradlew clean assemble --no-scan || {
-                    echo "❌ Build failed"
-                    exit 1
-                  }
+                  ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
+                  ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
                   echo "✅ Project built successfully"
       - fail-step:
           message: "Project build failed"
@@ -214,24 +212,31 @@ jobs:
                   echo "✅ Test execution completed"
 
             - run:
-                name: Generate JaCoCo aggregated coverage report
+                name: Generate coverage and test reports
                 command: |
-                  echo "📊 Generating JaCoCo aggregated coverage report..."
-                  ./gradlew testCodeCoverageReport --no-scan --no-configuration-cache || {
-                    echo "❌ Failed to generate coverage report"
+                  echo "📊 Generating aggregated coverage and test reports..."
+                  ./gradlew testAndCoverage --no-scan --no-configuration-cache || {
+                    echo "❌ Failed to generate reports"
                     exit 1
                   }
-                  echo "✅ Coverage report generated successfully"
+                  echo "✅ Reports generated successfully"
                 when: always
       - fail-step:
-          message: "JaCoCo coverage report generation failed"
-      # Store test results for CircleCI UI
-      - store_test_results:
-          path: build/test-results
+          message: "Report generation failed"
 
-      # Store JaCoCo coverage reports
+      # Store test results for CircleCI UI (JUnit XML files)
+      - store_test_results:
+          path: build/test-results-for-circleci
+
+      # Store JaCoCo coverage reports (both individual and aggregated)
+      - store_artifacts:
+          path: build/reports/jacoco
+          destination: coverage-reports
+
+      # Store all other reports for debugging
       - store_artifacts:
           path: build/reports
+          destination: all-reports
 
   detekt:
     executor: kotlin-gradle-executor

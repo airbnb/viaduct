@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.graphql
 
@@ -10,8 +10,7 @@ import graphql.schema.idl.SchemaPrinter
 import io.kotest.property.Arb
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
@@ -23,8 +22,8 @@ class GraphQLSchemasTest : KotestPropertyBase() {
      * Uncomment the @Test annotation to run, but please don't check in.
      */
     // @Test
-    fun `dump 1 schema`() =
-        runBlockingTest {
+    fun `dump 1 schema`(): Unit =
+        runBlocking {
             val cfg = Config.default + (DescriptionLength to 0..0)
             Arb.graphQLSchema(cfg).checkAll(1) {
                 val sdl = SchemaPrinter().print(it)
@@ -34,8 +33,8 @@ class GraphQLSchemasTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb-graphQLSchema can generate an empty-ish schema`() =
-        runBlockingTest {
+    fun `Arb-graphQLSchema can generate an empty-ish schema`(): Unit =
+        runBlocking {
             val cfg = Config.default + (SchemaSize to 0)
             Arb.graphQLSchema(cfg).checkAll {
                 markSuccess()
@@ -43,8 +42,8 @@ class GraphQLSchemasTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `schema document can be roundtripped through sdl`() =
-        runBlockingTest {
+    fun `schema document can be roundtripped through sdl`(): Unit =
+        runBlocking {
             Arb.graphQLSchema().forAll(100) { schema ->
                 val sdl = SchemaPrinter().print(schema)
                 SchemaParser().parse(sdl)
@@ -60,8 +59,8 @@ class GraphQLSchemasTest : KotestPropertyBase() {
      *   https://github.com/graphql-java/graphql-java/pull/3599
      */
     // @Test
-    fun `validated schema can be roundtripped through sdl`() =
-        runBlockingTest {
+    fun `validated schema can be roundtripped through sdl`(): Unit =
+        runBlocking {
             /**
              * run this test with seed 865193668125215757 (put this value in this class' super call to KotestPropertyBase)
              *

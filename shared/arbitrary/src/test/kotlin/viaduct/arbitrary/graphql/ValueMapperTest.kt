@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.graphql
 
@@ -19,15 +19,21 @@ import io.kotest.property.exhaustive.boolean
 import io.kotest.property.exhaustive.exhaustive
 import io.kotest.property.forAll
 import java.math.BigDecimal
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.arbitrary.graphql.RawValue.Companion.enum
-import viaduct.arbitrary.graphql.RawValue.Companion.scalar
 import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.mapping.graphql.RawENull
+import viaduct.mapping.graphql.RawINull
+import viaduct.mapping.graphql.RawInput
+import viaduct.mapping.graphql.RawList
+import viaduct.mapping.graphql.RawObject
+import viaduct.mapping.graphql.RawValue
+import viaduct.mapping.graphql.RawValue.Companion.enum
+import viaduct.mapping.graphql.RawValue.Companion.scalar
+import viaduct.mapping.graphql.ValueMapper
 
 private typealias Roundtripper<T> = ValueMapper<T, RawValue, RawValue>
 
@@ -52,7 +58,7 @@ class ValueMapperTest : KotestPropertyBase() {
         val gjKotlinRoundtripper = RawToKotlin.map(GJKotlinToRaw(resolver))
 
         init {
-            runBlockingTest { fn() }
+            runBlocking { fn() }
         }
 
         fun roundtrips(
@@ -91,7 +97,7 @@ class ValueMapperTest : KotestPropertyBase() {
     @Test
     fun `roundtrip int scalar`() {
         Fixture {
-            runBlockingTest {
+            runBlocking {
                 Arb.int().forAll { int ->
                     roundtrips("Int", int.scalar)
                 }
@@ -102,7 +108,7 @@ class ValueMapperTest : KotestPropertyBase() {
     @Test
     fun `roundtrip boolean scalar`() {
         Fixture {
-            runBlockingTest {
+            runBlocking {
                 Exhaustive.boolean().forAll { bool ->
                     roundtrips("Boolean", bool.scalar)
                 }

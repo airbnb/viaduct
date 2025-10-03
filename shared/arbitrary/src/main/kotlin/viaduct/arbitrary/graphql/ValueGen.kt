@@ -38,12 +38,21 @@ import io.kotest.property.arbitrary.string
 import kotlin.random.nextInt
 import viaduct.arbitrary.common.Config
 import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.mapping.graphql.RawENull
+import viaduct.mapping.graphql.RawEnum
+import viaduct.mapping.graphql.RawINull
+import viaduct.mapping.graphql.RawInput
+import viaduct.mapping.graphql.RawList
+import viaduct.mapping.graphql.RawObject
+import viaduct.mapping.graphql.RawScalar
+import viaduct.mapping.graphql.RawValue
+import viaduct.mapping.graphql.ValueMapper
 
 /**
  * Base interface for object that can generate a value for a
  * provided `Type`, within a specified Value domain
  *
- * @see ValueMapper
+ * @see viaduct.mapping.graphql.ValueMapper
  */
 interface ValueGen<Type, Value> : Function1<Type, Value> {
     private class Mapped<Type, Value, NewValue>(

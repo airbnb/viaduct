@@ -2,7 +2,7 @@ package viaduct.engine.runtime.select
 
 import graphql.language.Field
 import graphql.schema.GraphQLCompositeType
-import viaduct.utils.graphql.GraphQLTypeRelation
+import viaduct.graphql.utils.GraphQLTypeRelation
 
 /**
  * Return a Map of selected [Field]s of a RawSelectionSet that are defined on the selected

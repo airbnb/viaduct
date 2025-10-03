@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.internal
 
 import graphql.schema.GraphQLObjectType
@@ -5,7 +7,7 @@ import io.mockk.every
 import io.mockk.mockk
 import javax.inject.Provider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
@@ -32,8 +34,8 @@ import viaduct.tenant.runtime.globalid.User
 @OptIn(ExperimentalCoroutinesApi::class)
 class NodeReferenceFactoryImplTest {
     @Test
-    fun `nodeFor returns a Node Reference`() =
-        runBlockingTest {
+    fun `nodeFor returns a Node Reference`(): Unit =
+        runBlocking {
             val nodeResolverRegistryProvider = mockk<Provider<NodeResolverDispatcherRegistry>>()
             val nodeCheckerRegistryProvider = mockk<Provider<TypeCheckerDispatcherRegistry>>()
             every { nodeResolverRegistryProvider.get() } returns mockk()
@@ -100,7 +102,7 @@ class NodeReferenceFactoryImplTest {
     }
 
     @Test
-    fun `nodeFor - type name not found in schema, leading to null type exception`() {
+    fun `nodeFor - type name not found in schema, throws exception`() {
         val invalidNameUserType = MockType("TypeThatDoesNotExist", User::class)
         val globalId = GlobalIDImpl(invalidNameUserType, "123")
 
@@ -115,17 +117,13 @@ class NodeReferenceFactoryImplTest {
         val factory = NodeReferenceFactoryImpl(nodeEngineObjectDataFactory)
         val internalContext = createMockInternalContext()
 
-        val exception = assertThrows<Exception> {
+        assertThrows<Exception> {
             factory.nodeFor(globalId, internalContext)
         }
-
-        assertEquals(NullPointerException::class.simpleName, exception::class.simpleName)
-        assertNotNull(exception, "Exception should not be null")
-        assertEquals("type must not be null", exception.message)
     }
 
     @Test
-    fun `nodeFor - type is invalid leading to constructor not found`() {
+    fun `nodeFor - type is invalid, throws exception for constructor not found`() {
         val userNameInvalidType = MockType("User", NodeObject::class)
         val globalId = GlobalIDImpl(userNameInvalidType, "123")
         val mockNodeEngineObjectData = createDefaultNodeEngineObjectData(globalId)
@@ -136,12 +134,9 @@ class NodeReferenceFactoryImplTest {
         val factory = NodeReferenceFactoryImpl(nodeEngineObjectDataFactory)
         val internalContext = createMockInternalContext()
 
-        val exception = assertThrows<NullPointerException>("Should throw NullPointerException when primaryConstructor is null") {
+        assertThrows<Exception> {
             factory.nodeFor(globalId, internalContext)
         }
-
-        assertNotNull(exception, "Exception should not be null")
-        assertEquals("Primary constructor for type ${userNameInvalidType.name} is not found.", exception.message)
     }
 
     @Test
@@ -157,7 +152,7 @@ class NodeReferenceFactoryImplTest {
 
         val user = factory.nodeFor(globalId, internalContext)
 
-        runBlockingTest {
+        runBlocking {
             val userInternalId = (user.getId() as MockGlobalID<User>).internalID
             assertEquals(internalId, userInternalId)
         }

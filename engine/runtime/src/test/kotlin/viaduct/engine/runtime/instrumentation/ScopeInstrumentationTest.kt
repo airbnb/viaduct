@@ -7,8 +7,10 @@ import io.mockk.every
 import io.mockk.mockk
 import java.util.function.Consumer
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.findLocalContextForType
 import viaduct.engine.runtime.isIntrospective
@@ -68,6 +70,30 @@ internal class ScopeInstrumentationTest {
             val engineExecutionContext = it.findLocalContextForType<EngineExecutionContextImpl>()
             assertEquals(scopedSchema, engineExecutionContext.activeSchema)
         }
+    }
+
+    /**
+     * Cross-build compatibility test ensuring ScopeInstrumentation extends ViaductInstrumentationBase.
+     *
+     * This test is critical for OSS/Airbnb compatibility. The Airbnb build requires
+     * ScopeInstrumentation to extend ViaductInstrumentationBase for proper dependency injection
+     * wrapping in ViaductInstrumentationAdapter.
+     *
+     * Without this inheritance, OSS changes might compile fine but break the Airbnb build.
+     *
+     * Historical context: If an OSS developer changed ScopeInstrumentation from extending
+     * ViaductInstrumentationBase back to just implementing Instrumentation, it would work
+     * in OSS but cause dependency injection failures in Airbnb's build.
+     */
+    @Test
+    @Suppress("USELESS_IS_CHECK")
+    fun `verifies ScopeInstrumentation extends ViaductInstrumentationBase for cross-build compatibility`() {
+        val scopeInstrumentation = ScopeInstrumentation()
+        assertTrue(
+            scopeInstrumentation is ViaductInstrumentationBase,
+            "ScopeInstrumentation must extend ViaductInstrumentationBase for Airbnb build compatibility. " +
+                "This ensures proper wrapping in ViaductInstrumentationAdapter during dependency injection."
+        )
     }
 
     fun mockBasics() {

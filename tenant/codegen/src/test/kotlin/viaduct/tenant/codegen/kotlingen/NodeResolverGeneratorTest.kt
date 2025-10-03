@@ -55,7 +55,7 @@ class NodeResolverGeneratorTest {
             modernModuleGeneratedDir = File(""),
             metainfGeneratedDir = File(""),
             resolverGeneratedDir = File(""),
-            baseTypeMapper = ViaductBaseTypeMapper()
+            baseTypeMapper = ViaductBaseTypeMapper(schema)
         )
 
         schema.generateNodeResolvers(args)

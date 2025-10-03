@@ -6,10 +6,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockEngineObjectData
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
-import viaduct.graphql.test.assertData
+import viaduct.graphql.test.assertJson
 
 @ExperimentalCoroutinesApi
 class BatchFieldResolverTest {
@@ -34,7 +34,7 @@ class BatchFieldResolverTest {
                     fn { arguments, _, _, _, _ ->
                         val size = arguments["size"] as? Int ?: 1
                         (1..size).map { i ->
-                            MockEngineObjectData(
+                            mkEngineObjectData(
                                 schema.schema.getObjectType("Item"),
                                 mapOf("x" to i)
                             )
@@ -71,7 +71,7 @@ class BatchFieldResolverTest {
                     fn { arguments, _, _, _, _ ->
                         val size = arguments["size"] as? Int ?: 1
                         (1..size).map { i ->
-                            MockEngineObjectData(
+                            mkEngineObjectData(
                                 schema.schema.getObjectType("Item"),
                                 mapOf("x" to i)
                             )
@@ -102,7 +102,7 @@ class BatchFieldResolverTest {
                     fn { arguments, _, _, _, _ ->
                         val size = arguments["size"] as? Int ?: 1
                         (1..size).map { i ->
-                            MockEngineObjectData(
+                            mkEngineObjectData(
                                 schema.schema.getObjectType("Item"),
                                 mapOf("x" to i)
                             )
@@ -119,14 +119,14 @@ class BatchFieldResolverTest {
             }
         }.runFeatureTest {
             viaduct.runQuery("{ items { x y }}")
-                .assertData("""{"items": [{"x": 1, "y": null}, {"x": 2, "y": null}]}""") { errors ->
+                .apply {
                     assertEquals(2, errors.size)
                     errors.forEachIndexed { idx, error ->
                         assertEquals(listOf("items", idx, "y"), error.path)
                         assertTrue(error.message.contains("Item y resolver failed"))
                         assertEquals("DataFetchingException", error.errorType.toString())
                     }
-                }
+                }.getData<Map<String, Any?>>().assertJson("""{"items": [{"x": 1, "y": null}, {"x": 2, "y": null}]}""")
         }
     }
 
@@ -138,7 +138,7 @@ class BatchFieldResolverTest {
                     fn { arguments, _, _, _, _ ->
                         val size = arguments["size"] as? Int ?: 1
                         (1..size).map { i ->
-                            MockEngineObjectData(
+                            mkEngineObjectData(
                                 schema.schema.getObjectType("Item"),
                                 mapOf("x" to i)
                             )
@@ -163,13 +163,13 @@ class BatchFieldResolverTest {
             }
         }.runFeatureTest {
             viaduct.runQuery("{ items { x y }}")
-                .assertData("""{"items": [{"x": 1, "y": 1}, {"x": 2, "y": null}]}""") { errors ->
+                .apply {
                     assertEquals(1, errors.size)
                     val error = errors.first()
                     assertEquals(listOf("items", 1, "y"), error.path)
                     assertTrue(error.message.contains("Even idx for item"))
                     assertEquals("DataFetchingException", error.errorType.toString())
-                }
+                }.getData<Map<String, Any?>>().assertJson("""{"items": [{"x": 1, "y": 1}, {"x": 2, "y": null}]}""")
         }
     }
 
@@ -181,7 +181,7 @@ class BatchFieldResolverTest {
                 resolver {
                     fn { _, _, _, _, _ ->
                         listOf(1, 2).map { i ->
-                            MockEngineObjectData(
+                            mkEngineObjectData(
                                 schema.schema.getObjectType("Item"),
                                 mapOf("x" to i)
                             )
@@ -192,7 +192,7 @@ class BatchFieldResolverTest {
             field("Query" to "anotherItem") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        MockEngineObjectData(
+                        mkEngineObjectData(
                             schema.schema.getObjectType("Item"),
                             mapOf("x" to 1)
                         )

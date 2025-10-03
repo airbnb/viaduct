@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.graphql
 
@@ -6,30 +6,30 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.map
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.arbitrary.graphql.RawValue.Companion.inull
-import viaduct.arbitrary.graphql.RawValue.Companion.obj
+import viaduct.mapping.graphql.RawObject
+import viaduct.mapping.graphql.RawValue.Companion.inull
+import viaduct.mapping.graphql.RawValue.Companion.obj
 
 class ViaductExtendedSchemaRawValueGenTest : KotestPropertyBase() {
     @Test
-    fun `non-null recursive output types`() =
-        runBlockingTest {
+    fun `non-null recursive output types`(): Unit =
+        runBlocking {
             val schema = mkViaductSchema("type Type { type: Type! }")
             val type = schema.types["Type"]!!.asTypeExpr()
 
             // expect that even with implicit null weight of 0, values will still be finite
             Arb.rawValueFor(type, cfg = mkConfig(inull = 0.0, maxValueDepth = 1))
                 .forAll { v ->
-                    v == obj("Type", "type" to BridgeGJToRaw.obj("Type", "type" to inull))
+                    v == obj("Type", "type" to obj("Type", "type" to inull))
                 }
         }
 
     @Test
-    fun `union value gen`() =
-        runBlockingTest {
+    fun `union value gen`(): Unit =
+        runBlocking {
             val schema = mkViaductSchema(
                 """
             union Union = Obj
@@ -44,8 +44,8 @@ class ViaductExtendedSchemaRawValueGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `interface value gen`() =
-        runBlockingTest {
+    fun `interface value gen`(): Unit =
+        runBlocking {
             val schema = mkViaductSchema(
                 """
             interface Interface { a: Int }
@@ -60,8 +60,8 @@ class ViaductExtendedSchemaRawValueGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `generates values for arbitrary types`() =
-        runBlockingTest {
+    fun `generates values for arbitrary types`(): Unit =
+        runBlocking {
             val cfg = mkConfig(
                 enull = .2,
                 inull = .2,

@@ -1,11 +1,12 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.execution
 
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import kotlin.test.assertEquals
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
 import viaduct.api.context.FieldExecutionContext
@@ -59,10 +60,9 @@ class SimpleResolverTest : DefaultAbstractResolverTestBase() {
         return ViaductSchema(graphQLSchema)
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `test FooNameResolver returns greeting with name`() =
-        runBlockingTest {
+    fun `test FooNameResolver returns greeting with name`(): Unit =
+        runBlocking {
             val resolver = QueryFieldResolver()
 
             val result = runFieldResolver(

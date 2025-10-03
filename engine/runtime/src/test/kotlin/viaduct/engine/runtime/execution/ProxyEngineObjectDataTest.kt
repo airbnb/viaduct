@@ -1,9 +1,11 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime.execution
 
 import graphql.validation.ValidationError
 import kotlin.test.assertContains
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -12,6 +14,7 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.UnsetSelectionException
 import viaduct.engine.api.mocks.MockCheckerErrorResult
+import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.CompositeLocalContext
 import viaduct.engine.runtime.FieldErrorsException
 import viaduct.engine.runtime.FieldResolutionResult
@@ -103,11 +106,14 @@ class ProxyEngineObjectDataTest {
                 fragment?.let {
                     selectionSetFactory.rawSelectionSet(oer.graphQLObjectType.name, fragment, variables)
                 }
-            return ProxyEngineObjectData(oer, "error", selectionSet, applyAccessChecks)
+            if (!applyAccessChecks) {
+                return CheckerProxyEngineObjectData(oer, "error", selectionSet)
+            }
+            return ProxyEngineObjectData(oer, "error", selectionSet)
         }
 
         init {
-            runBlockingTest {
+            runBlocking {
                 test()
             }
         }

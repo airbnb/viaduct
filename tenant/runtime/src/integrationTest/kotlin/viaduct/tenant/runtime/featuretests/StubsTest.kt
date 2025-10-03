@@ -1,13 +1,11 @@
 package viaduct.tenant.runtime.featuretests
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.mocks.MockInternalContext
-import viaduct.engine.api.mocks.MockEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.tenant.runtime.featuretests.fixtures.ArgumentsStub
 import viaduct.tenant.runtime.featuretests.fixtures.ObjectStub
@@ -22,13 +20,14 @@ class ObjectStubTest {
         MockSchema.mk(sdl).let { schema ->
             ObjectStub(
                 MockInternalContext(schema),
-                MockEngineObjectData(schema.schema.getObjectType(type), values.toMap())
+                @Suppress("DEPRECATION")
+                viaduct.engine.api.mocks.MockEngineObjectData(schema.schema.getObjectType(type), values.toMap())
             )
         }
 
     @Test
-    fun `get`() =
-        runBlockingTest {
+    fun `get`(): Unit =
+        kotlinx.coroutines.runBlocking {
             // missing
             mk("extend type Query { x: Int }").apply {
                 assertNull(get<Int?>("x"))

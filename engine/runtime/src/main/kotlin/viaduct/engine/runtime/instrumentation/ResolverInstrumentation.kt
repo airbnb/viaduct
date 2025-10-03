@@ -10,7 +10,7 @@ import viaduct.engine.api.FieldResolverDispatcherRegistry
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ResolverDataFetcher
-import viaduct.utils.graphql.asNamedElement
+import viaduct.graphql.utils.asNamedElement
 
 /**
  * Instrumentation that executes @Resolver classes for Viaduct Modern

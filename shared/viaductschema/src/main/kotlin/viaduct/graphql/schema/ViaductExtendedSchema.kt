@@ -11,6 +11,15 @@ interface ViaductExtendedSchema : ViaductSchema {
     override val mutationTypeDef: Object?
     override val subscriptionTypeDef: Object?
 
+    /** For testing. */
+    object Empty : ViaductExtendedSchema {
+        override val types = emptyMap<String, TypeDef>()
+        override val directives = emptyMap<String, Directive>()
+        override val queryTypeDef = null
+        override val mutationTypeDef = null
+        override val subscriptionTypeDef = null
+    }
+
     fun filter(
         filter: SchemaFilter,
         schemaInvariantOptions: SchemaInvariantOptions = SchemaInvariantOptions.DEFAULT,

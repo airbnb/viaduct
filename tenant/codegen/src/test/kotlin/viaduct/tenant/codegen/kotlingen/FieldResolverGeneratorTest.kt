@@ -27,7 +27,7 @@ class FieldResolverGeneratorTest {
     ): String {
         val schema = mkSchema(sdl)
         val type = schema.types[typeName] as ViaductExtendedSchema.Record
-        val contents = genResolver(typeName, type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper())
+        val contents = genResolver(typeName, type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema))
         return contents.toString()
     }
 
@@ -51,7 +51,7 @@ class FieldResolverGeneratorTest {
                     File.createTempFile("temp", null).also { it.deleteOnExit() },
                     File.createTempFile("temp1", null).also { it.deleteOnExit() },
                     File.createTempFile("temp2", null).also { it.deleteOnExit() },
-                    baseTypeMapper = ViaductBaseTypeMapper()
+                    baseTypeMapper = ViaductBaseTypeMapper(schema)
                 )
             )
         }
@@ -125,7 +125,7 @@ class FieldResolverGeneratorTest {
             """.trimIndent(),
             "Query"
         ).let {
-            assertTrue(it.contains("GlobalID<out viaduct.api.grts.Foo>"))
+            assertTrue(it.contains("GlobalID<viaduct.api.grts.Foo>"))
         }
     }
 }

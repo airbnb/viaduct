@@ -14,14 +14,14 @@ fun ViaductExtendedSchema.TypeDef.assertKotlinTypeString(
     expected: String,
     isInput: Boolean = false,
     pkg: String = expectedPkg,
-    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper()
+    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
 ) = asTypeExpr().assertKotlinTypeString(expected, field = null, isInput = isInput, pkg = pkg, baseTypeMapper = baseTypeMapper)
 
 fun ViaductExtendedSchema.HasDefaultValue.assertKotlinTypeString(
     expected: String,
     isInput: Boolean = false,
     pkg: String = expectedPkg,
-    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper()
+    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
 ) = type.assertKotlinTypeString(expected, field = this, isInput = isInput, pkg = pkg, baseTypeMapper = baseTypeMapper)
 
 fun ViaductExtendedSchema.TypeExpr.assertKotlinTypeString(
@@ -30,7 +30,7 @@ fun ViaductExtendedSchema.TypeExpr.assertKotlinTypeString(
     isInput: Boolean = false,
     useSchemaValueType: Boolean = false,
     pkg: String = expectedPkg,
-    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper()
+    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
 ) {
     assertEquals(
         expected,

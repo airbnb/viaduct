@@ -1,15 +1,15 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.api
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.mocks.MockEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.mocks.mkEngineObjectData
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class EngineDataReaderTest {
     private val schema = MockSchema.mk(
         """
@@ -23,11 +23,11 @@ class EngineDataReaderTest {
         """.trimIndent()
     )
 
-    private fun mkData(map: Map<String, Any?>): EngineObjectData = MockEngineObjectData.wrap(schema.schema.queryType, map)
+    private fun mkData(map: Map<String, Any?>): EngineObjectData = mkEngineObjectData(schema.schema.queryType, map)
 
     @Test
-    fun `read -- reading from empty path returns root object`() =
-        runBlockingTest {
+    fun `read -- reading from empty path returns root object`(): Unit =
+        runBlocking {
             mkData(emptyMap()).let { data ->
                 assertSame(
                     data,
@@ -44,8 +44,8 @@ class EngineDataReaderTest {
     }
 
     @Test
-    fun `read -- read object field`() =
-        runBlockingTest {
+    fun `read -- read object field`(): Unit =
+        runBlocking {
             assertEquals(
                 1,
                 EngineDataReader(listOf("int")).read(mkData(mapOf("int" to 1)))
@@ -53,8 +53,8 @@ class EngineDataReaderTest {
         }
 
     @Test
-    fun `read -- read null field value`() =
-        runBlockingTest {
+    fun `read -- read null field value`(): Unit =
+        runBlocking {
             assertEquals(
                 null,
                 EngineDataReader(listOf("int")).read(mkData(mapOf("int" to null)))
@@ -62,8 +62,8 @@ class EngineDataReaderTest {
         }
 
     @Test
-    fun `read -- read terminal list value`() =
-        runBlockingTest {
+    fun `read -- read terminal list value`(): Unit =
+        runBlocking {
             assertEquals(
                 listOf(1, 2),
                 EngineDataReader(listOf("ints"))
@@ -72,8 +72,8 @@ class EngineDataReaderTest {
         }
 
     @Test
-    fun `read -- traverse through null object`() =
-        runBlockingTest {
+    fun `read -- traverse through null object`(): Unit =
+        runBlocking {
             assertEquals(
                 null,
                 EngineDataReader(listOf("query", "int"))
@@ -82,8 +82,8 @@ class EngineDataReaderTest {
         }
 
     @Test
-    fun `read -- traverse through object`() =
-        runBlockingTest {
+    fun `read -- traverse through object`(): Unit =
+        runBlocking {
             assertEquals(
                 1,
                 EngineDataReader(listOf("query", "int"))
@@ -92,8 +92,8 @@ class EngineDataReaderTest {
         }
 
     @Test
-    fun `read -- traverse through non-object`() =
-        runBlockingTest {
+    fun `read -- traverse through non-object`(): Unit =
+        runBlocking {
             assertThrows<IllegalStateException> {
                 EngineDataReader(listOf("int", "x"))
                     .read(mkData(mapOf("int" to 1)))

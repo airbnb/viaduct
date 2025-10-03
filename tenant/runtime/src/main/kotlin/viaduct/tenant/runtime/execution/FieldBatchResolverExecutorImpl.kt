@@ -20,6 +20,8 @@ import viaduct.tenant.runtime.internal.InternalContextImpl
 import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionsLoaderImpl
 
+// TODO: import viaduct.tenant.runtime.context2.FieldExecutionContextImpl
+
 /**
  * Executes a tenant-written field resolver's batchResolve function.
  *
@@ -47,6 +49,18 @@ class FieldBatchResolverExecutorImpl(
         context: EngineExecutionContext
     ): Map<Selector, Result<Any?>> {
         val contexts = selectors.map { key ->
+/*
+            FieldExecutionContextImpl<*,*,*,*>(
+                schema = context.fullSchema,
+                globalIDCodec = globalIDCodec,
+                reflectionLoader = reflectionLoader,
+                arguments = key.arguments,
+                objectValue = key.objectValue,
+                queryValue = key.queryValue,
+                selections = key.selections,
+                engineExecutionContext = context,
+            )
+*/
             resolverContextFactory.make(
                 FieldArgs(
                     internalContext = InternalContextImpl(context.fullSchema, globalIDCodec, reflectionLoader),

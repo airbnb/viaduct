@@ -1,10 +1,11 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.context
 
 import graphql.schema.GraphQLObjectType
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -27,7 +28,6 @@ import viaduct.tenant.runtime.internal.NodeReferenceFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
 
-@ExperimentalCoroutinesApi
 class NodeExecutionContextImplTest {
     private val userId = GlobalIDImpl(User.Reflection, "123")
     private val queryObject = mockk<Query>()
@@ -77,10 +77,9 @@ class NodeExecutionContextImplTest {
         assertEquals(mapOf("var" to true), inner.variables())
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun query() =
-        runBlockingTest {
+    fun query(): Unit =
+        runBlocking {
             val ctx = mk()
             ctx.selectionsFor(Query.Reflection, "__typename").also {
                 assertTrue(it.contains(Query.Reflection.Fields.__typename))

@@ -75,7 +75,7 @@ class ExecutorValidatorTest {
     }
 
     @Test
-    fun `fails on requiredSelectionSet validator validator failure for checker`() {
+    fun `fails on requiredSelectionSet validator failure for field checker`() {
         val validator = ExecutorValidator(Validator.Unvalidated, Validator.Invalid, Validator.Unvalidated, Validator.Unvalidated)
         DispatcherRegistryFactory(
             MockTenantAPIBootstrapper(),
@@ -83,6 +83,23 @@ class ExecutorValidatorTest {
             MockCheckerExecutorFactory(
                 mapOf(
                     "Foo" to "field" to MockCheckerExecutor(
+                        mapOf("rss" to RequiredSelectionSet(SelectionsParser.parse("Foo", "x"), emptyList()))
+                    )
+                )
+            )
+        ).create(MockSchema.minimal)
+    }
+
+    @Test
+    fun `fails on requiredSelectionSet validator failure for type checker`() {
+        val validator = ExecutorValidator(Validator.Unvalidated, Validator.Invalid, Validator.Unvalidated, Validator.Unvalidated)
+        DispatcherRegistryFactory(
+            MockTenantAPIBootstrapper(),
+            validator,
+            MockCheckerExecutorFactory(
+                null,
+                mapOf(
+                    "Foo" to MockCheckerExecutor(
                         mapOf("rss" to RequiredSelectionSet(SelectionsParser.parse("Foo", "x"), emptyList()))
                     )
                 )

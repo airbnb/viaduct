@@ -688,6 +688,23 @@ class FromFieldVariablesHaveValidPathsTest {
         }
     }
 
+    @Test
+    fun `sanity check - runs for type checker rss`() {
+        @Test
+        fun `invalid -- path traverses through list`() {
+            Fixture("type Query { x:Int, y(a:Int):Int, z:[Query], w:Int }") {
+                val err = assertOneInvalid<InvalidVariableException>(
+                    mkReg(
+                        "Query" to null,
+                        objectSelections = "y(a:\$var), z { w }",
+                        objectVariablePaths = mapOf("var" to "z.w")
+                    )
+                )
+                assertTrue(err.reason.lowercase().contains("cannot traverse list"))
+            }
+        }
+    }
+
     private class Fixture(
         sdl: String,
         fn: Fixture.() -> Unit = {}
@@ -700,7 +717,7 @@ class FromFieldVariablesHaveValidPathsTest {
         }
 
         fun mkReg(
-            coordinate: Coordinate,
+            coordinate: TypeOrFieldCoordinate,
             objectSelections: String? = null,
             objectVariablePaths: Map<String, String> = emptyMap(),
             querySelections: String? = null,
@@ -719,17 +736,23 @@ class FromFieldVariablesHaveValidPathsTest {
             return MockRequiredSelectionSetRegistry.builder()
                 .also { b ->
                     if (objectSelections != null) {
-                        b.fieldResolverEntry(
-                            coordinate,
-                            objectSelections,
-                            varResolvers
-                        )
+                        if (coordinate.second == null) {
+                            b.typeCheckerEntry(coordinate.first, objectSelections, varResolvers)
+                        } else {
+                            @Suppress("UNCHECKED_CAST")
+                            b.fieldResolverEntry(
+                                coordinate as Coordinate,
+                                objectSelections,
+                                varResolvers
+                            )
+                        }
                     }
 
                     if (querySelections != null) {
+                        @Suppress("UNCHECKED_CAST")
                         b.fieldResolverEntryForType(
                             schema.schema.queryType.name,
-                            coordinate,
+                            coordinate as Coordinate,
                             querySelections,
                             varResolvers
                         )
@@ -766,7 +789,7 @@ class FromFieldVariablesHaveValidPathsTest {
             coord: Coordinate,
             reg: RequiredSelectionSetRegistry
         ) {
-            validator.validate(RequiredSelectionsValidationCtx(coord, reg))
+            validator.validate(RequiredSelectionsValidationCtx(coord.first, coord.second, reg))
         }
     }
 }

@@ -3,6 +3,7 @@ package viaduct.engine.runtime.tenantloading
 import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLTypeUtil
+import viaduct.engine.api.Coordinate
 import viaduct.engine.api.FromArgument
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.Validated
@@ -22,22 +23,26 @@ class FromArgumentVariablesHaveValidPaths(
 ) : Validator<RequiredSelectionsValidationCtx> {
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: RequiredSelectionsValidationCtx) {
+        if (ctx.fieldName == null) {
+            // This is an RSS for a type, which does not have arguments
+            return
+        }
         ctx.requiredSelectionSetRegistry
-            .getRequiredSelectionSetsForField(ctx.coord.first, ctx.coord.second, true)
+            .getRequiredSelectionSetsForField(ctx.typeName, ctx.fieldName, true)
             .forEach { selectionSet ->
-                validateFromArgumentVariables(ctx, selectionSet)
+                validateFromArgumentVariables(ctx.typeName to ctx.fieldName, selectionSet)
             }
     }
 
     private fun validateFromArgumentVariables(
-        ctx: RequiredSelectionsValidationCtx,
+        coordinate: Coordinate,
         rss: RequiredSelectionSet
     ) {
-        val fieldDef = schema.schema.getFieldDefinition(ctx.coord.gj)
+        val fieldDef = schema.schema.getFieldDefinition(coordinate.gj)
             ?: return // Field not found in schema - let other validators handle this
 
         extractFromArgumentVariables(rss.variablesResolvers).forEach { variable ->
-            validateFromArgumentVariable(ctx, variable, fieldDef, rss)
+            validateFromArgumentVariable(coordinate, variable, fieldDef, rss)
         }
     }
 
@@ -56,14 +61,14 @@ class FromArgumentVariablesHaveValidPaths(
     }
 
     private fun validateFromArgumentVariable(
-        ctx: RequiredSelectionsValidationCtx,
+        coordinate: Coordinate,
         variable: FromArgument,
         fieldDef: graphql.schema.GraphQLFieldDefinition,
         rss: RequiredSelectionSet
     ) {
         if (variable.path.isEmpty()) {
             throw InvalidVariableException(
-                ctx.coord,
+                coordinate,
                 variable.name,
                 "Path cannot be empty for FromArgument variable '${variable.name}'."
             )
@@ -74,7 +79,7 @@ class FromArgumentVariablesHaveValidPaths(
         val argument = fieldDef.arguments.find { it.name == firstPathSegment }
         if (argument == null) {
             throw InvalidVariableException(
-                ctx.coord,
+                coordinate,
                 variable.name,
                 "Argument '$firstPathSegment' does not exist."
             )
@@ -87,11 +92,11 @@ class FromArgumentVariablesHaveValidPaths(
                 initialType += Type.Property.NullableTraversalPath
             }
 
-            buildType(variable.path.drop(1), listOf(firstPathSegment), initialType, ctx, variable, fieldDef)
+            buildType(variable.path.drop(1), listOf(firstPathSegment), initialType, coordinate, variable, fieldDef)
         }
 
         // Validate type compatibility for each usage
-        val variableUsages = rss.selections.selections.collectVariableUsages(schema.schema, variable.name, ctx.coord)
+        val variableUsages = rss.selections.selections.collectVariableUsages(schema.schema, variable.name, coordinate.first)
         variableUsages.forEach { usage ->
             val locationType = Type(usage)
             if (!areTypesCompatible(locationType, sourceType)) {
@@ -101,7 +106,7 @@ class FromArgumentVariablesHaveValidPaths(
                         "expecting type '${GraphQLTypeUtil.simplePrint(usage.type)}'"
 
                 throw InvalidVariableException(
-                    ctx.coord,
+                    coordinate,
                     variable.name,
                     errorMessage
                 )
@@ -117,7 +122,7 @@ class FromArgumentVariablesHaveValidPaths(
         remainingPath: List<String>,
         currentPath: List<String>,
         currentType: Type,
-        ctx: RequiredSelectionsValidationCtx,
+        coordinate: Coordinate,
         variable: FromArgument,
         fieldDef: GraphQLFieldDefinition
     ): Type {
@@ -127,7 +132,7 @@ class FromArgumentVariablesHaveValidPaths(
 
         if (currentType.type.isListish) {
             throw InvalidVariableException(
-                ctx.coord,
+                coordinate,
                 variable.name,
                 "Cannot traverse through list type at path segment '${currentPath.joinToString(".")}'. " +
                     "Path traversal through lists is not supported by InputValueReader."
@@ -140,7 +145,7 @@ class FromArgumentVariablesHaveValidPaths(
         // Only input object types can have nested fields
         if (unwrappedType !is GraphQLInputObjectType) {
             throw InvalidVariableException(
-                ctx.coord,
+                coordinate,
                 variable.name,
                 "Cannot traverse to field '$fieldName' from non-object type '${unwrappedType.name}' " +
                     "at path '${currentPath.joinToString(".")}'"
@@ -150,7 +155,7 @@ class FromArgumentVariablesHaveValidPaths(
         val field = unwrappedType.getFieldDefinition(fieldName)
         if (field == null) {
             throw InvalidVariableException(
-                ctx.coord,
+                coordinate,
                 variable.name,
                 "Field '$fieldName' does not exist in input type '${unwrappedType.name}' " +
                     "at path '${currentPath.joinToString(".")}'. "
@@ -169,7 +174,7 @@ class FromArgumentVariablesHaveValidPaths(
             remainingPath.drop(1),
             currentPath + fieldName,
             nextType,
-            ctx,
+            coordinate,
             variable,
             fieldDef
         )

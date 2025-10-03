@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.graphql
 
@@ -23,11 +23,18 @@ import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.of
 import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.checkInvariants
+import viaduct.mapping.graphql.RawENull
+import viaduct.mapping.graphql.RawEnum
+import viaduct.mapping.graphql.RawINull
+import viaduct.mapping.graphql.RawList
+import viaduct.mapping.graphql.RawObject
+import viaduct.mapping.graphql.RawScalar
+import viaduct.mapping.graphql.RawValue
+import viaduct.mapping.graphql.ValueMapper
 
 class GJRawValueResultGenTest : KotestPropertyBase() {
     private val minimalSchema = mkGJSchema("", includeMinimal = true)
@@ -63,8 +70,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
             .selectionSet
 
     @Test
-    fun `rawValueFor -- scalar`() =
-        runBlockingTest {
+    fun `rawValueFor -- scalar`(): Unit =
+        runBlocking {
             arbitrary {
                 val cfg = config.bind()
                 val type = scalars.bind()
@@ -88,8 +95,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `rawValueFor -- list`() =
-        runBlockingTest {
+    fun `rawValueFor -- list`(): Unit =
+        runBlocking {
             arbitrary {
                 val cfg = config.bind()
                 val type = maybeNonNull(GraphQLList.list(maybeNonNull(scalars.bind())))
@@ -135,8 +142,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `rawValueFor -- enum`() =
-        runBlockingTest {
+    fun `rawValueFor -- enum`(): Unit =
+        runBlocking {
             val schema = mkGJSchema("enum E { A, B, C }")
             val enum = schema.getTypeAs<GraphQLEnumType>("E")
 
@@ -163,8 +170,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `rawValueFor -- object`() =
-        runBlockingTest {
+    fun `rawValueFor -- object`(): Unit =
+        runBlocking {
             val schema = mkGJSchema("type O { x: Int!, y: Int }")
             val obj = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             val emptySelections = SelectionSet(emptyList())
@@ -218,8 +225,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `rawValueFor -- union`() =
-        runBlockingTest {
+    fun `rawValueFor -- union`(): Unit =
+        runBlocking {
             val schema = mkGJSchema(
                 """
                 type A { x: Int! }
@@ -273,8 +280,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `rawValueFor -- interface`() =
-        runBlockingTest {
+    fun `rawValueFor -- interface`(): Unit =
+        runBlocking {
             val schema = mkGJSchema(
                 """
                 type A implements I { i: Int!, x: Int! }
@@ -328,8 +335,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `rawValueFor -- aliases`() =
-        runBlockingTest {
+    fun `rawValueFor -- aliases`(): Unit =
+        runBlocking {
             val schema = mkGJSchema("type O { x: Int! }")
             val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             arbitrary {
@@ -349,8 +356,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `rawValueFor -- inline fragment`() =
-        runBlockingTest {
+    fun `rawValueFor -- inline fragment`(): Unit =
+        runBlocking {
             val schema = mkGJSchema("type O { x: Int! o: O! }")
             val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             arbitrary {
@@ -384,8 +391,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `rawValueFor -- inline fragment without type condition`() =
-        runBlockingTest {
+    fun `rawValueFor -- inline fragment without type condition`(): Unit =
+        runBlocking {
             val schema = mkGJSchema("type O { x: Int! }")
             val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             arbitrary {
@@ -416,8 +423,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `rawValueFor -- fragment spread`() =
-        runBlockingTest {
+    fun `rawValueFor -- fragment spread`(): Unit =
+        runBlocking {
             val schema = mkGJSchema("type O { x: Int! }")
             val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             arbitrary {
@@ -443,8 +450,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `mapped raw value`() =
-        runBlockingTest {
+    fun `mapped raw value`(): Unit =
+        runBlocking {
             // a mapper that renders a RawValue into a simple kotlin representation
             val mapper = object : ValueMapper<Unit, RawValue, Any?> {
                 override fun invoke(

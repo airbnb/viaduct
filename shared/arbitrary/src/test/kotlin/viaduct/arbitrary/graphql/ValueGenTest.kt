@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.graphql
 
@@ -6,10 +6,10 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.int
 import io.kotest.property.forAll
 import kotlin.random.Random
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.mapping.graphql.ValueMapper
 
 class ValueGenTest {
     @Test
@@ -30,8 +30,8 @@ class ValueGenTest {
     }
 
     @Test
-    fun `memoize`() =
-        runBlockingTest {
+    fun `memoize`(): Unit =
+        runBlocking {
             Arb.int().forAll { i ->
                 val gen = ValueGen.mk { _: Int -> Random.nextInt() }.memoized()
                 gen(i) == gen(i)

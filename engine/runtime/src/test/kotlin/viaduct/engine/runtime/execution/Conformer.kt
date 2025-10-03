@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime.execution
 
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -21,7 +23,7 @@ import graphql.schema.TypeResolver
 import io.kotest.property.Arb
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -99,7 +101,7 @@ internal class Conformer private constructor(
     val gjGraphQL = createGJGraphQL(schema, preparsedDocumentProvider = sharedDocumentCache, instrumentations = listOf(gjRecorder.asGJInstrumentation()))
 
     init {
-        runBlockingTest {
+        runBlocking {
             fn(this@Conformer)
         }
     }

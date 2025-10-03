@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.mocks.toViaductBuilder
-import viaduct.service.runtime.ViaductSchemaRegistryBuilder
+import viaduct.service.runtime.SchemaRegistryConfiguration
 
 class OperationValidationTest {
     val testSchema = """
@@ -23,11 +23,12 @@ class OperationValidationTest {
         fieldWithValue("Query" to "f1", 1)
         fieldWithValue("Query" to "f2", 2)
     }.toViaductBuilder()
-        .withSchemaRegistryBuilder(
-            ViaductSchemaRegistryBuilder()
-                .withFullSchemaFromSdl(testSchema)
-                .registerFullSchema("full")
-                .registerScopedSchema("public", setOf("public"))
+        .withSchemaRegistryConfiguration(
+            SchemaRegistryConfiguration.fromSdl(
+                testSchema,
+                fullSchemaIds = listOf("full"),
+                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("public")))
+            )
         )
 
     @Test

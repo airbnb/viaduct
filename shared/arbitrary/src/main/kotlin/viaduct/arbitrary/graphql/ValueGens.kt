@@ -8,7 +8,7 @@ import viaduct.arbitrary.common.Config
 internal class ValueGens(schema: GraphQLSchema, cfg: Config, rs: RandomSource) {
     private val refResolver = TypeReferenceResolver.fromSchema(schema)
 
-    /** a generator for [RawValue]'s */
+    /** a generator for [viaduct.mapping.graphql.RawValue]'s */
     val raw = GJRawValueGen(refResolver, cfg, rs)
 
     /** a generator for [Value]'s, suitable for use with graphql-java APIs */

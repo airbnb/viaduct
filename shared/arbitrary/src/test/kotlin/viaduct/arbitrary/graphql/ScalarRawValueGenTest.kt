@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
+import viaduct.mapping.graphql.RawScalar
 
 class ScalarRawValueGenTest {
     private fun ScalarRawValueGen.assertGen(

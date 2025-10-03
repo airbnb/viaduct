@@ -146,6 +146,7 @@ object cfg {
     val MUTATION_OBJECT_GRT = JavaBinaryName("viaduct.api.types.Mutation")
     val OBJECT_GRT = JavaBinaryName("viaduct.api.types.Object")
     val UNION_GRT = JavaBinaryName("viaduct.api.types.Union")
+    val GRT = JavaBinaryName("viaduct.api.types.GRT")
 
     /** Interface implemented by v2 object types */
     val OBJECT_BASE =

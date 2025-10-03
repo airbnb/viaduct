@@ -2,11 +2,7 @@ package viaduct.tenant.runtime.context.factory
 
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.api.context.FieldExecutionContext
-import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.mocks.MockResolverExecutionContext
 import viaduct.api.select.SelectionSet
 import viaduct.tenant.runtime.context.FieldExecutionContextImpl
@@ -40,27 +36,5 @@ class MutationFieldExecutionContextFactoryTest {
         MutationFieldExecutionContextMetaFactory
             .create(fieldFactory, mutationSelectionsLoaderFactory)
             .make(args.getFieldArgs())
-    }
-
-    @Test
-    fun `ifMutation -- not mutation`() {
-        val factory = MutationFieldExecutionContextMetaFactory.ifMutation(
-            FieldExecutionContext::class,
-            fieldFactory,
-            mutationSelectionsLoaderFactory
-        )
-        assertTrue(factory === fieldFactory)
-    }
-
-    @Test
-    fun `ifMutation -- is mutation`() {
-        val ctx = MutationFieldExecutionContextMetaFactory
-            .ifMutation(
-                MutationFieldExecutionContext::class,
-                fieldFactory,
-                mutationSelectionsLoaderFactory
-            )
-            .make(args.getFieldArgs())
-        assertInstanceOf(MutationFieldExecutionContext::class.java, ctx)
     }
 }

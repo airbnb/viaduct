@@ -77,7 +77,7 @@ class ViaductGenerator : CliktCommand() {
             metainfGeneratedDir = metainfGeneratedDir,
             resolverGeneratedDir = resolverGeneratedDir,
             isFeatureAppTest = isFeatureAppTest,
-            baseTypeMapper = viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper()
+            baseTypeMapper = viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper(schema)
         )
 
         if (resolverGeneratedDir.exists()) resolverGeneratedDir.deleteRecursively()

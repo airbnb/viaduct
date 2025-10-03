@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.arbitrary.common
 
 import io.kotest.property.Arb
@@ -13,7 +15,7 @@ import io.kotest.property.exhaustive.exhaustive
 import io.kotest.property.forAll
 import java.util.UUID
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -22,9 +24,9 @@ import org.junit.jupiter.api.assertThrows
 
 class ArbExtTest : KotestPropertyBase() {
     @Test
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    fun `Gen_asSequence`() =
-        runBlockingTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `Gen_asSequence`(): Unit =
+        runBlocking {
             Arb.list(Arb.int(), 0..10).map { list ->
                 val arb = Arb.constant(list)
                 val seq = arb.asSequence(RandomSource.default())
@@ -57,8 +59,8 @@ class ArbExtTest : KotestPropertyBase() {
 
     @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    fun `Arb_flatten`() =
-        runBlockingTest {
+    fun `Arb_flatten`(): Unit =
+        runBlocking {
             val chunkSize = 10
             val arb = Arb.int(0..10).map { i ->
                 Arb.char('a'..'z')

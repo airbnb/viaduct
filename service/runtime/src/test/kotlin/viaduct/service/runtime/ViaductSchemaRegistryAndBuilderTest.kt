@@ -46,11 +46,10 @@ class ViaductSchemaRegistryAndBuilderTest {
             }
         """.trimIndent()
 
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl(validSchema)
-            .registerFullSchema("testSchema")
+        val config = SchemaRegistryConfiguration.fromSdl(validSchema, fullSchemaIds = listOf("testSchema"))
 
-        val registry = builder.build(mockCoroutineInterop)
+        val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+        val registry = factory.createRegistry(config)
         registry.registerSchema(mockInstrumentation, mockExecutionStrategy, mockExecutionStrategy, mockExecutionStrategy)
 
         checkResults(registry, "testSchema")
@@ -68,11 +67,13 @@ class ViaductSchemaRegistryAndBuilderTest {
             }
         """.trimIndent()
 
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl(fullSchema)
-            .registerScopedSchema("publicSchema", setOf("public"))
+        val config = SchemaRegistryConfiguration.fromSdl(
+            fullSchema,
+            setOf(SchemaRegistryConfiguration.ScopeConfig("publicSchema", setOf("public")))
+        )
 
-        val registry = builder.build(mockCoroutineInterop)
+        val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+        val registry = factory.createRegistry(config)
         registry.registerSchema(mockInstrumentation, mockExecutionStrategy, mockExecutionStrategy, mockExecutionStrategy)
 
         val actualSchema = checkResults(registry, "publicSchema")
@@ -102,11 +103,13 @@ class ViaductSchemaRegistryAndBuilderTest {
             )
         }
 
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl(fullSchema)
-            .registerSchema("asyncSchema", schemaComputeBlock, lazy = true)
+        val config = SchemaRegistryConfiguration.fromSdl(fullSchema).apply {
+            @Suppress("DEPRECATION")
+            registerSchema("asyncSchema", schemaComputeBlock, lazy = true)
+        }
 
-        val registry = builder.build(mockCoroutineInterop)
+        val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+        val registry = factory.createRegistry(config)
         registry.registerSchema(mockInstrumentation, mockExecutionStrategy, mockExecutionStrategy, mockExecutionStrategy)
 
         // Schema compute block should not be called during build with lazy=true
@@ -138,11 +141,13 @@ class ViaductSchemaRegistryAndBuilderTest {
             )
         }
 
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl(fullSchema)
-            .registerSchema("asyncSchema", schemaComputeBlock, lazy = false)
+        val config = SchemaRegistryConfiguration.fromSdl(fullSchema).apply {
+            @Suppress("DEPRECATION")
+            registerSchema("asyncSchema", schemaComputeBlock, lazy = false)
+        }
 
-        val registry = builder.build(mockCoroutineInterop)
+        val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+        val registry = factory.createRegistry(config)
         registry.registerSchema(mockInstrumentation, mockExecutionStrategy, mockExecutionStrategy, mockExecutionStrategy)
 
         // Schema compute block should be called during build with lazy=false
@@ -155,12 +160,9 @@ class ViaductSchemaRegistryAndBuilderTest {
     @Test
     fun `test withFullSchema with predefined schema`() {
         val predefinedSchema = makeTestSchema()
-
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchema(predefinedSchema)
-            .registerFullSchema("testSchema")
-
-        val registry = builder.build(mockCoroutineInterop)
+        val config = SchemaRegistryConfiguration.fromSchema(predefinedSchema, fullSchemaIds = listOf("testSchema"))
+        val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+        val registry = factory.createRegistry(config)
         registry.registerSchema(mockInstrumentation, mockExecutionStrategy, mockExecutionStrategy, mockExecutionStrategy)
 
         assertEquals(predefinedSchema, registry.getSchema("testSchema"))
@@ -194,7 +196,8 @@ class ViaductSchemaRegistryAndBuilderTest {
     @Test
     fun `default schema test - full integration test with FromSdl factory`() {
         val sdl = """
-            type User {
+            type User implements Node {
+              id: ID!
               name: String
             }
 
@@ -203,9 +206,9 @@ class ViaductSchemaRegistryAndBuilderTest {
             }
         """.trimIndent()
 
-        val configBuilder = ViaductSchemaRegistryBuilder().withFullSchemaFromSdl(sdl)
-        val config = configBuilder.build(mockCoroutineInterop)
-        val schema = config.getFullSchema()
+        val config = SchemaRegistryConfiguration.fromSdl(sdl)
+        val registry = ViaductSchemaRegistry.Factory(mockCoroutineInterop).createRegistry(config)
+        val schema = registry.getFullSchema()
 
         assertNotNull(schema.schema, "Schema should be created successfully")
 
@@ -249,8 +252,8 @@ class ViaductSchemaRegistryAndBuilderTest {
         """.trimIndent()
 
         val exception = assertThrows<ViaductSchemaLoadException> {
-            val configBuilder = ViaductSchemaRegistryBuilder().withFullSchemaFromSdl(sdl)
-            configBuilder.build(mockCoroutineInterop)
+            val config = SchemaRegistryConfiguration.fromSdl(sdl)
+            ViaductSchemaRegistry.Factory(mockCoroutineInterop).createRegistry(config)
         }
 
         assertContains(
@@ -273,8 +276,8 @@ class ViaductSchemaRegistryAndBuilderTest {
         """.trimIndent()
 
         val exception = assertThrows<ViaductSchemaLoadException> {
-            val configBuilder = ViaductSchemaRegistryBuilder().withFullSchemaFromSdl(sdl)
-            configBuilder.build(mockCoroutineInterop)
+            val config = SchemaRegistryConfiguration.fromSdl(sdl)
+            ViaductSchemaRegistry.Factory(mockCoroutineInterop).createRegistry(config)
         }
 
         assertContains(
@@ -296,9 +299,9 @@ class ViaductSchemaRegistryAndBuilderTest {
             }
         """.trimIndent()
 
-        val configBuilder = ViaductSchemaRegistryBuilder().withFullSchemaFromSdl(sdl)
-        val config = configBuilder.build(mockCoroutineInterop)
-        val schema = config.getFullSchema()
+        val config = SchemaRegistryConfiguration.fromSdl(sdl)
+        val registry = ViaductSchemaRegistry.Factory(mockCoroutineInterop).createRegistry(config)
+        val schema = registry.getFullSchema()
 
         assertNotNull(schema.schema, "Schema should be created successfully")
         assertNotNull(schema.schema.queryType, "Schema should always have Query type")
@@ -310,8 +313,10 @@ class ViaductSchemaRegistryAndBuilderTest {
         assertNotNull(schema.schema.getDirective("backingData"), "Schema should contain @backingData directive")
         assertNotNull(schema.schema.getDirective("scope"), "Schema should contain @scope directive")
 
-        // Verify Node interface and BackingData scalar were added
-        assertNotNull(schema.schema.getType("Node"), "Schema should contain Node interface")
+        // Verify Node interface was not added, because sdl contains no implementation of Node
+        assertNull(schema.schema.getType("Node"), "Schema should not contain Node interface")
+
+        // verify BackingData scalar was added
         assertNotNull(schema.schema.getType("BackingData"), "Schema should contain BackingData scalar")
     }
 
@@ -336,8 +341,8 @@ class ViaductSchemaRegistryAndBuilderTest {
         """.trimIndent()
 
         val exception = assertThrows<ViaductSchemaLoadException> {
-            val configBuilder = ViaductSchemaRegistryBuilder().withFullSchemaFromSdl(sdl)
-            configBuilder.build(mockCoroutineInterop)
+            val config = SchemaRegistryConfiguration.fromSdl(sdl)
+            ViaductSchemaRegistry.Factory(mockCoroutineInterop).createRegistry(config)
         }
 
         assertContains(
@@ -367,9 +372,9 @@ class ViaductSchemaRegistryAndBuilderTest {
             }
         """.trimIndent()
 
-        val configBuilder = ViaductSchemaRegistryBuilder().withFullSchemaFromSdl(sdl)
-        val config = configBuilder.build(mockCoroutineInterop)
-        val schema = config.getFullSchema()
+        val config = SchemaRegistryConfiguration.fromSdl(sdl)
+        val registry = ViaductSchemaRegistry.Factory(mockCoroutineInterop).createRegistry(config)
+        val schema = registry.getFullSchema()
 
         assertNotNull(schema.schema, "Schema should be created successfully")
         assertNotNull(schema.schema.queryType, "Schema should have Query root type")

@@ -19,6 +19,7 @@ dependencies {
     testFixturesImplementation(libs.jackson.module)
     testFixturesImplementation(libs.kotest.assertions.shared)
     testFixturesImplementation(libs.kotlin.test)
+    testFixturesImplementation(libs.viaduct.shared.invariants)
 
     testImplementation(libs.guava)
     testImplementation(libs.io.mockk.jvm)

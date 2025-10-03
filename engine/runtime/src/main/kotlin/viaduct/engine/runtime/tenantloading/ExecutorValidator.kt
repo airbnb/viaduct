@@ -33,7 +33,20 @@ class ExecutorValidator(
             ) {
                 requiredSelectionsValidator.validate(
                     RequiredSelectionsValidationCtx(
-                        coord,
+                        coord.first,
+                        coord.second,
+                        ctx.requiredSelectionSetRegistry
+                    )
+                )
+            }
+        }
+
+        ctx.typeCheckerExecutors.forEach { (typeName, executor) ->
+            if (executor.requiredSelectionSets.any { it.value != null }) {
+                requiredSelectionsValidator.validate(
+                    RequiredSelectionsValidationCtx(
+                        typeName,
+                        null,
                         ctx.requiredSelectionSetRegistry
                     )
                 )
@@ -49,7 +62,8 @@ class ExecutorValidator(
             ) {
                 requiredSelectionsValidator.validate(
                     RequiredSelectionsValidationCtx(
-                        coord,
+                        coord.first,
+                        coord.second,
                         ctx.requiredSelectionSetRegistry
                     )
                 )
@@ -62,6 +76,7 @@ data class ExecutorValidatorContext(
     val fieldResolverExecutors: Map<Coordinate, FieldResolverExecutor>,
     val nodeResolverExecutors: Map<String, NodeResolverExecutor>,
     val fieldCheckerExecutors: Map<Coordinate, CheckerExecutor>,
+    val typeCheckerExecutors: Map<String, CheckerExecutor>,
     val requiredSelectionSetRegistry: RequiredSelectionSetRegistry
 )
 
@@ -76,7 +91,8 @@ data class FieldResolverExecutorValidationCtx(
 )
 
 data class RequiredSelectionsValidationCtx(
-    val coord: Coordinate,
+    val typeName: String,
+    val fieldName: String?,
     val requiredSelectionSetRegistry: RequiredSelectionSetRegistry
 )
 
@@ -84,3 +100,8 @@ data class FieldCheckerExecutorValidationCtx(
     val coord: Coordinate,
     val executor: CheckerExecutor
 )
+
+/**
+ * Represents either a field coordinate, or an object type if the 2nd element is null
+ */
+typealias TypeOrFieldCoordinate = Pair<String, String?>

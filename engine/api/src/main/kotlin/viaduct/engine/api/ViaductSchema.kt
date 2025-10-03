@@ -1,7 +1,7 @@
 package viaduct.engine.api
 
 import graphql.schema.GraphQLSchema
-import viaduct.utils.graphql.GraphQLTypeRelations
+import viaduct.graphql.utils.GraphQLTypeRelations
 
 data class ViaductSchema(
     val schema: GraphQLSchema

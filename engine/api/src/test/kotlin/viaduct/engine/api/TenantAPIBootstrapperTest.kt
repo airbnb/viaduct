@@ -1,7 +1,8 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.api
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.TenantAPIBootstrapper.Companion.flatten
@@ -10,10 +11,9 @@ import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 
 class TenantAPIBootstrapperTest {
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `test flatten function`() =
-        runBlockingTest {
+    fun `test flatten function`(): Unit =
+        runBlocking {
             // Create mock TenantModuleBootstrapper instances
             val tenantModuleBootstrapper1 = MockTenantModuleBootstrapper(MockSchema.minimal)
             val tenantModuleBootstrapper2 = MockTenantModuleBootstrapper(MockSchema.minimal)

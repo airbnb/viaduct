@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
-import viaduct.graphql.test.assertData
+import viaduct.graphql.test.assertJson as mapAssertJson
 import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.EnumType
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
@@ -100,11 +100,11 @@ class FieldResolverTest {
             }
             .build()
             .execute("{baz { id }}")
-            .assertData("{baz: null}") { errors ->
+            .apply {
                 assertEquals(1, errors.size)
                 val error = errors[0]
                 assertTrue(error.message.contains("Attempted to access field Baz.x but it was not set: only id can be accessed on an unresolved Node reference"))
-            }
+            }.getData<Map<String, Any?>>().mapAssertJson("{baz: null}")
 
     @Test
     fun `resolver can read and write enum values`() =

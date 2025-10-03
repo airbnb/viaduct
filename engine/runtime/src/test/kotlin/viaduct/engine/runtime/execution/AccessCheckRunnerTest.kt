@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime.execution
 
 import graphql.schema.DataFetchingEnvironment
@@ -9,8 +11,7 @@ import io.mockk.mockk
 import java.util.function.Supplier
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CheckerExecutor
@@ -30,7 +31,6 @@ import viaduct.engine.runtime.getLocalContextForType
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.objectEngineResult
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class AccessCheckRunnerTest {
     val runner = AccessCheckRunner(DefaultCoroutineInterop)
 
@@ -43,22 +43,22 @@ class AccessCheckRunnerTest {
     }
 
     @Test
-    fun `fieldCheck - flag disabled`() =
-        runBlockingTest {
+    fun `fieldCheck - flag disabled`(): Unit =
+        runBlocking {
             val result = checkField(false)
             assertEquals(Value.nullValue, result)
         }
 
     @Test
-    fun `fieldCheck - flag enabled, no checker`() =
-        runBlockingTest {
+    fun `fieldCheck - flag enabled, no checker`(): Unit =
+        runBlocking {
             val result = checkField(true)
             assertEquals(Value.nullValue, result)
         }
 
     @Test
-    fun `fieldCheck - flag enabled, checker passes`() =
-        runBlockingTest {
+    fun `fieldCheck - flag enabled, checker passes`(): Unit =
+        runBlocking {
             withThreadLocalCoroutineContext {
                 val result = checkField(true, successCheckerExecutor)
                 assertEquals(CheckerResult.Success, result.await())
@@ -66,8 +66,8 @@ class AccessCheckRunnerTest {
         }
 
     @Test
-    fun `fieldCheck - flag enabled, checker fails`() =
-        runBlockingTest {
+    fun `fieldCheck - flag enabled, checker fails`(): Unit =
+        runBlocking {
             withThreadLocalCoroutineContext {
                 val result = checkField(true, errorCheckerExecutor)
                 val error = result.await()?.asError?.error
@@ -77,22 +77,22 @@ class AccessCheckRunnerTest {
         }
 
     @Test
-    fun `typeCheck - flag disabled`() =
-        runBlockingTest {
+    fun `typeCheck - flag disabled`(): Unit =
+        runBlocking {
             val result = checkType(false)
             assertEquals(Value.nullValue, result)
         }
 
     @Test
-    fun `typeCheck - flag enabled, no checker`() =
-        runBlockingTest {
+    fun `typeCheck - flag enabled, no checker`(): Unit =
+        runBlocking {
             val result = checkType(true)
             assertEquals(Value.nullValue, result)
         }
 
     @Test
-    fun `typeCheck - flag enabled, checker passes`() =
-        runBlockingTest {
+    fun `typeCheck - flag enabled, checker passes`(): Unit =
+        runBlocking {
             withThreadLocalCoroutineContext {
                 val result = checkType(true, successCheckerExecutor)
                 assertEquals(CheckerResult.Success, result.await())
@@ -100,8 +100,8 @@ class AccessCheckRunnerTest {
         }
 
     @Test
-    fun `typeCheck - flag enabled, checker fails`() =
-        runBlockingTest {
+    fun `typeCheck - flag enabled, checker fails`(): Unit =
+        runBlocking {
             withThreadLocalCoroutineContext {
                 val result = checkType(true, errorCheckerExecutor)
                 val error = result.await()?.asError?.error
@@ -140,8 +140,8 @@ class AccessCheckRunnerTest {
     }
 
     @Test
-    fun `combineWithTypeCheck - has type check`() =
-        runBlockingTest {
+    fun `combineWithTypeCheck - has type check`(): Unit =
+        runBlocking {
             withThreadLocalCoroutineContext {
                 val frr = FieldResolutionResult(
                     engineResult = objectEngineResult {
@@ -172,8 +172,8 @@ class AccessCheckRunnerTest {
         }
 
     @Test
-    fun `combineWithTypeCheck - has type check but raw value is null`() =
-        runBlockingTest {
+    fun `combineWithTypeCheck - has type check but raw value is null`(): Unit =
+        runBlocking {
             withThreadLocalCoroutineContext {
                 val frr = FieldResolutionResult(
                     engineResult = null,

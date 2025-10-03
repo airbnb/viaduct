@@ -116,7 +116,8 @@ class FieldCompleter(
             // Obtain a result for this field
             val combinedValue = combineValues(
                 parentOER.getValue(fieldKey, RAW_VALUE_SLOT),
-                parentOER.getValue(fieldKey, ACCESS_CHECK_SLOT)
+                parentOER.getValue(fieldKey, ACCESS_CHECK_SLOT),
+                bypassChecker = parameters.bypassChecksDuringCompletion
             )
 
             val handledFetch = combinedValue.recover { throwable ->
@@ -137,19 +138,22 @@ class FieldCompleter(
     }
 
     /**
-     * Combines the raw and access check values. If the fetched raw value is exceptional, then
-     * discard the access check result and don't wait for it to complete. If the raw value was
-     * successfully fetched, look for an access check error.
+     * Combines the raw and access check values, bypassing the access check value if needed.
+     * If the fetched raw value is exceptional, then discard the access check result and don't wait for it to complete.
+     * If the raw value was successfully fetched, look for an access check error.
      */
     @Suppress("UNCHECKED_CAST")
     private fun combineValues(
         rawSlotValue: Value<*>,
         checkerSlotValue: Value<*>,
+        bypassChecker: Boolean,
     ): Value<FieldResolutionResult> {
         val fieldResolutionResultValue = checkNotNull(rawSlotValue as? Value<FieldResolutionResult>) {
             "Expected raw slot to contain Value<FieldResolutionResult>, was ${rawSlotValue.javaClass}"
         }
-        if (checkerSlotValue == Value.nullValue) {
+
+        // Return raw value immediatley if bypassing check or checkerSlot value is null
+        if (bypassChecker || checkerSlotValue == Value.nullValue) {
             return fieldResolutionResultValue
         }
 
@@ -358,7 +362,7 @@ class FieldCompleter(
             "Expected data to be an Iterable<Cell>, was ${result.javaClass}."
         }
         val listValues = cells.map {
-            combineValues(it.getValue(RAW_VALUE_SLOT), it.getValue(ACCESS_CHECK_SLOT))
+            combineValues(it.getValue(RAW_VALUE_SLOT), it.getValue(ACCESS_CHECK_SLOT), parameters.bypassChecksDuringCompletion)
         }
         val instrumentationParams = InstrumentationFieldCompleteParameters(
             parameters.executionContext,

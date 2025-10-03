@@ -10,7 +10,6 @@ import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
-import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry.FieldResolverEntry
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.select.SelectionsParser
 
@@ -284,6 +283,29 @@ class RequiredSelectionsAreAcyclicTest {
     }
 
     @Test
+    fun `valid -- type checker basic`() {
+        assertValid(
+            """
+                type Subject { x: Int foo: Foo }
+                type Foo { y : String }
+            """,
+            MockRequiredSelectionSetRegistry.builder()
+                .typeCheckerEntry("Subject", "x foo { y }")
+                .build()
+        )
+    }
+
+    @Test
+    fun `valid -- type checker references field of own type without resolver`() {
+        assertValid(
+            "type Subject { x: Int s: Subject }",
+            MockRequiredSelectionSetRegistry.builder()
+                .typeCheckerEntry("Subject", "s { x }")
+                .build()
+        )
+    }
+
+    @Test
     fun `invalid -- recursion via self`() {
         assertInvalid(
             "type Subject { x: Int }",
@@ -421,6 +443,52 @@ class RequiredSelectionsAreAcyclicTest {
     }
 
     @Test
+    fun `valid -- non-cycle through type checker, field resolver, field checker`() {
+        assertValid(
+            """
+                extend type Query { i: Int f: Foo }
+                type Foo { i: Int s: String }
+            """.trimIndent(),
+            MockRequiredSelectionSetRegistry.builder()
+                .typeCheckerEntry("Foo", "s")
+                .fieldResolverEntryForType("Query", "Foo" to "s", "i")
+                .fieldCheckerEntry("Query" to "i", "f { i }")
+                .build()
+        )
+    }
+
+    @Test
+    fun `invalid -- type checker, query selections, object selections`() {
+        assertInvalid(
+            """
+                extend type Query { i: Int f: Foo }
+                type Foo { i: Int s: String }
+            """.trimIndent(),
+            MockRequiredSelectionSetRegistry.builder()
+                .typeCheckerEntry("Foo", "s")
+                .fieldResolverEntryForType("Query", "Foo" to "s", "i")
+                .fieldResolverEntry("Query" to "i", "f { i }")
+                .build()
+        )
+    }
+
+    @Test
+    fun `invalid -- type checker, query selections, field checker, object selections`() {
+        assertInvalid(
+            """
+                extend type Query { i: Int f: Foo b: Boolean }
+                type Foo { i: Int s: String }
+            """.trimIndent(),
+            MockRequiredSelectionSetRegistry.builder()
+                .typeCheckerEntry("Foo", "s")
+                .fieldResolverEntryForType("Query", "Foo" to "s", "i")
+                .fieldCheckerEntry("Query" to "i", "b")
+                .fieldResolverEntry("Query" to "b", "f { i }")
+                .build()
+        )
+    }
+
+    @Test
     fun `invalid -- cycle after first element does not cause infinite loop`() {
         assertInvalid(
             """
@@ -429,6 +497,17 @@ class RequiredSelectionsAreAcyclicTest {
             MockRequiredSelectionSetRegistry.builder()
                 .fieldResolverEntry("Subject" to "x", "y")
                 .fieldResolverEntry("Subject" to "y", "y")
+                .build()
+        )
+    }
+
+    @Test
+    fun `invalid -- type checker references resolver with own type in RSS`() {
+        assertInvalid(
+            "type Subject { x: Int s: Subject }",
+            MockRequiredSelectionSetRegistry.builder()
+                .typeCheckerEntry("Subject", "x")
+                .fieldResolverEntry("Subject" to "x", "s { x }")
                 .build()
         )
     }
@@ -751,12 +830,17 @@ class RequiredSelectionsAreAcyclicTest {
         val validator = RequiredSelectionsAreAcyclic(schema)
 
         val coordToValidate = registry.entries
-            .filterIsInstance<FieldResolverEntry>()
-            .map { it.coord }
+            .map {
+                when (it) {
+                    is MockRequiredSelectionSetRegistry.FieldEntry -> it.coord
+                    is MockRequiredSelectionSetRegistry.TypeCheckerEntry -> it.typeName to null
+                }
+            }
             .toSet()
         coordToValidate.map { coord ->
             val ctx = RequiredSelectionsValidationCtx(
-                coord,
+                coord.first,
+                coord.second,
                 registry
             )
             validator.validate(ctx)

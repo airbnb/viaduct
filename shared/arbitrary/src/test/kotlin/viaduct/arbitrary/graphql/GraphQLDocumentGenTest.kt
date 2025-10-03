@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.arbitrary.graphql
 
 import graphql.ParseAndValidate
@@ -16,7 +18,6 @@ import graphql.language.VariableDefinition
 import graphql.language.VariableReference
 import graphql.schema.GraphQLSchema
 import graphql.validation.ValidationError
-import io.kotest.assertions.print.print
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.int
@@ -24,8 +25,9 @@ import io.kotest.property.arbitrary.take
 import io.kotest.property.assume
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
+import kotlin.math.sqrt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
@@ -33,9 +35,9 @@ import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.minViolation
-import viaduct.utils.graphql.GraphQLTypeRelations
-import viaduct.utils.graphql.allChildren
-import viaduct.utils.graphql.allChildrenOfType
+import viaduct.graphql.utils.GraphQLTypeRelations
+import viaduct.graphql.utils.allChildren
+import viaduct.graphql.utils.allChildrenOfType
 
 // a baseline iteration count. Individual tests may scale this up or down depending on their relative speed.
 private const val iterCount = 5_000
@@ -91,11 +93,11 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
             (VariableWeight to variableWeight)
 
     @Test
-    fun `manual inspection`() =
+    fun `manual inspection`(): Unit =
         // this test makes no assertions but is useful for visually inspecting
         // the generated documents to see that they are being generated as we
         // expect
-        runBlockingTest {
+        runBlocking {
             Arb.graphQLDocument(schema).checkAll(10) { doc ->
                 assertEquals(emptyList<Any>(), validate(schema, doc))
 
@@ -144,7 +146,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
         // our test matrix is N schemas by M documents. To get good coverage while being in
         // the ballpark of `iterCount`, let's use a square root value for each M/N dimension
-        val iter = Math.sqrt(iterCount.toDouble()).toInt()
+        val iter = sqrt(iterCount.toDouble()).toInt()
 
         Arb.graphQLSchema(cfg)
             .take(iter, randomSource)
@@ -224,8 +226,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         )
 
     @Test
-    fun `Arb_graphQLDocument -- schemas with subscriptions and incremental directives`() =
-        runBlockingTest {
+    fun `Arb_graphQLDocument -- schemas with subscriptions and incremental directives`(): Unit =
+        runBlocking {
             mkConfig(directiveWeight = CompoundingWeight.Always).let { cfg ->
                 val schema = """
                     directive @defer(if: Boolean = true, label: String) on FRAGMENT_SPREAD | INLINE_FRAGMENT
@@ -247,8 +249,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb_graphQLDocument -- schemas with mutations and incremental directives`() =
-        runBlockingTest {
+    fun `Arb_graphQLDocument -- schemas with mutations and incremental directives`(): Unit =
+        runBlocking {
             mkConfig(directiveWeight = CompoundingWeight.Always).let { cfg ->
                 val schema = """
                 directive @defer(if: Boolean = true, label: String) on FRAGMENT_SPREAD | INLINE_FRAGMENT
@@ -273,7 +275,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
     @Test
     fun AliasWeight() {
-        runBlockingTest {
+        runBlocking {
             // disabled
             mkConfig(aliasWeight = 0.0).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll { doc ->
@@ -292,12 +294,12 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
     @Test
     fun AnonymousOperationWeight() {
-        runBlockingTest {
+        runBlocking {
             // disabled
             mkConfig(anonymousOperationWeight = 0.0).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll {
                     val operations = it.getDefinitionsOfType(OperationDefinition::class.java)
-                    operations.size > 0 && operations.all { it.name != null }
+                    operations.isNotEmpty() && operations.all { op -> op.name != null }
                 }
             }
 
@@ -312,26 +314,26 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
     }
 
     @Test
-    fun DirectiveWeight() =
-        runBlockingTest {
+    fun DirectiveWeight(): Unit =
+        runBlocking {
             // disabled
             mkConfig(directiveWeight = CompoundingWeight.Never).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll {
-                    it.allChildrenOfType<DirectivesContainer<*>>().all { it.directives.isEmpty() }
+                    it.allChildrenOfType<DirectivesContainer<*>>().all { child -> child.directives.isEmpty() }
                 }
             }
 
             // enabled
             mkConfig(directiveWeight = CompoundingWeight.Once).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll {
-                    it.allChildrenOfType<DirectivesContainer<*>>().all { it.directives.isNotEmpty() }
+                    it.allChildrenOfType<DirectivesContainer<*>>().all { child -> child.directives.isNotEmpty() }
                 }
             }
         }
 
     @Test
-    fun `FieldNameLength -- alias names`() =
-        runBlockingTest {
+    fun `FieldNameLength -- alias names`(): Unit =
+        runBlocking {
             val schema = "type Query { x: Int }".asSchema
 
             arbitrary {
@@ -349,8 +351,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun FragmentDefinitionWeight() =
-        runBlockingTest {
+    fun FragmentDefinitionWeight(): Unit =
+        runBlocking {
             val schema = "type Query { x:Int }".asSchema
 
             // enabled: bias to new fragments
@@ -367,8 +369,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun FragmentSpreadWeight() =
-        runBlockingTest {
+    fun FragmentSpreadWeight(): Unit =
+        runBlocking {
             // disabled
             mkConfig(fragmentSpreadWeight = CompoundingWeight.Never).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll { doc ->
@@ -385,8 +387,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun ImplicitNullValueWeight() =
-        runBlockingTest {
+    fun ImplicitNullValueWeight(): Unit =
+        runBlocking {
             val schema = "type Query { x(a:Int, b:Int!=0, c:Int=0):Int }".asSchema
 
             // disabled
@@ -415,8 +417,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun InlineFragmentWeight() =
-        runBlockingTest {
+    fun InlineFragmentWeight(): Unit =
+        runBlocking {
             // disabled
             mkConfig(inlineFragmentWeight = CompoundingWeight.Never).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll { doc ->
@@ -436,8 +438,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun OperationCount() =
-        runBlockingTest {
+    fun OperationCount(): Unit =
+        runBlocking {
             arbitrary {
                 val operationCount = Arb.int(1..10).bind()
                 val cfg = mkConfig(operationCount = operationCount)
@@ -449,8 +451,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun UntypedInlineFragmentWeight() =
-        runBlockingTest {
+    fun UntypedInlineFragmentWeight(): Unit =
+        runBlocking {
             val schema = "type Query { x:Int }".asSchema
 
             // disabled
@@ -473,8 +475,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun VariableWeight() =
-        runBlockingTest {
+    fun VariableWeight(): Unit =
+        runBlocking {
             val schema = "type Query { x(a:Int!):Int }".asSchema
 
             // disabled
@@ -513,8 +515,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
     }
 
     @Test
-    fun `VariableWeight -- no variables-in-directives-on-variables`() =
-        runBlockingTest {
+    fun `VariableWeight -- no variables-in-directives-on-variables`(): Unit =
+        runBlocking {
             // VariableDefinitions may have directives, though those directives may not use variables.
             // A validation hole in graphql-java allows documents with this pattern to pass validation
             // and be executed even though they are not valid according to the spec:
@@ -537,8 +539,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `VariableWeight -- nullable variables are not used in non-nullable positions`() =
-        runBlockingTest {
+    fun `VariableWeight -- nullable variables are not used in non-nullable positions`(): Unit =
+        runBlocking {
             val cfg = mkConfig(variableWeight = 1.0)
             val schema = "type Query { x(a:Int, b:Int!=0):Int }".asSchema
             Arb.graphQLDocument(schema, cfg).forAll(iterCount) { doc ->
@@ -563,7 +565,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         cfg: Config = Config.default,
         iter: Int = iterCount
     ): Unit =
-        runBlockingTest {
+        runBlocking {
             Arb.graphQLDocument(schema, cfg).assertAllValid(schema, iter)
         }
 
@@ -571,7 +573,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         schema: GraphQLSchema,
         iter: Int = iterCount
     ): Unit =
-        runBlockingTest {
+        runBlocking {
             minInvalid(schema, iter)?.let { doc ->
                 val errors = validate(schema, doc)
                 debug(schema, doc, errors)

@@ -565,7 +565,7 @@ class FromArgumentVariablesHaveValidPathsTest {
             val reg = MockRequiredSelectionSetRegistry.builder()
                 .fieldCheckerEntry(coord, selections, variablesResolvers)
                 .build()
-            val ctx = RequiredSelectionsValidationCtx(coord, reg)
+            val ctx = RequiredSelectionsValidationCtx(coord.first, coord.second, reg)
             validator.validate(ctx)
         }
     }

@@ -66,6 +66,8 @@ private interface ObjectModel {
 private val objectSTGroup =
     stTemplate(
         """
+    @file:Suppress("warnings")
+
     package <mdl.pkg>
 
     import viaduct.api.context.ExecutionContext

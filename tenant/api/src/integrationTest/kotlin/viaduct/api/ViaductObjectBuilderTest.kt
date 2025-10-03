@@ -1,7 +1,9 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.api
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
@@ -21,8 +23,8 @@ class ViaductObjectBuilderTest {
     private val context = MockInternalContext.mk(SchemaUtils.getSchema(), "viaduct.api.testschema")
 
     @Test
-    fun testBasicBuild() =
-        runBlockingTest {
+    fun testBasicBuild(): Unit =
+        runBlocking {
             val o1Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O1::class
@@ -34,8 +36,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testPutViaductObjectBuilderAsValue() =
-        runBlockingTest {
+    fun testPutViaductObjectBuilderAsValue(): Unit =
+        runBlocking {
             val o1Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O1::class
@@ -61,8 +63,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testListType() =
-        runBlockingTest {
+    fun testListType(): Unit =
+        runBlocking {
             val o1Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O1::class
@@ -91,8 +93,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testBadFieldName() =
-        runBlockingTest {
+    fun testBadFieldName(): Unit =
+        runBlocking {
             val o1Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O1::class
@@ -102,8 +104,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testInvalidScalarType() =
-        runBlockingTest {
+    fun testInvalidScalarType(): Unit =
+        runBlocking {
             val o2Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O2::class
@@ -113,8 +115,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testInvalidScalarTypeDateTime() =
-        runBlockingTest {
+    fun testInvalidScalarTypeDateTime(): Unit =
+        runBlocking {
             val o2Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O2::class
@@ -124,8 +126,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testInvalidEnumType() =
-        runBlockingTest {
+    fun testInvalidEnumType(): Unit =
+        runBlocking {
             val o1Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O1::class
@@ -135,8 +137,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testInvalidListType() =
-        runBlockingTest {
+    fun testInvalidListType(): Unit =
+        runBlocking {
             val o1Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O1::class
@@ -146,8 +148,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testInvalidObjectType() =
-        runBlockingTest {
+    fun testInvalidObjectType(): Unit =
+        runBlocking {
             val o1Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O1::class
@@ -160,8 +162,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testNonNullType() =
-        runBlockingTest {
+    fun testNonNullType(): Unit =
+        runBlocking {
             val o1Builder = ViaductObjectBuilder.dynamicBuilderFor(
                 context,
                 O1::class
@@ -171,8 +173,8 @@ class ViaductObjectBuilderTest {
         }
 
     @Test
-    fun testIDType() =
-        runBlockingTest {
+    fun testIDType(): Unit =
+        runBlocking {
             val globalId = MockGlobalID(TestUser.Reflection, "42")
 
             ViaductObjectBuilder.dynamicBuilderFor(context, TestUser::class)

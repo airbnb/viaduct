@@ -34,6 +34,7 @@ dependencies {
         api("com.airbnb.viaduct:shared-viaductschema:${version}")
         api("com.airbnb.viaduct:shared-invariants:${version}")
         api("com.airbnb.viaduct:shared-codegen:${version}")
+        api("com.airbnb.viaduct:shared-mapping:${version}")
 
         // Snipped modules
         api("com.airbnb.viaduct:snipped-errors:${version}")

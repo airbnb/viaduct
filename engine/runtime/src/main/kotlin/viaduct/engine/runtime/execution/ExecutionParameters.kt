@@ -53,6 +53,7 @@ import viaduct.utils.slf4j.logger
  * @property errorAccumulator Errors collected at this level
  * @property parent Parent parameters in the traversal chain, if any
  * @property field Field currently being executed, if any
+ * @property bypassChecksDuringCompletion If execution is in the context of an access check
  */
 data class ExecutionParameters(
     val constants: Constants,
@@ -66,6 +67,7 @@ data class ExecutionParameters(
     val errorAccumulator: ErrorAccumulator,
     val parent: ExecutionParameters? = null,
     val field: QueryPlan.CollectedField? = null,
+    val bypassChecksDuringCompletion: Boolean = false
 ) {
     // Computed properties
     /** The ResultPath for the current level of execution */

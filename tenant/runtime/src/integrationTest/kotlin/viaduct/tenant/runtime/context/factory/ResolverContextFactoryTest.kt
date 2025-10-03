@@ -1,8 +1,6 @@
 package viaduct.tenant.runtime.context.factory
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.context.FieldExecutionContext
@@ -28,27 +26,5 @@ class ResolverContextFactoryTest {
         assertThrows<IllegalArgumentException> {
             ResolverContextFactory.forClass(FieldExecutionContext::class, fieldContextFactory)
         }
-    }
-
-    @Test
-    fun `forClass -- is Context`() {
-        val ctx = ResolverContextFactory
-            .forClass(Context::class, fieldContextFactory)
-            .make(args)
-        assertTrue(ctx is Context)
-    }
-
-    @Test
-    fun `ifContext -- not Context`() {
-        val factory = ResolverContextFactory.ifContext(FieldExecutionContext::class, fieldContextFactory)
-        assertEquals(fieldContextFactory, factory)
-    }
-
-    @Test
-    fun `ifContext -- is Context`() {
-        val ctx = ResolverContextFactory
-            .ifContext(Context::class, fieldContextFactory)
-            .make(args)
-        assertTrue(ctx is Context)
     }
 }

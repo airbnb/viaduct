@@ -1,7 +1,0 @@
-type TestScope1Object @scope(to: ["SCOPE1"]) {
-  strValue: String!
-}
-
-extend type Query @scope(to: ["SCOPE1"]) {
-  scope1Value: TestScope1Object @resolver
-}

@@ -59,7 +59,7 @@ class NodeEngineObjectDataImpl(
                             nodeChecker.execute(
                                 emptyMap(),
                                 mapOf(
-                                    "key" to ProxyEngineObjectData(
+                                    "key" to CheckerProxyEngineObjectData(
                                         ObjectEngineResultImpl.newForType(graphQLObjectType),
                                         "missing from checker RSS"
                                     )

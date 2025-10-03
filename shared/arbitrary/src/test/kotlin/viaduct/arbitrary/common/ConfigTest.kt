@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.common
 
@@ -14,14 +14,13 @@ import io.kotest.property.arbitrary.string
 import io.kotest.property.arbitrary.withEdgecases
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 
 class ConfigTest : KotestPropertyBase() {
     @Test
-    fun `Config_plus validates entries`() =
-        runBlockingTest {
+    fun `Config_plus validates entries`(): Unit =
+        runBlocking {
             val alwaysValid = ConfigKey(0) { null }
             val alwaysInvalid = ConfigKey(0) { "msg" }
             Arb.int().forAll { i ->
@@ -39,8 +38,8 @@ class ConfigTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Config_get with missing key returns default value`() =
-        runBlockingTest {
+    fun `Config_get with missing key returns default value`(): Unit =
+        runBlocking {
             Arb.int().forAll { i ->
                 val key = ConfigKey(i, Unvalidated)
                 Config.default.get(key) == i
@@ -48,8 +47,8 @@ class ConfigTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Config_get with present key returns configured value`() =
-        runBlockingTest {
+    fun `Config_get with present key returns configured value`(): Unit =
+        runBlocking {
             val key = ConfigKey<Any>(0, Unvalidated)
             forAll<Any> { x ->
                 val cfg = Config.default + (key to x)
@@ -58,8 +57,8 @@ class ConfigTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `WeightValidator rejects values outside of 0 and 1`() =
-        runBlockingTest {
+    fun `WeightValidator rejects values outside of 0 and 1`(): Unit =
+        runBlocking {
             Arb.double()
                 .withEdgecases(listOf(-1.0, 0.0, 1.0))
                 .forAll { d ->
@@ -77,8 +76,8 @@ class ConfigTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `CompoundingWeightValidator rejects invalid values`() =
-        runBlockingTest {
+    fun `CompoundingWeightValidator rejects invalid values`(): Unit =
+        runBlocking {
             val cw =
                 Arb.bind(
                     Arb.double().withEdgecases(listOf(0.0, 1.0)),
@@ -106,8 +105,8 @@ class ConfigTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `IntValidator rejects values outside of range`() =
-        runBlockingTest {
+    fun `IntValidator rejects values outside of range`(): Unit =
+        runBlocking {
             Arb.pair(
                 Arb.intRange(Int.MIN_VALUE until Int.MAX_VALUE),
                 Arb.int()
@@ -126,8 +125,8 @@ class ConfigTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `IntRangeValidator rejects values outside of domain`() =
-        runBlockingTest {
+    fun `IntRangeValidator rejects values outside of domain`(): Unit =
+        runBlocking {
             Arb.pair(
                 Arb.intRange(Int.MIN_VALUE until Int.MAX_VALUE),
                 Arb.intRange(Int.MIN_VALUE until Int.MAX_VALUE)
@@ -148,8 +147,8 @@ class ConfigTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Unvalidated accepts all values`() =
-        runBlockingTest {
+    fun `Unvalidated accepts all values`(): Unit =
+        runBlocking {
             Arb.choice(
                 Arb.int(),
                 Arb.string(),

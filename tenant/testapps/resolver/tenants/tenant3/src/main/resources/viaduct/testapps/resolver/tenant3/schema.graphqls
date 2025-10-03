@@ -1,5 +1,0 @@
-extend type Query @scope(to: ["publicScope"]) {
-  scalarFailureString: String! @resolver
-  scalarFailureEnum: TestEnum! @resolver
-  scalarFailureInt: Int! @resolver
-}

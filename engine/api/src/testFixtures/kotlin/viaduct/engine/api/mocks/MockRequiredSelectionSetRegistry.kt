@@ -75,11 +75,7 @@ class MockRequiredSelectionSetRegistry(
         fieldName: String
     ): List<RequiredSelectionSet> = getRequiredSelectionSetsForField(typeName, fieldName, true)
 
-    /**
-     * Overrides the original getRequiredSelectionSetsForType method and exposes a new one without
-     * `executeAccessChecksInModstrat` as it is not relevant for the mock implementation.
-     */
-    override fun getRequiredSelectionSetsForType(
+    override fun getTypeCheckerRequiredSelectionSets(
         typeName: String,
         executeAccessChecksInModstrat: Boolean
     ): List<RequiredSelectionSet> = getRequiredSelectionSetsForType(typeName)

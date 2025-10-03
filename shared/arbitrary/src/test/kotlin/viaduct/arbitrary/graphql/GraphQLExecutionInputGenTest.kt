@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.arbitrary.graphql
 
 import graphql.ExecutionInput
@@ -5,7 +7,7 @@ import graphql.ParseAndValidate
 import io.kotest.property.Arb
 import io.kotest.property.forAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
@@ -42,8 +44,8 @@ class GraphQLExecutionInputGenTest : KotestPropertyBase() {
             (OperationCount to operationCount.asIntRange())
 
     @Test
-    fun AnonymousOperationWeight() =
-        runBlockingTest {
+    fun AnonymousOperationWeight(): Unit =
+        runBlocking {
             // disabled
             mkConfig(anonymousOperationWeight = 0.0, operationCount = 1).let { cfg ->
                 Arb.graphQLExecutionInput(schema, cfg).forAll {
@@ -67,8 +69,8 @@ class GraphQLExecutionInputGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun ImplicitNullValueWeight() =
-        runBlockingTest {
+    fun ImplicitNullValueWeight(): Unit =
+        runBlocking {
             // Variables:
             //   a: nullable without default
             //   b: nullable with default
@@ -96,8 +98,8 @@ class GraphQLExecutionInputGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `generates valid ExecutionInputs with a default config`() =
-        runBlockingTest {
+    fun `generates valid ExecutionInputs with a default config`(): Unit =
+        runBlocking {
             Arb.graphQLExecutionInput(schema).assertAllValid(iterCount * 10)
         }
 

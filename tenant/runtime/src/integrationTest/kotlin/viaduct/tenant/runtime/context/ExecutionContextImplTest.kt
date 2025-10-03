@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.context
 
 import graphql.schema.GraphQLObjectType
@@ -7,7 +9,7 @@ import io.mockk.verify
 import kotlin.reflect.KClass
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -380,7 +382,7 @@ class ExecutionContextImplTest {
 
         val ctx = mk(nodeReferenceFactory = factory)
 
-        runBlockingTest {
+        runBlocking {
             val idFromFactory = (resultFromFactory.getId() as MockGlobalID).internalID
             val idFromFieldExecutionContext = (ctx.nodeFor(globalId).getId() as MockGlobalID).internalID
             assertEquals(idFromFactory, idFromFieldExecutionContext)

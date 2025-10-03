@@ -67,6 +67,9 @@ class ViaductConfiguration {
             .GET("/graphiql") { _ ->
                 ServerResponse.ok().body(resource)
             }
+            .GET("/graphiql/") { _ ->
+                ServerResponse.ok().body(resource)
+            }
             .build()
     }
 }

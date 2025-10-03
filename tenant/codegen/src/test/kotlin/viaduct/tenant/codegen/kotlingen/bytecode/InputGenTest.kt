@@ -11,7 +11,7 @@ class InputGenTest {
         typename: String
     ): STContents {
         val schema = mkSchema(sdl)
-        val builder = mkKotlinGRTFilesBuilder()
+        val builder = mkKotlinGRTFilesBuilder(schema)
         val def = schema.types[typename]!! as ViaductExtendedSchema.Input
         val desc = InputTypeDescriptor(def.name, def.fields, def)
         return builder.inputKotlinGen(desc, "viaduct.api.types.Input")

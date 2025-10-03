@@ -322,4 +322,362 @@ class ResolverIntegrationTest {
             assertNotNull(filmDirector)
         }
     }
+
+    @Nested
+    inner class MutationResolvers {
+        @Test
+        fun `should resolve createCharacter mutation`() {
+            val query = """
+                mutation {
+                    createCharacter(input: {
+                        name: "Chewbacca"
+                        birthYear: "200BBY"
+                        eyeColor: "blue"
+                        gender: "male"
+                        hairColor: "brown"
+                        height: 228
+                        mass: 112
+                        homeworldId: "6"
+                        speciesId: "2"
+                    }) {
+                        id
+                        name
+                        birthYear
+                        eyeColor
+                        gender
+                        hairColor
+                        height
+                        mass
+                        homeworld {
+                            id
+                            name
+                        }
+                        species {
+                            id
+                            name
+                        }
+                        displayName
+                        displaySummary
+                    }
+                }
+            """.trimIndent()
+
+            val response = executeGraphQLQuery(query)
+            val createdCharacter = response.path("data").path("createCharacter")
+
+            assertNotNull(createdCharacter)
+            assertNotNull(createdCharacter.path("id").asText())
+            assertEquals("Chewbacca", createdCharacter.path("name").asText())
+            assertEquals("200BBY", createdCharacter.path("birthYear").asText())
+            assertEquals("blue", createdCharacter.path("eyeColor").asText())
+            assertEquals("male", createdCharacter.path("gender").asText())
+            assertEquals("brown", createdCharacter.path("hairColor").asText())
+            assertEquals(228, createdCharacter.path("height").asInt())
+            assertEquals(112.0, createdCharacter.path("mass").asDouble())
+            assertNotNull(createdCharacter.path("homeworld").path("id").asText())
+            assertEquals("Kashyyyk", createdCharacter.path("homeworld").path("name").asText())
+            assertNotNull(createdCharacter.path("species").path("id").asText())
+            assertEquals("Wookiee", createdCharacter.path("species").path("name").asText())
+            assertEquals("Chewbacca", createdCharacter.path("displayName").asText())
+            assertEquals("Chewbacca (200BBY)", createdCharacter.path("displaySummary").asText())
+        }
+
+        @Test
+        fun `should fail to resolve createCharacter if speciesId is invalid`() {
+            val query = """
+                mutation {
+                    createCharacter(input: {
+                        name: "Chewbacca"
+                        birthYear: "200BBY"
+                        eyeColor: "blue"
+                        gender: "male"
+                        hairColor: "brown"
+                        height: 228
+                        mass: 112
+                        homeworldId: "5"
+                        speciesId: "invalid-speciesId"
+                    }) {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent()
+
+            val response = executeGraphQLQuery(query)
+
+            val errors = response.path("errors")
+            assertNotNull(errors)
+            assertTrue(errors.isArray && errors.size() == 1)
+            val errorMessage = errors[0].path("message").asText()
+            assertTrue(errorMessage.contains("Species with ID invalid-speciesId not found"))
+        }
+
+        @Test
+        fun `should fail to resolve createCharacter if homeworldId is invalid`() {
+            val query = """
+                mutation {
+                    createCharacter(input: {
+                        name: "Chewbacca"
+                        birthYear: "200BBY"
+                        eyeColor: "blue"
+                        gender: "male"
+                        hairColor: "brown"
+                        height: 228
+                        mass: 112
+                        homeworldId: "invalid-homeworldId"
+                        speciesId: "2"
+                    }) {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent()
+
+            val response = executeGraphQLQuery(query)
+
+            val errors = response.path("errors")
+            assertNotNull(errors)
+            assertTrue(errors.isArray && errors.size() == 1)
+            val errorMessage = errors[0].path("message").asText()
+            assertTrue(errorMessage.contains("Planet with ID invalid-homeworldId not found"))
+        }
+
+        @Test
+        fun `should resolve updateCharacterName mutation`() {
+            // First, create a new character to delete
+            val createCharacterQuery = """
+                mutation {
+                    createCharacter(input: {
+                        name: "Chewbacca"
+                        birthYear: "200BBY"
+                        eyeColor: "blue"
+                        gender: "male"
+                        hairColor: "brown"
+                        height: 228
+                        mass: 112
+                        homeworldId: "5"
+                        speciesId: "2"
+                    }) {
+                        id
+                    }
+                }
+            """.trimIndent()
+
+            val createResult = executeGraphQLQuery(createCharacterQuery)
+
+            val query = """
+                mutation {
+                    updateCharacterName(id: "${createResult.path("data").path("createCharacter").path("id").asText()}", name: "Chewbacca Updated") {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent()
+
+            val response = executeGraphQLQuery(query)
+
+            val updatedCharacter = response.path("data").path("updateCharacterName")
+            assertNotNull(updatedCharacter)
+            assertEquals("Chewbacca Updated", updatedCharacter.path("name").asText())
+        }
+
+        @Test
+        fun `should fail to resolve updateCharacterName if id is invalid`() {
+            val query = """
+                mutation {
+                    updateCharacterName(id: "${Character.Reflection.globalId("9999")}", name: "Nonexistent Character") {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent()
+
+            val response = executeGraphQLQuery(query)
+
+            val updatedCharacter = response.path("data").path("updateCharacterName")
+            assertTrue(updatedCharacter.isNull)
+            val errors = response.path("errors")
+            assertNotNull(errors)
+            assertTrue(errors.isArray && errors.size() == 1)
+            val errorMessage = errors[0].path("message").asText()
+            assertTrue(errorMessage.contains("Character with ID 9999 not found"))
+        }
+
+        @Test
+        fun `should resolve addCharacterToFilm mutation`() {
+            // First, create a new character to add to the film
+            `should resolve createCharacter mutation`()
+
+            val query = """
+    mutation {
+        addCharacterToFilm(input: {
+            filmId: "1"
+            characterId: "6"
+        }) {
+            film {
+                id
+                title
+            }
+            character {
+                id
+                name
+            }
+
+        }
+    }
+
+            """.trimIndent()
+
+            val response = executeGraphQLQuery(query)
+
+            val updatedFilm = response.path("data").path("addCharacterToFilm")
+            assertNotNull(updatedFilm)
+            assertEquals("A New Hope", updatedFilm.path("film").path("title").asText())
+            assertEquals("Chewbacca", updatedFilm.path("character").path("name").asText())
+        }
+
+        @Test
+        fun `should fail to resolve addCharacterToFilm if filmId is invalid`() {
+            val query = """
+    mutation {
+        addCharacterToFilm(input: {
+            filmId: "9999"
+            characterId: "1"
+        }) {
+            film {
+                id
+                title
+                }
+            character {
+                id
+                name
+                }
+        }
+    }
+            """.trimIndent()
+
+            val response = executeGraphQLQuery(query)
+
+            val updatedFilm = response.path("data").path("addCharacterToFilm")
+            assertTrue(updatedFilm.isNull)
+            val errors = response.path("errors")
+            assertNotNull(errors)
+            assertTrue(errors.isArray && errors.size() == 1)
+            val errorMessage = errors[0].path("message").asText()
+            assertTrue(errorMessage.contains("Film with ID 9999 not found"))
+        }
+
+        @Test
+        fun `should fail to resolve addCharacterToFilm if characterId is invalid`() {
+            val query = """
+    mutation {
+        addCharacterToFilm(input: {
+            filmId: "1"
+            characterId: "9999"
+        }) {
+            film {
+                id
+                title
+            }
+            character {
+                id
+                name
+            }
+        }
+    }
+            """.trimIndent()
+            val response = executeGraphQLQuery(query)
+
+            val updatedFilm = response.path("data").path("addCharacterToFilm")
+            assertTrue(updatedFilm.isNull)
+            val errors = response.path("errors")
+            assertNotNull(errors)
+            assertTrue(errors.isArray && errors.size() == 1)
+            val errorMessage = errors[0].path("message").asText()
+            assertTrue(errorMessage.contains("Character with ID 9999 not found"))
+        }
+
+        @Test
+        fun `should fail to resolve addCharacterToFilm if character is already in film`() {
+            val query = """
+    mutation {
+        addCharacterToFilm(input: {
+            filmId: "1"
+            characterId: "1"
+        }) {
+            film {
+                id
+                title
+            }
+            character {
+                id
+                name
+            }
+        }
+    }
+            """.trimIndent()
+            val response = executeGraphQLQuery(query)
+
+            val updatedFilm = response.path("data").path("addCharacterToFilm")
+            assertTrue(updatedFilm.isNull)
+            val errors = response.path("errors")
+            assertNotNull(errors)
+            assertTrue(errors.isArray && errors.size() == 1)
+            val errorMessage = errors[0].path("message").asText()
+            assertTrue(errorMessage.contains("Character with ID 1 is already in film with ID 1"))
+        }
+
+        @Test
+        fun `should resolve deleteCharacter mutation`() {
+            // First, create a new character to delete
+            val createCharacterQuery = """
+                mutation {
+                    createCharacter(input: {
+                        name: "Chewbacca"
+                        birthYear: "200BBY"
+                        eyeColor: "blue"
+                        gender: "male"
+                        hairColor: "brown"
+                        height: 228
+                        mass: 112
+                        homeworldId: "5"
+                        speciesId: "2"
+                    }) {
+                        id
+                    }
+                }
+            """.trimIndent()
+            val createResult = executeGraphQLQuery(createCharacterQuery)
+
+            val query = """
+    mutation {
+        deleteCharacter(id: "${createResult.path("data").path("createCharacter").path("id").asText()}")
+        }
+            """.trimIndent()
+
+            val response = executeGraphQLQuery(query)
+
+            val deleteResult = response.path("data").path("deleteCharacter").asBoolean()
+            assertTrue(deleteResult, "Expected deleteCharacter to return true")
+        }
+
+        @Test
+        fun `should fail to resolve deleteCharacter if id is invalid`() {
+            val query = """
+    mutation {
+        deleteCharacter(id: "${Character.Reflection.globalId("9999")}")
+    }
+            """.trimIndent()
+
+            val response = executeGraphQLQuery(query)
+
+            val deleteResult = response.path("data").path("deleteCharacter")
+            assertTrue(deleteResult.isNull)
+            val errors = response.path("errors")
+            assertNotNull(errors)
+            assertTrue(errors.isArray && errors.size() == 1)
+            val errorMessage = errors[0].path("message").asText()
+            assertTrue(errorMessage.contains("Character with ID 9999 not found"))
+        }
+    }
 }

@@ -19,7 +19,7 @@ import viaduct.service.api.spi.FlagManager
 @ExperimentalCoroutinesApi
 class IntrospectionEndToEndTest {
     private lateinit var subject: StandardViaduct
-    private lateinit var viaductSchemaRegistryBuilder: ViaductSchemaRegistryBuilder
+    private lateinit var schemaRegistryConfiguration: SchemaRegistryConfiguration
 
     val flagManager = object : FlagManager {
         override fun isEnabled(flag: Flag) = true
@@ -34,16 +34,23 @@ class IntrospectionEndToEndTest {
         extend type Query @scope(to: ["unregisteredScope"]) {
           scopeUnregisteredQuery: String @resolver
         }
+
+        type Foo implements Node @scope(to: ["*"]) { # Ensure Query.node/s get created
+          id: ID!
+        }
         """
 
     @BeforeEach
     fun setUp() {
-        viaductSchemaRegistryBuilder = ViaductSchemaRegistryBuilder().withFullSchemaFromSdl(sdl).registerScopedSchema("public", setOf("publicScope"))
+        schemaRegistryConfiguration = SchemaRegistryConfiguration.fromSdl(
+            sdl,
+            scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("publicScope")))
+        )
         subject = StandardViaduct.Builder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withDataFetcherExceptionHandler(mockk())
-            .withSchemaRegistryBuilder(viaductSchemaRegistryBuilder)
+            .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
             .build()
     }
 
@@ -132,7 +139,7 @@ class IntrospectionEndToEndTest {
                       }
                     }
             """.trimIndent()
-            val executionInput = ExecutionInput(query, "public", object {})
+            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
 
             val result = subject.executeAsync(executionInput).await()
 
@@ -239,7 +246,7 @@ class IntrospectionEndToEndTest {
                       }
                     }
             """.trimIndent()
-            val executionInput = ExecutionInput(query, "public", object {})
+            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
 
             val result = subject.executeAsync(executionInput).await()
             assertEquals(listOf("Introspective queries cannot select non-introspective fields."), result.errors.map { it.message })
@@ -338,7 +345,7 @@ class IntrospectionEndToEndTest {
                   }
                 }
             """.trimIndent()
-            val executionInput = ExecutionInput(query, "public", object {})
+            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
 
             val result = subject.executeAsync(executionInput).await()
             assertEquals(listOf("Introspective queries cannot select non-introspective fields."), result.errors.map { it.message })
@@ -441,7 +448,7 @@ class IntrospectionEndToEndTest {
                   }
                 }
             """.trimIndent()
-            val executionInput = ExecutionInput(query, "public", object {})
+            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
 
             val result = subject.executeAsync(executionInput).await()
             assertEquals(listOf("Introspective queries cannot select non-introspective fields."), result.errors.map { it.message })
@@ -537,7 +544,7 @@ class IntrospectionEndToEndTest {
                   helloWorld
                 }
             """.trimIndent()
-            val executionInput = ExecutionInput(query, "public", object {})
+            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
 
             val result = subject.executeAsync(executionInput).await()
             assertEquals(listOf("Introspective queries cannot select non-introspective fields."), result.errors.map { it.message })

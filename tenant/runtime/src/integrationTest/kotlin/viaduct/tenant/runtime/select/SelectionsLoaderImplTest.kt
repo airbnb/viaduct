@@ -1,12 +1,11 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.tenant.runtime.select
 
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -21,8 +20,8 @@ class SelectionsLoaderImplTest {
     private val context = MockInternalContext(SelectTestFeatureAppTest.schema).executionContext
 
     @Test
-    fun `loads empty selections`() =
-        runBlockingTest {
+    fun `loads empty selections`(): Unit =
+        runBlocking {
             val rawSelectionsLoader = mockk<RawSelectionsLoader> {
                 coEvery { load(any()) } returns mockk()
             }
@@ -31,8 +30,8 @@ class SelectionsLoaderImplTest {
         }
 
     @Test
-    fun `loads empty selections 2`() =
-        runBlockingTest {
+    fun `loads empty selections 2`(): Unit =
+        runBlocking {
             val rawSelectionsLoader = mockk<RawSelectionsLoader> {
                 coEvery { load(any()) } returns mockk()
             }
@@ -41,8 +40,8 @@ class SelectionsLoaderImplTest {
         }
 
     @Test
-    fun `loads simple selections`() =
-        runBlockingTest {
+    fun `loads simple selections`(): Unit =
+        runBlocking {
             val rawSelectionsLoader = mockk<RawSelectionsLoader> {
                 coEvery { load(any()) } returns mockk {
                     every { graphQLObjectType } returns SelectTestFeatureAppTest.schema.schema.getObjectType(Query.Reflection.name)

@@ -9,13 +9,9 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldValue
 import viaduct.api.context.FieldExecutionContext
-import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
-import viaduct.api.internal.InternalContext
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
-import viaduct.api.types.Object
-import viaduct.tenant.runtime.context.NodeExecutionContextImpl
 import viaduct.tenant.runtime.featuretests.fixtures.ArgumentsStub
 import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
@@ -54,84 +50,6 @@ class SanityTest {
             .resolver("Query" to "x") { _: FieldExecutionContext<*, *, *, *> -> 42 }
             .build()
             .assertJson("{data: {x: 42}}", "{x}")
-
-    @Test
-    fun `resolver uses an explicit FieldExecutionContext wrapper`() {
-        class Context(
-            inner: FieldExecutionContext<Object, Query, Arguments, CompositeOutput>
-        ) : FieldExecutionContext<Object, Query, Arguments, CompositeOutput> by inner {
-            val value: Int = 42
-        }
-
-        FeatureTestBuilder()
-            .sdl("extend type Query { x: Int }")
-            .resolver<Context, Object, Query, Arguments, CompositeOutput>(
-                "Query" to "x",
-                { ctx: Context -> ctx.value }
-            )
-            .build()
-            .assertJson("{data: {x: 42}}", "{x}")
-    }
-
-    @Test
-    fun `resolver uses an implicit UntypedMutationFieldContext`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    extend type Query { empty: Int }
-                    extend type Mutation { x: Int }
-                """.trimIndent()
-            )
-            .mutation("Mutation" to "x") { ctx ->
-                assertTrue(ctx is MutationFieldExecutionContext<*, *, *, *>)
-                42
-            }
-            .build()
-            .assertJson("{data: {x: 42}}", "mutation {x}")
-
-    @Test
-    fun `resolver uses an explicit MutationFieldExecutionContext`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    extend type Query { empty: Int }
-                    extend type Mutation { x: Int }
-                """.trimIndent()
-            )
-            .resolver(
-                "Mutation" to "x",
-                { ctx: MutationFieldExecutionContext<Object, Query, Arguments, CompositeOutput> ->
-                    assertTrue(ctx is MutationFieldExecutionContext<*, *, *, *>)
-                    42
-                }
-            )
-            .build()
-            .assertJson("{data: {x: 42}}", "mutation {x}")
-
-    @Test
-    fun `resolver uses an explicit MutationFieldExecutionContext wrapper`() {
-        class Context(
-            inner: MutationFieldExecutionContext<Object, Query, Arguments, CompositeOutput>
-        ) : MutationFieldExecutionContext<Object, Query, Arguments, CompositeOutput> by inner {
-            val value: Int = 42
-        }
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    extend type Query { empty: Int }
-                    extend type Mutation { x: Int }
-                """.trimIndent()
-            )
-            .resolver(
-                "Mutation" to "x",
-                { ctx: Context ->
-                    assertTrue(ctx is MutationFieldExecutionContext<*, *, *, *>)
-                    42
-                }
-            )
-            .build()
-            .assertJson("{data: {x: 42}}", "mutation {x}")
-    }
 
     @Test
     fun `resolver accesses parent object via explicit grt`() =
@@ -261,26 +179,6 @@ class SanityTest {
             .assertJson("{data: {baz: {__typename: \"Baz\"}}}", "{baz {__typename}}")
 
     @Test
-    fun `nodeResolver uses an explicit wrapped NodeExecutionContext`() {
-        class Context(inner: NodeExecutionContextImpl<Baz>) : NodeExecutionContext<Baz> by inner, InternalContext by inner
-
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    type Baz { id: ID! }
-                    extend type Query { baz: Baz }
-                """.trimIndent()
-            )
-            .grtPackage(Query.Reflection)
-            .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
-            .nodeResolver("Baz") { ctx: Context ->
-                Baz.Builder(ctx).build()
-            }
-            .build()
-            .assertJson("{data: {baz: {__typename: \"Baz\"}}}", "{baz {__typename}}")
-    }
-
-    @Test
     fun `nodeBatchResolver uses an implicit UntypedNodeContext`() =
         FeatureTestBuilder()
             .sdl(
@@ -315,27 +213,6 @@ class SanityTest {
             .build()
             .execute("{baz {__typename}}")
             .assertJson("{data: {baz: {__typename: \"Baz\"}}}")
-
-    @Test
-    fun `nodeBatchResolver uses an explicit wrapped NodeExecutionContext`() {
-        class Context(inner: NodeExecutionContextImpl<Baz>) : NodeExecutionContext<Baz> by inner, InternalContext by inner
-
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    type Baz { id: ID! }
-                    extend type Query { baz: Baz }
-                """.trimIndent()
-            )
-            .grtPackage(Query.Reflection)
-            .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
-            .nodeBatchResolver("Baz") { ctxs: List<Context> ->
-                ctxs.map { ctx -> FieldValue.ofValue(Baz.Builder(ctx).build()) }
-            }
-            .build()
-            .execute("{baz {__typename}}")
-            .assertJson("{data: {baz: {__typename: \"Baz\"}}}")
-    }
 
     @Test
     fun `ExecutionResult_assertJson -- unparseable`() {

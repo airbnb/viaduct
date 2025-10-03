@@ -1,9 +1,8 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.api
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -36,7 +35,7 @@ class ExceptionsTest {
     fun `test handleTenantAPIErrorsSuspend with ViaductTenantException`() {
         val exception = ViaductTenantUsageException("Tenant error")
         val thrown = assertThrows(ViaductTenantUsageException::class.java) {
-            runBlockingTest {
+            runBlocking {
                 handleTenantAPIErrorsSuspend("Test message") {
                     throw exception
                 }
@@ -49,7 +48,7 @@ class ExceptionsTest {
     fun `test handleTenantAPIErrorsSuspend with other exception`() {
         val exception = RuntimeException("Runtime error")
         val thrown = assertThrows(ViaductFrameworkException::class.java) {
-            runBlockingTest {
+            runBlocking {
                 handleTenantAPIErrorsSuspend("Test message") {
                     throw exception
                 }

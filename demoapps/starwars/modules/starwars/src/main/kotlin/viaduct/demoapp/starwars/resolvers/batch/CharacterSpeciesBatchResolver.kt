@@ -3,6 +3,7 @@ package viaduct.demoapp.starwars.resolvers.batch
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
 import viaduct.api.grts.Species
+import viaduct.demoapp.starwars.builders.SpeciesBuilder
 import viaduct.demoapp.starwars.data.StarWarsData
 import viaduct.demoapp.starwars.resolverbases.CharacterResolvers
 
@@ -46,19 +47,7 @@ class CharacterSpeciesBatchResolver : CharacterResolvers.Species() {
             val speciesData = character?.speciesId?.let { speciesById[it] }
 
             if (speciesData != null) {
-                val species = Species.Builder(ctx)
-                    .id(ctx.globalIDFor(Species.Reflection, speciesData.id))
-                    .name(speciesData.name)
-                    .classification(speciesData.classification)
-                    .designation(speciesData.designation)
-                    .averageHeight(speciesData.averageHeight?.toDouble())
-                    .averageLifespan(speciesData.averageLifespan)
-                    .eyeColors(speciesData.eyeColors)
-                    .hairColors(speciesData.hairColors)
-                    .language(speciesData.language)
-                    .created(speciesData.created.toString())
-                    .edited(speciesData.edited.toString())
-                    .build()
+                val species = SpeciesBuilder(ctx).build(speciesData)
                 FieldValue.ofValue(species)
             } else {
                 FieldValue.ofValue(null)

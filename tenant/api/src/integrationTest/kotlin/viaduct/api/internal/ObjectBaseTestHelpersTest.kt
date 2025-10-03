@@ -1,7 +1,9 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.api.internal
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -18,8 +20,8 @@ class ObjectBaseTestHelpersTest {
     private val executionContext = internalContext.executionContext
 
     @Test
-    fun `internal-only builder put with alias`() =
-        runBlockingTest {
+    fun `internal-only builder put with alias`(): Unit =
+        runBlocking {
             val o1Builder = O1.Builder(executionContext)
             val o1 = ObjectBaseTestHelpers.putWithAlias(o1Builder, "stringField", "aliasedStringField", "hello")
                 .build()
@@ -27,7 +29,7 @@ class ObjectBaseTestHelpersTest {
             assertEquals("hello", o1.getStringField("aliasedStringField"))
             // The "normal", unaliased field is not set.
             assertThrows<ViaductTenantUsageException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getStringField()
                 }
             }

@@ -1,13 +1,13 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.api
 
 import java.lang.reflect.InvocationTargetException
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class ViaductTenantResolverExceptionTest {
     @Test
     fun getResolversCallChain() {
@@ -27,8 +27,8 @@ class ViaductTenantResolverExceptionTest {
     }
 
     @Test
-    fun testWrapFrameworkException() =
-        runBlockingTest {
+    fun testWrapFrameworkException(): Unit =
+        runBlocking {
             assertThrows<ViaductFrameworkException> {
                 wrapResolveException("ResolverA") {
                     throw ViaductFrameworkException("a framework exception occurred")
@@ -37,8 +37,8 @@ class ViaductTenantResolverExceptionTest {
         }
 
     @Test
-    fun testWrapTenantException() =
-        runBlockingTest {
+    fun testWrapTenantException(): Unit =
+        runBlocking {
             assertThrows<ViaductTenantResolverException> {
                 wrapResolveException("ResolverA") {
                     throw InvocationTargetException(RuntimeException("a tenant exception occurred"))

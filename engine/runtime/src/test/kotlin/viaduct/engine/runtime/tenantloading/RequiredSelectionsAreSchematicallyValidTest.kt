@@ -195,6 +195,20 @@ class RequiredSelectionsAreSchematicallyValidTest {
             }
     }
 
+    @Test
+    fun `sanity check - runs for type checker rss`() {
+        assertThrows<RequiredSelectionsAreInvalid> {
+            val ctx = RequiredSelectionsValidationCtx(
+                "Query",
+                null,
+                MockRequiredSelectionSetRegistry.builder()
+                    .typeCheckerEntry("Query", "y")
+                    .build()
+            )
+            RequiredSelectionsAreSchematicallyValid(ViaductSchema("type Query {x:Int}".asSchema)).validate(ctx)
+        }
+    }
+
     private class Fixture(sdl: String, fn: Fixture.() -> Unit = {}) {
         val schema = ViaductSchema(sdl.asSchema)
         val validator = RequiredSelectionsAreSchematicallyValid(schema)
@@ -230,7 +244,7 @@ class RequiredSelectionsAreSchematicallyValidTest {
             val reg = MockRequiredSelectionSetRegistry.builder()
                 .fieldCheckerEntry(coord, selections, variablesResolvers)
                 .build()
-            val ctx = RequiredSelectionsValidationCtx(coord, reg)
+            val ctx = RequiredSelectionsValidationCtx(coord.first, coord.second, reg)
             validator.validate(ctx)
         }
     }

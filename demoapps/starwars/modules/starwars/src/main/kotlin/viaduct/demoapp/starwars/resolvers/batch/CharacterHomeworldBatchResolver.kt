@@ -3,6 +3,7 @@ package viaduct.demoapp.starwars.resolvers.batch
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
 import viaduct.api.grts.Planet
+import viaduct.demoapp.starwars.builders.PlanetBuilder
 import viaduct.demoapp.starwars.data.StarWarsData
 import viaduct.demoapp.starwars.resolverbases.CharacterResolvers
 
@@ -74,20 +75,7 @@ class CharacterHomeworldBatchResolver : CharacterResolvers.Homeworld() {
             val planetData = character?.homeworldId?.let { planetsById[it] }
 
             if (planetData != null) {
-                val planet = Planet.Builder(ctx)
-                    .id(ctx.globalIDFor(Planet.Reflection, planetData.id))
-                    .name(planetData.name)
-                    .diameter(planetData.diameter)
-                    .rotationPeriod(planetData.rotationPeriod)
-                    .orbitalPeriod(planetData.orbitalPeriod)
-                    .gravity(planetData.gravity?.toDouble())
-                    .population(planetData.population?.toDouble())
-                    .climates(planetData.climates)
-                    .terrains(planetData.terrains)
-                    .surfaceWater(planetData.surfaceWater?.toDouble())
-                    .created(planetData.created.toString())
-                    .edited(planetData.edited.toString())
-                    .build()
+                val planet = PlanetBuilder(ctx).build(planetData)
                 FieldValue.ofValue(planet)
             } else {
                 FieldValue.ofValue(null)

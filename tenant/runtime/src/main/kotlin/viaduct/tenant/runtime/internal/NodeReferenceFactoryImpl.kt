@@ -1,12 +1,12 @@
 package viaduct.tenant.runtime.internal
 
 import graphql.schema.GraphQLObjectType
-import kotlin.reflect.full.primaryConstructor
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.NodeReferenceFactory
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.NodeEngineObjectData
+import viaduct.tenant.runtime.toGRT
 
 /**
  * The canonical implementation of the `NodeReferenceFactory` interface.
@@ -32,9 +32,6 @@ class NodeReferenceFactoryImpl(
             type,
         )
 
-        return id.type.kcls.primaryConstructor?.call(
-            internalContext,
-            NodeReferenceEngineObjectData(nodeEOD)
-        ) ?: throw NullPointerException("Primary constructor for type ${type.name} is not found.")
+        return NodeReferenceEngineObjectData(nodeEOD).toGRT(internalContext, id.type)
     }
 }

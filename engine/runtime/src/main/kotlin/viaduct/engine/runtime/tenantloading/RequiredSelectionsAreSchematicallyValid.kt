@@ -12,7 +12,6 @@ import graphql.validation.ValidationErrorType
 import graphql.validation.Validator as GJValidator
 import graphql.validation.rules.NoUnusedFragments
 import java.util.Locale
-import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.Constants.EntryPointFragmentName
@@ -24,17 +23,22 @@ class RequiredSelectionsAreSchematicallyValid(private val schema: ViaductSchema)
 
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: RequiredSelectionsValidationCtx) {
-        ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForField(ctx.coord.first, ctx.coord.second, true)
-            .forEach { rss -> validate(ctx.coord, rss) }
+        val requiredSelections = if (ctx.fieldName != null) {
+            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForField(ctx.typeName, ctx.fieldName, true)
+        } else {
+            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForType(ctx.typeName, true)
+        }
+        requiredSelections.forEach { rss -> validate(ctx.typeName, ctx.fieldName, rss) }
     }
 
     private fun validate(
-        coordinate: Coordinate,
+        typeName: String,
+        fieldName: String?,
         rss: RequiredSelectionSet
     ) {
         val errs = validator.validateDocument(schema.schema, rss.selections.toDocument(), Locale.getDefault())
         if (errs.isNotEmpty()) {
-            throw RequiredSelectionsAreInvalid(coordinate, rss, errs)
+            throw RequiredSelectionsAreInvalid(typeName, fieldName, rss, errs)
         }
     }
 }
@@ -95,10 +99,20 @@ private class ViaductNoUnusedFragments(
     }
 }
 
-class RequiredSelectionsAreInvalid(val coordinate: Coordinate, val rss: RequiredSelectionSet, val errors: List<ValidationError>) : Exception() {
+class RequiredSelectionsAreInvalid(
+    val typeName: String,
+    val fieldName: String?,
+    val rss: RequiredSelectionSet,
+    val errors: List<ValidationError>
+) : Exception() {
     override val message: String by lazy {
         buildString {
-            append("Coordinate ${coordinate.first}.${coordinate.second} has required selections that are not schematically valid\n")
+            if (fieldName != null) {
+                append("Coordinate $typeName.$fieldName ")
+            } else {
+                append("Type $typeName ")
+            }
+            append("has required selections that are not schematically valid\n")
             append("Required selections:\n")
             append(AstPrinter.printAst(rss.selections.toDocument()))
             append("\n")

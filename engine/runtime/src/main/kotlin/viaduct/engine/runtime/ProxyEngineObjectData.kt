@@ -7,6 +7,7 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ObjectEngineResult
+import viaduct.engine.api.ObjectEngineResult.Key.Companion.invoke
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.UnsetSelectionException
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
@@ -20,13 +21,20 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
  * TODO (https://app.asana.com/1/150975571430/project/1203659453427089/task/1211379042763526?focus=true):
  * move errorMessage out and provide this information in the tenant API instead
  */
-class ProxyEngineObjectData(
+open class ProxyEngineObjectData(
     private val objectEngineResult: ObjectEngineResult,
     private val errorMessage: String,
     private val selectionSet: RawSelectionSet? = null,
-    private val applyAccessChecks: Boolean = true,
 ) : EngineObjectData {
     override val graphQLObjectType = objectEngineResult.graphQLObjectType
+
+    protected open fun createInstance(
+        objectEngineResult: ObjectEngineResult,
+        errorMessage: String,
+        selectionSet: RawSelectionSet?
+    ): ProxyEngineObjectData {
+        return ProxyEngineObjectData(objectEngineResult, errorMessage, selectionSet)
+    }
 
     /**
      * @param selection A field or alias name
@@ -94,7 +102,7 @@ class ProxyEngineObjectData(
             is ObjectEngineResultImpl -> {
                 val exception = value.resolvedExceptionOrNull()
                 if (exception != null) throw exception
-                ProxyEngineObjectData(value, errorMessage, subselections, applyAccessChecks)
+                createInstance(value, errorMessage, subselections)
             }
             is List<*> -> value.map { marshal(it, subselections) }
             is FieldResolutionResult -> {
@@ -107,25 +115,17 @@ class ProxyEngineObjectData(
         }
     }
 
-    private suspend fun ObjectEngineResult.fetchCheckedValue(key: ObjectEngineResult.Key): Any? {
+    protected open suspend fun ObjectEngineResult.fetchCheckedValue(key: ObjectEngineResult.Key): Any? {
         // Prioritize field fetch errors
         val rawValue = this.fetch(key, RAW_VALUE_SLOT)
-
-        // If applyAccessChecks is false, it's important to not call fetch on the ACCESS_CHECK_SLOT
-        // to avoid a deadlock via circular dependencies
-        if (applyAccessChecks == false) return rawValue
 
         throwCheckerError(this.fetch(key, ACCESS_CHECK_SLOT))
         return rawValue
     }
 
-    private suspend fun Cell.fetchCheckedValue(): Any? {
+    protected open suspend fun Cell.fetchCheckedValue(): Any? {
         // Prioritize field fetch errors
         val rawValue = this.fetch(RAW_VALUE_SLOT)
-
-        // If applyAccessChecks is false, it's important to not call fetch on the ACCESS_CHECK_SLOT
-        // to avoid a deadlock via circular dependencies
-        if (applyAccessChecks == false) return rawValue
 
         throwCheckerError(this.fetch(ACCESS_CHECK_SLOT))
         return rawValue

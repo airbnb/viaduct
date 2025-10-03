@@ -17,7 +17,7 @@ Properties of an Arb can be tested using JUnit, kotest, or other unit testing fr
 ```kotlin
 import graphql.schema.idl.SchemaPrinter
 import io.kotest.property.forAll
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.graphQLSchema
 

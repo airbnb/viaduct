@@ -4,10 +4,12 @@ import graphql.schema.FieldCoordinates
 import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.full.hasAnnotation
+import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.memberFunctions
 import viaduct.api.Resolver
 import viaduct.api.Variables
 import viaduct.api.context.FieldExecutionContext
+import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.NodeResolverFor
@@ -28,6 +30,7 @@ import viaduct.tenant.runtime.context.factory.NodeResolverContextFactory
 import viaduct.tenant.runtime.context.factory.ObjectFactory
 import viaduct.tenant.runtime.context.factory.ResolverContextFactory
 import viaduct.tenant.runtime.context.factory.SelectionSetFactory as SelectionSetContextFactory
+import viaduct.tenant.runtime.context.factory.SelectionsLoaderFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl
@@ -165,17 +168,24 @@ class ViaductTenantModuleBootstrapper(
                 resolverAnnotation,
                 typeName,
             )
+
+            val fieldExecutionContextFactory = FieldExecutionContextMetaFactory.create(
+                objectValue = ObjectFactory.forClass(objectKClass),
+                queryValue = ObjectFactory.forClass(queryKClass),
+                argumentsFactory,
+                selectionSetContextFactory
+            )
+
+            val innerResolverContextFactory =
+                if (contextKClass.isSubclassOf(MutationFieldExecutionContext::class)) {
+                    MutationFieldExecutionContextMetaFactory.create(fieldExecutionContextFactory, SelectionsLoaderFactory.forMutation)
+                } else {
+                    fieldExecutionContextFactory
+                }
+
             val resolverContextFactory = ResolverContextFactory.forClass(
                 contextKClass,
-                MutationFieldExecutionContextMetaFactory.ifMutation(
-                    contextKClass,
-                    FieldExecutionContextMetaFactory.create(
-                        objectValue = ObjectFactory.forClass(objectKClass),
-                        queryValue = ObjectFactory.forClass(queryKClass),
-                        argumentsFactory,
-                        selectionSetContextFactory
-                    )
-                )
+                innerResolverContextFactory
             )
 
             // Java classes do not have the `resolve` function since it is suspended,

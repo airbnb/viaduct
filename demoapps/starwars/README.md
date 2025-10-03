@@ -25,7 +25,7 @@ The server will start on `http://localhost:8080`.
 
 ### 2. Access GraphiQL
 
-Open your browser and go to [http://localhost:8080/graphiql](http://localhost:8080/graphiql)
+Open your browser and go to [http://localhost:8080/graphiql](http://localhost:8080/graphiql).
 
 ### 3. Try Example Queries
 
@@ -42,25 +42,25 @@ query {
 
 #### Scoped Queries
 
-To perform a query that needs some scope field like culturalNotes on Species , that needs the "extras" scope, include the `X-Viaduct-Scope` header in your request:
+To perform a query that needs some scope field like `culturalNotes` on Species, that needs the "extras" scope, include the `X-Viaduct-Scope` header in your request:
 
-```
+```graphql
 query {
- node(id: "U3BlY2llczox") {
-  ... on Species {
-   name
-   culturalNotes
-   specialAbilities
+  node(id: "U3BlY2llczox") {
+    ... on Species {
+      name
+      culturalNotes
+      specialAbilities
+    }
   }
- }
 }
 ```
 
 And don't forget to add the correct scope header:
 
-```
+```json
 {
-    "X-Viaduct-Scope": "extras"
+  "X-Viaduct-Scope": "extras"
 }
 ```
 
@@ -99,7 +99,7 @@ A central concept in Viaduct is that of a `Node`: an entity that can be fetched 
 
 Internally, an `ID` consists of two components: a `Node` type name, and a "local" identifier of the particular `Node` instance. For example, in the StarWars application, the `Character` with "local id" 5 happens to be Obi-Wan Kenobi.
 
-To prevent developers from "hardwiring" any particular representation of identifiers into their code, Viaduct uses an encoding of `ID`s that obscures their content a bit. However, in GraphiQL, you do need to provide encoded `ID`s to fields like `Query.node`. To help you navigate the data set, we've incorporated an encoder (and decoder) for IDs. Along the left-hand side of GraphiQL, you'll see a "key" icon (🔑). If you press that icon, a panel will come up for encoding IDs. Type into the top text box a string of the form "*TypeName:LocalId*". So, for example, if you enter "Character:5" into that box, the string "Q2hhcmFjdGVyOjU=" will be displayed. In the query panel of GraphiQL, you can use this ID in a query like:
+To prevent developers from "hardwiring" any particular representation of identifiers into their code, Viaduct uses an encoding of `ID`s that obscures their content a bit. However, in GraphiQL, you do need to provide encoded `ID`s to fields like `Query.node`. To help you navigate the data set, we've incorporated an encoder (and decoder) for IDs. Along the left-hand side of GraphiQL, you'll see a "key" icon (🔑). If you press that icon, a panel will come up for encoding IDs. Type into the top text box a string of the form `TypeName:LocalId`. So, for example, if you enter "Character:5" into that box, the string "Q2hhcmFjdGVyOjU=" will be displayed. In the query panel of GraphiQL, you can use this ID in a query like:
 
 ```graphql
 query {

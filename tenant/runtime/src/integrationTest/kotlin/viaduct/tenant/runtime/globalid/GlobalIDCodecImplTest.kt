@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.globalid
 
 import graphql.schema.GraphQLNamedType
@@ -7,8 +9,7 @@ import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.string
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -18,7 +19,6 @@ import viaduct.api.types.NodeObject
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class GlobalIDCodecImplTest : KotestPropertyBase() {
     private lateinit var codec: GlobalIDCodecImpl
     private lateinit var nodeObjectTypes: List<GraphQLNamedType>
@@ -50,8 +50,8 @@ class GlobalIDCodecImplTest : KotestPropertyBase() {
     }
 
     @Test
-    fun `test serialize and deserialize`() =
-        runBlockingTest {
+    fun `test serialize and deserialize`(): Unit =
+        runBlocking {
             Arb.Companion.element(nodeObjectTypes).forAll { gjType ->
                 val type = nodeObjectType(gjType.name)
                 val globalId = GlobalIDImpl(type, Arb.Companion.string().bind())
@@ -61,8 +61,8 @@ class GlobalIDCodecImplTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `test globalid on non-NodeObject types`() =
-        runBlockingTest {
+    fun `test globalid on non-NodeObject types`(): Unit =
+        runBlocking {
             Arb.Companion.element(nonNodeObjectTypes).checkAll { gjType ->
                 val type = try {
                     nodeObjectType(gjType.name)
@@ -79,8 +79,8 @@ class GlobalIDCodecImplTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `test multiple delimiters in internalID`() =
-        runBlockingTest {
+    fun `test multiple delimiters in internalID`(): Unit =
+        runBlocking {
             val type = User.Reflection
             val globalId = GlobalIDImpl(type, "internalid:1:2:3:4:5")
             val globalId2 = codec.deserialize<User>(codec.serialize(globalId))
@@ -89,8 +89,8 @@ class GlobalIDCodecImplTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `test malformed globalID`() =
-        runBlockingTest {
+    fun `test malformed globalID`(): Unit =
+        runBlocking {
             val exception =
                 Assertions.assertThrows(IllegalArgumentException::class.java) { codec.deserialize<User>("123") }
             Assertions.assertTrue(exception.message!!.contains("to be a Base64-encoded string with the decoded format"))

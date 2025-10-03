@@ -11,6 +11,7 @@ dependencies {
     implementation(plugin(libs.plugins.detekt))
     implementation(plugin(libs.plugins.ktlintPlugin))
     implementation(plugin(libs.plugins.dokka))
+    compileOnly(libs.detekt.api)
 
     // buildroot dependencies
     implementation(plugin(libs.plugins.dependency.analysis))

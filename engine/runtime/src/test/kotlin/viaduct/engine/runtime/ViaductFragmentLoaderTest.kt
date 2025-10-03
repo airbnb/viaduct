@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime
 
 import graphql.execution.ExecutionStepInfo
@@ -13,7 +15,7 @@ import io.mockk.every
 import io.mockk.mockk
 import java.util.Optional
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -39,8 +41,8 @@ class ViaductFragmentLoaderTest {
     }
 
     @Test
-    fun `test loadFromEngine with nested list of ObjectEngineResults`() =
-        runBlockingTest {
+    fun `test loadFromEngine with nested list of ObjectEngineResults`(): Unit =
+        runBlocking {
             val fragment = fragment(
                 """
                 fragment _ on Query {
@@ -142,8 +144,8 @@ class ViaductFragmentLoaderTest {
         }
 
     @Test
-    fun `test loadEngineObjectData`() =
-        runBlockingTest {
+    fun `test loadEngineObjectData`(): Unit =
+        runBlocking {
             val fragment: Fragment = fragment(
                 """
             fragment _ on A {
@@ -181,8 +183,8 @@ class ViaductFragmentLoaderTest {
         }
 
     @Test
-    fun `test loadEngineObjectData with root query`() =
-        runBlockingTest {
+    fun `test loadEngineObjectData with root query`(): Unit =
+        runBlocking {
             val fragment = fragment(
                 """
         fragment _ on Query {
@@ -212,8 +214,8 @@ class ViaductFragmentLoaderTest {
         }
 
     @Test
-    fun `test loadEngineObjectData with non-root query`() =
-        runBlockingTest {
+    fun `test loadEngineObjectData with non-root query`(): Unit =
+        runBlocking {
             val fragment = fragment(
                 """
                 fragment _ on A {
@@ -250,8 +252,8 @@ class ViaductFragmentLoaderTest {
         }
 
     @Test
-    fun `test loadEngineObjectData with missing EngineResultLocalContext`() =
-        runBlockingTest {
+    fun `test loadEngineObjectData with missing EngineResultLocalContext`(): Unit =
+        runBlocking {
             val fragment = fragment(
                 """
         fragment _ on A {
@@ -285,15 +287,15 @@ class ViaductFragmentLoaderTest {
 
             val loader = ViaductFragmentLoader(fragmentTransformer)
             assertThrows<UnsupportedOperationException> {
-                runBlockingTest {
+                runBlocking {
                     loader.loadEngineObjectData(fragment, metadata, "", dfe)
                 }
             }
         }
 
     @Test
-    fun `test loadEngineObjectData with missing FieldRewriterMetadata`() =
-        runBlockingTest {
+    fun `test loadEngineObjectData with missing FieldRewriterMetadata`(): Unit =
+        runBlocking {
             val fragment = fragment(
                 """
         fragment _ on A {
@@ -327,15 +329,15 @@ class ViaductFragmentLoaderTest {
 
             val loader = ViaductFragmentLoader(fragmentTransformer)
             assertThrows<IllegalStateException> {
-                runBlockingTest {
+                runBlocking {
                     loader.loadEngineObjectData(fragment, metadata, "", dfe)
                 }
             }
         }
 
     @Test
-    fun `test loadEngineObjectData with null DataFetchingEnvironment`() =
-        runBlockingTest {
+    fun `test loadEngineObjectData with null DataFetchingEnvironment`(): Unit =
+        runBlocking {
             val fragment = fragment(
                 """
                 fragment _ on A {
@@ -560,7 +562,7 @@ class ViaductFragmentLoaderTest {
 
     @Test
     fun `test fragment resolution result to OER conversion`() {
-        runBlockingTest {
+        runBlocking {
             val data =
                 mapOf(
                     "__typename" to "A",
@@ -708,7 +710,7 @@ class ViaductFragmentLoaderTest {
         fragment: Fragment,
         dfpClassPath: String = "this.does.not.matter",
         assertions: (FragmentFieldEngineResolutionResult) -> Unit
-    ) = runBlockingTest {
+    ) = runBlocking {
         val loader = getLoaderInstance()
         val metadata =
             getMockDFQueryMetadata(

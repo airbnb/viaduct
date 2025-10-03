@@ -1,6 +1,5 @@
 package viaduct.tenant.runtime.select
 
-import kotlin.reflect.full.primaryConstructor
 import viaduct.api.context.ExecutionContext
 import viaduct.api.internal.internal
 import viaduct.api.internal.select.SelectionsLoader
@@ -10,6 +9,7 @@ import viaduct.api.types.Mutation
 import viaduct.api.types.Query
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RawSelectionsLoader
+import viaduct.tenant.runtime.toGRT
 
 class SelectionsLoaderImpl<T : CompositeOutput>(
     private val rawSelectionsLoader: RawSelectionsLoader
@@ -30,8 +30,7 @@ class SelectionsLoaderImpl<T : CompositeOutput>(
     ): U {
         val rawSelectionSet = selections.toRawSelectionSet()
         val proxyData = rawSelectionsLoader.load(rawSelectionSet)
-        val kcls = selections.type.kcls
-        return kcls.primaryConstructor!!.call(ctx.internal, proxyData)
+        return proxyData.toGRT(ctx.internal, selections.type)
     }
 
     private fun SelectionSet<*>.toRawSelectionSet(): RawSelectionSet {

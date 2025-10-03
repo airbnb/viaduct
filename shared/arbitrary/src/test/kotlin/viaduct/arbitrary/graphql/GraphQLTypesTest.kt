@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.graphql
 
@@ -24,8 +24,7 @@ import io.kotest.property.arbitrary.pair
 import io.kotest.property.arbitrary.set
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
@@ -77,8 +76,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
             .map { (weight, max) -> CompoundingWeight(weight, max) }
 
     @Test
-    fun `Arb-graphQLTypes can be used to generate a valid schema`() =
-        runBlockingTest {
+    fun `Arb-graphQLTypes can be used to generate a valid schema`(): Unit =
+        runBlocking {
             Arb.graphQLTypes(minimalConfig).checkAll(iterCount) {
                 SchemaGenerator.mkSchema(it).getOrThrow()
                 markSuccess()
@@ -86,8 +85,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypesGen -- genDirectives`() =
-        runBlockingTest {
+    fun `GraphQLTypesGen -- genDirectives`(): Unit =
+        runBlocking {
             Arb.set(Arb.graphQLName())
                 .flatMap { dirNames ->
                     val names = GraphQLNames(mapOf(TypeType.Directive to dirNames))
@@ -104,8 +103,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypesGen -- DirectiveIsRepeatable`() =
-        runBlockingTest {
+    fun `GraphQLTypesGen -- DirectiveIsRepeatable`(): Unit =
+        runBlocking {
             Arb.of(0.0, 1.0)
                 .flatMap { weight ->
                     val cfg = minimalConfig + (DirectiveIsRepeatable to weight)
@@ -119,8 +118,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypesGen -- Listiness and NonNullableness`() =
-        runBlockingTest {
+    fun `GraphQLTypesGen -- Listiness and NonNullableness`(): Unit =
+        runBlocking {
             fun GraphQLType.countDecorations(): Pair<Int, Int> {
                 tailrec fun loop(
                     lists: Int,
@@ -165,8 +164,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypesGen - genDescription`() =
-        runBlockingTest {
+    fun `GraphQLTypesGen - genDescription`(): Unit =
+        runBlocking {
             Arb.intRange(0..100)
                 .nonEmpty()
                 .checkAll(iterCount) { range ->
@@ -180,8 +179,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - FieldHasArgs`() =
-        runBlockingTest {
+    fun `GraphQLTypes - FieldHasArgs`(): Unit =
+        runBlocking {
             Arb.compoundingWeight()
                 .flatMap { cw ->
                     val cfg = minimalConfig + (FieldHasArgs to cw)
@@ -208,8 +207,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - DefaultValueWeight`() =
-        runBlockingTest {
+    fun `GraphQLTypes - DefaultValueWeight`(): Unit =
+        runBlocking {
             Arb.of(0.0, 1.0)
                 .flatMap { weight ->
                     val cfg = minimalConfig + (DefaultValueWeight to weight)
@@ -251,8 +250,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - IncludeBuiltinScalars`() =
-        runBlockingTest {
+    fun `GraphQLTypes - IncludeBuiltinScalars`(): Unit =
+        runBlocking {
             Arb.of(true, false)
                 .flatMap { incl ->
                     val cfg = minimalConfig + (IncludeBuiltinScalars to incl)
@@ -275,8 +274,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - IncludeBuiltinDirectives`() =
-        runBlockingTest {
+    fun `GraphQLTypes - IncludeBuiltinDirectives`(): Unit =
+        runBlocking {
             Arb.of(true, false)
                 .flatMap { incl ->
                     val cfg = minimalConfig + (IncludeBuiltinDirectives to incl)
@@ -300,8 +299,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - DirectiveHasArgs`() =
-        runBlockingTest {
+    fun `GraphQLTypes - DirectiveHasArgs`(): Unit =
+        runBlocking {
             Arb.compoundingWeight()
                 .flatMap { cw ->
                     val cfg = minimalConfig +
@@ -328,8 +327,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - Directiveness`() =
-        runBlockingTest {
+    fun `GraphQLTypes - Directiveness`(): Unit =
+        runBlocking {
             // for this test it is helpful to guarantee that the schema contains a directive that can be applied
             // in any location
             val testDirective = GraphQLDirective.newDirective()
@@ -376,8 +375,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - FieldNameLength`() =
-        runBlockingTest {
+    fun `GraphQLTypes - FieldNameLength`(): Unit =
+        runBlocking {
             Arb.intRange(2..100)
                 .nonEmpty()
                 .flatMap { range ->
@@ -399,8 +398,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - InputObjectTypeSize`() =
-        runBlockingTest {
+    fun `GraphQLTypes - InputObjectTypeSize`(): Unit =
+        runBlocking {
             Arb.intRange(1..100)
                 .nonEmpty()
                 .flatMap { range ->
@@ -418,8 +417,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - InterfaceTypeSize`() =
-        runBlockingTest {
+    fun `GraphQLTypes - InterfaceTypeSize`(): Unit =
+        runBlocking {
             Arb.intRange(1..100)
                 .nonEmpty()
                 .flatMap { range ->
@@ -437,8 +436,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - ObjectTypeSize`() =
-        runBlockingTest {
+    fun `GraphQLTypes - ObjectTypeSize`(): Unit =
+        runBlocking {
             Arb.intRange(1..100)
                 .nonEmpty()
                 .flatMap { range ->
@@ -456,8 +455,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - ObjectImplementsInterface`() =
-        runBlockingTest {
+    fun `GraphQLTypes - ObjectImplementsInterface`(): Unit =
+        runBlocking {
             // ensure that types includes at least 1 interface
             val baseTypes = GraphQLTypes.empty + GraphQLInterfaceType.newInterface()
                 .name("I")
@@ -489,8 +488,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - UnionTypeSize`() =
-        runBlockingTest {
+    fun `GraphQLTypes - UnionTypeSize`(): Unit =
+        runBlocking {
             Arb.intRange(1..100)
                 .nonEmpty()
                 .flatMap { range ->
@@ -510,8 +509,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - resolve present references`() =
-        runBlockingTest {
+    fun `GraphQLTypes - resolve present references`(): Unit =
+        runBlocking {
             // resolve present types
             Arb.graphQLNames().map { names ->
                 val types = mkGen(names = names).gen()
@@ -531,8 +530,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes - resolve missing references`() =
-        runBlockingTest {
+    fun `GraphQLTypes - resolve missing references`(): Unit =
+        runBlocking {
             // resolve present types
             Arb.graphQLNames().map { names ->
                 val types = mkGen(names = names).gen()
@@ -550,8 +549,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes -- IncludeTypes`() =
-        runBlockingTest {
+    fun `GraphQLTypes -- IncludeTypes`(): Unit =
+        runBlocking {
             Arb.graphQLTypes(minimalConfig).flatMap { a ->
                 val cfg = minimalConfig + (IncludeTypes to a)
                 Arb.graphQLTypes(cfg).map { b -> a to b }
@@ -561,8 +560,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `GraphQLTypes -- GenInterfaceStubsIfNeeded`() =
-        runBlockingTest {
+    fun `GraphQLTypes -- GenInterfaceStubsIfNeeded`(): Unit =
+        runBlocking {
             val cfg = minimalConfig + (GenInterfaceStubsIfNeeded to true)
             Arb.graphQLTypes(cfg).forAll(iterCount) { types ->
                 val ifaces = types.interfaces.keys

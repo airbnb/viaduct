@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import graphql.ExecutionResult
-import graphql.GraphQLError
 import kotlin.test.assertEquals
 
 /**
@@ -13,34 +12,15 @@ import kotlin.test.assertEquals
  * @param expectedJson a JSON string. The string may use some short-hand conventions,
  *  including unquoted object keys, trailing commas, and comments
  */
-fun ExecutionResult.assertJson(expectedJson: String) {
+fun ExecutionResult.assertJson(expectedJson: String) = this.toSpecification().assertJson(expectedJson)
+
+fun Map<String, *>.assertJson(expectedJson: String) {
     val expected = try {
         mapper.readValue<Map<String, Any?>>(expectedJson)
     } catch (e: Exception) {
-        throw IllegalArgumentException("Cannot parse expectedJson, Actual: ${mapper.writeValueAsString(toSpecification())}", e)
+        throw IllegalArgumentException("Cannot parse expected JSON", e)
     }
-    try {
-        assertEquals(expected, toSpecification())
-    } catch (e: AssertionError) {
-        throw AssertionError("Expected: $expectedJson\nActual: ${mapper.writeValueAsString(toSpecification())}", e)
-    }
-}
-
-/**
- * Assert that data matches [expectedDataJson]. [checkErrors] can be used to perform
- * assertions on the errors list.
- */
-fun ExecutionResult.assertData(
-    expectedDataJson: String,
-    checkErrors: (errors: List<GraphQLError>) -> Unit = {}
-) {
-    val expectedData = try {
-        mapper.readValue<Map<String, Any?>>(expectedDataJson)
-    } catch (e: Exception) {
-        throw IllegalArgumentException("Cannot parse expectedDataJson", e)
-    }
-    assertEquals(expectedData, getData())
-    checkErrors(errors)
+    assertEquals(expected, this)
 }
 
 // configure an ObjectMapper that allows parsing compact JSON

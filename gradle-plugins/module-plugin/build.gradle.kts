@@ -15,11 +15,11 @@ dependencies {
     implementation(project(":common"))
 
     // Your runtime helpers used by the plugin implementation (keep as needed)
-    implementation("com.airbnb.viaduct:tenant-codegen")
-    implementation("com.airbnb.viaduct:shared-graphql")
+    implementation(libs.viaduct.tenant.codegen)
+    implementation(libs.viaduct.shared.graphql)
 
     // Do NOT leak the Kotlin Gradle Plugin at runtime
-    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24")
+    compileOnly(libs.kotlin.gradle.plugin)
 }
 
 // Manifest with Implementation-Version for runtime access if you need it

@@ -40,7 +40,7 @@ import kotlin.math.max
 import kotlin.math.min
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.WeightValidator
-import viaduct.utils.graphql.allChildren
+import viaduct.graphql.utils.allChildren
 
 internal fun Set<GraphQLInterfaceType>.nonConflicting(): Set<GraphQLInterfaceType> {
     // A challenge in identifying non-conflicting interfaces is in knowing the
@@ -284,7 +284,7 @@ val String.asDocument: Document get() =
 /** A [Comparator] that orders [ExecutionInput]s by how many nodes are in their parsed document */
 val ExecutionInputComparator: Comparator<ExecutionInput> =
     // Perf note:
-    // This Comparator re-parses a document text to compare the size of the node trees.
+    // This Comparator reparses a document text to compare the size of the node trees.
     // A faster alternative would be to skip the parse step and just compare the document string lengths.
     // For a test that takes ~15s with a ~10% failure rate, the perf improvement of comparing document text
     // lengths is about 300ms, or about 2%. This seems like a reasonable perf penalty to be consistent

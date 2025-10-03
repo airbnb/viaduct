@@ -20,10 +20,10 @@ class DefaultSchemaGenerator : CliktCommand() {
     private val includeNodeFields: Boolean by option("--include_node_fields").flag(default = false)
 
     override fun run() {
-        val sdl = DefaultSchemaProvider.getSDL(includeNodeQueries = includeNodeFields)
-        if (outputFile.name != DefaultSchemaProvider.SDL_FILENAME) {
-            throw IllegalArgumentException("Output file must be named ${DefaultSchemaProvider.SDL_FILENAME}.")
-        }
+        val sdl = DefaultSchemaProvider.getDefaultSDL(
+            includeNodeDefinition = DefaultSchemaProvider.IncludeNodeSchema.Always,
+            includeNodeQueries = DefaultSchemaProvider.IncludeNodeSchema(includeNodeFields)
+        )
         // Write to output file
         outputFile.writeText(sdl)
         println("Generated default schema SDL to: ${outputFile.absolutePath}")

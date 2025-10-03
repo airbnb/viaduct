@@ -1,13 +1,14 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.dataloader
 
 import kotlin.test.assertEquals
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 
-@Suppress("DEPRECATION")
 @DelicateCoroutinesApi
 @ExperimentalCoroutinesApi
 class NextTickBatchQueueTest {
@@ -18,8 +19,8 @@ class NextTickBatchQueueTest {
     )
 
     @Test
-    fun testEnqueueAndFlush() =
-        runBlockingTest {
+    fun testEnqueueAndFlush(): Unit =
+        runBlocking {
             val queue = NextTickBatchQueue { flushedItems, dispatchingContext ->
                 assertEquals(listOf("Hello"), flushedItems)
                 assertEquals(debugInfo, dispatchingContext.metadata)
@@ -30,8 +31,8 @@ class NextTickBatchQueueTest {
         }
 
     @Test
-    fun testEnqueueAndFlushAsync() =
-        runBlockingTest {
+    fun testEnqueueAndFlushAsync(): Unit =
+        runBlocking {
             val queue = NextTickBatchQueue { flushedItems, dispatchingContext ->
                 assertEquals(setOf("Here", "What"), flushedItems.toSet())
                 assertEquals(debugInfo, dispatchingContext.metadata)
@@ -45,8 +46,8 @@ class NextTickBatchQueueTest {
         }
 
     @Test
-    fun testMultipleRounds() =
-        runBlockingTest {
+    fun testMultipleRounds(): Unit =
+        runBlocking {
             val queue = NextTickBatchQueue { flushedItems, context ->
                 if (context.tickIndex == 0) {
                     assertEquals(setOf("Here", "What"), flushedItems.toSet())

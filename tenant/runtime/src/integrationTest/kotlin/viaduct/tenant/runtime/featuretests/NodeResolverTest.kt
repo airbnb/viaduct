@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.api.context.NodeExecutionContext
-import viaduct.graphql.test.assertData
 import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestSchemaFixture
@@ -194,7 +193,7 @@ class NodeResolverTest {
             }
             .build()
             .execute("{ baz { x anotherBaz { id x }}}")
-            .assertData("{baz: {x:2, anotherBaz:{id:\"QmF6OjE=\", x:2}}}")
+            .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"id":"QmF6OjE=", "x":2}}}}""")
 
         assertEquals(mapOf("1" to 1), execCounts.mapValues { it.value.get() })
     }
@@ -215,7 +214,7 @@ class NodeResolverTest {
             }
             .build()
             .execute("{ baz { x anotherBaz { x x2 }}}")
-            .assertData("{baz: {x:2, anotherBaz:{x:2, x2:\"foo\"}}}")
+            .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"x":2, "x2":"foo"}}}}""")
 
         assertEquals(mapOf("1" to 2), execCounts.mapValues { it.value.get() })
     }

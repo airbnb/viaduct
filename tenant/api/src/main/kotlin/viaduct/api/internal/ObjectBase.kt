@@ -189,6 +189,10 @@ abstract class ObjectBase(
         return klass.primaryConstructor!!.call(context, value) as ObjectBase
     }
 
+    /**
+     * Usually directly used by tenant developers to build Viaduct object in resolvers by calling
+     * `MyType.Builder(context)`, where `MyType` is a generated GRT class that extends ObjectBase class.
+     */
     abstract class Builder<T>(
         protected val context: InternalContext,
         private val graphQLObjectType: GraphQLObjectType,
