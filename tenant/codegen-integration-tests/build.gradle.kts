@@ -48,11 +48,3 @@ dependencies {
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.javassist)
 }
-
-// afterEvaluate {
-//     // Dependencies for classdiff test tasks
-//     tasks.named("explodeCodeSourceTest") {
-//         dependsOn(tasks.named("generateSchemaDiffSchemaSchemaObjects"))
-//         dependsOn(tasks.named("generateSchemaDiffSchemaKotlinGrts"))
-//     }
-// }
