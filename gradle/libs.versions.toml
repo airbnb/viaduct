@@ -35,7 +35,6 @@ micrometer = "1.10.8"
 ktlintPluginVersion = "13.1.0"
 ktlintVersion = "1.2.1"
 detekt = "1.23.6"
-dependency-analysis = "1.33.0"
 jacoco = "0.8.12"
 dokka = "2.0.0"
 gradle-maven-publish = "0.34.0"
@@ -46,7 +45,6 @@ foojay-resolver-convention = "1.0.0"
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 ktlintPlugin = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintPluginVersion" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
-dependency-analysis = { id = "com.autonomousapps.dependency-analysis", version.ref = "dependency-analysis" }
 jacoco = { id = "jacoco", version.ref = "jacoco" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 gradle-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "gradle-maven-publish" }

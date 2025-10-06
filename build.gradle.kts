@@ -1,5 +1,4 @@
 plugins {
-    id("buildroot.dependency-analysis")
     id("buildroot.orchestration")
     id("buildroot.versioning")
     jacoco
