@@ -2,7 +2,7 @@
 # Gradle
 # ----------------------------------------
 HELP.md
-.gradle/
+.gradle/ 
 build/
 out/
 !gradle/wrapper/gradle-wrapper.jar
