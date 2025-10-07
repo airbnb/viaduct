@@ -19,6 +19,7 @@ includeNamed(":service:api", "../..")
 includeNamed(":service:runtime", "../..")
 includeNamed(":service:wiring", "../..")
 includeNamed(":tenant:api", "../..")
+includeNamed(":tenant:codegen", "../..")
 includeNamed(":tenant:runtime", "../..")
 
 // Include all shared modules

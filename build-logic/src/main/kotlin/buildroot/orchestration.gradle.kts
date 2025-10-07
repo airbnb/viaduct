@@ -19,7 +19,7 @@
  *
  * Root configuration:
  *   orchestration {
- *     participatingIncludedBuilds.set(listOf("core", "codegen", "gradle-plugins"))
+ *     participatingIncludedBuilds.set(listOf("core", "gradle-plugins"))
  *   }
  */
 

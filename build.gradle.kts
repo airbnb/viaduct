@@ -9,7 +9,7 @@ plugins {
 
 orchestration {
     participatingIncludedBuilds.set(
-        listOf("core", "codegen", "gradle-plugins")
+        listOf("core", "gradle-plugins")
     )
 }
 

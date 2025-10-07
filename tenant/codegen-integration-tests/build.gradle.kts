@@ -14,7 +14,7 @@ viaductClassDiff {
 }
 
 viaductIntegrationCoverage {
-    baseProject(":codegen:tenant:tenant-codegen")
+    baseProject(":core:tenant:tenant-codegen")
 }
 
 sourceSets {

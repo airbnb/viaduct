@@ -17,7 +17,6 @@ rootProject.name = "viaduct"
 
 includeBuild(".")
 includeBuild("included-builds/core")
-includeBuild("included-builds/codegen")
 includeBuild("gradle-plugins") {
     dependencySubstitution {
         substitute(module("com.airbnb.viaduct:gradle-plugins-common")).using(project(":common"))
