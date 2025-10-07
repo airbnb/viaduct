@@ -32,6 +32,11 @@ interface RequiredSelectionSetRegistry {
     fun getRequiredSelectionSetsForType(
         typeName: String,
         executeAccessChecksInModstrat: Boolean
+    ): List<RequiredSelectionSet> = getTypeCheckerRequiredSelectionSets(typeName, executeAccessChecksInModstrat)
+
+    fun getTypeCheckerRequiredSelectionSets(
+        typeName: String,
+        executeAccessChecksInModstrat: Boolean
     ): List<RequiredSelectionSet>
 
     /** A [RequiredSelectionSetRegistry] that returns empty list for every request */
@@ -54,6 +59,11 @@ interface RequiredSelectionSetRegistry {
         ): List<RequiredSelectionSet> = emptyList()
 
         override fun getRequiredSelectionSetsForType(
+            typeName: String,
+            executeAccessChecksInModstrat: Boolean
+        ): List<RequiredSelectionSet> = emptyList()
+
+        override fun getTypeCheckerRequiredSelectionSets(
             typeName: String,
             executeAccessChecksInModstrat: Boolean
         ): List<RequiredSelectionSet> = emptyList()

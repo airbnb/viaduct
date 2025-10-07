@@ -50,6 +50,8 @@ private interface InterfaceModel {
 private val interfaceSTGroup =
     stTemplate(
         """
+    @file:Suppress("warnings")
+
     package <mdl.pkg>
 
     interface <mdl.className> : <mdl.superTypes> {

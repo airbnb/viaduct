@@ -4,7 +4,6 @@ package viaduct.tenant.runtime.bootstrap
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.bootstrap.test.TestTenantModule
-import viaduct.testapps.fixtures.TestTenantPackageFinder
 
 class ViaductTenantPackageFinderTest {
     @Test

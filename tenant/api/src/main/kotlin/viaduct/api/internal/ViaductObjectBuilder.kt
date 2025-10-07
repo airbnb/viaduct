@@ -8,14 +8,17 @@ import viaduct.api.DynamicOutputValueBuilder
 import viaduct.api.ViaductTenantUsageException
 import viaduct.api.context.ExecutionContext
 import viaduct.api.handleTenantAPIErrors
+import viaduct.api.types.GRT
 import viaduct.api.types.Object
 
-/** Builder for GraphQL object types.
+/**
+ * Used to dynamically create a Viaduct object without having a GRT class.
+ * If you already have a GRT class, use `ObjectBase.Builder` instead.
  *
  * This class is not meant to be instantiated directly.
  * Use [dynamicBuilderFor] instead.
  */
-class ViaductObjectBuilder<T : Object> private constructor(
+class ViaductObjectBuilder<T : GRT> private constructor(
     val context: InternalContext,
     val graphqlType: GraphQLObjectType,
     private val grtClazz: KClass<T>,
@@ -29,8 +32,7 @@ class ViaductObjectBuilder<T : Object> private constructor(
      *
      * For fields that are GraphQL object types, you can pass
      * a ViaductObjectBuilder<S> for its value as long as S
-     * matches the type of the field.  This is slightly more
-     * efficient `b` is of type ViaductObjectBuilder<S>,
+     * matches the type of the field. Suppose `b` is of type ViaductObjectBuilder<S>,
      * passing `b` directly to [put] is slightly more efficient
      * than passing `b.build()`.
      */
@@ -65,12 +67,12 @@ class ViaductObjectBuilder<T : Object> private constructor(
 
     companion object {
         @Suppress("unused")
-        fun <T : Object> dynamicBuilderFor(
+        fun <T : GRT> dynamicBuilderFor(
             ctx: ExecutionContext,
             grtClazz: KClass<T>
         ): ViaductObjectBuilder<T> = dynamicBuilderFor(ctx.internal, grtClazz)
 
-        fun <T : Object> dynamicBuilderFor(
+        fun <T : GRT> dynamicBuilderFor(
             ctx: InternalContext,
             grtClazz: KClass<T>
         ): ViaductObjectBuilder<T> {

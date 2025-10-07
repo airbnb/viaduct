@@ -41,7 +41,7 @@ fun ViaductExtendedSchema.TypeExpr.kmType(
     isInput: Boolean,
     useSchemaValueType: Boolean
 ): KmType {
-    var result = this.baseTypeKmType(pkg, baseTypeMapper, field)
+    var result = this.baseTypeKmType(pkg, baseTypeMapper, field, isInput)
 
     if (useSchemaValueType) {
         val baseType = this.baseTypeDef
@@ -73,8 +73,12 @@ fun ViaductExtendedSchema.TypeExpr.kmType(
                 -> KmVariance.OUT
 
                 ViaductExtendedSchema.TypeDefKind.SCALAR -> {
-                    // JSON types map to kotlin/Any
-                    if (result.name == Km.ANY) KmVariance.OUT else KmVariance.INVARIANT
+                    if (result.name == Km.ANY || result.name == baseTypeMapper.getGlobalIdType().asKmName) {
+                        // JSON types map to kotlin/Any
+                        KmVariance.OUT
+                    } else {
+                        KmVariance.INVARIANT
+                    }
                 }
 
                 else -> KmVariance.INVARIANT
@@ -103,9 +107,10 @@ fun ViaductExtendedSchema.TypeExpr.baseTypeKmType(
     pkg: KmName,
     baseTypeMapper: BaseTypeMapper,
     field: ViaductExtendedSchema.HasDefaultValue?,
+    isInput: Boolean = false,
 ): KmType {
     // Check if mapper wants to handle this type
-    baseTypeMapper.mapBaseType(this, pkg, field)?.let { return it }
+    baseTypeMapper.mapBaseType(this, pkg, field, isInput)?.let { return it }
 
     // Default case - create standard KmType
     val kmName = cfg.nativeGraphQLTypeToKmName(baseTypeMapper)[this.baseTypeDef.name]

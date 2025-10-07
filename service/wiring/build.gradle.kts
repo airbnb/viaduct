@@ -13,9 +13,9 @@ viaductPublishing {
 dependencies {
     api(libs.viaduct.service.api)
     api(libs.graphql.java)
+    api(libs.viaduct.tenant.wiring)
 
     implementation(libs.viaduct.service.runtime)
-    implementation(libs.viaduct.tenant.runtime)
     testImplementation(testFixtures(libs.viaduct.engine.api))
 }
 

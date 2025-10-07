@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime.execution
 
 import com.airbnb.viaduct.errors.ViaductPermissionDeniedException
@@ -10,7 +12,8 @@ import io.mockk.mockk
 import java.util.concurrent.CompletionException
 import kotlin.test.assertEquals
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -44,7 +47,7 @@ import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
 
-@ExperimentalCoroutinesApi
+@OptIn(ExperimentalCoroutinesApi::class)
 class ResolverDataFetcherTest {
     private val allDisabledFlags = MockFlagManager()
     private val allEnabledFlags = MockFlagManager.Enabled
@@ -139,8 +142,8 @@ class ResolverDataFetcherTest {
     }
 
     @Test
-    fun `test resolving with null objectSelectionSet`() =
-        runBlockingTest {
+    fun `test resolving with null objectSelectionSet`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -157,8 +160,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test resolving with existing object selection set -- modern disabled`() =
-        runBlockingTest {
+    fun `test resolving with existing object selection set -- modern disabled`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -178,8 +181,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test resolving with existing object selection set -- modern enabled`() =
-        runBlockingTest {
+    fun `test resolving with existing object selection set -- modern enabled`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -199,8 +202,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test resolving with existing object selection set -- modern enabled but not for mod fields`() =
-        runBlockingTest {
+    fun `test resolving with existing object selection set -- modern enabled but not for mod fields`() {
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -212,16 +215,15 @@ class ResolverDataFetcherTest {
                 ).apply {
                     val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
                     assertEquals(expectedResult, receivedResult)
-
-                    // verify that localContext has dataFetchingEnvironment copied
                     assertEquals(dataFetchingEnvironment, executor.lastReceivedLocalContext?.dataFetchingEnvironment)
                 }
             }
         }
+    }
 
     @Test
-    fun `test resolving required selections with FromArgument variables -- all flag configurations`() =
-        runBlockingTest {
+    fun `test resolving required selections with FromArgument variables -- all flag configurations`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 for (flags in allFlagSets) {
                     Fixture(
@@ -252,8 +254,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test access check not run, in modstrat instead`() =
-        runBlockingTest {
+    fun `test access check not run, in modstrat instead`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 var checkRan = false
                 Fixture(
@@ -272,8 +274,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test fail access check`() =
-        runBlockingTest {
+    fun `test fail access check`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = null,
@@ -292,8 +294,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check`() =
-        runBlockingTest {
+    fun `test success access check`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -310,8 +312,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check but resolve with exception`() =
-        runBlockingTest {
+    fun `test success access check but resolve with exception`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = null,
@@ -331,8 +333,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test fail access check with resolver exception`() =
-        runBlockingTest {
+    fun `test fail access check with resolver exception`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = null,
@@ -352,8 +354,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check on mutation`() =
-        runBlockingTest {
+    fun `test success access check on mutation`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -373,8 +375,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test fail access check on mutation`() =
-        runBlockingTest {
+    fun `test fail access check on mutation`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = null,
@@ -398,8 +400,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test fail access check on mutation with resolver exception`() =
-        runBlockingTest {
+    fun `test fail access check on mutation with resolver exception`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = null,
@@ -424,8 +426,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check with no selection set in old engine`() =
-        runBlockingTest {
+    fun `test success access check with no selection set in old engine`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -442,8 +444,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check with single selection set in old engine`() =
-        runBlockingTest {
+    fun `test success access check with single selection set in old engine`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -466,8 +468,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check with multiple selection set in old engine`() =
-        runBlockingTest {
+    fun `test success access check with multiple selection set in old engine`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -494,8 +496,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check with selection set and resolver with selection set in old engine`() =
-        runBlockingTest {
+    fun `test success access check with selection set and resolver with selection set in old engine`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -521,8 +523,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check with selection set of multiple fragments and resolver with selection set in old engine`() =
-        runBlockingTest {
+    fun `test success access check with selection set of multiple fragments and resolver with selection set in old engine`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 val checkerDocString =
                     """
@@ -560,8 +562,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check when modstrat is enabled for all, but not execute access check in modstrat`() =
-        runBlockingTest {
+    fun `test success access check when modstrat is enabled for all, but not execute access check in modstrat`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -578,8 +580,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check with single selection set, when modstrat is enabled for all, but not execute access check in modstrat`() =
-        runBlockingTest {
+    fun `test success access check with single selection set, when modstrat is enabled for all, but not execute access check in modstrat`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",
@@ -602,8 +604,8 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test success access check with multiple selection sets, when modstrat is enabled for all, but not execute access check in modstrat`() =
-        runBlockingTest {
+    fun `test success access check with multiple selection sets, when modstrat is enabled for all, but not execute access check in modstrat`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
             withThreadLocalCoroutineContext {
                 Fixture(
                     expectedResult = "test fetched result",

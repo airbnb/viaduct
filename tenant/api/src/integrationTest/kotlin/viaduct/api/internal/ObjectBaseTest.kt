@@ -1,15 +1,17 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.api.internal
 
-import kotlin.collections.get
-import kotlin.text.get
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.api.ExceptionsForTesting
 import viaduct.api.ViaductFrameworkException
+import viaduct.api.ViaductTenantException
 import viaduct.api.ViaductTenantUsageException
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
@@ -20,6 +22,8 @@ import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
+import viaduct.engine.api.NodeReference
+import viaduct.engine.api.UnsetSelectionException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ObjectBaseTest {
@@ -32,8 +36,8 @@ class ObjectBaseTest {
     private enum class BadE1 { A }
 
     @Test
-    fun `basic test with builder`() =
-        runBlockingTest {
+    fun `basic test with builder`(): Unit =
+        runBlocking {
             val o1 =
                 O1.Builder(executionContext)
                     .stringField("hello")
@@ -49,16 +53,16 @@ class ObjectBaseTest {
             assertEquals(1, o1.getObjectField()!!.getIntField())
             assertEquals(E1.A, o1.getEnumField())
             assertThrows<ViaductTenantUsageException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getObjectField()!!.getObjectField()
                 }
             }
-            assertInstanceOf(EngineObjectData::class.java, o1.engineObjectData.fetch("objectField"))
+            assertInstanceOf(EngineObjectData::class.java, (o1.engineObject as EngineObjectData).fetch("objectField"))
         }
 
     @Test
-    fun `fetch -- aliased scalar`() =
-        runBlockingTest {
+    fun `fetch -- aliased scalar`(): Unit =
+        runBlocking {
             val o1 = O1(
                 internalContext,
                 EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("O1"))
@@ -69,8 +73,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `fetch -- aliased object field`() =
-        runBlockingTest {
+    fun `fetch -- aliased object field`(): Unit =
+        runBlocking {
             val o1 = O1(
                 internalContext,
                 EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("O1"))
@@ -86,8 +90,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `fetch -- aliased list of objects`() =
-        runBlockingTest {
+    fun `fetch -- aliased list of objects`(): Unit =
+        runBlocking {
             val o1 = O1(
                 internalContext,
                 EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("O1"))
@@ -107,8 +111,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test list of object with builder`() =
-        runBlockingTest {
+    fun `test list of object with builder`(): Unit =
+        runBlocking {
             val o1 =
                 O1.Builder(executionContext)
                     .listField(
@@ -132,8 +136,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap scalar and object`() =
-        runBlockingTest {
+    fun `test wrap scalar and object`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -152,8 +156,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap scalar - wrong type string`() =
-        runBlockingTest {
+    fun `test wrap scalar - wrong type string`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -162,7 +166,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getStringField()
                 }
             }
@@ -171,8 +175,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap scalar - wrong type int`() =
-        runBlockingTest {
+    fun `test wrap scalar - wrong type int`(): Unit =
+        runBlocking {
             val o2 =
                 O2(
                     internalContext,
@@ -181,7 +185,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o2.getIntField()
                 }
             }
@@ -190,8 +194,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap enum`() =
-        runBlockingTest {
+    fun `test wrap enum`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -203,8 +207,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap enum - different enum type`() =
-        runBlockingTest {
+    fun `test wrap enum - different enum type`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -216,8 +220,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap enum - wrong value`() =
-        runBlockingTest {
+    fun `test wrap enum - wrong value`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -226,7 +230,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getEnumField()
                 }
             }
@@ -235,8 +239,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap enum - wrong type`() =
-        runBlockingTest {
+    fun `test wrap enum - wrong type`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -250,7 +254,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getEnumField()
                 }
             }
@@ -259,8 +263,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap interface`() =
-        runBlockingTest {
+    fun `test wrap interface`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -277,8 +281,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap interface - wrong object type`() =
-        runBlockingTest {
+    fun `test wrap interface - wrong object type`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -292,7 +296,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getInterfaceField()
                 }
             }
@@ -301,8 +305,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap interface - wrong type not EngineObjectData`() =
-        runBlockingTest {
+    fun `test wrap interface - wrong type not EngineObjectData`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -311,7 +315,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getInterfaceField()
                 }
             }
@@ -320,8 +324,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap object - wrong type`() =
-        runBlockingTest {
+    fun `test wrap object - wrong type`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -335,7 +339,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getObjectField()
                 }
             }
@@ -344,8 +348,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap list - wrong base type`() =
-        runBlockingTest {
+    fun `test wrap list - wrong base type`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -363,7 +367,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getListField()
                 }
             }
@@ -372,8 +376,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap list - wrong type`() =
-        runBlockingTest {
+    fun `test wrap list - wrong type`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -389,7 +393,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getListField()
                 }
             }
@@ -398,8 +402,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap list - wrong with null`() =
-        runBlockingTest {
+    fun `test wrap list - wrong with null`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -413,7 +417,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getListFieldNonNullBaseType()
                 }
             }
@@ -422,8 +426,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap list - wrong with null base type`() =
-        runBlockingTest {
+    fun `test wrap list - wrong with null base type`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -437,7 +441,7 @@ class ObjectBaseTest {
                         .build()
                 )
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     o1.getListFieldNonNullBaseType()
                 }
             }
@@ -446,8 +450,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrapping - framework error null value`() =
-        runBlockingTest {
+    fun `test wrapping - framework error null value`(): Unit =
+        runBlocking {
             val o1 =
                 O1(
                     internalContext,
@@ -462,7 +466,7 @@ class ObjectBaseTest {
                 )
             val objectField = o1.getObjectField()!!
             val exception = assertThrows<ViaductFrameworkException> {
-                runBlockingTest {
+                runBlocking {
                     objectField.getIntField()
                 }
             }
@@ -470,8 +474,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test unwrapping - framework errors`() =
-        runBlockingTest {
+    fun `test unwrapping - framework errors`(): Unit =
+        runBlocking {
             val builder = BuggyBuilder()
             val e1 = assertThrows<ViaductFrameworkException> { builder.intField(null) }
             assertEquals("Got null builder value for non-null type Int!", e1.cause!!.message)
@@ -480,8 +484,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap - backing data`() =
-        runBlockingTest {
+    fun `test wrap - backing data`(): Unit =
+        runBlocking {
             var o2 =
                 O2(
                     internalContext,
@@ -508,8 +512,8 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test wrap - list backing data`() =
-        runBlockingTest {
+    fun `test wrap - list backing data`(): Unit =
+        runBlocking {
             var o1 =
                 O1(
                     internalContext,
@@ -528,6 +532,61 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<IllegalArgumentException> { o1.get("backingDataList", String::class) }
             assertTrue(exception.message!!.contains("Expected backing data value to be of type String, got Int"))
+        }
+
+    private abstract inner class NR : NodeReference {
+        override val graphQLObjectType = gqlSchema.schema.getObjectType("O1")
+    }
+
+    @Test
+    fun `test noderef - fetch`(): Unit =
+        runBlocking {
+            val o1 = O1(
+                internalContext,
+                object : NR() {
+                    override val id = "O1:foo"
+                }
+            )
+            assertEquals("O1:foo", o1.getId().toString())
+            assertThrows<ViaductFrameworkException> { o1.get("thisFieldDoesNotExist", String::class) }
+            assertInstanceOf(
+                UnsetSelectionException::class.java,
+                assertThrows<ViaductTenantUsageException> { o1.getStringField() }.cause
+            )
+        }
+
+    fun `test various exceptions`(): Unit =
+        runBlocking {
+            val o11 = O1(
+                internalContext,
+                object : NR() {
+                    override val id get() = ExceptionsForTesting.throwViaductTenantException("foo")
+                }
+            )
+            val e11 = runCatching { o11.getId() }.exceptionOrNull()!!
+            assertInstanceOf(ViaductTenantException::class.java, e11)
+            assertEquals("foo", e11.message)
+
+            val o12 = O1(
+                internalContext,
+                object : NR() {
+                    override val id get() = throw ExceptionsForTesting.throwViaductFrameworkException("foo")
+                }
+            )
+            assertEquals(
+                "foo",
+                assertThrows<ViaductFrameworkException> { o12.getId() }.message
+            )
+
+            val o13 = O1(
+                internalContext,
+                object : NR() {
+                    override val id get() = throw RuntimeException("foo")
+                }
+            )
+            val e13 = runCatching { o13.getId() }.exceptionOrNull()!!
+            assertEquals("EngineObjectDataFetchException", e13::class.simpleName)
+            assertEquals("foo", e13.cause!!.message)
         }
 
     inner class BuggyBuilder : ObjectBase.Builder<O2>(internalContext, gqlSchema.schema.getObjectType("O2")) {

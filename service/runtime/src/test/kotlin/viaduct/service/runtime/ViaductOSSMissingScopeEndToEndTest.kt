@@ -1,5 +1,6 @@
 package viaduct.service.runtime
 
+import com.google.inject.ProvisionException
 import graphql.schema.idl.RuntimeWiring
 import io.mockk.mockk
 import kotlin.test.assertEquals
@@ -17,7 +18,7 @@ import viaduct.service.api.spi.FlagManager
 @ExperimentalCoroutinesApi
 class ViaductOSSMissingScopeEndToEndTest {
     private lateinit var subject: StandardViaduct
-    private lateinit var schemaRegistryBuilder: ViaductSchemaRegistryBuilder
+    private lateinit var schemaRegistryConfiguration: SchemaRegistryConfiguration
 
     val flagManager = object : FlagManager {
         override fun isEnabled(flag: Flag) = true
@@ -38,18 +39,25 @@ class ViaductOSSMissingScopeEndToEndTest {
 
     @BeforeEach
     fun setUp() {
-        schemaRegistryBuilder = ViaductSchemaRegistryBuilder().withFullSchemaFromSdl(sdl).registerScopedSchema("public", setOf("publicScope"))
+        schemaRegistryConfiguration = SchemaRegistryConfiguration.fromSdl(
+            sdl,
+            scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("publicScope")))
+        )
     }
 
     @Test
     fun `Missing scope in query must fail`() {
         val exception = assertThrows<SchemaScopeValidationError> {
-            subject = StandardViaduct.Builder()
-                .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
-                .withDataFetcherExceptionHandler(mockk())
-                .withSchemaRegistryBuilder(schemaRegistryBuilder)
-                .build()
+            try {
+                subject = StandardViaduct.Builder()
+                    .withFlagManager(flagManager)
+                    .withNoTenantAPIBootstrapper()
+                    .withDataFetcherExceptionHandler(mockk())
+                    .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+                    .build()
+            } catch (e: ProvisionException) {
+                throw e.cause ?: e
+            }
         }
         assertEquals(
             "No scope directives found from node: 'ObjectTypeExtensionDefinition{name='Query', implements=[], directives=[], fieldDefinitions=[FieldDefinition{name='scopeOmittedHelloWorld'",

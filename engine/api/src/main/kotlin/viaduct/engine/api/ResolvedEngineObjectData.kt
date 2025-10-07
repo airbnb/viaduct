@@ -4,16 +4,15 @@ import graphql.schema.GraphQLObjectType
 
 class ResolvedEngineObjectData private constructor(
     override val graphQLObjectType: GraphQLObjectType,
-    val data: Map<String, Any?>
-) : EngineObjectData, Map<String, Any?> by data {
-    override suspend fun fetch(selection: String): Any? {
-        return fetchSync(selection)
-    }
+    private val data: Map<String, Any?>
+) : EngineObjectData.Sync {
+    override suspend fun fetch(selection: String) = get(selection)
 
-    /**
-     * A non-suspend [fetch] that can be called from other non-suspend functions
-     */
-    fun fetchSync(selection: String): Any? {
+    override suspend fun fetchOrNull(selection: String) = getOrNull(selection)
+
+    override suspend fun fetchSelections(): Iterable<String> = data.keys
+
+    override fun get(selection: String): Any? {
         if (!data.containsKey(selection)) {
             throw UnsetSelectionException(
                 selection,
@@ -23,6 +22,8 @@ class ResolvedEngineObjectData private constructor(
         }
         return data[selection]
     }
+
+    override fun getOrNull(selection: String): Any? = data[selection]
 
     class Builder(override val graphQLObjectType: GraphQLObjectType) : EngineObjectDataBuilder {
         private val data = mutableMapOf<String, Any?>()

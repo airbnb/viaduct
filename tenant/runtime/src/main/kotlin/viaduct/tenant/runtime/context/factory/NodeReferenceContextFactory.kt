@@ -1,15 +1,15 @@
 package viaduct.tenant.runtime.context.factory
 
-import viaduct.api.internal.NodeReferenceFactory
+import viaduct.api.internal.NodeReferenceGRTFactory
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.tenant.runtime.internal.NodeReferenceFactoryImpl
+import viaduct.tenant.runtime.internal.NodeReferenceGRTFactoryImpl
 
 object NodeReferenceContextFactory {
     /** A default Factory<NodeReferenceFactory> suitable for any use */
-    val default: Factory<EngineExecutionContext, NodeReferenceFactory> =
+    val default: Factory<EngineExecutionContext, NodeReferenceGRTFactory> =
         Factory { engineExecutionContext ->
-            NodeReferenceFactoryImpl { id, graphQLObjectType ->
-                engineExecutionContext.createNodeEngineObjectData(
+            NodeReferenceGRTFactoryImpl { id, graphQLObjectType ->
+                engineExecutionContext.createNodeReference(
                     id,
                     graphQLObjectType,
                 )

@@ -1,8 +1,9 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -12,7 +13,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.deferred.completedDeferred
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class ValueTest {
     private class TestException : Exception()
 
@@ -53,8 +53,8 @@ class ValueTest {
     }
 
     @Test
-    fun `fromValue -- asDeferred`() =
-        runBlockingTest {
+    fun `fromValue -- asDeferred`(): Unit =
+        runBlocking {
             val v = Value.fromValue(2)
             assertEquals(2, v.asDeferred().await())
         }
@@ -152,8 +152,8 @@ class ValueTest {
     }
 
     @Test
-    fun `fromThrowable -- asDeferred`() =
-        runBlockingTest {
+    fun `fromThrowable -- asDeferred`(): Unit =
+        runBlocking {
             assertThrows<RuntimeException> {
                 Value.fromThrowable<Int>(RuntimeException())
                     .asDeferred()
@@ -232,8 +232,8 @@ class ValueTest {
     }
 
     @Test
-    fun `fromDeferred -- map pending deferred`() =
-        runBlockingTest {
+    fun `fromDeferred -- map pending deferred`(): Unit =
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val v = Value.fromDeferred(def)
                 .map { it * 3 }
@@ -242,8 +242,8 @@ class ValueTest {
         }
 
     @Test
-    fun `fromDeferred -- map pending deferred throws`() =
-        runBlockingTest {
+    fun `fromDeferred -- map pending deferred throws`(): Unit =
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val v = Value.fromDeferred(def)
                 .map { throw TestException() }
@@ -265,8 +265,8 @@ class ValueTest {
     }
 
     @Test
-    fun `fromDeferred -- map completed deferred throws`() =
-        runBlockingTest {
+    fun `fromDeferred -- map completed deferred throws`(): Unit =
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val v = Value.fromDeferred(def).let { v ->
                 def.complete(2)
@@ -278,8 +278,8 @@ class ValueTest {
         }
 
     @Test
-    fun `fromDeferred -- flatMap pending deferred`() =
-        runBlockingTest {
+    fun `fromDeferred -- flatMap pending deferred`(): Unit =
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val v = Value.fromDeferred(def)
                 .map { Value.fromValue(it * 3) }
@@ -288,8 +288,8 @@ class ValueTest {
         }
 
     @Test
-    fun `fromDeferred -- flatMap pending deferred throws`() =
-        runBlockingTest {
+    fun `fromDeferred -- flatMap pending deferred throws`(): Unit =
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val v = Value.fromDeferred(def)
                 .flatMap<Nothing> { throw TestException() }
@@ -300,8 +300,8 @@ class ValueTest {
         }
 
     @Test
-    fun `fromDeferred -- flatMap completed deferred`() =
-        runBlockingTest {
+    fun `fromDeferred -- flatMap completed deferred`(): Unit =
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val v = Value.fromDeferred(def).let { v ->
                 def.complete(2)
@@ -322,7 +322,7 @@ class ValueTest {
 
     @Test
     fun `fromDeferred -- recover pending deferred`() {
-        runBlockingTest {
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val v = Value.fromDeferred(def)
                 .recover { e ->
@@ -335,8 +335,8 @@ class ValueTest {
     }
 
     @Test
-    fun `fromDeferred -- recover pending deferred throws`() =
-        runBlockingTest {
+    fun `fromDeferred -- recover pending deferred throws`(): Unit =
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val v = Value.fromDeferred(def)
                 .recover { throw TestException() }
@@ -346,7 +346,7 @@ class ValueTest {
 
     @Test
     fun `fromDeferred -- recover completed deferred`() {
-        runBlockingTest {
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val v = Value.fromDeferred(def).let { v ->
                 def.completeExceptionally(TestException())
@@ -362,7 +362,7 @@ class ValueTest {
 
     @Test
     fun `fromDeferred -- thenApply pending deferred`() {
-        runBlockingTest {
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val value = Value.fromDeferred(def).let {
                 it.thenApply { v, e ->
@@ -378,7 +378,7 @@ class ValueTest {
 
     @Test
     fun `fromDeferred -- thenApply exceptional pending deferred`() {
-        runBlockingTest {
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val value = Value.fromDeferred(def).let {
                 it.thenApply { v, e ->
@@ -430,7 +430,7 @@ class ValueTest {
 
     @Test
     fun `fromDeferred -- thenCompose pending deferred`() {
-        runBlockingTest {
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val value = Value.fromDeferred(def)
                 .thenCompose { v, e ->
@@ -445,7 +445,7 @@ class ValueTest {
 
     @Test
     fun `fromDeferred -- thenCompose exceptional pending deferred`() {
-        runBlockingTest {
+        runBlocking {
             val def = CompletableDeferred<Int>()
             val value = Value.fromDeferred(def)
                 .thenCompose { v, e ->

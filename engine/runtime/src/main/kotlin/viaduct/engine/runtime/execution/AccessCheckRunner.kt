@@ -11,10 +11,10 @@ import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.combine
 import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
-import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveVariables
 import viaduct.engine.runtime.findLocalContextForType
@@ -174,12 +174,10 @@ class AccessCheckRunner(
                 val selectionSet = rss?.let {
                     localExecutionContext.rawSelectionSetFactory.rawSelectionSet(it.selections, emptyMap())
                 }
-                ProxyEngineObjectData(
+                CheckerProxyEngineObjectData(
                     objectEngineResult,
                     "missing from checker RSS",
                     selectionSet,
-                    // Bypass access checks for checker required selection sets
-                    applyAccessChecks = false
                 )
             }
             instrumentedDispatcher.execute(

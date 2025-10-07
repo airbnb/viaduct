@@ -1,10 +1,11 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.execution
 
 import graphql.schema.GraphQLInputObjectType
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.VariablesProvider
@@ -20,8 +21,8 @@ import viaduct.api.mocks.MockType
 import viaduct.api.types.Arguments
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.mocks.MockEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 class VariablesProviderExecutorTest {
@@ -30,12 +31,11 @@ class VariablesProviderExecutorTest {
         val b: Int = args["b"] as Int
     }
 
-    private val objectData = MockEngineObjectData.wrap(MockSchema.minimal.schema.queryType, emptyMap())
+    private val objectData = mkEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap())
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun resolve() =
-        runBlockingTest {
+    fun resolve(): Unit =
+        runBlocking {
             val adapter = VariablesProviderExecutor(
                 mockk<GlobalIDCodec>(),
                 mockk<ReflectionLoader>(),
@@ -54,16 +54,16 @@ class VariablesProviderExecutorTest {
                         mapOf("a" to 5, "b" to 7),
                         mockk {
                             every { fullSchema } returns MockSchema.minimal
+                            every { requestContext } returns null
                         }
                     )
                 )
             )
         }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun resolveUnwrapping() =
-        runBlockingTest {
+    fun resolveUnwrapping(): Unit =
+        runBlocking {
             class MockInputType(override val context: InternalContext, override val graphQLInputObjectType: GraphQLInputObjectType) : InputLikeBase() {
                 override val inputData: Map<String, Any?>
                     get() = mapOf("a" to 10, "b" to 14)
@@ -94,6 +94,7 @@ class VariablesProviderExecutorTest {
                         mapOf("a" to 5, "b" to 7),
                         mockk {
                             every { fullSchema } returns MockSchema.minimal
+                            every { requestContext } returns null
                         }
                     )
                 )

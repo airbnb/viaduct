@@ -1,12 +1,16 @@
 package viaduct.demoapp.starwars.resolvers
 
 import viaduct.api.Resolver
-import viaduct.api.grts.Character
 import viaduct.api.grts.Film
 import viaduct.api.grts.Planet
 import viaduct.api.grts.Species
 import viaduct.api.grts.Vehicle
 import viaduct.demoapp.starwars.Constants.DEFAULT_PAGE_SIZE
+import viaduct.demoapp.starwars.builders.CharacterBuilder
+import viaduct.demoapp.starwars.builders.FilmBuilder
+import viaduct.demoapp.starwars.builders.PlanetBuilder
+import viaduct.demoapp.starwars.builders.SpeciesBuilder
+import viaduct.demoapp.starwars.builders.VehicleBuilder
 import viaduct.demoapp.starwars.data.StarWarsData
 import viaduct.demoapp.starwars.resolverbases.QueryResolvers
 
@@ -39,18 +43,7 @@ class SearchCharacterResolver : QueryResolvers.SearchCharacter() {
         }
 
         return if (character != null) {
-            Character.Builder(ctx)
-                .id(ctx.globalIDFor(Character.Reflection, character.id))
-                .name(character.name)
-                .birthYear(character.birthYear)
-                .eyeColor(character.eyeColor)
-                .gender(character.gender)
-                .hairColor(character.hairColor)
-                .height(character.height)
-                .mass(character.mass?.toDouble())
-                .created(character.created.toString())
-                .edited(character.edited.toString())
-                .build()
+            CharacterBuilder(ctx).build(character)
         } else {
             null
         }
@@ -70,18 +63,7 @@ class AllCharactersResolver : QueryResolvers.AllCharacters() {
 
         // Convert StarWarsData.Character objects to Character objects
         return characters.map { character ->
-            Character.Builder(ctx)
-                .id(ctx.globalIDFor(Character.Reflection, character.id))
-                .name(character.name)
-                .birthYear(character.birthYear)
-                .eyeColor(character.eyeColor)
-                .gender(character.gender)
-                .hairColor(character.hairColor)
-                .height(character.height)
-                .mass(character.mass?.toDouble())
-                .created(character.created.toString())
-                .edited(character.edited.toString())
-                .build()
+            CharacterBuilder(ctx).build(character)
         }
     }
 }
@@ -98,19 +80,7 @@ class AllFilmsResolver : QueryResolvers.AllFilms() {
         val films = StarWarsData.films.take(limit)
 
         // Convert StarWarsData.Film objects to Film objects
-        return films.map { film ->
-            Film.Builder(ctx)
-                .id(ctx.globalIDFor(Film.Reflection, film.id))
-                .title(film.title)
-                .episodeID(film.episodeID)
-                .director(film.director)
-                .producers(film.producers)
-                .releaseDate(film.releaseDate)
-                .created(film.created.toString())
-                .edited(film.edited.toString())
-                .openingCrawl(film.openingCrawl)
-                .build()
-        }
+        return films.map(FilmBuilder(ctx)::build)
     }
 }
 
@@ -119,22 +89,7 @@ class AllPlanetsResolver : QueryResolvers.AllPlanets() {
     override suspend fun resolve(ctx: Context): List<viaduct.api.grts.Planet?>? {
         val limit = ctx.arguments.limit ?: DEFAULT_PAGE_SIZE
         val planets = StarWarsData.planets.take(limit)
-        return planets.map { planet ->
-            Planet.Builder(ctx)
-                .id(ctx.globalIDFor(Planet.Reflection, planet.id))
-                .name(planet.name)
-                .diameter(planet.diameter)
-                .rotationPeriod(planet.rotationPeriod)
-                .orbitalPeriod(planet.orbitalPeriod)
-                .gravity(planet.gravity?.toDouble())
-                .population(planet.population?.toDouble())
-                .climates(planet.climates)
-                .terrains(planet.terrains)
-                .surfaceWater(planet.surfaceWater?.toDouble())
-                .created(planet.created.toString())
-                .edited(planet.edited.toString())
-                .build()
-        }
+        return planets.map(PlanetBuilder(ctx)::build)
     }
 }
 
@@ -143,21 +98,7 @@ class AllSpeciesResolver : QueryResolvers.AllSpecies() {
     override suspend fun resolve(ctx: Context): List<viaduct.api.grts.Species?>? {
         val limit = ctx.arguments.limit ?: DEFAULT_PAGE_SIZE
         val species = StarWarsData.species.take(limit)
-        return species.map { speciesItem ->
-            Species.Builder(ctx)
-                .id(ctx.globalIDFor(Species.Reflection, speciesItem.id))
-                .name(speciesItem.name)
-                .classification(speciesItem.classification)
-                .designation(speciesItem.designation)
-                .averageHeight(speciesItem.averageHeight?.toDouble())
-                .averageLifespan(speciesItem.averageLifespan)
-                .eyeColors(speciesItem.eyeColors)
-                .hairColors(speciesItem.hairColors)
-                .language(speciesItem.language)
-                .created(speciesItem.created.toString())
-                .edited(speciesItem.edited.toString())
-                .build()
-        }
+        return species.map(SpeciesBuilder(ctx)::build)
     }
 }
 
@@ -166,23 +107,6 @@ class AllVehiclesResolver : QueryResolvers.AllVehicles() {
     override suspend fun resolve(ctx: Context): List<viaduct.api.grts.Vehicle?>? {
         val limit = ctx.arguments.limit ?: DEFAULT_PAGE_SIZE
         val vehicles = StarWarsData.vehicles.take(limit)
-        return vehicles.map { vehicle ->
-            Vehicle.Builder(ctx)
-                .id(ctx.globalIDFor(Vehicle.Reflection, vehicle.id))
-                .name(vehicle.name)
-                .model(vehicle.model)
-                .vehicleClass(vehicle.vehicleClass)
-                .manufacturers(vehicle.manufacturers)
-                .costInCredits(vehicle.costInCredits?.toDouble())
-                .length(vehicle.length?.toDouble())
-                .crew(vehicle.crew)
-                .passengers(vehicle.passengers)
-                .maxAtmospheringSpeed(vehicle.maxAtmospheringSpeed)
-                .cargoCapacity(vehicle.cargoCapacity?.toDouble())
-                .consumables(vehicle.consumables)
-                .created(vehicle.created.toString())
-                .edited(vehicle.edited.toString())
-                .build()
-        }
+        return vehicles.map(VehicleBuilder(ctx)::build)
     }
 }

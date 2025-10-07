@@ -58,6 +58,8 @@ private interface InputModel {
 private val inputSTGroup =
     stTemplate(
         """
+    @file:Suppress("warnings")
+
     package <mdl.pkg>
 
     import graphql.schema.GraphQLInputObjectType

@@ -141,7 +141,7 @@ class MocksAdditionalTest {
         val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    MockEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), mapOf("id" to id))
+                    mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), mapOf("id" to id))
                 }
             }
         }
@@ -159,7 +159,7 @@ class MocksAdditionalTest {
         val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             type("TestBatchNode") {
                 nodeBatchedExecutor { selectors, _ ->
-                    selectors.associateWith { Result.success(MockEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap())) }
+                    selectors.associateWith { Result.success(mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap())) }
                 }
             }
         }
@@ -186,11 +186,11 @@ class MocksAdditionalTest {
                 }
             }
             type("Node1") {
-                nodeUnbatchedExecutor { _, _, _ -> MockEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap()) }
+                nodeUnbatchedExecutor { _, _, _ -> mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap()) }
             }
             type("BatchNode1") {
                 nodeBatchedExecutor { selectors, _ ->
-                    selectors.associateWith { Result.success(MockEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap())) }
+                    selectors.associateWith { Result.success(mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap())) }
                 }
             }
         }
@@ -285,13 +285,13 @@ class MocksAdditionalTest {
     }
 
     @Test
-    fun `MockEngineObjectData basic properties`() {
+    fun `mkEngineObjectData basic properties`() {
         val objectType = Samples.testSchema.schema.getObjectType("TestType")
         val data = mapOf("aField" to "fieldValue", "bIntField" to 42)
-        val mockData = MockEngineObjectData(objectType, data)
+        val mockData = mkEngineObjectData(objectType, data)
 
         assertEquals(objectType, mockData.graphQLObjectType)
-        assertEquals(data, mockData.data)
+        data.forEach { (key, value) -> assertEquals(value, mockData.get(key)) }
     }
 
     @Test

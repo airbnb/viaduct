@@ -7,6 +7,11 @@ import viaduct.api.grts.Planet
 import viaduct.api.grts.Species
 import viaduct.api.grts.Vehicle
 import viaduct.demoapp.starwars.NodeResolvers
+import viaduct.demoapp.starwars.builders.CharacterBuilder
+import viaduct.demoapp.starwars.builders.FilmBuilder
+import viaduct.demoapp.starwars.builders.PlanetBuilder
+import viaduct.demoapp.starwars.builders.SpeciesBuilder
+import viaduct.demoapp.starwars.builders.VehicleBuilder
 import viaduct.demoapp.starwars.data.StarWarsData
 
 /**
@@ -20,17 +25,7 @@ class CharacterNodeResolver : NodeResolvers.Character() {
         val character = StarWarsData.characters.find { it.id == stringId }
             ?: throw IllegalArgumentException("Character with ID $stringId not found")
 
-        return Character.Builder(ctx)
-            .name(character.name)
-            .birthYear(character.birthYear)
-            .eyeColor(character.eyeColor)
-            .gender(character.gender)
-            .hairColor(character.hairColor)
-            .height(character.height)
-            .mass(character.mass?.toDouble())
-            .created(character.created.toString())
-            .edited(character.edited.toString())
-            .build()
+        return CharacterBuilder(ctx).build(character)
     }
 }
 
@@ -41,16 +36,7 @@ class FilmNodeResolver : NodeResolvers.Film() {
         val film = StarWarsData.films.find { it.id == filmId }
             ?: throw IllegalArgumentException("Film with ID $filmId not found")
 
-        return Film.Builder(ctx)
-            .title(film.title)
-            .episodeID(film.episodeID)
-            .director(film.director)
-            .producers(film.producers)
-            .releaseDate(film.releaseDate)
-            .openingCrawl(film.openingCrawl)
-            .created(film.created.toString())
-            .edited(film.edited.toString())
-            .build()
+        return FilmBuilder(ctx).build(film)
     }
 }
 
@@ -61,19 +47,7 @@ class PlanetNodeResolver : NodeResolvers.Planet() {
         val planet = StarWarsData.planets.find { it.id == stringId }
             ?: throw IllegalArgumentException("Planet with ID $stringId not found")
 
-        return Planet.Builder(ctx)
-            .name(planet.name)
-            .diameter(planet.diameter)
-            .rotationPeriod(planet.rotationPeriod)
-            .orbitalPeriod(planet.orbitalPeriod)
-            .gravity(planet.gravity?.toDouble())
-            .population(planet.population?.toDouble())
-            .climates(planet.climates)
-            .terrains(planet.terrains)
-            .surfaceWater(planet.surfaceWater?.toDouble())
-            .created(planet.created.toString())
-            .edited(planet.edited.toString())
-            .build()
+        return PlanetBuilder(ctx).build(planet)
     }
 }
 
@@ -84,18 +58,7 @@ class SpeciesNodeResolver : NodeResolvers.Species() {
         val species = StarWarsData.species.find { it.id == stringId }
             ?: throw IllegalArgumentException("Species with ID $stringId not found")
 
-        return Species.Builder(ctx)
-            .name(species.name)
-            .classification(species.classification)
-            .designation(species.designation)
-            .averageHeight(species.averageHeight?.toDouble())
-            .averageLifespan(species.averageLifespan)
-            .eyeColors(species.eyeColors)
-            .hairColors(species.hairColors)
-            .language(species.language)
-            .created(species.created.toString())
-            .edited(species.edited.toString())
-            .build()
+        return SpeciesBuilder(ctx).build(species)
     }
 }
 
@@ -106,20 +69,6 @@ class VehicleNodeResolver : NodeResolvers.Vehicle() {
         val vehicle = StarWarsData.vehicles.find { it.id == stringId }
             ?: throw IllegalArgumentException("Vehicle with ID $stringId not found")
 
-        return Vehicle.Builder(ctx)
-            .name(vehicle.name)
-            .model(vehicle.model)
-            .vehicleClass(vehicle.vehicleClass)
-            .manufacturers(vehicle.manufacturers)
-            .costInCredits(vehicle.costInCredits?.toDouble())
-            .length(vehicle.length?.toDouble())
-            .crew(vehicle.crew)
-            .passengers(vehicle.passengers)
-            .maxAtmospheringSpeed(vehicle.maxAtmospheringSpeed)
-            .cargoCapacity(vehicle.cargoCapacity?.toDouble())
-            .consumables(vehicle.consumables)
-            .created(vehicle.created.toString())
-            .edited(vehicle.edited.toString())
-            .build()
+        return VehicleBuilder(ctx).build(vehicle)
     }
 }

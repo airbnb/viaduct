@@ -26,15 +26,12 @@ class ContextMocks(
     myEngineExecutionContextFactory: EngineExecutionContextFactory? = null,
     private val myEngineExecutionContext: EngineExecutionContext? = null,
     myBaseLocalContext: CompositeLocalContext? = null,
-    myScopedSchema: ViaductSchema? = myFullSchema
+    myScopedSchema: ViaductSchema? = myFullSchema,
+    private val myRequestContext: Any? = null,
 ) {
     val fullSchema: ViaductSchema = myFullSchema ?: mockk<ViaductSchema>()
     val scopedSchema: ViaductSchema = myScopedSchema ?: mockk<ViaductSchema>()
-    val viaductSchema: ViaductSchema = if (myFullSchema != null) {
-        myFullSchema
-    } else {
-        fullSchema
-    }
+    val viaductSchema: ViaductSchema = myFullSchema ?: fullSchema
 
     val dispatcherRegistry: DispatcherRegistry = myDispatcherRegistry ?: DispatcherRegistry.Empty
     val fragmentLoader: FragmentLoader = myFragmentLoader ?: ViaductFragmentLoader(ViaductExecutableFragmentParser())
@@ -44,7 +41,7 @@ class ContextMocks(
     val engineExecutionContext: EngineExecutionContext get() =
         when {
             myEngineExecutionContext != null -> myEngineExecutionContext
-            else -> engineExecutionContextFactory.create(scopedSchema)
+            else -> engineExecutionContextFactory.create(scopedSchema, myRequestContext)
         }
 
     val engineExecutionContextImpl: EngineExecutionContextImpl get() =

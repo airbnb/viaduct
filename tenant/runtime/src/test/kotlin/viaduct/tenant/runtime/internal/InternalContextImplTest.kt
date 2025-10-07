@@ -42,6 +42,8 @@ class InternalContextImplTest {
 }
 
 private open class TestExecutionContext : ExecutionContext {
+    override val requestContext: Any? get() = TODO()
+
     override fun <T : NodeObject> globalIDFor(
         type: Type<T>,
         internalID: String

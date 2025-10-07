@@ -12,14 +12,19 @@ class NodeResolverFeatureAppTest : FeatureAppTestBase() {
     override var sdl =
         """
         | #START_SCHEMA
-        | type TestGlobalId implements Node @resolver {
+        | type NodeObj implements Node @resolver {
         |     id: ID!
         |     value: String!
         | }
         |
+        | type ObjectWithNodeField {
+        |     node: NodeObj
+        | }
+        |
         | extend type Query {
-        |   getGlobalID(id: String!): TestGlobalId! @resolver
-        |   nodeReference(id: String!): TestGlobalId! @resolver
+        |     nodeObj(id: String!): NodeObj! @resolver
+        |     nodeReference(id: String!): NodeObj! @resolver
+        |     objectWithNodeField: ObjectWithNodeField @resolver
         | }
         | #END_SCHEMA
         """.trimMargin()
@@ -27,10 +32,10 @@ class NodeResolverFeatureAppTest : FeatureAppTestBase() {
     // Tenant provided resolvers
 
     @Resolver
-    class GetGlobalIDResolver : QueryResolvers.GetGlobalID() {
-        override suspend fun resolve(ctx: Context): TestGlobalId {
-            return TestGlobalId.Builder(ctx)
-                .id(ctx.globalIDFor(TestGlobalId.Reflection, ctx.arguments.id))
+    class QueryNodeObjResolver : QueryResolvers.NodeObj() {
+        override suspend fun resolve(ctx: Context): NodeObj {
+            return NodeObj.Builder(ctx)
+                .id(ctx.globalIDFor(NodeObj.Reflection, ctx.arguments.id))
                 .value(ctx.arguments.id)
                 .build()
         }
@@ -38,36 +43,45 @@ class NodeResolverFeatureAppTest : FeatureAppTestBase() {
 
     @Resolver
     class NodeReferenceResolver : QueryResolvers.NodeReference() {
-        override suspend fun resolve(ctx: Context): TestGlobalId {
-            return ctx.nodeFor(ctx.globalIDFor(TestGlobalId.Reflection, ctx.arguments.id))
+        override suspend fun resolve(ctx: Context): NodeObj {
+            return ctx.nodeFor(ctx.globalIDFor(NodeObj.Reflection, ctx.arguments.id))
         }
     }
 
-    class TestGlobalIdResolver : NodeResolvers.TestGlobalId() {
-        override suspend fun resolve(ctx: Context): TestGlobalId {
-            return TestGlobalId.Builder(ctx).id(ctx.id).build()
+    @Resolver
+    class ObjectWithNodeFieldResolver : QueryResolvers.ObjectWithNodeField() {
+        override suspend fun resolve(ctx: Context): ObjectWithNodeField? {
+            return ObjectWithNodeField.Builder(ctx)
+                .node(ctx.nodeFor(ctx.globalIDFor(NodeObj.Reflection, "nestedNode")))
+                .build()
+        }
+    }
+
+    class NodeObjResolver : NodeResolvers.NodeObj() {
+        override suspend fun resolve(ctx: Context): NodeObj {
+            return NodeObj.Builder(ctx).value("foo").build()
         }
     }
 
     // Test Cases Start here
     @Test
     fun `Resolver returns the new GlobalID structured type (not the old string alias)`() {
-        val generatedId = createGlobalIdString(TestGlobalId.Reflection, "tenant1")
+        val generatedId = createGlobalIdString(NodeObj.Reflection, "tenant1")
 
         execute(
             query = """
-                    query TestQuery {
-                        getGlobalID(id: "tenant1") {
-                            id
-                            value
-                        }
+                query TestQuery {
+                    nodeObj(id: "tenant1") {
+                        id
+                        value
                     }
+                }
             """.trimIndent()
         ).assertEquals {
             "data" to {
-                "getGlobalID" to {
-                    "value" to "tenant1"
+                "nodeObj" to {
                     "id" to generatedId
+                    "value" to "tenant1"
                 }
             }
         }
@@ -75,20 +89,51 @@ class NodeResolverFeatureAppTest : FeatureAppTestBase() {
 
     @Test
     fun `Resolver returns a node reference`() {
-        val generatedId = createGlobalIdString(TestGlobalId.Reflection, "tenant1")
+        val generatedId = createGlobalIdString(NodeObj.Reflection, "tenant1")
 
         execute(
             query = """
-                    query TestQuery {
-                        nodeReference(id: "tenant1") {
-                            id
-                        }
+                query TestQuery {
+                    nodeReference(id: "tenant1") {
+                        id
+                        value
                     }
+                }
             """.trimIndent()
         ).assertEquals {
             "data" to {
                 "nodeReference" to {
                     "id" to generatedId
+                    "value" to "foo"
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Resolver returns a nested node reference`() {
+        // This is a regression test for resolvers that return a node reference
+        // for an object field
+        val generatedId = createGlobalIdString(NodeObj.Reflection, "nestedNode")
+
+        execute(
+            query = """
+                query TestQuery {
+                    objectWithNodeField {
+                        node {
+                            id
+                            value
+                        }
+                    }
+                }
+            """.trimIndent()
+        ).assertEquals {
+            "data" to {
+                "objectWithNodeField" to {
+                    "node" to {
+                        "id" to generatedId
+                        "value" to "foo"
+                    }
                 }
             }
         }

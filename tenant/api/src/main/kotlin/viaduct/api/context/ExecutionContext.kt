@@ -14,4 +14,9 @@ interface ExecutionContext {
         type: Type<T>,
         internalID: String
     ): GlobalID<T>
+
+    /**
+     * Returns value set as [ExecutionInput.requestContext]
+     */
+    val requestContext: Any?
 }

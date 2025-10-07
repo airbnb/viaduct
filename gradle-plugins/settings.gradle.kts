@@ -21,8 +21,6 @@ plugins {
     id("settings.common")
 }
 
-rootProject.name = "viaduct-gradle-plugins"
-
 includeNamed(":common")
 includeNamed(":application-plugin")
 includeNamed(":module-plugin")

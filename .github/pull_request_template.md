@@ -1,19 +1,15 @@
 <!--- Provide a general summary of your changes in the Title above -->
 
 ## Description
-<!--- Describe your changes in detail -->
+<!-- Describe the why and what of this change. -->
+<!-- Please link to relevant issues.  (Large issues must be discussed in an issue.) -->
 
-## Motivation and Context
-<!--- Why is this change required? What problem does it solve? -->
-<!--- If it fixes an open issue, please link to the issue here. -->
 
-## How has this been tested?
-<!--- Please describe in detail how you tested your changes. -->
-<!--- Include details of your testing environment, tests ran to see how -->
-<!--- your change affects other areas of the code, etc. -->
+## How was it tested?  What documentation was provided?
+
 
 ## Types of changes
-<!--- What types of changes does your code introduce? Put an `x` in all the boxes that apply: -->
+<!-- To help us build release notes, please put an 'x' in all that apply -->
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
@@ -27,4 +23,3 @@
 - [ ] I have added tests to cover my changes.
 - [ ] All new and existing tests passed.
 
-change 6

@@ -89,7 +89,7 @@ class SchemaObjectsBytecode : CliktCommand() {
             workerNumber = workerNumber,
             workerCount = workerCount,
             timer = timer,
-            baseTypeMapper = ViaductBaseTypeMapper(),
+            baseTypeMapper = ViaductBaseTypeMapper(schema),
         )
 
         val grtBuilder = GRTClassFilesBuilderBase.builderFrom(codegenArgs)

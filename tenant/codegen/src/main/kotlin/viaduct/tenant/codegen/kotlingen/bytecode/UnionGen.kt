@@ -22,6 +22,8 @@ private interface UnionModel {
 
 private val unionSTGroup = stTemplate(
     """
+    @file:Suppress("warnings")
+
     package <mdl.pkg>
 
     interface <mdl.className> : ${cfg.UNION_GRT} {

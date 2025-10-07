@@ -8,7 +8,6 @@ import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantResolverException
 import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.NodeResolverBase
-import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
@@ -72,8 +71,7 @@ class NodeBatchResolverExecutorImpl(
 
         try {
             val result = fieldValue.get()
-            result as? ObjectBase ?: throw IllegalStateException("Unexpected node resolver result that is not ObjectBase: $result")
-            return Result.success(result.unwrap())
+            return Result.success(NodeUnbatchedResolverExecutorImpl.unwrapNodeResolverResult(result))
         } catch (e: Exception) {
             if (e is ViaductFrameworkException) return Result.failure(e)
             return Result.failure(ViaductTenantResolverException(e, typeName))

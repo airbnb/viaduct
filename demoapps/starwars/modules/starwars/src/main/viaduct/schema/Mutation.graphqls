@@ -1,0 +1,54 @@
+"""
+Input for creating a new Character.
+All fields except name are optional; omit unknown values.
+"""
+input CreateCharacterInput @scope(to: ["default"]) {
+  name: String!
+  birthYear: String
+  eyeColor: String
+  gender: String
+  hairColor: String
+  height: Int
+  mass: Float
+  homeworldId: ID @idOf(type: "Planet")
+  speciesId: ID @idOf(type: "Species")
+}
+
+"""
+Input for adding an existing Character to an existing Film.
+"""
+input AddCharacterToFilmInput @scope(to: ["default"]) {
+  filmId: ID! @idOf(type: "Film")
+  characterId: ID @idOf(type: "Character")
+}
+
+"""
+Payload returned when adding a Character to a Film.
+"""
+type AddCharacterToFilmPayload @scope(to: ["default"]) {
+  character: Character
+  film: Film
+}
+
+extend type Mutation @scope(to: ["default"]) {
+  """
+  Create a new Character.
+  """
+  createCharacter(input: CreateCharacterInput!): Character @resolver
+
+  """
+  Update an existing Character's name.
+  """
+  updateCharacterName(id: ID! @idOf(type: "Character"), name: String!): Character @resolver
+
+  """
+  Link a Character to a Film (adds the character to that film's cast).
+  Allows locating the character either directly by ID or via the existing search input.
+  """
+  addCharacterToFilm(input: AddCharacterToFilmInput!): AddCharacterToFilmPayload @resolver
+
+  """
+  Delete a Character by ID. Returns true if a record was removed.
+  """
+  deleteCharacter(id: ID! @idOf(type: "Character")): Boolean @resolver
+}

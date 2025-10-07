@@ -2,6 +2,9 @@ package viaduct.service.runtime
 
 import graphql.execution.ExecutionStrategy
 import graphql.execution.instrumentation.Instrumentation
+import graphql.schema.idl.RuntimeWiring
+import graphql.schema.idl.SchemaGenerator
+import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.errors.SchemaProblem
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -9,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
 
 class ViaductSchemaRegistryBuilderErrorTest {
@@ -25,11 +29,11 @@ class ViaductSchemaRegistryBuilderErrorTest {
 
     @Test
     fun `test empty SDL string throws ViaductSchemaLoadException with source info`() {
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl("")
+        val config = SchemaRegistryConfiguration.fromSdl("")
 
         val exception = assertThrows<ViaductSchemaLoadException> {
-            builder.build(mockCoroutineInterop)
+            val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+            factory.createRegistry(config)
         }
 
         with(exception.message!!) {
@@ -42,11 +46,11 @@ class ViaductSchemaRegistryBuilderErrorTest {
 
     @Test
     fun `test whitespace-only SDL string throws ViaductSchemaLoadException`() {
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl("   \n\t   ")
+        val config = SchemaRegistryConfiguration.fromSdl("   \n\t   ")
 
         val exception = assertThrows<ViaductSchemaLoadException> {
-            builder.build(mockCoroutineInterop)
+            val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+            factory.createRegistry(config)
         }
 
         assertTrue(exception.message!!.contains("GraphQL schema SDL is empty or contains only whitespace"))
@@ -56,11 +60,11 @@ class ViaductSchemaRegistryBuilderErrorTest {
     fun `test invalid GraphQL syntax throws ViaductSchemaLoadException with source info`() {
         val invalidSchema = "invalid graphql syntax {"
 
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl(invalidSchema)
+        val config = SchemaRegistryConfiguration.fromSdl(invalidSchema)
 
         val exception = assertThrows<ViaductSchemaLoadException> {
-            builder.build(mockCoroutineInterop)
+            val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+            factory.createRegistry(config)
         }
 
         assertTrue(exception.message!!.contains("Failed to parse GraphQL schema"))
@@ -78,12 +82,12 @@ class ViaductSchemaRegistryBuilderErrorTest {
             }
         """.trimIndent()
 
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl(invalidSchema)
+        val config = SchemaRegistryConfiguration.fromSdl(invalidSchema)
 
         // Should throw SchemaProblem, not IllegalStateException
         assertThrows<SchemaProblem> {
-            builder.build(mockCoroutineInterop)
+            val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+            factory.createRegistry(config)
         }
     }
 
@@ -91,33 +95,16 @@ class ViaductSchemaRegistryBuilderErrorTest {
     fun `test no schema files found throws ViaductSchemaLoadException`() {
         // This test verifies the error message when no schema files are found
         // We'll use a package prefix and file pattern that definitely doesn't exist
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromResources("nonexistent.package.that.does.not.exist", "nonexistent-file-pattern-xyz")
+        val config = SchemaRegistryConfiguration
+            .fromResources("nonexistent.package.that.does.not.exist", "nonexistent-file-pattern-xyz")
 
         val exception = assertThrows<ViaductSchemaLoadException> {
-            builder.build(mockCoroutineInterop)
+            val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+            factory.createRegistry(config)
         }
 
         assertTrue(exception.message!!.contains("No GraphQL schema files found matching pattern"))
         assertTrue(exception.message!!.contains("Please ensure your .graphqls files are available in the classpath"))
-    }
-
-    @Test
-    fun `test schema from SDL with schemaId includes schema ID in error message`() {
-        val schemaId = "testSchema"
-        val emptySchema = ""
-
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl("extend type Query { hello: String }")
-            .registerSchemaFromSdl(schemaId, emptySchema)
-
-        val exception = assertThrows<ViaductSchemaLoadException> {
-            builder.build(mockCoroutineInterop)
-        }
-
-        assertTrue(exception.message!!.contains("GraphQL schema SDL is empty or contains only whitespace"))
-        // When SDL is provided directly (not from files), no source file info should be shown
-        assertTrue(!exception.message!!.contains("Source files:"))
     }
 
     @Test
@@ -128,16 +115,26 @@ class ViaductSchemaRegistryBuilderErrorTest {
             }
         """.trimIndent()
 
-        val builder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromSdl(schema)
-            .registerFullSchema("duplicateId")
-            .registerSchema("duplicateId", { makeTestSchema() })
+        val config = SchemaRegistryConfiguration.fromSdl(schema, fullSchemaIds = listOf("duplicateId")).apply {
+            @Suppress("DEPRECATION")
+            registerSchema("duplicateId", { makeTestSchema() })
+        }
 
         val exception = assertThrows<IllegalStateException> {
-            builder.build(mockCoroutineInterop)
+            val factory = ViaductSchemaRegistry.Factory(mockCoroutineInterop)
+            factory.createRegistry(config)
         }
 
         assertTrue(exception.message!!.contains("Duplicate schema IDs found"))
         assertTrue(exception.message!!.contains("duplicateId"))
+    }
+
+    private fun makeTestSchema(): ViaductSchema {
+        val sdl = """
+            extend type Query {
+                hello: String
+            }
+        """.trimIndent()
+        return ViaductSchema(SchemaGenerator().makeExecutableSchema(SchemaParser().parse(sdl), RuntimeWiring.MOCKED_WIRING))
     }
 }

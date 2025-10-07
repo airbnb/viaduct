@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockEngineObjectData
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
 @ExperimentalCoroutinesApi
@@ -34,7 +34,7 @@ class BatchNodeResolverTest {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
-                        ctx.createNodeEngineObjectData("1", schema.schema.getObjectType("Baz"))
+                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
                     }
                 }
             }
@@ -43,7 +43,7 @@ class BatchNodeResolverTest {
                     assert(selectors.size == 1) { "Expected exactly 1 ctx" }
                     selectors.associateWith { selector ->
                         Result.success(
-                            MockEngineObjectData(
+                            mkEngineObjectData(
                                 objectType,
                                 mapOf("id" to selector.id, "x" to 20)
                             )
@@ -64,7 +64,7 @@ class BatchNodeResolverTest {
                 resolver {
                     fn { _, _, _, _, ctx ->
                         (1..3).map { i ->
-                            ctx.createNodeEngineObjectData(i.toString(), schema.schema.getObjectType("Baz"))
+                            ctx.createNodeReference(i.toString(), schema.schema.getObjectType("Baz"))
                         }
                     }
                 }
@@ -73,7 +73,7 @@ class BatchNodeResolverTest {
                 nodeBatchedExecutor { selectors, _ ->
                     selectors.associateWith { selector ->
                         Result.success(
-                            MockEngineObjectData(
+                            mkEngineObjectData(
                                 objectType,
                                 mapOf(
                                     "id" to selector.id,
@@ -98,7 +98,7 @@ class BatchNodeResolverTest {
                 resolver {
                     fn { _, _, _, _, ctx ->
                         (1..3).map { i ->
-                            ctx.createNodeEngineObjectData(i.toString(), schema.schema.getObjectType("Baz"))
+                            ctx.createNodeReference(i.toString(), schema.schema.getObjectType("Baz"))
                         }
                     }
                 }
@@ -127,7 +127,7 @@ class BatchNodeResolverTest {
                 resolver {
                     fn { _, _, _, _, ctx ->
                         (1..3).map { i ->
-                            ctx.createNodeEngineObjectData(i.toString(), schema.schema.getObjectType("Baz"))
+                            ctx.createNodeReference(i.toString(), schema.schema.getObjectType("Baz"))
                         }
                     }
                 }
@@ -139,7 +139,7 @@ class BatchNodeResolverTest {
                             Result.failure(IllegalArgumentException("Odd idx for ID: ${selector.id}"))
                         } else {
                             Result.success(
-                                MockEngineObjectData(
+                                mkEngineObjectData(
                                     objectType,
                                     mapOf("id" to selector.id)
                                 )
@@ -166,7 +166,7 @@ class BatchNodeResolverTest {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
-                        ctx.createNodeEngineObjectData("1", schema.schema.getObjectType("Baz"))
+                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
                     }
                 }
             }
@@ -176,7 +176,7 @@ class BatchNodeResolverTest {
                     fn { _, objectValue, _, _, ctx ->
                         // Make this wait for the first Baz node resolver to be dispatched
                         objectValue.fetch("x")
-                        ctx.createNodeEngineObjectData("1", schema.schema.getObjectType("Baz"))
+                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
                     }
                 }
             }
@@ -186,7 +186,7 @@ class BatchNodeResolverTest {
                         val internalId = selector.id
                         execCounts.computeIfAbsent(internalId) { AtomicInteger(0) }.incrementAndGet()
                         Result.success(
-                            MockEngineObjectData(
+                            mkEngineObjectData(
                                 objectType,
                                 mapOf("id" to selector.id, "x" to 2)
                             )
@@ -209,7 +209,7 @@ class BatchNodeResolverTest {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
-                        ctx.createNodeEngineObjectData("1", schema.schema.getObjectType("Baz"))
+                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
                     }
                 }
             }
@@ -219,7 +219,7 @@ class BatchNodeResolverTest {
                     fn { _, objectValue, _, _, ctx ->
                         // Make this wait for the first Baz node resolver to be dispatched
                         objectValue.fetch("x")
-                        ctx.createNodeEngineObjectData("1", schema.schema.getObjectType("Baz"))
+                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
                     }
                 }
             }
@@ -229,7 +229,7 @@ class BatchNodeResolverTest {
                         val internalId = selector.id
                         execCounts.computeIfAbsent(internalId) { AtomicInteger(0) }.incrementAndGet()
                         Result.success(
-                            MockEngineObjectData(
+                            mkEngineObjectData(
                                 objectType,
                                 mapOf("id" to selector.id, "x" to 2, "x2" to "foo")
                             )

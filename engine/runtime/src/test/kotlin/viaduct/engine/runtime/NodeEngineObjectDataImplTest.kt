@@ -1,10 +1,12 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime
 
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -53,14 +55,14 @@ class NodeEngineObjectDataImplTest {
     }
 
     @Test
-    fun testFetchID() =
-        runBlockingTest {
+    fun testFetchID(): Unit =
+        runBlocking {
             assertEquals("testID", nodeReference.fetch("id"))
         }
 
     @Test
-    fun testFetchSuspendsWaitingOnResolve() =
-        runBlockingTest {
+    fun testFetchSuspendsWaitingOnResolve(): Unit =
+        runBlocking {
             every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(nodeResolver)
             coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
             coEvery { engineObjectData.fetch("name") }.returns("testName")
@@ -72,8 +74,8 @@ class NodeEngineObjectDataImplTest {
         }
 
     @Test
-    fun testNodeCheckerRun() =
-        runBlockingTest {
+    fun testNodeCheckerRun(): Unit =
+        runBlocking {
             every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(nodeResolver)
             coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
             coEvery { engineObjectData.fetch("name") }.returns("testName")
@@ -86,8 +88,8 @@ class NodeEngineObjectDataImplTest {
         }
 
     @Test
-    fun testNodeResolverNotFound() =
-        runBlockingTest {
+    fun testNodeResolverNotFound(): Unit =
+        runBlocking {
             every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(null)
 
             assertThrows<IllegalStateException> {
@@ -100,8 +102,8 @@ class NodeEngineObjectDataImplTest {
         }
 
     @Test
-    fun testNodeCheckerFailsThrow() =
-        runBlockingTest {
+    fun testNodeCheckerFailsThrow(): Unit =
+        runBlocking {
             every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(nodeResolver)
             coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
             coEvery { engineObjectData.fetch("name") }.returns("testName")

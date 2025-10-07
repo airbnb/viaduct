@@ -11,7 +11,7 @@ class UnionGenTest {
         typename: String
     ): STContents {
         val schema = mkSchema(sdl)
-        val builder = mkKotlinGRTFilesBuilder()
+        val builder = mkKotlinGRTFilesBuilder(schema)
         val def = schema.types[typename]!! as ViaductExtendedSchema.Union
         return builder.unionKotlinGen(def)
     }

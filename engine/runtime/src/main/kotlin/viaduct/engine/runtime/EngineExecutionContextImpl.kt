@@ -39,10 +39,14 @@ class EngineExecutionContextFactory(
     private val rawSelectionsLoaderFactory: RawSelectionsLoader.Factory =
         RawSelectionsLoaderImpl.Factory(fragmentLoader, fullSchema)
 
-    fun create(scopedSchema: ViaductSchema): EngineExecutionContext {
+    fun create(
+        scopedSchema: ViaductSchema,
+        requestContext: Any?
+    ): EngineExecutionContext {
         return EngineExecutionContextImpl(
             fullSchema,
             scopedSchema,
+            requestContext,
             rawSelectionSetFactory,
             rawSelectionsLoaderFactory,
             dispatcherRegistry,
@@ -57,6 +61,7 @@ class EngineExecutionContextFactory(
 class EngineExecutionContextImpl(
     override val fullSchema: ViaductSchema,
     override val scopedSchema: ViaductSchema,
+    override val requestContext: Any?,
     override val rawSelectionSetFactory: RawSelectionSet.Factory,
     override val rawSelectionsLoaderFactory: RawSelectionsLoader.Factory,
     val dispatcherRegistry: DispatcherRegistry,
@@ -67,7 +72,7 @@ class EngineExecutionContextImpl(
     val dataFetchingEnvironment: DataFetchingEnvironment? = null,
     override val activeSchema: ViaductSchema = fullSchema,
 ) : EngineExecutionContext {
-    override fun createNodeEngineObjectData(
+    override fun createNodeReference(
         id: String,
         graphQLObjectType: GraphQLObjectType
     ) = NodeEngineObjectDataImpl(id, graphQLObjectType, dispatcherRegistry, dispatcherRegistry)
@@ -116,6 +121,7 @@ class EngineExecutionContextImpl(
     ) = EngineExecutionContextImpl(
         fullSchema = this.fullSchema,
         scopedSchema = this.scopedSchema,
+        requestContext = this.requestContext,
         activeSchema = activeSchema,
         rawSelectionSetFactory = this.rawSelectionSetFactory,
         rawSelectionsLoaderFactory = rawSelectionsLoaderFactory,

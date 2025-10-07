@@ -52,7 +52,7 @@ class KotlinGRTsGenerator : CliktCommand() {
             pkgForGeneratedClasses = pkgForGeneratedClasses,
             dirForOutput = generatedDir,
             timer = timer,
-            baseTypeMapper = ViaductBaseTypeMapper(),
+            baseTypeMapper = ViaductBaseTypeMapper(schema),
         )
 
         // Modern builds use ViaductBaseTypeMapper (set by default in cfg)

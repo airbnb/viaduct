@@ -1,0 +1,5 @@
+viaduct-detekt-rules:
+  NoPrintlnInGradle:
+    active: true
+  NoStringDependenciesInGradle:
+    active: true

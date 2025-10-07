@@ -168,7 +168,7 @@ class ValueExtTest {
         val schema = toSchema("type Query { field(arg: String!): String }")
         val document = Parser.parse("{ field(arg: \$var) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query" to "field")
+        val usages = document.collectVariableUsages(schema, "var", "Query")
 
         assertEquals(1, usages.size)
         val usage = usages.first()
@@ -183,7 +183,7 @@ class ValueExtTest {
         val schema = toSchema("type Query { field(arg: String = \"default\"): String }")
         val document = Parser.parse("{ field(arg: \$var) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query" to "field")
+        val usages = document.collectVariableUsages(schema, "var", "Query")
 
         assertEquals(1, usages.size)
         val usage = usages.first()
@@ -198,7 +198,7 @@ class ValueExtTest {
         val schema = toSchema("type Query { field: String }")
         val document = Parser.parse("{ field @skip(if: \$var) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query" to "field")
+        val usages = document.collectVariableUsages(schema, "var", "Query")
 
         assertEquals(1, usages.size)
         val usage = usages.first()
@@ -218,8 +218,8 @@ class ValueExtTest {
         )
         val document = Parser.parse("{ createUser(input: { name: \$userName, age: \$userAge }) }")
 
-        val userNameUsages = document.collectVariableUsages(schema, "userName", "Query" to "createUser")
-        val userAgeUsages = document.collectVariableUsages(schema, "userAge", "Query" to "createUser")
+        val userNameUsages = document.collectVariableUsages(schema, "userName", "Query")
+        val userAgeUsages = document.collectVariableUsages(schema, "userAge", "Query")
 
         assertEquals(1, userNameUsages.size)
         assertEquals(1, userAgeUsages.size)
@@ -245,7 +245,7 @@ class ValueExtTest {
         )
         val document = Parser.parse("{ process(input: { stringOption: \$var }) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query" to "process")
+        val usages = document.collectVariableUsages(schema, "var", "Query")
 
         assertEquals(1, usages.size)
         val usage = usages.first()
@@ -266,7 +266,7 @@ class ValueExtTest {
             )
         val document = Parser.parse("{ process(input: { nested: { value: \$var } }) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query" to "process")
+        val usages = document.collectVariableUsages(schema, "var", "Query")
 
         assertEquals(1, usages.size)
         val usage = usages.first()
@@ -285,7 +285,7 @@ class ValueExtTest {
         )
         val document = Parser.parse("mutation { createUser(name: \$userName) }")
 
-        val usages = document.collectVariableUsages(schema, "userName", "Mutation" to "createUser")
+        val usages = document.collectVariableUsages(schema, "userName", "Mutation")
 
         assertEquals(1, usages.size)
         val usage = usages.first()
@@ -299,7 +299,7 @@ class ValueExtTest {
         val schema = toSchema("type Query { field(arg: String!): String }")
         val document = Parser.parse("{ field(arg: \"literal\") }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query" to "field")
+        val usages = document.collectVariableUsages(schema, "var", "Query")
 
         assertEquals(0, usages.size)
     }
@@ -309,7 +309,7 @@ class ValueExtTest {
         val schema = toSchema("type Query { field1(arg: String!): String, field2(arg: String!): String }")
         val document = Parser.parse("{ field1(arg: \$var), field2(arg: \$var) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query" to "field1")
+        val usages = document.collectVariableUsages(schema, "var", "Query")
 
         assertEquals(2, usages.size)
     }

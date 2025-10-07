@@ -9,8 +9,13 @@ import graphql.language.ObjectTypeDefinition
 import graphql.language.OperationDefinition
 import graphql.language.StringValue
 import graphql.language.TypeName
+import graphql.parser.MultiSourceReader
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.TypeDefinitionRegistry
+import graphql.schema.idl.UnExecutableSchemaGenerator
+import java.io.File
+import kotlin.io.path.writeText
+import kotlin.jvm.optionals.getOrNull
 import kotlin.jvm.optionals.toList
 import kotlin.test.assertContains
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -28,7 +33,8 @@ class DefaultSchemaProviderTest {
      */
     @Test
     fun `addDefaults should add all default schema components`() {
-        val registry = TypeDefinitionRegistry()
+        val sdl = "type Foo implements Node { id: ID! }" // Ensure creation of Node interface and Node query fields
+        val registry = SchemaParser().parse(sdl)
 
         DefaultSchemaProvider.addDefaults(registry)
 
@@ -55,6 +61,7 @@ class DefaultSchemaProviderTest {
         val queryExtensions = registry.objectTypeExtensions()["Query"] ?: emptyList()
         val nodeFields = queryExtensions.flatMap { it.fieldDefinitions }.filter { it.name == "node" || it.name == "nodes" }
         assertEquals(2, nodeFields.size, "Should have both node and nodes fields")
+        assertTrue(registry.getType("Query").isPresent())
 
         val nodeField = nodeFields.first { it.name == "node" }
         assertEquals("Node", (nodeField.type as TypeName).name, "node field should return Node")
@@ -152,7 +159,6 @@ class DefaultSchemaProviderTest {
 
         // Query should have dummy field when no extensions
         val query = registry.getType("Query").get() as ObjectTypeDefinition
-        assertTrue(query.fieldDefinitions.none { it.name == "_" }, "Query should not have dummy field")
         assertRootHasScopeAll(query)
         assertWiring(registry, expectMutation = false, expectSubscription = false)
     }
@@ -174,7 +180,6 @@ class DefaultSchemaProviderTest {
 
         assertTrue(registry.getType("Query").isPresent, "Should add Query when extensions exist")
         val query = registry.getType("Query").get() as ObjectTypeDefinition
-        assertTrue(query.fieldDefinitions.none { it.name == "_" }, "Should not add dummy field when extensions exist")
         assertRootHasScopeAll(query)
         assertFalse(registry.getType("Mutation").isPresent, "Should not add Mutation without extensions")
         assertFalse(registry.getType("Subscription").isPresent, "Should not add Subscription without extensions")
@@ -208,23 +213,121 @@ class DefaultSchemaProviderTest {
         val mutation = registry.getType("Mutation").get() as ObjectTypeDefinition
         val subscription = registry.getType("Subscription").get() as ObjectTypeDefinition
 
-        assertAll(
-            { assertTrue(query.fieldDefinitions.none { it.name == "_" }, "Query should not have dummy with extensions") },
-            { assertTrue(mutation.fieldDefinitions.none { it.name == "_" }, "Mutation should not have dummy with extensions") },
-            { assertTrue(subscription.fieldDefinitions.none { it.name == "_" }, "Subscription should not have dummy with extensions") },
-            { assertRootHasScopeAll(query) },
-            { assertRootHasScopeAll(mutation) },
-            { assertRootHasScopeAll(subscription) }
-        )
-
+        assertRootHasScopeAll(query)
+        assertRootHasScopeAll(mutation)
+        assertRootHasScopeAll(subscription)
         assertWiring(registry, expectMutation = true, expectSubscription = true)
     }
 
     @Test
-    fun `addDefaults should not add Node query fields when includeNodeQueries=false`() {
-        val registry = TypeDefinitionRegistry()
+    fun `addDefaults should never add Node interface when includeNodeDefinition is Never`() {
+        val registry = SchemaParser().parse("type User implements Node { id:ID! }")
+            .also {
+                DefaultSchemaProvider.addDefaults(
+                    it,
+                    includeNodeDefinition = DefaultSchemaProvider.IncludeNodeSchema.Never,
+                    includeNodeQueries = DefaultSchemaProvider.IncludeNodeSchema.Never
+                )
+            }
+        assertNodeSchema(registry, expectNode = false)
+    }
 
-        DefaultSchemaProvider.addDefaults(registry, includeNodeQueries = false)
+    @Test
+    fun `addDefaults should always add Node interface when includeNodeDefinition is Always`() {
+        val registry = TypeDefinitionRegistry()
+            .also {
+                DefaultSchemaProvider.addDefaults(it, includeNodeDefinition = DefaultSchemaProvider.IncludeNodeSchema.Always)
+            }
+        assertNodeSchema(registry, expectNode = true)
+    }
+
+    @Test
+    fun `addDefaults should not add Node interface when there are no implementations of Node`() {
+        val registry = TypeDefinitionRegistry().also(DefaultSchemaProvider::addDefaults)
+        assertNodeSchema(registry, expectNode = false)
+    }
+
+    @Test
+    fun `addDefaults should add Node interface when Node implementing type exists`() {
+        val registry = SchemaParser().parse("type User implements Node { id:ID! }")
+            .also(DefaultSchemaProvider::addDefaults)
+        assertNodeSchema(registry, expectNode = true)
+    }
+
+    @Test
+    fun `addDefaults should add Node interface when Node implementing object extension exists`() {
+        val registry = SchemaParser()
+            .parse(
+                """
+                    type User { empty:Int }
+                    extend type User implements Node { id:ID! }
+                """.trimIndent()
+            )
+            .also(DefaultSchemaProvider::addDefaults)
+
+        // Verify Node interface is added
+        assertNodeSchema(registry, expectNode = true)
+    }
+
+    @Test
+    fun `addDefaults should add Node interface when Node implementing interface exists`() {
+        val registry = SchemaParser().parse("interface I implements Node { empty:Int }")
+            .also(DefaultSchemaProvider::addDefaults)
+
+        // Verify Node interface is added
+        assertNodeSchema(registry, expectNode = true)
+    }
+
+    @Test
+    fun `addDefaults should add Node interface when Node implementing interface extension exists`() {
+        val registry = SchemaParser().parse(
+            """
+                interface I { empty:Int }
+                extend interface I implements Node { id:ID! }
+            """.trimIndent()
+        ).also(DefaultSchemaProvider::addDefaults)
+
+        // Verify Node interface is added
+        assertNodeSchema(registry, expectNode = true)
+    }
+
+    @Test
+    fun `addDefaults should add Node interface when Object field returns Node`() {
+        val registry = SchemaParser().parse("type O { nodes:[Node!]! }")
+            .also(DefaultSchemaProvider::addDefaults)
+
+        // Verify Node interface is added
+        assertNodeSchema(registry, expectNode = true)
+    }
+
+    @Test
+    fun `addDefaults should add Node interface when Object extension field returns Node`() {
+        val registry = SchemaParser().parse("extend type Query { x:Node }")
+            .also(DefaultSchemaProvider::addDefaults)
+
+        // Verify Node interface is added
+        assertNodeSchema(registry, expectNode = true)
+    }
+
+    @Test
+    fun `addDefaults should add Node interface when Interface extension field returns Node`() {
+        val registry = SchemaParser().parse(
+            """
+                interface I { empty:Int }
+                extend type I { node:Node }
+            """.trimIndent()
+        ).also(DefaultSchemaProvider::addDefaults)
+
+        // Verify Node interface is added
+        assertNodeSchema(registry, expectNode = true)
+    }
+
+    @Test
+    fun `addDefaults should not add Node query fields when includeNodeQueries is Never`() {
+        val sdl = "type User implements Node { id:ID! }"
+        val registry = SchemaParser().parse(sdl)
+
+        DefaultSchemaProvider.addDefaults(registry, includeNodeQueries = DefaultSchemaProvider.IncludeNodeSchema.Never)
 
         // Verify Node interface is still present
         assertTrue(registry.getType("Node").isPresent, "Should have Node interface")
@@ -233,6 +336,14 @@ class DefaultSchemaProviderTest {
         val queryExtensions = registry.objectTypeExtensions()["Query"] ?: emptyList()
         val nodeFields = queryExtensions.flatMap { it.fieldDefinitions }.filter { it.name == "node" || it.name == "nodes" }
         assertEquals(0, nodeFields.size, "Should not have node or nodes fields when includeNodeQueries=false")
+    }
+
+    @Test
+    fun `addDefaults should always add Node query fields when includeNodeQueries=Always`() {
+        val registry = TypeDefinitionRegistry().also {
+            DefaultSchemaProvider.addDefaults(it, includeNodeQueries = DefaultSchemaProvider.IncludeNodeSchema.Always)
+        }
+        assertNodeSchema(registry, true)
     }
 
     @Test
@@ -260,6 +371,9 @@ class DefaultSchemaProviderTest {
             extend type Query {
               node(id: ID!): Node
               nodes(ids: [ID!]!): [Node]!
+            }
+            type Foo implements Node {
+              id: ID!
             }
         """.trimIndent()
         val registry = SchemaParser().parse(sdl)
@@ -360,9 +474,8 @@ class DefaultSchemaProviderTest {
     @Test
     fun `addDefaults should error when Node interface already exists unless allowExisting`() {
         val sdl = """
-            interface Node {
-              customId: String
-            }
+            interface Node { customId: String }
+            type User implements Node { customId: String }
         """.trimIndent()
         val registry = SchemaParser().parse(sdl)
 
@@ -459,18 +572,75 @@ class DefaultSchemaProviderTest {
     }
 
     @Test
-    fun `getSDL should round trip essential structure`() {
-        val sdl = DefaultSchemaProvider.getSDL()
+    fun `getDefaultSDL should round trip essential structure`() {
+        val sdl = DefaultSchemaProvider.getDefaultSDL()
         val registry = SchemaParser().parse(sdl)
 
         // Directives exist
         defaultDirectiveNames().forEach { name ->
             assertTrue(registry.getDirectiveDefinition(name).isPresent, "Should include @$name in SDL")
         }
-        // Node exists
-        assertTrue(registry.getType("Node").isPresent, "SDL should include Node")
         // At least Query exists (do not over-constrain Mutation/Subscription)
         assertTrue(registry.getType("Query").isPresent, "SDL should include Query")
+    }
+
+    @Test
+    fun `getDefaultSDL should not include node schema with empty extants`() {
+        val sdl = DefaultSchemaProvider.getDefaultSDL(
+            existingSDLFiles = listOf()
+        )
+
+        val registry = SchemaParser().parse(sdl)
+        assertNodeSchema(registry, false)
+    }
+
+    @Test
+    fun `getDefaultSDL should include node schema if used in extant files`() {
+        val sdl = DefaultSchemaProvider.getDefaultSDL(
+            existingSDLFiles = listOf(
+                mkFile("type User implements Node { id:ID! }")
+            )
+        )
+
+        val registry = SchemaParser().parse(sdl)
+        assertNodeSchema(registry, true)
+    }
+
+    @Test
+    fun `getDefaultSDL should include query definition with empty extants`() {
+        val sdl = DefaultSchemaProvider.getDefaultSDL(
+            existingSDLFiles = emptyList()
+        )
+
+        val registry = SchemaParser().parse(sdl)
+        assertTrue(registry.getType("Query").isPresent)
+    }
+
+    @Test
+    fun `getDefaultSDL should include query definition when extended in extant files`() {
+        val sdl = DefaultSchemaProvider.getDefaultSDL(
+            existingSDLFiles = listOf(
+                mkFile("extend type Query { x:Int }")
+            )
+        )
+
+        val registry = SchemaParser().parse(sdl)
+        assertTrue(registry.getType("Query").isPresent)
+    }
+
+    @Test
+    fun `getDefaultSDL can be used to compose a valid schema with extant files`() {
+        val extant = mkFile("extend type Query { x:Int }")
+        val default = mkFile(DefaultSchemaProvider.getDefaultSDL(existingSDLFiles = listOf(extant)))
+
+        val reader = MultiSourceReader.newMultiSourceReader()
+            .reader(extant.reader(), extant.path)
+            .reader(default.reader(), default.path)
+            .build()
+
+        val tdr = SchemaParser().parse(reader)
+        val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(tdr)
+        assertEquals(listOf("x"), schema.queryType.fieldDefinitions.map { it.name })
     }
 
     // ---- helpers ----
@@ -507,6 +677,23 @@ class DefaultSchemaProviderTest {
         assertEquals(listOf("*"), values, "'to' should be [\"*\"]")
     }
 
+    private fun assertNodeSchema(
+        registry: TypeDefinitionRegistry,
+        expectNode: Boolean
+    ) {
+        val nodeDef = registry.getType("Node")
+        assertEquals(expectNode, nodeDef.isPresent)
+
+        val baseFields = registry.getType("Query", ObjectTypeDefinition::class.java).getOrNull()?.fieldDefinitions
+        val extFields = registry.objectTypeExtensions()["Query"]?.flatMap { it.fieldDefinitions }
+        val allFields = listOf(baseFields ?: emptyList(), extFields ?: emptyList()).flatten()
+
+        val queryNodeFields = allFields.filter { it.name == "node" || it.name == "nodes" }
+        val expQueryNodeFields = if (expectNode) 2 else 0
+
+        assertEquals(expQueryNodeFields, queryNodeFields.size)
+    }
+
     private fun assertWiring(
         registry: TypeDefinitionRegistry,
         expectMutation: Boolean,
@@ -519,4 +706,9 @@ class DefaultSchemaProviderTest {
         assertEquals(expectMutation, ops.containsKey(OperationDefinition.Operation.MUTATION.name.lowercase()), "Mutation wiring presence mismatch")
         assertEquals(expectSubscription, ops.containsKey(OperationDefinition.Operation.SUBSCRIPTION.name.lowercase()), "Subscription wiring presence mismatch")
     }
+
+    private fun mkFile(body: String): File =
+        kotlin.io.path.createTempFile().also {
+            it.writeText(body)
+        }.toFile()
 }

@@ -146,14 +146,15 @@ object cfg {
     val MUTATION_OBJECT_GRT = JavaBinaryName("viaduct.api.types.Mutation")
     val OBJECT_GRT = JavaBinaryName("viaduct.api.types.Object")
     val UNION_GRT = JavaBinaryName("viaduct.api.types.Union")
+    val GRT = JavaBinaryName("viaduct.api.types.GRT")
 
     /** Interface implemented by v2 object types */
     val OBJECT_BASE =
         JavaBinaryName("viaduct.api.internal.ObjectBase")
     val OBJECT_BASE_BUILDER =
         JavaBinaryName("viaduct.api.internal.ObjectBase\$Builder")
-    val ENGINE_OBJECT_DATA =
-        JavaBinaryName("viaduct.engine.api.EngineObjectData")
+    val ENGINE_OBJECT =
+        JavaBinaryName("viaduct.engine.api.EngineObject")
     val EXECUTION_CONTEXT =
         JavaBinaryName("viaduct.api.context.ExecutionContext")
     val INTERNAL_CONTEXT =

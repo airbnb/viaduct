@@ -10,7 +10,8 @@ import viaduct.tenant.runtime.globalid.GlobalIDImpl
  * Implementation for ExecutionContext, used to delegate common implementations for context subclasses.
  */
 open class ExecutionContextImpl(
-    private val internal: InternalContext
+    private val internal: InternalContext,
+    override val requestContext: Any?,
 ) : ExecutionContext, InternalContext by internal {
     override fun <T : NodeObject> globalIDFor(
         type: Type<T>,

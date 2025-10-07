@@ -56,10 +56,22 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoF
  * - Objects trigger recursive completion of their selected fields
  * - Errors during completion preserve partial results where possible
  *
+ * ## Testing
+ *
+ * This component is tested via conformance and integration testing:
+ *
+ * - **Conformance tests** ([ArbitraryConformanceTest], [NullBubblingConformanceTest]) - 13,000+ property-based
+ *   test iterations validating GraphQL spec compliance against the graphql-java reference implementation
+ * - **Feature tests** ([ViaductExecutionStrategyTest], [ExceptionsTest]) - Targeted tests for field merging,
+ *   error handling, and execution strategy integration
+ * - **Engine feature tests** (EngineFeatureTest framework) - Integration tests exercising the complete
+ *   resolution→completion pipeline with resolvers, checkers, and real schemas
+ *
  * @see FieldResolver Pairs with this class to form the complete execution pipeline
  * @see FieldCompletionResult Contains the completed field values and metadata
  * @see ObjectEngineResultImpl Holds the intermediate execution results being completed
  * @see NonNullableFieldValidator Enforces schema non-null constraints
+ * @see Conformer Test fixture for conformance testing
  */
 class FieldCompleter(
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler
@@ -116,7 +128,8 @@ class FieldCompleter(
             // Obtain a result for this field
             val combinedValue = combineValues(
                 parentOER.getValue(fieldKey, RAW_VALUE_SLOT),
-                parentOER.getValue(fieldKey, ACCESS_CHECK_SLOT)
+                parentOER.getValue(fieldKey, ACCESS_CHECK_SLOT),
+                bypassChecker = parameters.bypassChecksDuringCompletion
             )
 
             val handledFetch = combinedValue.recover { throwable ->
@@ -137,19 +150,22 @@ class FieldCompleter(
     }
 
     /**
-     * Combines the raw and access check values. If the fetched raw value is exceptional, then
-     * discard the access check result and don't wait for it to complete. If the raw value was
-     * successfully fetched, look for an access check error.
+     * Combines the raw and access check values, bypassing the access check value if needed.
+     * If the fetched raw value is exceptional, then discard the access check result and don't wait for it to complete.
+     * If the raw value was successfully fetched, look for an access check error.
      */
     @Suppress("UNCHECKED_CAST")
     private fun combineValues(
         rawSlotValue: Value<*>,
         checkerSlotValue: Value<*>,
+        bypassChecker: Boolean,
     ): Value<FieldResolutionResult> {
         val fieldResolutionResultValue = checkNotNull(rawSlotValue as? Value<FieldResolutionResult>) {
             "Expected raw slot to contain Value<FieldResolutionResult>, was ${rawSlotValue.javaClass}"
         }
-        if (checkerSlotValue == Value.nullValue) {
+
+        // Return raw value immediatley if bypassing check or checkerSlot value is null
+        if (bypassChecker || checkerSlotValue == Value.nullValue) {
             return fieldResolutionResultValue
         }
 
@@ -358,7 +374,7 @@ class FieldCompleter(
             "Expected data to be an Iterable<Cell>, was ${result.javaClass}."
         }
         val listValues = cells.map {
-            combineValues(it.getValue(RAW_VALUE_SLOT), it.getValue(ACCESS_CHECK_SLOT))
+            combineValues(it.getValue(RAW_VALUE_SLOT), it.getValue(ACCESS_CHECK_SLOT), parameters.bypassChecksDuringCompletion)
         }
         val instrumentationParams = InstrumentationFieldCompleteParameters(
             parameters.executionContext,

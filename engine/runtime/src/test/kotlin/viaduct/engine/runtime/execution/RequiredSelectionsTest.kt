@@ -7,13 +7,13 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.engine.api.mocks.MockEngineObjectData
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
+import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.mocks.toViaductBuilder
-import viaduct.service.runtime.ViaductSchemaRegistryBuilder
+import viaduct.service.runtime.SchemaRegistryConfiguration
 
 @ExperimentalCoroutinesApi
 class RequiredSelectionsTest {
@@ -289,9 +289,11 @@ class RequiredSelectionsTest {
     @Test
     fun `resolve private field in RSS`() {
         // Need to set up both full schema and scoped schema
-        val fullSchemaSDL = "extend type Query { foo: Int, bar: Int}"
-        val scopedSchemaSDL = "extend type Query { foo: Int }"
-        // val fullSchemaSDL = "extend type Query @scope(to: [\"scoped\"]) { foo: Int } extend type Query @scope(to: [\"bar\"]) { bar: Int}"
+        val fullSchemaSDL = """
+            extend type Query @scope(to: ["*"]) { _: String }
+            extend type Query @scope(to: ["scoped"]) { foo: Int }
+            extend type Query @scope(to: ["private"]) { bar: Int }
+        """
 
         MockTenantModuleBootstrapper(fullSchemaSDL) {
             fieldWithValue("Query" to "bar", 3)
@@ -302,11 +304,11 @@ class RequiredSelectionsTest {
                 }
             }
         }.toViaductBuilder()
-            .withSchemaRegistryBuilder(
-                ViaductSchemaRegistryBuilder()
-                    .withFullSchemaFromSdl(fullSchemaSDL)
-                    .registerFullSchema("")
-                    .registerSchemaFromSdl("scoped", scopedSchemaSDL)
+            .withSchemaRegistryConfiguration(
+                SchemaRegistryConfiguration.fromSdl(
+                    fullSchemaSDL,
+                    scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("scoped", setOf("scoped")))
+                )
             )
             .build()
             .runFeatureTest {
@@ -402,7 +404,7 @@ class RequiredSelectionsTest {
     fun `resolve field with queryValueFragment and objectValueFragment together`() =
         MockTenantModuleBootstrapper("extend type Query { globalConfig: String, baz: Baz } type Baz { x: Int, y: String }") {
             fieldWithValue("Query" to "globalConfig", "Premium")
-            fieldWithValue("Query" to "baz", MockEngineObjectData(schema.schema.getObjectType("Baz"), mapOf("x" to 100)))
+            fieldWithValue("Query" to "baz", mkEngineObjectData(schema.schema.getObjectType("Baz"), mapOf("x" to 100)))
             field("Baz" to "y") {
                 resolver {
                     objectSelections("x")
@@ -544,9 +546,9 @@ class RequiredSelectionsTest {
     @Test
     fun `resolve field with queryValueFragment - nested object access`() =
         MockTenantModuleBootstrapper("extend type Query { bar: Bar, baz: Baz } type Bar { value: String } type Baz { x: Int, y: String }") {
-            fieldWithValue("Query" to "bar", MockEngineObjectData(schema.schema.getObjectType("Bar"), mapOf()))
+            fieldWithValue("Query" to "bar", mkEngineObjectData(schema.schema.getObjectType("Bar"), mapOf()))
             fieldWithValue("Bar" to "value", "BarValue")
-            fieldWithValue("Query" to "baz", MockEngineObjectData(schema.schema.getObjectType("Baz"), mapOf()))
+            fieldWithValue("Query" to "baz", mkEngineObjectData(schema.schema.getObjectType("Baz"), mapOf()))
             field("Baz" to "y") {
                 resolver {
                     querySelections("bar { value }")

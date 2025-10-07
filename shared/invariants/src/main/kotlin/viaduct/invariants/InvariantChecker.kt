@@ -8,7 +8,6 @@ import kotlin.reflect.KClass
 
 class InvariantChecker : Iterable<Failure> {
     private val context = ArrayList<String>()
-    private var fullContext: String? = null
     private val failures = ArrayList<Failure>()
 
     fun toMultilineString(dst: StringBuilder) {
@@ -20,14 +19,10 @@ class InvariantChecker : Iterable<Failure> {
     val isEmpty: Boolean
         get() = failures.isEmpty()
 
-    fun assertEmpty(separator: String?) {
-        if (isEmpty) return
-        val result = StringBuffer()
-        result.append("Checks aren't empty:")
-        for (msg: Failure? in this) {
-            result.append(separator).append(msg)
+    fun assertEmpty(separator: String = "\n") {
+        if (!isEmpty) {
+            throw AssertionError(this.joinToString(separator))
         }
-        throw AssertionError(result.toString())
     }
 
     fun assertEmptyMultiline(message: String) {
@@ -54,13 +49,11 @@ class InvariantChecker : Iterable<Failure> {
 
     fun pushContext(moreContext: String) {
         context.add(moreContext)
-        fullContext = null
     }
 
     fun popContext() {
         if (context.isEmpty()) throw IllegalStateException("No context to pop.")
         context.removeAt(context.size - 1)
-        fullContext = null
     }
 
     fun withContext(
@@ -72,26 +65,13 @@ class InvariantChecker : Iterable<Failure> {
         popContext()
     }
 
-    private fun getFullContext(): String? {
-        if (fullContext == null) {
-            val result = StringBuilder()
-            val iter: Iterator<String> = context.iterator()
-            while (iter.hasNext()) {
-                result.append(iter.next())
-                if (iter.hasNext()) result.append('.')
-            }
-            fullContext = result.toString()
-        }
-        return fullContext
-    }
-
     fun addFailure(
         details: String?,
         messageFormat: String,
         messageArgs: Array<String?>
     ) {
         val msg = MessageFormat.format(messageFormat, *messageArgs)
-        failures.add(Failure(getFullContext(), msg, details))
+        failures.add(Failure(context.joinToString("."), msg, details))
     }
 
     @JvmOverloads
@@ -675,6 +655,14 @@ class InvariantChecker : Iterable<Failure> {
 
     inline fun <reified T> isInstanceOf(
         actualObject: Any?,
+        message: String = "Expecting a ${T::class.simpleName}, found a ${actualObject?.let { it::class.simpleName } ?: "null"}",
+        block: (T) -> Unit
+    ) {
+        if (isInstanceOf(T::class, actualObject, message)) block(actualObject as T)
+    }
+
+    inline fun <reified T> isInstanceOf(
+        actualObject: Any?,
         message: String
     ): Boolean = isInstanceOf(T::class, actualObject, message, EMPTY_ARGS)
 
@@ -756,7 +744,7 @@ class InvariantChecker : Iterable<Failure> {
     }
 }
 
-class Failure internal constructor(val context: String?, val message: String, val details: String?) {
+class Failure internal constructor(val context: String, val message: String, val details: String?) {
     val label: String
         get() = message.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0]
 
@@ -775,13 +763,14 @@ class Failure internal constructor(val context: String?, val message: String, va
     }
 
     override fun toString(): String {
+        val ctx = if (!context.isEmpty()) "$context: " else ""
         val deets = if (details == null) "" else " ($details)"
-        return "$context: $message$deets"
+        return "$ctx$message$deets"
     }
 
     fun toMultilineString(dst: StringBuilder) {
         dst.append(message)
-        if (context != null && !context.isEmpty()) dst.append("\n    Context: $context")
+        if (!context.isEmpty()) dst.append("\n    Context: $context")
         if (details != null) {
             dst.append("\n    ")
                 .append(details.replace(".  Extra", "\nExtra").replace("\n", "\n    "))

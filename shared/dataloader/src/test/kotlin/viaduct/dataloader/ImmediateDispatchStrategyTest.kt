@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.dataloader
 
 import io.mockk.coVerify
@@ -7,13 +9,12 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-@Suppress("DEPRECATION")
 @ExperimentalCoroutinesApi
 class ImmediateDispatchStrategyTest {
     private lateinit var subject: ImmediateDispatchStrategy<String, String>
@@ -43,8 +44,8 @@ class ImmediateDispatchStrategyTest {
     }
 
     @Test
-    fun `load fn should get called for each load with the key arguments`() =
-        runBlockingTest {
+    fun `load fn should get called for each load with the key arguments`(): Unit =
+        runBlocking {
             val result1 = InternalDataLoader.Batch.BatchResult(CompletableDeferred<String?>())
             val result2 = InternalDataLoader.Batch.BatchResult(CompletableDeferred<String?>())
             async { subject.scheduleResult("key1", null, result1, onFailedDispatch) }
@@ -58,8 +59,8 @@ class ImmediateDispatchStrategyTest {
         }
 
     @Test
-    fun `onFailedDispatch should run and result should be completed exceptionally if the loadFn throws`() =
-        runBlockingTest {
+    fun `onFailedDispatch should run and result should be completed exceptionally if the loadFn throws`(): Unit =
+        runBlocking {
             val throwingLoadFn = GenericBatchLoadFn<String, String> { _, _ ->
                 throw RuntimeException("test")
             }
@@ -73,8 +74,8 @@ class ImmediateDispatchStrategyTest {
         }
 
     @Test
-    fun `test instrumentation is called as expected for a single key`() =
-        runBlockingTest {
+    fun `test instrumentation is called as expected for a single key`(): Unit =
+        runBlocking {
             val result = InternalDataLoader.Batch.BatchResult(CompletableDeferred<String?>())
             subject.scheduleResult("key1", null, result, onFailedDispatch)
             assertEquals("key1", result.await())
@@ -85,8 +86,8 @@ class ImmediateDispatchStrategyTest {
         }
 
     @Test
-    fun `test instrumentation is called as expected for multiple keys`() =
-        runBlockingTest {
+    fun `test instrumentation is called as expected for multiple keys`(): Unit =
+        runBlocking {
             val result1 = InternalDataLoader.Batch.BatchResult(CompletableDeferred<String?>())
             val result2 = InternalDataLoader.Batch.BatchResult(CompletableDeferred<String?>())
             subject.scheduleResult("key1", null, result1, onFailedDispatch)
@@ -103,8 +104,8 @@ class ImmediateDispatchStrategyTest {
         }
 
     @Test
-    fun `test result is completed with null if loadFn returns empty list`() =
-        runBlockingTest {
+    fun `test result is completed with null if loadFn returns empty list`(): Unit =
+        runBlocking {
             val result = InternalDataLoader.Batch.BatchResult(CompletableDeferred<String?>())
             loadFn = GenericBatchLoadFn { _, _ -> listOf() }
 
@@ -115,8 +116,8 @@ class ImmediateDispatchStrategyTest {
         }
 
     @Test
-    fun `explicitly passed in keyContext should be used`() =
-        runBlockingTest {
+    fun `explicitly passed in keyContext should be used`(): Unit =
+        runBlocking {
             val result = InternalDataLoader.Batch.BatchResult(CompletableDeferred<String?>())
             val keyContext = 1
 

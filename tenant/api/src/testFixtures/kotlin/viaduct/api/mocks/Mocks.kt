@@ -76,7 +76,10 @@ class MockInternalContext(
     }
 }
 
-open class MockExecutionContext(internalContext: InternalContext) : ExecutionContext, InternalContext by internalContext {
+open class MockExecutionContext(
+    internalContext: InternalContext,
+    override val requestContext: Any? = null
+) : ExecutionContext, InternalContext by internalContext {
     override fun <T : NodeObject> globalIDFor(
         type: Type<T>,
         internalID: String

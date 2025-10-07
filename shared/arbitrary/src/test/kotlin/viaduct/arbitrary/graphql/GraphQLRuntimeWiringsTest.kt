@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.arbitrary.graphql
 
 import graphql.ExceptionWhileDataFetching
@@ -18,19 +20,19 @@ import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.take
 import io.kotest.property.forAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.utils.graphql.allChildrenOfType
+import viaduct.graphql.utils.allChildrenOfType
 
 @ExperimentalCoroutinesApi
 class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
     @Test
-    fun `returns the same data for the same query and same seed`() =
-        runBlockingTest {
+    fun `returns the same data for the same query and same seed`(): Unit =
+        runBlocking {
             val sdl = """
                 interface I { x: Int }
                 union Union = Query | Obj
@@ -46,8 +48,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `returns different data for the same query and different seeds`() =
-        runBlockingTest {
+    fun `returns different data for the same query and different seeds`(): Unit =
+        runBlocking {
             val sdl = """
             type Obj { x:Int! }
             type Query { obj:Obj! }
@@ -60,7 +62,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             Arb.graphQLDocument(schema, cfg)
                 // require that queries select an interesting field
-                .filter { it.allChildrenOfType<Field>().any { it.name == "x" } }
+                .filter { it.allChildrenOfType<Field>().any { child -> child.name == "x" } }
                 .flatMap { doc ->
                     arbitrary { rs ->
                         Arb.long()
@@ -79,8 +81,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `can resolve __typename`() =
-        runBlockingTest {
+    fun `can resolve __typename`(): Unit =
+        runBlocking {
             val sdl = "type Query {x:Int}"
             val doc = "{ __typename }".asDocument
 
@@ -98,8 +100,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `returns the same value for fields in the same merge group`() =
-        runBlockingTest {
+    fun `returns the same value for fields in the same merge group`(): Unit =
+        runBlocking {
             val sdl = "type Query {x: Int}"
             val doc = """
             {
@@ -130,8 +132,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `returns different values for fields in different merge groups`() =
-        runBlockingTest {
+    fun `returns different values for fields in different merge groups`(): Unit =
+        runBlocking {
             val sdl = "type Query {x: Int}"
             val doc = """
             {
@@ -162,8 +164,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `type resolvers return referentially valid types`() =
-        runBlockingTest {
+    fun `type resolvers return referentially valid types`(): Unit =
+        runBlocking {
             val sdl = """
                 type Foo { x:Int }
                 type Bar { x:Int }
@@ -201,8 +203,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `generates valid list values`() =
-        runBlockingTest {
+    fun `generates valid list values`(): Unit =
+        runBlocking {
             val sdl = "type Query { x:[Int!]! }"
             val doc = "{x}".asDocument
 
@@ -219,8 +221,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `NullNonNullableWeight`() =
-        runBlockingTest {
+    fun NullNonNullableWeight(): Unit =
+        runBlocking {
             val sdl = "type Query { x:Int! }"
             val doc = "{x}".asDocument
 
@@ -251,8 +253,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
     @Test
     @Suppress("UNCHECKED_CAST")
-    fun `ExplicitNullValueWeight`() =
-        runBlockingTest {
+    fun ExplicitNullValueWeight(): Unit =
+        runBlocking {
             val sdl = "type Query { x:Int }"
             val doc = "{x}".asDocument
 
@@ -285,8 +287,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
     @Test
     @Suppress("UNCHECKED_CAST")
-    fun `ListValueSize`() =
-        runBlockingTest {
+    fun ListValueSize(): Unit =
+        runBlocking {
             val sdl = "type Query { x:[Int] }"
             val doc = "{x}".asDocument
 
@@ -307,8 +309,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `ResolverExceptionWeight`() =
-        runBlockingTest {
+    fun ResolverExceptionWeight(): Unit =
+        runBlocking {
             val sdl = "type Query { x:[Int] }"
             val doc = "{x}".asDocument
 

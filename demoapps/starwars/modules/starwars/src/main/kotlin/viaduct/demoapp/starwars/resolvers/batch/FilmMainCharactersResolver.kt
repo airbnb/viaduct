@@ -3,6 +3,7 @@ package viaduct.demoapp.starwars.resolvers.batch
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
 import viaduct.api.grts.Character
+import viaduct.demoapp.starwars.builders.CharacterBuilder
 import viaduct.demoapp.starwars.data.StarWarsData
 import viaduct.demoapp.starwars.resolverbases.FilmResolvers
 
@@ -40,20 +41,7 @@ class FilmMainCharactersResolver : FilmResolvers.MainCharacters() {
             val characterIds = filmCharacterMap[filmId] ?: emptyList()
 
             val characters = characterIds.mapNotNull { characterId ->
-                charactersById[characterId]?.let { characterData ->
-                    Character.Builder(ctx)
-                        .id(ctx.globalIDFor(Character.Reflection, characterData.id))
-                        .name(characterData.name)
-                        .birthYear(characterData.birthYear)
-                        .eyeColor(characterData.eyeColor)
-                        .gender(characterData.gender)
-                        .hairColor(characterData.hairColor)
-                        .height(characterData.height)
-                        .mass(characterData.mass?.toDouble())
-                        .created(characterData.created.toString())
-                        .edited(characterData.edited.toString())
-                        .build()
-                }
+                charactersById[characterId]?.let(CharacterBuilder(ctx)::build)
             }
 
             FieldValue.ofValue(characters)

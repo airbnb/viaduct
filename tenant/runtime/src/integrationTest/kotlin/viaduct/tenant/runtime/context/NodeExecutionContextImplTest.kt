@@ -1,15 +1,16 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.context
 
 import graphql.schema.GraphQLObjectType
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
-import viaduct.api.internal.NodeReferenceFactory
+import viaduct.api.internal.NodeReferenceGRTFactory
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.internal.select.SelectionsLoader
 import viaduct.api.mocks.MockGlobalIDCodec
@@ -23,11 +24,10 @@ import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
 import viaduct.tenant.runtime.globalid.Query
 import viaduct.tenant.runtime.globalid.User
-import viaduct.tenant.runtime.internal.NodeReferenceFactoryImpl
+import viaduct.tenant.runtime.internal.NodeReferenceGRTFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
 
-@ExperimentalCoroutinesApi
 class NodeExecutionContextImplTest {
     private val userId = GlobalIDImpl(User.Reflection, "123")
     private val queryObject = mockk<Query>()
@@ -35,7 +35,7 @@ class NodeExecutionContextImplTest {
 
     private val engineExecutionContext = mockk<EngineExecutionContext> {
         every { fullSchema } returns GlobalIdFeatureAppTest.schema
-        every { createNodeEngineObjectData(any(), any()) } returns mockk {
+        every { createNodeReference(any(), any()) } returns mockk {
             every { graphQLObjectType } returns mockk()
         }
     }
@@ -45,15 +45,16 @@ class NodeExecutionContextImplTest {
         selectionSet: SelectionSet<User> = mockk<SelectionSet<User>>(),
         queryLoader: SelectionsLoader<QueryType> = SelectionsLoader.const(queryObject),
         selectionSetFactory: SelectionSetFactory = SelectionSetFactoryImpl(rawSelectionSetFactory),
-        nodeReferenceFactory: NodeReferenceFactory = NodeReferenceFactoryImpl {
+        nodeReferenceFactory: NodeReferenceGRTFactory = NodeReferenceGRTFactoryImpl {
                 id: String,
                 graphQLObjectType: GraphQLObjectType,
             ->
-            engineExecutionContext.createNodeEngineObjectData(id, graphQLObjectType)
+            engineExecutionContext.createNodeReference(id, graphQLObjectType)
         }
     ) = NodeExecutionContextImpl(
         ResolverExecutionContextImpl(
             MockInternalContext(GlobalIdFeatureAppTest.schema, MockGlobalIDCodec()),
+            null,
             queryLoader,
             selectionSetFactory,
             nodeReferenceFactory
@@ -77,10 +78,9 @@ class NodeExecutionContextImplTest {
         assertEquals(mapOf("var" to true), inner.variables())
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun query() =
-        runBlockingTest {
+    fun query(): Unit =
+        runBlocking {
             val ctx = mk()
             ctx.selectionsFor(Query.Reflection, "__typename").also {
                 assertTrue(it.contains(Query.Reflection.Fields.__typename))

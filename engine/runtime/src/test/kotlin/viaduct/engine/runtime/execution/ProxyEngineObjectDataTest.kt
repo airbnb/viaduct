@@ -1,9 +1,11 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime.execution
 
 import graphql.validation.ValidationError
 import kotlin.test.assertContains
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -12,6 +14,7 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.UnsetSelectionException
 import viaduct.engine.api.mocks.MockCheckerErrorResult
+import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.CompositeLocalContext
 import viaduct.engine.runtime.FieldErrorsException
 import viaduct.engine.runtime.FieldResolutionResult
@@ -103,11 +106,14 @@ class ProxyEngineObjectDataTest {
                 fragment?.let {
                     selectionSetFactory.rawSelectionSet(oer.graphQLObjectType.name, fragment, variables)
                 }
-            return ProxyEngineObjectData(oer, "error", selectionSet, applyAccessChecks)
+            if (!applyAccessChecks) {
+                return CheckerProxyEngineObjectData(oer, "error", selectionSet)
+            }
+            return ProxyEngineObjectData(oer, "error", selectionSet)
         }
 
         init {
-            runBlockingTest {
+            runBlocking {
                 test()
             }
         }
@@ -139,6 +145,11 @@ class ProxyEngineObjectDataTest {
             assertThrows<UnsetSelectionException> { o1.fetch("listField") }
             assertEquals(1, (o1.fetch("object2") as ProxyEngineObjectData).fetch("intField"))
             assertThrows<UnsetSelectionException> { (o1.fetch("object2") as ProxyEngineObjectData).fetch("object1") }
+
+            // fetchSelections should return only the selected fields
+            assertEquals(setOf("stringField", "object2"), o1.fetchSelections().toSet())
+            val o2 = o1.fetch("object2") as ProxyEngineObjectData
+            assertEquals(setOf("intField"), o2.fetchSelections().toSet())
         }
     }
 
@@ -205,6 +216,9 @@ class ProxyEngineObjectDataTest {
             assertThrows<UnsetSelectionException> { o.fetch("x3") }
             // the unaliased "x" field is not selected
             assertThrows<UnsetSelectionException> { o.fetch("x") }
+
+            // fetchSelections should return the aliases, not the field name
+            assertEquals(setOf("x1", "x2"), o.fetchSelections().toSet())
         }
     }
 
@@ -280,6 +294,9 @@ class ProxyEngineObjectDataTest {
             )
             assertEquals(1, o.fetch("f1"))
             assertEquals(2, o.fetch("f2"))
+
+            // fetchSelections should include directives that evaluate to true
+            assertEquals(setOf("f1", "f2"), o.fetchSelections().toSet())
         }
     }
 
@@ -298,6 +315,9 @@ class ProxyEngineObjectDataTest {
             )
             assertThrows<UnsetSelectionException> { o.fetch("f1") }
             assertThrows<UnsetSelectionException> { o.fetch("f2") }
+
+            // fetchSelections should not include directives that evaluate to false
+            assertEquals(emptySet<String>(), o.fetchSelections().toSet())
         }
     }
 
@@ -318,6 +338,9 @@ class ProxyEngineObjectDataTest {
             )
             assertEquals(1, o.fetch("f1"))
             assertEquals(2, o.fetch("f2"))
+
+            // fetchSelections should include dynamic directives that evaluate to true
+            assertEquals(setOf("f1", "f2"), o.fetchSelections().toSet())
         }
     }
 
@@ -338,6 +361,9 @@ class ProxyEngineObjectDataTest {
             )
             assertThrows<UnsetSelectionException> { o.fetch("f1") }
             assertThrows<UnsetSelectionException> { o.fetch("f2") }
+
+            // fetchSelections should not include dynamic directives that evaluate to false
+            assertEquals(emptySet<String>(), o.fetchSelections().toSet())
         }
     }
 
@@ -367,6 +393,9 @@ class ProxyEngineObjectDataTest {
             val o1 = mkProxy(null, "Query", emptyMap<String, Any>())
             val e = assertThrows<UnsetSelectionException> { o1.fetch("invalidField") }
             assertContains(e.message, "error msg")
+
+            // fetchSelections should return empty when no fragment is provided
+            assertEquals(emptySet<String>(), o1.fetchSelections().toSet())
         }
     }
 

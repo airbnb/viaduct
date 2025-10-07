@@ -1,8 +1,10 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.context.factory
 
 import kotlin.collections.get
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -19,8 +21,8 @@ class ObjectFactoryTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun forClass() =
-        runBlockingTest {
+    fun forClass(): Unit =
+        runBlocking {
             val obj = ObjectFactory.forClass(Bar::class)
                 .mk(
                     MockArgs(

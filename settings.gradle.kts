@@ -35,24 +35,9 @@ includeBuild("demoapps/spring-starter")
 include(":tenant:codegen-integration-tests")
 include(":tenant:api-integration-tests")
 include(":tenant:runtime-integration-tests")
+include(":tenant:tutorials")
+include(":tenant:wiring")
 
-// testapps
-include("tenant:testapps:fixtures")
-
-/*
-include("tenant:testapps:policycheck")
-include("tenant:testapps:policycheck:tenants:tenant1")
-include("tenant:testapps:policycheck:schema")
-include("tenant:testapps:resolver")
-include("tenant:testapps:resolver:tenants:tenant1")
-include("tenant:testapps:resolver:tenants:tenant2")
-include("tenant:testapps:resolver:tenants:tenant3")
-include("tenant:testapps:resolver:schema")
-include("tenant:testapps:schemaregistration")
-include("tenant:testapps:schemaregistration:tenants:tenant1")
-include("tenant:testapps:schemaregistration:tenants:tenant2")
-include("tenant:testapps:schemaregistration:schema")
-*/
 
 // misc
 include(":docs")

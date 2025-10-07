@@ -3,6 +3,8 @@ package viaduct.demoapp.starwars.resolvers
 import viaduct.api.Resolver
 import viaduct.api.grts.Character
 import viaduct.api.grts.Planet
+import viaduct.demoapp.starwars.builders.CharacterBuilder
+import viaduct.demoapp.starwars.builders.PlanetBuilder
 import viaduct.demoapp.starwars.data.StarWarsData
 import viaduct.demoapp.starwars.resolverbases.SpeciesResolvers
 
@@ -12,20 +14,7 @@ class SpeciesHomeworldResolver : SpeciesResolvers.Homeworld() {
         val species = ctx.objectValue
         val homeWorldId = StarWarsData.species.first { it.id == species.getId().internalID }.homeworldId
         val planetData = StarWarsData.planets.find { it.id == homeWorldId } ?: return null
-        return Planet.Builder(ctx)
-            .id(ctx.globalIDFor(Planet.Reflection, planetData.id))
-            .name(planetData.name)
-            .diameter(planetData.diameter)
-            .rotationPeriod(planetData.rotationPeriod)
-            .orbitalPeriod(planetData.orbitalPeriod)
-            .gravity(planetData.gravity?.toDouble())
-            .population(planetData.population?.toDouble())
-            .climates(planetData.climates)
-            .terrains(planetData.terrains)
-            .surfaceWater(planetData.surfaceWater?.toDouble())
-            .created(planetData.created.toString())
-            .edited(planetData.edited.toString())
-            .build()
+        return PlanetBuilder(ctx).build(planetData)
     }
 }
 
@@ -34,20 +23,7 @@ class SpeciesPeopleResolver : SpeciesResolvers.People() {
     override suspend fun resolve(ctx: Context): List<Character?>? {
         val speciesId = ctx.objectValue.getId().internalID
         val people = StarWarsData.characters.filter { it.speciesId == speciesId }
-        return people.map { c ->
-            Character.Builder(ctx)
-                .id(ctx.globalIDFor(Character.Reflection, c.id))
-                .name(c.name)
-                .birthYear(c.birthYear)
-                .eyeColor(c.eyeColor)
-                .gender(c.gender)
-                .hairColor(c.hairColor)
-                .height(c.height)
-                .mass(c.mass?.toDouble())
-                .created(c.created.toString())
-                .edited(c.edited.toString())
-                .build()
-        }
+        return people.map(CharacterBuilder(ctx)::build)
     }
 }
 

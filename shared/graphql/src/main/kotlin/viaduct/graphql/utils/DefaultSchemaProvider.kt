@@ -7,6 +7,7 @@ import graphql.language.Directive
 import graphql.language.DirectiveDefinition
 import graphql.language.DirectiveLocation
 import graphql.language.FieldDefinition
+import graphql.language.ImplementingTypeDefinition
 import graphql.language.InputValueDefinition
 import graphql.language.InterfaceTypeDefinition
 import graphql.language.ListType
@@ -15,15 +16,19 @@ import graphql.language.ObjectTypeDefinition
 import graphql.language.ObjectTypeExtensionDefinition
 import graphql.language.OperationDefinition
 import graphql.language.OperationTypeDefinition
+import graphql.language.SDLDefinition
 import graphql.language.ScalarTypeDefinition
 import graphql.language.SchemaDefinition
 import graphql.language.SourceLocation
 import graphql.language.StringValue
+import graphql.language.Type
 import graphql.language.TypeName
+import graphql.parser.MultiSourceReader
 import graphql.schema.GraphQLScalarType
-import graphql.schema.idl.SchemaPrinter
+import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.TypeDefinitionRegistry
-import graphql.schema.idl.UnExecutableSchemaGenerator
+import java.io.File
+import java.io.FileReader
 import kotlin.jvm.optionals.getOrNull
 import viaduct.graphql.Scalars
 import viaduct.utils.slf4j.logger
@@ -131,31 +136,64 @@ object DefaultSchemaProvider {
     }
 
     /**
+     * Enum to control if parts of the Node schmea (ie the Node type definition or
+     * the Query.node/nodes fields) should be included in the default schema.
+     */
+    enum class IncludeNodeSchema {
+        /** Always include */
+        Always,
+
+        /** Never include */
+        Never,
+
+        /** Automatically include if Node or one of its subtypes is referenced */
+        IfUsed;
+
+        companion object {
+            operator fun invoke(include: Boolean): IncludeNodeSchema = if (include) Always else Never
+        }
+    }
+
+    /**
      * Generates the complete default schema in SDL format as a String.
      * This includes all default directives, the Node interface, standard scalars,
      * Node query fields, and root types (Query, Mutation, Subscription) if they have extensions.
      *
-     * @param includeNodeQueries whether to include standard Node query fields (node/nodes) - defaults to true
+     * @param includeNodeDef whether to include the Node definition fields (node/nodes) -
+     *   defaults to [IncludeNodeSchema.IfUsed]
+     * @param includeNodeQueries whether to include standard Node query fields (node/nodes) -
+     *   defaults to [IncludeNodeSchema.IfUsed]
+     * @param existingSDLFiles the schema fragments for which the default SDL will be generated
      * @return the complete default schema in SDL format
      */
-    fun getSDL(includeNodeQueries: Boolean = true): String {
-        val registry = TypeDefinitionRegistry()
+    fun getDefaultSDL(
+        includeNodeDefinition: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
+        includeNodeQueries: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
+        existingSDLFiles: List<File> = emptyList()
+    ): String {
+        val extantRegistry = if (existingSDLFiles.isNotEmpty()) {
+            val reader = MultiSourceReader.newMultiSourceReader().let { readerBuilder ->
+                for (f in existingSDLFiles) {
+                    readerBuilder.reader(FileReader(f), f.path)
+                }
+                readerBuilder.build()
+            }
+            SchemaParser().parse(reader)
+        } else {
+            TypeDefinitionRegistry()
+        }
+
+        val builder = RegistryBuilder(TypeDefinitionRegistry(), extantRegistry)
 
         // Generate all default schema components
-        addDefaults(registry, includeNodeQueries = includeNodeQueries, forceAddRootTypes = true)
-        val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(registry)
-
-        // Convert to SDL format
-        val schemaPrinter = SchemaPrinter(
-            SchemaPrinter.Options.defaultOptions()
-                .includeDirectiveDefinitions(true)
-                .includeAstDefinitionComments(true)
-                .includeSchemaDefinition(true)
-                .includeDirectiveDefinition {
-                    DefaultDirective.values().map { d -> d.directiveName }.contains(it) // only include default directives
-                }
+        addDefaults(
+            builder = builder,
+            includeNodeDefinition = includeNodeDefinition,
+            includeNodeQueries = includeNodeQueries,
+            forceAddRootTypes = true,
+            allowExisting = false
         )
-        return schemaPrinter.print(schema)
+        return builder.building.toSDL()
     }
 
     /**
@@ -163,23 +201,69 @@ object DefaultSchemaProvider {
      * TypeDefinitionRegistry.
      *
      * @param registry the TypeDefinitionRegistry to enhance with default schema components
-     * @param includeNodeQueries whether to include standard Node query fields (node/nodes) - defaults to true
+     * @param includeNodeDefinition whether to include standard Node query fields (node/nodes) -
+     *   defaults to [IncludeNodeSchema.IfUsed]
+     * @param includeNodeQueries whether to include standard Node query fields (node/nodes) -
+     *   defaults to [IncludeNodeSchema.IfUsed]
      * @param forceAddRootTypes whether to force adding root types even without extensions
      * @param allowExisting whether to allow existing definitions without throwing errors
      */
     fun addDefaults(
         registry: TypeDefinitionRegistry,
-        includeNodeQueries: Boolean = true,
+        includeNodeDefinition: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
+        includeNodeQueries: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
         forceAddRootTypes: Boolean = false,
         allowExisting: Boolean = false,
     ) {
-        addDefaultDirectives(registry, allowExisting)
-        addNodeInterface(registry, allowExisting)
-        addStandardScalars(registry, allowExisting)
-        if (includeNodeQueries) {
-            addNodeQueryFields(registry, allowExisting)
+        addDefaults(
+            builder = RegistryBuilder(registry, TypeDefinitionRegistry()),
+            includeNodeDefinition = includeNodeDefinition,
+            includeNodeQueries = includeNodeQueries,
+            forceAddRootTypes = forceAddRootTypes,
+            allowExisting = allowExisting,
+        )
+    }
+
+    private fun addDefaults(
+        builder: RegistryBuilder,
+        includeNodeDefinition: IncludeNodeSchema,
+        includeNodeQueries: IncludeNodeSchema,
+        forceAddRootTypes: Boolean,
+        allowExisting: Boolean
+    ): RegistryBuilder {
+        addDefaultDirectives(builder, allowExisting)
+        addStandardScalars(builder, allowExisting)
+
+        val hasNodeTypeReference by lazy {
+            includeNodeDefinition == IncludeNodeSchema.Always ||
+                includeNodeQueries == IncludeNodeSchema.Always ||
+                hasNodeTypeReference(builder)
         }
-        addRootTypes(registry, forceAddRootTypes, allowExisting)
+
+        // Conditionally add Query.node/s fields
+        when (includeNodeQueries) {
+            IncludeNodeSchema.Always -> addNodeQueryFields(builder, allowExisting)
+            IncludeNodeSchema.Never -> {}
+            IncludeNodeSchema.IfUsed -> {
+                if (hasNodeTypeReference) {
+                    addNodeQueryFields(builder, allowExisting)
+                }
+            }
+        }
+
+        // Conditionally add Node definition
+        when (includeNodeDefinition) {
+            IncludeNodeSchema.Always -> addNodeInterface(builder, allowExisting)
+            IncludeNodeSchema.Never -> {}
+            IncludeNodeSchema.IfUsed -> {
+                if (hasNodeTypeReference) {
+                    addNodeInterface(builder, allowExisting)
+                }
+            }
+        }
+
+        addRootTypes(builder, forceAddRootTypes, allowExisting)
+        return builder
     }
 
     /**
@@ -198,12 +282,12 @@ object DefaultSchemaProvider {
      * @param registry the TypeDefinitionRegistry to enhance with default directives
      * @param allowExisting whether to allow existing definitions without throwing errors
      */
-    internal fun addDefaultDirectives(
-        registry: TypeDefinitionRegistry,
+    private fun addDefaultDirectives(
+        builder: RegistryBuilder,
         allowExisting: Boolean = false
     ) {
         DefaultDirective.values().forEach { directive ->
-            val existingDef = registry.getDirectiveDefinition(directive.directiveName).getOrNull()
+            val existingDef = builder.getDirectiveDefinition(directive.directiveName)
             if (existingDef != null) {
                 val locationInfo = " (currently defined @ ${existingDef.sourceLocation}."
                 maybeThrow(
@@ -215,7 +299,7 @@ object DefaultSchemaProvider {
             }
 
             val definition = directive.createDefinition(sourceLocation)
-            registry.add(definition)
+            builder.add(definition)
             log.debug("Added default @{} directive", directive.directiveName)
         }
     }
@@ -228,11 +312,11 @@ object DefaultSchemaProvider {
      * @param registry the TypeDefinitionRegistry to enhance with the Node interface
      * @param allowExisting whether to allow existing definitions without throwing errors
      */
-    internal fun addNodeInterface(
-        registry: TypeDefinitionRegistry,
+    private fun addNodeInterface(
+        builder: RegistryBuilder,
         allowExisting: Boolean = false
     ) {
-        if (registry.getType("Node").isPresent) {
+        if (builder.getType("Node").isPresent) {
             maybeThrow(
                 allowExisting,
                 "Node interface cannot be redefined in user schemas. " +
@@ -256,7 +340,7 @@ object DefaultSchemaProvider {
             .sourceLocation(sourceLocation)
             .build()
 
-        registry.add(nodeInterface)
+        builder.add(nodeInterface)
         log.debug("Added default Node interface")
     }
 
@@ -268,13 +352,14 @@ object DefaultSchemaProvider {
      * @param registry the TypeDefinitionRegistry to enhance with Node query fields
      * @param allowExisting whether to allow existing definitions without throwing errors
      */
-    internal fun addNodeQueryFields(
-        registry: TypeDefinitionRegistry,
+    private fun addNodeQueryFields(
+        builder: RegistryBuilder,
         allowExisting: Boolean = false
     ) {
         // Check if Query type extension with node/nodes fields already exists
-        val existingQueryDefinitions = (registry.objectTypeExtensions()["Query"] ?: emptyList()) +
-            (registry.getType("Query").map { listOf(it) }.orElse(emptyList()) as List<ObjectTypeDefinition>)
+        @Suppress("UNCHECKED_CAST")
+        val existingQueryDefinitions = (builder.objectTypeExtensions["Query"] ?: emptyList()) +
+            (builder.getType("Query").map { listOf(it) }.orElse(emptyList()) as List<ObjectTypeDefinition>)
         val hasEitherNodeField = existingQueryDefinitions.any { ext ->
             ext.fieldDefinitions.any { field -> field.name == "node" || field.name == "nodes" }
         }
@@ -333,7 +418,7 @@ object DefaultSchemaProvider {
             .sourceLocation(sourceLocation)
             .build()
 
-        registry.add(queryExtension)
+        builder.add(queryExtension)
         log.debug("Added default Node query fields (node, nodes)")
     }
 
@@ -346,12 +431,12 @@ object DefaultSchemaProvider {
      * @param allowExisting whether to allow existing definitions without throwing errors
      * @throws RuntimeException if any standard scalar is already defined in user schemas and allowExisting is false
      */
-    internal fun addStandardScalars(
-        registry: TypeDefinitionRegistry,
+    private fun addStandardScalars(
+        builder: RegistryBuilder,
         allowExisting: Boolean = false
     ) {
         defaultScalars().forEach { scalar ->
-            if (registry.getType(scalar.name).isPresent) {
+            if (builder.getType(scalar.name).isPresent) {
                 maybeThrow(
                     allowExisting,
                     "Standard Viaduct scalar '${scalar.name}' cannot be redefined in user schemas. " +
@@ -366,7 +451,7 @@ object DefaultSchemaProvider {
                 .sourceLocation(sourceLocation)
                 .build()
 
-            registry.add(scalarDefinition)
+            builder.add(scalarDefinition)
             log.debug("Added default {} scalar", scalar.name)
         }
     }
@@ -379,20 +464,20 @@ object DefaultSchemaProvider {
      * @param force whether to force adding root types even without extensions
      * @param allowExisting whether to allow existing definitions without throwing errors
      */
-    internal fun addRootTypes(
-        registry: TypeDefinitionRegistry,
+    private fun addRootTypes(
+        builder: RegistryBuilder,
         force: Boolean = false,
         allowExisting: Boolean = false
     ) {
-        val objectExtensions = registry.objectTypeExtensions()
+        val objectExtensions = builder.objectTypeExtensions
 
         val queryTypeName = "Query"
         val mutationTypeName = "Mutation"
         val subscriptionTypeName = "Subscription"
 
-        addRootType(registry, queryTypeName, objectExtensions, allowExisting = allowExisting)
-        val didAddMutation = addRootType(registry, mutationTypeName, objectExtensions, ifNeeded = !force, allowExisting = allowExisting)
-        val didAddSubscription = addRootType(registry, subscriptionTypeName, objectExtensions, ifNeeded = !force, allowExisting = allowExisting)
+        addRootType(builder, queryTypeName, objectExtensions, allowExisting = allowExisting)
+        val didAddMutation = addRootType(builder, mutationTypeName, objectExtensions, ifNeeded = !force, allowExisting = allowExisting)
+        val didAddSubscription = addRootType(builder, subscriptionTypeName, objectExtensions, ifNeeded = !force, allowExisting = allowExisting)
 
         val opDefinitions = mutableListOf<OperationTypeDefinition>(
             OperationTypeDefinition.newOperationTypeDefinition()
@@ -419,18 +504,18 @@ object DefaultSchemaProvider {
         val schemaDef = SchemaDefinition.newSchemaDefinition()
             .operationTypeDefinitions(opDefinitions)
             .build()
-        registry.add(schemaDef)
+        builder.add(schemaDef)
     }
 
     private fun addRootType(
-        registry: TypeDefinitionRegistry,
+        builder: RegistryBuilder,
         typeName: String,
         objectExtensions: Map<String, List<*>>,
         ifNeeded: Boolean = false,
         allowExisting: Boolean = false,
     ): Boolean {
         val hasExtensions = objectExtensions.containsKey(typeName)
-        val hasDefinition = registry.getType(typeName).isPresent
+        val hasDefinition = builder.getType(typeName).isPresent
 
         if (hasDefinition) {
             maybeThrow(
@@ -447,7 +532,7 @@ object DefaultSchemaProvider {
 
         if (shouldAdd) {
             val rootType = createEmptyRootType(typeName, hasExtensions)
-            registry.add(rootType)
+            builder.add(rootType)
             log.debug(
                 "Added default {} root type (detected {} extensions)",
                 typeName,
@@ -522,6 +607,50 @@ object DefaultSchemaProvider {
             .build()
     }
 
+    private fun hasNodeTypeReference(builder: RegistryBuilder): Boolean = hasNodeTypeReference(builder.building) || hasNodeTypeReference(builder.extant)
+
+    private fun hasNodeTypeReference(registry: TypeDefinitionRegistry): Boolean {
+        registry.getTypes(ImplementingTypeDefinition::class.java).forEach {
+            if (hasNodeTypeReference(it)) {
+                return true
+            }
+        }
+
+        registry.objectTypeExtensions().forEach { (_, exts) ->
+            if (exts.any(::hasNodeTypeReference)) {
+                return true
+            }
+        }
+
+        registry.interfaceTypeExtensions().forEach { (_, exts) ->
+            if (exts.any(::hasNodeTypeReference)) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private fun hasNodeTypeReference(def: ImplementingTypeDefinition<*>): Boolean =
+        hasNodeTypeReference(def.implements) ||
+            hasNodeTypeReference(def.fieldDefinitions)
+
+    private fun hasNodeTypeReference(types: List<Type<*>>): Boolean = types.any(::hasNodeTypeReference)
+
+    private fun hasNodeTypeReference(type: Type<*>): Boolean =
+        when (type) {
+            is NonNullType -> hasNodeTypeReference(type.type)
+            is ListType -> hasNodeTypeReference(type.type)
+            is TypeName -> type.name == "Node"
+            else -> throw IllegalArgumentException("Unsupported type $type")
+        }
+
+    @JvmName("hasNodeTypeReference2")
+    private fun hasNodeTypeReference(fields: List<FieldDefinition>): Boolean =
+        fields.any {
+            hasNodeTypeReference(it.type)
+        }
+
     private fun createResolverDirective(): Directive =
         Directive.newDirective()
             .name("resolver")
@@ -548,6 +677,26 @@ object DefaultSchemaProvider {
             this.sourceName ?: "unknown location"
         } else {
             "${this.sourceName ?: "unknown source"}:${this.line}:${this.column}"
+        }
+    }
+
+    private class RegistryBuilder(
+        val building: TypeDefinitionRegistry,
+        val extant: TypeDefinitionRegistry
+    ) {
+        val objectTypeExtensions: Map<String, List<ObjectTypeExtensionDefinition>> get() =
+            building.objectTypeExtensions() + extant.objectTypeExtensions()
+
+        fun getDirectiveDefinition(name: String): DirectiveDefinition? =
+            building.getDirectiveDefinition(name)
+                .or { extant.getDirectiveDefinition(name) }
+                .getOrNull()
+
+        fun getType(name: String) = building.getType(name).or { extant.getType(name) }
+
+        fun add(def: SDLDefinition<*>): RegistryBuilder {
+            building.add(def)
+            return this
         }
     }
 }

@@ -11,8 +11,8 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RawSelection
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
+import viaduct.graphql.utils.GraphQLTypeRelation
 import viaduct.graphql.utils.VariableUsageInfo
-import viaduct.utils.graphql.GraphQLTypeRelation
 
 internal data class Type(
     val type: GraphQLType,

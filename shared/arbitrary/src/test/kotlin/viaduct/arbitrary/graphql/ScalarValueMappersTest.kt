@@ -3,6 +3,8 @@ package viaduct.arbitrary.graphql
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.mapping.graphql.RawScalar
+import viaduct.mapping.graphql.RawValue
 
 class ScalarValueMappersTest : RawValue.DSL() {
     private val roundtrip = ScalarRawToGJ.map(ScalarGJToRaw)

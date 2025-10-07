@@ -11,8 +11,6 @@ plugins {
     id("settings.common")
 }
 
-rootProject.name = "viaduct-codegen"
-
 // Include only codegen module
 includeNamed(":tenant:codegen", "../..")
 

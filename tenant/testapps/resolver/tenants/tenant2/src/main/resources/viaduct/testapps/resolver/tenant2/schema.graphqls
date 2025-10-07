@@ -1,8 +1,0 @@
-type Test2ObjectValue @scope(to: ["publicScope"]) {
-  value: String
-}
-
-extend type Query @scope(to: ["publicScope"]) {
-  scalarString2: String @resolver
-  objectValue2: Test2ObjectValue @resolver
-}

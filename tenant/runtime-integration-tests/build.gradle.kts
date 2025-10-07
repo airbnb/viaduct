@@ -1,10 +1,15 @@
 plugins {
     id("conventions.kotlin")
+    id("jacoco-integration-tests")
     id("test-feature-app")
     id("conventions.kotlin-static-analysis")
 }
 
 viaductFeatureApp {}
+
+viaductIntegrationCoverage {
+    baseProject(":core:tenant:tenant-runtime")
+}
 
 sourceSets {
     named("main") {
@@ -33,7 +38,6 @@ dependencies {
     testImplementation(libs.viaduct.tenant.runtime)
     testImplementation(libs.viaduct.service.runtime)
     testImplementation(libs.viaduct.shared.arbitrary)
-    testImplementation(project(":tenant:testapps:fixtures"))
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.jackson.core)
@@ -44,4 +48,5 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.strikt.core)
     testImplementation(libs.micrometer.core)
+    testImplementation(testFixtures(libs.viaduct.tenant.runtime))
 }

@@ -28,9 +28,9 @@ import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
 import viaduct.engine.api.fragment.FragmentVariables
 import viaduct.engine.api.gj
+import viaduct.graphql.utils.GraphQLTypeRelation
 import viaduct.graphql.utils.ensureOneDirective
 import viaduct.graphql.utils.rawValue
-import viaduct.utils.graphql.GraphQLTypeRelation
 
 data class RawSelectionSetContext(
     val variables: Map<String, Any?>,
@@ -116,7 +116,7 @@ data class RawSelectionSetImpl(
     }
 
     override fun addVariables(variables: Map<String, Any?>): RawSelectionSet {
-        this.ctx.variables.forEach { k, _ ->
+        this.ctx.variables.forEach { (k, _) ->
             require(!variables.containsKey(k)) {
                 "cannot rebind variable with key $k"
             }

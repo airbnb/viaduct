@@ -9,7 +9,6 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.UnionWiringEnvironment
 import graphql.schema.idl.WiringFactory
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.coroutines.CoroutineInterop
 
 /**
@@ -20,10 +19,14 @@ class ViaductWiringFactory(private val coroutineInterop: CoroutineInterop) : Wir
     override fun getDefaultDataFetcher(environment: FieldWiringEnvironment): DataFetcher<*> {
         return DataFetcher { env ->
             val source = env.getSource<Any?>() ?: return@DataFetcher null
-            // Don't call ResolvedEngineObjectData.fetch to avoid unnecessarily
-            // creating a coroutine
-            if (source is EngineObjectData && source !is ResolvedEngineObjectData) {
-                coroutineInterop.scopedFuture { source.fetch(env.field.name) }
+            if (source is EngineObjectData) {
+                if (source is EngineObjectData.Sync) {
+                    // Don't call suspend fetchOrNull to avoid unnecessarily
+                    // creating a coroutine
+                    source.getOrNull(env.field.name)
+                } else {
+                    coroutineInterop.scopedFuture { source.fetchOrNull(env.field.name) }
+                }
             } else {
                 PropertyDataFetcher.fetching<Any>(env.field.name).get(env)
             }

@@ -14,12 +14,15 @@ fun mkSchema(sdl: String): ViaductExtendedSchema {
     return GJSchema.fromSchema(schema)
 }
 
-fun mkKotlinGRTFilesBuilder(pkg: String = "pkg"): KotlinGRTFilesBuilder =
+fun mkKotlinGRTFilesBuilder(
+    schema: ViaductExtendedSchema,
+    pkg: String = "pkg"
+): KotlinGRTFilesBuilder =
     KotlinGRTFilesBuilderImpl(
         KotlinCodeGenArgs(
             pkg,
             File.createTempFile("kotlingrt_", null),
             Timer(),
-            ViaductBaseTypeMapper()
+            ViaductBaseTypeMapper(schema)
         )
     )

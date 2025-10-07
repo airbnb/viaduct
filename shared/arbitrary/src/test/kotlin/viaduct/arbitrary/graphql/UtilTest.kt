@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.graphql
 
@@ -24,8 +24,7 @@ import io.kotest.property.arbitrary.string
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
 import io.kotest.property.forNone
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -33,12 +32,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.utils.graphql.allChildrenOfType
+import viaduct.graphql.utils.allChildrenOfType
 
 class UtilTest : KotestPropertyBase() {
     @Test
-    fun `Int asIntRange`() =
-        runBlockingTest {
+    fun `Int asIntRange`(): Unit =
+        runBlocking {
             Arb.int().forAll { i ->
                 val range = i.asIntRange()
                 val isEmpty = range.isEmpty()
@@ -51,8 +50,8 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb-set subset`() =
-        runBlockingTest {
+    fun `Arb-set subset`(): Unit =
+        runBlocking {
             Arb.set(Arb.int())
                 .forAll { set ->
                     val subset = Arb.constant(set).subset().bind()
@@ -61,8 +60,8 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb-set subset with range`() =
-        runBlockingTest {
+    fun `Arb-set subset with range`(): Unit =
+        runBlocking {
             Arb.pair(
                 Arb.set(Arb.int()),
                 Arb.intRange(0 until Int.MAX_VALUE).nonEmpty()
@@ -83,8 +82,8 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Set arbSubset`() =
-        runBlockingTest {
+    fun `Set arbSubset`(): Unit =
+        runBlocking {
             // without range
             Arb.set(Arb.int())
                 .forAll { set ->
@@ -101,8 +100,8 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `filterNotNull`() =
-        runBlockingTest {
+    fun filterNotNull(): Unit =
+        runBlocking {
             val range = 0..100
             Arb.int(range)
                 .orNull()
@@ -111,8 +110,8 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `zip`() =
-        runBlockingTest {
+    fun zip(): Unit =
+        runBlocking {
             Arb.pair(Arb.int(), Arb.string())
                 .flatMap { (int, string) ->
                     Arb.constant(int)
@@ -124,8 +123,8 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `weightedChoose`() =
-        runBlockingTest {
+    fun weightedChoose(): Unit =
+        runBlocking {
             val weighted = Arb.constant(true)
             val fallback = Arb.constant(false)
 
@@ -139,11 +138,11 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb_unit`() = runBlockingTest { Arb.unit().forAll { it == Unit } }
+    fun `Arb unit`(): Unit = runBlocking { Arb.unit().forAll { it == Unit } }
 
     @Test
-    fun `collect`() =
-        runBlockingTest {
+    fun collect(): Unit =
+        runBlocking {
             listOf(Arb.int(), Arb.string(), Arb.char())
                 .collect()
                 .forAll { l ->
@@ -152,8 +151,8 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `RandomSource_sampleWeight`() =
-        runBlockingTest {
+    fun `RandomSource sampleWeight`(): Unit =
+        runBlocking {
             // always true
             arbitrary { rs -> rs.sampleWeight(1.0) }
                 .forAll { it }
@@ -164,8 +163,8 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `RandomSource_count`() =
-        runBlockingTest {
+    fun `RandomSource count`(): Unit =
+        runBlocking {
             arbitrary { rs -> rs.count(CompoundingWeight.Never) }
                 .forAll { it == 0 }
 
@@ -227,13 +226,13 @@ class UtilTest : KotestPropertyBase() {
     }
 
     @Test
-    fun `String_asSchema`() {
+    fun `String asSchema`() {
         val schema = "type Query { x:Int }".asSchema
         assertNotNull(schema.queryType.getField("x"))
     }
 
     @Test
-    fun `String_asDocument`() {
+    fun `String asDocument`() {
         val sdl = "type Query {x: Int}"
         assertEquals(sdl, AstPrinter.printAstCompact(sdl.asDocument))
     }

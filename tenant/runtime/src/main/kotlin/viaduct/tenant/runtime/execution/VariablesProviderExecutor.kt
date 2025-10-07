@@ -29,7 +29,7 @@ class VariablesProviderExecutor(
         val args = ArgumentsArgs(internalContext, ctx.arguments)
         val variablesProviderCtx = VariablesProviderContextImpl(
             args = argumentsFactory(args),
-            executionContext = ExecutionContextImpl(internalContext)
+            executionContext = ExecutionContextImpl(internalContext, ctx.engineExecutionContext.requestContext)
         )
 
         @Suppress("UNCHECKED_CAST")

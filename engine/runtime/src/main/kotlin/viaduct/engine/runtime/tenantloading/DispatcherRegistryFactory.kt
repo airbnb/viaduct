@@ -42,6 +42,7 @@ class DispatcherRegistryFactory(
         val fieldResolverExecutorsToValidate = mutableMapOf<Coordinate, FieldResolverExecutor>()
         val nodeResolverExecutorsToValidate = mutableMapOf<String, NodeResolverExecutor>()
         val fieldCheckerExecutorsToValidate = mutableMapOf<Coordinate, CheckerExecutor>()
+        val typeCheckerExecutorsToValidate = mutableMapOf<String, CheckerExecutor>()
 
         val tenantModuleBootstrappers = runBlocking(Dispatchers.Default) {
             tenantAPIBootstrapper.tenantModuleBootstrappers()
@@ -79,6 +80,7 @@ class DispatcherRegistryFactory(
                 // Enable access controls for node resolvers only
                 checkerExecutorFactory.checkerExecutorForType(typeName)?.let {
                     typeCheckerDispatchers[typeName] = CheckerDispatcherImpl(it)
+                    typeCheckerExecutorsToValidate[typeName] = it
                 }
                 tenantContributesExecutors = true
             }
@@ -99,6 +101,7 @@ class DispatcherRegistryFactory(
                 fieldResolverExecutorsToValidate,
                 nodeResolverExecutorsToValidate,
                 fieldCheckerExecutorsToValidate,
+                typeCheckerExecutorsToValidate,
                 dispatcherRegistry, // need requiredSelectionSetRegistry on dispatcherRegistry for validation
             )
         )

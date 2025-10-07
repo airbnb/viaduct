@@ -31,19 +31,4 @@ class NodeResolverContextFactoryTest {
             .make(args.getNodeArgs())
         assertTrue(ctx is Context)
     }
-
-    @Test
-    fun `ifContext -- not Context`() {
-        NodeResolverContextFactory
-            .ifContext(NodeExecutionContext::class, innerFactory)
-            .make(args.getNodeArgs())
-    }
-
-    @Test
-    fun `ifContext -- is Context`() {
-        val ctx = NodeResolverContextFactory
-            .ifContext(Context::class, innerFactory)
-            .make(args.getNodeArgs())
-        assertTrue(ctx is Context)
-    }
 }

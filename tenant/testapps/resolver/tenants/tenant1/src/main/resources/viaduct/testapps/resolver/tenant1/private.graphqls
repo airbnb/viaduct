@@ -1,3 +1,0 @@
-extend type Query @scope(to: ["publicScope"]) {
-  privateScalarString: String @resolver
-}

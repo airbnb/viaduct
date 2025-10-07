@@ -117,9 +117,9 @@ if (gradle.parent == null) {
     }
 
     tasks.register<BumpVersionTask>("bumpVersion") {
-        val nv = providers.gradleProperty("newVersion").orNull
-            ?: throw GradleException("Pass -PnewVersion=X.Y.Z")
-        newVersion.set(nv)
+        newVersion.set(providers.gradleProperty("newVersion").orElse(
+            providers.provider { throw GradleException("Pass -PnewVersion=X.Y.Z") }
+        ))
         versionFile.set(layout.projectDirectory.file("VERSION"))
     }
 }

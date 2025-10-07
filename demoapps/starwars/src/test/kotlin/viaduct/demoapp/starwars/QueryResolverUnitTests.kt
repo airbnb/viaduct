@@ -1,9 +1,9 @@
-@file:Suppress("DEPRECATION")
+@file:Suppress("ForbiddenImport", "DEPRECATION")
 
 package viaduct.demoapp.starwars
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
@@ -29,20 +29,22 @@ import viaduct.demoapp.starwars.resolvers.SpeciesNodeResolver
 import viaduct.demoapp.starwars.resolvers.VehicleNodeResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.service.runtime.ViaductSchemaRegistryBuilder
+import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.runtime.ViaductSchemaRegistry
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema =
-        ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromResources("viaduct.demoapp.starwars", ".*\\.graphqls")
-            .build(DefaultCoroutineInterop)
+        ViaductSchemaRegistry.Factory(DefaultCoroutineInterop)
+            .createRegistry(
+                SchemaRegistryConfiguration.fromResources("viaduct.demoapp.starwars", ".*\\.graphqls")
+            )
             .getFullSchema()
 
     @Test
-    fun `search character by name returns a matching character`() =
-        runBlockingTest {
+    fun `search character by name returns a matching character`(): Unit =
+        runBlocking {
             val reference = StarWarsData.characters.first()
             val resolver = SearchCharacterResolver()
 
@@ -66,8 +68,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `search character by id returns exact character`() =
-        runBlockingTest {
+    fun `search character by id returns exact character`(): Unit =
+        runBlocking {
             val reference = StarWarsData.characters.first()
             val resolver = SearchCharacterResolver()
 
@@ -91,8 +93,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `allCharacters respects limit and maps fields`() =
-        runBlockingTest {
+    fun `allCharacters respects limit and maps fields`(): Unit =
+        runBlocking {
             val limit = 3
             val resolver = AllCharactersResolver()
 
@@ -114,8 +116,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `allFilms respects limit and maps fields`() =
-        runBlockingTest {
+    fun `allFilms respects limit and maps fields`(): Unit =
+        runBlocking {
             val limit = 2
             val resolver = AllFilmsResolver()
 
@@ -137,8 +139,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `allPlanets respects limit and maps fields`() =
-        runBlockingTest {
+    fun `allPlanets respects limit and maps fields`(): Unit =
+        runBlocking {
             val limit = 4
             val resolver = AllPlanetsResolver()
 
@@ -159,8 +161,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `allSpecies respects limit and maps fields`() =
-        runBlockingTest {
+    fun `allSpecies respects limit and maps fields`(): Unit =
+        runBlocking {
             val limit = 1
             val resolver = AllSpeciesResolver()
 
@@ -181,8 +183,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `allVehicles respects limit and maps fields`() =
-        runBlockingTest {
+    fun `allVehicles respects limit and maps fields`(): Unit =
+        runBlocking {
             val limit = 1
             val resolver = AllVehiclesResolver()
 
@@ -204,8 +206,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `vehicle by id returns the correct Vehicle using node resolver`() =
-        runBlockingTest {
+    fun `vehicle by id returns the correct Vehicle using node resolver`(): Unit =
+        runBlocking {
             val ref = StarWarsData.vehicles.first()
             val resolver = VehicleNodeResolver()
 
@@ -220,8 +222,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `character by id returns the correct Character using node resolver`() =
-        runBlockingTest {
+    fun `character by id returns the correct Character using node resolver`(): Unit =
+        runBlocking {
             val ref = StarWarsData.characters.first()
             val resolver = CharacterNodeResolver()
 
@@ -236,8 +238,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `film by id returns the correct Film using node resolver`() =
-        runBlockingTest {
+    fun `film by id returns the correct Film using node resolver`(): Unit =
+        runBlocking {
             val ref = StarWarsData.films.first()
             val resolver = FilmNodeResolver()
 
@@ -252,8 +254,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `planet by id returns the correct Planet using node resolver`() =
-        runBlockingTest {
+    fun `planet by id returns the correct Planet using node resolver`(): Unit =
+        runBlocking {
             val ref = StarWarsData.planets.first()
             val resolver = PlanetNodeResolver()
 
@@ -268,8 +270,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `species by id returns the correct Species using node resolver`() =
-        runBlockingTest {
+    fun `species by id returns the correct Species using node resolver`(): Unit =
+        runBlocking {
             val ref = StarWarsData.species.first()
             val resolver = SpeciesNodeResolver()
 

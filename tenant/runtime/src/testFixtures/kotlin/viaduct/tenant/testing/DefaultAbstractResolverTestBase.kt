@@ -20,6 +20,7 @@ abstract class DefaultAbstractResolverTestBase : ResolverTestBase {
     override val context: ExecutionContext by lazy {
         ResolverExecutionContextImpl(
             mkInternalContext(),
+            requestContext = null,
             queryLoader = mkQueryLoader(),
             selectionSetFactory = mkSelectionSetFactory(),
             nodeReferenceFactory = mkNodeReferenceFactory()

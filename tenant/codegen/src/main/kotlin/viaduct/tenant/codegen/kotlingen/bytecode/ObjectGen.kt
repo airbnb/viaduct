@@ -66,15 +66,17 @@ private interface ObjectModel {
 private val objectSTGroup =
     stTemplate(
         """
+    @file:Suppress("warnings")
+
     package <mdl.pkg>
 
     import viaduct.api.context.ExecutionContext
     import viaduct.api.internal.InternalContext
     import viaduct.api.internal.ObjectBase
-    import viaduct.engine.api.EngineObjectData
+    import viaduct.engine.api.EngineObject
 
-    class <mdl.className>(context: InternalContext, engineObjectData: EngineObjectData)
-        : ObjectBase(context, engineObjectData), <mdl.superTypes>
+    class <mdl.className>(context: InternalContext, engineObject: EngineObject)
+        : ObjectBase(context, engineObject), <mdl.superTypes>
     {
         <mdl.fields: { f |
           <f.overrideKeywords> suspend fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()

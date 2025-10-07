@@ -25,6 +25,8 @@ interface EnumModel {
 
 private val enumSTGroup = stTemplate(
     """
+    @file:Suppress("warnings")
+
     package <mdl.pkg>
 
     enum class <mdl.className> : ${cfg.ENUM_GRT} {

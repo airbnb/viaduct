@@ -3,7 +3,7 @@ package viaduct.arbitrary.graphql
 import graphql.introspection.Introspection.DirectiveLocation
 import graphql.schema.GraphQLDirective
 import graphql.schema.GraphQLSchema
-import viaduct.utils.graphql.GraphQLTypeRelations
+import viaduct.graphql.utils.GraphQLTypeRelations
 
 /** A bag of holding for often-queried data about a GraphQL schema */
 internal interface Schemas {

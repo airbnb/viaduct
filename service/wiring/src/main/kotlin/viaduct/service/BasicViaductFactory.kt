@@ -1,10 +1,10 @@
 package viaduct.service
 
+import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.runtime.SchemaRegistryConfiguration
 import viaduct.service.runtime.StandardViaduct
-import viaduct.service.runtime.ViaductSchemaRegistryBuilder
-import viaduct.tenant.runtime.bootstrap.ViaductTenantAPIBootstrapper
 
 object BasicViaductFactory {
     /**
@@ -26,8 +26,8 @@ object BasicViaductFactory {
         tenantRegistrationInfo: TenantRegistrationInfo,
     ): Viaduct {
         val builder = builderWithTenantInfo(tenantRegistrationInfo)
-        val schemaRegistryBuilder = applySchemaRegistry(schemaRegistrationInfo)
-        return builder.withSchemaRegistryBuilder(schemaRegistryBuilder).build()
+        val schemaRegistryConfiguration = applySchemaRegistry(schemaRegistrationInfo)
+        return builder.withSchemaRegistryConfiguration(schemaRegistryConfiguration).build()
     }
 
     // internal for testing
@@ -42,21 +42,23 @@ object BasicViaductFactory {
     }
 
     // internal for testing
-    internal fun applySchemaRegistry(schemaRegistrationInfo: SchemaRegistrationInfo): ViaductSchemaRegistryBuilder {
-        val schemaRegistryBuilder = ViaductSchemaRegistryBuilder()
-            .withFullSchemaFromResources(
-                schemaRegistrationInfo.packagePrefix,
-                schemaRegistrationInfo.resourcesIncluded
-            )
-
-        schemaRegistrationInfo.scopes.forEach { scope ->
+    internal fun applySchemaRegistry(schemaRegistrationInfo: SchemaRegistrationInfo): SchemaRegistryConfiguration {
+        val scopeConfigs = schemaRegistrationInfo.scopes.map { scope ->
             if (scope.scopesToApply.isNullOrEmpty()) {
-                schemaRegistryBuilder.registerFullSchema(scope.schemaId)
+                SchemaRegistryConfiguration.ScopeConfig(scope.schemaId, emptySet())
             } else {
-                schemaRegistryBuilder.registerScopedSchema(scope.schemaId, scope.scopesToApply)
+                SchemaRegistryConfiguration.ScopeConfig(scope.schemaId, scope.scopesToApply)
             }
         }
-        return schemaRegistryBuilder
+
+        return SchemaRegistryConfiguration.fromResources(
+            packagePrefix = schemaRegistrationInfo.packagePrefix,
+            resourcesIncluded = schemaRegistrationInfo.resourcesIncluded,
+            scopes = scopeConfigs.toSet(),
+            fullSchemaIds = schemaRegistrationInfo.scopes
+                .filter { it.scopesToApply.isNullOrEmpty() }
+                .map { it.schemaId }
+        )
     }
 }
 

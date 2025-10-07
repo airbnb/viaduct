@@ -1,17 +1,19 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.context.factory
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.select.SelectionSet
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@ExperimentalCoroutinesApi
 class SelectionsLoaderFactoryTest {
     @Test
-    fun forQuery() =
-        runBlockingTest {
+    fun forQuery(): Unit =
+        runBlocking {
             MockArgs().let { args ->
                 val loader = SelectionsLoaderFactory.forQuery.mk(args.getSelectionsLoaderArgs())
                 assertDoesNotThrow {
@@ -24,8 +26,8 @@ class SelectionsLoaderFactoryTest {
         }
 
     @Test
-    fun forMutation() =
-        runBlockingTest {
+    fun forMutation(): Unit =
+        runBlocking {
             MockArgs().let { args ->
                 val loader = SelectionsLoaderFactory.forMutation.mk(args.getSelectionsLoaderArgs())
                 assertDoesNotThrow {

@@ -70,11 +70,11 @@ class ViaductGraphQLController {
         schemaId: String
     ): ExecutionInput {
         @Suppress("UNCHECKED_CAST")
-        return ExecutionInput(
-            query = request[QUERY_FIELD] as String,
+        return ExecutionInput.create(
+            schemaId = schemaId,
+            operationText = request[QUERY_FIELD] as String,
             variables = (request[VARIABLES_FIELD] as? Map<String, Any>) ?: emptyMap(),
             requestContext = emptyMap<String, Any>(),
-            schemaId = schemaId
         )
     }
 

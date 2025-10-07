@@ -11,7 +11,7 @@ class ObjectGenTest {
         typename: String
     ): STContents {
         val schema = mkSchema(sdl)
-        val builder = mkKotlinGRTFilesBuilder()
+        val builder = mkKotlinGRTFilesBuilder(schema)
         return builder.objectKotlinGen(schema.types[typename]!! as ViaductExtendedSchema.Object)
     }
 

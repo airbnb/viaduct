@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.service.api.spi.mocks
 
 import io.kotest.property.Arb
@@ -5,32 +7,30 @@ import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.string
 import io.kotest.property.arbitrary.take
 import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.service.api.spi.Flag
 
-@ExperimentalCoroutinesApi
 class MockFlagManagerTest {
     @Test
-    fun enabled() =
-        runBlockingTest {
+    fun enabled(): Unit =
+        runBlocking {
             Arb.flag().forAll { flag ->
                 MockFlagManager.Enabled.isEnabled(flag)
             }
         }
 
     @Test
-    fun disabled() =
-        runBlockingTest {
+    fun disabled(): Unit =
+        runBlocking {
             Arb.flag().forAll { flag ->
                 !MockFlagManager.Disabled.isEnabled(flag)
             }
         }
 
     @Test
-    fun mk() =
-        runBlockingTest {
+    fun mk(): Unit =
+        runBlocking {
             val allFlags = Arb.flag()
             val enabledFlags = allFlags.take(100).toSet()
             val flagMgr = MockFlagManager(enabledFlags)

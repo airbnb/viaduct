@@ -78,8 +78,8 @@ private class ObjectClassGenV2(
                     KmValueParameter("context").also {
                         it.type = cfg.INTERNAL_CONTEXT.asKmName.asType()
                     },
-                    KmValueParameter("engineObjectData").also {
-                        it.type = cfg.ENGINE_OBJECT_DATA.asKmName.asType()
+                    KmValueParameter("engineObject").also {
+                        it.type = cfg.ENGINE_OBJECT.asKmName.asType()
                     },
                 )
             )
@@ -91,7 +91,7 @@ private class ObjectClassGenV2(
             body = buildString {
                 append("{\n")
                 append(checkNotNullParameterExpression(cfg.INTERNAL_CONTEXT.asKmName.asType(), 1, "context"))
-                append(checkNotNullParameterExpression(cfg.ENGINE_OBJECT_DATA.asKmName.asType(), 2, "engineObjectData"))
+                append(checkNotNullParameterExpression(cfg.ENGINE_OBJECT.asKmName.asType(), 2, "engineObject"))
                 append("}")
             }
         )

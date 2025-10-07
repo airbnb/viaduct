@@ -1,11 +1,12 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.bootstrap
 
 import com.google.inject.Guice
 import io.mockk.every
 import io.mockk.mockk
 import kotlin.reflect.full.findAnnotation
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -28,15 +29,14 @@ import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.mocks.MockEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.resolve
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.variableNames
 import viaduct.tenant.runtime.context.factory.Factory
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
-@ExperimentalCoroutinesApi
 class RequiredSelectionSetFactoryTest {
     private val injector = GuiceTenantCodeInjector(Guice.createInjector())
     private val defaultSchema = MockSchema.mk(
@@ -68,14 +68,13 @@ class RequiredSelectionSetFactoryTest {
         """.trimIndent()
     )
 
-    private val objectData = MockEngineObjectData.wrap(defaultSchema.schema.queryType, emptyMap())
+    private val objectData = mkEngineObjectData(defaultSchema.schema.queryType, emptyMap())
     private val vresolveCtx = VariablesResolver.ResolveCtx(
         objectData,
         emptyMap(),
         mockk {
-            every {
-                fullSchema
-            } returns defaultSchema
+            every { fullSchema } returns defaultSchema
+            every { requestContext } returns null
         }
     )
 
@@ -417,8 +416,8 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- VariablesProvider that does not return declared variable should throw at request time`() =
-        runBlockingTest {
+    fun `mkRequiredSelectionSets -- VariablesProvider that does not return declared variable should throw at request time`(): Unit =
+        runBlocking {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: \$requiredVar)")
             val rss = mkFactory().mkRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(setOf("requiredVar")) { MockVariablesProvider(emptyMap()) }, // Declares but doesn't provide
@@ -434,8 +433,8 @@ class RequiredSelectionSetFactoryTest {
         }
 
     @Test
-    fun `mkRequiredSelectionSets -- VariablesProvider values are passed through without type validation`() =
-        runBlockingTest {
+    fun `mkRequiredSelectionSets -- VariablesProvider values are passed through without type validation`(): Unit =
+        runBlocking {
             // Test that all VariablesProvider values are passed through as-is without GraphQL type validation
             val objectSelections = SelectionsParser.parse("Query", "testField(nonNullableInt: \$nullVar, intList: \$mixedList, stringList: \$singleItem)")
             val rss = mkFactory().mkRequiredSelectionSets(
@@ -467,8 +466,8 @@ class RequiredSelectionSetFactoryTest {
         }
 
     @Test
-    fun `mkRequiredSelectionSets -- VariablesProvider throwing exception should propagate`() =
-        runBlockingTest {
+    fun `mkRequiredSelectionSets -- VariablesProvider throwing exception should propagate`(): Unit =
+        runBlocking {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: \$testVar)")
             val rss = mkFactory().mkRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(setOf("testVar")) {
@@ -490,8 +489,8 @@ class RequiredSelectionSetFactoryTest {
         }
 
     @Test
-    fun `mkRequiredSelectionSets -- VariablesProvider returning undeclared variables should throw at request time`() =
-        runBlockingTest {
+    fun `mkRequiredSelectionSets -- VariablesProvider returning undeclared variables should throw at request time`(): Unit =
+        runBlocking {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: \$declaredVar)")
             val rss = mkFactory().mkRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(setOf("declaredVar")) {

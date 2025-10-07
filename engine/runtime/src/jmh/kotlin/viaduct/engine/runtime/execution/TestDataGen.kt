@@ -54,7 +54,7 @@ import viaduct.arbitrary.graphql.asSchema
 import viaduct.arbitrary.graphql.filterNotNull
 import viaduct.arbitrary.graphql.graphQLExecutionInput
 import viaduct.arbitrary.graphql.graphQLSchema
-import viaduct.utils.graphql.allChildren
+import viaduct.graphql.utils.allChildren
 
 data class TestData(val sdl: String, val query: String, val variables: Map<String, Any?> = emptyMap()) {
     companion object {

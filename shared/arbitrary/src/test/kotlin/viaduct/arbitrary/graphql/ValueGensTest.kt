@@ -1,10 +1,12 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.arbitrary.graphql
 
 import graphql.schema.GraphQLInputType
 import io.kotest.property.exhaustive.exhaustive
 import io.kotest.property.forAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
@@ -23,24 +25,24 @@ class ValueGensTest : KotestPropertyBase() {
     private val gens = ValueGens(schema, Config.default, randomSource)
 
     @Test
-    fun `raw`() =
-        runBlockingTest {
+    fun `raw`(): Unit =
+        runBlocking {
             inputTypes.exhaustive().forAll {
                 runCatching { gens.raw(it) }.isSuccess
             }
         }
 
     @Test
-    fun `gj`() =
-        runBlockingTest {
+    fun `gj`(): Unit =
+        runBlocking {
             inputTypes.exhaustive().forAll {
                 runCatching { gens.gj(it) }.isSuccess
             }
         }
 
     @Test
-    fun `kotlin`() =
-        runBlockingTest {
+    fun `kotlin`(): Unit =
+        runBlocking {
             inputTypes.exhaustive().forAll {
                 runCatching { gens.kotlin(it) }.isSuccess
             }

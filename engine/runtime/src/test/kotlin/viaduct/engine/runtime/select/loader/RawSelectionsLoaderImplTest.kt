@@ -1,11 +1,10 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.engine.runtime.select.loader
 
 import graphql.GraphQLError
 import graphql.schema.DataFetchingEnvironment
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -28,8 +27,8 @@ class RawSelectionsLoaderImplTest {
     private val ssFactory = RawSelectionSetFactoryImpl(ViaductSchema(SelectTestSchemaFixture.schema))
 
     @Test
-    fun `empty selections throws`() =
-        runBlockingTest {
+    fun `empty selections throws`(): Unit =
+        runBlocking {
             assertThrows<RuntimeException> {
                 RawSelectionsLoaderImpl(
                     ViaductSchema(SelectTestSchemaFixture.schema),
@@ -41,8 +40,8 @@ class RawSelectionsLoaderImplTest {
         }
 
     @Test
-    fun `loads simple selections`() =
-        runBlockingTest {
+    fun `loads simple selections`(): Unit =
+        runBlocking {
             val result = FragmentFieldEngineResolutionResult(mapOf("intField" to 42))
             val loader =
                 RawSelectionsLoaderImpl(
@@ -62,8 +61,8 @@ class RawSelectionsLoaderImplTest {
         }
 
     @Test
-    fun `loads invalid selections`() =
-        runBlockingTest {
+    fun `loads invalid selections`(): Unit =
+        runBlocking {
             val errors = listOf(
                 FragmentFieldEngineResolutionError(
                     GraphQLError.newError().message("validation failed").build()

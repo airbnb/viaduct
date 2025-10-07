@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.context
 
 import graphql.schema.GraphQLObjectType
@@ -7,7 +9,7 @@ import io.mockk.verify
 import kotlin.reflect.KClass
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -17,7 +19,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalID
 import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.NodeReferenceFactory
+import viaduct.api.internal.NodeReferenceGRTFactory
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.internal.select.SelectionsLoader
 import viaduct.api.mocks.MockGlobalID
@@ -29,13 +31,11 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.NodeEngineObjectData
-import viaduct.engine.api.RawSelectionSet
+import viaduct.engine.api.NodeReference
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.globalid.User
-import viaduct.tenant.runtime.internal.NodeReferenceFactoryImpl
+import viaduct.tenant.runtime.internal.NodeReferenceGRTFactoryImpl
 import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.tenant.runtime.select.Foo
 import viaduct.tenant.runtime.select.SelectTestFeatureAppTest
@@ -59,10 +59,11 @@ class ExecutionContextImplTest {
         selectionSet: SelectionSet<*> = SelectionSet.NoSelections,
         queryLoader: SelectionsLoader<Query> = SelectionsLoader.Companion.const(queryObject),
         selectionSetFactory: SelectionSetFactory = SelectionSetFactoryImpl(mockk()),
-        nodeReferenceFactory: NodeReferenceFactory = mockk<NodeReferenceFactory>()
+        nodeReferenceFactory: NodeReferenceGRTFactory = mockk<NodeReferenceGRTFactory>()
     ) = FieldExecutionContextImpl(
         ResolverExecutionContextImpl(
             MockInternalContext(SelectTestFeatureAppTest.schema, globalIDCodec),
+            null, // requestContext
             queryLoader,
             selectionSetFactory,
             nodeReferenceFactory
@@ -303,7 +304,7 @@ class ExecutionContextImplTest {
 
     @Test
     fun `nodeFor - exceptions from NodeReferenceFactory are propagated back to caller`() {
-        val mockNodeReferenceFactory = mockk<NodeReferenceFactory>()
+        val mockNodeReferenceFactory = mockk<NodeReferenceGRTFactory>()
         val ctx = mk(nodeReferenceFactory = mockNodeReferenceFactory)
 
         val globalId = GlobalIDImpl(User.Reflection, "")
@@ -321,7 +322,7 @@ class ExecutionContextImplTest {
 
     @Test
     fun `nodeFor - data from NodeReferenceFactory are propagated back to caller`() {
-        val mockNodeReferenceFactory = mockk<NodeReferenceFactory>()
+        val mockNodeReferenceFactory = mockk<NodeReferenceGRTFactory>()
         val ctx = mk(nodeReferenceFactory = mockNodeReferenceFactory)
 
         val globalId = GlobalIDImpl(User.Reflection, "")
@@ -349,28 +350,19 @@ class ExecutionContextImplTest {
         val fooType = FooType()
         val globalId = GlobalIDImpl(fooType, "123")
 
-        val nodeEngineObjectData = object : NodeEngineObjectData {
+        val nodeReference = object : NodeReference {
             override val id: String
                 get() = MockGlobalIDCodec().serialize(globalId)
-
-            override suspend fun resolveData(
-                selections: RawSelectionSet,
-                context: EngineExecutionContext
-            ) {}
-
-            override suspend fun fetch(selection: String): Any {
-                return ""
-            }
 
             override val graphQLObjectType: GraphQLObjectType
                 get() = SelectTestFeatureAppTest.schema.schema.getObjectType(fooType.name)
         }
 
-        val nodeEngineObjectDataFactory: (String, GraphQLObjectType) -> NodeEngineObjectData = { _, _ ->
-            nodeEngineObjectData
+        val nodeReferenceFactory: (String, GraphQLObjectType) -> NodeReference = { _, _ ->
+            nodeReference
         }
 
-        val factory = NodeReferenceFactoryImpl(nodeEngineObjectDataFactory)
+        val factory = NodeReferenceGRTFactoryImpl(nodeReferenceFactory)
         val internalContext = createMockInternalContext()
 
         val resultFromFactory = factory.nodeFor(globalId, internalContext)
@@ -380,7 +372,7 @@ class ExecutionContextImplTest {
 
         val ctx = mk(nodeReferenceFactory = factory)
 
-        runBlockingTest {
+        runBlocking {
             val idFromFactory = (resultFromFactory.getId() as MockGlobalID).internalID
             val idFromFieldExecutionContext = (ctx.nodeFor(globalId).getId() as MockGlobalID).internalID
             assertEquals(idFromFactory, idFromFieldExecutionContext)

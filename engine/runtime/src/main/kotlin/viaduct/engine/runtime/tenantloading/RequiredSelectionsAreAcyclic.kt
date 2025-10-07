@@ -1,6 +1,8 @@
 package viaduct.engine.runtime.tenantloading
 
 import graphql.schema.GraphQLInterfaceType
+import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLUnionType
 import kotlin.collections.plus
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RawSelectionSet
@@ -40,12 +42,17 @@ class RequiredSelectionsAreAcyclic(
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: RequiredSelectionsValidationCtx) {
         val registry = ctx.requiredSelectionSetRegistry
-        val coord = ctx.coord
-        registry.getFieldResolverRequiredSelectionSets(coord.first, coord.second).forEach { rss ->
-            validate(FieldResolverRSSNode(rss, coord), registry)
-        }
-        registry.getFieldCheckerRequiredSelectionSets(coord.first, coord.second, executeAccessChecksInModstrat = true).forEach { rss ->
-            validate(FieldCheckerRSSNode(rss, coord), registry)
+        if (ctx.fieldName != null) {
+            registry.getFieldResolverRequiredSelectionSets(ctx.typeName, ctx.fieldName).forEach { rss ->
+                validate(FieldResolverRSSNode(rss, ctx.typeName to ctx.fieldName), registry)
+            }
+            registry.getFieldCheckerRequiredSelectionSets(ctx.typeName, ctx.fieldName, executeAccessChecksInModstrat = true).forEach { rss ->
+                validate(CheckerRSSNode(rss, ctx.typeName to ctx.fieldName), registry)
+            }
+        } else {
+            registry.getTypeCheckerRequiredSelectionSets(ctx.typeName, executeAccessChecksInModstrat = true).forEach { rss ->
+                validate(CheckerRSSNode(rss, ctx.typeName to ctx.fieldName), registry)
+            }
         }
     }
 
@@ -100,84 +107,92 @@ class RequiredSelectionsAreAcyclic(
      */
     private abstract inner class RSSNode(
         protected val rss: RequiredSelectionSet,
-        protected val coordinate: Coordinate
+        private val typeOrFieldCoordinate: TypeOrFieldCoordinate
     ) {
         /**
          * Returns the edges from this node as a set of destination nodes
          */
-        final fun edges(registry: RequiredSelectionSetRegistry): List<RSSNode> {
+        fun edges(registry: RequiredSelectionSetRegistry): List<RSSNode> {
             val coords = rss.objectCoords(registry)
             return buildList {
                 coords.forEach { coord ->
-                    addAll(fieldEdges(registry, coord))
+                    addAll(edges(registry, coord))
                 }
             }
         }
 
         /**
-         * Returns the edges contributed by the given field coordinate
+         * Returns the edges contributed by the given type or field coordinate
          */
-        protected abstract fun fieldEdges(
+        protected abstract fun edges(
             registry: RequiredSelectionSetRegistry,
-            coordinate: Coordinate
+            typeOrFieldCoordinate: TypeOrFieldCoordinate
         ): List<RSSNode>
 
         /**
-         * Returns all field coordinates referenced by this [RequiredSelectionSet]. All interface coordinates are
-         * replaced by coordinates of its object type implementations.
+         * Returns all field coordinates and field object types referenced by this [RequiredSelectionSet].
+         * All interface and union coordinates and types are replaced by coordinates of its object type implementations.
          */
-        private fun RequiredSelectionSet.objectCoords(registry: RequiredSelectionSetRegistry): Set<Coordinate> {
-            val selectionCoords = rawSelectionSetFactory.rawSelectionSet(selections, emptyMap()).objectCoords()
-            val variableCoords = variablesResolvers.fold(emptySet<Coordinate>()) { acc, variablesResolver ->
-                val newCoords = variablesResolver.requiredSelectionSet?.objectCoords(registry) ?: emptySet()
-                acc + newCoords
+        private fun RequiredSelectionSet.objectCoords(registry: RequiredSelectionSetRegistry): Set<TypeOrFieldCoordinate> {
+            val coords = rawSelectionSetFactory.rawSelectionSet(selections, emptyMap()).objectCoords().toMutableSet()
+            variablesResolvers.forEach { variablesResolver ->
+                variablesResolver.requiredSelectionSet?.objectCoords(registry)?.let { coords.addAll(it) }
             }
-            return selectionCoords + variableCoords
+            return coords
         }
 
         /**
-         * Returns all field coordinates referenced by this [RawSelectionSet]. All interface coordinates are
-         * replaced by coordinates of its object type implementations.
+         * Returns all field coordinates and field object types referenced by this [RawSelectionSet].
+         * All interface and union coordinates and types are replaced by coordinates of its object type implementations.
          */
-        private fun RawSelectionSet.objectCoords(): Set<Coordinate> =
+        private fun RawSelectionSet.objectCoords(): Set<TypeOrFieldCoordinate> =
             buildSet {
                 // start with all selections. This will include scalar fields and other selections
                 // that do not support sub-selections
                 selections().forEach {
-                    implementations(it.typeCondition)?.let { implementations ->
-                        implementations.map { objectTypeName -> add(objectTypeName to it.fieldName) }
-                    } ?: add(it.typeCondition to it.fieldName)
+                    objectTypes(it.typeCondition).forEach { objectTypeName ->
+                        if (!it.fieldName.startsWith("__")) {
+                            add(objectTypeName to it.fieldName)
+                        }
+                    }
                 }
                 // "traversable" fields support sub-selections. Recurse through each traversable
                 // field and extract its coords
                 traversableSelections().forEach { sel ->
-                    addAll(selectionSetForField(sel.typeCondition, sel.fieldName).objectCoords())
+                    val nestedSelectionSet = selectionSetForField(sel.typeCondition, sel.fieldName)
+                    val typeName = nestedSelectionSet.type
+                    objectTypes(typeName).forEach { objectTypeName -> add(objectTypeName to null) }
+                    addAll(nestedSelectionSet.objectCoords())
                 }
             }
 
         /**
-         * If [typeName] is an interface, returns the names of all object types that implement it.
-         * Otherwise returns null.
+         * Given [typeName], a composite output type, return all possible object type names.
          */
-        private fun implementations(typeName: String): List<String>? {
+        private fun objectTypes(typeName: String): List<String> {
             val type = schema.schema.getType(typeName)
-            if (type !is GraphQLInterfaceType) return null
-            return schema.schema.getImplementations(type).map { it.name }
+            return when (type) {
+                is GraphQLObjectType -> listOf(typeName)
+                is GraphQLInterfaceType -> schema.schema.getImplementations(type).map { it.name }
+                is GraphQLUnionType -> type.types.map { it.name }
+                else -> throw IllegalArgumentException("Unexpected non-composite type $type")
+            }
         }
 
         override fun hashCode(): Int {
-            return 31 * rss.hashCode() + coordinate.hashCode()
+            return 31 * rss.hashCode() + typeOrFieldCoordinate.hashCode()
         }
 
         override fun equals(other: Any?): Boolean {
             return javaClass == other?.javaClass &&
                 other is RSSNode &&
-                coordinate == other.coordinate &&
+                typeOrFieldCoordinate == other.typeOrFieldCoordinate &&
                 rss == other.rss
         }
 
         override fun toString(): String {
-            return "${coordinate.first}.${coordinate.second}"
+            if (typeOrFieldCoordinate.second == null) return typeOrFieldCoordinate.first
+            return "${typeOrFieldCoordinate.first}.${typeOrFieldCoordinate.second}"
         }
     }
 
@@ -188,18 +203,26 @@ class RequiredSelectionsAreAcyclic(
         rss: RequiredSelectionSet,
         coordinate: Coordinate,
     ) : RSSNode(rss, coordinate) {
-        override fun fieldEdges(
+        override fun edges(
             registry: RequiredSelectionSetRegistry,
-            coordinate: Coordinate
+            typeOrFieldCoordinate: TypeOrFieldCoordinate
         ): List<RSSNode> =
             buildList {
-                val resolverRequiredSelections = registry.getFieldResolverRequiredSelectionSets(coordinate.first, coordinate.second)
-                resolverRequiredSelections.forEach {
-                    add(FieldResolverRSSNode(it, coordinate))
-                }
-                val checkerRequiredSelections = registry.getFieldCheckerRequiredSelectionSets(coordinate.first, coordinate.second, executeAccessChecksInModstrat = true)
-                checkerRequiredSelections.forEach {
-                    add(FieldCheckerRSSNode(it, coordinate))
+                val (typeName, fieldName) = typeOrFieldCoordinate
+                if (fieldName != null) {
+                    val resolverRequiredSelections = registry.getFieldResolverRequiredSelectionSets(typeName, fieldName)
+                    resolverRequiredSelections.forEach {
+                        add(FieldResolverRSSNode(it, typeName to fieldName))
+                    }
+                    val fieldCheckerRequiredSelections = registry.getFieldCheckerRequiredSelectionSets(typeName, fieldName, executeAccessChecksInModstrat = true)
+                    fieldCheckerRequiredSelections.forEach {
+                        add(CheckerRSSNode(it, typeOrFieldCoordinate))
+                    }
+                } else {
+                    val typeCheckerRequiredSelections = registry.getTypeCheckerRequiredSelectionSets(typeName, executeAccessChecksInModstrat = true)
+                    typeCheckerRequiredSelections.forEach {
+                        add(CheckerRSSNode(it, typeOrFieldCoordinate))
+                    }
                 }
             }
     }
@@ -207,22 +230,25 @@ class RequiredSelectionsAreAcyclic(
     /**
      * A field checker's RSS
      */
-    private inner class FieldCheckerRSSNode(
+    private inner class CheckerRSSNode(
         rss: RequiredSelectionSet,
-        coordinate: Coordinate
-    ) : RSSNode(rss, coordinate) {
-        override fun fieldEdges(
+        typeOrFieldCoordinate: TypeOrFieldCoordinate
+    ) : RSSNode(rss, typeOrFieldCoordinate) {
+        override fun edges(
             registry: RequiredSelectionSetRegistry,
-            coordinate: Coordinate
+            typeOrFieldCoordinate: TypeOrFieldCoordinate
         ): List<RSSNode> {
-            val resolverRequiredSelections = registry.getFieldResolverRequiredSelectionSets(coordinate.first, coordinate.second)
-            return resolverRequiredSelections.map { FieldResolverRSSNode(it, coordinate) }
+            val (typeName, fieldName) = typeOrFieldCoordinate
+            if (fieldName == null) return emptyList()
+
+            val resolverRequiredSelections = registry.getFieldResolverRequiredSelectionSets(typeName, fieldName)
+            return resolverRequiredSelections.map { FieldResolverRSSNode(it, typeName to fieldName) }
         }
     }
 }
 
 class RequiredSelectionsCycleException(val path: List<String>) : Exception() {
-    override val message: String?
+    override val message: String
         get() {
             val pathString = path.joinToString(" -> ") { it }
             return "Cyclic @Resolver selections detected in path: $pathString"

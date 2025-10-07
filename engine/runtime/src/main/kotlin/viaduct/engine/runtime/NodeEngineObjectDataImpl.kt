@@ -7,6 +7,7 @@ import kotlinx.coroutines.supervisorScope
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
+import viaduct.engine.api.NodeReference
 import viaduct.engine.api.NodeResolverDispatcherRegistry
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.TypeCheckerDispatcherRegistry
@@ -16,24 +17,25 @@ class NodeEngineObjectDataImpl(
     override val graphQLObjectType: GraphQLObjectType,
     private val resolverRegistry: NodeResolverDispatcherRegistry,
     private val checkerRegistry: TypeCheckerDispatcherRegistry
-) : NodeEngineObjectData {
+) : NodeEngineObjectData, NodeReference {
     private lateinit var resolvedEngineObjectData: EngineObjectData
     private val resolving = CompletableDeferred<Unit>()
 
-    /**
-     * Fetch a field from this node reference.
-     * This method suspends until the engine resolves this node reference.
-     * It returns null if there is an exception during engine resolution.
-     */
-    override suspend fun fetch(selection: String): Any? {
-        // Return the ID immediately if the requested field is "id"
+    override suspend fun fetch(selection: String): Any? = idOrWait(selection) ?: resolvedEngineObjectData.fetch(selection)
+
+    override suspend fun fetchOrNull(selection: String): Any? = idOrWait(selection) ?: resolvedEngineObjectData.fetchOrNull(selection)
+
+    override suspend fun fetchSelections(): Iterable<String> {
+        resolving.await()
+        return resolvedEngineObjectData.fetchSelections()
+    }
+
+    private suspend fun idOrWait(selection: String): Any? {
         if (selection == "id") {
             return id
         }
-
-        // Wait for the engine to resolve this node reference
         resolving.await()
-        return resolvedEngineObjectData.fetch(selection)
+        return null
     }
 
     /**
@@ -59,7 +61,7 @@ class NodeEngineObjectDataImpl(
                             nodeChecker.execute(
                                 emptyMap(),
                                 mapOf(
-                                    "key" to ProxyEngineObjectData(
+                                    "key" to CheckerProxyEngineObjectData(
                                         ObjectEngineResultImpl.newForType(graphQLObjectType),
                                         "missing from checker RSS"
                                     )

@@ -1,12 +1,13 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.dataloader
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
-@Suppress("DEPRECATION")
 @ExperimentalCoroutinesApi
 class ChainedDataLoaderInstrumentationTest {
     lateinit var subject: ChainedDataLoaderInstrumentation
@@ -57,15 +58,15 @@ class ChainedDataLoaderInstrumentationTest {
     }
 
     @Test
-    fun testSingleInstrumentationCorrectStates() =
-        runBlockingTest {
+    fun testSingleInstrumentationCorrectStates(): Unit =
+        runBlocking {
             subject = ChainedDataLoaderInstrumentation(listOf(TestInstrumentation()))
             callInstrumentationSequence(subject)
         }
 
     @Test
-    fun testMultipleInstrumentationCorrectStates() =
-        runBlockingTest {
+    fun testMultipleInstrumentationCorrectStates(): Unit =
+        runBlocking {
             subject = ChainedDataLoaderInstrumentation(listOf(TestInstrumentation(), TestInstrumentation()))
             callInstrumentationSequence(subject)
         }

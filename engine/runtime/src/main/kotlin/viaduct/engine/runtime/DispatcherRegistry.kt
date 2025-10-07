@@ -53,7 +53,7 @@ class DispatcherRegistry(
         }
     }
 
-    override fun getRequiredSelectionSetsForType(
+    override fun getTypeCheckerRequiredSelectionSets(
         typeName: String,
         executeAccessChecksInModstrat: Boolean
     ): List<RequiredSelectionSet> =

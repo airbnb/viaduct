@@ -17,6 +17,9 @@ import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
 import viaduct.arbitrary.common.Config
 import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.mapping.graphql.RawObject
+import viaduct.mapping.graphql.RawValue
+import viaduct.mapping.graphql.ValueMapper
 
 /**
  * Generate a [graphql.language.Value] for a provided GraphQLInputType,
@@ -44,7 +47,7 @@ fun Arb.Companion.graphQLValueFor(
 ): Arb<Value<*>> = graphQLValueFor(type, TypeReferenceResolver.fromTypes(types), cfg)
 
 /**
- * Generate a [RawValue] for a provided input type,
+ * Generate a [viaduct.mapping.graphql.RawValue] for a provided input type,
  * using the provided [TypeReferenceResolver] to resolve graphql-java type references
  */
 fun Arb.Companion.rawValueFor(
@@ -80,7 +83,7 @@ fun Arb.Companion.rawValueFor(
     }
 
 /**
- * Generate a [RawObject] for a provided document, returning a value that describes
+ * Generate a [viaduct.mapping.graphql.RawObject] for a provided document, returning a value that describes
  * a possible result of executing that document against the provided [schema].
  *
  * [document] must define 1 or more operations, it must be valid for the provided schema,
@@ -150,7 +153,7 @@ fun Arb.Companion.rawValueFor(
 
 /**
  * Generate an arbitrary value for a provided [ViaductExtendedSchema.TypeExpr], that has
- * been mapped by the provided [ValueMapper].
+ * been mapped by the provided [viaduct.mapping.graphql.ValueMapper].
  */
 fun <T> Arb.Companion.mappedValueFor(
     type: ViaductExtendedSchema.TypeExpr,

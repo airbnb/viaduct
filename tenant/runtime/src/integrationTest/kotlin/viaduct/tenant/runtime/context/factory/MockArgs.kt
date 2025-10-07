@@ -17,7 +17,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.mocks.MockEngineObjectData
+import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.mkRawSelectionSetFactory
 import viaduct.graphql.utils.DefaultSchemaProvider
 import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
@@ -52,9 +52,9 @@ class MockArgs(
         val selectionSetFactory: SelectionSetFactory = MockSelectionSetFactory()
     }
 
-    val objectValue: EngineObjectData = MockEngineObjectData.wrap(schema.schema.getObjectType(typeName), objectData)
+    val objectValue: EngineObjectData = mkEngineObjectData(schema.schema.getObjectType(typeName), objectData)
 
-    val queryValue: EngineObjectData = MockEngineObjectData.wrap(schema.schema.getObjectType(Query.Reflection.name), emptyMap())
+    val queryValue: EngineObjectData = mkEngineObjectData(schema.schema.getObjectType(Query.Reflection.name), emptyMap())
 
     val selections: RawSelectionSet? = selectionString?.let {
         rawSelectionsFactory.rawSelectionSet(typeName, it, emptyMap())
@@ -71,6 +71,7 @@ class MockArgs(
         every {
             fullSchema
         } returns contextFactoryTestSchema
+        every { requestContext } returns null
     }
 
     fun getFieldArgs() =

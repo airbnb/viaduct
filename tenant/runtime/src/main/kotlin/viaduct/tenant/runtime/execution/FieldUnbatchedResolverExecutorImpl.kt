@@ -77,20 +77,20 @@ class FieldUnbatchedResolverExecutorImpl(
         val result = wrapResolveException(resolverId) {
             resolveFn.callSuspend(resolver, ctx)
         }
-        return unwrap(result, globalIDCodec)
+        return unwrapFieldResolverResult(result, globalIDCodec)
     }
 
     // public for testing
     fun mkResolver(): ResolverBase<*> = resolver.get()
 
     companion object {
-        internal fun unwrap(
+        internal fun unwrapFieldResolverResult(
             result: Any?,
             globalIDCodec: GlobalIDCodec
         ): Any? {
             return when (result) {
-                is ObjectBase -> result.unwrap()
-                is List<*> -> result.map { unwrap(it, globalIDCodec) }
+                is ObjectBase -> result.engineObject
+                is List<*> -> result.map { unwrapFieldResolverResult(it, globalIDCodec) }
                 is GlobalID<*> -> globalIDCodec.serialize(result)
                 is Enum<*> -> result.name
                 else -> result

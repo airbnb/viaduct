@@ -24,11 +24,10 @@ class ViaductGraphQLController {
     ): ResponseEntity<Map<String, Any>> {
         val result: ExecutionResult = run {
             @Suppress("UNCHECKED_CAST")
-            val executionInput = ExecutionInput(
-                query = request["query"] as String,
+            val executionInput = ExecutionInput.create(
+                schemaId = SCHEMA_ID,
+                operationText = request["query"] as String,
                 variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
-                requestContext = object {},
-                schemaId = SCHEMA_ID
             )
             viaduct.executeAsync(executionInput).await()
         }

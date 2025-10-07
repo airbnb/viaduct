@@ -6,10 +6,10 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.getAs
+import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.graphql.test.assertEquals
 
@@ -53,14 +53,14 @@ class FieldPolicyCheckTest {
                 resolver {
                     fn { args, _, _, _, ctx ->
                         val id = args.getAs<String>("id")
-                        ctx.createNodeEngineObjectData(id, canAccessPersonType)
+                        ctx.createNodeReference(id, canAccessPersonType)
                     }
                 }
             }
 
             type("CanAccessPerson") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    MockEngineObjectData(
+                    mkEngineObjectData(
                         canAccessPersonType,
                         mapOf(
                             "id" to id,
@@ -99,14 +99,14 @@ class FieldPolicyCheckTest {
                 resolver {
                     fn { args, _, _, _, ctx ->
                         val id = args.getAs<String>("id")
-                        ctx.createNodeEngineObjectData(id, canNotAccessPersonType)
+                        ctx.createNodeReference(id, canNotAccessPersonType)
                     }
                 }
             }
 
             type("CanNotAccessPerson") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    MockEngineObjectData(
+                    mkEngineObjectData(
                         canNotAccessPersonType,
                         mapOf(
                             "id" to id,
@@ -138,7 +138,7 @@ class FieldPolicyCheckTest {
             field("Query" to "canNotAccessType") {
                 resolver {
                     fn { _, _, _, _, ctx ->
-                        ctx.createNodeEngineObjectData("someId", canAccessPersonType)
+                        ctx.createNodeReference("someId", canAccessPersonType)
                     }
                 }
                 checker {
@@ -148,7 +148,7 @@ class FieldPolicyCheckTest {
 
             type("CanAccessPerson") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    MockEngineObjectData(
+                    mkEngineObjectData(
                         canAccessPersonType,
                         mapOf(
                             "id" to id,

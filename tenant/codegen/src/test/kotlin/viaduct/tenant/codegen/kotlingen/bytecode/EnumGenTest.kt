@@ -12,7 +12,7 @@ class EnumGenTest {
         typename: String
     ): STContents {
         val schema = mkSchema(sdl)
-        val builder = mkKotlinGRTFilesBuilder()
+        val builder = mkKotlinGRTFilesBuilder(schema)
         return builder.enumKotlinGen(schema.types[typename]!! as ViaductExtendedSchema.Enum)
     }
 

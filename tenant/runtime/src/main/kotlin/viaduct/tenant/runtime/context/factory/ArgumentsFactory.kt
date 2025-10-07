@@ -1,13 +1,10 @@
 package viaduct.tenant.runtime.context.factory
 
-import graphql.schema.GraphQLInputObjectType
 import kotlin.reflect.KClass
-import kotlin.reflect.full.isSubclassOf
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.full.valueParameters
-import kotlin.reflect.jvm.javaConstructor
 import viaduct.api.internal.InternalContext
 import viaduct.api.types.Arguments
+import viaduct.tenant.runtime.getArgumentsGRTConstructor
+import viaduct.tenant.runtime.makeArgumentsGRTFactory
 
 class ArgumentsArgs(
     /** A service-scoped [InternalContext] */
@@ -27,9 +24,10 @@ object ArgumentsFactory {
      * Otherwise, returns null
      */
     fun ifClass(argumentsCls: KClass<out Arguments>): Factory<ArgumentsArgs, Arguments>? =
-        if (argumentsCls.hasRequiredCtor) {
+        try {
+            argumentsCls.getArgumentsGRTConstructor() // Validate constructor exists
             forClass(argumentsCls)
-        } else {
+        } catch (e: IllegalArgumentException) {
             null
         }
 
@@ -37,32 +35,10 @@ object ArgumentsFactory {
      * Create a Factory that returns instances of [Arguments] generated from the
      * provided [argumentsCls].
      */
-    fun forClass(argumentsCls: KClass<out Arguments>): Factory<ArgumentsArgs, Arguments> =
-        if (argumentsCls == Arguments.NoArguments::class) {
-            NoArguments
-        } else {
-            require(argumentsCls.hasRequiredCtor) {
-                "Class ${argumentsCls.qualifiedName} does not define the expected constructor"
-            }
-            val ctor = argumentsCls.primaryConstructor!!.javaConstructor!!.apply {
-                isAccessible = true
-            }
-
-            Factory { args ->
-                val graphqlInputObjectType = Arguments.inputType(
-                    argumentsCls.simpleName!!,
-                    args.internalContext.schema
-                )
-                ctor.newInstance(args.internalContext, args.arguments, graphqlInputObjectType) as Arguments
-            }
+    fun forClass(argumentsCls: KClass<out Arguments>): Factory<ArgumentsArgs, Arguments> {
+        val makeGRT = argumentsCls.makeArgumentsGRTFactory()
+        return Factory { args ->
+            args.arguments.makeGRT(args.internalContext)
         }
-
-    private val KClass<*>.hasRequiredCtor: Boolean get() =
-        primaryConstructor?.valueParameters?.let { params ->
-            val classifiers = params.mapNotNull { it.type.classifier as? KClass<*> }
-            classifiers.size == 3 &&
-                classifiers[0].isSubclassOf(InternalContext::class) &&
-                classifiers[1].isSubclassOf(Map::class) &&
-                classifiers[2].isSubclassOf(GraphQLInputObjectType::class)
-        } ?: false
+    }
 }

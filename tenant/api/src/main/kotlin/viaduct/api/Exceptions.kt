@@ -97,3 +97,11 @@ suspend fun wrapResolveException(
         throw ViaductTenantResolverException(resolverException, resolverId)
     }
 }
+
+object ExceptionsForTesting {
+    private class TestViaductTenantException(m: String) : ViaductTenantException, Exception(m)
+
+    fun throwViaductFrameworkException(m: String): Nothing = throw ViaductFrameworkException(m)
+
+    fun throwViaductTenantException(m: String): Nothing = throw TestViaductTenantException(m)
+}

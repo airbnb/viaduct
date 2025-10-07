@@ -24,22 +24,6 @@ object NodeResolverContextFactory {
         }
     }
 
-    /**
-     * Create a [Factory] that wraps the output of the provided [innerCtxFactory],
-     * if the provided [contextCls] is a determined to be a wrapping context class.
-     * Otherwise, the created Factory will return the unmodified output of [innerCtxFactory].
-     */
-    fun <Ctx : NodeExecutionContext<*>> ifContext(
-        contextCls: KClass<Ctx>,
-        innerCtxFactory: NodeExecutionContextFactory
-    ): NodeExecutionContextFactory {
-        return if (contextCls.hasRequiredCtor) {
-            forClass(contextCls, innerCtxFactory)
-        } else {
-            innerCtxFactory
-        }
-    }
-
     private val KClass<*>.hasRequiredCtor: Boolean get() =
         primaryConstructor?.valueParameters?.let { params ->
             if (params.size != 1) {

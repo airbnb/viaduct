@@ -4,7 +4,6 @@ import graphql.schema.GraphQLEnumType
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLTypeUtil
-import viaduct.engine.api.Coordinate
 import viaduct.engine.api.FromFieldVariablesResolver
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
@@ -14,9 +13,9 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 import viaduct.engine.runtime.validation.Validator
+import viaduct.graphql.utils.GraphQLTypeRelation
 import viaduct.graphql.utils.VariableUsageInfo
 import viaduct.graphql.utils.collectVariableUsages
-import viaduct.utils.graphql.GraphQLTypeRelation
 
 class FromFieldVariablesHaveValidPaths(
     private val schema: ViaductSchema
@@ -36,8 +35,12 @@ class FromFieldVariablesHaveValidPaths(
         //   1. Create a mapping of all variable sources: "variableName" -> RequiredSelectionSet
         //   2. Create a mapping of all variable sinks: "variableName" -> List<VariableUsageInfo>
         //   3. For each variable sink, lookup its source and validate that the source and sink are compatible
-
-        val allSets = ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForField(ctx.coord.first, ctx.coord.second, true)
+        val allSets = if (ctx.fieldName != null) {
+            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForField(ctx.typeName, ctx.fieldName, true)
+        } else {
+            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForType(ctx.typeName, true)
+        }
+        val coord = ctx.typeName to ctx.fieldName
 
         val variableResolversByName = mutableMapOf<String, FromFieldVariablesResolver>()
         val variableSourceByName = mutableMapOf<String, RequiredSelectionSet>()
@@ -55,12 +58,12 @@ class FromFieldVariablesHaveValidPaths(
                     when (setsThatSelectPath.size) {
                         1 -> variableSourceByName[vr.name] = setsThatSelectPath[0]
                         0 -> throw InvalidVariableException(
-                            ctx.coord,
+                            coord,
                             vr.name,
                             "No source found for variable path ${vr.path}"
                         )
                         else -> throw InvalidVariableException(
-                            ctx.coord,
+                            coord,
                             vr.name,
                             "Ambiguous source: multiple selection sets provide value for variable path ${vr.path}"
                         )
@@ -72,7 +75,7 @@ class FromFieldVariablesHaveValidPaths(
             .flatMap { rss ->
                 variableSourceByName.keys.flatMap { name ->
                     rss.selections.selections
-                        .collectVariableUsages(schema.schema, name, ctx.coord)
+                        .collectVariableUsages(schema.schema, name, ctx.typeName)
                         .map { usage -> name to usage }
                 }
             }.groupBy({ it.first }, { it.second })
@@ -84,7 +87,7 @@ class FromFieldVariablesHaveValidPaths(
 
             for (usage in usages) {
                 validateFromFieldVariable(
-                    coord = ctx.coord,
+                    coord = coord,
                     variableName = name,
                     selections = sourceRawSelections,
                     selectionPath = selectionPath,
@@ -102,7 +105,7 @@ class FromFieldVariablesHaveValidPaths(
         }
 
     private fun validateFromFieldVariable(
-        coord: Coordinate,
+        coord: TypeOrFieldCoordinate,
         variableName: String,
         selections: RawSelectionSet,
         selectionPath: List<String>,
@@ -136,7 +139,7 @@ class FromFieldVariablesHaveValidPaths(
      * which will ultimately affect the nullability of the produced variable.
      */
     private tailrec fun buildVariableType(
-        coord: Coordinate,
+        coord: TypeOrFieldCoordinate,
         variableName: String,
         currentType: Type,
         selections: RawSelectionSet,

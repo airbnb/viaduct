@@ -4,7 +4,7 @@ import viaduct.api.context.ExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.NodeReferenceFactory
+import viaduct.api.internal.NodeReferenceGRTFactory
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.internal.select.SelectionsLoader
 import viaduct.api.reflect.Type
@@ -18,10 +18,11 @@ import viaduct.api.types.Query
  */
 class ResolverExecutionContextImpl(
     internal: InternalContext,
+    requestContext: Any?,
     private val queryLoader: SelectionsLoader<Query>,
     private val selectionSetFactory: SelectionSetFactory,
-    private val nodeReferenceFactory: NodeReferenceFactory
-) : ExecutionContext by ExecutionContextImpl(internal), InternalContext by internal, ResolverExecutionContext {
+    private val nodeReferenceFactory: NodeReferenceGRTFactory
+) : ExecutionContext by ExecutionContextImpl(internal, requestContext), InternalContext by internal, ResolverExecutionContext {
     override suspend fun <T : Query> query(selections: SelectionSet<T>) = queryLoader.load(this, selections)
 
     override fun <T : CompositeOutput> selectionsFor(

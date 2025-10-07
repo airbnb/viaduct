@@ -12,7 +12,7 @@ import graphql.language.Selection
 /**
  * Represents the introspection analysis result for a GraphQL operation.
  */
-internal class InspectIntrospections private constructor(
+class InspectIntrospections private constructor(
     val operationDefinition: OperationDefinition,
     val hasIntrospection: Boolean,
     val hasNonIntrospection: Boolean

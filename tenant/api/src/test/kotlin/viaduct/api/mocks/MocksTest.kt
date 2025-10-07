@@ -1,12 +1,11 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.api.mocks
 
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.string
 import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -50,8 +49,8 @@ class MocksTest {
     }
 
     @Test
-    fun MockGlobalIDCodec_roundtrip() =
-        runBlockingTest {
+    fun MockGlobalIDCodec_roundtrip(): Unit =
+        runBlocking {
             Arb.graphQLName().forAll { typeName ->
                 val type = MockType.mkNodeObject(typeName)
                 val internalId = Arb.string().bind()
@@ -66,16 +65,16 @@ class MocksTest {
         }
 
     @Test
-    fun MockType_mkNodeObject() =
-        runBlockingTest {
+    fun MockType_mkNodeObject(): Unit =
+        runBlocking {
             Arb.graphQLName().forAll { typeName ->
                 MockType.mkNodeObject(typeName).name == typeName
             }
         }
 
     @Test
-    fun `MockGlobalID equals`() =
-        runBlockingTest {
+    fun `MockGlobalID equals`(): Unit =
+        runBlocking {
             Arb.graphQLName().forAll { typeName ->
                 val internalId = Arb.string().bind()
                 val id1: GlobalID<*> = MockGlobalID(MockType.mkNodeObject(typeName), internalId)
@@ -88,8 +87,8 @@ class MocksTest {
         }
 
     @Test
-    fun MockSelectionsLoader_Factory() =
-        runBlockingTest {
+    fun MockSelectionsLoader_Factory(): Unit =
+        runBlocking {
             class Q : Query
             val q = Q()
 
@@ -102,8 +101,8 @@ class MocksTest {
         }
 
     @Test
-    fun MockSelectionsLoader() =
-        runBlockingTest {
+    fun MockSelectionsLoader(): Unit =
+        runBlocking {
             class Foo : CompositeOutput
             val fooType = MockType("Foo", Foo::class)
             val foo = Foo()

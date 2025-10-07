@@ -1,5 +1,6 @@
 plugins {
     id("conventions.kotlin")
+    id("jacoco-integration-tests")
     id("conventions.kotlin-static-analysis")
     id("test-classdiff")
 }
@@ -10,6 +11,10 @@ viaductClassDiff {
         expectedPackage.set("viaduct.api.grts")
         schemaResource("graphql/schema.graphqls")
     }
+}
+
+viaductIntegrationCoverage {
+    baseProject(":codegen:tenant:tenant-codegen")
 }
 
 sourceSets {

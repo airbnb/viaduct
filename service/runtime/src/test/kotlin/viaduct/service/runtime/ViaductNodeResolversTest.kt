@@ -1,20 +1,22 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.service.runtime
 
 import com.google.common.net.UrlEscapers
 import java.util.Base64
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.mocks.MockEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.mocks.toViaductBuilder
-import viaduct.graphql.test.assertData
+import viaduct.graphql.test.assertJson
 import viaduct.service.runtime.noderesolvers.ViaductQueryNodeResolverModuleBootstrapper
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -41,7 +43,7 @@ class ViaductNodeResolversTest {
         val MOCK_TENANT_MODULE_BOOTSTRAPPER = MockTenantModuleBootstrapper(SCHEMA) {
             type("User") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    MockEngineObjectData(
+                    mkEngineObjectData(
                         schema.schema.getObjectType("User"),
                         mapOf("id" to id, "name" to "User-$id")
                     )
@@ -190,7 +192,7 @@ class ViaductNodeResolversTest {
               """
                 )
 
-                result.assertData("{node: null}")
+                result.getData<Map<String, Any?>>().assertJson("{node: null}")
                 assertEquals(1, result.errors.size)
                 val error = result.errors[0]
                 assertTrue(error.message.contains("Expected GlobalID \"$invalidGlobalId\" to be a Base64-encoded string with the decoded format '<type name>:<internal ID>'"))
@@ -217,7 +219,7 @@ class ViaductNodeResolversTest {
               """
                 )
 
-                result.assertData("{node: null}")
+                result.getData<Map<String, Any?>>().assertJson("{node: null}")
                 assertEquals(1, result.errors.size)
                 val error = result.errors[0]
                 assertTrue(error.message.contains("Expected GlobalId \"$nonexistentGlobalId\" with type name 'People' to match a named object type in the schema"))
@@ -244,7 +246,7 @@ class ViaductNodeResolversTest {
               """
                 )
 
-                result.assertData("{node: null}")
+                result.getData<Map<String, Any?>>().assertJson("{node: null}")
                 assertEquals(1, result.errors.size)
                 val error = result.errors[0]
                 assertTrue(
@@ -275,7 +277,7 @@ class ViaductNodeResolversTest {
               """
                 )
 
-                result.assertData("{node: null}")
+                result.getData<Map<String, Any?>>().assertJson("{node: null}")
                 assertEquals(1, result.errors.size)
                 val error = result.errors[0]
                 assertTrue(
@@ -299,7 +301,7 @@ class ViaductNodeResolversTest {
             field("Query" to "user") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        MockEngineObjectData(
+                        mkEngineObjectData(
                             schema.schema.getObjectType("User"),
                             mapOf("name" to "test-name")
                         )
@@ -325,17 +327,16 @@ class ViaductNodeResolversTest {
         // Testing the resolver directly to bypass GraphQL type coercion and validation.
         @Test
         fun `errors with a non-string global id`() {
-            val mockBootstrapper = ViaductQueryNodeResolverModuleBootstrapper()
-            val fieldResolver = mockBootstrapper.fieldResolverExecutors(MockSchema.minimal).first { it.first.second == "node" }.second
+            val fieldResolver = ViaductQueryNodeResolverModuleBootstrapper.queryNodeResolver
 
             val mockSelector = FieldResolverExecutor.Selector(
                 arguments = mapOf("id" to 123), // Non-string id
-                objectValue = MockEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
-                queryValue = MockEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
+                objectValue = mkEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
+                queryValue = mkEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
                 selections = null
             )
 
-            runBlockingTest {
+            runBlocking {
                 val mockContext = MOCK_TENANT_MODULE_BOOTSTRAPPER.contextMocks.engineExecutionContext
                 val result = fieldResolver.batchResolve(listOf(mockSelector), mockContext)
                 val error = result[mockSelector]?.exceptionOrNull()
@@ -345,17 +346,16 @@ class ViaductNodeResolversTest {
 
         @Test
         fun `errors with a non-list ids argument`() {
-            val mockBootstrapper = ViaductQueryNodeResolverModuleBootstrapper()
-            val fieldResolver = mockBootstrapper.fieldResolverExecutors(MockSchema.minimal).first { it.first.second == "nodes" }.second
+            val fieldResolver = ViaductQueryNodeResolverModuleBootstrapper.queryNodesResolver
 
             val mockSelector = FieldResolverExecutor.Selector(
                 arguments = mapOf("ids" to "123"), // Non-list ids
-                objectValue = MockEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
-                queryValue = MockEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
+                objectValue = mkEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
+                queryValue = mkEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
                 selections = null
             )
 
-            runBlockingTest {
+            runBlocking {
                 val mockContext = MOCK_TENANT_MODULE_BOOTSTRAPPER.contextMocks.engineExecutionContext
                 val result = fieldResolver.batchResolve(listOf(mockSelector), mockContext)
                 val error = result[mockSelector]?.exceptionOrNull()

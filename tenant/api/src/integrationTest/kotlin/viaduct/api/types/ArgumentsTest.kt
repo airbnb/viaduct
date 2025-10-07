@@ -36,7 +36,7 @@ class ArgumentsTest {
 
     @Test
     fun testInvalidArgumentsClassName() {
-        // Incorrect format
+        // Incorrect format - no underscore
         assertThrows<IllegalArgumentException> {
             Arguments.inputType("ArgumentedField", schema)
         }
@@ -44,6 +44,24 @@ class ArgumentsTest {
         assertThrows<IllegalArgumentException> {
             Arguments.inputType("SomeType_SomeField_Arguments", schema)
         }
+    }
+
+    @Test
+    fun testInvalidArgumentsClassNameEmptyString() {
+        // Edge case: empty string
+        val exception = assertThrows<IllegalArgumentException> {
+            Arguments.inputType("", schema)
+        }
+        assertTrue(exception.message?.contains("Invalid Arguments class name") ?: false)
+    }
+
+    @Test
+    fun testNonexistentField() {
+        // Type exists but field doesn't
+        val exception = assertThrows<IllegalArgumentException> {
+            Arguments.inputType("O1_nonexistentField_Arguments", schema)
+        }
+        assertTrue(exception.message?.contains("not found") ?: false)
     }
 
     @Test

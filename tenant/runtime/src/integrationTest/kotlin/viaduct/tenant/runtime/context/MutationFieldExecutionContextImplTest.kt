@@ -1,11 +1,10 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.tenant.runtime.context
 
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.internal.select.SelectionsLoader
@@ -29,8 +28,8 @@ class MutationFieldExecutionContextImplTest {
     )
 
     @Test
-    fun mutation() =
-        runBlockingTest {
+    fun mutation(): Unit =
+        runBlocking {
             val ctx = mk()
             assertEquals(mutationObject, ctx.mutation(SelectionSet.empty(SelectMutation.Reflection)))
         }

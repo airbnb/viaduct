@@ -18,7 +18,7 @@ import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.NodeReferenceFactory
+import viaduct.api.internal.NodeReferenceGRTFactory
 import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ObjectBaseTestHelpers
@@ -48,7 +48,7 @@ import viaduct.tenant.runtime.context.NodeExecutionContextImpl
 import viaduct.tenant.runtime.context.ResolverExecutionContextImpl
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.InternalContextImpl
-import viaduct.tenant.runtime.internal.NodeReferenceFactoryImpl
+import viaduct.tenant.runtime.internal.NodeReferenceGRTFactoryImpl
 import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
@@ -142,12 +142,13 @@ interface ResolverTestBase {
         objectValue: Object = NullObject,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
+        requestContext: ExecutionContext? = null,
         selections: SelectionSet<*> = SelectionSet.NoSelections,
         contextQueryValues: List<Query> = emptyList()
     ): T {
         try {
             val ctxKClass = getFieldResolverContextKClass(resolver)
-            val ctx = createResolverContext(ctxKClass, objectValue, queryValue, arguments, selections, contextQueryValues)
+            val ctx = createResolverContext(ctxKClass, objectValue, queryValue, arguments, requestContext, selections, contextQueryValues)
             @Suppress("UNCHECKED_CAST")
             return resolver::class.declaredFunctions.first { it.name == "resolve" }.callSuspend(resolver, ctx) as T
         } catch (e: InvocationTargetException) {
@@ -168,6 +169,7 @@ interface ResolverTestBase {
         resolver: ResolverBase<T>,
         objectValues: List<Object> = listOf<Object>(),
         queryValues: List<Query> = objectValues.map { NullQuery },
+        requestContext: ExecutionContext? = null,
         selections: SelectionSet<*>? = null,
         contextQueryValues: List<Query> = emptyList()
     ): List<FieldValue<T>> {
@@ -182,6 +184,7 @@ interface ResolverTestBase {
                     obj,
                     query,
                     Arguments.NoArguments /* do not support batch field with arguments yet */,
+                    requestContext,
                     selections ?: mockk<SelectionSet<*>>(),
                     contextQueryValues
                 )
@@ -204,12 +207,13 @@ interface ResolverTestBase {
     suspend fun <T : NodeObject> runNodeResolver(
         resolver: NodeResolverBase<T>,
         id: GlobalID<T>,
+        requestContext: Any? = null,
         selections: SelectionSet<T>? = null,
         contextQueryValues: List<Query> = emptyList()
     ): T {
         try {
             val ctxKClass = getNodeResolverContextKClass(resolver)
-            val ctx = createNodeResolverContext(ctxKClass, id, selections ?: mockk<SelectionSet<T>>(), contextQueryValues)
+            val ctx = createNodeResolverContext(ctxKClass, id, requestContext, selections ?: mockk<SelectionSet<T>>(), contextQueryValues)
             @Suppress("UNCHECKED_CAST")
             return resolver::class.declaredFunctions.first { it.name == "resolve" }.callSuspend(resolver, ctx) as T
         } catch (e: InvocationTargetException) {
@@ -229,13 +233,14 @@ interface ResolverTestBase {
     suspend fun <T : NodeObject> runNodeBatchResolver(
         resolver: NodeResolverBase<T>,
         ids: List<GlobalID<T>>,
+        requestContext: Any? = null,
         selections: SelectionSet<T>? = null,
         contextQueryValues: List<Query> = emptyList()
     ): List<FieldValue<T>> {
         try {
             val ctxKClass = getNodeResolverContextKClass(resolver)
             val ctxs = ids.map {
-                createNodeResolverContext(ctxKClass, it, selections ?: mockk<SelectionSet<T>>(), contextQueryValues)
+                createNodeResolverContext(ctxKClass, it, requestContext, selections ?: mockk<SelectionSet<T>>(), contextQueryValues)
             }
             @Suppress("UNCHECKED_CAST")
             return resolver::class.declaredFunctions.first { it.name == "batchResolve" }.callSuspend(resolver, ctxs) as List<FieldValue<T>>
@@ -295,10 +300,11 @@ interface ResolverTestBase {
     fun <T : NodeObject> ResolverTestBase.createNodeResolverContext(
         ctxKClass: KClass<out NodeExecutionContext<T>>,
         id: GlobalID<T>,
+        requestContext: Any? = null,
         selections: SelectionSet<T> = mockk<SelectionSet<T>>(),
         contextQueryValues: List<Query> = emptyList()
     ): NodeExecutionContext<T> {
-        val innerCtx = mkNodeExecutionContext(id, selections, contextQueryValues)
+        val innerCtx = mkNodeExecutionContext(id, selections, requestContext, contextQueryValues)
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
 
@@ -307,6 +313,7 @@ interface ResolverTestBase {
         objectValue: Object = NullObject,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
+        requestContext: Any? = null,
         selections: SelectionSet<*> = SelectionSet.NoSelections,
         contextQueries: List<Query> = emptyList()
     ): FieldExecutionContext<*, *, *, *> {
@@ -314,6 +321,7 @@ interface ResolverTestBase {
             objectValue,
             queryValue,
             arguments,
+            requestContext,
             selections,
             ctxKClass.isSubclassOf(MutationFieldExecutionContext::class),
             contextQueries
@@ -331,8 +339,8 @@ interface ResolverTestBase {
 
     fun mkInternalContext(): InternalContext = InternalContextImpl(getSchema(), mkGlobalIDCodec(), mkReflectionLoader())
 
-    fun mkNodeReferenceFactory(): NodeReferenceFactory {
-        return NodeReferenceFactoryImpl {
+    fun mkNodeReferenceFactory(): NodeReferenceGRTFactory {
+        return NodeReferenceGRTFactoryImpl {
                 id: String,
                 graphQLObjectType: GraphQLObjectType,
             ->
@@ -408,12 +416,14 @@ private fun <T : NodeObject> getNodeResolverContextKClass(resolver: NodeResolver
 private fun <T : NodeObject> ResolverTestBase.mkNodeExecutionContext(
     id: GlobalID<T>,
     selections: SelectionSet<T>,
+    requestContext: Any? = null,
     contextQueryValues: List<Query> = emptyList()
 ): NodeExecutionContext<T> {
     val contextQueryValueMap = HashMap<String, Query>()
     val ctx = NodeExecutionContextImpl(
         ResolverExecutionContextImpl(
             internal = mkInternalContext(),
+            requestContext = requestContext,
             queryLoader = mkQueryLoader(),
             selectionSetFactory = mkSelectionSetFactory(),
             nodeReferenceFactory = mkNodeReferenceFactory()
@@ -450,9 +460,10 @@ private fun <T> getFieldResolverContextKClass(resolver: ResolverBase<T>): KClass
  */
 private inline fun <T : NodeObject, reified ctx : NodeExecutionContext<T>> ResolverTestBase.createNodeResolverContext(
     id: GlobalID<T>,
+    requestContext: Any? = null,
     selections: SelectionSet<T> = mockk<SelectionSet<T>>(),
     contextQueryValues: List<Query> = emptyList()
-): ctx = createNodeResolverContext(ctx::class, id, selections, contextQueryValues) as ctx
+): ctx = createNodeResolverContext(ctx::class, id, requestContext, selections, contextQueryValues) as ctx
 
 /**
  * Creates a Context class for a specific field resolver. We suggest using [runFieldResolver] to test the
@@ -467,14 +478,16 @@ inline fun <reified ctx : FieldExecutionContext<*, *, *, *>> ResolverTestBase.cr
     objectValue: Object = NullObject,
     queryValue: Query = NullQuery,
     arguments: Arguments = Arguments.NoArguments,
+    requestContext: Any? = null,
     selections: SelectionSet<*> = SelectionSet.NoSelections,
     contextQueries: List<Query> = emptyList()
-): ctx = createResolverContext(ctx::class, objectValue, queryValue, arguments, selections, contextQueries) as ctx
+): ctx = createResolverContext(ctx::class, objectValue, queryValue, arguments, requestContext, selections, contextQueries) as ctx
 
 private fun ResolverTestBase.mkFieldExecutionContext(
     objectValue: Object,
     queryValue: Query,
     arguments: Arguments,
+    requestContext: Any?,
     selections: SelectionSet<*>,
     mutation: Boolean,
     contextQueryValues: List<Query> = emptyList()
@@ -484,6 +497,7 @@ private fun ResolverTestBase.mkFieldExecutionContext(
     val ctx = FieldExecutionContextImpl(
         ResolverExecutionContextImpl(
             mkInternalContext(),
+            requestContext = requestContext,
             queryLoader = mkQueryLoader(contextQueryValueMap),
             selectionSetFactory = mkSelectionSetFactory(),
             nodeReferenceFactory = mkNodeReferenceFactory()

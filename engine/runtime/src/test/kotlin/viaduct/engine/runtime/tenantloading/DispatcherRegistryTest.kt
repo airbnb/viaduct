@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime.tenantloading
 
 import graphql.language.AstPrinter
@@ -8,7 +10,7 @@ import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlin.collections.count
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -83,8 +85,8 @@ class DispatcherRegistryTest {
     private fun createDispatcherRegistry() = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerExecutorFactory).create(Samples.testSchema)
 
     @Test
-    fun `test successful injection of dispatcher`() =
-        runBlockingTest {
+    fun `test successful injection of dispatcher`(): Unit =
+        runBlocking {
             val dispatcherRegistry = createDispatcherRegistry()
             // We have 6 resolvers: aField, bIntField, parameterizedField, cField, dField, batchField
             assertEquals(6, dispatcherRegistry.get().count())
@@ -307,8 +309,8 @@ class DispatcherRegistryTest {
     }
 
     @Test
-    fun `test success creation of executors`() =
-        runBlockingTest {
+    fun `test success creation of executors`(): Unit =
+        runBlocking {
             val tenantModuleBootstrappers = bootstrapper.tenantModuleBootstrappers().toList()
             assertEquals(1, tenantModuleBootstrappers.size)
 

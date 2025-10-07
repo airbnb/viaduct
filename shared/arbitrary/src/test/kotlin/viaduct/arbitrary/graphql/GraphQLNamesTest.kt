@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("ForbiddenImport")
 
 package viaduct.arbitrary.graphql
 
@@ -9,8 +9,7 @@ import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.pair
 import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
@@ -18,8 +17,8 @@ import viaduct.arbitrary.common.checkInvariants
 
 class GraphQLNamesTest : KotestPropertyBase() {
     @Test
-    fun `Arb_graphQLNames`() =
-        runBlockingTest {
+    fun `Arb_graphQLNames`(): Unit =
+        runBlocking {
             Arb.int(min = 1, max = 1000)
                 .forAll { count ->
                     val cfg = Config.default + (SchemaSize to count)
@@ -57,8 +56,8 @@ class GraphQLNamesTest : KotestPropertyBase() {
     }
 
     @Test
-    fun `Arb_graphQLNames -- TypeTypeWeights -- zero`() =
-        runBlockingTest {
+    fun `Arb_graphQLNames -- TypeTypeWeights -- zero`(): Unit =
+        runBlocking {
             // all weights are 0
             val cfg = Config.default +
                 (TypeTypeWeights to TypeTypeWeights.zero) +
@@ -69,8 +68,8 @@ class GraphQLNamesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb_graphQLNames -- TypeTypeWeights -- skewed weights`() =
-        runBlockingTest {
+    fun `Arb_graphQLNames -- TypeTypeWeights -- skewed weights`(): Unit =
+        runBlocking {
             val ttw = TypeTypeWeights.default + (TypeType.Enum to 10.0) + (TypeType.Union to 0.0)
             Arb.int(0 until 1_000)
                 .flatMap { schemaSize ->
@@ -82,8 +81,8 @@ class GraphQLNamesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `graphQLNames plus`() =
-        runBlockingTest {
+    fun `graphQLNames plus`(): Unit =
+        runBlocking {
             Arb.pair(
                 Arb.graphQLNames(),
                 Arb.graphQLNames()
@@ -93,8 +92,8 @@ class GraphQLNamesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `filter`() =
-        runBlockingTest {
+    fun `filter`(): Unit =
+        runBlocking {
             Arb.graphQLNames().forAll { names ->
                 names.filter { false } == GraphQLNames.empty
             }
