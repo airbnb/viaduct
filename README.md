@@ -21,7 +21,7 @@
 # Vision
 
 Viaduct is an open source data-oriented service mesh. As an open source initiative, Viaduct is committed to fostering an inclusive and collaborative community where external developers can contribute, innovate, and help shape the future of data-oriented development.
-
+ 
 Three principles have guided Viaduct since day one and still anchor the project: a central schema served by hosted business logic via a re-entrant API.
 * Central Schema: Viaduct serves a single, integrated schema connecting all of your domains across your company---the central schema.  While that schema is developed in a decentralized manner by many teams, it’s one, highly connected graph.
 * Hosted Business Logic: Teams should host their business logic directly in Viaduct.  This runs counter to what many consider to be best practices in GraphQL, which is that GraphQL servers should be a thin layer over microservices that host the real business logic.  Viaduct is a serverless platform for hosting business logic, allowing developers to focus on writing business logic rather than on operational issues.
