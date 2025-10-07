@@ -6,7 +6,7 @@
   <a href="https://airbnb.io/viaduct"> 
     <img src=".github/viaduct_logo.jpg" alt="Viaduct logo" width="200">
   </a>  
-</p>
+</p> 
 <p align="center">
     <b>Viaduct is a GraphQL-based system that provides a unified interface for accessing and interacting with any data source.</b> 
 </p>
