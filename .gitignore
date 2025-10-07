@@ -6,7 +6,7 @@ HELP.md
 build/
 out/
 !gradle/wrapper/gradle-wrapper.jar
-**/build/
+**/build/ 
 **/out/
 !**/src/main/**/build/
 !**/src/test/**/build/
