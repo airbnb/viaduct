@@ -6,9 +6,7 @@ import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
-import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
-import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import viaduct.gradle.defaultschema.DefaultSchemaPlugin
 import viaduct.gradle.utils.capitalize
 
