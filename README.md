@@ -3,7 +3,7 @@
 ![Gradle Plugin Portal Version](https://img.shields.io/gradle-plugin-portal/v/com.airbnb.viaduct.application-gradle-plugin)
 
 <p align="center">
-  <a href="https://airbnb.io/viaduct">
+  <a href="https://airbnb.io/viaduct"> 
     <img src=".github/viaduct_logo.jpg" alt="Viaduct logo" width="200">
   </a>  
 </p>
