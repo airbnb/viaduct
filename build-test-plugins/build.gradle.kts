@@ -1,10 +1,11 @@
 plugins {
     `kotlin-dsl`
+    id("conventions.kotlin-static-analysis")
 }
 
 dependencies {
     implementation(libs.viaduct.tenant.codegen)
 
     // Do NOT leak the Kotlin Gradle Plugin at runtime
-    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24")
+    compileOnly(libs.kotlin.gradle.plugin)
 }
