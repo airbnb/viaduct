@@ -8,7 +8,7 @@ out/
 !gradle/wrapper/gradle-wrapper.jar
 **/build/
 **/out/
-!**/src/main/**/build/
+!**/src/main/**/build/ 
 !**/src/test/**/build/
 
 # ----------------------------------------
