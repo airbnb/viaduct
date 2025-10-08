@@ -19,7 +19,7 @@ Please use the discussion board for support questions.
 * At the same time, “gardening” is welcome. No need to make a separate pull request if you (eg) fix an unrelated typo or clear up a variable name along the way.
 * By contributing to this repository, you agree that your contributions will be licensed under the Apache License, Version 2.0 ([LICENSE](LICENSE))
 
-# Your First Contribution 
+# Your First Contribution  
 
 Unsure where to begin contributing to Viaduct? You can start by looking through these beginner and help-wanted issues:
 
