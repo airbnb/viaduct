@@ -1,0 +1,124 @@
+on:
+  pull_request_target:
+    types: [opened, reopened, edited, synchronize]
+
+jobs:
+  validate-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write  
+      issues: read
+
+    steps:
+      - name: Scan PR description for Issue URL(s)
+        id: scan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_FULL: ${{ github.repository }}
+        run: |
+          # Fetch PR body safely (handles null -> empty string)
+          BODY=$(gh api repos/$REPO_FULL/pulls/$PR_NUMBER --jq '.body // ""')
+
+          # Look for direct GitHub Issue links (any org/repo)
+          URLS=$(printf '%s\n' "$BODY" \
+            | grep -Eo 'https://github\.com/airbnb/viaduct/issues/[0-9]+' \
+            | sort -u)
+
+          if [ -z "$URLS" ]; then
+            echo "none=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "none=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "list<<EOF"
+              echo "$URLS"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Status — PR has Issue URL(s)
+        if: steps.scan.outputs.none == 'false'
+        run: |
+          echo "✅ PR description contains Issue URL(s):"
+          echo "${{ steps.scan.outputs.list }}"
+
+      - name: Status — PR has no Issue URL
+        if: steps.scan.outputs.none == 'true'
+        run: |
+          echo "⚠️ PR description contains no direct Issue URL."
+
+      - name: Comment on PR if missing Issue URL
+        if: steps.scan.outputs.none == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_FULL: ${{ github.repository }}
+        run: |
+          gh api repos/$REPO_FULL/issues/$PR_NUMBER/comments \
+            -f body=$'⚠️ This Pull Request does not include a direct Issue link in its description.\n\nPlease add a URL to a GitHub Issue, for example:\nhttps://github.com/owner/repo/issues/123\n\n(Optional) You can also use keywords like **Closes #123**, but this check only looks for direct links.'
+
+      - name: Manage labels (issue-linked/review me/create patch + synchronize behavior)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_FULL: ${{ github.repository }}
+          ACTION: ${{ github.event.action }}
+          LABEL_MISSING: "needs-issue ❗"
+          LABEL_REVIEW: "ready-to-go"
+          LABEL_CREATE: "create-patch"
+          LABEL_INREVIEW: "in-review"
+        run: |
+          set -e
+
+          # URL-encode for DELETE endpoints
+          uri() { jq -rn --arg s "$1" '$s|@uri'; }
+
+          # Ensure labels exist (best-effort) 
+          ensure_label() {
+            local name="$1" color="$2"
+            if ! gh api repos/$REPO_FULL/labels --paginate --jq '.[].name' | grep -Fxq "$name"; then
+              gh api -X POST "repos/$REPO_FULL/labels" -f name="$name" -f color="$color" >/dev/null 2>&1 || true
+            fi
+          }
+          ensure_label "$LABEL_MISSING" "d73a4a"  # red
+          ensure_label "$LABEL_REVIEW" "0366d6"   # blue
+          ensure_label "$LABEL_CREATE" "6f42c1"   # purple
+
+          # Helpers
+          refresh() { CURRENT=$(gh api "repos/$REPO_FULL/issues/$PR_NUMBER/labels" --jq '.[].name'); }
+          has() { grep -Fxq "$1" <<< "$CURRENT"; }
+          add() { gh api "repos/$REPO_FULL/issues/$PR_NUMBER/labels" -f labels[]="$1" >/dev/null; }
+          del() { gh api -X DELETE "repos/$REPO_FULL/issues/$PR_NUMBER/labels/$(uri "$1")" >/dev/null 2>&1 || true; }
+
+          refresh
+
+          # 1) Base rule according to the presence of a link
+          if [ "${{ steps.scan.outputs.none }}" = "false" ]; then
+            # Link present → remove needs-issue
+
+            if has "$LABEL_MISSING"; then del "$LABEL_MISSING"; fi
+            refresh
+
+            # Exclusion with create patch: if create patch exists → do not put review me (and remove if it was there)
+            if has "$LABEL_CREATE"; then
+              if has "$LABEL_REVIEW"; then del "$LABEL_REVIEW"; fi
+            else
+              # create patch does not exist
+              if ! has "$LABEL_REVIEW"; then add "$LABEL_REVIEW"; fi
+            fi
+          else
+            # No link → needs-issue; remove review me / create patch
+            has "$LABEL_MISSING" || add "$LABEL_MISSING"
+            if has "$LABEL_REVIEW"; then del "$LABEL_REVIEW"; fi
+            if has "$LABEL_CREATE"; then del "$LABEL_CREATE"; fi
+          fi
+
+          refresh
+
+          # 2) Extra behavior in synchronize: in review -> create patch, and remove in review
+          if [ "$ACTION" = "synchronize" ] && has "$LABEL_INREVIEW"; then
+            has "$LABEL_CREATE" || add "$LABEL_CREATE"
+            del "$LABEL_INREVIEW"
+            refresh
+            if has "$LABEL_CREATE" && has "$LABEL_REVIEW"; then del "$LABEL_REVIEW"; fi
+          fi
