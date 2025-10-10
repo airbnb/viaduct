@@ -30,19 +30,21 @@ val baseVersionRaw: String = versionFile.readText().trim().ifEmpty { "0.0.0" }
 // Function to get the latest published version from Gradle Plugin Portal
 fun getLatestVersionFromPortal(pluginId: String): String? {
     return try {
-        val url = java.net.URL("https://plugins.gradle.org/api/plugins/$pluginId")
+        // Convert plugin ID to Maven coordinates (com.airbnb.viaduct.module-gradle-plugin -> com/airbnb/viaduct/module-gradle-plugin)
+        val mavenPath = pluginId.replace('.', '/')
+        val url = java.net.URL("https://plugins.gradle.org/m2/$mavenPath/maven-metadata.xml")
         val connection = url.openConnection() as java.net.HttpURLConnection
         connection.requestMethod = "GET"
-        connection.setRequestProperty("Accept", "application/json")
         connection.connectTimeout = 10000
         connection.readTimeout = 10000
 
         if (connection.responseCode == 200) {
             val response = connection.inputStream.bufferedReader().use { it.readText() }
-            val versionRegex = """"version"\s*:\s*"([^"]+)"""".toRegex()
+            // Parse XML to find all <version> tags
+            val versionRegex = """<version>([^<]+)</version>""".toRegex()
             val matches = versionRegex.findAll(response)
             matches.map { it.groupValues[1] }
-                .filter { it.matches(Regex("""\d+\.\d+\.\d+""")) } // Only release versions, not snapshots
+                .filter { it.matches(Regex("""\d+\.\d+\.\d+""")) } // Only release versions (X.Y.Z format)
                 .maxOfOrNull { version ->
                     val parts = version.split(".")
                     parts[0].toInt() * 10000 + parts[1].toInt() * 100 + parts[2].toInt()
@@ -147,18 +149,24 @@ fun computeBaseVersion(repoMajor: Int, latestModule: String?, latestApp: String?
 val baseVersion = computeBaseVersion(repoMajor, latestModuleVersion, latestAppVersion, isPatchRelease, isMajorVersionRelease)
 
 logger.lifecycle("Computed base version: $baseVersion (weekly=$isWeeklyRelease, majorRelease=$isMajorVersionRelease, release=$releaseFlag, tag=$isReleaseTag, patch=$isPatchRelease)")
-val isSnapshot = !(releaseFlag || isReleaseTag || isMajorVersionRelease || isPatchRelease)
+
+// Check VIADUCT_PLUGIN_SNAPSHOT environment variable to determine snapshot behavior
+// When VIADUCT_PLUGIN_SNAPSHOT=false, treat as a release (used for automatic version detection)
+val pluginSnapshotEnv = env.environmentVariable("VIADUCT_PLUGIN_SNAPSHOT").orElse("true").map { it.toBoolean() }.get()
+val isSnapshot = if (!pluginSnapshotEnv) {
+    // VIADUCT_PLUGIN_SNAPSHOT=false means treat as release
+    false
+} else {
+    // Normal logic: only non-snapshot if explicitly marked as release
+    listOf(releaseFlag, isReleaseTag, isMajorVersionRelease, isPatchRelease).none { it }
+}
 
 // Generate unique snapshot versions for plugin publishing
 val computedVersionStr = if (isSnapshot) {
-    val isPluginPublish = env.environmentVariable("VIADUCT_PLUGIN_SNAPSHOT").orElse("false").map { it.toBoolean() }.get()
-    if (isPluginPublish) {
-        val timestamp = java.time.Instant.now().toString().replace(":", "").replace("-", "").substring(0, 15)
-        val gitSha = env.environmentVariable("GIT_COMMIT").orElse("unknown").get().take(7)
-        "$baseVersion-SNAPSHOT-$timestamp-$gitSha"
-    } else {
-        "$baseVersion-SNAPSHOT"
-    }
+    val timestamp = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
+    .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+    val gitSha = env.environmentVariable("GIT_COMMIT").map { it.take(7) }.orElse("unknown")
+    "$baseVersion-SNAPSHOT-$timestamp-$gitSha"
 } else baseVersion
 
 gradle.allprojects {
