@@ -18,6 +18,7 @@ import graphql.schema.GraphQLSchema
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.future.await
+import viaduct.engine.GraphQLJavaConfig
 import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.FragmentLoader

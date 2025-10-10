@@ -12,6 +12,7 @@ import java.util.SortedSet
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
+import viaduct.engine.ViaductWiringFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.graphql.Scalars

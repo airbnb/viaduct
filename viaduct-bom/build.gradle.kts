@@ -14,6 +14,7 @@ dependencies {
         // Engine modules
         api("com.airbnb.viaduct:engine-api:${version}")
         api("com.airbnb.viaduct:engine-runtime:${version}")
+        api("com.airbnb.viaduct:engine-wiring:${version}")
 
         // Service modules
         api("com.airbnb.viaduct:service-api:${version}")

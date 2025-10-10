@@ -56,6 +56,7 @@ foojay-resolver-convention = { id = "org.gradle.toolchains.foojay-resolver-conve
 # Project
 viaduct-engine-api = { module = "com.airbnb.viaduct:engine-api", version.ref = "project" }
 viaduct-engine-runtime = { module = "com.airbnb.viaduct:engine-runtime", version.ref = "project" }
+viaduct-engine-wiring = { module = "com.airbnb.viaduct:engine-wiring", version.ref = "project" }
 viaduct-tenant-api = { module = "com.airbnb.viaduct:tenant-api", version.ref = "project" }
 viaduct-tenant-runtime = { module = "com.airbnb.viaduct:tenant-runtime", version.ref = "project" }
 viaduct-tenant-codegen = { module = "com.airbnb.viaduct:tenant-codegen", version.ref = "project" }

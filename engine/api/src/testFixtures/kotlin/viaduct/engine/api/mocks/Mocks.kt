@@ -19,6 +19,8 @@ import graphql.schema.idl.SchemaParser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import viaduct.dataloader.mocks.MockNextTickDispatcher
+import viaduct.engine.ViaductSchemaLoadException
+import viaduct.engine.ViaductWiringFactory
 import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.CheckerResult
@@ -51,8 +53,6 @@ import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.RawSelectionSetImpl
 import viaduct.graphql.utils.DefaultSchemaProvider
-import viaduct.service.runtime.ViaductSchemaLoadException
-import viaduct.service.runtime.ViaductWiringFactory
 
 typealias CheckerFn = suspend (arguments: Map<String, Any?>, objectDataMap: Map<String, EngineObjectData>) -> Unit
 typealias NodeBatchResolverFn = suspend (selectors: List<NodeResolverExecutor.Selector>, context: EngineExecutionContext) -> Map<NodeResolverExecutor.Selector, Result<EngineObjectData>>

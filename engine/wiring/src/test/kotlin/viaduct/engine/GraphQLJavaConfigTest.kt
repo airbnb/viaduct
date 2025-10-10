@@ -1,4 +1,4 @@
-package viaduct.service.runtime
+package viaduct.engine
 
 import graphql.execution.values.InputInterceptor
 import graphql.introspection.Introspection

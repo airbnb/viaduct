@@ -9,6 +9,7 @@ viaductPublishing {
 
 dependencies {
     api(libs.viaduct.engine.runtime)
+    api(libs.viaduct.engine.wiring)
     api(libs.viaduct.service.api)
     api(libs.graphql.java)
     api(libs.guice)

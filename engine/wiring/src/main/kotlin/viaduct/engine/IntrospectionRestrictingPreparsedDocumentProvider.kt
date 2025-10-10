@@ -1,4 +1,4 @@
-package viaduct.service.runtime
+package viaduct.engine
 
 import graphql.ExecutionInput
 import graphql.GraphQLError
@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.function.Function
 import viaduct.engine.runtime.setIsIntrospective
 
-internal class IntrospectionRestrictingPreparsedDocumentProvider(
+class IntrospectionRestrictingPreparsedDocumentProvider(
     private val wrappedProvider: PreparsedDocumentProvider
 ) : PreparsedDocumentProvider {
     override fun getDocumentAsync(

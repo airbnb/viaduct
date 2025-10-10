@@ -1,4 +1,4 @@
-package viaduct.service.runtime
+package viaduct.engine
 
 import graphql.execution.MergedField
 import graphql.language.Field

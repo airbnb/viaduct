@@ -1,4 +1,4 @@
-package viaduct.service.runtime
+package viaduct.engine
 
 import graphql.schema.DataFetcher
 import graphql.schema.PropertyDataFetcher
@@ -13,7 +13,8 @@ import viaduct.engine.api.coroutines.CoroutineInterop
 
 /**
  * graphql-java wiring for the Viaduct Modern engine.
- * Simply uses PropertyDataFetcher for every field, see ResolverInstrumentation for @Resolver execution.
+ * Simply uses PropertyDataFetcher for every field, see [viaduct.engine.runtime.instrumentation.ResolverDataFetcherInstrumentation]
+ * for @Resolver execution.
  */
 class ViaductWiringFactory(private val coroutineInterop: CoroutineInterop) : WiringFactory {
     override fun getDefaultDataFetcher(environment: FieldWiringEnvironment): DataFetcher<*> {

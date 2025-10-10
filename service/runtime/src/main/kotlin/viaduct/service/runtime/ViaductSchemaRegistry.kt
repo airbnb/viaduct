@@ -7,6 +7,7 @@ import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
+import viaduct.engine.IntrospectionRestrictingPreparsedDocumentProvider
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.service.runtime.SchemaRegistryConfiguration.AsyncScopedSchema

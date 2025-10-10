@@ -4,7 +4,7 @@ import graphql.schema.GraphQLSchema
 import viaduct.graphql.utils.GraphQLTypeRelations
 
 data class ViaductSchema(
-    val schema: GraphQLSchema
+    val schema: GraphQLSchema,
 ) {
     // Note: this is quite expensive to compute. This means that we need to be thoughtful
     // about creating instances of this class, and we should only do it once per schema
