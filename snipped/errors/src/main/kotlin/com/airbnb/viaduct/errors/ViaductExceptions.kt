@@ -64,6 +64,8 @@ sealed class ViaductErrorType(val value: String, val fatal: Boolean) {
     object ClientInput : ViaductErrorType("CLIENT_INPUT", false)
 
     object NonNullError : ViaductErrorType("NON_NULL_ERROR", false)
+
+    object FieldKillSwitch : ViaductErrorType("FIELD_KILL_SWITCH", true)
 }
 
 // LocalizedMessage field seems to be used by all FE frameworks (web, ios, android) that call us
@@ -231,4 +233,23 @@ class ViaductPermissionDeniedException(
 
         return extensions
     }
+}
+
+/**
+ * Exception thrown when a GraphQL field is blocked by the kill switch.
+ * FOR EMERGENCY USE ONLY.
+ */
+class ViaductFieldKillSwitchException(
+    val typeName: String,
+    val fieldName: String
+) : ViaductException("Field at coordinate ($typeName, $fieldName) is blocked") {
+    override fun getGraphQLMessage(): String = message ?: "Field blocked by kill switch"
+
+    override fun getErrorType() = ViaductErrorType.FieldKillSwitch
+
+    override fun getExtensions(): Map<String, Any?> =
+        mapOf(
+            "typeName" to typeName,
+            "fieldName" to fieldName
+        )
 }
