@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.Flag
 import viaduct.service.api.spi.FlagManager
 
@@ -25,7 +26,7 @@ import viaduct.service.api.spi.FlagManager
 @ExperimentalCoroutinesApi
 class ViaductOSSScopesEndToEndTest {
     private lateinit var subject: StandardViaduct
-    private lateinit var schemaRegistryConfiguration: SchemaRegistryConfiguration
+    private lateinit var schemaConfiguration: SchemaConfiguration
 
     val flagManager = object : FlagManager {
         override fun isEnabled(flag: Flag) = true
@@ -40,14 +41,15 @@ class ViaductOSSScopesEndToEndTest {
                 extend type Query @scope(to: ["viaduct-public"]) { field: Int }
             """
 
-            schemaRegistryConfiguration = SchemaRegistryConfiguration.fromSdl(
+            val schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
+            schemaConfiguration = SchemaConfiguration.fromSdl(
                 sdl,
-                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("viaduct-public")))
+                scopes = setOf(schemaId.toScopeConfig())
             )
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+                .withSchemaConfiguration(schemaConfiguration)
                 .build()
 
             val query = """
@@ -55,10 +57,10 @@ class ViaductOSSScopesEndToEndTest {
                         field
                     }
             """.trimIndent()
-            val executionInput = ExecutionInput.create("public", query)
+            val executionInput = ExecutionInput.create(query)
 
-            val actual = subject.execute(executionInput)
-            val actualAsynced = subject.executeAsync(executionInput).await()
+            val actual = subject.execute(executionInput, schemaId)
+            val actualAsynced = subject.executeAsync(executionInput, schemaId).await()
             // Having an intermittent bug in synchronicity.  This is a workaround to ensure the execution
 
             val expected = ExecutionResult.newExecutionResult()
@@ -74,13 +76,14 @@ class ViaductOSSScopesEndToEndTest {
     @Test
     fun `Verify Builder using withFullSchemaFromFiles and registerSchema`() =
         runBlocking {
-            schemaRegistryConfiguration = SchemaRegistryConfiguration.fromResources(
-                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("viaduct-public")))
+            val schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
+            schemaConfiguration = SchemaConfiguration.fromResources(
+                scopes = setOf(schemaId.toScopeConfig())
             )
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+                .withSchemaConfiguration(schemaConfiguration)
                 .build()
 
             val query = """
@@ -88,10 +91,10 @@ class ViaductOSSScopesEndToEndTest {
                         field
                     }
             """.trimIndent()
-            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
+            val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
 
-            val actual = subject.execute(executionInput)
-            val actualAsynced = subject.executeAsync(executionInput).await()
+            val actual = subject.execute(executionInput, schemaId)
+            val actualAsynced = subject.executeAsync(executionInput, schemaId).await()
             val expected = ExecutionResult.newExecutionResult()
                 .data(mapOf("field" to null))
                 .build()
@@ -109,16 +112,16 @@ class ViaductOSSScopesEndToEndTest {
             extend type Query @scope(to: ["viaduct-public"]) { field: Int }
         """
 
-            schemaRegistryConfiguration =
-                SchemaRegistryConfiguration.fromSdl(
+            val schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
+            schemaConfiguration =
+                SchemaConfiguration.fromSdl(
                     sdl,
-                    fullSchemaIds = listOf("schema_id"),
-                    scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("viaduct-public")))
+                    scopes = setOf(schemaId.toScopeConfig())
                 )
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+                .withSchemaConfiguration(schemaConfiguration)
                 .build()
 
             val query = """
@@ -126,10 +129,10 @@ class ViaductOSSScopesEndToEndTest {
                     field
                 }
             """.trimIndent()
-            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
+            val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
 
-            val actual = subject.execute(executionInput)
-            val actualAsynced = subject.executeAsync(executionInput).await()
+            val actual = subject.execute(executionInput, schemaId)
+            val actualAsynced = subject.executeAsync(executionInput, schemaId).await()
             // Having an intermittent bug in synchronicity. This is a workaround to ensure the execution
 
             val expected = ExecutionResult.newExecutionResult()
@@ -176,14 +179,15 @@ class ViaductOSSScopesEndToEndTest {
                  extensionTest: String
             }
             """
-            schemaRegistryConfiguration = SchemaRegistryConfiguration.fromSdl(
+            val schemaId = SchemaId.Scoped("SCHEMA_ID", setOf("SCOPE1"))
+            schemaConfiguration = SchemaConfiguration.fromSdl(
                 sdl,
-                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("SCHEMA_ID", setOf("SCOPE1")))
+                scopes = setOf(schemaId.toScopeConfig())
             )
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+                .withSchemaConfiguration(schemaConfiguration)
                 .build()
 
             val query = """
@@ -203,8 +207,8 @@ class ViaductOSSScopesEndToEndTest {
                     extensionTest
                 }
             """.trimIndent()
-            val executionInput = ExecutionInput.create(schemaId = "SCHEMA_ID", operationText = query, requestContext = object {})
-            val actualAsynced = subject.executeAsync(executionInput).await()
+            val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
+            val actualAsynced = subject.executeAsync(executionInput, schemaId).await()
             val actual = subject.execute(executionInput)
             val expected = ExecutionResult.newExecutionResult()
                 .data(
@@ -226,11 +230,14 @@ class ViaductOSSScopesEndToEndTest {
     @Test
     fun `Verify Builder using registerFullSchema`() =
         runBlocking {
-            schemaRegistryConfiguration = SchemaRegistryConfiguration.fromResources(fullSchemaIds = listOf("public"))
+            val schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
+            schemaConfiguration = SchemaConfiguration.fromResources(
+                scopes = setOf(schemaId.toScopeConfig())
+            )
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+                .withSchemaConfiguration(schemaConfiguration)
                 .build()
 
             val query = """
@@ -238,10 +245,10 @@ class ViaductOSSScopesEndToEndTest {
                 field
             }
             """.trimIndent()
-            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
+            val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
 
-            val actual = subject.execute(executionInput)
-            val actualAsynced = subject.executeAsync(executionInput).await()
+            val actual = subject.execute(executionInput, schemaId)
+            val actualAsynced = subject.executeAsync(executionInput, schemaId).await()
             // Having an intermittent bug in synchronicity. This is a workaround to ensure the execution
 
             val expected = ExecutionResult.newExecutionResult()
@@ -265,14 +272,15 @@ class ViaductOSSScopesEndToEndTest {
     """
             val schema = ViaductSchema(SchemaGenerator().makeExecutableSchema(SchemaParser().parse(sdl), RuntimeWiring.MOCKED_WIRING))
 
-            schemaRegistryConfiguration = SchemaRegistryConfiguration.fromSchema(
+            val schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
+            schemaConfiguration = SchemaConfiguration.fromSchema(
                 schema,
-                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("viaduct-public")))
+                scopes = setOf(schemaId.toScopeConfig())
             )
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+                .withSchemaConfiguration(schemaConfiguration)
                 .build()
 
             val query = """
@@ -280,10 +288,10 @@ class ViaductOSSScopesEndToEndTest {
                     field
                 }
             """.trimIndent()
-            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
+            val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
 
-            val actual = subject.execute(executionInput)
-            val actualAsynced = subject.executeAsync(executionInput).await()
+            val actual = subject.execute(executionInput, schemaId)
+            val actualAsynced = subject.executeAsync(executionInput, schemaId).await()
             // Having an intermittent bug in synchronicity. This is a workaround to ensure the execution
 
             val expected = ExecutionResult.newExecutionResult()

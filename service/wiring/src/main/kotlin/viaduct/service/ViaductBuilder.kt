@@ -2,7 +2,7 @@ package viaduct.service
 
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
 class ViaductBuilder {
@@ -53,9 +53,9 @@ class ViaductBuilder {
             builder.withoutDefaultQueryNodeResolvers(standardNodeBehavior)
         }
 
-    fun withSchemaRegistryConfiguration(schemaRegistryConfiguration: SchemaRegistryConfiguration) =
+    fun withSchemaConfiguration(schemaConfiguration: SchemaConfiguration) =
         apply {
-            builder.withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+            builder.withSchemaConfiguration(schemaConfiguration)
         }
 
     /**

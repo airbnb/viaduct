@@ -103,12 +103,12 @@ class ViaductExecutionStrategyModule : AbstractModule() {
     @Singleton
     fun providesExecutionStrategyFactory(
         dataFetcherExceptionHandler: DataFetcherExceptionHandler, // From parent
-        requiredSelectionSetRegistry: RequiredSelectionSetRegistry, // From child (DispatcherRegistry)
         coroutineInterop: CoroutineInterop, // From parent
+        flagManager: FlagManager, // From parent
+        temporaryBypassAccessCheck: TemporaryBypassAccessCheck, // From parent
+        requiredSelectionSetRegistry: RequiredSelectionSetRegistry, // From child (DispatcherRegistry)
         fieldCheckerDispatcherRegistry: FieldCheckerDispatcherRegistry, // From child (DispatcherRegistry)
         typeCheckerDispatcherRegistry: TypeCheckerDispatcherRegistry, // From child (DispatcherRegistry)
-        flagManager: FlagManager, // From parent
-        temporaryBypassAccessCheck: TemporaryBypassAccessCheck // From parent
     ): ViaductExecutionStrategy.Factory {
         return ViaductExecutionStrategy.Factory.Impl(
             dataFetcherExceptionHandler,
@@ -133,8 +133,8 @@ class ViaductExecutionStrategyModule : AbstractModule() {
     @Provides
     @Singleton
     fun providesResolverInstrumentation(
-        dispatcherRegistry: DispatcherRegistry, // From child
         coroutineInterop: CoroutineInterop, // From parent
+        dispatcherRegistry: DispatcherRegistry, // From child
     ): ResolverDataFetcherInstrumentation {
         return ResolverDataFetcherInstrumentation(
             dispatcherRegistry,

@@ -45,7 +45,6 @@ open class FeatureTest(
         operationName: String? = null,
     ): CompletableFuture<ExecutionResult> {
         val executionInput = ExecutionInput.create(
-            schemaId = FeatureTestBuilder.SCHEMA_ID,
             operationText = query,
             variables = variables,
             operationName = operationName

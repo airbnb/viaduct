@@ -30,20 +30,16 @@ import viaduct.demoapp.universe.species.viaduct.queryresolvers.SpeciesNodeResolv
 import viaduct.demoapp.universe.vehicles.models.repository.VehiclesRepository
 import viaduct.demoapp.universe.vehicles.viaduct.resolvers.AllVehiclesResolver
 import viaduct.demoapp.universe.vehicles.viaduct.resolvers.VehicleNodeResolver
+import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.service.runtime.SchemaRegistryConfiguration
-import viaduct.service.runtime.ViaductSchemaRegistry
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema =
-        ViaductSchemaRegistry.Factory(DefaultCoroutineInterop)
-            .createRegistry(
-                SchemaRegistryConfiguration.fromResources("viaduct.demoapp.starwars", ".*\\.graphqls")
-            )
-            .getFullSchema()
+        SchemaFactory(DefaultCoroutineInterop)
+            .fromResources("viaduct.demoapp.starwars", Regex(".*\\.graphqls"))
 
     @Test
     fun `search character by name returns a matching character`(): Unit =

@@ -5,7 +5,6 @@ package viaduct.tenant.runtime.fixtures
 import com.google.inject.Guice
 import com.google.inject.Injector
 import graphql.ExecutionResult
-import graphql.schema.GraphQLScalarType
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
@@ -14,8 +13,9 @@ import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.service.ViaductBuilder
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.mocks.MockFlagManager
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
 import viaduct.tenant.runtime.bootstrap.ViaductTenantResolverClassFinderFactory
@@ -64,10 +64,7 @@ import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 abstract class FeatureAppTestBase {
     open lateinit var sdl: String
         protected set
-    open val defaultScopeId = "public"
-    open val defaultSchemaId = "public"
 
-    protected open var customScalars: Set<GraphQLScalarType> = emptySet()
     private val injector: Injector by lazy { Guice.createInjector() }
     private val guiceTenantCodeInjector by lazy { GuiceTenantCodeInjector(injector) }
     private val flagManager = MockFlagManager()
@@ -98,16 +95,16 @@ abstract class FeatureAppTestBase {
             .tenantPackagePrefix(derivedClassPackagePrefix)
 
     private lateinit var viaductBuilder: ViaductBuilder
-    lateinit var viaductSchemaRegistryConfiguration: SchemaRegistryConfiguration
+    lateinit var viaductSchemaConfiguration: SchemaConfiguration
     lateinit var viaductService: StandardViaduct
 
     fun withViaductBuilder(builderUpdate: ViaductBuilder.() -> Unit) {
         viaductBuilder.apply(builderUpdate)
     }
 
-    fun withSchemaRegistryConfiguration(config: SchemaRegistryConfiguration) {
-        viaductBuilder = viaductBuilder.withSchemaRegistryConfiguration(config)
-        viaductSchemaRegistryConfiguration = config
+    fun withSchemaConfiguration(config: SchemaConfiguration) {
+        viaductBuilder = viaductBuilder.withSchemaConfiguration(config)
+        viaductSchemaConfiguration = config
     }
 
     @BeforeEach
@@ -155,30 +152,33 @@ abstract class FeatureAppTestBase {
     open fun execute(
         query: String,
         variables: Map<String, Any?> = mapOf(),
-        schemaId: String = defaultSchemaId,
+        schemaId: SchemaId = defaultSchemaId(),
         requestContext: Any? = null,
     ): ExecutionResult {
         return runBlocking {
             tryBuildViaductService()
             val executionInput = ExecutionInput.create(
-                schemaId = schemaId,
                 operationText = query,
                 variables = variables,
                 requestContext = requestContext,
             )
-            val result = viaductService.executeAsync(executionInput).await()
+            val result = viaductService.executeAsync(executionInput, schemaId).await()
             result
         }
     }
+
+    open fun defaultSchemaId(): SchemaId = SchemaId.Full
+
+    open fun getScopeConfig(): Set<SchemaConfiguration.ScopeConfig> = emptySet()
 
     /**
      * Attempts to build the [StandardViaduct] instance if it has not been initialized yet.
      */
     @Suppress("TooGenericExceptionCaught")
     fun tryBuildViaductService() {
-        if (!::viaductSchemaRegistryConfiguration.isInitialized) {
-            viaductSchemaRegistryConfiguration = SchemaRegistryConfiguration.fromSdl(sdl, customScalars = customScalars.toList(), fullSchemaIds = listOf(defaultSchemaId))
-            viaductBuilder.withSchemaRegistryConfiguration(viaductSchemaRegistryConfiguration)
+        if (!::viaductSchemaConfiguration.isInitialized) {
+            viaductSchemaConfiguration = SchemaConfiguration.fromSdl(sdl, scopes = getScopeConfig())
+            viaductBuilder.withSchemaConfiguration(viaductSchemaConfiguration)
         }
         if (!::viaductService.isInitialized) {
             try {

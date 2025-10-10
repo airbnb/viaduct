@@ -17,15 +17,15 @@ import org.springframework.web.servlet.function.ServerResponse
 import viaduct.api.Resolver
 import viaduct.service.BasicViaductFactory
 import viaduct.service.SchemaRegistrationInfo
-import viaduct.service.SchemaScopeInfo
 import viaduct.service.TenantRegistrationInfo
+import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
+import viaduct.service.toSchemaScopeInfo
 
-const val SCHEMA_ID = "publicSchema"
-const val SCHEMA_ID_WITH_EXTRAS = "publicSchemaWithExtras"
-
-const val DEFAULT_SCOPE_ID = "default"
-const val EXTRAS_SCOPE_ID = "extras"
+val DEFAULT_SCOPE_ID = "default"
+val EXTRAS_SCOPE_ID = "extras"
+val DEFAULT_SCHEMA_ID = SchemaId.Scoped("publicSchema", setOf(DEFAULT_SCOPE_ID))
+val EXTRAS_SCHEMA_ID = SchemaId.Scoped("publicSchemaWithExtras", setOf(DEFAULT_SCOPE_ID, EXTRAS_SCOPE_ID))
 
 /**
  *  Scans for all classes annotated with [Resolver] and registers them as Spring beans.
@@ -57,8 +57,8 @@ class ViaductConfiguration {
             // Register two schemas: one with the "extras" scope and one without
             schemaRegistrationInfo = SchemaRegistrationInfo(
                 scopes = listOf(
-                    SchemaScopeInfo(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID)),
-                    SchemaScopeInfo(SCHEMA_ID_WITH_EXTRAS, setOf(DEFAULT_SCOPE_ID, EXTRAS_SCOPE_ID))
+                    DEFAULT_SCHEMA_ID.toSchemaScopeInfo(),
+                    EXTRAS_SCHEMA_ID.toSchemaScopeInfo(),
                 ),
                 packagePrefix = "viaduct.demoapp", // Scan the entire viaduct.demoapp package for graphqls resources
                 resourcesIncluded = ".*\\.graphqls"

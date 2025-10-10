@@ -5,7 +5,9 @@ package viaduct.tenant.tutorial06
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.api.SchemaId
+import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.toScopeConfig
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial06.resolverbases.QueryResolvers
 
@@ -93,14 +95,15 @@ class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
 
     @Test
     fun `Customer app can access user orders but not admin data`() {
-        // `withSchemaRegistryConfiguration` lets you pass in a schema registry config
+        // `withSchemaConfiguration` lets you pass in a schema config
         // to configure the [Viaduct] object being tested.  In this example we're creating a
         // scoped schema named "CUSTOMER_API".  See Viaduct user docs for more on
         // schema scoping.
-        withSchemaRegistryConfiguration(
-            SchemaRegistryConfiguration.fromSdl(
+        val schemaId = SchemaId.Scoped("CUSTOMER_API", setOf("USER"))
+        withSchemaConfiguration(
+            SchemaConfiguration.fromSdl(
                 sdl,
-                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("CUSTOMER_API", setOf("USER")))
+                scopes = setOf(schemaId.toScopeConfig()),
             )
         )
 
@@ -111,7 +114,7 @@ class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
                     myOrders(userId: "user-123")
                 }
             """.trimIndent(),
-            schemaId = "CUSTOMER_API" // Using customer deployment
+            schemaId = schemaId // Using customer deployment
         ).assertEquals {
             "data" to {
                 "myOrders" to listOf("Order #1001", "Order #1002")
@@ -125,7 +128,7 @@ class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
                     allUserData  # This field doesn't exist in customer API
                 }
             """.trimIndent(),
-            schemaId = "CUSTOMER_API"
+            schemaId = schemaId
         ).assertEquals {
             "errors" to arrayOf(
                 {
@@ -149,12 +152,12 @@ class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
     fun `Admin dashboard can access admin data but not user-specific data`() {
         // Register admin dashboard schema with ADMIN scope only
         // This simulates deploying the API for internal admin tools and dashboards
-        withSchemaRegistryConfiguration(
-            SchemaRegistryConfiguration.fromSdl(
+
+        val schemaId = SchemaId.Scoped("ADMIN_API", setOf("ADMIN"))
+        withSchemaConfiguration(
+            SchemaConfiguration.fromSdl(
                 sdl,
-                scopes = setOf(
-                    SchemaRegistryConfiguration.ScopeConfig("ADMIN_API", setOf("ADMIN"))
-                )
+                scopes = setOf(schemaId.toScopeConfig())
             )
         )
 
@@ -165,7 +168,7 @@ class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
                     allUserData
                 }
             """.trimIndent(),
-            schemaId = "ADMIN_API"
+            schemaId = schemaId
         ).assertEquals {
             "data" to {
                 "allUserData" to listOf("User: john@example.com", "User: jane@example.com")
@@ -179,7 +182,7 @@ class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
                     myOrders(userId: "user-123")  # This field doesn't exist in admin API
                 }
             """.trimIndent(),
-            schemaId = "ADMIN_API"
+            schemaId = schemaId
         ).assertEquals {
             "errors" to arrayOf(
                 {
@@ -203,12 +206,11 @@ class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
     fun `Internal tools with both scopes can access everything`() {
         // Register internal tools schema with both USER and ADMIN scopes
         // This simulates deploying the API for support tools that need access to everything
-        withSchemaRegistryConfiguration(
-            SchemaRegistryConfiguration.fromSdl(
+        val schemaId = SchemaId.Scoped("INTERNAL_API", setOf("USER", "ADMIN"))
+        withSchemaConfiguration(
+            SchemaConfiguration.fromSdl(
                 sdl,
-                scopes = setOf(
-                    SchemaRegistryConfiguration.ScopeConfig("INTERNAL_API", setOf("USER", "ADMIN"))
-                )
+                scopes = setOf(schemaId.toScopeConfig())
             )
         )
 
@@ -220,7 +222,7 @@ class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
                     allUserData                     # From ADMIN scope
                 }
             """.trimIndent(),
-            schemaId = "INTERNAL_API"
+            schemaId = schemaId
         ).assertEquals {
             "data" to {
                 "myOrders" to listOf("Order #2001")
@@ -238,11 +240,11 @@ class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
                     myOrders(userId: "user-123")
                 }
             """.trimIndent(),
-            schemaId = "UNKNOWN_API" // Never registered
+            schemaId = SchemaId.None // Never registered
         ).assertEquals {
             "errors" to arrayOf(
                 {
-                    "message" to "Schema not found for schemaId=UNKNOWN_API"
+                    "message" to "Schema not found for schemaId=SchemaId(id='NONE')"
                     "locations" to emptyList<String>()
                     "extensions" to {
                         "classification" to "DataFetchingException"

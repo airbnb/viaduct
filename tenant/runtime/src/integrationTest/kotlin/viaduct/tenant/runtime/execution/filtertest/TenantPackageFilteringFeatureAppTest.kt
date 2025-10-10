@@ -6,7 +6,9 @@ import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.api.TenantModule
 import viaduct.graphql.test.assertEquals
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.api.SchemaId
+import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.toScopeConfig
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.execution.filtertest.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
@@ -40,19 +42,17 @@ class TenantPackageFilteringFeatureAppTest : FeatureAppTestBase() {
         | #END_SCHEMA
     """.trimMargin()
 
-    private val schemaId1 = "SCHEMA_ID_1"
-    private val schemaId2 = "SCHEMA_ID_2"
-    private val scopes1 = setOf("SCOPE1")
-    private val scopes2 = setOf("SCOPE2")
+    private val schemaId1 = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
+    private val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
 
     @BeforeEach
     fun registerSchemas() {
-        withSchemaRegistryConfiguration(
-            SchemaRegistryConfiguration.fromSdl(
+        withSchemaConfiguration(
+            SchemaConfiguration.fromSdl(
                 sdl,
                 scopes = setOf(
-                    SchemaRegistryConfiguration.ScopeConfig(schemaId1, scopes1),
-                    SchemaRegistryConfiguration.ScopeConfig(schemaId2, scopes2)
+                    schemaId1.toScopeConfig(),
+                    schemaId2.toScopeConfig(),
                 )
             )
         )
@@ -105,12 +105,14 @@ class TenantPackageFilteringFeatureAppTest : FeatureAppTestBase() {
     @Test
     @Suppress("DEPRECATION")
     fun `Validation errors vs missing resolvers due to tenant filtering`() {
-        withSchemaRegistryConfiguration(
-            SchemaRegistryConfiguration.fromSdl(
+        val scope1Only = SchemaId.Scoped("SCOPE1_ONLY", setOf("SCOPE1"))
+        val scope2Only = SchemaId.Scoped("SCOPE2_ONLY", setOf("SCOPE2"))
+        withSchemaConfiguration(
+            SchemaConfiguration.fromSdl(
                 sdl,
                 scopes = setOf(
-                    SchemaRegistryConfiguration.ScopeConfig("SCOPE1_ONLY", setOf("SCOPE1")),
-                    SchemaRegistryConfiguration.ScopeConfig("SCOPE2_ONLY", setOf("SCOPE2"))
+                    scope1Only.toScopeConfig(),
+                    scope2Only.toScopeConfig()
                 )
             )
         )
@@ -131,7 +133,7 @@ class TenantPackageFilteringFeatureAppTest : FeatureAppTestBase() {
                     }
                 }
             """.trimIndent(),
-            schemaId = "SCOPE1_ONLY"
+            schemaId = scope1Only
         ).assertEquals {
             "errors" to arrayOf(
                 {
@@ -158,7 +160,7 @@ class TenantPackageFilteringFeatureAppTest : FeatureAppTestBase() {
                     }
                 }
             """.trimIndent(),
-            schemaId = "SCOPE2_ONLY"
+            schemaId = scope2Only
         ).assertEquals {
             "data" to {
                 "scope2Value" to null

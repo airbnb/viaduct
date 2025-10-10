@@ -10,12 +10,8 @@ import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import viaduct.engine.runtime.execution.withThreadLocalCoroutineContext
 import viaduct.service.BasicViaductFactory
-import viaduct.service.SchemaRegistrationInfo
-import viaduct.service.SchemaScopeInfo
 import viaduct.service.TenantRegistrationInfo
 import viaduct.service.api.ExecutionInput
-
-const val SCHEMA_ID = "publicSchema"
 
 fun main(argv: Array<String>) {
     val rootLogger = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME) as Logger
@@ -23,9 +19,6 @@ fun main(argv: Array<String>) {
 
     // Create a Viaduct engine using the BasicViaductFactory
     val viaduct = BasicViaductFactory.create(
-        schemaRegistrationInfo = SchemaRegistrationInfo(
-            scopes = listOf(SchemaScopeInfo(SCHEMA_ID))
-        ),
         tenantRegistrationInfo = TenantRegistrationInfo(
             tenantPackagePrefix = "com.example.viadapp"
         )
@@ -33,7 +26,6 @@ fun main(argv: Array<String>) {
 
     // Create an execution input
     val executionInput = ExecutionInput.create(
-        schemaId = SCHEMA_ID,
         operationText = (
             argv.getOrNull(0)
                 ?: """

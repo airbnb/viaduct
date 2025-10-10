@@ -33,9 +33,7 @@ internal class BasicViaductFactoryTest {
         fun `SchemaRegistrationInfo should have correct defaults`() {
             val schemaInfo = SchemaRegistrationInfo()
 
-            assertEquals(1, schemaInfo.scopes.size)
-            assertEquals("", schemaInfo.scopes.first().schemaId)
-            assertNull(schemaInfo.scopes.first().scopesToApply)
+            assertEquals(0, schemaInfo.scopes.size)
             assertNull(schemaInfo.packagePrefix)
             assertNull(schemaInfo.resourcesIncluded)
         }

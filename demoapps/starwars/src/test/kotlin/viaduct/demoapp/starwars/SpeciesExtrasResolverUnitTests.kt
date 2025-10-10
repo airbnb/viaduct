@@ -15,20 +15,16 @@ import viaduct.demoapp.universe.species.viaduct.fieldresolvers.CulturalNotesReso
 import viaduct.demoapp.universe.species.viaduct.fieldresolvers.RarityLevelResolver
 import viaduct.demoapp.universe.species.viaduct.fieldresolvers.SpecialAbilitiesResolver
 import viaduct.demoapp.universe.species.viaduct.fieldresolvers.TechnologicalLevelResolver
+import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.service.runtime.SchemaRegistryConfiguration
-import viaduct.service.runtime.ViaductSchemaRegistry
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema =
-        ViaductSchemaRegistry.Factory(DefaultCoroutineInterop)
-            .createRegistry(
-                SchemaRegistryConfiguration.fromResources("viaduct.demoapp.starwars", ".*\\.graphqls")
-            )
-            .getFullSchema()
+        SchemaFactory(DefaultCoroutineInterop)
+            .fromResources("viaduct.demoapp.starwars", Regex(".*\\.graphqls"))
 
     /**
      * Build Species GRT containing only the GlobalID

@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RestController
-import viaduct.demoapp.starwars.config.DEFAULT_SCOPE_ID
+import viaduct.demoapp.starwars.config.DEFAULT_SCHEMA_ID
+import viaduct.demoapp.starwars.config.EXTRAS_SCHEMA_ID
 import viaduct.demoapp.starwars.config.EXTRAS_SCOPE_ID
-import viaduct.demoapp.starwars.config.SCHEMA_ID
-import viaduct.demoapp.starwars.config.SCHEMA_ID_WITH_EXTRAS
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 
 // HTTP header to retrieve query scopes to apply (e.g., "extras")
@@ -33,12 +33,10 @@ class ViaductGraphQLController {
         @RequestBody request: Map<String, Any>,
         @RequestHeader headers: HttpHeaders
     ): ResponseEntity<Map<String, Any>> {
+        val executionInput = createExecutionInput(request)
         val scopes = parseScopes(headers)
         val schemaId = determineSchemaId(scopes)
-        val executionInput = createExecutionInput(request, schemaId)
-
-        val result = viaduct.executeAsync(executionInput).await()
-
+        val result = viaduct.executeAsync(executionInput, schemaId).await()
         return ResponseEntity.status(statusCode(result)).body(result.toSpecification())
     }
 
@@ -47,25 +45,21 @@ class ViaductGraphQLController {
         return if (scopesHeader != null) {
             scopesHeader.split(",").map { it.trim() }.toSet()
         } else {
-            setOf(DEFAULT_SCOPE_ID)
+            setOf()
         }
     }
 
-    private fun determineSchemaId(scopes: Set<String>): String {
+    private fun determineSchemaId(scopes: Set<String>): SchemaId {
         return if (scopes.contains(EXTRAS_SCOPE_ID)) {
-            SCHEMA_ID_WITH_EXTRAS
+            EXTRAS_SCHEMA_ID
         } else {
-            SCHEMA_ID
+            DEFAULT_SCHEMA_ID
         }
     }
 
-    private fun createExecutionInput(
-        request: Map<String, Any>,
-        schemaId: String
-    ): ExecutionInput {
+    private fun createExecutionInput(request: Map<String, Any>,): ExecutionInput {
         @Suppress("UNCHECKED_CAST")
         return ExecutionInput.create(
-            schemaId = schemaId,
             operationText = request[QUERY_FIELD] as String,
             variables = (request[VARIABLES_FIELD] as? Map<String, Any>) ?: emptyMap(),
             requestContext = emptyMap<String, Any>(),

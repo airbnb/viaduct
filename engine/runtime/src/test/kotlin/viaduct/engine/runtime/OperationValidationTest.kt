@@ -6,7 +6,9 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.mocks.toViaductBuilder
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.api.SchemaId
+import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.toScopeConfig
 
 class OperationValidationTest {
     val testSchema = """
@@ -19,22 +21,22 @@ class OperationValidationTest {
         }
         """
 
+    val publicSchemaId = SchemaId.Scoped("public", setOf("public"))
     val viaductBuilder = MockTenantModuleBootstrapper(testSchema) {
         fieldWithValue("Query" to "f1", 1)
         fieldWithValue("Query" to "f2", 2)
     }.toViaductBuilder()
-        .withSchemaRegistryConfiguration(
-            SchemaRegistryConfiguration.fromSdl(
+        .withSchemaConfiguration(
+            SchemaConfiguration.fromSdl(
                 testSchema,
-                fullSchemaIds = listOf("full"),
-                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("public")))
+                scopes = setOf(publicSchemaId.toScopeConfig())
             )
         )
 
     @Test
     fun `valid full schema query`() {
         viaductBuilder.build().runFeatureTest {
-            viaduct.runQuery("full", "{ f1 f2 }")
+            viaduct.runQuery(SchemaId.Full, "{ f1 f2 }")
                 .assertJson("""{ "data": {"f1": 1, "f2": 2} }""")
         }
     }
@@ -42,7 +44,7 @@ class OperationValidationTest {
     @Test
     fun `invalid full schema query`() {
         viaductBuilder.build().runFeatureTest {
-            val result = viaduct.runQuery("full", "{ f1 f2 f3 }")
+            val result = viaduct.runQuery(SchemaId.Full, "{ f1 f2 f3 }")
             assertEquals(1, result.errors.size)
             assertTrue(result.errors[0].message.contains("FieldUndefined@[f3]"))
         }
@@ -51,7 +53,7 @@ class OperationValidationTest {
     @Test
     fun `invalid scoped schema query`() {
         viaductBuilder.build().runFeatureTest {
-            val result = viaduct.runQuery("public", "{ f1 f2 }")
+            val result = viaduct.runQuery(publicSchemaId, "{ f1 f2 }")
             assertEquals(1, result.errors.size)
             assertTrue(result.errors[0].message.contains("FieldUndefined@[f2]"))
         }

@@ -25,7 +25,8 @@ data class ViaductBuilderConfiguration(
     val chainInstrumentationWithDefaults: Boolean,
     val checkerExecutorFactory: CheckerExecutorFactory?,
     val checkerExecutorFactoryCreator: CheckerExecutorFactoryCreator?,
-    val tenantBootstrapper: TenantAPIBootstrapper
+    val tenantBootstrapper: TenantAPIBootstrapper,
+    val documentProviderFactory: DocumentProviderFactory
 )
 
 /**

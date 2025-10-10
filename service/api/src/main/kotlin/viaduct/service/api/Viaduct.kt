@@ -10,27 +10,36 @@ import viaduct.engine.api.ViaductSchema
  */
 interface Viaduct {
     /**
-     *  Executes a query for the schema registry by using a Viaduct ExecutionInput and wraps it on a CompletableFuture.
-     *  @param executionInput THe execution Input
-     *  @return the CompletableFuture of ExecutionResult who contains the sorted results or the error which was produced
+     *  Executes an operation on this Viaduct instance asynchronously.
+     *
+     *  @param executionInput The execution Input
+     *  @param schemaId the id of the schema for which we want to execute the operation, defaults to SchemaId.Full
+     *  @return the [CompletableFuture] of [ExecutionResult] who contains the sorted results or the error which was produced
      */
-    fun executeAsync(executionInput: ExecutionInput): CompletableFuture<ExecutionResult>
+    fun executeAsync(
+        executionInput: ExecutionInput,
+        schemaId: SchemaId = SchemaId.Full
+    ): CompletableFuture<ExecutionResult>
 
     /**
-     *  Executes a query for the schema registry by using a Viaduct ExecutionInput.
-     *  @param executionInput THe execution Input
+     *  Executes an operation on this Viaduct instance.
+     *
+     *  @param executionInput the execution input for this operation
+     *  @param schemaId the id of the schema for which we want to execute the operation, defaults to SchemaId.Full
      *  @return the ExecutionResult who contains the sorted results
      */
-    fun execute(executionInput: ExecutionInput): ExecutionResult
+    fun execute(
+        executionInput: ExecutionInput,
+        schemaId: SchemaId = SchemaId.Full
+    ): ExecutionResult
 
     /**
      * This function is used to get the applied scopes for a given schemaId
      *
      * @param schemaId the id of the schema for which we want a [GraphQLSchema]
-     *
      * @return Set of scopes that are applied to the schema
      */
-    fun getAppliedScopes(schemaId: String): Set<String>?
+    fun getAppliedScopes(schemaId: SchemaId): Set<String>?
 
     /**
      * Temporary - Will be either private/or somewhere not exposed
@@ -39,9 +48,8 @@ interface Viaduct {
      * Returns null if no such schema is registered.
      *
      * @param schemaId the id of the schema for which we want a [GraphQLSchema]
-     *
      * @return GraphQLSchema instance of the registered scope
      */
     @Deprecated("Will be either private/or somewhere not exposed")
-    fun getSchema(schemaId: String): ViaductSchema?
+    fun getSchema(schemaId: SchemaId): ViaductSchema?
 }

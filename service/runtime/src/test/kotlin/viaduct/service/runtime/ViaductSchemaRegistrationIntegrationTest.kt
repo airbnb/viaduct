@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.utils.DefaultSchemaProvider
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.Flag
 import viaduct.service.api.spi.FlagManager
 
@@ -59,16 +60,19 @@ class ViaductSchemaRegistrationIntegrationTest {
             }
         """
 
+            val schemaId1 = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
+            val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
+
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(
-                    SchemaRegistryConfiguration.fromSdl(
+                .withSchemaConfiguration(
+                    SchemaConfiguration.fromSdl(
                         sdl,
                         scopes =
                             setOf(
-                                SchemaRegistryConfiguration.ScopeConfig("SCHEMA_ID_1", setOf("SCOPE1")),
-                                SchemaRegistryConfiguration.ScopeConfig("SCHEMA_ID_2", setOf("SCOPE2"))
+                                schemaId1.toScopeConfig(),
+                                schemaId2.toScopeConfig()
                             )
                     )
                 )
@@ -82,8 +86,8 @@ class ViaductSchemaRegistrationIntegrationTest {
                 }
             }
             """.trimIndent()
-            val executionInput1 = ExecutionInput.create("SCHEMA_ID_1", query1, requestContext = object {})
-            val result1 = subject.executeAsync(executionInput1).await()
+            val executionInput1 = ExecutionInput.create(query1, requestContext = object {})
+            val result1 = subject.executeAsync(executionInput1, schemaId1).await()
 
             val expected1 = ExecutionResult.newExecutionResult()
                 .data(mapOf("scope1Value" to null)) // Mocked wiring returns null
@@ -99,8 +103,8 @@ class ViaductSchemaRegistrationIntegrationTest {
                 }
             }
             """.trimIndent()
-            val executionInput2 = ExecutionInput.create("SCHEMA_ID_2", query2, requestContext = object {})
-            val result2 = subject.executeAsync(executionInput2).await()
+            val executionInput2 = ExecutionInput.create(query2, requestContext = object {})
+            val result2 = subject.executeAsync(executionInput2, schemaId2).await()
 
             val expected2 = ExecutionResult.newExecutionResult()
                 .data(mapOf("scope2Value" to null)) // Mocked wiring returns null
@@ -131,16 +135,19 @@ class ViaductSchemaRegistrationIntegrationTest {
                 }
             """
 
+            val schemaId1 = SchemaId.Scoped("SCOPE1_ONLY", setOf("SCOPE1"))
+            val schemaId2 = SchemaId.Scoped("SCOPE2_ONLY", setOf("SCOPE2"))
+
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(
-                    SchemaRegistryConfiguration.fromSdl(
+                .withSchemaConfiguration(
+                    SchemaConfiguration.fromSdl(
                         sdl,
                         scopes =
                             setOf(
-                                SchemaRegistryConfiguration.ScopeConfig("SCOPE1_ONLY", setOf("SCOPE1")),
-                                SchemaRegistryConfiguration.ScopeConfig("SCOPE2_ONLY", setOf("SCOPE2"))
+                                schemaId1.toScopeConfig(),
+                                schemaId2.toScopeConfig(),
                             )
                     )
                 )
@@ -154,8 +161,8 @@ class ViaductSchemaRegistrationIntegrationTest {
                 }
             }
             """.trimIndent()
-            val executionInput = ExecutionInput.create(schemaId = "SCOPE1_ONLY", operationText = query, requestContext = object {})
-            val result = subject.executeAsync(executionInput).await()
+            val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
+            val result = subject.executeAsync(executionInput, schemaId1).await()
 
             // Should get validation error because scope2Value is not available in SCOPE1_ONLY schema
             // The original test validated that scoped schemas properly exclude fields from other scopes
@@ -174,8 +181,8 @@ class ViaductSchemaRegistrationIntegrationTest {
                 }
             }
             """.trimIndent()
-            val reverseExecutionInput = ExecutionInput.create(schemaId = "SCOPE2_ONLY", operationText = reverseQuery, requestContext = object {})
-            val reverseResult = subject.executeAsync(reverseExecutionInput).await()
+            val reverseExecutionInput = ExecutionInput.create(operationText = reverseQuery, requestContext = object {})
+            val reverseResult = subject.executeAsync(reverseExecutionInput, schemaId2).await()
 
             assertEquals(1, reverseResult.errors.size)
             assert(reverseResult.errors[0].message.contains("Field 'scope1Value' in type 'Query' is undefined")) {
@@ -201,11 +208,11 @@ class ViaductSchemaRegistrationIntegrationTest {
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(
-                    SchemaRegistryConfiguration.fromSdl(
+                .withSchemaConfiguration(
+                    SchemaConfiguration.fromSdl(
                         sdl,
                         // Note: not registering SCHEMA_ID_2
-                        scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("SCHEMA_ID_1", setOf("SCOPE1")))
+                        scopes = setOf(SchemaConfiguration.ScopeConfig("SCHEMA_ID_1", setOf("SCOPE1")))
                     )
                 )
                 .build()
@@ -217,12 +224,12 @@ class ViaductSchemaRegistrationIntegrationTest {
                 }
             }
             """.trimIndent()
-            val executionInput = ExecutionInput.create(schemaId = "SCHEMA_ID_2", operationText = query, requestContext = object {}) // Unregistered schema ID
-            val result = subject.executeAsync(executionInput).await()
+            val executionInput = ExecutionInput.create(operationText = query, requestContext = object {}) // Unregistered schema ID
+            val result = subject.executeAsync(executionInput, SchemaId.None).await()
 
             // The original test expected this to fail with "Schema not found" error
             assertEquals(1, result.errors.size)
-            assertEquals("Schema not found for schemaId=SCHEMA_ID_2", result.errors[0].message)
+            assertEquals("Schema not found for schemaId=SchemaId(id='NONE')", result.errors[0].message)
             assertNull(result.getData<Any>())
         }
 
@@ -254,10 +261,9 @@ class ViaductSchemaRegistrationIntegrationTest {
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(
-                    SchemaRegistryConfiguration.fromSchema(
-                        schema,
-                        fullSchemaIds = listOf("FULL_SCHEMA")
+                .withSchemaConfiguration(
+                    SchemaConfiguration.fromSchema(
+                        schema
                     )
                 )
                 .build()
@@ -269,7 +275,7 @@ class ViaductSchemaRegistrationIntegrationTest {
                 }
             }
             """.trimIndent()
-            val executionInput = ExecutionInput.create("FULL_SCHEMA", query, requestContext = object {})
+            val executionInput = ExecutionInput.create(query, requestContext = object {})
             val result = subject.executeAsync(executionInput).await()
 
             val expected = ExecutionResult.newExecutionResult()

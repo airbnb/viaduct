@@ -1,9 +1,10 @@
 package viaduct.service
 
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
+import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.TenantCodeInjector
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
 object BasicViaductFactory {
@@ -26,8 +27,8 @@ object BasicViaductFactory {
         tenantRegistrationInfo: TenantRegistrationInfo,
     ): Viaduct {
         val builder = builderWithTenantInfo(tenantRegistrationInfo)
-        val schemaRegistryConfiguration = applySchemaRegistry(schemaRegistrationInfo)
-        return builder.withSchemaRegistryConfiguration(schemaRegistryConfiguration).build()
+        val schemaConfiguration = applySchemaRegistry(schemaRegistrationInfo)
+        return builder.withSchemaConfiguration(schemaConfiguration).build()
     }
 
     // internal for testing
@@ -42,22 +43,19 @@ object BasicViaductFactory {
     }
 
     // internal for testing
-    internal fun applySchemaRegistry(schemaRegistrationInfo: SchemaRegistrationInfo): SchemaRegistryConfiguration {
+    internal fun applySchemaRegistry(schemaRegistrationInfo: SchemaRegistrationInfo): SchemaConfiguration {
         val scopeConfigs = schemaRegistrationInfo.scopes.map { scope ->
             if (scope.scopesToApply.isNullOrEmpty()) {
-                SchemaRegistryConfiguration.ScopeConfig(scope.schemaId, emptySet())
+                SchemaConfiguration.ScopeConfig(scope.schemaId, emptySet())
             } else {
-                SchemaRegistryConfiguration.ScopeConfig(scope.schemaId, scope.scopesToApply)
+                SchemaConfiguration.ScopeConfig(scope.schemaId, scope.scopesToApply)
             }
         }
 
-        return SchemaRegistryConfiguration.fromResources(
+        return SchemaConfiguration.fromResources(
             packagePrefix = schemaRegistrationInfo.packagePrefix,
-            resourcesIncluded = schemaRegistrationInfo.resourcesIncluded,
-            scopes = scopeConfigs.toSet(),
-            fullSchemaIds = schemaRegistrationInfo.scopes
-                .filter { it.scopesToApply.isNullOrEmpty() }
-                .map { it.schemaId }
+            resourcesIncluded = schemaRegistrationInfo.resourcesIncluded?.toRegex(),
+            scopes = scopeConfigs.toSet()
         )
     }
 }
@@ -75,7 +73,7 @@ data class TenantRegistrationInfo(
  * @param resourcesIncluded the regex to match the files to include, default ".*graphqls"
  *  */
 data class SchemaRegistrationInfo(
-    val scopes: List<SchemaScopeInfo> = listOf(SchemaScopeInfo()),
+    val scopes: List<SchemaScopeInfo> = listOf(),
     val packagePrefix: String? = null,
     val resourcesIncluded: String? = null,
 )
@@ -91,3 +89,5 @@ data class SchemaScopeInfo(
     val schemaId: String = "",
     val scopesToApply: Set<String>? = null,
 )
+
+fun SchemaId.Scoped.toSchemaScopeInfo(): SchemaScopeInfo = SchemaScopeInfo(this.id, this.scopeIds.ifEmpty { null })

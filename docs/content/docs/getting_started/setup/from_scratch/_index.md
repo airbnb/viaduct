@@ -105,11 +105,11 @@ Create `src/main/kotlin/com/example/viadapp/ViaductApplication.kt`:
 package com.example.viadapp
 
 import kotlinx.coroutines.runBlocking
+import viaduct.service.api.ExecutionInput
 import viaduct.service.BasicViaductFactory
 import viaduct.service.SchemaRegistrationInfo
 import viaduct.service.SchemaScopeInfo
 import viaduct.service.TenantRegistrationInfo
-import viaduct.service.api.ExecutionInput
 
 const val SCHEMA_ID = "helloworld"
 

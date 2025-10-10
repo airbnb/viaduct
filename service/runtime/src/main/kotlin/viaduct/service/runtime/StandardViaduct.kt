@@ -5,20 +5,18 @@ import com.google.inject.Inject
 import com.google.inject.Injector
 import com.google.inject.ProvisionException
 import com.google.inject.util.Modules
-import graphql.ExecutionInput as GJExecutionInput
 import graphql.ExecutionResult
 import graphql.ExecutionResultImpl
 import graphql.GraphQL
 import graphql.GraphQLError
 import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherExceptionHandler
-import graphql.execution.ExecutionId
 import graphql.execution.instrumentation.Instrumentation
 import graphql.schema.GraphQLSchema
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.CompletableFuture
-import kotlinx.coroutines.future.await
-import viaduct.engine.GraphQLJavaConfig
+import viaduct.engine.EngineGraphQLJavaCompat
+import viaduct.engine.EngineImpl
 import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.FragmentLoader
@@ -27,15 +25,12 @@ import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.TenantAPIBootstrapper.Companion.flatten
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
-import viaduct.engine.runtime.CompositeLocalContext
-import viaduct.engine.runtime.DispatcherRegistry
-import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
-import viaduct.engine.runtime.instrumentation.ResolverDataFetcherInstrumentation
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.ResolverErrorBuilder
@@ -54,23 +49,10 @@ import viaduct.service.runtime.noderesolvers.ViaductNodeResolverAPIBootstrapper
 class StandardViaduct
     @Inject
     internal constructor(
-        val viaductSchemaRegistry: ViaductSchemaRegistry,
-        dispatcherRegistry: DispatcherRegistry,
+        val engineRegistry: EngineRegistry,
         private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
-        fragmentLoader: FragmentLoader,
-        resolverDataFetcherInstrumentation: ResolverDataFetcherInstrumentation,
-        flagManager: FlagManager,
-        private val standardViaductFactory: Factory,
+        private val standardViaductFactory: Factory
     ) : Viaduct {
-        private val engineExecutionContextFactory =
-            EngineExecutionContextFactory(
-                viaductSchemaRegistry.getFullSchema(),
-                dispatcherRegistry,
-                fragmentLoader,
-                resolverDataFetcherInstrumentation,
-                flagManager
-            )
-
         /**
          * Factory for creating StandardViaduct instances with different schema configurations.
          * Uses child injectors to provide proper schema isolation - each StandardViaduct
@@ -87,7 +69,7 @@ class StandardViaduct
                  * Schema-specific components (registries, dispatchers, etc.) are created per child injector.
                  * Configuration (TenantBootstrapper, CheckerExecutorFactory creator) comes from parent injector.
                  */
-                fun createForSchema(schemaConfig: SchemaRegistryConfiguration): StandardViaduct {
+                fun createForSchema(schemaConfig: SchemaConfiguration): StandardViaduct {
                     // Create schema-specific modules that will be bound only in child injector
                     val schemaModules = listOf(
                         SchemaConfigurationModule(schemaConfig),
@@ -117,7 +99,8 @@ class StandardViaduct
             private var resolverErrorReporter: ResolverErrorReporter? = null
             private var resolverErrorBuilder: ResolverErrorBuilder? = null
             private var coroutineInterop: CoroutineInterop? = null
-            private var schemaRegistryConfiguration: SchemaRegistryConfiguration = SchemaRegistryConfiguration()
+            private var schemaConfiguration: SchemaConfiguration = SchemaConfiguration.DEFAULT
+            private var documentProviderFactory: DocumentProviderFactory = DocumentProviderFactory { _, _ -> CachingPreparsedDocumentProvider() }
             private var tenantNameResolver: TenantNameResolver = TenantNameResolver()
             private var tenantAPIBootstrapperBuilders: List<TenantAPIBootstrapperBuilder> = emptyList()
             private var chainInstrumentationWithDefaults: Boolean = false
@@ -184,9 +167,14 @@ class StandardViaduct
                     this.temporaryBypassAccessCheck = temporaryBypassAccessCheck
                 }
 
-            fun withSchemaRegistryConfiguration(schemaRegistryConfiguration: SchemaRegistryConfiguration): Builder =
+            fun withSchemaConfiguration(schemaConfiguration: SchemaConfiguration): Builder =
                 apply {
-                    this.schemaRegistryConfiguration = schemaRegistryConfiguration
+                    this.schemaConfiguration = schemaConfiguration
+                }
+
+            fun withDocumentProviderFactory(documentProviderFactory: DocumentProviderFactory): Builder =
+                apply {
+                    this.documentProviderFactory = documentProviderFactory
                 }
 
             fun withFlagManager(flagManager: FlagManager): Builder =
@@ -225,7 +213,7 @@ class StandardViaduct
                 }
 
             @Deprecated("For advance uses, Airbnb-use only.", level = DeprecationLevel.WARNING)
-            fun getSchemaRegistryConfiguration(): SchemaRegistryConfiguration = schemaRegistryConfiguration
+            fun getSchemaConfiguration(): SchemaConfiguration = schemaConfiguration
 
             fun withMeterRegistry(meterRegistry: MeterRegistry) =
                 apply {
@@ -261,7 +249,8 @@ class StandardViaduct
                     chainInstrumentationWithDefaults = executionStrategyModuleConfig.chainInstrumentationWithDefaults,
                     checkerExecutorFactory = checkerExecutorFactory,
                     checkerExecutorFactoryCreator = checkerExecutorFactoryCreator,
-                    tenantBootstrapper = tenantBootstrapper
+                    tenantBootstrapper = tenantBootstrapper,
+                    documentProviderFactory = documentProviderFactory,
                 )
 
                 // Create parent modules - stateless factories and global utilities
@@ -288,7 +277,7 @@ class StandardViaduct
                     val factory = parentInjector.getInstance(Factory::class.java)
 
                     // Factory creates child injector with schema modules and returns StandardViaduct
-                    return factory.createForSchema(schemaRegistryConfiguration)
+                    return factory.createForSchema(schemaConfiguration)
                 } catch (e: ProvisionException) {
                     val isCausedByDispatcherRegistryFactory = e.cause?.stackTrace?.any {
                         it.className == DispatcherRegistryFactory::class.java.name
@@ -341,13 +330,13 @@ class StandardViaduct
         /**
          * Function to create a new StandardViaduct from an existing StandardViaduct with a different schema.
          * Uses the factory pattern for proper dependency injection.
-         * Caller is expected to construct the schema registry builder then pass it in.
+         * Caller is expected to construct the schema configuration and pass it in.
          */
-        fun newForSchema(schemaRegistryConfig: SchemaRegistryConfiguration): StandardViaduct {
-            return standardViaductFactory.createForSchema(schemaRegistryConfig)
+        fun newForSchema(schemaConfiguration: SchemaConfiguration): StandardViaduct {
+            return standardViaductFactory.createForSchema(schemaConfiguration)
         }
 
-        fun mkSchemaNotFoundError(schemaId: String): CompletableFuture<ExecutionResult> {
+        private fun mkSchemaNotFoundError(schemaId: SchemaId): CompletableFuture<ExecutionResult> {
             val error: GraphQLError = GraphqlErrorBuilder.newError()
                 .message("Schema not found for schemaId=$schemaId")
                 .build()
@@ -363,17 +352,20 @@ class StandardViaduct
          * returning a completable future that will contain the sorted ExecutionResult
          *
          * @param executionInput the [ExecutionInput] to execute
+         * @param schemaId the id of the schema for which we want to execute the operation. Defaults to the full schema.
          * @return [CompletableFuture] of sorted [ExecutionResult]
          */
-        override fun executeAsync(executionInput: ExecutionInput): CompletableFuture<ExecutionResult> {
-            val engine = viaductSchemaRegistry.getEngine(executionInput.schemaId)
-                ?: return mkSchemaNotFoundError(executionInput.schemaId)
-            val gjExecutionInput = mkExecutionInput(executionInput)
+        override fun executeAsync(
+            executionInput: ExecutionInput,
+            schemaId: SchemaId
+        ): CompletableFuture<ExecutionResult> {
+            val engine = try {
+                engineRegistry.getEngine(schemaId)
+            } catch (e: EngineRegistry.SchemaNotFoundException) {
+                return mkSchemaNotFoundError(schemaId)
+            }
             return coroutineInterop.enterThreadLocalCoroutineContext {
-                val executionResult = engine.executeAsync(gjExecutionInput).await()
-                requireNotNull(executionResult) {
-                    "Unknown GQ Error: ExecutionResult for schemaId=${executionInput.schemaId} cannot be null"
-                }
+                val executionResult = engine.execute(executionInput.toEngineExecutionInput()).awaitExecutionResult()
                 sortExecutionResult(executionResult)
             }
         }
@@ -383,10 +375,14 @@ class StandardViaduct
          * a sorted ExecutionResult
          *
          * @param executionInput the [ExecutionInput] to execute
+         * @param schemaId the id of the schema for which we want to execute the operation. Defaults to the full schema.
          * @return [CompletableFuture] of sorted [ExecutionResult]
          */
-        override fun execute(executionInput: ExecutionInput): ExecutionResult {
-            return executeAsync(executionInput).join()
+        override fun execute(
+            executionInput: ExecutionInput,
+            schemaId: SchemaId
+        ): ExecutionResult {
+            return executeAsync(executionInput, schemaId).join()
         }
 
         /**
@@ -396,9 +392,9 @@ class StandardViaduct
          *
          * @return Set of scopes that are applied to the schema
          */
-        override fun getAppliedScopes(schemaId: String): Set<String>? {
+        override fun getAppliedScopes(schemaId: SchemaId): Set<String> {
             @Suppress("DEPRECATION")
-            return getSchema(schemaId)?.scopes()
+            return getSchema(schemaId).scopes()
         }
 
         /**
@@ -408,7 +404,7 @@ class StandardViaduct
         fun runQuery(
             query: String,
             variables: Map<String, Any?> = emptyMap(),
-        ): ExecutionResult = runQuery("", query, variables)
+        ): ExecutionResult = runQuery(SchemaId.Full, query, variables)
 
         /**
          * Runs a query against the schema using a simplified
@@ -417,17 +413,17 @@ class StandardViaduct
 
         /** Runs a query. */
         fun runQuery(
-            schemaId: String,
+            schemaId: SchemaId,
             query: String,
             variables: Map<String, Any?> = emptyMap(),
         ): ExecutionResult =
             execute(
                 ExecutionInput.create(
-                    schemaId = schemaId,
                     operationText = query,
                     variables = variables,
                     requestContext = Any(),
-                )
+                ),
+                schemaId,
             )
 
         /**
@@ -453,35 +449,6 @@ class StandardViaduct
         }
 
         /**
-         * This function is used to create the ExecutionInput that is needed to run the engine of GraphQL.
-         *
-         * @param executionInput The ExecutionInput object that has the data to create the input for execution
-         *
-         * @return GJExecutionInput created via the data inside the executionInput.
-         */
-        private fun mkExecutionInput(executionInput: ExecutionInput): GJExecutionInput {
-            val executionInputBuilder =
-                GJExecutionInput
-                    .newExecutionInput()
-                    .executionId(ExecutionId.generate())
-                    .query(executionInput.operationText)
-
-            if (executionInput.operationName != null) {
-                executionInputBuilder.operationName(executionInput.operationName)
-            }
-            executionInputBuilder.variables(executionInput.variables)
-            val engineContext = mkEngineExecutionContext(executionInput.schemaId, executionInput.requestContext)
-            val localContext = CompositeLocalContext.withContexts(engineContext)
-
-            @Suppress("DEPRECATION")
-            return executionInputBuilder
-                .context(executionInput.requestContext)
-                .localContext(localContext)
-                .graphQLContext(GraphQLJavaConfig.default.asMap())
-                .build()
-        }
-
-        /**
          * Temporary - Will be either private/or somewhere not exposed
          *
          * This function is used to get the GraphQLSchema from the registered scopes.
@@ -492,28 +459,27 @@ class StandardViaduct
          */
         @Suppress("DEPRECATION")
         @Deprecated("Will be either private/or somewhere not exposed")
-        override fun getSchema(schemaId: String): ViaductSchema? = viaductSchemaRegistry.getSchema(schemaId)
+        override fun getSchema(schemaId: SchemaId): ViaductSchema = engineRegistry.getSchema(schemaId)
 
         /**
-         * AirBNB only
+         * Airbnb only
          *
          * This function is used to get the engine from the GraphQLSchemaRegistry
          * @param schemaId the id of the schema for which we want a [GraphQL] engine
          *
          * @return GraphQL instance of the engine
          */
-        fun getEngine(schemaId: String): GraphQL? = viaductSchemaRegistry.getEngine(schemaId)
+        fun getEngine(schemaId: SchemaId): GraphQL = (engineRegistry.getEngine(schemaId) as? EngineGraphQLJavaCompat ?: throw IllegalStateException("Engine is not GraphQL compatible")).getGraphQL()
 
         /**
          * Creates an instance of EngineExecutionContext. This should be called exactly once
          * per request and set in the graphql-java execution input's local context.
          */
         fun mkEngineExecutionContext(
-            schemaId: String,
+            schemaId: SchemaId,
             requestContext: Any?
         ): EngineExecutionContext {
-            return viaductSchemaRegistry.getSchema(schemaId)?.let {
-                engineExecutionContextFactory.create(it, requestContext)
-            } ?: throw IllegalArgumentException("Schema not registered for $schemaId")
+            val engine = engineRegistry.getEngine(schemaId) as? EngineImpl ?: throw IllegalStateException("Engine is not EngineImpl")
+            return engine.mkEngineExecutionContext(requestContext)
         }
     }

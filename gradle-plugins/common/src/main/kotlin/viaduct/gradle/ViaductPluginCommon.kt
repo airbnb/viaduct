@@ -31,6 +31,7 @@ object ViaductPluginCommon {
         val ALL_ARTIFACTS = setOf(
             "engine-api",
             "engine-runtime",
+            "engine-wiring",
             "service-api",
             "service-runtime",
             "service-wiring",

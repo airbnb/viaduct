@@ -16,20 +16,16 @@ import viaduct.demoapp.characters.viaduct.fieldresolvers.DisplaySummaryResolver
 import viaduct.demoapp.characters.viaduct.fieldresolvers.FormattedDescriptionResolver
 import viaduct.demoapp.characters.viaduct.fieldresolvers.ProfileResolver
 import viaduct.demoapp.characters.viaduct.fieldresolvers.StatsResolver
+import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.service.runtime.SchemaRegistryConfiguration
-import viaduct.service.runtime.ViaductSchemaRegistry
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CharacterResolverUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema =
-        ViaductSchemaRegistry.Factory(DefaultCoroutineInterop)
-            .createRegistry(
-                SchemaRegistryConfiguration.fromResources("viaduct.demoapp.starwars", ".*\\.graphqls")
-            )
-            .getFullSchema()
+        SchemaFactory(DefaultCoroutineInterop)
+            .fromResources("viaduct.demoapp.starwars", Regex(".*\\.graphqls"))
 
     @Test
     fun `DisplayNameResolver returns name correctly`(): Unit =

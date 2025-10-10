@@ -15,8 +15,10 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.Flag
 import viaduct.service.api.spi.FlagManager
 
@@ -29,9 +31,10 @@ import viaduct.service.api.spi.FlagManager
 @ExperimentalCoroutinesApi
 class ViaductOSSEndToEndTest {
     private lateinit var subject: StandardViaduct
-    private lateinit var schemaRegistryConfiguration: SchemaRegistryConfiguration
+    private lateinit var schemaConfiguration: SchemaConfiguration
+    private lateinit var schemaId: SchemaId.Scoped
 
-    val flagManager = object : FlagManager {
+    private val flagManager = object : FlagManager {
         override fun isEnabled(flag: Flag) = true
     }
 
@@ -42,27 +45,29 @@ class ViaductOSSEndToEndTest {
 
     @BeforeEach
     fun setUp() {
-        schemaRegistryConfiguration = SchemaRegistryConfiguration.fromSdl(
+        schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
+        schemaConfiguration = SchemaConfiguration.fromSdl(
             sdl,
-            scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("viaduct-public")))
+            scopes = setOf(schemaId.toScopeConfig())
         )
         subject = StandardViaduct.Builder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+            .withSchemaConfiguration(schemaConfiguration)
             .build()
     }
 
     @Test
     fun `getAppliedScopes on public returns viaduct-public`() {
-        val scopes = subject.getAppliedScopes("public")
+        val scopes = subject.getAppliedScopes(schemaId)
         assertEquals(setOf("viaduct-public"), scopes)
     }
 
     @Test
-    fun `getAppliedScopes on invalid returns null`() {
-        val scopes = subject.getAppliedScopes("invalid")
-        assertNull(scopes)
+    fun `getAppliedScopes on invalid schema throws`() {
+        assertThrows<EngineRegistry.SchemaNotFoundException> {
+            subject.getAppliedScopes(SchemaId.None)
+        }
     }
 
     @Test
@@ -73,10 +78,10 @@ class ViaductOSSEndToEndTest {
                 field
             }
             """.trimIndent()
-            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
+            val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
 
-            val actual = subject.execute(executionInput)
-            val actualAsynced = subject.executeAsync(executionInput).await()
+            val actual = subject.execute(executionInput, schemaId)
+            val actualAsynced = subject.executeAsync(executionInput, schemaId).await()
             // Having an intermittent bug in synchronicity.  This is a workaround to ensure the execution
             val expected = ExecutionResult.newExecutionResult()
                 .data(mapOf("field" to null))
@@ -92,9 +97,9 @@ class ViaductOSSEndToEndTest {
     fun `Viaduct with no instrumentations or wirings returns failure for invalid query`() =
         runBlocking {
             val query = "query"
-            val executionInput = ExecutionInput.create(schemaId = "public", operationText = query, requestContext = object {})
+            val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
 
-            val actual = subject.executeAsync(executionInput).await()
+            val actual = subject.executeAsync(executionInput, schemaId).await()
             val expected = ExecutionResult.newExecutionResult()
                 .errors(
                     listOf(
@@ -111,11 +116,11 @@ class ViaductOSSEndToEndTest {
     fun `executeAsync returns error for missing schema`() =
         runBlocking {
             val query = "query { field }"
-            val executionInput = ExecutionInput.create(schemaId = "nonexistent_schema", operationText = query)
+            val executionInput = ExecutionInput.create(operationText = query)
 
-            val result = subject.executeAsync(executionInput).await()
+            val result = subject.executeAsync(executionInput, SchemaId.None).await()
             assertEquals(1, result.errors.size)
-            assertEquals("Schema not found for schemaId=nonexistent_schema", result.errors.first().message)
+            assertEquals("Schema not found for schemaId=SchemaId(id='NONE')", result.errors.first().message)
             assertNull(result.getData())
         }
 
@@ -138,21 +143,22 @@ class ViaductOSSEndToEndTest {
                 exceptionWiring
             )
 
-            val exceptionSchemaConfig = SchemaRegistryConfiguration.fromSchema(
+            val schemaId = SchemaId.Scoped("exception-test", setOf("viaduct-public"))
+            val exceptionSchemaConfig = SchemaConfiguration.fromSchema(
                 exceptionSchema,
-                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("exception-test", setOf("viaduct-public")))
+                scopes = setOf(schemaId.toScopeConfig())
             )
 
             val exceptionSubject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(exceptionSchemaConfig)
+                .withSchemaConfiguration(exceptionSchemaConfig)
                 .build()
 
             val query = "query { field }"
-            val executionInput = ExecutionInput.create(schemaId = "exception-test", operationText = query)
+            val executionInput = ExecutionInput.create(operationText = query)
 
-            val result = exceptionSubject.executeAsync(executionInput).await()
+            val result = exceptionSubject.executeAsync(executionInput, schemaId).await()
             assertEquals(1, result.errors.size)
             assertEquals("java.lang.RuntimeException: Data fetcher error", result.errors.first().message)
             assertNull(result.getData<Any>()?.let { (it as Map<*, *>)["field"] })
@@ -182,15 +188,16 @@ class ViaductOSSEndToEndTest {
                 variableWiring
             )
 
-            val variableSchemaConfig = SchemaRegistryConfiguration.fromSchema(
+            val schemaId = SchemaId.Scoped("variable-test", setOf("viaduct-public"))
+            val variableSchemaConfig = SchemaConfiguration.fromSchema(
                 variableSchema,
-                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("variable-test", setOf("viaduct-public")))
+                scopes = setOf(schemaId.toScopeConfig())
             )
 
             val variableSubject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaRegistryConfiguration(variableSchemaConfig)
+                .withSchemaConfiguration(variableSchemaConfig)
                 .build()
 
             val query = """
@@ -199,9 +206,9 @@ class ViaductOSSEndToEndTest {
                 }
             """.trimIndent()
             val variables = mapOf("name" to "World")
-            val executionInput = ExecutionInput.create(schemaId = "variable-test", operationText = query, variables = variables)
+            val executionInput = ExecutionInput.create(operationText = query, variables = variables)
 
-            val result = variableSubject.executeAsync(executionInput).await()
+            val result = variableSubject.executeAsync(executionInput, schemaId).await()
             assertEquals(mapOf("fieldWithInput" to "Hello, World!"), result.getData())
             assertEquals(0, result.errors.size)
         }

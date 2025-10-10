@@ -5,20 +5,24 @@ import com.google.inject.Exposed
 import com.google.inject.PrivateModule
 import com.google.inject.Provides
 import com.google.inject.Singleton
-import com.google.inject.name.Named
-import graphql.execution.ExecutionStrategy
-import graphql.execution.instrumentation.Instrumentation
 import javax.inject.Qualifier
+import viaduct.engine.Engine
+import viaduct.engine.EngineImpl
+import viaduct.engine.SchemaFactory
 import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.CheckerExecutorFactoryCreator
 import viaduct.engine.api.FieldCheckerDispatcherRegistry
 import viaduct.engine.api.FieldResolverDispatcherRegistry
+import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.NodeResolverDispatcherRegistry
 import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextFactory
+import viaduct.engine.runtime.instrumentation.ResolverDataFetcherInstrumentation
 import viaduct.engine.runtime.tenantloading.CheckerSelectionSetsAreProperlyTyped
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
@@ -29,6 +33,7 @@ import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreSchematicallyVa
 import viaduct.engine.runtime.tenantloading.ResolverSelectionSetsAreProperlyTyped
 import viaduct.engine.runtime.validation.Validator
 import viaduct.engine.runtime.validation.Validator.Companion.flatten
+import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
 import viaduct.utils.slf4j.logger
 
@@ -51,17 +56,49 @@ internal class ViaductInternalEngineModule : AbstractModule() {
         bind(TypeCheckerDispatcherRegistry::class.java).to(DispatcherRegistry::class.java)
         bind(RequiredSelectionSetRegistry::class.java).to(DispatcherRegistry::class.java)
 
-        // Install private module to manage schema registry creation and exposure
+        // Install private module to manage engine registry creation and exposure
         install(ViaductSchemaModule())
+
+        bind(Engine.Factory::class.java).to(EngineImpl.FactoryImpl::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDocumentProviderFactory(configuration: ViaductBuilderConfiguration): DocumentProviderFactory {
+        return configuration.documentProviderFactory
+    }
+
+    @Provides
+    @Singleton
+    fun provideSchemaFactory(coroutineInterop: CoroutineInterop): SchemaFactory {
+        return SchemaFactory(coroutineInterop)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEngineExecutionContextFactory(
+        fullSchema: ViaductSchema,
+        dispatcherRegistry: DispatcherRegistry,
+        fragmentLoader: FragmentLoader,
+        resolverInstrumentation: ResolverDataFetcherInstrumentation,
+        flagManager: FlagManager,
+    ): EngineExecutionContextFactory {
+        return EngineExecutionContextFactory(
+            fullSchema,
+            dispatcherRegistry,
+            fragmentLoader,
+            resolverInstrumentation,
+            flagManager,
+        )
     }
 
     /**
-     * Private module that creates the schema registry once and exposes only what's needed publicly.
+     * Private module that creates the engine registry once and exposes only what's needed publicly.
      * This ensures single object creation while maintaining proper dependency separation.
      *
      * Exposes:
      * - ViaductSchema: For components needing only schema definition (validation, dispatchers)
-     * - ViaductSchemaRegistry: For components needing full execution functionality (StandardViaduct)
+     * - EngineRegistry: For components needing full execution functionality (StandardViaduct)
      *
      * Encapsulates: The base uninitialized registry (created once, used internally)
      */
@@ -75,16 +112,17 @@ internal class ViaductInternalEngineModule : AbstractModule() {
         annotation class BaseRegistry
 
         /**
-         * Creates the base ViaductSchemaRegistry (internal to this module only).
+         * Creates the base EngineRegistry (internal to this module only).
+         * We can safely create this without any schema dependencies.
          */
         @Provides
         @Singleton
         @BaseRegistry
-        fun providesBaseSchemaRegistry(
-            factory: ViaductSchemaRegistry.Factory,
-            config: SchemaRegistryConfiguration
-        ): ViaductSchemaRegistry {
-            return factory.createRegistry(config)
+        fun providesBaseEngineRegistry(
+            factory: EngineRegistry.Factory,
+            config: SchemaConfiguration,
+        ): EngineRegistry {
+            return factory.create(config)
         }
 
         /**
@@ -94,32 +132,24 @@ internal class ViaductInternalEngineModule : AbstractModule() {
         @Singleton
         @Exposed
         fun providesFullViaductSchema(
-            @BaseRegistry baseRegistry: ViaductSchemaRegistry
+            @BaseRegistry engineRegistry: EngineRegistry
         ): ViaductSchema {
-            return baseRegistry.getFullSchema()
+            return engineRegistry.getSchema(SchemaId.Full)
         }
 
         /**
-         * Exposes the fully initialized ViaductSchemaRegistry publicly.
+         * Exposes the fully initialized EngineRegistry publicly.
          * This is for components that need full execution functionality.
          */
         @Provides
         @Singleton
         @Exposed
-        fun providesSchemaRegistry(
-            @BaseRegistry baseRegistry: ViaductSchemaRegistry,
-            instrumentation: Instrumentation,
-            @Named("QueryExecutionStrategy") queryExecutionStrategy: ExecutionStrategy,
-            @Named("MutationExecutionStrategy") mutationExecutionStrategy: ExecutionStrategy,
-            @Named("SubscriptionExecutionStrategy") subscriptionExecutionStrategy: ExecutionStrategy,
-        ): ViaductSchemaRegistry {
-            baseRegistry.registerSchema(
-                instrumentation,
-                queryExecutionStrategy,
-                mutationExecutionStrategy,
-                subscriptionExecutionStrategy
-            )
-            return baseRegistry
+        fun providesEngineRegistry(
+            @BaseRegistry registry: EngineRegistry,
+            engineFactory: Engine.Factory,
+        ): EngineRegistry {
+            registry.setEngineFactory(engineFactory)
+            return registry
         }
     }
 

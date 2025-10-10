@@ -24,7 +24,7 @@ import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.service.api.spi.Flags
 import viaduct.service.api.spi.mocks.MockFlagManager
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 import viaduct.tenant.runtime.context.factory.ArgumentsArgs
 import viaduct.tenant.runtime.context.factory.ArgumentsFactory
@@ -42,12 +42,7 @@ import viaduct.tenant.runtime.internal.VariablesProviderInfo
 @ExperimentalCoroutinesApi
 @Suppress("ktlint:standard:indent")
 class FeatureTestBuilder {
-    companion object {
-        internal const val SCHEMA_ID = "scopedSchema"
-    }
-
     lateinit var sdl: String
-    private var scopedSchemaSdl: String? = null
     private var grtPackage: String? = null
     private val packageToResolverBases = mutableMapOf<String, Set<Class<*>>>()
     private val resolverStubs = mutableMapOf<Coordinate, FieldUnbatchedResolverStub<*>>()
@@ -338,14 +333,6 @@ class FeatureTestBuilder {
         return this
     }
 
-    /**
-     * Registers the scoped schema for the test Viaduct Modern engine.
-     */
-    fun scopedSchemaSdl(schema: String): FeatureTestBuilder {
-        scopedSchemaSdl = schema
-        return this
-    }
-
     /** set the grtPackage to the provided value */
     fun grtPackage(grtPackage: String): FeatureTestBuilder =
         this.also {
@@ -386,19 +373,9 @@ class FeatureTestBuilder {
         @Suppress("DEPRECATION")
         val viaductTenantAPIBootstrapperBuilder = ViaductTenantAPIBootstrapper.Builder().tenantPackageFinder(tenantPackageFinder)
         val builders = listOf(viaductTenantAPIBootstrapperBuilder, featureTestTenantAPIBootstrapperBuilder)
-        val schemaRegistryConfiguration = if (scopedSchemaSdl != null) {
-            // Register scoped schema when scopedSchemaSdl is provided
-            SchemaRegistryConfiguration.fromSdl(
-                sdl = sdl,
-                scopes = setOf(SchemaRegistryConfiguration.ScopeConfig(SCHEMA_ID, emptySet()))
-            )
-        } else {
-            // Register full schema when no scoped SDL
-            SchemaRegistryConfiguration.fromSdl(
-                sdl = sdl,
-                fullSchemaIds = listOf(SCHEMA_ID)
-            )
-        }
+        val schemaConfiguration = SchemaConfiguration.fromSdl(
+            sdl = sdl
+        )
 
         val standardViaduct = StandardViaduct.Builder()
             .withTenantAPIBootstrapperBuilders(builders)
@@ -407,7 +384,7 @@ class FeatureTestBuilder {
                     Flags.EXECUTE_ACCESS_CHECKS_IN_MODERN_EXECUTION_STRATEGY
                 )
             )
-            .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+            .withSchemaConfiguration(schemaConfiguration)
             .withCheckerExecutorFactory(
                 object : CheckerExecutorFactory {
                     override fun checkerExecutorForField(

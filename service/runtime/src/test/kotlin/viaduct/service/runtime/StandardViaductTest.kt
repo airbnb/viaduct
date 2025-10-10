@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.utils.DefaultSchemaProvider
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
 
 class StandardViaductTest {
@@ -51,13 +52,13 @@ class StandardViaductTest {
                 }
             """
 
-        val schemaRegistryConfiguration = SchemaRegistryConfiguration.fromSdl(sdl, fullSchemaIds = listOf(SCHEMA_ID))
+        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
 
         subject = StandardViaduct.Builder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withDataFetcherExceptionHandler(dataFetcherExceptionHandler)
-            .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+            .withSchemaConfiguration(schemaConfiguration)
             .build()
     }
 
@@ -124,15 +125,16 @@ class StandardViaductTest {
             """.trimIndent()
         )
 
-        val config = SchemaRegistryConfiguration.fromSchema(
+        val schemaId = SchemaId.Scoped(SCHEMA_ID, setOf("scope1"))
+        val config = SchemaConfiguration.fromSchema(
             fullSchema,
-            scopes = setOf(SchemaRegistryConfiguration.ScopeConfig(SCHEMA_ID, setOf("scope1")))
+            scopes = setOf(schemaId.toScopeConfig())
         )
-        val viaductBuilder = StandardViaduct.Builder().withSchemaRegistryConfiguration(config)
+        val viaductBuilder = StandardViaduct.Builder().withSchemaConfiguration(config)
 
         val stdViaduct = viaductBuilder.build()
-        val queryType = stdViaduct.getSchema(SCHEMA_ID)?.schema?.typeMap?.get("Query") as GraphQLObjectType?
-        val queryFields = queryType?.fieldDefinitions?.map { it.name }
+        val queryType = stdViaduct.getSchema(schemaId).schema.typeMap["Query"] as GraphQLObjectType
+        val queryFields = queryType.fieldDefinitions?.map { it.name }
 
         assertEquals(listOf("field1", "node", "nodes"), queryFields)
     }
@@ -141,15 +143,15 @@ class StandardViaductTest {
     fun `executeAsync returns error for missing schema`() {
         val query = "{ test }"
         val context = mapOf("userId" to "user123")
-        val executionInput = ExecutionInput.create(schemaId = "missing_schema_id", operationText = query, requestContext = context)
+        val executionInput = ExecutionInput.create(operationText = query, requestContext = context)
 
         createSimpleStandardViaduct()
 
         runBlocking {
-            val result = subject.executeAsync(executionInput).join()
+            val result = subject.executeAsync(executionInput, SchemaId.None).join()
             val errors = result.errors
             assertEquals(1, errors.size)
-            assertEquals("Schema not found for schemaId=missing_schema_id", errors.first().message)
+            assertEquals("Schema not found for schemaId=SchemaId(id='NONE')", errors.first().message)
             assertNull(result.getData())
         }
     }
@@ -165,15 +167,15 @@ class StandardViaductTest {
             }
             """
 
-        val newSchemaRegistryConfig = SchemaRegistryConfiguration.fromSdl(sdl, fullSchemaIds = listOf("new_schema"))
+        val newSchemaRegistryConfig = SchemaConfiguration.fromSdl(sdl)
 
         val newViaduct = subject.newForSchema(newSchemaRegistryConfig)
 
         // Verify that we got a new instance with different schema registry
         assertNotNull(newViaduct)
-        assertNotNull(newViaduct.viaductSchemaRegistry)
+        assertNotNull(newViaduct.engineRegistry)
         // The schema registries should be different instances
-        assertTrue(newViaduct.viaductSchemaRegistry != subject.viaductSchemaRegistry)
+        assertTrue(newViaduct.engineRegistry != subject.engineRegistry)
     }
 }
 

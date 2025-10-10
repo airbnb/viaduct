@@ -292,4 +292,4 @@ private fun SchemaConfiguration.ScopeConfig.schemaId(): SchemaId.Scoped = Schema
  * @receiver the scoped schema ID containing the scope ID and identifiers
  * @return a ScopeConfig representing the scoped schema configuration
  */
-fun SchemaId.Scoped.toScopeConfig() = SchemaConfiguration.ScopeConfig(id, scopeIds)
+fun SchemaId.Scoped.toScopeConfig(): SchemaConfiguration.ScopeConfig = SchemaConfiguration.ScopeConfig(id, scopeIds)

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.spi.Flag
 import viaduct.service.api.spi.FlagManager
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.runtime.SchemaConfiguration
 
 class ViaductBuilderTest {
     val schema = mkSchema(
@@ -40,14 +40,14 @@ class ViaductBuilderTest {
 
     @Test
     fun testBuilderProxy() {
-        val schemaRegistryConfiguration = SchemaRegistryConfiguration.fromSchema(
+        val schemaConfiguration = SchemaConfiguration.fromSchema(
             schema,
-            scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("public", setOf("publicScope")))
+            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
         )
         ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withSchemaRegistryConfiguration(schemaRegistryConfiguration)
+            .withSchemaConfiguration(schemaConfiguration)
             .standardNodeBehavior(false)
             .build().let {
                 assertNotNull(it)

@@ -6,9 +6,6 @@ import java.util.UUID
  * Encapsulates the parameters necessary to execute a GraphQL operation.
  */
 interface ExecutionInput {
-    /** Id of the schema used to execute the operation. */
-    val schemaId: String
-
     /**
      * Text of an executable document as defined in
      * the GraphQL specification.
@@ -43,7 +40,6 @@ interface ExecutionInput {
      * Generally you should use the builder pattern instead.
      */
     private data class Default(
-        override val schemaId: String,
         override val operationText: String,
         override val operationName: String? = null,
         override val operationId: String,
@@ -67,14 +63,12 @@ interface ExecutionInput {
          * Convenience factory method for simple cases.
          */
         fun create(
-            schemaId: String,
             operationText: String,
             operationName: String? = null,
             variables: Map<String, Any?> = emptyMap(),
             requestContext: Any? = null
         ): ExecutionInput =
             builder()
-                .schemaId(schemaId)
                 .operationText(operationText)
                 .operationName(operationName)
                 .variables(variables)
@@ -97,15 +91,12 @@ interface ExecutionInput {
      * and validation.
      */
     class Builder {
-        private var schemaId: String? = null
         private var operationText: String? = null
         private var operationName: String? = null
         private var operationId: String? = null
         private var variables: Map<String, Any?> = emptyMap()
         private var executionId: String? = null
         private var requestContext: Any? = null
-
-        fun schemaId(schemaId: String) = apply { this.schemaId = schemaId }
 
         fun operationText(operationText: String) = apply { this.operationText = operationText }
 
@@ -120,13 +111,11 @@ interface ExecutionInput {
         fun requestContext(requestContext: Any?) = apply { this.requestContext = requestContext }
 
         fun build(): ExecutionInput {
-            val finalSchemaId = checkNotNull(schemaId) { "schemaId is required" }
             val finalOperationText = checkNotNull(operationText) { "operationText is required" }
             val finalOperationId = operationId ?: generateOperationId(finalOperationText, operationName)
             val finalExecutionId = executionId ?: generateExecutionId()
 
             return Default(
-                schemaId = finalSchemaId,
                 operationText = finalOperationText,
                 operationName = operationName,
                 operationId = finalOperationId,

@@ -11,21 +11,17 @@ import viaduct.demoapp.films.viaduct.fieldresolvers.CharacterCountSummaryResolve
 import viaduct.demoapp.films.viaduct.fieldresolvers.DisplayTitleResolver
 import viaduct.demoapp.films.viaduct.fieldresolvers.ProductionDetailsResolver
 import viaduct.demoapp.films.viaduct.fieldresolvers.SummaryResolver
+import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.service.runtime.SchemaRegistryConfiguration
-import viaduct.service.runtime.ViaductSchemaRegistry
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FilmResolverUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema =
-        ViaductSchemaRegistry.Factory(DefaultCoroutineInterop)
-            .createRegistry(
-                SchemaRegistryConfiguration.fromResources("viaduct.demoapp.starwars", ".*\\.graphqls")
-            )
-            .getFullSchema()
+        SchemaFactory(DefaultCoroutineInterop)
+            .fromResources("viaduct.demoapp.starwars", Regex(".*\\.graphqls"))
 
     @Test
     fun `FilmDisplayTitleResolver returns title`(): Unit =

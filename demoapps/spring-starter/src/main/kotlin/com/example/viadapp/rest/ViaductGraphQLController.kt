@@ -11,8 +11,6 @@ import org.springframework.web.bind.annotation.RestController
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
 
-const val SCHEMA_ID = "publicSchema"
-
 @RestController
 class ViaductGraphQLController {
     @Autowired
@@ -25,7 +23,6 @@ class ViaductGraphQLController {
         val result: ExecutionResult = run {
             @Suppress("UNCHECKED_CAST")
             val executionInput = ExecutionInput.create(
-                schemaId = SCHEMA_ID,
                 operationText = request["query"] as String,
                 variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
             )

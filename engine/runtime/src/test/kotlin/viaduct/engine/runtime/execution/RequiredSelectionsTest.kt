@@ -13,7 +13,9 @@ import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.mocks.toViaductBuilder
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.api.SchemaId
+import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.toScopeConfig
 
 @ExperimentalCoroutinesApi
 class RequiredSelectionsTest {
@@ -295,6 +297,8 @@ class RequiredSelectionsTest {
             extend type Query @scope(to: ["private"]) { bar: Int }
         """
 
+        val scopedSchemaId = SchemaId.Scoped("scoped", setOf("scoped"))
+
         MockTenantModuleBootstrapper(fullSchemaSDL) {
             fieldWithValue("Query" to "bar", 3)
             field("Query" to "foo") {
@@ -304,15 +308,15 @@ class RequiredSelectionsTest {
                 }
             }
         }.toViaductBuilder()
-            .withSchemaRegistryConfiguration(
-                SchemaRegistryConfiguration.fromSdl(
+            .withSchemaConfiguration(
+                SchemaConfiguration.fromSdl(
                     fullSchemaSDL,
-                    scopes = setOf(SchemaRegistryConfiguration.ScopeConfig("scoped", setOf("scoped")))
+                    scopes = setOf(scopedSchemaId.toScopeConfig())
                 )
             )
             .build()
             .runFeatureTest {
-                viaduct.runQuery("scoped", "{foo}")
+                viaduct.runQuery(scopedSchemaId, "{foo}")
                     .assertJson("{data: {foo: 4}}")
             }
     }

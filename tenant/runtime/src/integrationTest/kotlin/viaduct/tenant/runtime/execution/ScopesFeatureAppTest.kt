@@ -8,7 +8,9 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.service.runtime.SchemaRegistryConfiguration
+import viaduct.service.api.SchemaId
+import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.toScopeConfig
 import viaduct.tenant.runtime.execution.scopes.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
@@ -54,16 +56,15 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
     @Nested
     @DisplayName("Scopes 1 tests")
     inner class Scopes1Test {
-        private val schemaId = "SCHEMA_ID_1"
-        private val scopes = setOf("SCOPE1")
+        private val schemaId = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
 
         @BeforeEach
         fun setup() {
-            withSchemaRegistryConfiguration(
-                SchemaRegistryConfiguration
+            withSchemaConfiguration(
+                SchemaConfiguration
                     .fromSdl(
                         sdl,
-                        scopes = setOf(SchemaRegistryConfiguration.ScopeConfig(schemaId, scopes))
+                        scopes = setOf(schemaId.toScopeConfig())
                     )
             )
         }
@@ -128,11 +129,11 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
                     }
                 }
                 """.trimIndent(),
-                schemaId = "SCHEMA_ID_2"
+                schemaId = SchemaId.None
             ).assertEquals {
                 "errors" to arrayOf(
                     {
-                        "message" to "Schema not found for schemaId=SCHEMA_ID_2"
+                        "message" to "Schema not found for schemaId=SchemaId(id='NONE')"
                         "locations" to emptyList<String>()
                         "extensions" to {
                             "classification" to "DataFetchingException"
@@ -146,19 +147,17 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
     @Nested
     @DisplayName("Scopes 2 tests")
     inner class Scopes2Test {
-        private val scopeId1 = "SCHEMA_ID_1"
-        private val scopeId2 = "SCHEMA_ID_2"
-        private val scopes1 = setOf("SCOPE1")
-        private val scopes2 = setOf("SCOPE2")
+        private val schemaId1 = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
+        private val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
 
         @BeforeEach
         fun setup() {
-            withSchemaRegistryConfiguration(
-                SchemaRegistryConfiguration.fromSdl(
+            withSchemaConfiguration(
+                SchemaConfiguration.fromSdl(
                     sdl,
                     scopes = setOf(
-                        SchemaRegistryConfiguration.ScopeConfig(scopeId1, scopes1),
-                        SchemaRegistryConfiguration.ScopeConfig(scopeId2, scopes2)
+                        schemaId1.toScopeConfig(),
+                        schemaId2.toScopeConfig(),
                     )
                 )
             )
@@ -174,7 +173,7 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
                     }
                 },
                 """.trimIndent(),
-                schemaId = "SCHEMA_ID_1",
+                schemaId = schemaId1,
             ).assertEquals {
                 "data" to {
                     "scope1Value" to {
@@ -194,7 +193,7 @@ class ScopesFeatureAppTest : FeatureAppTestBase() {
                     }
                 }
                 """.trimIndent(),
-                schemaId = "SCHEMA_ID_2",
+                schemaId = schemaId2,
             ).assertEquals {
                 "data" to {
                     "scope2Value" to {
