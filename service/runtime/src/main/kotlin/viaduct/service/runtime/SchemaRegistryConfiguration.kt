@@ -2,13 +2,11 @@ package viaduct.service.runtime
 
 import graphql.execution.preparsed.NoOpPreparsedDocumentProvider
 import graphql.execution.preparsed.PreparsedDocumentProvider
-import graphql.schema.GraphQLDirectiveContainer
 import graphql.schema.GraphQLScalarType
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import io.github.classgraph.ClassGraph
-import java.util.SortedSet
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -423,30 +421,4 @@ private fun schemaFromSdl(
 
     // Let SchemaProblem and other GraphQL validation errors pass through
     return ViaductSchema(SchemaGenerator().makeExecutableSchema(tdr, wiring))
-}
-
-/**
- * This function is used to get all the scopes defined in a GraphQLSchema.
- * Scopes are defined with the directive @scope
- */
-fun ViaductSchema.scopes(): SortedSet<String> {
-    val result = sortedSetOf<String>()
-
-    this.schema.typeMap.values.forEach { type ->
-        if (type !is GraphQLDirectiveContainer) {
-            return@forEach
-        }
-
-        val allScopes = type.getAppliedDirectives("scope")
-            .map {
-                it.getArgument("to").getValue<List<String>>()!!
-            }
-            .flatten()
-            .filter { it != "*" }
-            .toSet()
-
-        result.addAll(allScopes)
-    }
-
-    return result
 }
