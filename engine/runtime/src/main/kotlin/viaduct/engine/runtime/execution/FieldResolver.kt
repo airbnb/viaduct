@@ -110,7 +110,13 @@ class FieldResolver(
                     val newParams = parameters.forField(objectType, field)
                     field.responseKey to resolveField(newParams, field)
                 }
-            resolveObjectCtx.onCompleted(results, null)
+
+            // Wait for all values to be completed.
+            // Errors will be folded into the result map
+            Value.waitAll(results.values)
+                .thenApply { _, t ->
+                    resolveObjectCtx.onCompleted(results, t)
+                }
         } catch (e: Exception) {
             resolveObjectCtx.onCompleted(null, e)
             throw e
@@ -145,24 +151,24 @@ class FieldResolver(
         try {
             val fields = collectFields(objectType, parameters).selections
             val initial: Value<Unit> = Value.fromValue(Unit)
+            val results = mutableMapOf<String, Value<FieldResolutionResult>>()
 
-            // iterate over each field to build a chained Deferred
+            // iterate over each field to build a chained execution
             // Each field will kick off only after the previous one completes
-            val result = fields.fold(initial) { acc, field ->
+            fields.fold(initial) { acc, field ->
                 field as QueryPlan.CollectedField
                 acc.flatMap { _ ->
                     val fieldParameters = parameters.forField(objectType, field)
-                    resolveField(fieldParameters, field)
-                        .thenApply { _, _ ->
-                            // ignore any errors thrown by the field resolver so that the chained deferred
-                            // composition can continue
-                            // these field errors will be surfaced during field completion
-                            Unit
-                        }
+                    val value = resolveField(fieldParameters, field)
+                    results.put(field.responseKey, value)
+                    // ignore any errors thrown by the field resolver so that the chained execution can continue
+                    // these field errors will be surfaced during field completion
+                    value.thenApply { _, _ ->
+                        Unit
+                    }
                 }
-            }
-            result.thenApply { _, throwable ->
-                resolveObjectCtx.onCompleted(null, throwable)
+            }.thenApply { _, t ->
+                resolveObjectCtx.onCompleted(results, t)
             }
         } catch (e: Exception) {
             resolveObjectCtx.onCompleted(null, e)

@@ -161,6 +161,20 @@ sealed interface Value<T> {
         fun <T> fromThrowable(throwable: Throwable): Sync<T> = SyncThrow(throwable)
 
         /**
+         * Wait for all values to be completed and discard any errors
+         */
+        fun <T> waitAll(values: Collection<Value<T>>): Value<Unit> {
+            val initial: Value<Unit> = Value.fromValue(Unit)
+            return values.fold(initial) { acc, value ->
+                acc.flatMap { _ ->
+                    value.thenApply { _, _ ->
+                        Unit
+                    }
+                }
+            }
+        }
+
+        /**
          * Create a [Value] from the provided [Deferred].
          *
          * This method will return a [SyncValue] if the deferred is completed.

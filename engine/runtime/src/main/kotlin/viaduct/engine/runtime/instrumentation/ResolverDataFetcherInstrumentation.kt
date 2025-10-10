@@ -1,6 +1,5 @@
 package viaduct.engine.runtime.instrumentation
 
-import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.schema.DataFetcher
@@ -8,6 +7,7 @@ import viaduct.engine.api.FieldCheckerDispatcherRegistry
 import viaduct.engine.api.FieldResolverDispatcher
 import viaduct.engine.api.FieldResolverDispatcherRegistry
 import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ResolverDataFetcher
 import viaduct.graphql.utils.asNamedElement
@@ -19,7 +19,7 @@ class ResolverDataFetcherInstrumentation(
     private val dispatcherRegistry: FieldResolverDispatcherRegistry, // Modern resolvers
     private val checkerRegistry: FieldCheckerDispatcherRegistry,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop
-) : Instrumentation {
+) : ViaductModernGJInstrumentation {
     override fun instrumentDataFetcher(
         dataFetcher: DataFetcher<*>,
         parameters: InstrumentationFieldFetchParameters,

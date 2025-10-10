@@ -14,7 +14,8 @@ import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.coroutines.CoroutineInterop
-import viaduct.engine.api.instrumentation.ChainedInstrumentation
+import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
+import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.ViaductFragmentLoader
 import viaduct.engine.runtime.execution.AccessCheckRunner
@@ -159,9 +160,16 @@ class ViaductExecutionStrategyModule : AbstractModule() {
             taggedMetricInstrumentation?.asStandardInstrumentation
         )
         return if (config.chainInstrumentationWithDefaults) {
-            ChainedInstrumentation(defaultInstrumentations + listOfNotNull(config.instrumentation))
+            val gjInstrumentation = config.instrumentation?.let {
+                if (it !is ViaductModernGJInstrumentation) {
+                    ViaductModernGJInstrumentation.fromStandardInstrumentation(it)
+                } else {
+                    it
+                }
+            }
+            ChainedModernGJInstrumentation(defaultInstrumentations + listOfNotNull(gjInstrumentation))
         } else {
-            config.instrumentation ?: ChainedInstrumentation(defaultInstrumentations)
+            config.instrumentation ?: ChainedModernGJInstrumentation(defaultInstrumentations)
         }
     }
 }

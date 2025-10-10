@@ -1,10 +1,22 @@
 package viaduct.tenant.runtime.featuretests
 
+import graphql.execution.instrumentation.InstrumentationContext
+import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.SimpleInstrumentationContext
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
+import java.lang.Thread.sleep
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.getValue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
+import viaduct.engine.api.instrumentation.IViaductInstrumentation
+import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.graphql.test.assertJson as mapAssertJson
 import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.EnumType
@@ -150,4 +162,136 @@ class FieldResolverTest {
             .build()
             .execute("{string1}")
             .assertJson("{data: {string1: \"1\"}}")
+
+    @Test
+    @DisplayName("ensure fetchObject onCompleted is called after all fields are fetched")
+    fun fetchObjectCompletedAfterFieldsFetched() {
+        // Latch that reaches 0 only after both field resolvers complete.
+        val resolversDone = CountDownLatch(2)
+        // Latch to confirm instrumentation was invoked at all.
+        val instrumentationBegun = CountDownLatch(1)
+        // Records whether onCompleted observed resolversDone already at 0.
+        var onCompletedAfterAllFields = false
+
+        FeatureTestBuilder()
+            .grtPackage(Query.Reflection)
+            .sdl(FeatureTestSchemaFixture.sdl)
+            .resolver("Query" to "idField") { ctx ->
+                // Returns a GRT value that should be unwrapped before engine execution.
+                ctx.globalIDFor(Baz.Reflection, "1")
+            }
+            .resolver(
+                "Query" to "string1",
+                objectValueFragment = "idField",
+                resolveFn = { _: UntypedFieldContext ->
+                    // Simulate work; then signal completion for this field.
+                    sleep(300)
+                    resolversDone.countDown()
+                    "1"
+                }
+            )
+            .resolver(
+                "Query" to "string2",
+                objectValueFragment = "idField",
+                resolveFn = { _: UntypedFieldContext ->
+                    sleep(300)
+                    resolversDone.countDown()
+                    "2"
+                }
+            )
+            .instrumentation(
+                object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFetchObject {
+                    override fun beginFetchObject(
+                        parameters: InstrumentationExecutionStrategyParameters,
+                        state: InstrumentationState?
+                    ): InstrumentationContext<Map<String, Any?>>? {
+                        // Mark that instrumentation began for this fetchObject.
+                        instrumentationBegun.countDown()
+                        return SimpleInstrumentationContext.whenCompleted { _, _ ->
+                            // onCompleted: check if both field resolvers had already finished.
+                            // await with 0 timeout returns true iff the latch is already at 0.
+                            onCompletedAfterAllFields = resolversDone.await(0, TimeUnit.MILLISECONDS)
+                        }
+                    }
+                }.asStandardInstrumentation
+            )
+            .build()
+            .execute("{string1, string2}")
+            .assertJson("{data: {string1: \"1\", string2: \"2\"}}")
+
+        assertTrue(instrumentationBegun.await(0, TimeUnit.MILLISECONDS)) {
+            "fetchObject instrumentation is never called."
+        }
+        assertTrue(onCompletedAfterAllFields) {
+            "fetchObject onCompleted was called before all field resolvers completed."
+        }
+    }
+
+    @Test
+    @DisplayName("ensure fetchObjectSerially onCompleted is called after all fields are fetched")
+    fun fetchObjectSeriallyCompletedAfterFieldsFetched() {
+        val resolverBegun = AtomicInteger(0)
+        // Latch that reaches 0 only after both field resolvers complete.
+        val resolversDone = CountDownLatch(2)
+        // Latch to confirm instrumentation was invoked at all.
+        val instrumentationBegun = CountDownLatch(1)
+        // Records whether onCompleted observed resolversDone already at 0.
+        var onCompletedAfterAllFields = false
+
+        val resolversCalled = CountDownLatch(2)
+        FeatureTestBuilder()
+            .grtPackage(Query.Reflection)
+            .sdl(FeatureTestSchemaFixture.sdl)
+            .resolver("Query" to "string1") { "InitialValue" }
+            .resolver(
+                "Mutation" to "string1",
+                { ctx: UntypedFieldContext ->
+                    resolverBegun.incrementAndGet()
+                    // Simulate work; then signal completion for this field.
+                    sleep(300)
+                    resolversDone.countDown()
+                    resolverBegun.get().toString()
+                },
+                queryValueFragment = "string1"
+            )
+            .resolver(
+                "Mutation" to "string2",
+                { ctx: UntypedFieldContext ->
+                    resolverBegun.incrementAndGet()
+                    // Simulate work; then signal completion for this field.
+                    sleep(300)
+                    resolversDone.countDown()
+                    resolverBegun.get().toString()
+                },
+                queryValueFragment = "string1"
+            )
+            .instrumentation(
+                object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFetchObject {
+                    override fun beginFetchObject(
+                        parameters: InstrumentationExecutionStrategyParameters,
+                        state: InstrumentationState?
+                    ): InstrumentationContext<Map<String, Any?>>? {
+                        // Mark that instrumentation began for this fetchObject.
+                        instrumentationBegun.countDown()
+                        return SimpleInstrumentationContext.whenCompleted { _, _ ->
+                            // onCompleted: check if both field resolvers had already finished.
+                            // await with 0 timeout returns true iff the latch is already at 0.
+                            onCompletedAfterAllFields = resolversDone.await(0, TimeUnit.MILLISECONDS)
+                        }
+                    }
+                }.asStandardInstrumentation
+            )
+            .build()
+            .assertJson(
+                "{data: {string1: \"1\", string2: \"2\"}}",
+                "mutation { string1, string2 }"
+            )
+
+        assertTrue(instrumentationBegun.await(0, TimeUnit.MILLISECONDS)) {
+            "fetchObject instrumentation is never called."
+        }
+        assertTrue(onCompletedAfterAllFields) {
+            "fetchObject onCompleted was called before all field resolvers completed."
+        }
+    }
 }
