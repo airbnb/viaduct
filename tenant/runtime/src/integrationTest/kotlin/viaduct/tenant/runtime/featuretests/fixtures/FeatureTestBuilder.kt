@@ -21,6 +21,7 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
+import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.service.api.spi.Flags
 import viaduct.service.api.spi.mocks.MockFlagManager
@@ -388,11 +389,15 @@ class FeatureTestBuilder {
             .withCheckerExecutorFactory(
                 object : CheckerExecutorFactory {
                     override fun checkerExecutorForField(
+                        schema: ViaductSchema,
                         typeName: String,
                         fieldName: String
                     ): CheckerExecutor? = fieldCheckerStubs[typeName to fieldName]
 
-                    override fun checkerExecutorForType(typeName: String): CheckerExecutor? = typeCheckerStubs[typeName]
+                    override fun checkerExecutorForType(
+                        schema: ViaductSchema,
+                        typeName: String
+                    ): CheckerExecutor? = typeCheckerStubs[typeName]
                 }
             )
 

@@ -66,7 +66,7 @@ class DispatcherRegistryFactory(
                 fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(executor)
                 fieldResolverExecutorsToValidate[fieldCoord] = executor
                 // Enable access controls for resolver fields only
-                checkerExecutorFactory.checkerExecutorForField(fieldCoord.first, fieldCoord.second)?.let {
+                checkerExecutorFactory.checkerExecutorForField(schema, fieldCoord.first, fieldCoord.second)?.let {
                     fieldCheckerDispatchers[fieldCoord] = CheckerDispatcherImpl(it)
                     fieldCheckerExecutorsToValidate[fieldCoord] = it
                 }
@@ -78,7 +78,7 @@ class DispatcherRegistryFactory(
             }
             for ((typeName, _) in nodeResolverDispatchers) {
                 // Enable access controls for node resolvers only
-                checkerExecutorFactory.checkerExecutorForType(typeName)?.let {
+                checkerExecutorFactory.checkerExecutorForType(schema, typeName)?.let {
                     typeCheckerDispatchers[typeName] = CheckerDispatcherImpl(it)
                     typeCheckerExecutorsToValidate[typeName] = it
                 }

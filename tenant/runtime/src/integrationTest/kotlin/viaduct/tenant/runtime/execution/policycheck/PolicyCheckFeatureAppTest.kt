@@ -96,6 +96,7 @@ class PolicyCheckFeatureAppTest : FeatureAppTestBase() {
         private val graphQLSchema = schema.schema
 
         override fun checkerExecutorForField(
+            schema: ViaductSchema,
             typeName: String,
             fieldName: String
         ): CheckerExecutor? {
@@ -111,7 +112,10 @@ class PolicyCheckFeatureAppTest : FeatureAppTestBase() {
             )
         }
 
-        override fun checkerExecutorForType(typeName: String): CheckerExecutor? {
+        override fun checkerExecutorForType(
+            schema: ViaductSchema,
+            typeName: String
+        ): CheckerExecutor? {
             println("DEBUG: checkerExecutorForType called for type: $typeName")
             val graphqlType = graphQLSchema.getObjectType(typeName)
                 ?: throw IllegalStateException("Cannot find type $typeName")

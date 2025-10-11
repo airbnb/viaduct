@@ -68,17 +68,18 @@ class MocksAdditionalTest {
     fun `MockCheckerExecutorFactory functionality`() {
         val fieldChecker = MockCheckerExecutor()
         val typeChecker = MockCheckerExecutor()
+        val mockSchema = MockSchema.mk("type TestType { testField: String } type TestNode implements Node { id: ID! }")
 
         val factory = MockCheckerExecutorFactory(
             mapOf(Pair("TestType", "testField") to fieldChecker),
             mapOf("TestNode" to typeChecker)
         )
 
-        assertSame(fieldChecker, factory.checkerExecutorForField("TestType", "testField"))
-        assertNull(factory.checkerExecutorForField("TestType", "nonExistent"))
+        assertSame(fieldChecker, factory.checkerExecutorForField(mockSchema, "TestType", "testField"))
+        assertNull(factory.checkerExecutorForField(mockSchema, "TestType", "nonExistent"))
 
-        assertSame(typeChecker, factory.checkerExecutorForType("TestNode"))
-        assertNull(factory.checkerExecutorForType("NonExistent"))
+        assertSame(typeChecker, factory.checkerExecutorForType(mockSchema, "TestNode"))
+        assertNull(factory.checkerExecutorForType(mockSchema, "NonExistent"))
     }
 
     @Test
@@ -319,8 +320,9 @@ class MocksAdditionalTest {
 
     @Test
     fun `MockCheckerExecutorFactory with null inputs`() {
+        val mockSchema = MockSchema.mk("type AnyType { anyField: String }")
         val factory = MockCheckerExecutorFactory()
-        assertNull(factory.checkerExecutorForField("AnyType", "anyField"))
-        assertNull(factory.checkerExecutorForType("AnyType"))
+        assertNull(factory.checkerExecutorForField(mockSchema, "AnyType", "anyField"))
+        assertNull(factory.checkerExecutorForType(mockSchema, "AnyType"))
     }
 }

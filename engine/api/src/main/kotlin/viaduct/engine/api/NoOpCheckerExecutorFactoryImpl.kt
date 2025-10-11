@@ -9,9 +9,13 @@ class NoOpCheckerExecutorFactoryImpl
     @Inject
     constructor() : CheckerExecutorFactory {
         override fun checkerExecutorForField(
+            schema: ViaductSchema,
             typeName: String,
             fieldName: String
         ): CheckerExecutor? = null
 
-        override fun checkerExecutorForType(typeName: String): CheckerExecutor? = null
+        override fun checkerExecutorForType(
+            schema: ViaductSchema,
+            typeName: String
+        ): CheckerExecutor? = null
     }

@@ -420,13 +420,17 @@ class MockCheckerExecutorFactory(
     val typeCheckerExecutors: Map<String, CheckerExecutor>? = null
 ) : CheckerExecutorFactory {
     override fun checkerExecutorForField(
+        schema: ViaductSchema,
         typeName: String,
         fieldName: String
     ): CheckerExecutor? {
         return checkerExecutors?.get(Pair(typeName, fieldName))
     }
 
-    override fun checkerExecutorForType(typeName: String): CheckerExecutor? {
+    override fun checkerExecutorForType(
+        schema: ViaductSchema,
+        typeName: String
+    ): CheckerExecutor? {
         return typeCheckerExecutors?.get(typeName)
     }
 }
