@@ -24,3 +24,4 @@ plugins {
 includeNamed(":common")
 includeNamed(":application-plugin")
 includeNamed(":module-plugin")
+includeNamed(":functional-tests")
