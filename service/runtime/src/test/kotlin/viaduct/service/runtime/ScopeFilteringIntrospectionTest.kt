@@ -26,11 +26,11 @@ class ScopeFilteringIntrospectionTest {
     private lateinit var schemaId: SchemaId.Scoped
     private lateinit var schemaConfiguration: SchemaConfiguration
 
-    val flagManager = object : FlagManager {
+    private val flagManager = object : FlagManager {
         override fun isEnabled(flag: Flag) = true
     }
 
-    val sdl =
+    private val sdl =
         """
         extend type Query @scope(to: ["publicScope"]) {
           helloWorld: String @resolver
