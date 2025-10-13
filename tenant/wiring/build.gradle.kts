@@ -1,7 +1,13 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
+    id("conventions.viaduct-publishing")
     `java-test-fixtures`
+}
+
+viaductPublishing {
+    name.set("Tenant Wiring")
+    description.set("Viaduct Tenant Wiring")
 }
 
 dependencies {
