@@ -22,6 +22,7 @@ includeNamed(":service:wiring", "../..")
 includeNamed(":tenant:api", "../..")
 includeNamed(":tenant:codegen", "../..")
 includeNamed(":tenant:runtime", "../..")
+includeNamed(":tenant:wiring", "../..")
 
 // Include all shared modules
 includeNamed(":shared:arbitrary", "../..")

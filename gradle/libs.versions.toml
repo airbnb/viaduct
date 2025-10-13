@@ -60,7 +60,7 @@ viaduct-engine-wiring = { module = "com.airbnb.viaduct:engine-wiring", version.r
 viaduct-tenant-api = { module = "com.airbnb.viaduct:tenant-api", version.ref = "project" }
 viaduct-tenant-runtime = { module = "com.airbnb.viaduct:tenant-runtime", version.ref = "project" }
 viaduct-tenant-codegen = { module = "com.airbnb.viaduct:tenant-codegen", version.ref = "project" }
-viaduct-tenant-wiring = { module = "com.airbnb.viaduct:wiring", version.ref = "project" }
+viaduct-tenant-wiring = { module = "com.airbnb.viaduct:tenant-wiring", version.ref = "project" }
 
 viaduct-service-api = { module = "com.airbnb.viaduct:service-api", version.ref = "project" }
 viaduct-service-runtime = { module = "com.airbnb.viaduct:service-runtime", version.ref = "project" }
