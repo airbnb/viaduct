@@ -165,7 +165,7 @@ val isSnapshot = if (!pluginSnapshotEnv) {
 val computedVersionStr = if (isSnapshot) {
     val timestamp = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
     .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-    val gitSha = env.environmentVariable("GIT_COMMIT").map { it.take(7) }.orElse("unknown")
+    val gitSha = env.environmentVariable("GIT_COMMIT").map { it.take(7) }.orElse("unknown").get()
     "$baseVersion-SNAPSHOT-$timestamp-$gitSha"
 } else baseVersion
 
