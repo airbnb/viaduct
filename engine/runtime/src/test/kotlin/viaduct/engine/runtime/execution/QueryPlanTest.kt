@@ -7,8 +7,10 @@ import graphql.language.Argument
 import graphql.language.AstPrinter
 import graphql.language.Directive as GJDirective
 import graphql.language.Field as GJField
+import graphql.language.FragmentDefinition as GJFragmentDefinition
 import graphql.language.Node
 import graphql.language.SelectionSet as GJSelectionSet
+import graphql.language.TypeName as GJTypeName
 import graphql.language.VariableReference
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
@@ -154,7 +156,16 @@ class QueryPlanTest {
                                 "F" to FragmentDefinition(
                                     SelectionSet(
                                         mkField("x", typeConstraint(query))
-                                    )
+                                    ),
+                                    GJFragmentDefinition.newFragmentDefinition()
+                                        .name("F")
+                                        .typeCondition(GJTypeName("Query"))
+                                        .selectionSet(
+                                            GJSelectionSet(
+                                                listOf(GJField("x"))
+                                            )
+                                        )
+                                        .build()
                                 )
                             )
                         ),

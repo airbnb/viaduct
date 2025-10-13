@@ -26,9 +26,11 @@ import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
 import viaduct.engine.api.observability.ExecutionObservabilityContext
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
+import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
+import viaduct.engine.runtime.findLocalContextForType
 
 object FieldExecutionHelpers {
     val executionStepInfoFactory = ExecutionStepInfoFactory()
@@ -76,6 +78,17 @@ object FieldExecutionHelpers {
         return ObjectEngineResult.Key(field.fieldName, field.alias, keyArguments)
     }
 
+    /**
+     * Builds a DataFetchingEnvironment for the given field execution.
+     *
+     * IMPORTANT: This creates a context-sensitive environment where fragments and variables
+     * are set based on the current execution depth:
+     * - During root operation execution: uses operation's fragments/variables from client query
+     * - During child plan execution (RSS/variables resolver): uses child plan's fragments/variables
+     *
+     * This ensures code always has the correct execution context, whether resolving the root query
+     * or executing a required selection set.
+     */
     fun buildDataFetchingEnvironment(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField,
@@ -115,7 +128,8 @@ object FieldExecutionHelpers {
                     // if the context is already set, just update the parentOER
                     extant?.copy(
                         parentEngineResult = parentOER,
-                    ) ?: EngineResultLocalContext( // otherwise create it
+                    ) ?: EngineResultLocalContext(
+                        // otherwise create it
                         parentEngineResult = parentOER,
                         queryEngineResult = parameters.queryEngineResult,
                         rootEngineResult = parameters.rootEngineResult,
@@ -128,7 +142,8 @@ object FieldExecutionHelpers {
                 )
             }
         }
-        return DataFetchingEnvironmentImpl.newDataFetchingEnvironment(parameters.executionContext)
+
+        val dfe = DataFetchingEnvironmentImpl.newDataFetchingEnvironment(parameters.executionContext)
             .source(parameters.source)
             .localContext(localContext)
             .arguments(argumentValuesSupplier)
@@ -140,6 +155,17 @@ object FieldExecutionHelpers {
             .selectionSet(fieldCollector)
             .queryDirectives(queryDirectives)
             .build()
+
+        // Get the EngineExecutionContext from local context and update it with
+        // context-sensitive field scope (fragments/variables)
+        val engineExecCtx = parameters.executionContext.findLocalContextForType<EngineExecutionContextImpl>()
+        val fieldScope = EngineExecutionContextImpl.FieldExecutionScopeImpl(
+            fragments = parameters.queryPlan.fragments.map.mapValues { it.value.gjDef },
+            variables = parameters.coercedVariables.toMap()
+        )
+        val updatedEngineExecCtx = engineExecCtx.copy(fieldScope = fieldScope)
+
+        return ViaductDataFetchingEnvironmentImpl(dfe, updatedEngineExecCtx)
     }
 
     fun createExecutionStepInfo(

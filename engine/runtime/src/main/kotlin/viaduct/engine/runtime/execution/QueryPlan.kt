@@ -121,7 +121,7 @@ data class QueryPlan(
         override val constraints: Constraints
     ) : Selection
 
-    data class FragmentDefinition(val selectionSet: SelectionSet)
+    data class FragmentDefinition(val selectionSet: SelectionSet, val gjDef: GJFragmentDefinition)
 
     data class Fragments(val map: Map<String, FragmentDefinition>) : Map<String, FragmentDefinition> by map {
         operator fun plus(other: Fragments): Fragments = copy(map + other.map)
@@ -578,7 +578,7 @@ private class QueryPlanBuilder(
                         inCheckerContext = state.inCheckerContext
                     )
                 )
-                fragments[name] = QueryPlan.FragmentDefinition(fragState.selectionSet)
+                fragments[name] = QueryPlan.FragmentDefinition(fragState.selectionSet, gjdef)
             }
 
             val newConstraints = constraints

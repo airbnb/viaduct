@@ -7,6 +7,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.dataloader.NextTickDispatcher
@@ -57,6 +58,7 @@ class ViaductExecutionStrategyChildPlanTest {
                         id: ID!
                         name: String
                         details: String
+                        childPlanField: String
                     }
                 """
 
@@ -66,7 +68,11 @@ class ViaductExecutionStrategyChildPlanTest {
                             id
                             name
                             details
+                            ...Foo
                         }
+                    }
+                    fragment Foo on TestEntity {
+                        id
                     }
                 """
 
@@ -84,14 +90,18 @@ class ViaductExecutionStrategyChildPlanTest {
                             env.getSource<Map<String, Any>>()!!["name"]
                         },
                         "details" to DataFetcher { env ->
-                            childPlanExecutionStepInfos.add(env.executionStepInfo)
+                            // childPlanExecutionStepInfos.add(env.executionStepInfo)
                             "Entity details"
+                        },
+                        "childPlanField" to DataFetcher { env ->
+                            childPlanExecutionStepInfos.add(env.executionStepInfo)
+                            null
                         }
                     )
                 )
 
                 val requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
-                    .fieldResolverEntry("TestEntity" to "details", "__typename")
+                    .fieldResolverEntry("TestEntity" to "details", "fragment Main on TestEntity { childPlanField ...Bar } fragment Bar on TestEntity { id }")
                     .build()
 
                 val executionResult = executeViaductModernGraphQL(
@@ -107,10 +117,11 @@ class ViaductExecutionStrategyChildPlanTest {
                 assertEquals("123", testEntity["id"])
                 assertEquals("Test Entity", testEntity["name"])
                 assertEquals("Entity details", testEntity["details"])
+                assertNull(testEntity["childPlanField"])
 
                 assertTrue(childPlanExecutionStepInfos.isNotEmpty(), "Expected child plan to be executed")
                 val childStepInfo = childPlanExecutionStepInfos.first()
-                assertEquals(listOf("testEntity", "details"), childStepInfo.path.toList())
+                assertEquals(listOf("testEntity", "childPlanField"), childStepInfo.path.toList())
             }
         }
     }
