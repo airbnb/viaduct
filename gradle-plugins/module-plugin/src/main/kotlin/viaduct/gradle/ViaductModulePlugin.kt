@@ -14,6 +14,7 @@ import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import schemaPartitionDirectory
 import viaduct.gradle.ViaductPluginCommon.addViaductDependencies
+import viaduct.gradle.ViaductPluginCommon.addViaductTestDependencies
 import viaduct.gradle.ViaductPluginCommon.applyViaductBOM
 import viaduct.gradle.task.AssembleSchemaPartitionTask
 import viaduct.gradle.task.GenerateResolverBasesTask
@@ -30,6 +31,9 @@ open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
 
     /** Which Viaduct artifacts to automatically add as dependencies. Defaults to common module ones. */
     val viaductDependencies = objects.setProperty(String::class.java).convention(ViaductPluginCommon.BOM.DEFAULT_MODULE_ARTIFACTS)
+
+    /** Which Viaduct artifacts to automatically add as test dependencies. Defaults to common module ones. */
+    val viaductTestDependencies = objects.setProperty(String::class.java).convention(ViaductPluginCommon.BOM.DEFAULT_MODULE_TEST_ARTIFACTS)
 }
 
 class ViaductModulePlugin : Plugin<Project> {
@@ -54,6 +58,7 @@ class ViaductModulePlugin : Plugin<Project> {
                 if (moduleExt.applyBOM.get()) {
                     applyViaductBOM(moduleExt.bomVersion.get())
                     addViaductDependencies(moduleExt.viaductDependencies.get())
+                    addViaductTestDependencies(moduleExt.viaductTestDependencies.get())
                 }
             }
 

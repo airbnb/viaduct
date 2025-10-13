@@ -10,6 +10,7 @@ dependencies {
     testImplementation(libs.graphql.java)
     testImplementation(libs.guice)
     testImplementation(libs.javax.inject)
+
     testImplementation(libs.viaduct.engine.api)
     testImplementation(libs.viaduct.service.api)
     testImplementation(libs.viaduct.service.runtime)

@@ -57,7 +57,7 @@ class ViaductGraphQLController {
         }
     }
 
-    private fun createExecutionInput(request: Map<String, Any>,): ExecutionInput {
+    private fun createExecutionInput(request: Map<String, Any>): ExecutionInput {
         @Suppress("UNCHECKED_CAST")
         return ExecutionInput.create(
             operationText = request[QUERY_FIELD] as String,

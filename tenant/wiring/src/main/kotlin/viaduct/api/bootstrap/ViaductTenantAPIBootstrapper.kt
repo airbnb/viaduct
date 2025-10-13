@@ -24,11 +24,11 @@ class ViaductTenantAPIBootstrapper
         private val tenantPackageFinder: TenantPackageFinder,
         private val tenantResolverClassFinderFactory: TenantResolverClassFinderFactory,
     ) : TenantAPIBootstrapper {
-    /*
-     * Discovers all Viaduct TenantModule(s) and creates ViaductTenantModuleBootstrapper for each tenant.
-     *
-     * @return List of all TenantModuleBootstrapper(s), one for each Viaduct TenantModule.
-     */
+        /*
+         * Discovers all Viaduct TenantModule(s) and creates ViaductTenantModuleBootstrapper for each tenant.
+         *
+         * @return List of all TenantModuleBootstrapper(s), one for each Viaduct TenantModule.
+         */
         override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> {
             log.info("Viaduct Modern Tenant API Bootstrapper: Creating bootstrappers for tenant modules")
             val tenantModuleNames = tenantPackageFinder.tenantPackages()

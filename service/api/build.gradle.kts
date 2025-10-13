@@ -15,8 +15,10 @@ viaductPublishing {
 }
 
 dependencies {
-    api(libs.graphql.java)
-    api(libs.viaduct.engine.api)
+    implementation(libs.guice)
+    implementation(libs.graphql.java)
+
+    implementation(libs.viaduct.engine.api)
 
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)

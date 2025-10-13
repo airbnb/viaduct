@@ -16,6 +16,9 @@ open class ViaductApplicationExtension(objects: org.gradle.api.model.ObjectFacto
     /** Which Viaduct artifacts to automatically add as dependencies. Defaults to all common ones. */
     val viaductDependencies = objects.setProperty(String::class.java).convention(ViaductPluginCommon.BOM.DEFAULT_APPLICATION_ARTIFACTS)
 
+    /** Which Viaduct artifacts to automatically add as test dependencies. */
+    val viaductTestDependencies = objects.setProperty(String::class.java).convention(ViaductPluginCommon.BOM.DEFAULT_APPLICATION_TEST_ARTIFACTS)
+
     /** Which Viaduct testFixtures to automatically add as test dependencies. */
     val viaductTestFixtures = objects.setProperty(String::class.java).convention(ViaductPluginCommon.BOM.DEFAULT_TEST_FIXTURES)
 }

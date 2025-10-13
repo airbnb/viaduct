@@ -13,6 +13,7 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.kotlin.dsl.register
 import viaduct.gradle.ViaductPluginCommon.addViaductDependencies
+import viaduct.gradle.ViaductPluginCommon.addViaductTestDependencies
 import viaduct.gradle.ViaductPluginCommon.addViaductTestFixtures
 import viaduct.gradle.ViaductPluginCommon.applyViaductBOM
 import viaduct.gradle.task.AssembleCentralSchemaTask
@@ -34,6 +35,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
                 if (appExt.applyBOM.get()) {
                     applyViaductBOM(appExt.bomVersion.get())
                     addViaductDependencies(appExt.viaductDependencies.get())
+                    addViaductTestDependencies(appExt.viaductTestDependencies.get())
                     addViaductTestFixtures(appExt.viaductTestFixtures.get())
                 }
             }

@@ -11,14 +11,15 @@ viaductPublishing {
 }
 
 dependencies {
-    api(libs.graphql.java)
-    api(libs.jackson.annotations)
-    api(libs.javax.inject)
-    api(libs.kotlinx.coroutines.core.jvm)
-    api(libs.viaduct.engine.api)
-    api(libs.viaduct.service.api)
-    api(libs.viaduct.shared.dataloader)
-    api(libs.viaduct.shared.utils)
+    implementation(libs.graphql.java)
+    implementation(libs.jackson.annotations)
+    implementation(libs.javax.inject)
+    implementation(libs.kotlinx.coroutines.core.jvm)
+
+    implementation(libs.viaduct.engine.api)
+    implementation(libs.viaduct.service.api)
+    implementation(libs.viaduct.shared.dataloader)
+    implementation(libs.viaduct.shared.utils)
 
     implementation(libs.caffeine)
     implementation(libs.checker.qual)
@@ -38,6 +39,7 @@ dependencies {
     testFixturesApi(libs.viaduct.engine.runtime)
     testFixturesApi(libs.viaduct.service.api)
     testFixturesApi(libs.viaduct.shared.arbitrary)
+
 
     testFixturesImplementation(libs.caffeine)
     testFixturesImplementation(libs.checker.qual)

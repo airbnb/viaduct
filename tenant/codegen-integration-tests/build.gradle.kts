@@ -37,6 +37,7 @@ kotlin {
 
 dependencies {
     // Depend on the codegen module from the codegen layer
+    testImplementation(libs.viaduct.engine.api)
     testImplementation(libs.viaduct.tenant.api)
     testImplementation(libs.viaduct.tenant.codegen)
     testImplementation(libs.viaduct.shared.codegen)
