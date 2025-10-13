@@ -1,6 +1,7 @@
 package viaduct.engine.runtime
 
 import graphql.execution.instrumentation.Instrumentation
+import graphql.language.FragmentDefinition
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.ConcurrentHashMap
@@ -71,7 +72,19 @@ class EngineExecutionContextImpl(
     val executeAccessChecksInModstrat: Boolean,
     val dataFetchingEnvironment: DataFetchingEnvironment? = null,
     override val activeSchema: ViaductSchema = fullSchema,
+    override val fieldScope: EngineExecutionContext.FieldExecutionScope = FieldExecutionScopeImpl(),
 ) : EngineExecutionContext {
+    /**
+     * Implementation of [EngineExecutionContext.FieldExecutionScope] that holds field-scoped
+     * execution state.
+     *
+     * This is an immutable data class that gets replaced as we traverse into child plans during execution.
+     */
+    data class FieldExecutionScopeImpl(
+        override val fragments: Map<String, FragmentDefinition> = emptyMap(),
+        override val variables: Map<String, Any?> = emptyMap(),
+    ) : EngineExecutionContext.FieldExecutionScope
+
     override fun createNodeReference(
         id: String,
         graphQLObjectType: GraphQLObjectType
@@ -118,6 +131,7 @@ class EngineExecutionContextImpl(
         dataFetchingEnvironment: DataFetchingEnvironment? = this.dataFetchingEnvironment,
         executeAccessCheckInModstrat: Boolean = this.executeAccessChecksInModstrat,
         activeSchema: ViaductSchema = this.activeSchema,
+        fieldScope: EngineExecutionContext.FieldExecutionScope = this.fieldScope,
     ) = EngineExecutionContextImpl(
         fullSchema = this.fullSchema,
         scopedSchema = this.scopedSchema,
@@ -131,5 +145,6 @@ class EngineExecutionContextImpl(
         nodeDataLoaders = this.nodeDataLoaders,
         executeAccessChecksInModstrat = executeAccessCheckInModstrat,
         dataFetchingEnvironment = dataFetchingEnvironment,
+        fieldScope = fieldScope,
     )
 }
