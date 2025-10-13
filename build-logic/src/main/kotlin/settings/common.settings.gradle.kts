@@ -1,11 +1,5 @@
 package settings
 
-pluginManagement {
-    plugins {
-        id("org.jetbrains.dokka")
-    }
-}
-
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention")
 }

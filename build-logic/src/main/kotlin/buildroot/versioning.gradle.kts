@@ -161,13 +161,18 @@ val isSnapshot = if (!pluginSnapshotEnv) {
     listOf(releaseFlag, isReleaseTag, isMajorVersionRelease, isPatchRelease).none { it }
 }
 
+val versionOverride = env.environmentVariable("VIADUCT_VERSION_OVERRIDE").orElse("").get()
+
 // Generate unique snapshot versions for plugin publishing
-val computedVersionStr = if (isSnapshot) {
-    val timestamp = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-    .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-    val gitSha = env.environmentVariable("GIT_COMMIT").map { it.take(7) }.orElse("unknown")
-    "$baseVersion-SNAPSHOT-$timestamp-$gitSha"
-} else baseVersion
+val computedVersionStr =
+    versionOverride.ifBlank {
+        if (isSnapshot) {
+            val timestamp = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+            val gitSha = env.environmentVariable("GIT_COMMIT").map { it.take(7) }.orElse("unknown").get()
+            "$baseVersion-SNAPSHOT-$timestamp-$gitSha"
+        } else baseVersion
+    }
 
 gradle.allprojects {
     group = "com.airbnb.viaduct"

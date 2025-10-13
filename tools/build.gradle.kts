@@ -4,7 +4,6 @@ plugins {
     `java-test-fixtures`
     id("conventions.kotlin-static-analysis")
     id("conventions.kotlin")
-    signing
 }
 
 dependencies {
@@ -65,8 +64,4 @@ publishing {
     repositories {
         mavenLocal()
     }
-}
-
-signing {
-    sign(publishing.publications["mavenJava"])
 }
