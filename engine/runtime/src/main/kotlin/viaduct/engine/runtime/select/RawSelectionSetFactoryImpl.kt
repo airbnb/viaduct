@@ -6,6 +6,7 @@ import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.api.select.SelectionsParser
 
 class RawSelectionSetFactoryImpl(
@@ -44,7 +45,7 @@ class RawSelectionSetFactoryImpl(
 
             RawSelectionSetImpl.create(
                 SelectionsParser.fromDataFetchingEnvironment((unwrappedType as GraphQLCompositeType).name, env),
-                env.variables,
+                env.engineExecutionContext.fieldScope.variables,
                 fullSchema
             )
         }

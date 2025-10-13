@@ -28,6 +28,7 @@ import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
+import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.derived.DerivedFieldQueryMetadata
 import viaduct.engine.api.fragment.Fragment
@@ -112,7 +113,7 @@ class ResolverDataFetcherTest {
             checkerDispatcher = checkerDispatcher,
         )
 
-        val dataFetchingEnvironment: DataFetchingEnvironment = mockk()
+        val dataFetchingEnvironment: ViaductDataFetchingEnvironment = mockk()
         val operationDefinition: OperationDefinition = mockk()
         val engineResultLocalContext = EngineResultLocalContext(
             rootEngineResult = ObjectEngineResultImpl.newForType(schema.schema.queryType),
@@ -127,6 +128,7 @@ class ResolverDataFetcherTest {
         ).engineExecutionContextImpl
 
         init {
+            every { dataFetchingEnvironment.engineExecutionContext } returns engineExecutionContextImpl
             every { dataFetchingEnvironment.graphQLSchema } returns schema.schema
             every { dataFetchingEnvironment.arguments } returns mapOf("arg1" to "param1")
             every { dataFetchingEnvironment.fieldDefinition } returns testTypeObject.getField(testField)

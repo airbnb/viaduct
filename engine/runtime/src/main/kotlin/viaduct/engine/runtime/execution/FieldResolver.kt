@@ -26,6 +26,7 @@ import kotlinx.coroutines.future.asDeferred
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.LazyEngineObjectData
 import viaduct.engine.api.ObjectEngineResult
+import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
@@ -449,7 +450,7 @@ class FieldResolver(
                             ?: throw IllegalStateException(
                                 "Attempting to resolve LazyEngineObjectData but no selection set found"
                             )
-                        val engineExecutionContext = parameters.executionContext.findLocalContextForType<EngineExecutionContextImpl>()
+                        val engineExecutionContext = dataFetchingEnvironment.engineExecutionContext as EngineExecutionContextImpl
                         val localExecutionContext = engineExecutionContext.copy(
                             dataFetchingEnvironment = dataFetchingEnvironment,
                         )

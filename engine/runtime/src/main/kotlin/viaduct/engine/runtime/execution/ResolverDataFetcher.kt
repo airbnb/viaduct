@@ -12,6 +12,7 @@ import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.FieldResolverDispatcher
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
@@ -53,7 +54,7 @@ class ResolverDataFetcher(
     private suspend fun resolve(environment: DataFetchingEnvironment): Any? {
         val engineResults = getEngineResults(environment)
 
-        val engineExecutionContext = environment.findLocalContextForType<EngineExecutionContextImpl>()
+        val engineExecutionContext = environment.engineExecutionContext as EngineExecutionContextImpl
         val localExecutionContext = engineExecutionContext.copy(
             dataFetchingEnvironment = environment
         )
@@ -197,8 +198,7 @@ class ResolverDataFetcher(
         }
         val checkerSelectionSetMap = checkerDispatcher.requiredSelectionSets
 
-        val selectionSetFactory =
-            environment.findLocalContextForType<EngineExecutionContextImpl>().rawSelectionSetFactory
+        val selectionSetFactory = (environment.engineExecutionContext as EngineExecutionContextImpl).rawSelectionSetFactory
         return checkerSelectionSetMap.mapValues { (_, rss) ->
             val selectionSet = rss?.let { selectionSetFactory.rawSelectionSet(rss.selections, emptyMap()) }
             CheckerProxyEngineObjectData(

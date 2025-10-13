@@ -4,6 +4,7 @@ import graphql.language.FragmentDefinition
 import graphql.language.SelectionSet
 import graphql.schema.DataFetchingEnvironment
 import viaduct.engine.api.ParsedSelections
+import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.engine.api.select.Constants.EntryPointFragmentName
@@ -81,7 +82,7 @@ object SelectionsParser {
         return ParsedSelectionsImpl(
             typeName,
             selections,
-            env.fragmentsByName
+            env.engineExecutionContext.fieldScope.fragments
         )
     }
 

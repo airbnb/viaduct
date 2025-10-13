@@ -15,6 +15,8 @@ import io.mockk.mockk
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.api.fragment.Fragment
 
 class SelectionsParserTest : Assertions() {
@@ -22,11 +24,15 @@ class SelectionsParserTest : Assertions() {
         vararg mergeFields: Field,
         fragmentMap: Map<String, FragmentDefinition> = emptyMap()
     ): DataFetchingEnvironment {
-        val env: DataFetchingEnvironment = mockk()
+        val fieldScope = mockk<EngineExecutionContext.FieldExecutionScope>()
+        every { fieldScope.fragments } returns fragmentMap
+        val engineExecutionContext: EngineExecutionContext = mockk()
+        every { engineExecutionContext.fieldScope } returns fieldScope
+        val env: ViaductDataFetchingEnvironment = mockk()
         val mergedField = MergedField.newMergedField(mergeFields.toList()).build()
+        every { env.engineExecutionContext } returns engineExecutionContext
         every { env.field } returns mergeFields.first()
         every { env.mergedField } returns mergedField
-        every { env.fragmentsByName } returns fragmentMap
         return env
     }
 

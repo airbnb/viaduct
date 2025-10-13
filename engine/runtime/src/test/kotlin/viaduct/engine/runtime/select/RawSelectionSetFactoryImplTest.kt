@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.select.loader.SelectTestSchemaFixture
@@ -77,7 +79,12 @@ class RawSelectionSetFactoryImplTest {
             repeat(listDepth) {
                 type = GraphQLList.list(type)
             }
-            val env = mockk<DataFetchingEnvironment>()
+            val fieldExecutionScope = mockk<EngineExecutionContext.FieldExecutionScope>()
+            every { fieldExecutionScope.fragments }.returns(emptyMap())
+            every { fieldExecutionScope.variables }.returns(emptyMap())
+            val engineExecutionContext = mockk<EngineExecutionContext>()
+            every { engineExecutionContext.fieldScope }.returns(fieldExecutionScope)
+            val env = mockk<ViaductDataFetchingEnvironment>()
             val envField = Field(
                 "field",
                 SelectionSet(
@@ -95,8 +102,7 @@ class RawSelectionSetFactoryImplTest {
                 )
             )
             every { env.mergedField }.returns(MergedField.newMergedField(envField).build())
-            every { env.fragmentsByName }.returns(emptyMap())
-            every { env.variables }.returns(emptyMap())
+            every { env.engineExecutionContext }.returns(engineExecutionContext)
             every { env.executionStepInfo }.returns(
                 ExecutionStepInfo.newExecutionStepInfo()
                     .type(type)
