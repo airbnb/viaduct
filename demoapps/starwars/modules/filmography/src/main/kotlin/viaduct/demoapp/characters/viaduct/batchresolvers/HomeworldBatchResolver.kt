@@ -1,4 +1,4 @@
-package viaduct.demoapp.starwars.resolvers.batch
+package viaduct.demoapp.characters.viaduct.batchresolvers
 
 import viaduct.api.FieldValue
 import viaduct.api.Resolver

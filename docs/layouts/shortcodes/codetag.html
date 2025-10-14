@@ -1,0 +1,120 @@
+{{ $raw := .Get "path" }}
+{{ $tag := .Get "tag" | default (.Get "anchor") }}
+
+{{ if not $raw }}
+  <p><em>Missing param:</em> path</p>
+{{ else if not $tag }}
+  <p><em>Missing param:</em> tag</p>
+{{ else }}
+  {{ $lang := .Get "lang" | default "kotlin" }}
+  {{ $count_param := .Get "count" | default "0" }}
+
+  {{ $rel := $raw }}
+  {{ $file := resources.Get (printf "%s" $rel) }}
+  {{ if not $file }}
+    <p><em>File not found:</em> {{ $rel }}</p>
+  {{ else }}
+
+    {{/* Read file content and split into lines */}}
+    {{ $content := $file.Content }}
+    {{ $lines := split $content "\n" }}
+
+    {{/* 1) Find marker line by *substring* "tag::<NAME>" (case-sensitive) */}}
+    {{ $idx := 0 }}
+    {{ $markerLine := "" }}
+    {{ $needle := printf "tag::%s" $tag }}
+
+    {{ range $i, $l := $lines }}
+      {{ if and (eq $idx 0) (in $l $needle) }}
+        {{ $idx = add $i 1 }}
+        {{ $markerLine = $l }}
+      {{ end }}
+    {{ end }}
+
+    {{ if eq $idx 0 }}
+      <p><em>Tag not found:</em> {{ $tag }} in {{ $rel }}</p>
+    {{ else }}
+
+      {{/* 2) Extract [LINES] by hard slicing around the first '[' and ']' */}}
+      {{ $count := 10 }}
+      {{ if ne $count_param "0" }}
+        {{ $count = int $count_param }}
+      {{ else }}
+        {{ $hasBrack := in $markerLine "[" }}
+        {{ if $hasBrack }}
+          {{ $after := index (split $markerLine "[") 1 | default "" }}
+          {{ if ne $after "" }}
+            {{ $inside := index (split $after "]") 0 | default "" }}
+            {{/* guard: ensure it is digits only (avoid int conversion error) */}}
+            {{ $digits := findRE `^\s*\d+\s*$` $inside }}
+            {{ if gt (len $digits) 0 }}
+              {{ $count = int (trim $inside " \t") }}
+            {{ end }}
+          {{ end }}
+        {{ end }}
+      {{ end }}
+
+      {{/* 3) Compute slice (start after tag line) and clamp end */}}
+      {{ $start := add $idx 1 }}
+      {{ $end := add $start (sub $count 1) }}
+      {{ if lt $start 1 }}{{ $start = 1 }}{{ end }}
+      {{ if gt $end (len $lines) }}{{ $end = (len $lines) }}{{ end }}
+
+      {{/* 4) Build the requested slice */}}
+      {{ $slice := (slice) }}
+      {{ $s2 := newScratch }}{{ $s2.Set "sub" $slice }}
+      {{ range $i, $l := $lines }}
+        {{ $ln := add $i 1 }}
+        {{ if and (ge $ln $start) (le $ln $end) }}
+          {{ $s2.Set "sub" ( $s2.Get "sub" | append $l ) }}
+        {{ end }}
+      {{ end }}
+
+      {{/* 5) Dedent: remove common leading whitespace for nicer rendering */}}
+      {{ $block := $s2.Get "sub" }}
+      {{ $scr := newScratch }}{{ $scr.Set "indent" 9999 }}
+      {{ range $line := $block }}
+        {{ $trimmed := strings.TrimSpace $line }}
+        {{ if ne $trimmed "" }}
+          {{ $lead := replaceRE "^([ \\t]+).*" "$1" $line }}
+          {{ $n := len $lead }}
+          {{ if lt $n ($scr.Get "indent") }}{{ $scr.Set "indent" $n }}{{ end }}
+        {{ end }}
+      {{ end }}
+      {{ $common := $scr.Get "indent" }}{{ if eq $common 9999 }}{{ $common = 0 }}{{ end }}
+
+      {{ $ded := newScratch }}{{ $ded.Set "out" (slice) }}
+      {{ $pat := printf "^[ \\t]{0,%d}" $common }}
+      {{ range $line := $block }}
+        {{ $ded.Set "out" ( $ded.Get "out" | append (replaceRE $pat "" $line) ) }}
+      {{ end }}
+      {{ $code := delimit ($ded.Get "out") "\n" }}
+
+      {{/* 6) Render code */}}
+      {{ highlight $code $lang "noClasses=true" }}
+
+      {{/* 7) GitHub deep-link (branch 'main'); keep your styles */}}
+      {{ $base := site.Params.github_repo }}
+      {{ if $base  }}
+      <p style="margin-bottom:-3.3rem">
+        <p style="padding-right: 0.3rem;text-align: right; font-size: 12px; line-height: 1; opacity: .75;">
+          <a
+              href="{{ printf "%s/blob/main/%s#L%d-L%d" $base $rel $start $end }}"
+              target="_blank" rel="noopener"
+              class="fas btn btn-sm td-click-to-copy"
+              data-bs-toggle="tooltip" data-bs-placement="top"
+              aria-label="View on GitHub" title="View on GitHub"
+              style="display:inline-flex;align-items:center;gap:.25rem;
+              padding:.1rem;color:inherit;text-decoration:none;"
+              onmouseenter="this.style.background='rgba(27,31,36,.30)'"
+              onmouseleave="this.style.background='transparent'"
+          >
+            <span aria-hidden="true" style="font:400 14px/1 'Font Awesome 6 Brands',system-ui">&#xf09b;</span>
+          </a>
+        </p>
+      </p>
+      {{ end }}
+
+    {{ end }}
+  {{ end }}
+{{ end }}

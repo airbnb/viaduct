@@ -11,6 +11,7 @@ private const val DEFAULT_PAGE_SIZE = 10
 /**
  * AllCharacters Query resolver for the Star Wars GraphQL API.
  */
+// tag::resolver_example[16] Example of a query resolver with pagination
 @Resolver
 class AllCharactersResolver : QueryResolvers.AllCharacters() {
     override suspend fun resolve(ctx: Context): List<Character?>? {

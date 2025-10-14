@@ -1,0 +1,81 @@
+{{ $raw := .Get "path" }}
+{{ if not $raw }}
+  <p><em>Missing param:</em> path</p>
+{{ else }}
+  {{ $rel := $raw }}
+  {{ $lang := .Get "lang" | default "kotlin" }}
+
+  {{ $file := resources.Get (printf "%s" $rel) }}
+    {{ if not $file }}
+      <p><em>File not found:</em> {{ $rel }}</p>
+  {{ else }}
+    {{/* Compute slice range */}}
+    {{ $lines := split $file.Content "\n" }}
+    {{ $start := 1 }} {{ with .Get "start" }}{{ $start = int . }}{{ end }}
+    {{ $end := len $lines }} {{ with .Get "end" }}{{ $end = int . }}{{ end }}
+
+    {{ if lt $start 1 }}{{ $start = 1 }}{{ end }}
+    {{ if gt $end (len $lines) }}{{ $end = (len $lines) }}{{ end }}
+    {{ if lt $end $start }}{{ $end = $start }}{{ end }}
+
+    {{/* Slice to the requested lines */}}
+    {{ $s := newScratch }}{{ $s.Set "sub" (slice) }}
+    {{ range $i, $l := $lines }}
+      {{ $ln := add $i 1 }}
+      {{ if and (ge $ln $start) (le $ln $end) }}
+        {{ $s.Set "sub" ( $s.Get "sub" | append $l ) }}
+      {{ end }}
+    {{ end }}
+
+    {{/* ===== Dedent: remove common leading whitespace ===== */}}
+    {{ $block := $s.Get "sub" }}               {{/* slice of selected lines */}}
+    {{ $indent := 1000000 }}
+
+    {{ range $line := $block }}
+      {{ $trimmed := strings.TrimSpace $line }}
+      {{ if ne $trimmed "" }}
+        {{ $m := findRE "^([ \\t]+)" $line }}
+        {{ $n := 0 }}
+        {{ if gt (len $m) 0 }}
+          {{ $n = len (index $m 0) }}
+        {{ end }}
+        {{ if lt $n $indent }}
+          {{ $indent = $n }}
+        {{ end }}
+      {{ end }}
+    {{ end }}
+    {{ if eq $indent 1000000 }}{{ $indent = 0 }}{{ end }}
+
+    {{ $ded := newScratch }}{{ $ded.Set "out" (slice) }}
+    {{ $pat := printf "^[ \\t]{0,%d}" $indent }}
+    {{ range $line := $block }}
+      {{ $ded.Set "out" ( $ded.Get "out" | append (replaceRE $pat "" $line) ) }}
+    {{ end }}
+    {{ $code := delimit ($ded.Get "out") "\n" }}
+    {{/* ===== end Dedent ===== */}}
+
+    {{ highlight $code $lang "noClasses=true" | safeHTML }}
+
+    {{/* Deep-link to GitHub line range (same as before) */}}
+    {{ $base := site.Params.github_repo }}
+    {{ if $base  }}
+    <p style="margin-bottom:-50px; margin-end:10px;">
+      <p style="padding-right: 0.3rem;text-align: right; font-size: 12px; line-height: 1; opacity: .75;">
+        <a
+            href="{{ printf "%s/blob/main/%s#L%d-L%d" $base $rel $start $end }}"
+        target="_blank" rel="noopener"
+        class="fas btn btn-sm td-click-to-copy"
+        data-bs-toggle="tooltip" data-bs-placement="top"
+        aria-label="View on GitHub" title="View on GitHub"
+        style="display:inline-flex;align-items:center;gap:.25rem;
+        padding:.1rem;color:inherit;text-decoration:none;"
+        onmouseenter="this.style.background='rgba(27,31,36,.30)'"
+        onmouseleave="this.style.background='transparent'"
+        >
+        <span aria-hidden="true" style="font:400 14px/1 'Font Awesome 6 Brands',system-ui">&#xf09b;</span>
+        </a>
+      </p>
+    </p>
+    {{ end }}
+  {{ end }}
+{{ end }}

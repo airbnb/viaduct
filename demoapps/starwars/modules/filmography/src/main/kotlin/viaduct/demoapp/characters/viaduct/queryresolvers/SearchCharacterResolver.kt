@@ -19,6 +19,7 @@ import viaduct.demoapp.filmography.resolverbases.QueryResolvers
  * Arguments:
  * - search: An object containing optional fields: byName (String), byId (ID), byBirthYear (String).
  */
+// tag::id_of_example[19] Example of idOF usage
 @Resolver
 class SearchCharacterResolver : QueryResolvers.SearchCharacter() {
     override suspend fun resolve(ctx: Context): viaduct.api.grts.Character? {

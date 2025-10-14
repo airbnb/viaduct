@@ -1,6 +1,6 @@
 """
 An individual person or character within the Star Wars universe.
-"""
+""" # tag::character_type[5] Character type definition
 type Character implements Node @scope(to: ["default"]) @resolver {
   """
   The GlobalID of this character - uniquely identifies this Character in the graph (internal use only)
@@ -58,6 +58,11 @@ type Character implements Node @scope(to: ["default"]) @resolver {
   edited: String
 
   """
+  Determines if the character is an adult (18 years or older) based on birth year.
+  """
+  isAdult: Boolean @resolver
+
+  """
   A planet that this character was born on or inhabits.
   """
   homeworld: Planet @resolver
@@ -108,6 +113,7 @@ type Character implements Node @scope(to: ["default"]) @resolver {
   formattedDescription(format: String = "default"): String @resolver
 }
 
+# tag::scope_example[10] Example of @scope directive usage
 extend type Query @scope(to: ["default"]) {
   """
   Search for a character using exactly one search criteria
@@ -122,16 +128,20 @@ extend type Query @scope(to: ["default"]) {
   """
   All characters
   """
+  # tag::all_characters[3] Batch query sample
   allCharacters(limit: Int): [Character]
     @resolver
     @backingData(class: "viaduct.demoapp.characters.viaduct.queryresolvers.AllCharactersResolver")
 }
 
+# tag::one_of_example[16] ID search sample
 input CharacterSearchInput @oneOf @scope(to: ["default"]) {
   """
   Search by character name
   """
   byName: String
+
+  # tag::id_example[4] ID search sample
   """
   Search by character ID
   """
@@ -143,22 +153,26 @@ input CharacterSearchInput @oneOf @scope(to: ["default"]) {
 }
 
 extend type Mutation @scope(to: ["default"]) {
+  # tag::mutation_example[5] Mutation examples
   """
   Create a new Character.
   """
   createCharacter(input: CreateCharacterInput!): Character @resolver
 
+  # tag::mutation_example_2[5] Mutation examples
   """
   Update an existing Character's name.
   """
   updateCharacterName(id: ID! @idOf(type: "Character"), name: String!): Character @resolver
 
+  # tag::mutation_example_3[6] Mutation examples
   """
   Link a Character to a Film (adds the character to that film's cast).
   Allows locating the character either directly by ID or via the existing search input.
   """
   addCharacterToFilm(input: AddCharacterToFilmInput!): AddCharacterToFilmPayload @resolver
 
+  # tag::mutation_example_4[4] Mutation examples
   """
   Delete a Character by ID. Returns true if a record was removed.
   """
@@ -168,7 +182,7 @@ extend type Mutation @scope(to: ["default"]) {
 """
 Input for creating a new Character.
 All fields except name are optional; omit unknown values.
-"""
+""" # tag::input_example[11] Input type example
 input CreateCharacterInput @scope(to: ["default"]) {
   name: String!
   birthYear: String

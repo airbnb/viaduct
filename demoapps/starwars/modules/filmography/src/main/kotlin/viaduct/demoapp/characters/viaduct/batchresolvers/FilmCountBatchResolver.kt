@@ -38,18 +38,21 @@ import viaduct.demoapp.filmography.resolverbases.CharacterResolvers
  * ## Efficiency
  * Instead of N individual count operations, performs one batch lookup and maps results.
  */
+// tag::film_count_batch_resolver[20] FilmCountBatchResolver
 @Resolver(objectValueFragment = "fragment _ on Character { id }")
 class FilmCountBatchResolver : CharacterResolvers.FilmCount() {
     override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Int>> {
-        // Extract all the character IDs from the contexts
-        val characterIds = contexts.map { it.objectValue.getId().internalID }
+        // Extract all unique character IDs from the contexts
+        val characterIds = contexts.map { it.objectValue.getId().internalID }.toSet()
 
         // Perform a single batch query to get film counts for all characters
+        // We only compute one time for each character, despite multiple requests
         val filmCounts = characterIds.associateWith { characterId ->
             CharacterFilmsRepository.findFilmsByCharacterId(characterId).size
         }
 
-        // Map the results back to the original contexts in the same order
+        // For each context gets the character ID and map to the precomputed film count
+        // and return the results in the same order as contexts
         return contexts.map { ctx ->
             val characterId = ctx.objectValue.getId().internalID
 

@@ -203,8 +203,43 @@ module:
   imports:
     - path: github.com/google/docsy
       disable: false
+  mounts:
+    - source: assets
+      target: assets
+    - source: static
+      target: static
+    - source: layouts
+      target: layouts
+    - source: content
+      target: content
+    - source: data
+      target: data
+    - source: i18n
+      target: i18n
+
+    # Mount the Viaduct code for embedding snippets in the docs.
+    - source: ../demoapps
+      target: assets/demoapps
+      includeFiles:
+        - "**/*.kt"
+        - "**/*.graphqls"
+      excludeFiles:
+        - "**/build/**"
+        - "**/.gradle/**"
+        - "**/.idea/**"
+        - "**/out/**"
+        - "**/.DS_Store"
+    - source: ../tenant
+      target: assets/tenant
+      includeFiles:
+        - "**/*.kt"
+      excludeFiles:
+        - "**/build/**"
+        - "**/.gradle/**"
+        - "**/.idea/**"
+        - "**/out/**"
+        - "**/.DS_Store"
 
 services:
   googleAnalytics:
     id: G-79P40SMGG8
-

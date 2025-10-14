@@ -25,7 +25,7 @@ This will start the server at `http://localhost:8080`.
 
 ### Access GraphiQL
 
-Open your browser and go to:
+Open your browser and go to [GraphiQL](http://localhost:8080/graphiql) interface:
 
 ```
 http://localhost:8080/graphiql
@@ -69,7 +69,7 @@ query {
 }
 ```
 
-And include this header:
+In GraphiQL, add this to the **Headers** tab below the query pane:
 
 ```json
 {
@@ -77,7 +77,6 @@ And include this header:
 }
 ```
 
-In GraphiQL, add this to the **Headers** tab below the query pane.
 
 #### Complex query with batch resolution
 
@@ -95,7 +94,7 @@ query {
 }
 ```
 
-~~~~Fields such as `filmCount` and `richSummary` are computed by Character resolvers. @See `CharacterResolvers.kt`,
+> Fields such as `filmCount` and `richSummary` are computed by Character resolvers. @See `CharacterResolvers.kt`,
 `SpeciesBatchResolver.kt` and `FilmCountBatchResolver.kt`.
 
 Resolution is batched by Viaduct’s resolver execution model (and/or DataLoaders if configured), which helps avoid N+1
@@ -195,4 +194,4 @@ Which returns:
 
 ## Technical deep dive
 
-For a deeper technical explanation of how the system works, see [DEEPDIVE.md](DEEPDIVE.md).
+For a deeper technical explanation of how the system works, see the [Getting Started Guide](https://airbnb.io/viaduct/docs/getting_started/).

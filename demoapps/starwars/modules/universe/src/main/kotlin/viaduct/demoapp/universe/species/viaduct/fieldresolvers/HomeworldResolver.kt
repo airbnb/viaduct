@@ -10,6 +10,7 @@ import viaduct.demoapp.universe.species.models.repository.SpeciesRepository
  *
  * Returns the planet that is the homeworld of this species, or null if none exists.
  */
+// tag::resolver_example[15] Example of a computed field resolver
 @Resolver("id")
 class HomeworldResolver : SpeciesResolvers.Homeworld() {
     override suspend fun resolve(ctx: Context): Planet? {

@@ -10,6 +10,7 @@ import viaduct.demoapp.filmography.NodeResolvers
  *
  * This resolver handles fetching a Character by its global ID.
  */
+// tag::node_resolver_example[17] Example of a node resolver
 @Resolver
 class CharacterNodeResolver : NodeResolvers.Character() {
     override suspend fun resolve(ctx: Context): viaduct.api.grts.Character {

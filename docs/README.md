@@ -102,3 +102,75 @@ That task outputs HTML files to `docs/static/apis` and from there they are autom
 https://kotlinlang.org/docs/dokka-module-and-package-docs.html
 
 Create a `module.md` file in the top-level of a module that is opted-in to Dokka. For example, `engine/api/module.md`. See link above for specific Markdown syntax.
+
+### Bring Viaduct code into Docs
+
+Source code snippets can be embedded in the documentation using custom Hugo mounts.
+
+To see, edit, or add new source codes to the documentation, check the file `hugo.yaml` in the root of this repository. It contains Hugo mounts that map source code files from the Viaduct repository into the Hugo site.
+
+There is a section like this
+
+```yaml
+  mounts:
+    # Mount the Viaduct code for embedding snippets in the docs.
+    - source: ../demoapps
+      target: assets/demoapps
+      includeFiles:
+        - "**/*.kt"
+        - "**/*.graphqls"
+      excludeFiles:
+        - "**/build/**"
+        - "**/.gradle/**"
+        - "**/.idea/**"
+        - "**/out/**"
+        - "**/.DS_Store"
+```
+
+> It is important that the `source` and the target names are the same. In the previous example "demoapps" is used as the source and "demoapps" is used in the target.
+
+Once a source code file is mounted, it can be referenced in the documentation using the `codetag` or `codefile` shortcodes.
+
+#### `codetag` shortcode
+
+Code tags works along the source code, in any part of the source code you need to add a comment with the format :
+
+```kotlin
+//tag::NAME[LINES] Comment
+```
+
+Where NAME is the tag name that will be used in the documentation to reference the code snippet.
+And LINES that is the amount of lines to include in the snippet, after this comment. If not specified will take 10 lines of code.
+Comment is optional and can be used to describe the code snippet usage for developers.
+
+Example:
+
+In your code
+
+```kotlin
+//tag::VIADUCT_CONFIG_1[5] This is shown in service documentation
+```
+
+In the hugo service documentation
+
+```md
+{{< codetag path="demoapp/starwars/src/main/kotlin/viaduct/demoapp/starwars/config/ViaductConfig.kt" tag="VIADUCT_CONFIG_1" >}}
+```
+
+Where path is the path to the source code.
+
+> There is an optional `lang` parameter to specify the language for syntax highlighting. Default it is `kotlin`.
+
+#### `codefile` shortcode
+
+Code file works simpler, it is just a code snippet of the whole file or a range of lines. No need to modify the source code.
+
+```md
+{{< codefile path="demoapp/starwars/src/main/kotlin/viaduct/demoapp/starwars/config/ViaductConfig.kt" start="1" end="10">}}
+```
+
+If no start or end is specified, the whole file is included.
+
+Where path is the path to the source code.
+
+> There is an optional `lang` parameter to specify the language for syntax highlighting. Default it is `kotlin`.

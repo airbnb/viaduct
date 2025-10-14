@@ -12,6 +12,7 @@ import viaduct.demoapp.filmography.resolverbases.MutationResolvers
  * The Mutation type demonstrates the @scope directive which restricts schema access
  * to specific tenants or contexts. All resolvers here are scoped to "starwars".
  */
+// tag::update-character-name-resolver[20] Example of mutation resolver
 @Resolver
 class UpdateCharacterNameResolvers : MutationResolvers.UpdateCharacterName() {
     override suspend fun resolve(ctx: Context): Character? {

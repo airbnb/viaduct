@@ -1,6 +1,6 @@
 """
 Planet schema definitions
-"""
+""" # tag::schemas_example[75] Example of schema definition
 type Planet implements Node @scope(to: ["default"]) @resolver {
   """
   The ID of an object

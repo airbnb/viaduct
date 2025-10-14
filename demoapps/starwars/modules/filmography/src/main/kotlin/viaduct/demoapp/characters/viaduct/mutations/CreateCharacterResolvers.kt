@@ -13,6 +13,7 @@ import viaduct.demoapp.starwars.data.StarWarsData
  * The Mutation type demonstrates the @scope directive which restricts schema access
  * to specific tenants or contexts. All resolvers here are scoped to "starwars".
  */
+// tag::create_example[23] Example of a mutation resolver with scoped access
 @Resolver
 class CreateCharacterResolvers : MutationResolvers.CreateCharacter() {
     override suspend fun resolve(ctx: Context): Character {

@@ -94,14 +94,7 @@ The `@Resolver` annotation can also be used to declare data dependencies on the 
 
 Both `resolve` and `batchResolve` take `Context` objects as input. This class is an instance of {{< kdoc viaduct.api.context.FieldExecutionContext >}}:
 
-```kotlin
-interface FieldExecutionContext<T: Object, Q: Query, A: Arguments, O: CompositeOutput>: ResolverExecutionContext {
-    val objectValue: T
-    val queryValue: Q
-    val arguments: A
-    fun selections(): SelectionSet<O>
-}
-```
+{{< codefile path="tenant/api/src/main/kotlin/viaduct/api/context/FieldExecutionContext.kt" start="9" end="40" >}}
 
 * `objectValue` gives access to the object that contains the field being resolved. Fields of that object can be accessed, but only if those fields are in the resolver’s required selection set. If the resolver tries to access a field not included within its required selection set, it results in an `UnsetSelectionException` at runtime.
 

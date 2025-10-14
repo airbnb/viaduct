@@ -2,7 +2,6 @@ package com.example.viadapp.rest
 
 import graphql.ExecutionResult
 import kotlinx.coroutines.future.await
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
@@ -12,10 +11,9 @@ import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
 
 @RestController
-class ViaductGraphQLController {
-    @Autowired
-    lateinit var viaduct: Viaduct
-
+class ViaductGraphQLController(
+    private val viaduct: Viaduct
+) {
     @PostMapping("/graphql")
     suspend fun graphql(
         @RequestBody request: Map<String, Any>

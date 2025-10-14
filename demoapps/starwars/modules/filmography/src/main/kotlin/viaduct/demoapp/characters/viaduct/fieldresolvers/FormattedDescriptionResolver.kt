@@ -46,6 +46,7 @@ import viaduct.demoapp.filmography.resolverbases.CharacterResolvers
  * @see ProfileResolver for @Variable fromArgument example
  * @see StatsResolver for VariableProvider example
  */
+// tag::resolver_example[19] Example of argument-based conditional logic for formatted description
 @Resolver(
     """
     fragment _ on Character {

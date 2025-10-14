@@ -11,6 +11,7 @@ import viaduct.api.grts.Starship
  */
 class StarshipBuilder(private val ctx: ExecutionContext) {
     fun build(starship: viaduct.demoapp.universe.starships.models.entities.Starship): Starship =
+        // tag::global_id_example[3] Example using global IDs
         Starship.Builder(ctx)
             .id(ctx.globalIDFor(Starship.Reflection, starship.id))
             .name(starship.name)

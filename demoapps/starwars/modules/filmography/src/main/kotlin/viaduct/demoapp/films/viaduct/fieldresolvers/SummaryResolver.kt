@@ -10,6 +10,7 @@ import viaduct.demoapp.filmography.resolverbases.FilmResolvers
  *
  * @resolver("title episodeID director"): Fragment syntax for accessing multiple fields
  */
+// tag::resolver_example[9] Example of a computed field resolver
 @Resolver("title episodeID director")
 class SummaryResolver : FilmResolvers.Summary() {
     override suspend fun resolve(ctx: Context): String? {

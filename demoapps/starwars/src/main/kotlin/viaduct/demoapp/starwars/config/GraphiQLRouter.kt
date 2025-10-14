@@ -1,4 +1,4 @@
-package com.example.viadapp.injector
+package viaduct.demoapp.starwars.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -7,22 +7,14 @@ import org.springframework.core.io.ClassPathResource
 import org.springframework.web.servlet.function.RouterFunction
 import org.springframework.web.servlet.function.RouterFunctions
 import org.springframework.web.servlet.function.ServerResponse
-import viaduct.service.BasicViaductFactory
-import viaduct.service.TenantRegistrationInfo
 
+/**
+ * Minimal GraphiQL Web interface to interact with the Viaduct-powered GraphQL API.
+ *
+ * This router function serves the GraphiQL interface at the http://localhost:8080/graphiql endpoint.
+ */
 @Configuration
-class ViaductConfiguration(
-    private val codeInjector: SpringTenantCodeInjector
-) {
-    @Bean
-    fun viaductService() =
-        BasicViaductFactory.create(
-            tenantRegistrationInfo = TenantRegistrationInfo(
-                tenantPackagePrefix = "com.example.viadapp",
-                tenantCodeInjector = codeInjector
-            )
-        )
-
+class GraphiQLRouter {
     @Bean
     @Order(0)
     fun graphiQlRouterFunction(): RouterFunction<ServerResponse> {

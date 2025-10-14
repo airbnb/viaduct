@@ -65,6 +65,7 @@ type Species implements Node @scope(to: ["default", "extras"]) @resolver {
   edited: String
 }
 
+# tag::schemas_extras_example[7] Example of schema definition
 extend type Species @scope(to: ["extras"]) {
   culturalNotes: String @resolver
   rarityLevel: String @resolver
