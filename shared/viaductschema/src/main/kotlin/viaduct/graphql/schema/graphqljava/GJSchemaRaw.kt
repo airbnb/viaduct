@@ -427,7 +427,7 @@ class GJSchemaRaw private constructor(
             }
 
         override val appliedDirectives by lazy {
-            typeMap.collectDirectives(registry, def, emptyList(), valueConverter)
+            typeMap.collectDirectives(registry, def, extensionDefs, valueConverter)
         }
 
         override val possibleObjectTypes: Set<Object> get() = setOf<Object>()

@@ -4,9 +4,6 @@ plugins {
 }
 
 tasks.test {
-    filter {
-        includeTestsMatching("viaduct.graphql.schema.test.UtilsTest")
-    }
     environment("PACKAGE_WITH_SCHEMA", "invalidschemapkg")
 }
 
