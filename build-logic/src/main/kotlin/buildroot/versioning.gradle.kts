@@ -146,9 +146,10 @@ fun computeBaseVersion(repoMajor: Int, latestModule: String?, latestApp: String?
     }
 }
 
-val baseVersion = computeBaseVersion(repoMajor, latestModuleVersion, latestAppVersion, isPatchRelease, isMajorVersionRelease)
+// Use VERSION file directly for local builds and CI
+val baseVersion = baseVersionRaw
 
-logger.lifecycle("Computed base version: $baseVersion (weekly=$isWeeklyRelease, majorRelease=$isMajorVersionRelease, release=$releaseFlag, tag=$isReleaseTag, patch=$isPatchRelease)")
+logger.lifecycle("Using version from VERSION file: $baseVersion (weekly=$isWeeklyRelease, majorRelease=$isMajorVersionRelease, release=$releaseFlag, tag=$isReleaseTag, patch=$isPatchRelease)")
 
 // Check VIADUCT_PLUGIN_SNAPSHOT environment variable to determine snapshot behavior
 // When VIADUCT_PLUGIN_SNAPSHOT=false, treat as a release (used for automatic version detection)

@@ -1,11 +1,9 @@
 import viaduct.gradle.internal.includeNamed
 
 pluginManagement {
-    repositories {
-        gradlePluginPortal()
-    }
     includeBuild("build-logic")
     includeBuild("build-test-plugins")
+    includeBuild("gradle-plugins")
 }
 
 plugins {
@@ -35,7 +33,6 @@ include(":tenant:codegen-integration-tests")
 include(":tenant:api-integration-tests")
 include(":tenant:runtime-integration-tests")
 include(":tenant:tutorials")
-
 
 // misc
 include(":docs")

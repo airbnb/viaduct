@@ -42,6 +42,9 @@ dependencies {
     testImplementation(libs.kotest.runner.junit)
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.kotest.assertions.json)
+
+    // Add engine-wiring for SchemaFactory support in tests
+    testImplementation("com.airbnb.viaduct:engine-wiring")
 }
 
 tasks.withType<Test> {
