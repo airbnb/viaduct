@@ -404,18 +404,25 @@ interface ViaductExtendedSchemaContract {
 
     @Test
     fun `test appliedDirectives returns the right list of directive names`() {
-        // TODO(https://app.asana.com/1/150975571430/project/1203659453427089/task/1210815630416759?focus=true): add tests for directives on args & scalars
         makeSchema(
             """
             directive @d1 on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
             directive @d2 on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
             directive @d3 on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
             directive @d4 on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
+            directive @d5 on ARGUMENT_DEFINITION
+            directive @d6 on ARGUMENT_DEFINITION
+            directive @d7 on SCALAR
+            directive @d8 on SCALAR
+            scalar CustomScalar @d7
+            extend scalar CustomScalar @d8
             type Query @d1 {
                 f1: String @d3
+                f3(arg1: String @d5): Int
             }
             extend type Query @d2 {
                 f2: Int @d3 @d4
+                f4(arg2: Int @d5 @d6): String
             }
             enum Enum @d1 {
                 V1 @d3
@@ -431,6 +438,7 @@ interface ViaductExtendedSchemaContract {
             }
             interface Interface @d1 {
                 f1: Enum @d3
+                f3(arg3: Boolean @d5): String
             }
             extend interface Interface @d2 {
                 f2: String @d3 @d4
@@ -470,6 +478,18 @@ interface ViaductExtendedSchemaContract {
             }
             withField("Interface", "f2") {
                 assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { it.name })
+            }
+            withArg("Query", "f3", "arg1") {
+                assertEquals(listOf("d5"), it.appliedDirectives.map { it.name })
+            }
+            withArg("Query", "f4", "arg2") {
+                assertEquals(listOf("d5", "d6"), it.appliedDirectives.map { it.name })
+            }
+            withArg("Interface", "f3", "arg3") {
+                assertEquals(listOf("d5"), it.appliedDirectives.map { it.name })
+            }
+            withType("CustomScalar") {
+                assertEquals(listOf("d7", "d8"), it.appliedDirectives.map { it.name })
             }
         }
     }
