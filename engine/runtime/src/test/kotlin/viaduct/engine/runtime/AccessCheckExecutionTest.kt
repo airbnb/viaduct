@@ -5,7 +5,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
@@ -89,9 +88,7 @@ class AccessCheckExecutionTest {
         }
 
         assertTrue(asyncFieldCheckerRan)
-        assumeTrue(syncFieldCheckerRan, "Sync field checkers not yet implemented")
-        // TODO: uncomment after registering all checkers and remove above assumeTrue assertion
-        // assertTrue(syncFieldCheckerRan)
+        assertTrue(syncFieldCheckerRan)
     }
 
     @Test
@@ -113,28 +110,24 @@ class AccessCheckExecutionTest {
         }
     }
 
-    // TODO: uncomment after registering all checkers
-    // @Test
-    // fun `sync field successful, checker throws`() {
-    //     builder()
-    //         .resolver(
-    //             "Query" to "boo",
-    //             { ctx: UntypedFieldContext -> Boo.Builder(ctx).value(5).build() },
-    //         )
-    //         .fieldChecker(
-    //             "Boo" to "value",
-    //             executeFn = { args, pobj -> throw RuntimeException("permission denied") }
-    //         )
-    //         .build()
-    //         .execute("{ boo { value } }")
-    //         .apply { errors ->
-    //             assertEquals(1, errors.size)
-    //             errors[0].let { error ->
-    //                 assertEquals(listOf("boo", "value"), error.path)
-    //                 assertTrue(error.message.contains("permission denied"))
-    //             }
-    //         }.getData<Map<String, Any?>>().assertJson("{boo: {value: null}}")
-    // }
+    @Test
+    fun `sync field successful, checker throws`() {
+        MockTenantModuleBootstrapper(SDL) {
+            fieldWithValue("Query" to "boo", mkEngineObjectData(booType, mapOf("value" to 5)))
+            field("Boo" to "value") {
+                checker {
+                    fn { _, _, -> throw RuntimeException("permission denied") }
+                }
+            }
+        }.runFeatureTest {
+            val result = viaduct.runQuery("{ boo { value } }")
+            assertEquals(mapOf("boo" to mapOf("value" to null)), result.getData())
+            assertEquals(1, result.errors.size)
+            val error = result.errors[0]
+            assertEquals(listOf("boo", "value"), error.path)
+            assertTrue(error.message.contains("permission denied"))
+        }
+    }
 
     @Test
     fun `async field throws, checker throws`() {
@@ -416,30 +409,27 @@ class AccessCheckExecutionTest {
     }
 
     @Test
-    fun `field check succeeds, type check fails`() {
+    fun `field check succeeds type check fails`() {
         MockTenantModuleBootstrapper(schema) {
-            field("Query" to "baz") {
+            field("Query" to "boo") {
                 resolver {
-                    fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
+                    fn { _, _, _, _, ctx -> mkEngineObjectData(booType, mapOf("value" to 2)) }
                 }
                 checker {
                     fn { _, _ -> /* access granted */ }
                 }
             }
-            type("Baz") {
-                nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
-                }
+            type("Boo") {
                 checker {
                     fn { _, _ -> throw RuntimeException("type checker failed") }
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ baz { id } }")
-            assertEquals(mapOf("baz" to null), result.getData())
+            val result = viaduct.runQuery("{ boo { value } }")
+            assertEquals(mapOf("boo" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
-            assertEquals(listOf("baz"), error.path)
+            assertEquals(listOf("boo"), error.path)
             assertTrue(error.message.contains("type checker failed"))
         }
     }

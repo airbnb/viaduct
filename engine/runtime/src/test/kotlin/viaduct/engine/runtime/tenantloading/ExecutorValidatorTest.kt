@@ -3,6 +3,7 @@ package viaduct.engine.runtime.tenantloading
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockCheckerExecutor
@@ -31,19 +32,18 @@ class ExecutorValidatorTest {
 
     private fun test(
         bootstrappers: List<TenantModuleBootstrapper> = listOf(moduleBootstrap),
+        checkerExecutorFactory: CheckerExecutorFactory = MockCheckerExecutorFactory(),
         nodeResolverValidator: Validator<NodeResolverExecutorValidationCtx> = Validator.Unvalidated,
         resolverExecutorValidator: Validator<FieldResolverExecutorValidationCtx> = Validator.Unvalidated,
         requiredSelectionSetValidator: Validator<RequiredSelectionsValidationCtx> = Validator.Unvalidated,
-        checkerExecutorValidator: Validator<FieldCheckerExecutorValidationCtx> = Validator.Unvalidated
+        checkerExecutorValidator: Validator<CheckerExecutorValidationCtx> = Validator.Unvalidated
     ) {
         val validator = ExecutorValidator(nodeResolverValidator, resolverExecutorValidator, requiredSelectionSetValidator, checkerExecutorValidator)
         DispatcherRegistryFactory(
             MockTenantAPIBootstrapper(bootstrappers),
             validator,
-            MockCheckerExecutorFactory(
-                mapOf("Foo" to "field" to MockCheckerExecutor())
-            )
-        ).create(MockSchema.minimal)
+            checkerExecutorFactory
+        ).create(MockSchema.mk("type Foo { field: Int }"))
     }
 
     @Test
@@ -108,9 +108,27 @@ class ExecutorValidatorTest {
     }
 
     @Test
-    fun `fails on checkerExecutor validator validator failure`() {
+    fun `fails on field checkerExecutor validator failure`() {
         assertThrows<IllegalArgumentException> {
-            test(checkerExecutorValidator = Validator.Invalid)
+            test(
+                checkerExecutorFactory = MockCheckerExecutorFactory(
+                    mapOf("Foo" to "field" to MockCheckerExecutor())
+                ),
+                checkerExecutorValidator = Validator.Invalid
+            )
+        }
+    }
+
+    @Test
+    fun `fails on type checkerExecutor validator failure`() {
+        assertThrows<IllegalArgumentException> {
+            test(
+                checkerExecutorFactory = MockCheckerExecutorFactory(
+                    mapOf(),
+                    mapOf("Foo" to MockCheckerExecutor())
+                ),
+                checkerExecutorValidator = Validator.Invalid
+            )
         }
     }
 }

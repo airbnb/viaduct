@@ -13,7 +13,7 @@ class ExecutorValidator(
     val nodeResolverValidator: Validator<NodeResolverExecutorValidationCtx>,
     val fieldResolverExecutorValidator: Validator<FieldResolverExecutorValidationCtx>,
     val requiredSelectionsValidator: Validator<RequiredSelectionsValidationCtx>,
-    val fieldCheckerExecutorValidator: Validator<FieldCheckerExecutorValidationCtx>
+    val checkerExecutorValidator: Validator<CheckerExecutorValidationCtx>,
 ) : Validator<ExecutorValidatorContext> {
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: ExecutorValidatorContext) {
@@ -25,8 +25,8 @@ class ExecutorValidator(
 
         val rssValidatedCoords = mutableSetOf<Coordinate>()
         ctx.fieldCheckerExecutors.forEach { (coord, executor) ->
-            fieldCheckerExecutorValidator.validate(
-                FieldCheckerExecutorValidationCtx(coord, executor)
+            checkerExecutorValidator.validate(
+                CheckerExecutorValidationCtx(coord.first, executor)
             )
             if (executor.requiredSelectionSets.any { it.value != null } &&
                 rssValidatedCoords.add(coord)
@@ -42,6 +42,9 @@ class ExecutorValidator(
         }
 
         ctx.typeCheckerExecutors.forEach { (typeName, executor) ->
+            checkerExecutorValidator.validate(
+                CheckerExecutorValidationCtx(typeName, executor)
+            )
             if (executor.requiredSelectionSets.any { it.value != null }) {
                 requiredSelectionsValidator.validate(
                     RequiredSelectionsValidationCtx(
@@ -96,8 +99,8 @@ data class RequiredSelectionsValidationCtx(
     val requiredSelectionSetRegistry: RequiredSelectionSetRegistry
 )
 
-data class FieldCheckerExecutorValidationCtx(
-    val coord: Coordinate,
+data class CheckerExecutorValidationCtx(
+    val typeName: String,
     val executor: CheckerExecutor
 )
 

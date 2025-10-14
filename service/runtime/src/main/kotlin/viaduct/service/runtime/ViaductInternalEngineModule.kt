@@ -180,7 +180,7 @@ internal class ViaductInternalEngineModule : AbstractModule() {
                 FromArgumentVariablesHaveValidPaths(schema),
                 FromFieldVariablesHaveValidPaths(schema)
             ).flatten(),
-            fieldCheckerExecutorValidator = CheckerSelectionSetsAreProperlyTyped(schema),
+            checkerExecutorValidator = CheckerSelectionSetsAreProperlyTyped(schema),
         )
     }
 

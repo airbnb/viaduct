@@ -2,6 +2,7 @@
 
 package viaduct.engine.runtime.tenantloading
 
+import graphql.schema.GraphQLObjectType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory.getLogger
@@ -65,29 +66,35 @@ class DispatcherRegistryFactory(
             for ((fieldCoord, executor) in tenantFieldResolverExecutors) {
                 fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(executor)
                 fieldResolverExecutorsToValidate[fieldCoord] = executor
-                // Enable access controls for resolver fields only
-                checkerExecutorFactory.checkerExecutorForField(schema, fieldCoord.first, fieldCoord.second)?.let {
-                    fieldCheckerDispatchers[fieldCoord] = CheckerDispatcherImpl(it)
-                    fieldCheckerExecutorsToValidate[fieldCoord] = it
-                }
                 tenantContributesExecutors = true
             }
             for ((typeName, executor) in tenantNodeResolverExecutors) {
                 nodeResolverDispatchers[typeName] = NodeResolverDispatcherImpl(executor)
                 nodeResolverExecutorsToValidate[typeName] = executor
-            }
-            for ((typeName, _) in nodeResolverDispatchers) {
-                // Enable access controls for node resolvers only
-                checkerExecutorFactory.checkerExecutorForType(schema, typeName)?.let {
-                    typeCheckerDispatchers[typeName] = CheckerDispatcherImpl(it)
-                    typeCheckerExecutorsToValidate[typeName] = it
-                }
                 tenantContributesExecutors = true
             }
             if (!tenantContributesExecutors) {
                 log().warn("Bootstrapping $tenant (a ${tenant.javaClass.name}) did not contribute any executors")
                 if (tenant.javaClass.simpleName == "ViaductTenantModuleBootstrapper") {
                     nonContributingModernBootstrappersPresent = true
+                }
+            }
+        }
+
+        // Register access checkers
+        schema.schema.allTypesAsList.forEach { type ->
+            if (type is GraphQLObjectType) {
+                val typeName = type.name
+                type.fields.forEach { field ->
+                    checkerExecutorFactory.checkerExecutorForField(schema, typeName, field.name)?.let {
+                        val fieldCoord = typeName to field.name
+                        fieldCheckerDispatchers[fieldCoord] = CheckerDispatcherImpl(it)
+                        fieldCheckerExecutorsToValidate[fieldCoord] = it
+                    }
+                }
+                checkerExecutorFactory.checkerExecutorForType(schema, typeName)?.let {
+                    typeCheckerDispatchers[typeName] = CheckerDispatcherImpl(it)
+                    typeCheckerExecutorsToValidate[typeName] = it
                 }
             }
         }
