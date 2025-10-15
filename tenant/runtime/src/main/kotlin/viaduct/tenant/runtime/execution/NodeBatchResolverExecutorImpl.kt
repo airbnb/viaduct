@@ -13,11 +13,7 @@ import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeResolverExecutor
-import viaduct.tenant.runtime.context.factory.NodeArgs
-import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
-import viaduct.tenant.runtime.internal.InternalContextImpl
-import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
-import viaduct.tenant.runtime.select.SelectionsLoaderImpl
+import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
 
 class NodeBatchResolverExecutorImpl(
     val resolver: Provider<out NodeResolverBase<*>>,
@@ -34,17 +30,7 @@ class NodeBatchResolverExecutorImpl(
         context: EngineExecutionContext
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         val contexts = selectors.map { key ->
-            factory.make(
-                NodeArgs(
-                    InternalContextImpl(context.fullSchema, globalIDCodec, reflectionLoader),
-                    selections = key.selections,
-                    globalID = key.id,
-                    selectionsLoaderFactory = SelectionsLoaderImpl.Factory(context.rawSelectionsLoaderFactory),
-                    selectionSetFactory = SelectionSetFactoryImpl(context.rawSelectionSetFactory),
-                    resolverId = typeName,
-                    engineExecutionContext = context,
-                )
-            )
+            factory(context, key.selections, context.requestContext, key.id)
         }
         val resolver = resolver.get()
         val results = wrapResolveException(typeName) {

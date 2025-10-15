@@ -31,9 +31,11 @@ import viaduct.tenant.runtime.context.factory.ArgumentsArgs
 import viaduct.tenant.runtime.context.factory.ArgumentsFactory
 import viaduct.tenant.runtime.context.factory.Factory
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextMetaFactory
-import viaduct.tenant.runtime.context.factory.NodeExecutionContextMetaFactory
 import viaduct.tenant.runtime.context.factory.ObjectFactory
 import viaduct.tenant.runtime.context.factory.SelectionSetFactory as SelectionSetContextFactory
+import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
+import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
+import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 /**
@@ -53,6 +55,11 @@ class FeatureTestBuilder {
     private val typeCheckerStubs = mutableMapOf<String, CheckerExecutorStub>()
     private var instrumentation: Instrumentation? = null
     private var meterRegistry: MeterRegistry? = null
+
+    private val reflectionLoader =
+        ReflectionLoaderImpl { name -> Class.forName("viaduct.tenant.runtime.featuretests.fixtures.$name").kotlin }
+
+    private val globalIDCodec = GlobalIDCodecImpl(reflectionLoader)
 
     /**
      * Configure a resolver that binds the provided [resolveFn] to the provided schema [coordinate].
@@ -216,9 +223,15 @@ class FeatureTestBuilder {
         typeName: String,
         resolveFn: suspend (ctx: Ctx) -> NodeObject
     ): FeatureTestBuilder {
+        @Suppress("UNCHECKED_CAST")
+        val resultType = reflectionLoader.reflectionFor(typeName) as Type<NodeObject>
+
         val resolver = NodeUnbatchedResolverStub(
-            NodeExecutionContextMetaFactory.create(
-                selections = SelectionSetContextFactory.forTypeName(typeName)
+            NodeExecutionContextFactory(
+                NodeExecutionContextFactory.FakeResolverBase::class.java,
+                globalIDCodec,
+                reflectionLoader,
+                resultType,
             )
         ) { ctx ->
             @Suppress("UNCHECKED_CAST")
@@ -245,9 +258,14 @@ class FeatureTestBuilder {
         typeName: String,
         batchResolveFn: suspend (ctxs: List<Ctx>) -> List<FieldValue<NodeObject>>
     ): FeatureTestBuilder {
+        val resultType = reflectionLoader.reflectionFor(typeName) as Type<NodeObject>
+
         val resolver = NodeBatchResolverStub(
-            NodeExecutionContextMetaFactory.create(
-                selections = SelectionSetContextFactory.forTypeName(typeName)
+            NodeExecutionContextFactory(
+                NodeExecutionContextFactory.FakeResolverBase::class.java,
+                globalIDCodec,
+                reflectionLoader,
+                resultType,
             )
         ) { ctxs ->
             batchResolveFn(ctxs as List<Ctx>)

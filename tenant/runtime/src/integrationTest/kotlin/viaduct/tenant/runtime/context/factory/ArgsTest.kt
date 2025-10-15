@@ -15,7 +15,7 @@ class ArgsTest {
             objectValue = exp.getFieldArgs().objectValue,
             queryValue = exp.getFieldArgs().queryValue,
             resolverId = exp.resolverId,
-            selectionSetFactory = exp.getNodeArgs().selectionSetFactory,
+            selectionSetFactory = MockArgs.selectionSetFactory,
             selections = exp.selections,
             selectionsLoaderFactory = exp.selectionsLoaderFactory,
             engineExecutionContext = exp.engineExecutionContext,
@@ -25,29 +25,7 @@ class ArgsTest {
             assertSame(exp.getFieldArgs().objectValue, it.objectValue)
             assertSame(exp.getFieldArgs().queryValue, it.queryValue)
             assertSame(exp.resolverId, it.resolverId)
-            assertSame(exp.getNodeArgs().selectionSetFactory, it.selectionSetFactory)
-            assertSame(exp.selections, it.selections)
-            assertSame(exp.selectionsLoaderFactory, it.selectionsLoaderFactory)
-            assertSame(exp.engineExecutionContext, it.engineExecutionContext)
-        }
-    }
-
-    @Test
-    fun `NodeArgs -- invoke`() {
-        val exp = MockArgs()
-        NodeArgs(
-            internalContext = exp.internalContext,
-            globalID = exp.globalID,
-            resolverId = exp.resolverId,
-            selectionSetFactory = exp.getNodeArgs().selectionSetFactory,
-            selections = exp.selections,
-            selectionsLoaderFactory = exp.selectionsLoaderFactory,
-            engineExecutionContext = exp.engineExecutionContext,
-        ).let {
-            assertSame(exp.internalContext, it.internalContext)
-            assertSame(exp.globalID, it.globalID)
-            assertSame(exp.resolverId, it.resolverId)
-            assertSame(exp.getNodeArgs().selectionSetFactory, it.selectionSetFactory)
+            assertSame(MockArgs.selectionSetFactory, it.selectionSetFactory)
             assertSame(exp.selections, it.selections)
             assertSame(exp.selectionsLoaderFactory, it.selectionsLoaderFactory)
             assertSame(exp.engineExecutionContext, it.engineExecutionContext)

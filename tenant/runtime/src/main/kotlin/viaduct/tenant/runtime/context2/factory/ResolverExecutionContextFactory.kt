@@ -7,6 +7,7 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.globalid.GlobalIDCodec
+import viaduct.api.internal.InternalContext
 import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.ResolverBase
@@ -94,7 +95,7 @@ class NodeExecutionContextFactory(
 
     // visible for testing
     class FakeResolverBase<T : NodeObject> : NodeResolverBase<T> {
-        class Context<T : NodeObject>(ctx: NodeExecutionContext<T>) : NodeExecutionContext<T> by ctx
+        class Context<T : NodeObject>(ctx: NodeExecutionContext<T>) : NodeExecutionContext<T> by ctx, InternalContext by (ctx as InternalContext)
     }
 }
 
@@ -135,7 +136,7 @@ class RegularFieldExecutionContextFactory(
     // visible for testing
     class FakeResolverBase<O : CompositeOutput> : ResolverBase<O> {
         class Context<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(ctx: FieldExecutionContext<T, Q, A, O>) :
-            FieldExecutionContext<T, Q, A, O> by ctx
+            FieldExecutionContext<T, Q, A, O> by ctx, InternalContext by (ctx as InternalContext)
     }
 }
 

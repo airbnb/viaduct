@@ -32,7 +32,7 @@ import viaduct.tenant.runtime.bootstrap.RequiredSelectionSetFactory
 import viaduct.tenant.runtime.context.factory.ArgumentsArgs
 import viaduct.tenant.runtime.context.factory.Factory
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
-import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
+import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 

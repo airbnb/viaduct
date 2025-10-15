@@ -89,17 +89,6 @@ class MockArgs(
             engineExecutionContext = engineExecutionContext
         )
 
-    fun getNodeArgs() =
-        NodeArgs(
-            internalContext = internalContext,
-            selections = selections,
-            globalID = globalID,
-            selectionSetFactory = selectionSetFactory,
-            resolverId = resolverId,
-            selectionsLoaderFactory = selectionsLoaderFactory,
-            engineExecutionContext = engineExecutionContext,
-        )
-
     fun getObjectArgs() =
         ObjectArgs(
             internalContext = internalContext,

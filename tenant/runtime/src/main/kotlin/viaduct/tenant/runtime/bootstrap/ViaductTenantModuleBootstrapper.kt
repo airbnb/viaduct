@@ -10,12 +10,13 @@ import viaduct.api.Resolver
 import viaduct.api.Variables
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
-import viaduct.api.context.NodeExecutionContext
 import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.ResolverFor
+import viaduct.api.reflect.Type
 import viaduct.api.types.Arguments
+import viaduct.api.types.NodeObject
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.TenantModuleBootstrapper
@@ -25,12 +26,11 @@ import viaduct.service.api.spi.TenantCodeInjector
 import viaduct.tenant.runtime.context.factory.ArgumentsFactory
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextMetaFactory
 import viaduct.tenant.runtime.context.factory.MutationFieldExecutionContextMetaFactory
-import viaduct.tenant.runtime.context.factory.NodeExecutionContextMetaFactory
-import viaduct.tenant.runtime.context.factory.NodeResolverContextFactory
 import viaduct.tenant.runtime.context.factory.ObjectFactory
 import viaduct.tenant.runtime.context.factory.ResolverContextFactory
 import viaduct.tenant.runtime.context.factory.SelectionSetFactory as SelectionSetContextFactory
 import viaduct.tenant.runtime.context.factory.SelectionsLoaderFactory
+import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl
@@ -301,6 +301,11 @@ class ViaductTenantModuleBootstrapper(
                 continue
             }
 
+            @Suppress("UNCHECKED_CAST")
+            val reflectiveType = reflectionLoader.reflectionFor(typeName) as Type<NodeObject>
+            val resolverContextFactory: NodeExecutionContextFactory =
+                NodeExecutionContextFactory(baseClass, globalIDCodec, reflectionLoader, reflectiveType)
+
             if (nodeResolverClasses.size != 1) {
                 throw TenantModuleException(
                     "Expected exactly one resolver implementation for $typeName, " +
@@ -319,19 +324,10 @@ class ViaductTenantModuleBootstrapper(
                 // By re-throwing a TenantModuleException, we ensure we only skip the bootstrapping of one offending tenant.
                 throw TenantModuleException("Resolver class $resolverClass could not be injected into", e)
             }
+
             val resolverKClass = resolverClass.kotlin
             val resolveFunction = resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "resolve" }
             val batchResolveFunction = resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "batchResolve" }
-
-            val nodeContextClasses = ExecutionContextClasses(NodeExecutionContext::class, baseClass)
-
-            val contextKClass = nodeContextClasses.context
-            val resolverContextFactory = NodeResolverContextFactory.forClass(
-                contextKClass,
-                NodeExecutionContextMetaFactory.create(
-                    selections = SelectionSetContextFactory.forTypeName(typeName),
-                )
-            )
 
             if (resolveFunction != null) {
                 if (batchResolveFunction != null) {
