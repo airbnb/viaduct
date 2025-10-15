@@ -81,7 +81,6 @@ private interface ResolverModel {
     val grtArgsName: String
     val grtOutputName: String
     val typeSpecifier: String
-    val ctxType: String
     val ctxInterface: String
 }
 
@@ -116,13 +115,6 @@ private class ResolverModelImpl(val field: ViaductExtendedSchema.Field, val grtP
         }
 
     override val typeSpecifier: String = field.kmType(JavaName(grtPackage).asKmName, baseTypeMapper).kotlinTypeString
-    override val ctxType: String
-        get() =
-            if (this.field.containingDef.name == "Mutation") {
-                "viaduct.tenant.runtime.context.MutationFieldExecutionContextImpl"
-            } else {
-                "viaduct.tenant.runtime.context.FieldExecutionContextImpl"
-            }
     override val ctxInterface: String
         get() =
             if (this.field.containingDef.name == "Mutation") {
@@ -157,10 +149,9 @@ private val resolverST = stTemplate(
     """
     @ResolverFor(typeName = "<mdl.gqlTypeName>", fieldName = "<mdl.gqlFieldName>")
     abstract class <mdl.resolverName> : ResolverBase\<<mdl.typeSpecifier>\> {
-        @JvmInline
-        value class Context(
-            private val inner: <mdl.ctxType>\<<mdl.grtTypeName>, <mdl.queryGrtTypeName>, <mdl.grtArgsName>, <mdl.grtOutputName>\>
-        ) : <mdl.ctxInterface>\<<mdl.grtTypeName>, <mdl.queryGrtTypeName>, <mdl.grtArgsName>, <mdl.grtOutputName>\> by inner, InternalContext by inner
+        class Context(
+            private val inner: <mdl.ctxInterface>\<<mdl.grtTypeName>, <mdl.queryGrtTypeName>, <mdl.grtArgsName>, <mdl.grtOutputName>\>
+        ) : <mdl.ctxInterface>\<<mdl.grtTypeName>, <mdl.queryGrtTypeName>, <mdl.grtArgsName>, <mdl.grtOutputName>\> by inner, InternalContext by (inner as InternalContext)
         open suspend fun resolve(ctx: Context): <mdl.typeSpecifier> =
             throw NotImplementedError("<mdl.gqlTypeName>.<mdl.gqlFieldName>.resolve not implemented")
 

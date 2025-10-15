@@ -80,7 +80,6 @@ private interface NodesModel {
 private interface NodeModel {
     val grtPackage: String
     val typeName: String
-    val ctxType: String
     val ctxInterface: String
 }
 
@@ -89,8 +88,6 @@ private class NodesModelImpl(override val tenantPackage: String, grtPackage: Str
 }
 
 private class NodeModelImpl(override val typeName: String, override val grtPackage: String) : NodeModel {
-    override val ctxType: String
-        get() = "viaduct.tenant.runtime.context.NodeExecutionContextImpl"
     override val ctxInterface: String
         get() = "viaduct.api.context.NodeExecutionContext"
 }
@@ -121,10 +118,9 @@ private val nodeSt = stTemplate(
             open suspend fun batchResolve(contexts: List\<Context>): List\<FieldValue\<<mdl.grtPackage>.<mdl.typeName>\>> =
                 throw NotImplementedError("Nodes.<mdl.typeName>.batchResolve not implemented")
 
-            @JvmInline
-            value class Context(
-                private val inner: <mdl.ctxType>\<<mdl.grtPackage>.<mdl.typeName>\>
-            ) : <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\> by inner, InternalContext by inner
+            class Context(
+                private val inner: <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>
+            ) : <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\> by inner, InternalContext by (inner as InternalContext)
         }
     """.trimIndent()
 )

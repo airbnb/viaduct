@@ -1,7 +1,7 @@
 package viaduct.tenant.runtime.context2
 
+import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.MutationFieldExecutionContextTmp
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
@@ -23,7 +23,7 @@ class MutationFieldExecutionContextImpl(
     arguments: Arguments,
     objectValue: Object,
     queryValue: Query,
-) : MutationFieldExecutionContextTmp<Object, Query, Arguments, CompositeOutput>,
+) : MutationFieldExecutionContext<Object, Query, Arguments, CompositeOutput>,
     SealedFieldExecutionContextImpl(baseData, engineExecutionContextWrapper, selections, requestContext, arguments, objectValue, queryValue) {
     constructor(
         baseData: InternalContext,

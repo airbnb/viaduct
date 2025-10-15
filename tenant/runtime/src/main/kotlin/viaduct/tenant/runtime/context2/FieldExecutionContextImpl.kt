@@ -1,6 +1,6 @@
 package viaduct.tenant.runtime.context2
 
-import viaduct.api.internal.FieldExecutionContextTmp
+import viaduct.api.context.FieldExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
@@ -20,7 +20,7 @@ sealed class SealedFieldExecutionContextImpl(
     override val arguments: Arguments,
     override val objectValue: Object,
     override val queryValue: Query,
-) : FieldExecutionContextTmp<Object, Query, Arguments, CompositeOutput>,
+) : FieldExecutionContext<Object, Query, Arguments, CompositeOutput>,
     ResolverExecutionContextImpl(baseData, engineExecutionContextWrapper) {
     override fun selections() = selections
 }

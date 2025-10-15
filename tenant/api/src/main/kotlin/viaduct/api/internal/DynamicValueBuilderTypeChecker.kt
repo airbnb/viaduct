@@ -67,9 +67,7 @@ value class DynamicValueBuilderTypeChecker(val ctx: InternalContext) {
         if (type.name == "BackingData") {
             val expectedKotlinClass = getKotlinTypeForBackingData(context.fieldDefinition)
             if (!expectedKotlinClass.isInstance(value)) {
-                throw IllegalArgumentException(
-                    "Expected value of type ${expectedKotlinClass.simpleName} for field ${context.fieldDefinition.name}, got ${value::class.simpleName}"
-                )
+                fieldError(expectedKotlinClass, value::class, context)
             }
         } else {
             val expectedKotlinClass = graphqlScalarTypeToKotlinClass(
@@ -80,9 +78,7 @@ value class DynamicValueBuilderTypeChecker(val ctx: InternalContext) {
                 "GraphQL scalar type ${type.name} mapping to Kotlin type not found for field ${context.fieldDefinition.name}"
             )
             if (!expectedKotlinClass.isInstance(value)) {
-                throw IllegalArgumentException(
-                    "Expected value of type ${expectedKotlinClass.simpleName} for field ${context.fieldDefinition.name}, got ${value::class.simpleName}"
-                )
+                fieldError(expectedKotlinClass, value::class, context)
             }
         }
     }
@@ -93,11 +89,10 @@ value class DynamicValueBuilderTypeChecker(val ctx: InternalContext) {
         value: Any,
         context: FieldContext
     ) {
-        try {
-            val enumClass = ctx.reflectionLoader.reflectionFor(type.name).kcls as KClass<out Enum<*>>
-            java.lang.Enum.valueOf(enumClass.java, value.toString())
-        } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException(e.message ?: "Failed to parse value $value for enum type ${type.name} for field ${context.fieldDefinition.name}")
+        val expectedClass = ctx.reflectionLoader.reflectionFor(type.name).kcls as KClass<out Enum<*>>
+        val actualClass = value::class
+        if (expectedClass != actualClass) {
+            fieldError(expectedClass, actualClass, context)
         }
     }
 
@@ -168,5 +163,15 @@ value class DynamicValueBuilderTypeChecker(val ctx: InternalContext) {
             )
         }
         return Class.forName(classPath).kotlin
+    }
+
+    private fun fieldError(
+        expected: KClass<*>,
+        actual: KClass<*>,
+        context: FieldContext,
+    ) {
+        throw IllegalArgumentException(
+            "Expected value of type ${expected.simpleName} for field ${context.fieldDefinition.name}, got ${actual.simpleName}"
+        )
     }
 }

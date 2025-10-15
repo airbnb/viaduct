@@ -7,8 +7,6 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.globalid.GlobalIDCodec
-import viaduct.api.internal.FieldExecutionContextTmp
-import viaduct.api.internal.MutationFieldExecutionContextTmp
 import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.ResolverBase
@@ -120,13 +118,13 @@ class RegularFieldExecutionContextFactory(
         rawArguments: Map<String, Any?>,
         rawObjectValue: EngineObjectData,
         rawQueryValue: EngineObjectData,
-    ): FieldExecutionContextTmp<*, *, *, *> {
+    ): FieldExecutionContext<*, *, *, *> {
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
         val wrappedContext = FieldExecutionContextImpl(
             internalContext,
             engineExecutionContext,
             this.toSelectionSet(rawSelections),
-            rawArguments,
+            requestContext,
             argumentsType.makeGRT(internalContext, rawArguments),
             objectType.makeGRT(internalContext, rawObjectValue),
             queryType.makeGRT(internalContext, rawQueryValue),
@@ -161,7 +159,7 @@ class MutationFieldExecutionContextFactory<T : Object, Q : Query, A : Arguments,
         rawArguments: Map<String, Any?>,
         rawObjectValue: EngineObjectData,
         rawQueryValue: EngineObjectData,
-    ): MutationFieldExecutionContextTmp<Object, Query, Arguments, CompositeOutput> {
+    ): MutationFieldExecutionContext<Object, Query, Arguments, CompositeOutput> {
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
         val wrappedContext = MutationFieldExecutionContextImpl(
             internalContext,

@@ -59,12 +59,12 @@ class DynamicValueBuilderTypeCheckerTest {
         val enumField = o1Type.getField("enumField")
         val context = DynamicValueBuilderTypeChecker.FieldContext(enumField, o1Type)
         checker.checkType(enumField.type, null, context)
-        checker.checkType(enumField.type, "A", context)
+        checker.checkType(enumField.type, E1.A, context)
 
         val e = assertThrows<IllegalArgumentException> {
-            checker.checkType(enumField.type, 123, context)
+            checker.checkType(enumField.type, "A", context)
         }
-        assertEquals("No enum constant ${E1::class.qualifiedName}.123", e.message)
+        assertEquals("Expected value of type E1 for field enumField, got String", e.message)
     }
 
     @Test
