@@ -20,7 +20,7 @@ enableGitInfo: false
 
 # You can add your own taxonomies
 taxonomies:
-  tag: tags
+  tag: tags 
   category: categories
 
 # Highlighting config
