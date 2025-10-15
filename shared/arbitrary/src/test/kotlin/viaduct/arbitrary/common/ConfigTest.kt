@@ -15,6 +15,7 @@ import io.kotest.property.arbitrary.withEdgecases
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class ConfigTest : KotestPropertyBase() {
@@ -36,6 +37,19 @@ class ConfigTest : KotestPropertyBase() {
                 putValid.isSuccess && putInvalid.isFailure
             }
         }
+
+    @Test
+    fun `Config_plus config overrides values`() {
+        val k1 = ConfigKey(1, Unvalidated)
+        val k2 = ConfigKey(2, Unvalidated)
+
+        val c1 = Config.default + (k1 to 11) + (k2 to 22)
+        val c2 = Config.default + (k1 to 111)
+        val combined = c1 + c2
+
+        assertEquals(111, combined[k1])
+        assertEquals(22, combined[k2])
+    }
 
     @Test
     fun `Config_get with missing key returns default value`(): Unit =

@@ -29,6 +29,9 @@ class Config private constructor(private val map: Map<ConfigKey<*>, Any?>) {
             Config(map + pair)
         }
 
+    /** Return a copy of this Config, overridden by any configurations in [overrides] */
+    operator fun plus(overrides: Config): Config = Config(map + overrides.map)
+
     companion object {
         /** A [Config] that returns default values for any [ConfigKey] */
         val default = Config(emptyMap())

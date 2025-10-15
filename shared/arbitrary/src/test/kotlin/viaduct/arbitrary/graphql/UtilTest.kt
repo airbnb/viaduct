@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.graphql.utils.allChildrenOfType
@@ -123,7 +124,7 @@ class UtilTest : KotestPropertyBase() {
         }
 
     @Test
-    fun weightedChoose(): Unit =
+    fun `weightedChoose -- with fallback`(): Unit =
         runBlocking {
             val weighted = Arb.constant(true)
             val fallback = Arb.constant(false)
@@ -136,6 +137,38 @@ class UtilTest : KotestPropertyBase() {
                     (weight == 1.0) == choseWeighted
                 }
         }
+
+    @Test
+    fun `weightedChoose -- list`(): Unit =
+        runBlocking {
+            // test that weights can sum to over 1.0 and that 0.0 weights are never chosen
+            val arb = Arb.weightedChoose(
+                listOf(
+                    0.0 to Arb.constant(0),
+                    1.0 to Arb.constant(1),
+                    1.0 to Arb.constant(2),
+                    0.0 to Arb.constant(3),
+                )
+            )
+
+            arb.forAll { it == 1 || it == 2 }
+        }
+
+    @Test
+    fun `weightedChoose -- empty list -- empty`() {
+        assertThrows<IllegalArgumentException> {
+            Arb.weightedChoose<Unit>(emptyList())
+        }
+        assertThrows<IllegalArgumentException> {
+            Arb.weightedChoose(listOf(0.0 to Arb.unit()))
+        }
+    }
+
+    @Test
+    fun `weightedChoose -- singleton list`() {
+        val arb = Arb.unit()
+        assertEquals(arb, Arb.weightedChoose(listOf(0.1 to arb)))
+    }
 
     @Test
     fun `Arb unit`(): Unit = runBlocking { Arb.unit().forAll { it == Unit } }

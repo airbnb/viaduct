@@ -154,7 +154,8 @@ object ListValueSize : ConfigKey<IntRange>(0..3, IntRangeValidator(0..Int.MAX_VA
 
 /**
  * The approximate maximum depth of attempted value generation. When generating
- * values past this depth, the value generator will return null when possible.
+ * values past this depth, the value generator will return null or empty values
+ * when possible.
  */
 object MaxValueDepth : ConfigKey<Int>(3, IntValidator(0..Int.MAX_VALUE))
 

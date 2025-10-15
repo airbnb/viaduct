@@ -36,6 +36,8 @@ import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.pair
 import io.kotest.property.arbitrary.shuffle
 import java.lang.IllegalArgumentException
+import kotlin.collections.filter
+import kotlin.collections.map
 import kotlin.math.max
 import kotlin.math.min
 import viaduct.arbitrary.common.CompoundingWeight
@@ -180,8 +182,9 @@ internal val builtinDirectives: Map<String, GraphQLDirective> =
     ).associateBy { it.name }
 
 /**
- * Arb.choose can, through the magic of edge cases, select an Arb that is assigned a weight of 0.
- * This method is a replacement for Arb.choose that will never pick an Arb with a 0 weight.
+ * This method is a replacement for [Arb.Companion.choose]. This method will
+ * never pick an Arb with a 0 weight. [Arb.Companion.choose] can, via edge cases, select an Arb
+ * that is a assigned a weight of 0.
  */
 fun <T> Arb.Companion.weightedChoose(
     weightedArb: Pair<Double, Arb<T>>,
@@ -204,6 +207,28 @@ fun <T> Arb.Companion.weightedChoose(
                 (1000 - intWeight) to fallbackArb
             )
         }
+    }
+}
+
+/**
+ * [Arb.Companion.choose] can, via edge cases, select an Arb that is assigned a weight of 0.
+ * This method is a replacement for [Arb.Companion.choose] that will never pick an Arb with a 0 weight.
+ */
+fun <T> Arb.Companion.weightedChoose(arbs: List<Pair<Double, Arb<T>>>): Arb<T> {
+    val weightedArbs = arbs
+        .filter { (weight, _) -> weight > 0.0 }
+        .map { (weight, arb) -> (weight * 1000).toInt() to arb }
+
+    require(weightedArbs.size > 0)
+
+    return if (weightedArbs.size == 1) {
+        weightedArbs.first().second
+    } else {
+        Arb.choose(
+            weightedArbs[0],
+            weightedArbs[1],
+            *weightedArbs.drop(2).toTypedArray()
+        )
     }
 }
 
