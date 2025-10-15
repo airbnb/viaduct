@@ -11,7 +11,7 @@ This project has been configured with Jacoco code coverage reporting optimized f
 - **Gradle integration**: Coverage automatically runs after tests 
 
 ### Available Gradle Tasks
-
+ 
 #### For individual modules:
 ```bash
 ./gradlew test jacocoTestReport
