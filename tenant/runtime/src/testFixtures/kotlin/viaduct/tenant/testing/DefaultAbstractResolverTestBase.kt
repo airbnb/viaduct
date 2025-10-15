@@ -2,14 +2,19 @@ package viaduct.tenant.testing
 
 import io.mockk.mockk
 import viaduct.api.context.ExecutionContext
+import viaduct.api.internal.select.SelectionSetFactory
+import viaduct.api.internal.select.SelectionsLoader
 import viaduct.engine.api.FragmentLoader
-import viaduct.tenant.runtime.context.ResolverExecutionContextImpl
 
 abstract class DefaultAbstractResolverTestBase : ResolverTestBase {
     override fun getFragmentLoader(): FragmentLoader = mockk()
 
-    override val selectionsLoaderFactory by lazy {
+    override val selectionsLoaderFactory: SelectionsLoader.Factory by lazy {
         mkSelectionsLoaderFactory()
+    }
+
+    override val ossSelectionSetFactory: SelectionSetFactory by lazy {
+        mkSelectionSetFactory()
     }
 
     /**
@@ -18,12 +23,6 @@ abstract class DefaultAbstractResolverTestBase : ResolverTestBase {
      * that's a subclass unique to the resolver.
      **/
     override val context: ExecutionContext by lazy {
-        ResolverExecutionContextImpl(
-            mkInternalContext(),
-            requestContext = null,
-            queryLoader = mkQueryLoader(),
-            selectionSetFactory = mkSelectionSetFactory(),
-            nodeReferenceFactory = mkNodeReferenceFactory()
-        )
+        mkExecutionContext()
     }
 }

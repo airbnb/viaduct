@@ -29,6 +29,7 @@ dependencies {
     testFixturesApi(libs.viaduct.shared.viaductschema)
 
     testFixturesImplementation(testFixtures(libs.viaduct.engine.api))
+    testFixturesImplementation(libs.viaduct.tenant.runtime)
 
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(libs.viaduct.tenant.runtime)

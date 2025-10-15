@@ -17,7 +17,6 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Query
 import viaduct.engine.api.ViaductSchema
-import viaduct.tenant.runtime.context.FieldExecutionContextImpl
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 class SimpleResolverTest : DefaultAbstractResolverTestBase() {
@@ -32,11 +31,12 @@ class SimpleResolverTest : DefaultAbstractResolverTestBase() {
     object QueryResolvers {
         @ResolverFor(typeName = "Query", fieldName = "field")
         abstract class Field : ResolverBase<String?> {
-            @JvmInline
-            value class Context(
-                private val inner: FieldExecutionContextImpl<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite>
+            // Context wraps MockFieldExecutionContext (the concrete mock type)
+            // This matches the generated pattern: value class wrapping the concrete execution context impl
+            class Context(
+                private val inner: FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite>
             ) : FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite> by inner,
-                InternalContext by inner
+                InternalContext by (inner as InternalContext)
 
             open suspend fun resolve(ctx: Context): String? = throw NotImplementedError("Query.field.resolve not implemented")
 

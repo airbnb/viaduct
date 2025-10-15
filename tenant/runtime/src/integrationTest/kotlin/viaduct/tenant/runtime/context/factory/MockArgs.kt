@@ -11,8 +11,10 @@ import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.internal.select.SelectionsLoader
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.mocks.MockInternalContext
-import viaduct.api.mocks.MockSelectionSetFactory
 import viaduct.api.mocks.MockSelectionsLoader
+import viaduct.api.reflect.Type
+import viaduct.api.select.SelectionSet
+import viaduct.api.types.CompositeOutput
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RawSelectionSet
@@ -130,4 +132,18 @@ class MockArgs(
             internalContext = internalContext,
             arguments = arguments,
         )
+}
+
+/**
+ * This was recently moved from projects/viaduct/oss/tenant/api/src/testFixtures/kotlin/viaduct/api/mocks/Mocks.kt
+ * because this was the only file using it.  This is not a very good test double, and in fact in most situations
+ * we can directly use the actual implementation for testing.  So when this context file goes away so will this mock.
+ */
+@Suppress("UNCHECKED_CAST")
+private class MockSelectionSetFactory(val selectionSet: SelectionSet<*> = SelectionSet.NoSelections) : SelectionSetFactory {
+    override fun <T : CompositeOutput> selectionsOn(
+        type: Type<T>,
+        selections: String,
+        variables: Map<String, Any?>
+    ): SelectionSet<T> = selectionSet as SelectionSet<T>
 }

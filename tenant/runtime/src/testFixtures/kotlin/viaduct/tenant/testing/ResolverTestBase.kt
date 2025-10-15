@@ -1,6 +1,5 @@
 package viaduct.tenant.testing
 
-import graphql.schema.GraphQLObjectType
 import io.mockk.mockk
 import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.KClass
@@ -13,43 +12,35 @@ import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
-import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
-import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.NodeReferenceGRTFactory
 import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ObjectBaseTestHelpers
-import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.internal
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.internal.select.SelectionsLoader
-import viaduct.api.mocks.MockGlobalID
-import viaduct.api.mocks.MockType
+import viaduct.api.mocks.MockExecutionContext
+import viaduct.api.mocks.MockFieldExecutionContext
+import viaduct.api.mocks.MockInternalContext
+import viaduct.api.mocks.MockMutationFieldExecutionContext
+import viaduct.api.mocks.MockNodeExecutionContext
+import viaduct.api.mocks.PrebakedResults
+import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
-import viaduct.api.types.Mutation
+import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.runtime.DispatcherRegistry
-import viaduct.engine.runtime.NodeEngineObjectDataImpl
 import viaduct.engine.runtime.RawSelectionsLoaderImpl
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
-import viaduct.tenant.runtime.context.FieldExecutionContextImpl
-import viaduct.tenant.runtime.context.MutationFieldExecutionContextImpl
-import viaduct.tenant.runtime.context.NodeExecutionContextImpl
-import viaduct.tenant.runtime.context.ResolverExecutionContextImpl
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
-import viaduct.tenant.runtime.internal.InternalContextImpl
-import viaduct.tenant.runtime.internal.NodeReferenceGRTFactoryImpl
-import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.select.SelectionsLoaderImpl
@@ -126,6 +117,8 @@ interface ResolverTestBase {
     fun getFragmentLoader(): FragmentLoader = mockk()
 
     val selectionsLoaderFactory: SelectionsLoader.Factory
+
+    val ossSelectionSetFactory: SelectionSetFactory
 
     /**
      * Calls the resolve function for the given field [resolver]
@@ -255,17 +248,13 @@ interface ResolverTestBase {
     fun <T : NodeObject> globalIDFor(
         type: Type<T>,
         internalID: String
-    ): GlobalID<T> = MockGlobalID(type, internalID)
+    ): GlobalID<T> = context.globalIDFor(type, internalID)
 
     /**
      * Builds a map of selection set representations to Query objects
      */
-    fun buildContextQueryMap(
-        contextQueryValueMap: MutableMap<String, Query>,
-        contextQueries: List<Query>,
-        resolverExecutionContext: ResolverExecutionContext
-    ) {
-        if (contextQueries.isEmpty()) return
+    fun buildContextQueryMap(contextQueries: List<Query>): PrebakedResults<Query> {
+        if (contextQueries.isEmpty()) return prebakedResultsOf<Query>(emptyMap())
 
         val unselectedQueries = contextQueries.filterNot { it is QueryForSelection }
         if (unselectedQueries.size > 1) {
@@ -275,14 +264,21 @@ interface ResolverTestBase {
             )
         }
 
-        val rootQueryType = MockType(getSchema().schema.queryType.name, Query::class)
+        val rl = context.internal.reflectionLoader
+        @Suppress("UNCHECKED_CAST")
+        val rootQueryType = rl.reflectionFor(getSchema().schema.queryType.name) as Type<Query>
+        val resultMap = mutableMapOf<String, Query>()
         contextQueries.forEach { rawQuery ->
             val (selectionSet, query) = when (rawQuery) {
-                is QueryForSelection -> Pair(resolverExecutionContext.selectionsFor(rootQueryType, rawQuery.selections), rawQuery.query)
+                is QueryForSelection -> {
+                    val selSet = ossSelectionSetFactory.selectionsOn(rootQueryType, rawQuery.selections, emptyMap())
+                    Pair(selSet, rawQuery.query)
+                }
                 else -> Pair(SelectionSet.NoSelections, rawQuery)
             }
-            contextQueryValueMap[createSelectionSetKey(selectionSet)] = query
+            resultMap[createSelectionSetKey(selectionSet)] = query
         }
+        return prebakedResultsOf<Query>(resultMap)
     }
 
     /**
@@ -330,27 +326,10 @@ interface ResolverTestBase {
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
 
-    // Internal Functions
-    fun mkReflectionLoader(): ReflectionLoader = ReflectionLoaderImpl { name -> Class.forName("viaduct.api.grts.$name").kotlin }
-
-    fun mkGlobalIDCodec(): GlobalIDCodec = GlobalIDCodecImpl(mkReflectionLoader())
-
-    fun ResolverTestBase.mkSelectionSetFactory(): SelectionSetFactory = SelectionSetFactoryImpl(RawSelectionSetFactoryImpl(getSchema()))
-
-    fun mkInternalContext(): InternalContext = InternalContextImpl(getSchema(), mkGlobalIDCodec(), mkReflectionLoader())
-
-    fun mkNodeReferenceFactory(): NodeReferenceGRTFactory {
-        return NodeReferenceGRTFactoryImpl {
-                id: String,
-                graphQLObjectType: GraphQLObjectType,
-            ->
-            NodeEngineObjectDataImpl(
-                id,
-                graphQLObjectType,
-                DispatcherRegistry.Empty,
-                DispatcherRegistry.Empty,
-            )
-        }
+    fun mkExecutionContext(): ExecutionContext {
+        val rl = mockReflectionLoader("viaduct.api.grts")
+        val internal = MockInternalContext(getSchema(), GlobalIDCodecImpl(rl), rl)
+        return MockExecutionContext(internal)
     }
 
     fun mkSelectionsLoaderFactory(): SelectionsLoader.Factory =
@@ -361,40 +340,10 @@ interface ResolverTestBase {
             )
         )
 
-    fun mkMutationsLoader(): SelectionsLoader<Mutation> = selectionsLoaderFactory.forMutation("TEST_RESOLVER_ID")
-
-    fun mkQueryLoader(contextQueryValues: Map<String, Query> = mapOf("mock" to mockk())): SelectionsLoader<Query> {
-        return object : SelectionsLoader<Query> {
-            override suspend fun <U : Query> load(
-                ctx: ExecutionContext,
-                selections: SelectionSet<U>
-            ): U {
-                val selection = contextQueryValues[createSelectionSetKey(selections)]
-                return when {
-                    contextQueryValues.isEmpty() -> throw IllegalArgumentException(
-                        "No mocked query values provided for ctx.query. Please provide at least one mocked query value."
-                    )
-
-                    selection != null -> {
-                        @Suppress("UNCHECKED_CAST")
-                        selection as U
-                    }
-
-                    contextQueryValues.size == 1 && contextQueryValues.containsKey(BLANK_CONTEXT_QUERY_SELECTION_KEY) -> {
-                        // If only a single `Query` value is provided without a selection set to differentiate, use it.
-                        @Suppress("UNCHECKED_CAST")
-                        contextQueryValues[BLANK_CONTEXT_QUERY_SELECTION_KEY] as U
-                    }
-
-                    else -> {
-                        throw IllegalArgumentException(
-                            "No mocked query value provided for ctx.query with selections: '$selections'"
-                        )
-                    }
-                }
-            }
-        }
-    }
+    fun mkSelectionSetFactory(): SelectionSetFactory =
+        SelectionSetFactoryImpl(
+            RawSelectionSetFactoryImpl(getSchema())
+        )
 }
 
 // Internal helper functions and values
@@ -419,20 +368,16 @@ private fun <T : NodeObject> ResolverTestBase.mkNodeExecutionContext(
     requestContext: Any? = null,
     contextQueryValues: List<Query> = emptyList()
 ): NodeExecutionContext<T> {
-    val contextQueryValueMap = HashMap<String, Query>()
-    val ctx = NodeExecutionContextImpl(
-        ResolverExecutionContextImpl(
-            internal = mkInternalContext(),
-            requestContext = requestContext,
-            queryLoader = mkQueryLoader(),
-            selectionSetFactory = mkSelectionSetFactory(),
-            nodeReferenceFactory = mkNodeReferenceFactory()
-        ),
+    val internalContext = context.internal
+    val queryResultsMap = buildContextQueryMap(contextQueryValues)
+
+    return MockNodeExecutionContext(
         id = id,
-        selections,
+        selectionsValue = selections,
+        internalContext = internalContext,
+        queryResults = queryResultsMap,
+        selectionSetFactory = ossSelectionSetFactory,
     )
-    buildContextQueryMap(contextQueryValueMap, contextQueryValues, ctx)
-    return ctx
 }
 
 private fun <T> getFieldResolverContextKClass(resolver: ResolverBase<T>): KClass<out FieldExecutionContext<*, *, *, *>> {
@@ -492,31 +437,31 @@ private fun ResolverTestBase.mkFieldExecutionContext(
     mutation: Boolean,
     contextQueryValues: List<Query> = emptyList()
 ): FieldExecutionContext<*, *, *, *> {
-    val contextQueryValueMap = HashMap<String, Query>()
+    val internalContext = context.internal
+    val queryResultsMap = buildContextQueryMap(contextQueryValues)
 
-    val ctx = FieldExecutionContextImpl(
-        ResolverExecutionContextImpl(
-            mkInternalContext(),
-            requestContext = requestContext,
-            queryLoader = mkQueryLoader(contextQueryValueMap),
-            selectionSetFactory = mkSelectionSetFactory(),
-            nodeReferenceFactory = mkNodeReferenceFactory()
-        ),
-        objectValue = objectValue,
-        queryValue = queryValue,
-        arguments = arguments,
-        selections = selections,
-    ).let {
-        if (mutation) {
-            MutationFieldExecutionContextImpl(it, mkMutationsLoader())
-        } else {
-            it
-        }
+    return if (mutation) {
+        MockMutationFieldExecutionContext(
+            objectValue = objectValue,
+            queryValue = queryValue,
+            arguments = arguments,
+            selectionsValue = selections,
+            internalContext = internalContext,
+            queryResults = queryResultsMap,
+            // No mutation results -- can be extended later if needed
+            selectionSetFactory = ossSelectionSetFactory,
+        )
+    } else {
+        MockFieldExecutionContext(
+            objectValue = objectValue,
+            queryValue = queryValue,
+            arguments = arguments,
+            selectionsValue = selections,
+            internalContext = internalContext,
+            queryResults = queryResultsMap,
+            selectionSetFactory = ossSelectionSetFactory,
+        )
     }
-
-    buildContextQueryMap(contextQueryValueMap, contextQueryValues, ctx)
-
-    return ctx
 }
 
 /**
@@ -558,3 +503,29 @@ fun <R, T : ObjectBase.Builder<R>> T.put(
         alias = alias
     )
 }
+
+private fun <T : CompositeOutput> prebakedResultsOf(results: Map<String, T>) =
+    object : PrebakedResults<T> {
+        override fun get(selections: SelectionSet<T>): T {
+            if (results.isEmpty()) {
+                throw IllegalArgumentException(
+                    "No mocked results provided for suboperations (i.e., ctx.query/mutation). Please provide at least one result."
+                )
+            }
+
+            val key = createSelectionSetKey(selections)
+
+            // If not found and there's a NoSelections entry, use that as a fallback
+            // This handles the case where a single unnamed Query was provided in contextQueryValues
+            val result = results[key] ?: results[BLANK_CONTEXT_QUERY_SELECTION_KEY]
+
+            if (result == null) {
+                throw IllegalArgumentException(
+                    "No mocked results provided for selections: '$key'. Available keys: ${results.keys}"
+                )
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            return result as T
+        }
+    }
