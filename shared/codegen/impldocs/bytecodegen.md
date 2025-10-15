@@ -62,7 +62,7 @@ This layering can be depicted as follows:
 
 <img src="./2%20layer%20codegen.jpg">
 
-From a correctness perspective, this introduced a challenge that we will illustrate in a sequence of modifications to the above diagram.  Note that the unboxed text in the diagram (GraphQL, Km+Ct-bodies, and classfiles) all represent _data structures._  In the following diagram we depicte the "surface area" of those data structures:
+From a correctness perspective, this introduced a challenge that we will illustrate in a sequence of modifications to the above diagram.  Note that the unboxed text in the diagram (GraphQL, Km+Ct-bodies, and classfiles) all represent _data structures._  In the following diagram we depict the "surface area" of those data structures:
 
 <center><img src="./2%20layer%20codegen%20with%20surface%20area.jpg"></center>
 

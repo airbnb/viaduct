@@ -1,4 +1,4 @@
-This project is structured intro three packages:
+This project is structured into three packages:
 
 * `codegen/util` - utility items (including naming abstractions) shared by the other two packages in this project, and also exported to clients of this project.
 

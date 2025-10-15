@@ -24,7 +24,7 @@ Contains interfaces for classifying and reporting errors within resolvers.
 
 # Package viaduct.engine.api.fragment
 
-Contains interfaces and classes for defining and working with GraphQL fragments in Viaduct modules.o
+Contains interfaces and classes for defining and working with GraphQL fragments in Viaduct modules.
 
 # Package viaduct.engine.api.fragment.errors
 
