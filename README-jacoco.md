@@ -5,7 +5,7 @@ This project has been configured with Jacoco code coverage reporting optimized f
 ## Configuration Details
 
 ### What's Configured
-- **Individual module coverage**: Each submodule generates its own coverage reports
+- **Individual module coverage**: Each submodule generates its own coverage reports 
 - **Aggregated coverage**: Combined coverage report across all modules  
 - **CircleCI optimization**: XML reports generated in standardized paths
 - **Gradle integration**: Coverage automatically runs after tests
