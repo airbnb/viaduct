@@ -27,6 +27,7 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
+import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.service.api.ExecutionInput
@@ -216,9 +217,25 @@ class StandardViaduct
              * @return a Viaduct Instance ready to execute
              */
             fun build(): StandardViaduct {
-                val engineConfiguration = EngineConfiguration(
-                    chainInstrumentationWithDefaults = chainInstrumentationWithDefaults,
-                )
+                // engine configuration has a lot of defaults, so we copy over any non-null values from the StandardViaduct.Builder
+                val engineConfiguration = with(EngineConfiguration.default) {
+                    val builder = this@Builder
+                    val finalResolverErrorReporter = builder.resolverErrorReporter ?: resolverErrorReporter
+                    val finalResolverErrorBuilder = builder.resolverErrorBuilder ?: resolverErrorBuilder
+                    copy(
+                        coroutineInterop = builder.coroutineInterop ?: coroutineInterop,
+                        fragmentLoader = builder.fragmentLoader ?: fragmentLoader,
+                        flagManager = builder.flagManager ?: flagManager,
+                        temporaryBypassAccessCheck = builder.temporaryBypassAccessCheck ?: temporaryBypassAccessCheck,
+                        resolverErrorReporter = finalResolverErrorReporter,
+                        resolverErrorBuilder = finalResolverErrorBuilder,
+                        dataFetcherExceptionHandler = builder.dataFetcherExceptionHandler
+                            ?: ViaductDataFetcherExceptionHandler(finalResolverErrorReporter, finalResolverErrorBuilder),
+                        meterRegistry = builder.meterRegistry ?: meterRegistry,
+                        additionalInstrumentation = builder.instrumentation ?: additionalInstrumentation,
+                        chainInstrumentationWithDefaults = builder.chainInstrumentationWithDefaults,
+                    )
+                }
 
                 // Build tenant bootstrapper from builders
                 val tenantBootstrapper = buildList {
@@ -231,19 +248,10 @@ class StandardViaduct
                 val parentModule = StandardViaductModule(
                     tenantBootstrapper = tenantBootstrapper,
                     engineConfiguration = engineConfiguration,
-                    instrumentation = instrumentation,
-                    meterRegistry = meterRegistry,
                     tenantNameResolver = tenantNameResolver,
                     checkerExecutorFactory = checkerExecutorFactory,
                     checkerExecutorFactoryCreator = checkerExecutorFactoryCreator,
                     documentProviderFactory = documentProviderFactory,
-                    flagManager = flagManager,
-                    fragmentLoader = fragmentLoader,
-                    coroutineInterop = coroutineInterop,
-                    dataFetcherExceptionHandler = dataFetcherExceptionHandler,
-                    resolverErrorReporter = resolverErrorReporter,
-                    resolverErrorBuilder = resolverErrorBuilder,
-                    temporaryBypassAccessCheck = temporaryBypassAccessCheck,
                 )
 
                 try {

@@ -10,7 +10,6 @@ import graphql.execution.preparsed.NoOpPreparsedDocumentProvider
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.asDeferred
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionInput
@@ -18,25 +17,19 @@ import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
-import viaduct.engine.api.fragment.ViaductExecutableFragmentParser
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.runtime.CompositeLocalContext
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextFactory
-import viaduct.engine.runtime.ViaductFragmentLoader
 import viaduct.engine.runtime.execution.AccessCheckRunner
-import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ExecutionParameters
-import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.engine.runtime.execution.ViaductExecutionStrategy
 import viaduct.engine.runtime.execution.WrappedCoroutineExecutionStrategy
 import viaduct.engine.runtime.instrumentation.ResolverDataFetcherInstrumentation
 import viaduct.engine.runtime.instrumentation.ScopeInstrumentation
 import viaduct.engine.runtime.instrumentation.TaggedMetricInstrumentation
 import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.ResolverErrorReporter
 
 /**
  * Core GraphQL execution engine that processes queries, mutations, and subscriptions
@@ -78,42 +71,16 @@ interface EngineGraphQLJavaCompat {
     fun getGraphQL(): GraphQL
 }
 
-data class EngineConfiguration(
-    val chainInstrumentationWithDefaults: Boolean = false,
-) {
-    companion object {
-        val default = EngineConfiguration()
-    }
-}
-
 class EngineImpl private constructor(
+    private val config: EngineConfiguration,
+    dispatcherRegistry: DispatcherRegistry,
     override val schema: ViaductSchema,
     documentProvider: PreparsedDocumentProvider,
     fullSchema: ViaductSchema,
-    private val config: EngineConfiguration,
-    coroutineInterop: CoroutineInterop,
-    dispatcherRegistry: DispatcherRegistry,
-    fragmentLoader: FragmentLoader,
-    flagManager: FlagManager,
-    temporaryBypassAccessCheck: TemporaryBypassAccessCheck,
-    dataFetcherExceptionHandler: DataFetcherExceptionHandler,
-    private val meterRegistry: MeterRegistry?,
-    private val additionalInstrumentation: Instrumentation?,
 ) : Engine, EngineGraphQLJavaCompat {
-    @OptIn(ExperimentalCoroutinesApi::class)
     class FactoryImpl(
         private val config: EngineConfiguration = EngineConfiguration.default,
-        private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
         private val dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
-        private val fragmentLoader: FragmentLoader = ViaductFragmentLoader(ViaductExecutableFragmentParser()),
-        private val flagManager: FlagManager = FlagManager.default,
-        private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default,
-        private val dataFetcherExceptionHandler: DataFetcherExceptionHandler = ViaductDataFetcherExceptionHandler(
-            ResolverErrorReporter.NoOpResolverErrorReporter,
-            ResolverErrorBuilder.NoOpResolverErrorBuilder
-        ),
-        private val meterRegistry: MeterRegistry? = null,
-        private val additionalInstrumentation: Instrumentation? = null,
     ) : Engine.Factory {
         override fun create(
             schema: ViaductSchema,
@@ -121,21 +88,22 @@ class EngineImpl private constructor(
             fullSchema: ViaductSchema,
         ): Engine {
             return EngineImpl(
+                config,
+                dispatcherRegistry,
                 schema,
                 documentProvider,
                 fullSchema,
-                config,
-                coroutineInterop,
-                dispatcherRegistry,
-                fragmentLoader,
-                flagManager,
-                temporaryBypassAccessCheck,
-                dataFetcherExceptionHandler,
-                meterRegistry,
-                additionalInstrumentation,
             )
         }
     }
+
+    private val coroutineInterop: CoroutineInterop = config.coroutineInterop
+    private val fragmentLoader: FragmentLoader = config.fragmentLoader
+    private val flagManager: FlagManager = config.flagManager
+    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = config.temporaryBypassAccessCheck
+    private val dataFetcherExceptionHandler: DataFetcherExceptionHandler = config.dataFetcherExceptionHandler
+    private val meterRegistry: MeterRegistry? = config.meterRegistry
+    private val additionalInstrumentation: Instrumentation? = config.additionalInstrumentation
 
     private val resolverDataFetcherInstrumentation = ResolverDataFetcherInstrumentation(
         dispatcherRegistry,

@@ -5,10 +5,6 @@ import com.google.inject.Exposed
 import com.google.inject.PrivateModule
 import com.google.inject.Provides
 import com.google.inject.Singleton
-import graphql.execution.DataFetcherExceptionHandler
-import graphql.execution.instrumentation.Instrumentation
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.lang.Nullable
 import javax.inject.Qualifier
 import viaduct.engine.Engine
 import viaduct.engine.EngineConfiguration
@@ -17,14 +13,11 @@ import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.CheckerExecutorFactoryCreator
 import viaduct.engine.api.FieldCheckerDispatcherRegistry
 import viaduct.engine.api.FieldResolverDispatcherRegistry
-import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.NodeResolverDispatcherRegistry
 import viaduct.engine.api.RequiredSelectionSetRegistry
-import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.tenantloading.CheckerSelectionSetsAreProperlyTyped
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
@@ -38,8 +31,6 @@ import viaduct.engine.runtime.validation.Validator
 import viaduct.engine.runtime.validation.Validator.Companion.flatten
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.ResolverErrorReporter
 import viaduct.utils.slf4j.logger
 
 internal class SchemaScopedModule(
@@ -146,27 +137,11 @@ internal class SchemaScopedModule(
     @Singleton
     fun providesEngineFactory(
         config: EngineConfiguration,
-        coroutineInterop: CoroutineInterop,
         dispatcherRegistry: DispatcherRegistry,
-        fragmentLoader: FragmentLoader,
-        flagManager: FlagManager,
-        temporaryBypassAccessCheck: TemporaryBypassAccessCheck,
-        resolverErrorReporter: ResolverErrorReporter,
-        resolverErrorBuilder: ResolverErrorBuilder,
-        dataFetcherExceptionHandler: DataFetcherExceptionHandler,
-        @Nullable meterRegistry: MeterRegistry?,
-        @Nullable @AdditionalInstrumentation additionalInstrumentation: Instrumentation?,
     ): Engine.Factory {
         return EngineImpl.FactoryImpl(
             config = config,
-            coroutineInterop = coroutineInterop,
             dispatcherRegistry = dispatcherRegistry,
-            fragmentLoader = fragmentLoader,
-            flagManager = flagManager,
-            temporaryBypassAccessCheck = temporaryBypassAccessCheck,
-            dataFetcherExceptionHandler = dataFetcherExceptionHandler,
-            meterRegistry = meterRegistry,
-            additionalInstrumentation = additionalInstrumentation,
         )
     }
 }

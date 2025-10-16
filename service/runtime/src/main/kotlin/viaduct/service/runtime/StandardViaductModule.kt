@@ -6,7 +6,6 @@ import com.google.inject.Singleton
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.instrumentation.Instrumentation
 import io.micrometer.core.instrument.MeterRegistry
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.CheckerExecutorFactory
@@ -18,10 +17,7 @@ import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.fragment.ExecutableFragmentParser
 import viaduct.engine.api.fragment.ViaductExecutableFragmentParser
-import viaduct.engine.runtime.ViaductFragmentLoader
-import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
-import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.ResolverErrorReporter
@@ -29,19 +25,10 @@ import viaduct.service.api.spi.ResolverErrorReporter
 class StandardViaductModule(
     private val tenantBootstrapper: TenantAPIBootstrapper,
     private val engineConfiguration: EngineConfiguration,
-    private val instrumentation: Instrumentation?,
-    private val meterRegistry: MeterRegistry?,
     private val tenantNameResolver: TenantNameResolver,
     private val checkerExecutorFactory: CheckerExecutorFactory?,
     private val checkerExecutorFactoryCreator: CheckerExecutorFactoryCreator?,
     private val documentProviderFactory: DocumentProviderFactory?,
-    private val flagManager: FlagManager?,
-    private val fragmentLoader: FragmentLoader?,
-    private val coroutineInterop: CoroutineInterop?,
-    private val dataFetcherExceptionHandler: DataFetcherExceptionHandler?,
-    private val resolverErrorReporter: ResolverErrorReporter?,
-    private val resolverErrorBuilder: ResolverErrorBuilder?,
-    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck?
 ) : AbstractModule() {
     override fun configure() {
         bind(StandardViaduct.Factory::class.java)
@@ -50,25 +37,27 @@ class StandardViaductModule(
         bind(ExecutableFragmentParser::class.java)
             .to(ViaductExecutableFragmentParser::class.java)
             .`in`(Singleton::class.java)
-    }
 
-    @Provides
-    @Singleton
-    @ExperimentalCoroutinesApi
-    fun provideFragmentLoader(viaductFragmentLoader: ViaductFragmentLoader): FragmentLoader {
-        return fragmentLoader ?: viaductFragmentLoader
-    }
+        bind(EngineConfiguration::class.java).toInstance(engineConfiguration)
+        bind(FragmentLoader::class.java).toInstance(engineConfiguration.fragmentLoader)
+        bind(CoroutineInterop::class.java).toInstance(engineConfiguration.coroutineInterop)
+        bind(FlagManager::class.java).toInstance(engineConfiguration.flagManager)
+        bind(DataFetcherExceptionHandler::class.java).toInstance(engineConfiguration.dataFetcherExceptionHandler)
+        bind(TemporaryBypassAccessCheck::class.java).toInstance(engineConfiguration.temporaryBypassAccessCheck)
+        bind(ResolverErrorReporter::class.java).toInstance(engineConfiguration.resolverErrorReporter)
+        bind(ResolverErrorBuilder::class.java).toInstance(engineConfiguration.resolverErrorBuilder)
+        bind(TenantAPIBootstrapper::class.java).toInstance(tenantBootstrapper)
+        bind(TenantNameResolver::class.java).toInstance(tenantNameResolver)
 
-    @Provides
-    @Singleton
-    fun provideCoroutineInterop(): CoroutineInterop {
-        return coroutineInterop ?: DefaultCoroutineInterop
-    }
+        val resolvedDocumentProviderFactory =
+            documentProviderFactory ?: DocumentProviderFactory { _, _ -> CachingPreparsedDocumentProvider() }
+        bind(DocumentProviderFactory::class.java).toInstance(resolvedDocumentProviderFactory)
 
-    @Provides
-    @Singleton
-    fun provideFlagManager(): FlagManager {
-        return flagManager ?: FlagManager.default
+        val resolvedCheckerExecutorFactoryCreator =
+            checkerExecutorFactoryCreator ?: CheckerExecutorFactoryCreator { _ ->
+                checkerExecutorFactory ?: NoOpCheckerExecutorFactoryImpl()
+            }
+        bind(CheckerExecutorFactoryCreator::class.java).toInstance(resolvedCheckerExecutorFactoryCreator)
     }
 
     @Provides
@@ -79,71 +68,14 @@ class StandardViaductModule(
 
     @Provides
     @Singleton
-    fun provideDocumentProviderFactory(): DocumentProviderFactory {
-        return documentProviderFactory ?: DocumentProviderFactory { _, _ -> CachingPreparsedDocumentProvider() }
-    }
-
-    @Provides
-    @Singleton
-    fun providesEngineConfiguration(): EngineConfiguration {
-        return engineConfiguration
-    }
-
-    @Provides
-    @Singleton
     fun providesMeterRegistry(): MeterRegistry? {
-        return meterRegistry
+        return engineConfiguration.meterRegistry
     }
 
     @Provides
     @Singleton
     @AdditionalInstrumentation
     fun providesInstrumentation(): Instrumentation? {
-        return instrumentation
-    }
-
-    @Provides
-    @Singleton
-    fun provideResolverErrorReporter(): ResolverErrorReporter {
-        return resolverErrorReporter ?: ResolverErrorReporter.NoOpResolverErrorReporter
-    }
-
-    @Provides
-    @Singleton
-    fun provideResolverErrorBuilder(): ResolverErrorBuilder {
-        return resolverErrorBuilder ?: ResolverErrorBuilder.NoOpResolverErrorBuilder
-    }
-
-    @Provides
-    @Singleton
-    fun provideDataFetcherExceptionHandler(
-        resolverErrorReporter: ResolverErrorReporter,
-        resolverErrorBuilder: ResolverErrorBuilder
-    ): DataFetcherExceptionHandler {
-        return dataFetcherExceptionHandler ?: ViaductDataFetcherExceptionHandler(
-            resolverErrorReporter,
-            resolverErrorBuilder
-        )
-    }
-
-    @Provides
-    @Singleton
-    fun provideTemporaryBypassChecker(): TemporaryBypassAccessCheck {
-        return temporaryBypassAccessCheck ?: TemporaryBypassAccessCheck.Default
-    }
-
-    @Provides
-    @Singleton
-    fun provideCheckerExecutorFactoryCreator(): CheckerExecutorFactoryCreator {
-        return checkerExecutorFactoryCreator
-            ?: CheckerExecutorFactoryCreator { _ ->
-                checkerExecutorFactory ?: NoOpCheckerExecutorFactoryImpl()
-            }
-    }
-
-    @Provides
-    @Singleton
-    fun provideTenantBootstrapper(): TenantAPIBootstrapper {
-        return tenantBootstrapper
+        return engineConfiguration.additionalInstrumentation
     }
 }
