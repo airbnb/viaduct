@@ -25,8 +25,10 @@ import io.kotest.property.arbitrary.of
 import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.checkInvariants
+import viaduct.arbitrary.graphql.BridgeGJToRaw.scalar
 import viaduct.mapping.graphql.RawENull
 import viaduct.mapping.graphql.RawEnum
 import viaduct.mapping.graphql.RawINull
@@ -391,6 +393,153 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `rawValueFor -- field adjacent to inline fragment`(): Unit =
+        runBlocking {
+            val schema = mkGJSchema("type O { x: Int! y: Int! o: O! }")
+            val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
+            arbitrary {
+                Arb.rawValueFor(
+                    o,
+                    parseSelections(
+                        """
+                        fragment _ on O {
+                            o {
+                                y
+                                ... on O {
+                                    x
+                                }
+                            }
+                        }
+                        """.trimIndent()
+                    ),
+                    schema,
+                ).bind()
+            }.checkInvariants { value, check ->
+                val obj = value as RawObject
+                check.isEqualTo("O", obj.typename, "Expected RawObject for `O` but got $obj")
+
+                val inner = obj.values.toMap()["o"] as? RawObject
+                check.isNotNull(inner, "missing result for selection `o`")
+
+                if (inner != null) {
+                    val innerFields = inner.values.toMap()
+
+                    val x = innerFields["x"] as? RawScalar
+                    check.isNotNull(x, "missing result for selection `x` from inline fragment")
+
+                    // Field before inline fragment should be present
+                    val y = innerFields["y"] as? RawScalar
+                    check.isNotNull(y, "missing result for selection `y` - field adjacent to inline fragment is lost!")
+                }
+            }
+        }
+
+    @Test
+    fun `rawValueFor -- __typename on object`(): Unit =
+        runBlocking {
+            val schema = mkGJSchema("type O { x:Int! }")
+            val selectionStrings = listOf(
+                "fragment _ on O { __typename }",
+                "fragment _ on O { ... { __typename } }",
+                "fragment _ on O { ... on O { __typename } }",
+            ).map(::parseSelections)
+
+            val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
+            arbitrary {
+                val selectionString = Arb.of(selectionStrings).bind()
+                Arb.rawValueFor(o, selectionString, schema).bind()
+            }.forAll { value ->
+                value == RawObject("O", listOf("__typename" to "O".scalar))
+            }
+        }
+
+    @Test
+    fun `rawValueFor -- __typename on union`(): Unit =
+        runBlocking {
+            val schema = mkGJSchema(
+                """
+                    union Union = Impl1 | Impl2
+                    type Impl1 { x:Int }
+                    type Impl2 { x:Int }
+                    type Impl3 { x:Int }
+                """.trimIndent()
+            )
+            val selectionStrings = listOf(
+                "fragment _ on Union { __typename }",
+                "fragment _ on Union { ... { __typename } }",
+                "fragment _ on Union { ... on Union { __typename } }",
+            ).map(::parseSelections)
+
+            val o = GraphQLNonNull.nonNull(schema.getTypeAs<GraphQLUnionType>("Union"))
+            arbitrary {
+                val selectionString = Arb.of(selectionStrings).bind()
+                Arb.rawValueFor(o, selectionString, schema).bind()
+            }.forAll { value ->
+                value as RawObject
+                value.typename in setOf("Impl1", "Impl2") &&
+                    value.values.toMap() == mapOf("__typename" to value.typename.scalar)
+            }
+        }
+
+    @Test
+    fun `rawValueFor -- __typename on interface`(): Unit =
+        runBlocking {
+            val schema = mkGJSchema(
+                """
+                    interface Interface { x:Int }
+                    type Impl1 implements Interface { x:Int }
+                    type Impl2 implements Interface { x:Int }
+                    type Impl3 { x:Int }
+                """.trimIndent()
+            )
+            val selectionStrings = listOf(
+                "fragment _ on Interface { __typename }",
+                "fragment _ on Interface { ... { __typename } }",
+                "fragment _ on Interface { ... on Interface { __typename } }",
+            ).map(::parseSelections)
+
+            val o = GraphQLNonNull.nonNull(schema.getTypeAs<GraphQLInterfaceType>("Interface"))
+            arbitrary {
+                val selectionString = Arb.of(selectionStrings).bind()
+                Arb.rawValueFor(o, selectionString, schema).bind()
+            }.forAll { value ->
+                value as RawObject
+                value.typename in setOf("Impl1", "Impl2") &&
+                    value.values.toMap() == mapOf("__typename" to value.typename.scalar)
+            }
+        }
+
+    @Test
+    fun `rawValueFor -- __typename on list value`(): Unit =
+        runBlocking {
+            val schema = mkGJSchema(
+                """
+                    type Item { x:Int }
+                    type Subject { items: [Item] }
+                """.trimIndent()
+            )
+            val selectionStrings = listOf(
+                "fragment _ on Subject { items { __typename } }",
+                "fragment _ on Subject { items { ... { __typename } } }",
+                "fragment _ on Subject { items { ... on Item { __typename } } }",
+            ).map(::parseSelections)
+
+            val o = GraphQLNonNull.nonNull(schema.getObjectType("Subject"))
+            val cfg = Config.default + (ExplicitNullValueWeight to 0.0)
+            arbitrary {
+                val selectionString = Arb.of(selectionStrings).bind()
+                Arb.rawValueFor(o, selectionString, schema, cfg = cfg).bind()
+            }.forAll { value ->
+                value as RawObject
+                val items = value.values.toMap()["items"] as RawList
+                items.values.all {
+                    it as RawObject
+                    it.typename == "Item" && it.values.toMap()["__typename"] == "Item".scalar
+                }
+            }
+        }
+
+    @Test
     fun `rawValueFor -- inline fragment without type condition`(): Unit =
         runBlocking {
             val schema = mkGJSchema("type O { x: Int! }")
@@ -498,5 +647,34 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
                     val a = b["a"] as Map<*, *>
                     a["x"] is Int && a["y"] is String
                 }
+        }
+
+    @Test
+    fun `SelectedTypeBias -- union`(): Unit =
+        runBlocking {
+            val schema = mkGJSchema(
+                """
+                type A { x: Int }
+                type B { x: Int }
+                union U = A | B
+                """.trimIndent()
+            )
+            val selections = listOf(
+                "fragment _ on U { ... on A { __typename } }",
+                "fragment _ on U { ... on U { ... on A { __typename } } }",
+                "fragment _ on U { ... { ... on A { __typename } } }",
+            ).map(::parseSelections)
+
+            val u = GraphQLNonNull.nonNull(schema.getTypeAs<GraphQLUnionType>("U"))
+            val arb = arbitrary {
+                Arb.rawValueFor(
+                    type = u,
+                    selections = Arb.of(selections).bind(),
+                    schema = schema,
+                    cfg = Config.default + (SelectedTypeBias to 1.0)
+                ).bind()
+            }
+
+            arb.forAll { it is RawObject && it.typename == "A" }
         }
 }

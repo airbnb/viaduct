@@ -163,6 +163,13 @@ object MaxValueDepth : ConfigKey<Int>(3, IntValidator(0..Int.MAX_VALUE))
 object StringValueSize : ConfigKey<IntRange>(0..3, IntRangeValidator(0..Int.MAX_VALUE))
 
 /**
+ * The likelihood that when generating a concrete value for an abstract type, that
+ * the generator will pick a type that is selected in the selection set rather than
+ * any possible implementing type.
+ */
+object SelectedTypeBias : ConfigKey<Double>(.9, WeightValidator)
+
+/**
  * Use the provided mappings for generating scalar values,
  * on top of the generators for builtin GraphQL scalar types.
  */
