@@ -22,7 +22,7 @@ Typical use cases:
 - Limit sensitive data (like internal notes or metadata) to privileged scopes.
 - Support gradual rollout of features per environment or user segment.
 
-## Basic usage
+## Code definitions
 
 {{< codetag path="demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls" tag="scope_example" lang="graphql">}}
 
@@ -57,23 +57,23 @@ In the **Star Wars demo only**, scopes are provided via this header:
 
 In the file `ViaductGraphQLController`, the controller reads scopes from the header in the function
 
-{{< codetag path="demoapps/starwars/src/main/kotlin/viaduct/demoapp/starwars/rest/ViaductGraphQLController.kt" tag="parse_scopes">}}
+{{< codetag path="demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt" tag="parse_scopes">}}
 
 From those scopes the app extracts the specific schema limited to those scopes only :
 
-{{< codetag path="demoapps/starwars/src/main/kotlin/viaduct/demoapp/starwars/rest/ViaductGraphQLController.kt" tag="determine_schema">}}
+{{< codetag path="demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt" tag="determine_schema">}}
 
 Those schemas are defined in the `ViaductConfiguration.kt` file as:
 
-{{< codetag path="demoapps/starwars/src/main/kotlin/viaduct/demoapp/starwars/config/ViaductConfiguration.kt" tag="schema_registration">}}
+{{< codetag path="demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt" tag="schema_registration">}}
 
 With the correct schema, the controller builds the `ExecutionInput` for Viaduct
 
-{{< codetag path="demoapps/starwars/src/main/kotlin/viaduct/demoapp/starwars/rest/ViaductGraphQLController.kt" tag="execution_input">}}
+{{< codetag path="demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt" tag="execution_input">}}
 
 And runs the query, this is the entire logic of the controller:
 
-{{< codetag path="demoapps/starwars/src/main/kotlin/viaduct/demoapp/starwars/rest/ViaductGraphQLController.kt" tag="run_query">}}
+{{< codetag path="demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt" tag="run_query">}}
 
 ### Demo example (Star Wars)
 
@@ -117,6 +117,30 @@ Prefer clear, non-overlapping boundaries to reduce confusion and accidental expo
 
 ### 4. Relying solely on @scope for authorization
 `@scope` governs **schema visibility**. Complement it with application-level authorization for data-level controls.
+
+## Query example
+
+culturalNotes and specialAbilities are only visible when the "extras" scope is provided :
+
+```graphql
+query {
+  node(id: "U3BlY2llczox") {
+    ... on Species {
+      name
+      culturalNotes
+      specialAbilities
+    }
+  }
+}
+```
+
+In GraphiQL, add this to the **Headers** tab below the query pane:
+
+```json
+{
+  "X-Viaduct-Scopes": "extras"
+}
+```
 
 ## Debugging and testing
 

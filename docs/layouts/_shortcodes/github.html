@@ -2,4 +2,4 @@
 {{ $maxHeight := cond (.IsNamedParams) (.Get "maxHeight") (.Get 1) | default 500 }}
 {{ $branch := cond (.IsNamedParams) (.Get "branch") (.Get 2) | default "main" }}
 
-<script src="./static/scripts/emgithub.js?target=https://github.com/airbnb/viaduct/blob/{{- $branch }}/{{- $file -}}&style=github&type=code&showLineNumbers=on&showFileMeta=on&showFullPath=on&showCopy=on&fetchFromJsDelivr=on&maxHeight={{- $maxHeight -}}"></script>
+<script src="/viaduct/scripts/emgithub.js?target=https://github.com/airbnb/viaduct/blob/{{- $branch }}/{{- $file -}}&style=github&type=code&showLineNumbers=on&showFileMeta=on&showFullPath=on&showCopy=on&fetchFromJsDelivr=on&maxHeight={{- $maxHeight -}}"></script>

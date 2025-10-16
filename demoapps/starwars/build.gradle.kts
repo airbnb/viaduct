@@ -15,7 +15,7 @@ java {
 
 viaductApplication {
     grtPackageName.set("viaduct.api.grts")
-    modulePackagePrefix.set("viaduct.demoapp")
+    modulePackagePrefix.set("com.example.starwars")
 }
 
 dependencies {

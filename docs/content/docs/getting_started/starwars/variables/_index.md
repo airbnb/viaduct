@@ -14,14 +14,14 @@ Viaduct supports three approaches for dynamic field resolution:
 
 Variables can be bound directly to resolver arguments to control GraphQL directive evaluation:
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/fieldresolvers/ProfileResolver.kt" tag="resolver_example">}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/ProfileFieldResolver.kt" tag="resolver_example">}}
 
 **Benefits**: GraphQL-level optimization, declarative field selection, efficient data fetching.
 
 ## 2. Argument-Based Statistics Logic
 For practical demo purposes, the character stats use argument-based conditional logic:
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/fieldresolvers/StatsResolver.kt" tag="resolver_example">}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterStatsResolver.kt" tag="resolver_example">}}
 
 **Benefits**: Simple implementation, full access to all fields, easy to debug and maintain.
 
@@ -30,7 +30,7 @@ For practical demo purposes, the character stats use argument-based conditional 
 ## 3. Argument-Based Conditional Logic
 For simpler cases, traditional argument processing within resolvers:
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/fieldresolvers/FormattedDescriptionResolver.kt" tag="resolver_example">}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.kt" tag="resolver_example">}}
 
 **Benefits**: Simplicity, full Kotlin language features, easy debugging.
 

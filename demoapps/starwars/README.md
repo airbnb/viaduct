@@ -77,7 +77,6 @@ In GraphiQL, add this to the **Headers** tab below the query pane:
 }
 ```
 
-
 #### Complex query with batch resolution
 
 Run a complex character query with batch‑resolved fields.

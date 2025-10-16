@@ -14,10 +14,10 @@ execution, while the backing data class centralizes the mapping logic that would
 Apply `@backingData` on a field (often together with `@resolver`) and point to a Kotlin class that implements the
 backing logic.
 
-{{< codetag path="/demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls" tag="all_characters" land="graphql" >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls" tag="all_characters" land="graphql" >}}
 
 In this demo, the class
-`viaduct.demoapp.characters.viaduct.queryresolvers.AllCharactersResolver`
+`com.example.starwars.modules.filmography.characters.queries.AllCharactersQueryResolver`
 is responsible for shaping the list of `Character` items returned by `allCharacters`.
 
 ## How it integrates at runtime
@@ -30,7 +30,7 @@ is responsible for shaping the list of `Character` items returned by `allCharact
 
 ### With `@backingData` (mapping lives in a backing class)
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/queryresolvers/AllCharactersResolver.kt" tag="resolver_example"  >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/queries/AllCharactersQueryResolver.kt" tag="resolver_example"  >}}
 
 Pros: fewer moving parts.
 Cons: resolver grows, mapping is harder to share or test in isolation.

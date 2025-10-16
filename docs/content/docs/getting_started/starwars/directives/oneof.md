@@ -57,7 +57,7 @@ With `@idOf`, Viaduct will validate that the ID is a `Character` Global ID and d
 Inside the resolver, inspect which field was set and branch accordingly. When the ID path is used, the internal ID is
 already validated and decoded by Viaduct.
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/queryresolvers/SearchCharacterResolver.kt" tag="id_of_example" >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/queries/SearchCharacterQueryResolver.kt" tag="id_of_example" >}}
 
 ## Error behavior
 

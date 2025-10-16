@@ -83,5 +83,5 @@ extend type Query @scope(to: ["default"]) {
   """
   allPlanets(limit: Int): [Planet]
     @resolver
-    @backingData(class: "viaduct.demoapp.universe.planets.viaduct.resolvers.AllPlanetsResolver")
+    @backingData(class: "com.example.starwars.modules.universe.planets.queries.AllPlanetsQueryResolver")
 }

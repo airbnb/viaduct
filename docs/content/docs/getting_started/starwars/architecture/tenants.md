@@ -64,11 +64,11 @@ Resolvers for each module are implemented in the module’s Kotlin sources.
 Concrete examples (filmography):
 
 ```
-modules/filmography/src/main/kotlin/viaduct/demoapp/films/viaduct/queryresolvers/AllFilmsResolver.kt
-modules/filmography/src/main/kotlin/viaduct/demoapp/films/viaduct/queryresolvers/FilmNodeResolver.kt
-modules/filmography/src/main/kotlin/viaduct/demoapp/films/viaduct/fieldresolvers/CharactersResolver.kt
-modules/filmography/src/main/kotlin/viaduct/demoapp/films/viaduct/fieldresolvers/PlanetsResolver.kt
-modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/batchresolvers/FilmCountBatchResolver.kt
+modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/queries/AllFilmsQueryResolver.kt
+modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmNodeResolver.kt
+modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/CharactersFieldResolver.kt
+modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/PlanetsFieldResolver.kt
+modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/FilmCountBatchResolver.kt
 ```
 
 The `com.airbnb.viaduct.module-gradle-plugin` also generates **resolver base classes** you extend, under:

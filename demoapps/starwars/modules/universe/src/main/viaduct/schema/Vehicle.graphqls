@@ -82,5 +82,5 @@ extend type Query @scope(to: ["default"]) {
   """
   allVehicles(limit: Int): [Vehicle]
     @resolver
-    @backingData(class: "viaduct.demoapp.universe.vehicles.viaduct.resolvers.AllVehiclesResolver")
+    @backingData(class: "com.example.starwars.modules.universe.vehicles.queries.AllVehiclesQueryResolver")
 }

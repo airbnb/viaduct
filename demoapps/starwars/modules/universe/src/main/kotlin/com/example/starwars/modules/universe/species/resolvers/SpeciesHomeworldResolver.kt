@@ -1,0 +1,23 @@
+package com.example.starwars.modules.universe.species.resolvers
+
+import com.example.starwars.modules.universe.species.models.SpeciesRepository
+import com.example.starwars.universe.resolverbases.SpeciesResolvers
+import viaduct.api.Resolver
+import viaduct.api.grts.Planet
+
+/**
+ * Resolver for `homeworld` field in Species.
+ *
+ * Returns the planet that is the homeworld of this species, or null if none exists.
+ */
+@Resolver("id")
+class SpeciesHomeworldResolver : SpeciesResolvers.Homeworld() {
+    override suspend fun resolve(ctx: Context): Planet? {
+        val species = ctx.objectValue
+        val homeWorldId = SpeciesRepository.findById(species.getId().internalID)?.homeworldId ?: return null
+
+        val planetId = ctx.globalIDFor(Planet.Reflection, homeWorldId)
+
+        return ctx.nodeFor(planetId)
+    }
+}

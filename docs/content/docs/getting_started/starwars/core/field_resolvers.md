@@ -34,32 +34,32 @@ entity fetching in the **node** layer.
 
 A typical resolver extends the generated base class for the field and overrides `resolve`:
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/fieldresolvers/DisplayNameResolver.kt" tag="resolver_example"  >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplayNameResolver.kt" tag="resolver_example"  >}}
 
 ### Access to arguments
 
 Arguments declared in the schema are available via `ctx.arguments` with the appropriate getters:
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/films/viaduct/fieldresolvers/SummaryResolver.kt" tag="resolver_example"  >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmSummaryResolver.kt" tag="resolver_example"  >}}
 
 ## Examples
 
 ### 1) Simple computed value
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/fieldresolvers/IsAdultResolver.kt" tag="resolver_example"  >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterIsAdultResolver.kt" tag="resolver_example"  >}}
 
 ### 2) Single related lookup (non-batched)
 
 Use for **one-off** relationships where only a few objects are in play. If many parent objects will request
 the same relationship in a single operation, move this to a batch resolver.
 
-{{< codetag path="demoapps/starwars/modules/universe/src/main/kotlin/viaduct/demoapp/universe/species/viaduct/fieldresolvers/HomeworldResolver.kt" tag="resolver_example"  >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterHomeworldResolver.kt" tag="resolver_example"  >}}
 
 ### 3) Argument-driven formatting
 
 The `limit` argument controls the length of the returned summary.
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/queryresolvers/AllCharactersResolver.kt" tag="resolver_example"  >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/queries/AllCharactersQueryResolver.kt" tag="resolver_example"  >}}
 
 ## Error handling and nullability
 

@@ -49,7 +49,7 @@ Viaduct will:
 3. Populate `ctx.id.internalID` with `"1"`.
 4. Pass control to `CharacterNodeResolver`, where you can safely use the internal ID.
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/queryresolvers/CharacterNodeResolver.kt" tag="node_resolver_example" >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt" tag="node_resolver_example" >}}
 
 This pattern ensures that only valid, correctly-typed IDs reach your business logic.
 

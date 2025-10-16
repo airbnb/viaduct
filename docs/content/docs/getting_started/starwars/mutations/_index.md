@@ -28,7 +28,7 @@ resolver typically:
 
 Implementation:
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/mutations/CreateCharacterResolvers.kt" tag="create_example">}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/mutations/CreateCharacterMutation.kt" tag="create_example">}}
 
 Execution :
 
@@ -67,7 +67,7 @@ mutation {
 
 **Implementation notes:**
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/mutations/UpdateCharacterNameResolvers.kt" tag="update-character-name-resolver">}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/mutations/UpdateCharacterNameMutation.kt" tag="update-character-name-resolver">}}
 
 - Uses GlobalIDs for entity identification.
 - Performs atomic field updates.
@@ -75,7 +75,7 @@ mutation {
 
 ### Add character to film
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls" tag="mutation_example_3" lang="graphql">}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/viaduct/schema/Film.graphqls" tag="mutation_example_3" lang="graphql">}}
 
 ```graphql
 mutation {

@@ -29,7 +29,7 @@ hands your resolver the **internal ID** via `ctx.id.internalID`, and expects you
 
 ## Implementation
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/queryresolvers/CharacterNodeResolver.kt" tag="node_resolver_example" >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmNodeResolver.kt" tag="node_resolver_example" >}}
 
 ### Why return `null` instead of throwing?
 GraphQL treats `null` as an expected outcome for missing nodes, avoiding unnecessary query failures and allowing the

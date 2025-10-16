@@ -93,5 +93,30 @@ extend type Query @scope(to: ["default"]) {
   """
   allFilms(limit: Int): [Film]
     @resolver
-    @backingData(class: "viaduct.demoapp.films.viaduct.queryresolvers.AllFilmsResolver")
+    @backingData(class: "com.example.starwars.modules.filmography.films.queries.AllFilmsQueryResolver")
+}
+
+extend type Mutation @scope(to: ["default"]) {
+  # tag::mutation_example_3[6] Mutation examples
+  """
+  Link a Character to a Film (adds the character to that film's cast).
+  Allows locating the character either directly by ID or via the existing search input.
+  """
+  addCharacterToFilm(input: AddCharacterToFilmInput!): AddCharacterToFilmPayload @resolver
+}
+
+"""
+Input for adding an existing Character to an existing Film.
+"""
+input AddCharacterToFilmInput @scope(to: ["default"]) {
+  filmId: ID! @idOf(type: "Film")
+  characterId: ID @idOf(type: "Character")
+}
+
+"""
+Payload returned when adding a Character to a Film.
+"""
+type AddCharacterToFilmPayload @scope(to: ["default"]) {
+  character: Character
+  film: Film
 }

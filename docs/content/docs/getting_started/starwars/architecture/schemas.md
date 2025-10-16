@@ -25,7 +25,7 @@ The Star Wars demo defines two schema IDs:
 Schemas are registered in configuration, providing **scope bindings** and **SDL discovery** settings (package prefix
 and resource regex). Example (excerpt adapted from `ViaductConfiguration.kt`):
 
-{{< codetag path="demoapps/starwars/src/main/kotlin/viaduct/demoapp/starwars/config/ViaductConfiguration.kt" tag="schema_registration" >}}
+{{< codetag path="demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt" tag="schema_registration" >}}
 
 - `packagePrefix`: where Viaduct scans for generated types/resolvers.
 - `resourcesIncluded`: which SDL files to include.
@@ -40,6 +40,7 @@ entities modular (for example, `character.graphqls`, `film.graphqls`, `species.g
 ### Example (fragment)
 
 {{< codetag path="demoapps/starwars/modules/universe/src/main/viaduct/schema/Planet.graphqls" tag="schemas_example" land="graphql" >}}
+
 
 > Fields like `film` are typically resolved by **field/batch resolvers**, not embedded in SDL logic.
 

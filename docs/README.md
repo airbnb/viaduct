@@ -12,6 +12,9 @@ Ensure you have followed the [Docsy prerequisites](https://www.docsy.dev/docs/ge
 
 #### Shortcodes
 
+There are a few custom shortcodes in the `layouts/shortcodes` directory:
+
+
 There are a few custom shortcodes in the `layouts/_shortcodes` directory:
 
 * `github`: Embeds a GitHub file in the documentation.
@@ -19,28 +22,78 @@ There are a few custom shortcodes in the `layouts/_shortcodes` directory:
     {{< github file="tenant/api/src/main/kotlin/viaduct/api/TenantModule.kt" maxHeight=1000 >}}
     {{< github "tenant/api/src/main/kotlin/viaduct/api/TenantModule.kt" branch="jsmith--test" >}}
     ```
-    Both named and positional parameters are supported.
-    Parameters:
+  Both named and positional parameters are supported.
+  Parameters:
   * `file`: The URL of the GitHub file to embed. Optionally append a line range, e.g. `#L10-L20` to embed only those lines.
   * `maxHeight`: The maximum height of the embedded file. Defaults to 500px.
 * `kdoc`: Embeds a KDoc link in the documentation. CI will verify that the link is valid. Currently only supports linking to classes, not functions or packages.
     ```markdown
     {{< kdoc viaduct.engine.api.execution.ResolverErrorReporter >}}
     ```
-    returns:
+  returns:
     ```
     <a class="kdoc-link" href="$BASE_URL/apis/service/service/service-api/viaduct.service.api/-execution-input/"><code>ExecutionInput</code></a>
     ```
     ```markdown
     {{< kdoc viaduct.api.Resolver "@resolver" >}
     ```
-    returns:
+  returns:
     ```
     <a class="kdoc-link" href="http://localhost:1313/apis/tenant-api/tenant-api/viaduct.api/-resolver/"><code>@resolver</code></a>
     ```
-    Parameters:
+  Parameters:
   * First: The fully qualified name of the KDoc to link to.
   * Second: Display name (optional). Defaults to the class name. Must be wrapped in quotes if it contains special characters like `@`.
+
+#### `codetag` shortcode
+
+Code tags works along the source code, in any part of the source code you need to add a comment with the format :
+
+```kotlin
+//tag::NAME[LINES] Comment
+```
+
+Where NAME is the tag name that will be used in the documentation to reference the code snippet.
+And LINES that is the amount of lines to include in the snippet, after this comment. If not specified will take 10 lines of code.
+Comment is optional and can be used to describe the code snippet usage for developers.
+
+Example:
+
+In your code
+
+```kotlin
+//tag::VIADUCT_CONFIG_1[5] This is shown in service documentation
+```
+
+In the hugo service documentation
+
+```md
+{{< codetag path="demoapp/starwars/src/main/kotlin/viaduct/demoapp/starwars/config/ViaductConfig.kt" tag="VIADUCT_CONFIG_1" >}}
+```
+
+Where path is the path to the source code.
+
+This will show the code in the document and also shows a link to the full file in GitHub.
+
+> There is an optional `lang` parameter to specify the language for syntax highlighting. Default it is `kotlin`.
+
+> There is an optional `count` parameter to specify the amount of lines to show.
+
+#### `codefile` shortcode
+
+Code file works simpler, it is just a code snippet of the whole file or a range of lines. No need to modify the source code.
+
+```md
+{{< codefile path="demoapp/starwars/src/main/kotlin/viaduct/demoapp/starwars/config/ViaductConfig.kt" start="1" end="10">}}
+```
+
+If no start or end is specified, the whole file is included.
+
+Where path is the path to the source code.
+
+This will show the code in the document and also shows a link to the full file in GitHub.
+
+> There is an optional `lang` parameter to specify the language for syntax highlighting. Default it is `kotlin`.
 
 ### Sidebar Nav/Table of Contents
 
@@ -130,47 +183,3 @@ There is a section like this
 > It is important that the `source` and the target names are the same. In the previous example "demoapps" is used as the source and "demoapps" is used in the target.
 
 Once a source code file is mounted, it can be referenced in the documentation using the `codetag` or `codefile` shortcodes.
-
-#### `codetag` shortcode
-
-Code tags works along the source code, in any part of the source code you need to add a comment with the format :
-
-```kotlin
-//tag::NAME[LINES] Comment
-```
-
-Where NAME is the tag name that will be used in the documentation to reference the code snippet.
-And LINES that is the amount of lines to include in the snippet, after this comment. If not specified will take 10 lines of code.
-Comment is optional and can be used to describe the code snippet usage for developers.
-
-Example:
-
-In your code
-
-```kotlin
-//tag::VIADUCT_CONFIG_1[5] This is shown in service documentation
-```
-
-In the hugo service documentation
-
-```md
-{{< codetag path="demoapp/starwars/src/main/kotlin/viaduct/demoapp/starwars/config/ViaductConfig.kt" tag="VIADUCT_CONFIG_1" >}}
-```
-
-Where path is the path to the source code.
-
-> There is an optional `lang` parameter to specify the language for syntax highlighting. Default it is `kotlin`.
-
-#### `codefile` shortcode
-
-Code file works simpler, it is just a code snippet of the whole file or a range of lines. No need to modify the source code.
-
-```md
-{{< codefile path="demoapp/starwars/src/main/kotlin/viaduct/demoapp/starwars/config/ViaductConfig.kt" start="1" end="10">}}
-```
-
-If no start or end is specified, the whole file is included.
-
-Where path is the path to the source code.
-
-> There is an optional `lang` parameter to specify the language for syntax highlighting. Default it is `kotlin`.

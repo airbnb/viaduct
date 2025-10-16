@@ -131,7 +131,7 @@ extend type Query @scope(to: ["default"]) {
   # tag::all_characters[3] Batch query sample
   allCharacters(limit: Int): [Character]
     @resolver
-    @backingData(class: "viaduct.demoapp.characters.viaduct.queryresolvers.AllCharactersResolver")
+    @backingData(class: "com.example.starwars.modules.filmography.characters.queries.AllCharactersQueryResolver")
 }
 
 # tag::one_of_example[16] ID search sample
@@ -165,13 +165,6 @@ extend type Mutation @scope(to: ["default"]) {
   """
   updateCharacterName(id: ID! @idOf(type: "Character"), name: String!): Character @resolver
 
-  # tag::mutation_example_3[6] Mutation examples
-  """
-  Link a Character to a Film (adds the character to that film's cast).
-  Allows locating the character either directly by ID or via the existing search input.
-  """
-  addCharacterToFilm(input: AddCharacterToFilmInput!): AddCharacterToFilmPayload @resolver
-
   # tag::mutation_example_4[4] Mutation examples
   """
   Delete a Character by ID. Returns true if a record was removed.
@@ -193,20 +186,4 @@ input CreateCharacterInput @scope(to: ["default"]) {
   mass: Float
   homeworldId: ID @idOf(type: "Planet")
   speciesId: ID @idOf(type: "Species")
-}
-
-"""
-Input for adding an existing Character to an existing Film.
-"""
-input AddCharacterToFilmInput @scope(to: ["default"]) {
-  filmId: ID! @idOf(type: "Film")
-  characterId: ID @idOf(type: "Character")
-}
-
-"""
-Payload returned when adding a Character to a Film.
-"""
-type AddCharacterToFilmPayload @scope(to: ["default"]) {
-  character: Character
-  film: Film
 }

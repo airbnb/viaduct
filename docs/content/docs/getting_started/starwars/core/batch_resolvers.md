@@ -19,7 +19,7 @@ return results in the **same order**.
 
 ## Minimal example (counts per character)
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/batchresolvers/FilmCountBatchResolver.kt" tag="film_count_batch_resolver" >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt" tag="film_count_batch_resolver" >}}
 
 ## Choosing the fragment
 
@@ -27,7 +27,16 @@ The `objectValueFragment` declares the parent fields your resolver needs. Keep i
 is typical for lookup scenarios. If you require additional, cheap fields (for example, `name` for formatting), add them
 here so they are available on `ctx.objectValue` without extra work.
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/batchresolvers/FilmCountBatchResolver.kt" tag="film_count_batch_resolver" count="2" >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt" tag="film_count_batch_resolver" count="2" >}}
+
+## Implementing batch resolvers in node resolvers
+
+Node resolvers can also be batched. The pattern is similar, but you receive a list of `GlobalID`s instead of
+`Context`s. You can use `GlobalID.toInternalID()` to extract your internal ID
+
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt" tag="node_batch_resolver_example" >}}
+
+> For a node resolver you can only implement `batchResolve` or `resolve` — not both.
 
 ## Error handling and nullability
 
@@ -52,7 +61,7 @@ here so they are available on `ctx.objectValue` without extra work.
 
 Schema definition:
 
-{{< codetag path="/demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls" tag="all_characters" land="graphql" >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls" tag="all_characters" land="graphql" >}}
 
 Executed query:
 

@@ -22,7 +22,7 @@ val gid: String = Character.Reflection.globalId("1") // "Q2hhcmFjdGVyOjE="
 
 When building objects in resolvers, use the execution context helper to attach a typed Global ID:
 
-{{< codetag path="demoapps/starwars/modules/universe/src/main/kotlin/viaduct/demoapp/universe/starships/viaduct/mappers/StarshipBuilder.kt" tag="global_id_example"  >}}
+{{< codetag path="demoapps/starwars/modules/universe/src/main/kotlin/com/example/starwars/modules/universe/starships/models/StarshipBuilder.kt" tag="global_id_example"  >}}
 
 > Treat Global IDs as **opaque**. They are intended for retrieval via `node` queries, not as human-facing identifiers.
 
@@ -30,7 +30,7 @@ When building objects in resolvers, use the execution context helper to attach a
 
 Node resolvers receive a parsed Global ID; use the internal ID to load the entity:
 
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/queryresolvers/CharacterNodeResolver.kt" tag="node_resolver_example"  >}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt" tag="node_resolver_example"  >}}
 
 ## Client usage via `node(id:)`
 

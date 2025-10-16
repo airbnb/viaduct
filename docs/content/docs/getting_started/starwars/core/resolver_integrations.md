@@ -14,13 +14,13 @@ and batch field resolvers each play a distinct role but integrate seamlessly dur
 Each entity type can typically implement:
 
 1. **Node resolver** for `GlobalID`-based retrieval via `node` queries.
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/queryresolvers/CharacterNodeResolver.kt" tag="node_resolver_example" count="2">}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt" tag="node_resolver_example" count="2">}}
 
 2. **Batch field resolvers** for expensive computed fields that benefit from batching.
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/batchresolvers/FilmCountBatchResolver.kt" tag="film_count_batch_resolver" count="3">}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt" tag="film_count_batch_resolver" count="3">}}
 
 3. **Single field resolvers** for lightweight computed or derived values.
-{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/viaduct/demoapp/characters/viaduct/fieldresolvers/DisplayNameResolver.kt" tag="resolver_example" count="2">}}
+{{< codetag path="demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplayNameResolver.kt" tag="resolver_example" count="2">}}
 
 ## The entity resolution flow
 

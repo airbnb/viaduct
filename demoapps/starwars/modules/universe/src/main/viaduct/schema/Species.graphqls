@@ -79,5 +79,5 @@ extend type Query @scope(to: ["default"]) {
   """
   allSpecies(limit: Int): [Species]
     @resolver
-    @backingData(class: "viaduct.demoapp.universe.species.viaduct.queryresolvers.AllSpeciesResolver")
+    @backingData(class: "com.example.starwars.modules.universe.species.queries.AllSpeciesQueryResolver")
 }
