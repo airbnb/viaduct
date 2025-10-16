@@ -16,6 +16,7 @@ import schemaPartitionDirectory
 import viaduct.gradle.ViaductPluginCommon.addViaductDependencies
 import viaduct.gradle.ViaductPluginCommon.addViaductTestDependencies
 import viaduct.gradle.ViaductPluginCommon.applyViaductBOM
+import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.task.AssembleSchemaPartitionTask
 import viaduct.gradle.task.GenerateResolverBasesTask
 
@@ -132,6 +133,8 @@ class ViaductModulePlugin : Plugin<Project> {
                     kotlin.srcDir(generateResolverBasesTask.flatMap { it.outputDirectory })
                 }
             }
+
+            configureIdeaIntegration(generateResolverBasesTask)
 
             // Convenience task for module-level codegen
             tasks.register("viaductCodegen") {

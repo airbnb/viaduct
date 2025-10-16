@@ -4,6 +4,10 @@ import java.io.File
 import java.net.URLClassLoader
 import org.gradle.api.Project
 import org.gradle.api.attributes.Attribute
+import org.gradle.api.tasks.TaskProvider
+import org.gradle.plugins.ide.idea.model.IdeaModel
+import org.jetbrains.gradle.ext.settings
+import org.jetbrains.gradle.ext.taskTriggers
 
 object ViaductPluginCommon {
     val VIADUCT_KIND: Attribute<String> =
@@ -132,6 +136,19 @@ object ViaductPluginCommon {
                 "testImplementation",
                 dependencies.testFixtures("${BOM.GROUP_ID}:$artifact")
             )
+        }
+    }
+
+    fun Project.configureIdeaIntegration(generateGRTsTask: TaskProvider<*>) {
+        pluginManager.apply("org.jetbrains.gradle.plugin.idea-ext")
+
+        pluginManager.withPlugin("org.jetbrains.gradle.plugin.idea-ext") {
+            val ideaExtension = extensions.findByType(IdeaModel::class.java)
+            ideaExtension?.project?.settings {
+                taskTriggers {
+                    beforeSync(generateGRTsTask)
+                }
+            }
         }
     }
 }

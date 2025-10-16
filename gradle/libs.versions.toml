@@ -41,6 +41,7 @@ dokka = "2.0.0"
 gradle-maven-publish = "0.34.0"
 develocity = "3.19.2"
 foojay-resolver-convention = "1.0.0"
+idea-gradle-plugin = "1.3"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -108,6 +109,7 @@ reflections = { module = "org.reflections:reflections", version.ref = "reflectio
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometer" }
+idea-gradle-plugin = { module = "org.jetbrains.gradle.plugin.idea-ext:org.jetbrains.gradle.plugin.idea-ext.gradle.plugin", version.ref = "idea-gradle-plugin" }
 
 # Testing
 guava = { module = "com.google.guava:guava", version.ref = "guava" }

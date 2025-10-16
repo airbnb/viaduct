@@ -16,6 +16,7 @@ import viaduct.gradle.ViaductPluginCommon.addViaductDependencies
 import viaduct.gradle.ViaductPluginCommon.addViaductTestDependencies
 import viaduct.gradle.ViaductPluginCommon.addViaductTestFixtures
 import viaduct.gradle.ViaductPluginCommon.applyViaductBOM
+import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 
@@ -31,6 +32,11 @@ class ViaductApplicationPlugin : Plugin<Project> {
             // Set default BOM version to plugin version
             appExt.bomVersion.convention(ViaductPluginCommon.BOM.getDefaultVersion())
 
+            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
+            setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
+
+            val generateGRTsTask = setupGenerateGRTsTask(appExt, assembleCentralSchemaTask)
+
             plugins.withId("java") {
                 if (appExt.applyBOM.get()) {
                     applyViaductBOM(appExt.bomVersion.get())
@@ -39,12 +45,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
                     addViaductTestFixtures(appExt.viaductTestFixtures.get())
                 }
             }
-
-            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
-            setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
-
-            val generateGRTsTask = setupGenerateGRTsTask(appExt, assembleCentralSchemaTask)
-
+            configureIdeaIntegration(generateGRTsTask)
             setupConsumableConfigurationForGRT(generateGRTsTask.flatMap { it.archiveFile })
 
             this.dependencies.add("api", files(generateGRTsTask.flatMap { it.archiveFile }))

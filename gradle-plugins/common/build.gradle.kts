@@ -7,6 +7,7 @@ plugins {
 
 dependencies {
     api(gradleApi())
+    implementation(libs.idea.gradle.plugin)
 }
 
 viaductPublishing {
