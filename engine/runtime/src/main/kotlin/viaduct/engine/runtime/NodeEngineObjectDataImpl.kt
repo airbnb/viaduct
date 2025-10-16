@@ -1,6 +1,7 @@
 package viaduct.engine.runtime
 
 import graphql.schema.GraphQLObjectType
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
@@ -20,6 +21,7 @@ class NodeEngineObjectDataImpl(
 ) : NodeEngineObjectData, NodeReference {
     private lateinit var resolvedEngineObjectData: EngineObjectData
     private val resolving = CompletableDeferred<Unit>()
+    private val resolveDataCalled = AtomicBoolean(false)
 
     override suspend fun fetch(selection: String): Any? = idOrWait(selection) ?: resolvedEngineObjectData.fetch(selection)
 
@@ -40,11 +42,17 @@ class NodeEngineObjectDataImpl(
 
     /**
      * To be called by the engine to resolve this node reference.
+     *
+     * @return true if the data was resolved by this call, false if it was already called previously
      */
     override suspend fun resolveData(
         selections: RawSelectionSet,
         context: EngineExecutionContext
-    ) {
+    ): Boolean {
+        if (!resolveDataCalled.compareAndSet(false, true)) {
+            return false
+        }
+
         try {
             val nodeResolver = resolverRegistry.getNodeResolverDispatcher(graphQLObjectType.name)
                 ?: throw IllegalStateException("No node resolver found for type ${graphQLObjectType.name}")
@@ -82,6 +90,7 @@ class NodeEngineObjectDataImpl(
                 resolvedEngineObjectData = nodeResolver.resolve(id, selections, context)
                 resolving.complete(Unit)
             }
+            return true
         } catch (e: Exception) {
             resolving.completeExceptionally(e)
             throw e

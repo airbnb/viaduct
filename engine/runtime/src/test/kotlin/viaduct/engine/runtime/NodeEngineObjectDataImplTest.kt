@@ -3,6 +3,7 @@
 package viaduct.engine.runtime
 
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -116,5 +117,23 @@ class NodeEngineObjectDataImplTest {
             assertThrows<RuntimeException> {
                 nodeReference.fetch("foo")
             }
+        }
+
+    @Test
+    fun `resolveData called twice`(): Unit =
+        runBlocking {
+            every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(nodeResolver)
+            coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
+            coEvery { engineObjectData.fetch("name") }.returns("testName")
+            every { dispatcherRegistry.getTypeCheckerDispatcher("TestType") }.returns(null)
+
+            val result1 = nodeReference.resolveData(selections, context)
+            assertEquals(true, result1)
+
+            val result2 = nodeReference.resolveData(selections, context)
+            assertEquals(false, result2)
+            coVerify(exactly = 1) { nodeResolver.resolve("testID", selections, context) }
+
+            assertEquals("testName", nodeReference.fetch("name"))
         }
 }

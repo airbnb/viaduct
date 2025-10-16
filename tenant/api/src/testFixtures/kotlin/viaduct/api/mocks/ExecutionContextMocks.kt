@@ -60,7 +60,7 @@ class MockNodeEngineObjectData(
     override suspend fun resolveData(
         selections: RawSelectionSet,
         context: EngineExecutionContext
-    ) {
+    ): Boolean {
         throw UnsupportedOperationException()
     }
 }

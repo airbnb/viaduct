@@ -152,24 +152,33 @@ class ObjectEngineResultImpl private constructor(
     private fun maybeInitializeKey(key: ObjectEngineResult.Key): Cell = storage.computeIfAbsent(key) { newCell() }
 
     /**
-     * Resolves this OER exceptionally if it is in the pending state
+     * Resolves this OER exceptionally if it is in the pending state.
+     * If already resolved with the same exception, this is a no-op.
      *
-     * @throws IllegalStateException if this OER is already resolved
+     * @throws IllegalStateException if this OER is already resolved normally or with a different exception
      */
     internal fun resolveExceptionally(exception: Throwable) {
         if (!oerState.completeExceptionally(exception)) {
-            throw IllegalStateException("Invariant: already resolved")
+            val completionException = oerState.getCompletionExceptionOrNull()
+            if (completionException == exception) {
+                return
+            }
+            // Otherwise it was resolved normally or with a different exception
+            throw IllegalStateException("Invariant: already resolved", completionException)
         }
     }
 
     /**
-     * Resolves this OER if it is in the pending state
+     * Resolves this OER if it is in the pending state.
+     * If already resolved normally, this is a no-op.
      *
-     * @throws IllegalStateException if this OER is already resolved
+     * @throws IllegalStateException if this OER is already resolved exceptionally
      */
     internal fun resolve() {
         if (!oerState.complete(Unit)) {
-            throw IllegalStateException("Invariant: already resolved")
+            oerState.getCompletionExceptionOrNull()?.let {
+                throw IllegalStateException("Invariant: already resolved exceptionally", it)
+            }
         }
     }
 

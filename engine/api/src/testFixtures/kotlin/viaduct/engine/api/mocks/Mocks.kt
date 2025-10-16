@@ -56,7 +56,7 @@ import viaduct.graphql.utils.DefaultSchemaProvider
 
 typealias CheckerFn = suspend (arguments: Map<String, Any?>, objectDataMap: Map<String, EngineObjectData>) -> Unit
 typealias NodeBatchResolverFn = suspend (selectors: List<NodeResolverExecutor.Selector>, context: EngineExecutionContext) -> Map<NodeResolverExecutor.Selector, Result<EngineObjectData>>
-typealias NodeUnbatchedResolverFn = (id: String, selections: RawSelectionSet?, context: EngineExecutionContext) -> EngineObjectData
+typealias NodeUnbatchedResolverFn = suspend (id: String, selections: RawSelectionSet?, context: EngineExecutionContext) -> EngineObjectData
 typealias FieldUnbatchedResolverFn = suspend (
     arguments: Map<String, Any?>,
     objectValue: EngineObjectData,
