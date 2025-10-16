@@ -269,8 +269,8 @@ class ClassDiff(
                 val list = (0 until attribute.tableLength()).map { i ->
                     listOf(
                         "attr=${attribute.name}",
-                        "outer=${attribute.outerClass(i).packageNormalized}",
-                        "inner=${attribute.innerClass(i).packageNormalized}",
+                        "outer=${attribute.outerClass(i)?.packageNormalized ?: "<null>"}",
+                        "inner=${attribute.innerClass(i)?.packageNormalized ?: "<null>"}",
                         "name=${attribute.innerName(i)}",
                         "flags=${attribute.accessFlags(i)}"
                     ).joinToString("  ")

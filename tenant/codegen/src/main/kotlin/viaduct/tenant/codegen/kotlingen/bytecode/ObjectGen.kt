@@ -86,7 +86,8 @@ private val objectSTGroup =
         class Builder(context: ExecutionContext)
             : ObjectBase.Builder\<<mdl.className>\>(
                 context as InternalContext,
-                TODO() as graphql.schema.GraphQLObjectType
+                TODO() as graphql.schema.GraphQLObjectType,
+                null
             )
         {
             <mdl.fields: { f |

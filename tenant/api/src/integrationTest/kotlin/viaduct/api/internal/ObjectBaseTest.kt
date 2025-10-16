@@ -2,11 +2,13 @@
 
 package viaduct.api.internal
 
+import graphql.schema.GraphQLObjectType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.ExceptionsForTesting
@@ -20,6 +22,7 @@ import viaduct.api.testschema.E1
 import viaduct.api.testschema.I1
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
+import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.NodeReference
@@ -589,7 +592,7 @@ class ObjectBaseTest {
             assertEquals("foo", e13.cause!!.message)
         }
 
-    inner class BuggyBuilder : ObjectBase.Builder<O2>(internalContext, gqlSchema.schema.getObjectType("O2")) {
+    inner class BuggyBuilder : ObjectBase.Builder<O2>(internalContext, gqlSchema.schema.getObjectType("O2"), null) {
         fun intField(v: Any?): BuggyBuilder {
             putInternal("intField", v)
             return this
@@ -601,5 +604,136 @@ class ObjectBaseTest {
         }
 
         override fun build() = O2(context, buildEngineObjectData())
+    }
+
+    private class TestObject(
+        context: InternalContext,
+        engineObject: EngineObject
+    ) : ObjectBase(context, engineObject), viaduct.api.types.Object {
+        suspend fun getIntField(): Int = fetch("intField", Int::class, null)
+
+        suspend fun getArgumentedField(): String? = fetch("argumentedField", String::class, null)
+
+        // toBuilder implementation that would normally be provided by codegen
+        fun toBuilder(): TestObjectBuilder = TestObjectBuilder(context, engineObject.graphQLObjectType, toBuilderEOD())
+    }
+
+    private class TestObjectBuilder(
+        context: InternalContext,
+        graphQLObjectType: GraphQLObjectType,
+        baseEngineObjectData: EngineObjectData? = null
+    ) : ObjectBase.Builder<TestObject>(context, graphQLObjectType, baseEngineObjectData) {
+        constructor(context: viaduct.api.context.ExecutionContext) : this(
+            context.internal,
+            context.internal.schema.schema.getObjectType("O2"), // Use existing O2 type
+            null
+        )
+
+        fun intField(value: Int): TestObjectBuilder {
+            putInternal("intField", value)
+            return this
+        }
+
+        fun argumentedField(value: String?): TestObjectBuilder {
+            putInternal("argumentedField", value)
+            return this
+        }
+
+        override fun build() = TestObject(context, buildEngineObjectData())
+    }
+
+    @Nested
+    inner class ToBuilderTests {
+        @Test
+        fun `toBuilder preserves unmodified fields`() =
+            runBlocking {
+                val original = TestObjectBuilder(executionContext)
+                    .intField(42)
+                    .argumentedField("hello")
+                    .build()
+
+                val updated = original.toBuilder()
+                    .intField(99)
+                    .build()
+
+                assertEquals(99, updated.getIntField())
+                assertEquals("hello", updated.getArgumentedField())
+            }
+
+        @Test
+        fun `toBuilder allows multiple field overrides`() =
+            runBlocking {
+                val original = TestObjectBuilder(executionContext)
+                    .intField(1)
+                    .argumentedField("original")
+                    .build()
+
+                val updated = original.toBuilder()
+                    .intField(2)
+                    .argumentedField("updated")
+                    .build()
+
+                assertEquals(2, updated.getIntField())
+                assertEquals("updated", updated.getArgumentedField())
+            }
+
+        @Test
+        fun `toBuilder throws on NodeReference`() {
+            val nodeRef = object : NodeReference {
+                override val graphQLObjectType = gqlSchema.schema.getObjectType("O2")
+                override val id = "O2:test-id"
+            }
+            val testObject = TestObject(internalContext, nodeRef)
+
+            val exception = assertThrows<ViaductTenantUsageException> {
+                testObject.toBuilder()
+            }
+
+            assertTrue(exception.message!!.contains("Cannot call toBuilder()"))
+            assertTrue(exception.message!!.contains("NodeReference"))
+        }
+
+        @Test
+        fun `toBuilder with no overrides creates equivalent object`() =
+            runBlocking {
+                val original = TestObjectBuilder(executionContext)
+                    .intField(123)
+                    .argumentedField("test")
+                    .build()
+
+                val copy = original.toBuilder().build()
+
+                assertEquals(original.getIntField(), copy.getIntField())
+                assertEquals(original.getArgumentedField(), copy.getArgumentedField())
+            }
+
+        @Test
+        fun `chained toBuilder calls work correctly`() =
+            runBlocking {
+                val v1 = TestObjectBuilder(executionContext)
+                    .intField(1)
+                    .argumentedField("v1")
+                    .build()
+
+                val v2 = v1.toBuilder()
+                    .intField(2)
+                    .build()
+
+                val v3 = v2.toBuilder()
+                    .argumentedField("v3")
+                    .build()
+
+                // v3 should have argumentedField from v3, intField from v2
+                assertEquals(2, v3.getIntField())
+                assertEquals("v3", v3.getArgumentedField())
+
+                // v2 should be unchanged
+                assertEquals(2, v2.getIntField())
+                assertEquals("v1", v2.getArgumentedField())
+
+                // v1 should be unchanged
+                assertEquals(1, v1.getIntField())
+                assertEquals("v1", v1.getArgumentedField())
+            }
     }
 }

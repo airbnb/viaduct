@@ -52,7 +52,7 @@ In our code, we use the prefix "Ct" and "cT" to indicate types, functions, and v
 
 ## Layering
 
-In our initial implementation, we had independent code paths to produce the KM data structures needed to generated the `@Metadata` annotations and the Javassist data structures needed to generate the classfiles.  It was immediately apparent that, when it came to generating the classfile signature information - e.g., the names, return-types, and argument types of methods - our code was highly repetetive: We were doing the same thing to generate both the KM and Ct data structures.  In addition, we were baking-in a lot of Kotlin-specific logic into the generation of the Ct data structures (eg, specifics regarding suspend-function continuations) - and we were repeating this logic in multiple places.
+In our initial implementation, we had independent code paths to produce the KM data structures needed to generate the `@Metadata` annotations and the Javassist data structures needed to generate the classfiles.  It was immediately apparent that, when it came to generating the classfile signature information - e.g., the names, return-types, and argument types of methods - our code was highly repetitive: We were doing the same thing to generate both the KM and Ct data structures.  In addition, we were baking-in a lot of Kotlin-specific logic into the generation of the Ct data structures (eg, specifics regarding suspend-function continuations) - and we were repeating this logic in multiple places.
 
 We considered writing our own code-generation API, specialized to the needs of Viaduct, that would encapsulate KM and Ct.  However, we rejected such a totalizing abstraction because the KM library in particular is quite large, so a lot of our code would've been just empty wrappers around that library.
 
@@ -76,7 +76,7 @@ The first layer needs to be _complete_, ie, translate any GraphQL schema into GR
 
 This begs the question: How do we protect ourselves from such "red zone" bugs?
 
-Initially we wrote an elaborate checker for the output of GwlToKm to ensure it stays out of the red zone.  While this checker is useful and [still exists](../src/main/kotlin/viaduct/codegen/km/KmGenContextInvariants.kt), it was difficult to convince ourselves that those checks were sufficient, i.e., that they ruled out the entire "red zone."
+Initially we wrote an elaborate checker for the output of GqlToKm to ensure it stays out of the red zone.  While this checker is useful and [still exists](../src/main/kotlin/viaduct/codegen/km/KmGenContextInvariants.kt), it was difficult to convince ourselves that those checks were sufficient, i.e., that they ruled out the entire "red zone."
 
 Thus we decided to add a third layer to our generator:
 
@@ -84,24 +84,23 @@ Thus we decided to add a third layer to our generator:
 
 The new layer sits between the GqlToKm layer and the raw KM library.  The API to this new layer is a set of "builders" that build "KmWrapper" objects.  These builders significantly restrict the KM data structures the GqlToKm can generate, helping to keep it out of the red zone.  In addition, this layer encapsulates a lot of KM-specific logic.  For example, in the KM library, when you add a Kotlin property to a class, you have to worry about its backing field, its getter and setter functions, and other such matters.  The wrapper layer encapsulates this logic in an easy-to-reuse manner.
 
-We mentioned earlier that we did _not_ want to insert an API between GqlToKm and the KM library.  The KmWrappers do just that, but it's important to note that we haven't attempted to completely intermediate between GqlToKm and the KM library.  For example, the GqlToKm code directly generates KM objects to express the types it wants in generated code.  Also, there's a tight correlation between our `KmWrapper` class and the `KmClass` iun the KM library.  Bottom line: if you're working on the GqlToKm code, it's important that you have a deep understanding of the KM library.
+We mentioned earlier that we did _not_ want to insert an API between GqlToKm and the KM library.  The KmWrappers do just that, but it's important to note that we haven't attempted to completely intermediate between GqlToKm and the KM library.  For example, the GqlToKm code directly generates KM objects to express the types it wants in generated code.  Also, there's a tight correlation between our `KmWrapper` class and the `KmClass` in the KM library.  Bottom line: if you're working on the GqlToKm code, it's important that you have a deep understanding of the KM library.
 
 One more point: we have chosen to keep _all_ aspects of GraphQL to Kotlin logic in the GqlToKm.  For example, the KmWrapper classes could have taken GraphQL types as arguments rather than the KM library's `KmType`.  However, that would have moved some of the GraphQL-to-Kotlin logic into KmWrapper, which we didn't want to do.  So, for example, if in a future version of the Viaduct API, we want to change the way we map GraphQL types to Kotlin types, we can write a variant GqlToKm layer that makes that change, which would share the same KmWrapper layer with the "legacy" GqlToKm.
 
 
 # Source Files
 
-The GrtToKm layer is in [`:tenant:codegen`](../../../tenant/codegen).  The KmWrapper and KmToCt layers live in Treehouse at [`:shared:codegen`](..).  The GrtToKm layer is kept separately from the other layers because, theoretically, we want to support multiple "Tenant APIs", and each of those might generate code slightly differently.  (Inside of Airbnb, we have an older tenant-facing API we still support that indeed has a different GrtToKm layer that uses the `:shared:codegen` library.)
+The GqlToKm layer is in [`:tenant:codegen`](../../../tenant/codegen).  The KmWrapper and KmToCt layers live in Treehouse at [`:shared:codegen`](..).  The GqlToKm layer is kept separately from the other layers because, theoretically, we want to support multiple "Tenant APIs", and each of those might generate code slightly differently.  (Inside of Airbnb, we have an older tenant-facing API we still support that indeed has a different GqlToKm layer that uses the `:shared:codegen` library.)
 
 
 # Testing Overview
 
-As mentioned in the introduction, correctness is critical to the bytecode generator, and yet errors are easily made in its code.  To help ensure correctness, we've implemented a three-part testing strategy: unit, structual, and behavioral testing.  We'll talk about each of these below.
+As mentioned in the introduction, correctness is critical to the bytecode generator, and yet errors are easily made in its code.  To help ensure correctness, we've implemented a three-part testing strategy: unit, structural, and behavioral testing.  We'll talk about each of these below.
 
 ## Unit testing
 
 Unit tests test the individual functions that make up the code generator.  They are found in the usual places.
-
 
 
 ## Test and Central Schemas
@@ -114,7 +113,7 @@ The central schema is the actual Viaduct central schema checked into Treehouse b
 
 The central schema tests are _highly_ redundant.  For example, we run the same battery of tests against every `enum` GRT in the central schema, of which there are a few hundred.  It's highly unlikely that the 101-th `enum` in the schema represents a test case any different from the 100 prior `enum`s already tested.  You might call this "needle in the hay stack" testing.  While the 101-th `enum` is not likely to expose a bug, it just might.  Tenants do crazy things - which makes them awesome testcase generators.  We don't yet know how to separate the needle/crazy-tenant-thing from the hay-stack/super-redundant-testing, so we test the central schema exhaustively, using our tenants as test-case generators.  (Again, when a crazy tenant thing triggers a bug in our code, we turn that "crazy" thing into a regression case in the test schema.)
 
-(TODO: we talked about making the central schema tests part of the staging delploy pipeline, if that happens mention it here.)
+(TODO: we talked about making the central schema tests part of the staging deploy pipeline, if that happens mention it here.)
 
 
 ## Legacy vs test Kotlin generation
@@ -123,7 +122,7 @@ As discussed below, an important class of testing is testing our direct-to-bytec
 
 The first way is to invoke the "legacy" code generator, i.e., the generator that we used before bytecode gen was implemented.  In our Bazel scripts, where you see the word "legacy" in a target name or identifier, that relates to this form of code generation.
 
-We'll be phasing out this legacy Kotlin code generator in favor of what we call the test Kotlin code generator.  This is an easier-to-maintain Kotlin code generator that generates only the structure of our GRTs (e.g., classes, subclass relationship, property and function signatures), not working function bodies.  Over time we will be replacing legacy codegen with this test codegen.  Where you see "kotlin_grt" in Bazel files, that's refering to this test codegen.
+We'll be phasing out this legacy Kotlin code generator in favor of what we call the test Kotlin code generator.  This is an easier-to-maintain Kotlin code generator that generates only the structure of our GRTs (e.g., classes, subclass relationship, property and function signatures), not working function bodies.  Over time we will be replacing legacy codegen with this test codegen.  Where you see "kotlin_grt" in Bazel files, that's referring to this test codegen.
 
 
 ## InvariantChecker Class
@@ -131,7 +130,7 @@ We'll be phasing out this legacy Kotlin code generator in favor of what we call 
 The integration testing described below uses a class called [`InvariantChecker`](../../invariants/src/main/kotlin/viaduct/invariants/InvariantChecker.kt) to accumulate errors encountered during integration testing.  `InvariantChecker` has testing functions similar to the assertion functions found in Junit and Google truth.  However, instead of raising an exception when they fail, the failures are collected into a log of failures that can be inspected after a testing run.
 
 We use this accumulator because our integration tests perform over 100K tests in total.  It's not scalable to make each of those an individual Junit test.  Also, for this kind of testing we want "continue on failure" semantics (ie, an entire test run should not terminate on the first error).  The `InvariantChecker` class is meant to support use-cases like this.
-  
+
 
 ## Structural testing
 

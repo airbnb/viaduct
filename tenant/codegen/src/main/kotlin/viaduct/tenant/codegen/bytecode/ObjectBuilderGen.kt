@@ -76,7 +76,8 @@ private class ObjectBuilderGenV2(
                     (${castObjectExpression(cfg.INTERNAL_CONTEXT.asKmName.asType(), "$1")})
                         .getSchema()
                         .getSchema()
-                        .getObjectType("${def.name}")
+                        .getObjectType("${def.name}"),
+                    null
                 );
             """.trimIndent(),
             body = buildString {

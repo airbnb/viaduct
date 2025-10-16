@@ -36,7 +36,7 @@ import viaduct.engine.api.UnsetSelectionException
  * Base class for object type GRTs
  */
 abstract class ObjectBase(
-    private val context: InternalContext,
+    protected val context: InternalContext,
     val engineObject: EngineObject,
 ) : Object {
     private val fieldCache = ConcurrentHashMap<String, Any>()
@@ -207,18 +207,41 @@ abstract class ObjectBase(
     }
 
     /**
+     * Helper method for generated toBuilder() implementations.
+     * Returns the EngineObjectData for this GRT instance, throwing if called on a NodeReference.
+     *
+     * @return The EngineObjectData backing this GRT
+     * @throws ViaductTenantUsageException if called on a NodeReference
+     */
+    protected fun toBuilderEOD(): EngineObjectData {
+        if (engineObject is NodeReference) {
+            throw ViaductTenantUsageException(
+                "Cannot call toBuilder() on an unresolved NodeReference."
+            )
+        }
+
+        return engineObject as EngineObjectData
+    }
+
+    /**
      * Usually directly used by tenant developers to build Viaduct object in resolvers by calling
      * `MyType.Builder(context)`, where `MyType` is a generated GRT class that extends ObjectBase class.
+     *
+     * Can also be constructed with a base EOD to enable calling `toBuilder` on GRTs.
      */
     abstract class Builder<T>(
         protected val context: InternalContext,
         private val graphQLObjectType: GraphQLObjectType,
+        private val baseEngineObjectData: EngineObjectData?
     ) : DynamicOutputValueBuilder<T> {
         private val wrapper = EODBuilderWrapper(graphQLObjectType, context.globalIDCodec)
 
-        protected fun buildEngineObjectData() =
+        protected fun buildEngineObjectData(): EngineObjectData =
             handleTenantAPIErrors("ObjectBase.Builder.buildEngineObjectData failed") {
-                wrapper.getEngineObjectData()
+                val overlay = wrapper.getEngineObjectData()
+                baseEngineObjectData?.let { base ->
+                    OverlayEngineObjectData(overlay, base)
+                } ?: overlay
             }
 
         /**
