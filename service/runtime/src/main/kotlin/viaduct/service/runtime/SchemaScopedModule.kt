@@ -6,9 +6,8 @@ import com.google.inject.PrivateModule
 import com.google.inject.Provides
 import com.google.inject.Singleton
 import javax.inject.Qualifier
-import viaduct.engine.Engine
 import viaduct.engine.EngineConfiguration
-import viaduct.engine.EngineImpl
+import viaduct.engine.EngineFactory
 import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.CheckerExecutorFactoryCreator
 import viaduct.engine.api.FieldCheckerDispatcherRegistry
@@ -84,7 +83,7 @@ internal class SchemaScopedModule(
         @Exposed
         fun providesEngineRegistry(
             @BaseRegistry registry: EngineRegistry,
-            engineFactory: Engine.Factory,
+            engineFactory: EngineFactory,
         ): EngineRegistry {
             registry.setEngineFactory(engineFactory)
             return registry
@@ -138,8 +137,8 @@ internal class SchemaScopedModule(
     fun providesEngineFactory(
         config: EngineConfiguration,
         dispatcherRegistry: DispatcherRegistry,
-    ): Engine.Factory {
-        return EngineImpl.FactoryImpl(
+    ): EngineFactory {
+        return EngineFactory(
             config = config,
             dispatcherRegistry = dispatcherRegistry,
         )

@@ -1,17 +1,16 @@
 package viaduct.engine
 
 import graphql.ExecutionInput as GJExecutionInput
-import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.ExecutionId
 import graphql.execution.instrumentation.Instrumentation
-import graphql.execution.preparsed.NoOpPreparsedDocumentProvider
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import io.micrometer.core.instrument.MeterRegistry
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.future.asDeferred
+import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineExecutionResult
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.TemporaryBypassAccessCheck
@@ -31,72 +30,18 @@ import viaduct.engine.runtime.instrumentation.ScopeInstrumentation
 import viaduct.engine.runtime.instrumentation.TaggedMetricInstrumentation
 import viaduct.service.api.spi.FlagManager
 
-/**
- * Core GraphQL execution engine that processes queries, mutations, and subscriptions
- * against a compiled Viaduct schema.
- */
-interface Engine {
-    val schema: ViaductSchema
-
-    /**
-     * Factory for creating Engine instances with specific schema and document caching configurations.
-     */
-    interface Factory {
-        /**
-         * Creates a new Engine instance.
-         *
-         * @param schema The compiled Viaduct schema to validate against, but not used for execution except for introspection queries.
-         * @param documentProvider Provider for preparsed and cached GraphQL documents.
-         * @param fullSchema The full Viaduct schema, which is used for execution. Defaults to [schema] if not provided.
-         * @return A configured Engine instance
-         */
-        fun create(
-            schema: ViaductSchema,
-            documentProvider: PreparsedDocumentProvider = NoOpPreparsedDocumentProvider(),
-            fullSchema: ViaductSchema = schema,
-        ): Engine
-    }
-
-    /**
-     * Executes a GraphQL operation asynchronously.
-     *
-     * @param executionInput The GraphQL operation to execute, including query text and variables
-     * @return A deferred execution result that can be awaited
-     */
-    fun execute(executionInput: ExecutionInput): EngineExecutionResult
-}
-
 @Deprecated("Airbnb use only")
 interface EngineGraphQLJavaCompat {
     fun getGraphQL(): GraphQL
 }
 
-class EngineImpl private constructor(
+class EngineImpl(
     private val config: EngineConfiguration,
     dispatcherRegistry: DispatcherRegistry,
     override val schema: ViaductSchema,
     documentProvider: PreparsedDocumentProvider,
     fullSchema: ViaductSchema,
 ) : Engine, EngineGraphQLJavaCompat {
-    class FactoryImpl(
-        private val config: EngineConfiguration = EngineConfiguration.default,
-        private val dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
-    ) : Engine.Factory {
-        override fun create(
-            schema: ViaductSchema,
-            documentProvider: PreparsedDocumentProvider,
-            fullSchema: ViaductSchema,
-        ): Engine {
-            return EngineImpl(
-                config,
-                dispatcherRegistry,
-                schema,
-                documentProvider,
-                fullSchema,
-            )
-        }
-    }
-
     private val coroutineInterop: CoroutineInterop = config.coroutineInterop
     private val fragmentLoader: FragmentLoader = config.fragmentLoader
     private val flagManager: FlagManager = config.flagManager
@@ -179,6 +124,7 @@ class EngineImpl private constructor(
         fragmentLoader,
         resolverDataFetcherInstrumentation,
         flagManager,
+        this,
     )
 
     @Deprecated("Airbnb use only")
@@ -228,18 +174,4 @@ class EngineImpl private constructor(
     fun mkEngineExecutionContext(requestContext: Any?): EngineExecutionContext {
         return engineExecutionContextFactory.create(schema, requestContext)
     }
-}
-
-/**
- * Wraps a deferred GraphQL execution result that can be awaited to retrieve the final output.
- */
-data class EngineExecutionResult(
-    private val deferredExecutionResult: Deferred<ExecutionResult>,
-) {
-    /**
-     * Suspends until the GraphQL execution completes and returns the result.
-     *
-     * @return The completed GraphQL execution result containing data and errors
-     */
-    suspend fun awaitExecutionResult(): ExecutionResult = deferredExecutionResult.await()
 }

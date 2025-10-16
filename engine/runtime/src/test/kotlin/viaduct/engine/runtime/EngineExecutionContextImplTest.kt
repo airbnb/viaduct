@@ -2,6 +2,7 @@ package viaduct.engine.runtime
 
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.NodeResolverExecutor
@@ -15,7 +16,8 @@ class EngineExecutionContextImplTest {
         val resolver = mockk<NodeResolverExecutor> { every { typeName } returns "User" }
         val batchNodeLoader = eec.nodeDataLoader(resolver)
         val copyBatchNodeLoader = eecCopy.nodeDataLoader(resolver)
-        assertTrue(batchNodeLoader === copyBatchNodeLoader)
+        assertSame(batchNodeLoader, copyBatchNodeLoader)
+        assertSame(eec.engine, eecCopy.engine)
         assertTrue(eecCopy.executeAccessChecksInModstrat)
     }
 }

@@ -5,6 +5,7 @@ import graphql.language.FragmentDefinition
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.ConcurrentHashMap
+import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.FragmentLoader
@@ -32,6 +33,7 @@ class EngineExecutionContextFactory(
     fragmentLoader: FragmentLoader,
     private val resolverInstrumentation: Instrumentation,
     private val flagManager: FlagManager,
+    private val engine: Engine,
 ) {
     // Constructing this is expensive, so do it just once per schema-version
     private val rawSelectionSetFactory: RawSelectionSet.Factory = RawSelectionSetFactoryImpl(fullSchema)
@@ -55,6 +57,7 @@ class EngineExecutionContextFactory(
             ConcurrentHashMap<String, FieldDataLoader>(),
             ConcurrentHashMap<String, NodeDataLoader>(),
             flagManager.isEnabled(Flags.EXECUTE_ACCESS_CHECKS_IN_MODERN_EXECUTION_STRATEGY),
+            engine,
         )
     }
 }
@@ -70,6 +73,7 @@ class EngineExecutionContextImpl(
     private val fieldDataLoaders: ConcurrentHashMap<String, FieldDataLoader>,
     private val nodeDataLoaders: ConcurrentHashMap<String, NodeDataLoader>,
     val executeAccessChecksInModstrat: Boolean,
+    override val engine: Engine,
     val dataFetchingEnvironment: DataFetchingEnvironment? = null,
     override val activeSchema: ViaductSchema = fullSchema,
     override val fieldScope: EngineExecutionContext.FieldExecutionScope = FieldExecutionScopeImpl(),
@@ -144,6 +148,7 @@ class EngineExecutionContextImpl(
         fieldDataLoaders = this.fieldDataLoaders,
         nodeDataLoaders = this.nodeDataLoaders,
         executeAccessChecksInModstrat = executeAccessCheckInModstrat,
+        engine = this.engine,
         dataFetchingEnvironment = dataFetchingEnvironment,
         fieldScope = fieldScope,
     )

@@ -24,6 +24,11 @@ interface EngineExecutionContext {
     // Request-scoped: Per-request context set by Viaduct Service Engineers
     val requestContext: Any?
 
+    /**
+     * The engine that is currently executing this request, enabling follow-up executions within the same lifecycle.
+     */
+    val engine: Engine
+
     // Field-scoped: Changes during execution tree traversal
     /**
      * Field-level execution scope that changes as we traverse the execution tree.

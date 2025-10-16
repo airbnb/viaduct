@@ -12,9 +12,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import viaduct.engine.Engine
+import viaduct.engine.EngineFactory
 import viaduct.engine.EngineGraphQLJavaCompat
 import viaduct.engine.SchemaFactory
+import viaduct.engine.api.Engine
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.SchemaId
 import viaduct.utils.collections.parallelMap
@@ -126,12 +127,12 @@ class EngineRegistry private constructor(
 
     /**
      * This must be set exactly once, before any calls to [getEngine].
-     * We cannot set it in the constructor because of the dependency of Engine.Factory on the "full" schema. So we must wait for
-     * the EngineRegistry to be constructed with the full schema, and then we can construct the Engine.Factory and set it here.
+     * We cannot set it in the constructor because of the dependency of [EngineFactory] on the "full" schema. So we must wait for
+     * the EngineRegistry to be constructed with the full schema, and then we can construct the [EngineFactory] and set it here.
      */
-    private lateinit var engineFactory: Engine.Factory
+    private lateinit var engineFactory: EngineFactory
 
-    fun setEngineFactory(engineFactory: Engine.Factory) {
+    fun setEngineFactory(engineFactory: EngineFactory) {
         if (::engineFactory.isInitialized) {
             throw IllegalStateException("Engine factory has already been set.")
         }

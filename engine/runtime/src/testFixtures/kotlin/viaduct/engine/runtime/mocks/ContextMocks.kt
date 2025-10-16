@@ -4,6 +4,7 @@ import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.instrumentation.SimplePerformantInstrumentation
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.ViaductSchema
@@ -23,6 +24,7 @@ class ContextMocks(
     myFragmentLoader: FragmentLoader? = null,
     myResolverInstrumentation: Instrumentation? = null,
     myFlagManager: FlagManager? = null,
+    myEngine: Engine? = null,
     myEngineExecutionContextFactory: EngineExecutionContextFactory? = null,
     private val myEngineExecutionContext: EngineExecutionContext? = null,
     myBaseLocalContext: CompositeLocalContext? = null,
@@ -37,6 +39,7 @@ class ContextMocks(
     val fragmentLoader: FragmentLoader = myFragmentLoader ?: ViaductFragmentLoader(ViaductExecutableFragmentParser())
     val resolverInstrumentation: Instrumentation = myResolverInstrumentation ?: SimplePerformantInstrumentation()
     val flagManager: FlagManager = myFlagManager ?: MockFlagManager.Enabled
+    val engine: Engine = myEngine ?: mockk(relaxed = true)
 
     val engineExecutionContext: EngineExecutionContext get() =
         when {
@@ -54,6 +57,7 @@ class ContextMocks(
             fragmentLoader,
             resolverInstrumentation,
             flagManager,
+            engine,
         )
 
     val localContext: CompositeLocalContext by lazy {
