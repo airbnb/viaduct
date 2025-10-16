@@ -41,7 +41,7 @@ class VariablesProviderExecutorTest {
                 mockk<ReflectionLoader>(),
                 variablesProvider = VariablesProviderInfo(setOf("foo", "bar")) {
                     VariablesProvider<MockArgs> { context ->
-                        mapOf("foo" to context.args.a * 2, "bar" to context.args.b * 3)
+                        mapOf("foo" to context.arguments.a * 2, "bar" to context.arguments.b * 3)
                     }
                 }
             ) { args -> MockArgs(args.arguments) }

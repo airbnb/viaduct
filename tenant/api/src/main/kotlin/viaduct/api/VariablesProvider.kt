@@ -17,7 +17,7 @@ import viaduct.api.types.Arguments
  *
  *   @Variables("x: Int")
  *   class Vars : VariablesProvider<Arguments.NoArguments> {
- *     override suspend fun provide(args: Arguments.NoArguments): Map<String, Any?> =
+ *     override suspend fun provide(context: VariablesProviderContext<Arguments.NoArguments>): Map<String, Any?> =
  *       mapOf("x" to 42)
  *   }
  * }

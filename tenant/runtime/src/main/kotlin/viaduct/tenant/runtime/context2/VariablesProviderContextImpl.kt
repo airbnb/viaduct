@@ -7,5 +7,5 @@ import viaduct.api.types.Arguments
 class VariablesProviderContextImpl<A : Arguments>(
     baseData: InternalContext,
     override val requestContext: Any?,
-    override val args: A
+    override val arguments: A
 ) : VariablesProviderContext<A>, ExecutionContextImpl(baseData)

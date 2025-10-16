@@ -171,5 +171,5 @@ fun <A : Arguments> VariablesProviderInfo.Companion.typed(
     fn: suspend (args: A) -> Map<String, Any?>
 ): VariablesProviderInfo =
     VariablesProviderInfo(variables.toSet()) {
-        VariablesProvider { context: VariablesProviderContext<A> -> fn(context.args) }
+        VariablesProvider { context: VariablesProviderContext<A> -> fn(context.arguments) }
     }
