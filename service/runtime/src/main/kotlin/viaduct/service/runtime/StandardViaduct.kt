@@ -4,7 +4,6 @@ import com.google.inject.Guice
 import com.google.inject.Inject
 import com.google.inject.Injector
 import com.google.inject.ProvisionException
-import com.google.inject.util.Modules
 import graphql.ExecutionResult
 import graphql.ExecutionResultImpl
 import graphql.GraphQL
@@ -15,6 +14,7 @@ import graphql.execution.instrumentation.Instrumentation
 import graphql.schema.GraphQLSchema
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.CompletableFuture
+import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineGraphQLJavaCompat
 import viaduct.engine.EngineImpl
 import viaduct.engine.api.CheckerExecutorFactory
@@ -70,19 +70,8 @@ class StandardViaduct
                  * Configuration (TenantBootstrapper, CheckerExecutorFactory creator) comes from parent injector.
                  */
                 fun createForSchema(schemaConfig: SchemaConfiguration): StandardViaduct {
-                    // Create schema-specific modules that will be bound only in child injector
-                    val schemaModules = listOf(
-                        SchemaConfigurationModule(schemaConfig),
-                        ViaductInternalEngineModule(), // Schema-specific providers (registry, dispatcher, etc.)
-                        ViaductExecutionStrategyModule() // Execution strategies with schema-specific dispatchers
-                    )
-
-                    // Create new child injector with schema modules
-                    // This ensures @Singleton in these modules = schema-scoped
-                    val childInjector = injector.createChildInjector(schemaModules)
-
-                    // Get StandardViaduct from child injector
-                    // This will create schema-specific components automatically
+                    val schemaModule = SchemaScopedModule(schemaConfig)
+                    val childInjector = injector.createChildInjector(schemaModule)
                     return childInjector.getInstance(StandardViaduct::class.java)
                 }
             }
@@ -94,13 +83,13 @@ class StandardViaduct
             private var flagManager: FlagManager? = null
             private var checkerExecutorFactory: CheckerExecutorFactory? = null
             private var checkerExecutorFactoryCreator: ((ViaductSchema) -> CheckerExecutorFactory)? = null
-            private var temporaryBypassAccessCheck: TemporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default
+            private var temporaryBypassAccessCheck: TemporaryBypassAccessCheck? = null
             private var dataFetcherExceptionHandler: DataFetcherExceptionHandler? = null
             private var resolverErrorReporter: ResolverErrorReporter? = null
             private var resolverErrorBuilder: ResolverErrorBuilder? = null
             private var coroutineInterop: CoroutineInterop? = null
             private var schemaConfiguration: SchemaConfiguration = SchemaConfiguration.DEFAULT
-            private var documentProviderFactory: DocumentProviderFactory = DocumentProviderFactory { _, _ -> CachingPreparsedDocumentProvider() }
+            private var documentProviderFactory: DocumentProviderFactory? = null
             private var tenantNameResolver: TenantNameResolver = TenantNameResolver()
             private var tenantAPIBootstrapperBuilders: List<TenantAPIBootstrapperBuilder> = emptyList()
             private var chainInstrumentationWithDefaults: Boolean = false
@@ -227,8 +216,7 @@ class StandardViaduct
              * @return a Viaduct Instance ready to execute
              */
             fun build(): StandardViaduct {
-                val scopedFuture = coroutineInterop ?: DefaultCoroutineInterop
-                val executionStrategyModuleConfig = ViaductExecutionStrategyModule.Config(
+                val engineConfiguration = EngineConfiguration(
                     chainInstrumentationWithDefaults = chainInstrumentationWithDefaults,
                 )
 
@@ -240,38 +228,26 @@ class StandardViaduct
                     }
                 }.map { it.create() }.flatten()
 
-                // Create builder configuration to pass to parent injector
-                val builderConfiguration = ViaductBuilderConfiguration(
+                val parentModule = StandardViaductModule(
+                    tenantBootstrapper = tenantBootstrapper,
+                    engineConfiguration = engineConfiguration,
                     instrumentation = instrumentation,
-                    fragmentLoader = fragmentLoader,
                     meterRegistry = meterRegistry,
                     tenantNameResolver = tenantNameResolver,
-                    chainInstrumentationWithDefaults = executionStrategyModuleConfig.chainInstrumentationWithDefaults,
                     checkerExecutorFactory = checkerExecutorFactory,
                     checkerExecutorFactoryCreator = checkerExecutorFactoryCreator,
-                    tenantBootstrapper = tenantBootstrapper,
                     documentProviderFactory = documentProviderFactory,
-                )
-
-                // Create parent modules - stateless factories and global utilities
-                val parentModules = listOf(
-                    StatelessFactoryModule(),
-                    CoreUtilitiesModule(
-                        flagManager,
-                        scopedFuture,
-                        dataFetcherExceptionHandler,
-                        resolverErrorReporter ?: ResolverErrorReporter.NoOpResolverErrorReporter,
-                        resolverErrorBuilder ?: ResolverErrorBuilder.NoOpResolverErrorBuilder,
-                        temporaryBypassAccessCheck,
-                    ),
-                    ViaductBuilderConfigurationModule(builderConfiguration)
+                    flagManager = flagManager,
+                    fragmentLoader = fragmentLoader,
+                    coroutineInterop = coroutineInterop,
+                    dataFetcherExceptionHandler = dataFetcherExceptionHandler,
+                    resolverErrorReporter = resolverErrorReporter,
+                    resolverErrorBuilder = resolverErrorBuilder,
+                    temporaryBypassAccessCheck = temporaryBypassAccessCheck,
                 )
 
                 try {
-                    // Create parent injector with only stateless modules
-                    val parentInjector = Guice.createInjector(
-                        Modules.combine(parentModules)
-                    )
+                    val parentInjector = Guice.createInjector(parentModule)
 
                     // Get factory from parent injector
                     val factory = parentInjector.getInstance(Factory::class.java)

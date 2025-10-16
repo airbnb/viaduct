@@ -58,7 +58,7 @@ class EngineRegistryTest {
 
         fun createEngineFactory(): Engine.Factory {
             return mockk<Engine.Factory> {
-                every { create(any(), any()) } answers {
+                every { create(any(), any(), any()) } answers {
                     createEngine(firstArg())
                 }
             }

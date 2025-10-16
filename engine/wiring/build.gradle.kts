@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.slf4j.api)
     implementation(libs.kotlinx.coroutines.core.jvm)
     implementation(libs.kotlinx.coroutines.jdk8)
+    implementation(libs.micrometer.core)
 
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.io.mockk.dsl)

@@ -4,7 +4,6 @@
 package viaduct.service.runtime
 
 import graphql.GraphQL
-import java.lang.IllegalStateException
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlin.time.ExperimentalTime
@@ -205,6 +204,6 @@ class EngineRegistry private constructor(
     private fun createEngine(schemaId: SchemaId): Engine {
         val schema = getSchema(schemaId)
         val documentProvider = documentProviderFactory.create(schemaId, schema)
-        return engineFactory.create(schema, documentProvider)
+        return engineFactory.create(schema, documentProvider, getSchema(SchemaId.Full))
     }
 }
