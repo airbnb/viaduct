@@ -15,7 +15,8 @@ jobs:
       GRADLE_SCAN: "false"
     steps:
       - uses: actions/checkout@v5
-        ref: 'release/v${{ inputs.release_version }}'
+        with:
+          ref: 'release/v${{ inputs.release_version }}'
 
       - name: Verify Gradle wrapper
         run: |
