@@ -255,6 +255,123 @@ class QueryPlanTest {
     }
 
     @Test
+    fun `QueryPlanBuilder -- builds child plans for variables with required selection sets for fragment spread`() {
+        val varResolvers = VariablesResolver.fromSelectionSetVariables(
+            SelectionsParser.parse("Query", "z"),
+            ParsedSelections.empty("Query"),
+            listOf(
+                FromObjectFieldVariable("vara", "z")
+            ),
+            forChecker = true,
+        )
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry(
+                "Query" to "x",
+                // checker rss as fragment spread with variable
+                "fragment Main on Query { ...T }  fragment T on Query { y(a:\$vara) }",
+                varResolvers
+            ).build()
+        Fixture("type Query { x:Int, y(a:Int):Int, z:Int }", reg) {
+            val plan = buildPlan("{x}")
+            // Ideally we would do a deep equality check here, however it dramatically slows down the tests.
+            // Leaving this here as a reminder to revisit if we can optimize the deep equality checks.
+            // expectThat(plan) {
+            //     checkEquals(
+            //         mkQueryPlan(
+            //             SelectionSet(
+            //                 mkField(
+            //                     "x",
+            //                     typeConstraint(query),
+            //                     childPlans = listOf(
+            //                         mkQueryPlan(
+            //                             SelectionSet(
+            //                                 FragmentSpread("T", Constraints(emptyList(), possibleTypes = setOf(query))),
+            //                             ),
+            //                             fragments = Fragments(
+            //                                 mapOf(
+            //                                     "T" to FragmentDefinition(
+            //                                         SelectionSet(
+            //                                             mkField(
+            //                                                 "y",
+            //                                                 typeConstraint(query),
+            //                                                 GJField(
+            //                                                     "y",
+            //                                                     listOf(
+            //                                                         Argument("a", VariableReference("vara"))
+            //                                                     )
+            //                                                 )
+            //                                             )
+            //                                         ),
+            //                                         GJFragmentDefinition.newFragmentDefinition()
+            //                                             .name("T")
+            //                                             .typeCondition(GJTypeName("Query"))
+            //                                             .selectionSet(
+            //                                                 GJSelectionSet(
+            //                                                     listOf(GJField(
+            //                                                         "y",
+            //                                                         listOf(
+            //                                                             Argument("a", VariableReference("vara"))
+            //                                                         )
+            //                                                     ))
+            //                                                 )
+            //                                             )
+            //                                             .build()
+            //                                     )
+            //                                 )
+            //                             ),
+            //                             variablesResolvers = varResolvers,
+            //                             parentType = query,
+            //                             childPlans = listOf(
+            //                                 mkQueryPlan(
+            //                                     SelectionSet(
+            //                                         mkField("z", typeConstraint(query))
+            //                                     ),
+            //                                     parentType = query
+            //                                 )
+            //                             )
+            //                         )
+            //                     )
+            //                 )
+            //             ),
+            //             parentType = query
+            //         )
+            //     )
+            // }
+
+            // Instead, verify the basic structure without deep comparison
+            expectThat(plan.selectionSet.selections).hasSize(1)
+            val fieldX = plan.selectionSet.selections[0] as Field
+            expectThat(fieldX.resultKey).isEqualTo("x")
+
+            // Check that field x has one child plan (the checker RSS)
+            expectThat(fieldX.childPlans).hasSize(1)
+            val checkerPlan = fieldX.childPlans[0]
+
+            // Verify the checker plan has a fragment spread to T
+            expectThat(checkerPlan.selectionSet.selections).hasSize(1)
+            val fragSpread = checkerPlan.selectionSet.selections[0] as FragmentSpread
+            expectThat(fragSpread.name).isEqualTo("T")
+
+            // Verify fragment T is defined in the checker plan
+            expectThat(checkerPlan.fragments.map).hasSize(1)
+            expectThat(checkerPlan.fragments.map["T"]).isNotNull()
+            val fragT = checkerPlan.fragments.map["T"]!!
+
+            // Verify fragment T contains field y
+            expectThat(fragT.selectionSet.selections).hasSize(1)
+            val fieldY = fragT.selectionSet.selections[0] as Field
+            expectThat(fieldY.resultKey).isEqualTo("y")
+
+            // Verify the checker plan has child plans for variable resolution (field z)
+            expectThat(checkerPlan.childPlans).hasSize(1)
+            val varPlan = checkerPlan.childPlans[0]
+            expectThat(varPlan.selectionSet.selections).hasSize(1)
+            val fieldZ = varPlan.selectionSet.selections[0] as Field
+            expectThat(fieldZ.resultKey).isEqualTo("z")
+        }
+    }
+
+    @Test
     fun `QueryPlanBuilder -- builds child plans for field type required selection sets`() {
         Fixture(
             """

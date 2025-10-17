@@ -567,7 +567,7 @@ private class QueryPlanBuilder(
             val gjdef = checkNotNull(fragmentsByName[name]) { "Missing fragment definition: $name" }
             val fragType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(gjdef.typeCondition.name)
 
-            if (name !in fragments) {
+            val fragChildPlans = if (name !in fragments) {
                 val fragState = buildState(
                     gjdef.selectionSet,
                     State(
@@ -579,6 +579,9 @@ private class QueryPlanBuilder(
                     )
                 )
                 fragments[name] = QueryPlan.FragmentDefinition(fragState.selectionSet, gjdef)
+                fragState.childPlans
+            } else {
+                emptyList()
             }
 
             val newConstraints = constraints
@@ -593,6 +596,7 @@ private class QueryPlanBuilder(
 
             copy(
                 selectionSet = selectionSet + QueryPlan.FragmentSpread(name, newConstraints),
+                childPlans = childPlans + fragChildPlans
             )
         }
 
