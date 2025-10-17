@@ -14,7 +14,7 @@ jobs:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       GRADLE_SCAN: "false"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         ref: 'release/v${{ inputs.release_version }}'
 
       - name: Verify Gradle wrapper
