@@ -1,3 +1,4 @@
+[![Build and Test (Gradle)](https://github.com/airbnb/viaduct/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/airbnb/viaduct/actions/workflows/build-and-test.yml)
 ![CircleCI](https://img.shields.io/circleci/build/github/airbnb/viaduct)
 ![Maven Central Version](https://img.shields.io/maven-central/v/com.airbnb.viaduct/bom)
 ![Gradle Plugin Portal Version](https://img.shields.io/gradle-plugin-portal/v/com.airbnb.viaduct.application-gradle-plugin)
