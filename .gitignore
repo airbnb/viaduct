@@ -4,16 +4,16 @@
 HELP.md
 .gradle/
 build/
-out/
+out/ 
 !gradle/wrapper/gradle-wrapper.jar
 **/build/
 **/out/
-!**/src/main/**/build/
+!**/src/main/**/build/ 
 !**/src/test/**/build/
 
 # ----------------------------------------
 # IntelliJ IDEA
-# ----------------------------------------
+# ---------------------------------------- 
 .idea/
 *.iws
 *.iml
