@@ -33,6 +33,16 @@ class VariablesProviderExecutorTest {
 
     private val objectData = mkEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap())
 
+    /**
+     * Tests that VariablesProviderExecutor correctly:
+     * - Invokes the tenant-defined VariablesProvider
+     * - Passes through arguments to the provider (raw map -> MockArgs)
+     * - Returns the provider's computed values
+     *
+     * Does NOT test:
+     * - Context creation (delegated to argumentsFactory)
+     * - Value unwrapping (provider returns simple ints that need no unwrapping)
+     */
     @Test
     fun resolve(): Unit =
         runBlocking {
@@ -61,6 +71,15 @@ class VariablesProviderExecutorTest {
             )
         }
 
+    /**
+     * Tests that VariablesProviderExecutor correctly unwraps special return value types:
+     * - InputLikeBase -> unwrapped to its inputData map
+     * - GlobalID -> serialized to string format via globalIDCodec
+     *
+     * Does NOT test:
+     * - Context creation (delegated to argumentsFactory)
+     * - The VariablesProvider logic itself (just returns static test values)
+     */
     @Test
     fun resolveUnwrapping(): Unit =
         runBlocking {
