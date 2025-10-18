@@ -1,23 +1,17 @@
 package viaduct.tenant.runtime.context2.factory
 
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import viaduct.api.mocks.MockInternalContext
 import viaduct.api.types.Arguments
-import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
+import viaduct.engine.api.mocks.MockSchema
 
 class ExtendedTypesTest {
     @Test
-    fun `ArgumentsType constructor with NoArguments throws IllegalArgumentException`() {
-        // This test verifies that trying to construct an ArgumentsType with Arguments.NoArguments fails
-        // during ArgumentsType construction due to getArgumentsGRTConstructor validation
-        val exception = assertThrows<IllegalArgumentException> {
-            ArgumentsType(Arguments.NoArguments::class, GlobalIdFeatureAppTest.schema)
-        }
+    fun `ArgumentsType factory with NoArguments returns the NoArguments singleton`() {
+        val actual = ArgumentsType(Arguments.NoArguments::class, MockSchema.minimal)
+            .makeGRT(MockInternalContext(MockSchema.minimal), emptyMap())
 
-        assertTrue(
-            exception.message?.contains("NoArguments") ?: false,
-            "Error message should mention NoArguments validation: ${exception.message}"
-        )
+        assertEquals(Arguments.NoArguments, actual)
     }
 }
