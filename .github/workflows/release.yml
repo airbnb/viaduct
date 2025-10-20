@@ -14,6 +14,14 @@ jobs:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       GRADLE_SCAN: "false"
     steps:
+      - name: Check release branch exists
+        run: |
+            if ! git ls-remote --heads origin release/v${{ inputs.release_version }} | grep -q "refs/heads/release/v${{ inputs.release_version }}"; then
+                echo "❌ Release branch release/v${{ inputs.release_version }} does not exist."
+                exit 1
+            fi
+            echo "✅ Release branch exists."
+          
       - uses: actions/checkout@v5
         with:
           ref: 'release/v${{ inputs.release_version }}'
