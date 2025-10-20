@@ -14,6 +14,8 @@ jobs:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       GRADLE_SCAN: "false"
     steps:
+      - uses: actions/checkout@v5
+        
       - name: Check release branch exists
         run: |
             if ! git rev-parse --verify release/v${{ inputs.release_version }}; then
