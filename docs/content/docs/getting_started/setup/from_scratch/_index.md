@@ -70,6 +70,10 @@ viaductModule {
     modulePackageSuffix.set("resolvers")
 }
 
+application {
+  mainClass.set("com.example.viadapp.ViaductApplicationKt")
+}
+
 // Additional dependencies and configuration as needed by your project
 ```
 
