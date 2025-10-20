@@ -15,7 +15,6 @@ jobs:
       GRADLE_SCAN: "false"
     steps:
       - uses: actions/checkout@v5
-        
       - name: Check release branch exists
         run: |
             if ! git rev-parse --verify release/v${{ inputs.release_version }}; then
