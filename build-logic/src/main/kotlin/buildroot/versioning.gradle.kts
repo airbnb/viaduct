@@ -164,16 +164,21 @@ val isSnapshot = if (!pluginSnapshotEnv) {
 
 // Generate unique snapshot versions for plugin publishing
 val computedVersionStr = if (isSnapshot) {
-    val isPluginPublish = env.environmentVariable("VIADUCT_PLUGIN_SNAPSHOT").orElse("false").map { it.toBoolean() }.get()
-    if (isPluginPublish) {
-        val timestamp = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-            .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-        val gitSha = env.environmentVariable("GIT_COMMIT").map { it.take(7) }.orElse("unknown").get()
-
-        "$baseVersion-SNAPSHOT-$timestamp-$gitSha"
-    } else {
-        "$baseVersion-SNAPSHOT"
-    }
+    // val isPluginPublish = env.environmentVariable("VIADUCT_PLUGIN_SNAPSHOT").orElse("false").map { it.toBoolean() }.get()
+    // if (isPluginPublish) {
+    //     val timestamp = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
+    //         .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+    //     val gitSha = env.environmentVariable("GIT_COMMIT")
+    //         .orElse(env.environmentVariable("GITHUB_SHA"))
+    //         .map { it.take(7) }
+    //         .orElse("unknown")
+    //         .get()
+    //
+    //     "$baseVersion-SNAPSHOT-$timestamp-$gitSha"
+    // } else {
+    //     "$baseVersion-SNAPSHOT"
+    // }
+    "$baseVersion-SNAPSHOT"
 } else baseVersion
 
 gradle.allprojects {

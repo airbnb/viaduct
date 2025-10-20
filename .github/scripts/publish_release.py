@@ -114,6 +114,8 @@ def main():
     capture_output=True
   )
 
+  print("Computed version is :", computed_version)
+
   # Determine final IS_RELEASE flag
   if "SNAPSHOT" in computed_version:
     is_release = "false"
@@ -128,13 +130,6 @@ def main():
       print(f"The demoapp versions will be updated to match the published version: {computed_version}")
     else:
       print("✅ VERSION file matches published version")
-
-  # Output JSON for Spinnaker/CI to capture as stage output
-  spinnaker_config = {
-    "publishedVersion": computed_version,
-    "isRelease": is_release
-  }
-  print(json.dumps(spinnaker_config))
 
   print("\nGradle plugin publish completed successfully!")
   return 0
