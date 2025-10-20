@@ -51,21 +51,6 @@ def main():
   os.chdir(oss_dir)
   print(f"Working directory: {os.getcwd()}")
 
-  # Set Java environment if available
-  # java_home = "/usr/lib/jvm/java-21-amazon-corretto"
-  # if Path(java_home).is_dir():
-  #   os.environ["JAVA_HOME"] = java_home
-  #   os.environ["PATH"] = f"{java_home}/bin:{os.environ.get('PATH', '')}"
-  #   print(f"Using Java from: {java_home}")
-
-  # Set git commit for versioning
-  # if not os.environ.get("GIT_COMMIT"):
-  #   os.environ["GIT_COMMIT"] = run_command("git rev-parse HEAD", capture_output=True)
-
-  # Set git commit message for patch release detection
-  # if not os.environ.get("GIT_COMMIT_MESSAGE"):
-    # os.environ["GIT_COMMIT_MESSAGE"] = run_command("git log -1 --pretty=%s", capture_output=True)
-
   print("\n=== VERSION CHECK ===")
 
   # Read VERSION file
@@ -105,7 +90,7 @@ def main():
   # Publish to Maven Central (both releases and snapshots)
   print("\n=== MAVEN CENTRAL PUBLISH ===")
   print("Publishing to Maven Central (Sonatype)...")
-  run_command("./gradlew publishToMavenCentral --no-daemon --stacktrace --debug")
+  run_command("./gradlew publishToMavenCentral --no-daemon --stacktrace")
   print("Maven Central publish completed successfully!\n")
 
   # Extract the published version

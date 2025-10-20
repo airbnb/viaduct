@@ -6,6 +6,11 @@ on:
         release_version:
             description: 'Release version (e.g., 1.0.0)'
             required: true
+        publish_snapshot:
+            description: 'Publish snapshot build'
+            required: false
+            default: false
+            type: boolean
 
 jobs:
   publish-plugins:
@@ -14,18 +19,27 @@ jobs:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       GRADLE_SCAN: "false"
     steps:
+      - name: Set release ref
+        if: !inputs.publish_snapshot
+        run: |
+          echo "RELEASE_REF=release/v${{ inputs.release_version }}" >> "$GITHUB_ENV"
+      - name: Set release ref for snapshot publish
+        if: inputs.publish_snapshot
+        run: |
+          echo "RELEASE_REF=main" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v5
       - name: Check release branch exists
         run: |
-            if ! git ls-remote --heads origin release/v${{ inputs.release_version }}; then
-                echo "❌ Release branch release/v${{ inputs.release_version }} does not exist."
+            if ! git ls-remote --heads origin $RELEASE_REF; then
+                echo "❌ Release branch $RELEASE_REF does not exist."
                 exit 1
             fi
             echo "✅ Release branch exists."
 
       - uses: actions/checkout@v5
-#        with:
-#          ref: 'release/v${{ inputs.release_version }}'
+        with:
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Verify Gradle wrapper
         run: |
@@ -64,12 +78,12 @@ jobs:
             exit 1
           }
           echo "✅ Dependencies downloaded successfully"
-#      - name: Check project
-#        run: |
-#          echo "🔨 Building project..."
-#          ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
-#          ./gradlew check --no-scan || { echo "❌ Check failed"; exit 1; }
-#          echo "✅ Project built successfully"
+      - name: Check project
+        run: |
+          echo "🔨 Building project..."
+          ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
+          ./gradlew check --no-scan || { echo "❌ Check failed"; exit 1; }
+          echo "✅ Project built successfully"
       - name: Publish Gradle Plugins
         env:
           VIADUCT_GRADLE_PUBLISH_KEY: ${{ secrets.VIADUCT_GRADLE_PUBLISH_KEY }}
