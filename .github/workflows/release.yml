@@ -20,7 +20,7 @@ jobs:
       GRADLE_SCAN: "false"
     steps:
       - name: Set release ref
-        if: !inputs.publish_snapshot
+        if: ${{ !inputs.publish_snapshot }}
         run: |
           echo "RELEASE_REF=release/v${{ inputs.release_version }}" >> "$GITHUB_ENV"
       - name: Set release ref for snapshot publish
