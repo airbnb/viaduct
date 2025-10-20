@@ -105,7 +105,7 @@ def main():
   # Publish to Maven Central (both releases and snapshots)
   print("\n=== MAVEN CENTRAL PUBLISH ===")
   print("Publishing to Maven Central (Sonatype)...")
-  run_command("./gradlew publishToMavenCentral --no-daemon --stacktrace")
+  run_command("./gradlew publishToMavenCentral --no-daemon --stacktrace --debug")
   print("Maven Central publish completed successfully!\n")
 
   # Extract the published version
