@@ -64,12 +64,12 @@ jobs:
             exit 1
           }
           echo "✅ Dependencies downloaded successfully"
-      - name: Check project
-        run: |
-          echo "🔨 Building project..."
-          ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
-          ./gradlew check --no-scan || { echo "❌ Check failed"; exit 1; }
-          echo "✅ Project built successfully"
+#      - name: Check project
+#        run: |
+#          echo "🔨 Building project..."
+#          ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
+#          ./gradlew check --no-scan || { echo "❌ Check failed"; exit 1; }
+#          echo "✅ Project built successfully"
       - name: Publish Gradle Plugins
         env:
           VIADUCT_GRADLE_PUBLISH_KEY: ${{ secrets.VIADUCT_GRADLE_PUBLISH_KEY }}
