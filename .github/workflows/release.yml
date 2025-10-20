@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v5
       - name: Check release branch exists
         run: |
-            if ! git rev-parse --verify release/v${{ inputs.release_version }}; then
+            if ! git ls-remote --heads origin release/v${{ inputs.release_version }}; then
                 echo "❌ Release branch release/v${{ inputs.release_version }} does not exist."
                 exit 1
             fi
