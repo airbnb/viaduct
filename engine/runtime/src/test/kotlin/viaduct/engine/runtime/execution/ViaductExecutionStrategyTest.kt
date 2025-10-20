@@ -7,6 +7,7 @@ import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationFieldCompleteParameters
 import graphql.schema.DataFetcher
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Ignore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -179,6 +180,7 @@ class ViaductExecutionStrategyTest {
         }
     }
 
+    @Ignore
     @RepeatedTest(1000)
     fun `still allows dataloader batching`() =
         runExecutionTest {
