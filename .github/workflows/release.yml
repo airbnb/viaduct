@@ -24,8 +24,8 @@ jobs:
             echo "✅ Release branch exists."
 
       - uses: actions/checkout@v5
-        with:
-          ref: 'release/v${{ inputs.release_version }}'
+#        with:
+#          ref: 'release/v${{ inputs.release_version }}'
 
       - name: Verify Gradle wrapper
         run: |
@@ -77,6 +77,4 @@ jobs:
           VIADUCT_SONATYPE_USERNAME: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
           VIADUCT_SONATYPE_PASSWORD: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
         run: |
-          echo $PWD
-          ls -la
           python3 ./.github/scripts/publish_release.py
