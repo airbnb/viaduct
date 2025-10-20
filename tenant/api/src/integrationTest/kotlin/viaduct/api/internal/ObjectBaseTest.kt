@@ -615,31 +615,36 @@ class ObjectBaseTest {
         suspend fun getArgumentedField(): String? = fetch("argumentedField", String::class, null)
 
         // toBuilder implementation that would normally be provided by codegen
-        fun toBuilder(): TestObjectBuilder = TestObjectBuilder(context, engineObject.graphQLObjectType, toBuilderEOD())
-    }
+        fun toBuilder(): Builder =
+            Builder(
+                context,
+                engineObject.graphQLObjectType,
+                toBuilderEOD()
+            )
 
-    private class TestObjectBuilder(
-        context: InternalContext,
-        graphQLObjectType: GraphQLObjectType,
-        baseEngineObjectData: EngineObjectData? = null
-    ) : ObjectBase.Builder<TestObject>(context, graphQLObjectType, baseEngineObjectData) {
-        constructor(context: viaduct.api.context.ExecutionContext) : this(
-            context.internal,
-            context.internal.schema.schema.getObjectType("O2"), // Use existing O2 type
-            null
-        )
+        class Builder(
+            context: InternalContext,
+            graphQLObjectType: GraphQLObjectType,
+            baseEngineObjectData: EngineObjectData? = null
+        ) : ObjectBase.Builder<TestObject>(context, graphQLObjectType, baseEngineObjectData) {
+            constructor(context: viaduct.api.context.ExecutionContext) : this(
+                context.internal,
+                context.internal.schema.schema.getObjectType("O2"), // Use existing O2 type
+                null
+            )
 
-        fun intField(value: Int): TestObjectBuilder {
-            putInternal("intField", value)
-            return this
+            fun intField(value: Int): Builder {
+                putInternal("intField", value)
+                return this
+            }
+
+            fun argumentedField(value: String?): Builder {
+                putInternal("argumentedField", value)
+                return this
+            }
+
+            override fun build() = TestObject(context, buildEngineObjectData())
         }
-
-        fun argumentedField(value: String?): TestObjectBuilder {
-            putInternal("argumentedField", value)
-            return this
-        }
-
-        override fun build() = TestObject(context, buildEngineObjectData())
     }
 
     @Nested
@@ -647,7 +652,7 @@ class ObjectBaseTest {
         @Test
         fun `toBuilder preserves unmodified fields`() =
             runBlocking {
-                val original = TestObjectBuilder(executionContext)
+                val original = TestObject.Builder(executionContext)
                     .intField(42)
                     .argumentedField("hello")
                     .build()
@@ -663,7 +668,7 @@ class ObjectBaseTest {
         @Test
         fun `toBuilder allows multiple field overrides`() =
             runBlocking {
-                val original = TestObjectBuilder(executionContext)
+                val original = TestObject.Builder(executionContext)
                     .intField(1)
                     .argumentedField("original")
                     .build()
@@ -696,7 +701,7 @@ class ObjectBaseTest {
         @Test
         fun `toBuilder with no overrides creates equivalent object`() =
             runBlocking {
-                val original = TestObjectBuilder(executionContext)
+                val original = TestObject.Builder(executionContext)
                     .intField(123)
                     .argumentedField("test")
                     .build()
@@ -710,7 +715,7 @@ class ObjectBaseTest {
         @Test
         fun `chained toBuilder calls work correctly`() =
             runBlocking {
-                val v1 = TestObjectBuilder(executionContext)
+                val v1 = TestObject.Builder(executionContext)
                     .intField(1)
                     .argumentedField("v1")
                     .build()
