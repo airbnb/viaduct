@@ -76,4 +76,4 @@ jobs:
           VIADUCT_GRADLE_PUBLISH_SECRET: ${{ secrets.VIADUCT_GRADLE_PUBLISH_SECRET }}
           VIADUCT_SONATYPE_USERNAME: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
           VIADUCT_SONATYPE_PASSWORD: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
-        run: python3 ./scripts/publish_release.py
+        run: python3 ./.github/scripts/publish_release.py
