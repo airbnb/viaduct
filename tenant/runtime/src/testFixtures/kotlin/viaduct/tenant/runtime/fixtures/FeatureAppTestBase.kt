@@ -94,7 +94,7 @@ abstract class FeatureAppTestBase {
             .tenantResolverClassFinderFactory(tenantResolverClassFinderFactory)
             .tenantPackagePrefix(derivedClassPackagePrefix)
 
-    private lateinit var viaductBuilder: ViaductBuilder
+    protected lateinit var viaductBuilder: ViaductBuilder
     lateinit var viaductSchemaConfiguration: SchemaConfiguration
     lateinit var viaductService: StandardViaduct
 

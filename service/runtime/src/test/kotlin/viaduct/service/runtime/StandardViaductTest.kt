@@ -12,9 +12,7 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
@@ -154,28 +152,6 @@ class StandardViaductTest {
             assertEquals("Schema not found for schemaId=SchemaId(id='NONE')", errors.first().message)
             assertNull(result.getData())
         }
-    }
-
-    @Test
-    fun `test newForSchema creates new instance with different schema registry`() {
-        createSimpleStandardViaduct()
-        // Create a new schema configuration
-        val sdl =
-            """
-            extend type Query {
-                newTest: String
-            }
-            """
-
-        val newSchemaRegistryConfig = SchemaConfiguration.fromSdl(sdl)
-
-        val newViaduct = subject.newForSchema(newSchemaRegistryConfig)
-
-        // Verify that we got a new instance with different schema registry
-        assertNotNull(newViaduct)
-        assertNotNull(newViaduct.engineRegistry)
-        // The schema registries should be different instances
-        assertTrue(newViaduct.engineRegistry != subject.engineRegistry)
     }
 }
 

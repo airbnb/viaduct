@@ -311,15 +311,6 @@ class StandardViaduct
             }
         }
 
-        /**
-         * Function to create a new StandardViaduct from an existing StandardViaduct with a different schema.
-         * Uses the factory pattern for proper dependency injection.
-         * Caller is expected to construct the schema configuration and pass it in.
-         */
-        fun newForSchema(schemaConfiguration: SchemaConfiguration): StandardViaduct {
-            return standardViaductFactory.createForSchema(schemaConfiguration)
-        }
-
         private fun mkSchemaNotFoundError(schemaId: SchemaId): CompletableFuture<ExecutionResult> {
             val error: GraphQLError = GraphqlErrorBuilder.newError()
                 .message("Schema not found for schemaId=$schemaId")
