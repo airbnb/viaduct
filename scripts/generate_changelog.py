@@ -2,6 +2,10 @@ import argparse
 import re
 import subprocess
 
+# Generate changelog between two git refs
+# Usage: python generate_changelog.py <commit1> <commit2>
+# Example: python generate_changelog.py v1.0.0 v1.1.0
+# This will output the changelog entries between the two commits, including co-authors formatted as GitHub usernames.
 def main():
   parser = argparse.ArgumentParser(description='Generate changelog between two git refs.')
   parser.add_argument('commit1', help='First git ref')
@@ -33,7 +37,7 @@ def format_entry(entry):
   usernames = [extract_username(author_str) for author_str in authors]
 
   commit_info = entry[:author_start_idx - 'AUTHORS_START'.__len__()].strip()
-  
+
   return commit_info + ' ' + ', '.join(usernames)
 
 def extract_username(author_line: str) -> str:
