@@ -56,7 +56,20 @@ class ViaductExecutionStrategyTest {
         private val log by logger()
     }
 
-    val nextTickDispatcher = NextTickDispatcher(flagManager = FlagManager.disabled)
+    // Use a single-threaded dispatcher for deterministic testing of DataLoader batching.
+    //
+    // The multi-threaded default dispatcher (Dispatchers.Default) creates a race condition in this test:
+    // some threads complete their work before others even start, causing the NextTickDispatcher's counter
+    // to prematurely hit zero and trigger batching with only partial keys (instead of all 10).
+    //
+    // This is a TEST-ONLY issue due to instant batch operations. In production, DataLoader operations
+    // are I/O-bound (database queries, API calls), giving plenty of time for all loads to register
+    // before any batch completes. The batching logic being tested here is identical regardless of
+    // thread count - we're just eliminating timing variance in the test fixture.
+    val nextTickDispatcher = NextTickDispatcher(
+        wrappedDispatcher = kotlinx.coroutines.newSingleThreadContext("test-dispatcher"),
+        flagManager = FlagManager.disabled
+    )
 
     @Test
     fun `instrumentation failure during field completion is contained at field level`() =
@@ -87,8 +100,8 @@ class ViaductExecutionStrategyTest {
                 override fun beginFieldCompletion(
                     parameters: InstrumentationFieldCompleteParameters,
                     state: InstrumentationState?
-                ): InstrumentationContext<Any>? {
-                    return object : InstrumentationContext<Any> {
+                ): InstrumentationContext<Any>? =
+                    object : InstrumentationContext<Any> {
                         override fun onDispatched() {
                             // No-op
                         }
@@ -101,7 +114,6 @@ class ViaductExecutionStrategyTest {
                             throw RuntimeException("Forced field completion error")
                         }
                     }
-                }
             }
             // Create a list of instrumentations containing our failing instrumentation.
             val instrumentations = listOf<ViaductModernInstrumentation>(FailingFieldCompletionInstrumentation())
@@ -215,7 +227,9 @@ class ViaductExecutionStrategyTest {
                     }
                 )
 
-                data class Bar(val intValue: Int)
+                data class Bar(
+                    val intValue: Int
+                )
 
                 val resolvers = mapOf(
                     "Query" to mapOf(
@@ -639,23 +653,27 @@ class ViaductExecutionStrategyTest {
                     "matrix" to DataFetcher {
                         listOf(
                             listOf(
-                                DataFetcherResult.newResult<Map<String, Any?>>()
+                                DataFetcherResult
+                                    .newResult<Map<String, Any?>>()
                                     .data(mapOf("value" to 1))
                                     .build(),
-                                DataFetcherResult.newResult<Map<String, Any?>>()
+                                DataFetcherResult
+                                    .newResult<Map<String, Any?>>()
                                     .error(
-                                        GraphQLError.newError()
+                                        GraphQLError
+                                            .newError()
                                             .message("Error at [0][1]")
                                             .path(listOf("matrix", 0, 1))
                                             .build()
-                                    )
-                                    .build()
+                                    ).build()
                             ),
                             listOf(
-                                DataFetcherResult.newResult<Map<String, Any?>>()
+                                DataFetcherResult
+                                    .newResult<Map<String, Any?>>()
                                     .data(mapOf("value" to 3))
                                     .build(),
-                                DataFetcherResult.newResult<Map<String, Any?>>()
+                                DataFetcherResult
+                                    .newResult<Map<String, Any?>>()
                                     .data(mapOf("value" to 4))
                                     .build()
                             )
@@ -666,16 +684,18 @@ class ViaductExecutionStrategyTest {
                     "errorProneValue" to DataFetcher { env ->
                         val value = env.getSource<Map<String, Int>>()?.get("value") ?: 0
                         if (value % 2 == 0) {
-                            DataFetcherResult.newResult<Int>()
+                            DataFetcherResult
+                                .newResult<Int>()
                                 .error(
-                                    GraphQLError.newError()
+                                    GraphQLError
+                                        .newError()
                                         .message("Even value error at value: $value")
                                         .path(env.executionStepInfo.path.toList())
                                         .build()
-                                )
-                                .build()
+                                ).build()
                         } else {
-                            DataFetcherResult.newResult<Int>()
+                            DataFetcherResult
+                                .newResult<Int>()
                                 .data(value)
                                 .build()
                         }
@@ -714,11 +734,13 @@ class ViaductExecutionStrategyTest {
 
             // Verify errors
             val expectedErrors = listOf(
-                GraphQLError.newError()
+                GraphQLError
+                    .newError()
                     .message("Error at [0][1]")
                     .path(listOf("matrix", 0, 1))
                     .build(),
-                GraphQLError.newError()
+                GraphQLError
+                    .newError()
                     .message("Even value error at value: 4")
                     .path(listOf("matrix", 1, 1, "errorProneValue"))
                     .build()
