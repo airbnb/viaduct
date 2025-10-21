@@ -137,3 +137,17 @@ Runtime libraries are published to Maven Central. Artifacts are grouped under th
 
 * [application-gradle-plugin](https://plugins.gradle.org/plugin/com.airbnb.viaduct.application-gradle-plugin)
 * [module-gradle-plugin](https://plugins.gradle.org/plugin/com.airbnb.viaduct.module-gradle-plugin)
+
+## Snapshots
+
+Snapshots are only published to Maven Central. To use snapshots versions of the Gradle plugins, add the following to your `settings.gradle.kts`:
+
+```kotlin
+pluginManagement {
+  repositories {
+    maven {
+      url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+    }
+  }
+}
+```
