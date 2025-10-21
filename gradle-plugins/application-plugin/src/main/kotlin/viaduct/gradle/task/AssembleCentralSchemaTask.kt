@@ -40,6 +40,10 @@ abstract class AssembleCentralSchemaTask
         @get:PathSensitive(PathSensitivity.RELATIVE)
         abstract val schemaPartitions: ConfigurableFileCollection
 
+        @get:InputFiles
+        @get:PathSensitive(PathSensitivity.RELATIVE)
+        abstract val baseSchemaFiles: ConfigurableFileCollection
+
         @get:OutputDirectory
         abstract val outputDirectory: DirectoryProperty
 
@@ -50,6 +54,12 @@ abstract class AssembleCentralSchemaTask
                     into("partition")
                     include("**/*.graphqls")
                 }
+
+                from(baseSchemaFiles) {
+                    into("schemabase")
+                    include("**/*.graphqls")
+                }
+
                 into(outputDirectory.get())
             }
             val allSchemaFiles = outputDirectory.get().asFileTree.matching { include("**/*.graphqls") }.files

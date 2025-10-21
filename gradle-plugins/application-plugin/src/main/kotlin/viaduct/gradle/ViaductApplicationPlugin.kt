@@ -61,6 +61,16 @@ class ViaductApplicationPlugin : Plugin<Project> {
 
         val assembleCentralSchemaTask = tasks.register<AssembleCentralSchemaTask>("assembleViaductCentralSchema") {
             schemaPartitions.setFrom(allPartitions.incoming.artifactView {}.files)
+
+            val baseSchemaDir = project.file("src/main/viaduct/schemabase")
+            if (baseSchemaDir.exists()) {
+                baseSchemaFiles.setFrom(
+                    project.fileTree(baseSchemaDir) {
+                        include("**/*.graphqls")
+                    }
+                )
+            }
+
             outputDirectory.set(centralSchemaDirectory())
         }
 

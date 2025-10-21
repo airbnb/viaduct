@@ -1,0 +1,307 @@
+name: Build and Test (Gradle)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches-ignore:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_SCAN: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Gradle wrapper
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "❌ gradlew not found"
+            exit 1
+          fi
+          chmod +x ./gradlew
+          echo "✅ Gradle wrapper ready"
+          
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Download dependencies
+        run: |
+          echo "📥 Downloading Gradle dependencies..."
+          ./gradlew dependencies --no-scan || {
+            echo "❌ Failed to download dependencies"
+            exit 1
+          }
+          echo "✅ Dependencies downloaded successfully"
+
+      - name: Build project (without tests)
+        run: |
+          echo "🔨 Building project..."
+          ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
+          ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
+          echo "✅ Project built successfully"
+
+      - name: Collect build artifacts
+        run: |
+          echo "📦 Collecting artifacts..."
+          rm -rf build/package
+          mkdir -p build/package/{primary,sources,javadoc,others}
+
+          # Primary jars (exclude sources/javadoc)
+          find . -type f -path "*/build/libs/*.jar" \
+            ! -name "*-sources.jar" ! -name "*-javadoc.jar" \
+            -exec cp {} build/package/primary/ \; || true
+
+          # Sources & Javadoc jars (if any)
+          find . -type f -path "*/build/libs/*-sources.jar" -exec cp {} build/package/sources/ \; || true
+          find . -type f -path "*/build/libs/*-javadoc.jar" -exec cp {} build/package/javadoc/ \; || true
+
+          # (Optional) POMs or other publish files
+          find . -type f -path "*/build/publications/*/*.pom" -exec cp {} build/package/others/ \; || true
+
+          echo "✅ Collected:"
+          find build/package -type f -maxdepth 2 -print
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: build/
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_SCAN: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Gradle wrapper
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "❌ gradlew not found"
+            exit 1
+          fi
+          chmod +x ./gradlew
+          echo "✅ Gradle wrapper ready"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build/
+          
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Run tests
+        run: |
+          echo "🧪 Running tests..."
+          ./gradlew test --no-scan --continue || {
+            echo "⚠️ Some tests failed, but continuing"
+            echo "Test failures are not blocking the pipeline"
+          }
+          echo "✅ Test execution completed"
+
+      - name: Generate coverage and test reports
+        if: always()
+        run: |
+          echo "📊 Generating aggregated coverage and test reports..."
+          ./gradlew testAndCoverage --no-scan --no-configuration-cache || {
+            echo "❌ Failed to generate reports"
+            exit 1
+          }
+          echo "✅ Reports generated successfully"
+
+      - name: Upload JUnit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results
+          path: build/test-results-for-circleci
+
+      - name: Upload JaCoCo coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: build/reports/jacoco
+
+      - name: Upload all reports (for debugging)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-reports
+          path: build/reports
+
+  detekt:
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_SCAN: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Gradle wrapper
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "❌ gradlew not found"
+            exit 1
+          fi
+          chmod +x ./gradlew
+          echo "✅ Gradle wrapper ready"
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Run Detekt Static Analysis
+        run: |
+          echo "🧹 Running Detekt static analysis..."
+          ./gradlew detekt --no-daemon --max-workers=1 || {
+            echo "❌ Detekt found code style violations"
+            exit 1
+          }
+          echo "✅ Detekt analysis passed"
+
+      - name: Upload Detekt reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detekt-reports
+          path: '**/build/reports/detekt/**/*'
+
+  ktlint:
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_SCAN: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Gradle wrapper
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "❌ gradlew not found"
+            exit 1
+          fi
+          chmod +x ./gradlew
+          echo "✅ Gradle wrapper ready"
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Run Ktlint Code Formatting Check
+        run: |
+          echo "🧹 Running Ktlint code formatting check..."
+          ./gradlew ktlintCheck --no-daemon --max-workers=1 || {
+            echo "❌ Ktlint found code formatting violations"
+            exit 1
+          }
+          echo "✅ Ktlint formatting check passed"
+
+  coverage-verification:
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_SCAN: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Gradle wrapper
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "❌ gradlew not found"
+            exit 1
+          fi
+          chmod +x ./gradlew
+          echo "✅ Gradle wrapper ready"
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Verify coverage thresholds
+        run: |
+          echo "🎯 Verifying coverage thresholds..."
+          ./gradlew testCodeCoverageVerification --no-scan --no-configuration-cache -x testCodeCoverageReport || {
+            echo "❌ Coverage thresholds not met"
+            echo "Please check the coverage report and add more tests"
+            exit 1
+          }
+          echo "✅ Coverage thresholds met successfully"
+       
