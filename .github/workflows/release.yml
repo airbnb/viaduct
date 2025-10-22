@@ -109,10 +109,8 @@ jobs:
       - name: Generate Changelog
         id: generate_changelog
         if: ${{ !inputs.publish_snapshot }}
-        outputs:
-          changelog: ${{ steps.generate_changelog.outputs.changelog }}
         run: |
-          python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }}" >> "$GITHUB_OUTPUT"
+          echo "changelog='$(python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }})'" >> "$GITHUB_OUTPUT
       - name: Create Draft Release
         id: create_release
         if: ${{ !inputs.publish_snapshot }}
