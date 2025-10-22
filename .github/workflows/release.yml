@@ -31,14 +31,6 @@ jobs:
         run: |
           echo "RELEASE_REF=main" >> "$GITHUB_ENV"
 
-      - name: Check release branch exists
-        run: |
-            if ! git ls-remote --heads origin $RELEASE_REF; then
-                echo "❌ Release branch $RELEASE_REF does not exist."
-                exit 1
-            fi
-            echo "✅ Release branch exists."
-
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_REF }}
