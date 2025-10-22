@@ -15,7 +15,7 @@ def main():
   git_cmd = [
     'git', 'log',
     f'{args.commit1}..{args.commit2}',
-    '--format=format:%h %s by AUTHORS_START%(trailers:key=Co-authored-by,valueonly,separator=%x7C)AUTHORS_END %n'
+    '--format=format:%s by AUTHORS_START%(trailers:key=Co-authored-by,valueonly,separator=%x7C)AUTHORS_END %n'
   ]
 
   result = subprocess.run(git_cmd, capture_output=True, text=True)
