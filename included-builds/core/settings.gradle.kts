@@ -24,6 +24,10 @@ includeNamed(":tenant:codegen", "../..")
 includeNamed(":tenant:runtime", "../..")
 includeNamed(":tenant:wiring", "../..")
 
+// Include Java API modules
+includeNamed(":x:javaapi:api", "../..")
+includeNamed(":x:javaapi:runtime", "../..")
+
 // Include all shared modules
 includeNamed(":shared:arbitrary", "../..")
 includeNamed(":shared:dataloader", "../..")
