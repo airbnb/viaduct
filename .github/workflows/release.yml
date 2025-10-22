@@ -31,7 +31,6 @@ jobs:
         run: |
           echo "RELEASE_REF=main" >> "$GITHUB_ENV"
 
-      - uses: actions/checkout@v5
       - name: Check release branch exists
         run: |
             if ! git ls-remote --heads origin $RELEASE_REF; then
@@ -94,6 +93,9 @@ jobs:
           VIADUCT_SONATYPE_USERNAME: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
           VIADUCT_SONATYPE_PASSWORD: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
         run: |
+          ls
+          ls .github
+          ls .github/scripts
           python3 ./.github/scripts/publish_release.py
       - name: Create release tag
         if: ${{ !inputs.publish_snapshot }}
