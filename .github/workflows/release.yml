@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      skip_publish:
+        description: 'Skip publishing artifacts'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   publish-artifacts:
@@ -84,16 +89,14 @@ jobs:
           ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
           ./gradlew check --no-scan || { echo "❌ Check failed"; exit 1; }
           echo "✅ Project built successfully"
-      - name: Publish Gradle Plugins
+      - name: Publish Artifacts
+        if: ${{ !inputs.skip_publish }}
         env:
           VIADUCT_GRADLE_PUBLISH_KEY: ${{ secrets.VIADUCT_GRADLE_PUBLISH_KEY }}
           VIADUCT_GRADLE_PUBLISH_SECRET: ${{ secrets.VIADUCT_GRADLE_PUBLISH_SECRET }}
           VIADUCT_SONATYPE_USERNAME: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
           VIADUCT_SONATYPE_PASSWORD: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
         run: |
-          ls
-          ls .github
-          ls .github/scripts
           python3 ./.github/scripts/publish_release.py
       - name: Create release tag
         if: ${{ !inputs.publish_snapshot }}
@@ -110,7 +113,8 @@ jobs:
         id: generate_changelog
         if: ${{ !inputs.publish_snapshot }}
         run: |
-          echo "changelog='$(python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }})'" >> "$GITHUB_OUTPUT
+          python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }} > ${{ runner.temp }}/changelog.txt
+          echo "changelog='$(cat ${{ runner.temp }}/changelog.txt)'" >> "$GITHUB_OUTPUT
       - name: Create Draft Release
         id: create_release
         if: ${{ !inputs.publish_snapshot }}
