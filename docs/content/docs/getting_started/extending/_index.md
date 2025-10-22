@@ -37,7 +37,7 @@ To support copy-and-paste, create a file named `AttributedGreetingResolver.kt` i
 package com.example.viadapp.resolvers
 
 import viaduct.api.Resolver
-import com.example.viadapp.helloworld.resolverbases.QueryResolvers
+import com.example.viadapp.resolvers.resolverbases.QueryResolvers
 import viaduct.api.grts.AttributedGreeting
 
 @Resolver("""
