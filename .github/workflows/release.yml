@@ -3,20 +3,25 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-        release_version:
-            description: 'Release version (e.g., 1.0.0)'
-            required: true
-        previous_release_version:
-          description: 'Previous release version (e.g., 1.0.0) for changelog generation'
-          required: true
-        publish_snapshot:
-            description: 'Publish snapshot build'
-            required: false
-            default: false
-            type: boolean
+      release_version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+      previous_release_version:
+        description: 'Previous release version (e.g., 1.0.0) for changelog generation'
+        required: true
+      publish_snapshot:
+        description: 'Publish snapshot build'
+        required: false
+        default: false
+        type: boolean
+      skip_check:
+        description: 'Skip project check step'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
-  publish-plugins:
+  publish-artifacts:
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
@@ -73,6 +78,7 @@ jobs:
           }
           echo "✅ Dependencies downloaded successfully"
       - name: Check project
+        if: ${{ !inputs.skip_check }}
         run: |
           echo "🔨 Building project..."
           ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
