@@ -27,7 +27,7 @@ class ExecutorValidatorTest {
         nodeResolverExecutors = listOf(
             "Foo" to MockNodeBatchResolverExecutor("Foo")
         ),
-        schema = MockSchema.minimal,
+        fullSchema = MockSchema.minimal,
     )
 
     private fun test(

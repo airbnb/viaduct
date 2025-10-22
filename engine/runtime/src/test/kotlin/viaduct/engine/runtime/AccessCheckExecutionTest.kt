@@ -12,7 +12,6 @@ import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.mkRSS
 import viaduct.engine.api.mocks.mkSchemaWithWiring
 import viaduct.engine.api.mocks.runFeatureTest
-import viaduct.engine.api.mocks.toViaductBuilder
 
 @ExperimentalCoroutinesApi
 class AccessCheckExecutionTest {
@@ -60,7 +59,7 @@ class AccessCheckExecutionTest {
         MockTenantModuleBootstrapper(schema) {
             fieldWithValue("Query" to "boo", mkEngineObjectData(booType, mapOf("value" to 5)))
         }.runFeatureTest {
-            viaduct.runQuery("{ boo { value } }")
+            runQuery("{ boo { value } }")
                 .assertJson("{data: {boo: {value: 5}}}")
         }
     }
@@ -83,7 +82,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ boo { value } }")
+            runQuery("{ boo { value } }")
                 .assertJson("{data: {boo: {value: 5}}}")
         }
 
@@ -101,7 +100,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ boo { value } }")
+            val result = runQuery("{ boo { value } }")
             assertEquals(mapOf("boo" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -116,11 +115,11 @@ class AccessCheckExecutionTest {
             fieldWithValue("Query" to "boo", mkEngineObjectData(booType, mapOf("value" to 5)))
             field("Boo" to "value") {
                 checker {
-                    fn { _, _, -> throw RuntimeException("permission denied") }
+                    fn { _, _ -> throw RuntimeException("permission denied") }
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ boo { value } }")
+            val result = runQuery("{ boo { value } }")
             assertEquals(mapOf("boo" to mapOf("value" to null)), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -141,7 +140,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ boo { value } }")
+            val result = runQuery("{ boo { value } }")
             assertEquals(mapOf("boo" to null), result.getData())
             // resolver error takes priority
             assertEquals(1, result.errors.size)
@@ -180,7 +179,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ boo { value } }")
+            val result = runQuery("{ boo { value } }")
             assertEquals(mapOf("boo" to mapOf("value" to null)), result.getData())
             // datafetcher error takes priority
             assertEquals(1, result.errors.size)
@@ -209,7 +208,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ string1 }")
+            runQuery("{ string1 }")
                 .assertJson("{data: {string1: \"1st & 2nd\"}}")
         }
     }
@@ -233,7 +232,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ string1 }")
+            val result = runQuery("{ string1 }")
             assertEquals(mapOf("string1" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -263,7 +262,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ string1 }")
+            val result = runQuery("{ string1 }")
             assertEquals(mapOf("string1" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -294,7 +293,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ string1 }")
+            val result = runQuery("{ string1 }")
             assertEquals(mapOf("string1" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -342,7 +341,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ string1 }")
+            val result = runQuery("{ string1 }")
             assertEquals(mapOf("string1" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -368,7 +367,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("mutation { string1 }")
+            val result = runQuery("mutation { string1 }")
             assertEquals(mapOf("string1" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -399,7 +398,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ baz { id } }")
+            val result = runQuery("{ baz { id } }")
             assertEquals(mapOf("baz" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -425,7 +424,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ boo { value } }")
+            val result = runQuery("{ boo { value } }")
             assertEquals(mapOf("boo" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -454,7 +453,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ baz { id } }")
+            val result = runQuery("{ baz { id } }")
             assertEquals(mapOf("baz" to mapOf("id" to "1")), result.getData())
             assertEquals(0, result.errors.size)
         }
@@ -477,7 +476,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ baz { id } }")
+            val result = runQuery("{ baz { id } }")
             assertEquals(mapOf("baz" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -503,7 +502,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ nonNullBaz { id } }")
+            val result = runQuery("{ nonNullBaz { id } }")
             assertNull(result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -528,15 +527,14 @@ class AccessCheckExecutionTest {
                     fn { _, _ -> throw RuntimeException("type checker failed") }
                 }
             }
-        }.toViaductBuilder().withoutDefaultQueryNodeResolvers().build() // Disabling built in resolvers for test
-            .runFeatureTest {
-                val result = viaduct.runQuery("{ node(id: \"a\") { id } }")
-                assertEquals(mapOf("node" to null), result.getData())
-                assertEquals(1, result.errors.size)
-                val error = result.errors[0]
-                assertEquals(listOf("node"), error.path)
-                assertTrue(error.message.contains("type checker failed"))
-            }
+        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) { // Disabling built in resolvers for test
+            val result = runQuery("{ node(id: \"a\") { id } }")
+            assertEquals(mapOf("node" to null), result.getData())
+            assertEquals(1, result.errors.size)
+            val error = result.errors[0]
+            assertEquals(listOf("node"), error.path)
+            assertTrue(error.message.contains("type checker failed"))
+        }
     }
 
     @Test
@@ -555,13 +553,12 @@ class AccessCheckExecutionTest {
                     fn { _, _ -> /* access granted */ }
                 }
             }
-        }.toViaductBuilder().withoutDefaultQueryNodeResolvers().build() // Disabling built in resolvers for test
-            .runFeatureTest {
-                val result = viaduct.runQuery("{ node(id: \"a\") { id ... on Baz { x y } } }")
-                val expectedData = mapOf("node" to mapOf("id" to "1", "x" to 1, "y" to "1"))
-                assertEquals(expectedData, result.getData())
-                assertEquals(0, result.errors.size)
-            }
+        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) { // Disabling built in resolvers for test
+            val result = runQuery("{ node(id: \"a\") { id ... on Baz { x y } } }")
+            val expectedData = mapOf("node" to mapOf("id" to "1", "x" to 1, "y" to "1"))
+            assertEquals(expectedData, result.getData())
+            assertEquals(0, result.errors.size)
+        }
     }
 
     @Test
@@ -594,7 +591,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ baz { id } }")
+            val result = runQuery("{ baz { id } }")
             assertEquals(mapOf("baz" to null), result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -637,7 +634,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ baz { id } }")
+            val result = runQuery("{ baz { id } }")
             assertEquals(mapOf("baz" to mapOf("id" to "1")), result.getData())
             assertEquals(0, result.errors.size)
         }
@@ -682,7 +679,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ bazList { id } }")
+            val result = runQuery("{ bazList { id } }")
             val expectedData = mapOf(
                 "bazList" to listOf(
                     mapOf("id" to "1"),
@@ -737,7 +734,7 @@ class AccessCheckExecutionTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ bazList { id } }")
+            val result = runQuery("{ bazList { id } }")
             val expectedData = mapOf(
                 "bazList" to listOf(
                     mapOf("id" to "1"),
@@ -803,21 +800,20 @@ class AccessCheckExecutionTest {
                     }
                 }
             }
-        }.toViaductBuilder().withoutDefaultQueryNodeResolvers().build() // Disabling built in resolvers for test
-            .runFeatureTest {
-                val result = viaduct.runQuery("{ nodes(ids: [\"1\", \"2\", \"3\"]) { id } }")
-                val expectedData = mapOf(
-                    "nodes" to listOf(
-                        mapOf("id" to "1"),
-                        null,
-                        mapOf("id" to "3")
-                    )
+        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) { // Disabling built in resolvers for test
+            val result = runQuery("{ nodes(ids: [\"1\", \"2\", \"3\"]) { id } }")
+            val expectedData = mapOf(
+                "nodes" to listOf(
+                    mapOf("id" to "1"),
+                    null,
+                    mapOf("id" to "3")
                 )
-                assertEquals(expectedData, result.getData())
-                assertEquals(1, result.errors.size)
-                val error = result.errors[0]
-                assertEquals(listOf("nodes", 1), error.path)
-                assertTrue(error.message.contains("permission denied for bar with internal ID 2"))
-            }
+            )
+            assertEquals(expectedData, result.getData())
+            assertEquals(1, result.errors.size)
+            val error = result.errors[0]
+            assertEquals(listOf("nodes", 1), error.path)
+            assertTrue(error.message.contains("permission denied for bar with internal ID 2"))
+        }
     }
 }

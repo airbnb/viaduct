@@ -28,7 +28,7 @@ class VariablesResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ foo }").assertJson("{data: {foo: 30}}")
+            runQuery("{ foo }").assertJson("{data: {foo: 30}}")
         }
 
     @Test
@@ -48,7 +48,7 @@ class VariablesResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{foo(y:1)}").assertJson("{data: {foo: 30}}")
+            runQuery("{foo(y:1)}").assertJson("{data: {foo: 30}}")
         }
 
     @Disabled("Disabled until validation of variables-provider behavior is in engine.")
@@ -70,7 +70,7 @@ class VariablesResolverTest {
             }
         }.runFeatureTest {
             assertThrows<IllegalStateException> {
-                viaduct.runQuery("{foo}")
+                runQuery("{foo}")
             }
         }
 
@@ -91,7 +91,7 @@ class VariablesResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{foo}").assertJson("{data: {foo:10}}")
+            runQuery("{foo}").assertJson("{data: {foo:10}}")
         }
 
     @Disabled("Disabled until validation of variables-provider behavior is in engine.")
@@ -113,7 +113,7 @@ class VariablesResolverTest {
             }
         }.runFeatureTest {
             assertThrows<IllegalStateException> {
-                viaduct.runQuery("{foo}")
+                runQuery("{foo}")
             }
         }
 
@@ -136,7 +136,7 @@ class VariablesResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{foo}").assertJson("{data: {foo: 30}}")
+            runQuery("{foo}").assertJson("{data: {foo: 30}}")
         }
 
     @Disabled("Disabled until validation of variables-provider behavior is in engine.")

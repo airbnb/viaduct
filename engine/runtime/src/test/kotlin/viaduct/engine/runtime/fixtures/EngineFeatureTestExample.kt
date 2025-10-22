@@ -4,13 +4,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
-import viaduct.engine.api.mocks.toViaductBuilder
+import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 
 /**
  * Example test demonstrating the EngineFeatureTest framework usage.
@@ -37,7 +36,7 @@ class EngineFeatureTestExample {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("""{ hello number withArgs(name: "Alice") }""")
+            runQuery("""{ hello number withArgs(name: "Alice") }""")
                 .assertJson("""{"data": {"hello": "world", "number": 42, "withArgs": "Hello, Alice!"}}""")
         }
     }
@@ -65,7 +64,7 @@ class EngineFeatureTestExample {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("""{ twoContainer { two } }""")
+            runQuery("""{ twoContainer { two } }""")
                 .assertJson("""{"data": {"twoContainer": {"two": 2}}}""")
         }
     }
@@ -92,7 +91,7 @@ class EngineFeatureTestExample {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ secureField }")
+            runQuery("{ secureField }")
                 .assertJson("""{"data": {"secureField": "secure data"}}""")
         }
         assertTrue(checkerExecuted)
@@ -118,7 +117,7 @@ class EngineFeatureTestExample {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ secureField }")
+            runQuery("{ secureField }")
                 .assertJson("""{"data": {"secureField": "secure data"}}""")
         }
         assertTrue(checkerExecuted)
@@ -156,12 +155,10 @@ class EngineFeatureTestExample {
                     )
                 }
             }
-        }.toViaductBuilder()
-            .withoutDefaultQueryNodeResolvers() // Disabling system level node resolvers for test
-            .build().runFeatureTest {
-                viaduct.runQuery("{ node(id: 123) { id ... on TestNode { name } } }")
-                    .assertJson("""{data: { node: { id: "123", name: "Test Node 123"} } }""")
-            }
+        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) { // Disabling system level node resolvers for test
+            runQuery("{ node(id: 123) { id ... on TestNode { name } } }")
+                .assertJson("""{data: { node: { id: "123", name: "Test Node 123"} } }""")
+        }
     }
 
     @Test
@@ -208,14 +205,14 @@ class EngineFeatureTestExample {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ answer greeting }")
+            runQuery("{ answer greeting }")
                 .assertJson("""{ data: { answer: 42, greeting: "Hello, World!" } }""")
         }
     }
 
     @Test
     fun `test invalid object fragment`() {
-        assertThrows<GraphQLBuildError> {
+        assertThrows<RequiredSelectionsAreInvalid> {
             MockTenantModuleBootstrapper(
                 """
                 extend type Query {
@@ -230,14 +227,14 @@ class EngineFeatureTestExample {
                     }
                 }
             }.runFeatureTest {
-                viaduct.runQuery("{ foo }")
+                runQuery("{ foo }")
             }
         }
     }
 
     @Test
     fun `test invalid query fragment`() {
-        assertThrows<GraphQLBuildError> {
+        assertThrows<RequiredSelectionsAreInvalid> {
             MockTenantModuleBootstrapper(
                 """
                 extend type Query {
@@ -252,7 +249,7 @@ class EngineFeatureTestExample {
                     }
                 }
             }.runFeatureTest {
-                viaduct.runQuery("{ foo }")
+                runQuery("{ foo }")
                     .assertJson("""{ data: { answer: 42, greeting: "Hello, World!" } }""")
             }
         }

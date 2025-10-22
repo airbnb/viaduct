@@ -52,7 +52,7 @@ class BatchNodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{baz {x}}")
+            runQuery("{baz {x}}")
                 .assertJson("""{"data": {"baz": {"x": 20}}}""")
         }
     }
@@ -85,7 +85,7 @@ class BatchNodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{bazList {id x}}")
+            runQuery("{bazList {id x}}")
                 .assertJson("""{"data": {"bazList": [{"id":"1", "x":3}, {"id":"2", "x":3}, {"id":"3", "x":3}]}}""")
         }
     }
@@ -109,7 +109,7 @@ class BatchNodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ bazList { x }}")
+            val result = runQuery("{ bazList { x }}")
             assertEquals(null as Any?, result.getData())
             assertEquals(3, result.errors.size)
             result.errors.forEachIndexed { idx, error ->
@@ -149,7 +149,7 @@ class BatchNodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ bazList { id }}")
+            val result = runQuery("{ bazList { id }}")
             assertEquals(null as Any?, result.getData())
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
@@ -195,7 +195,7 @@ class BatchNodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ baz { x anotherBaz { id x }}}")
+            runQuery("{ baz { x anotherBaz { id x }}}")
                 .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"id":"1", "x":2}}}}""")
         }
 
@@ -238,7 +238,7 @@ class BatchNodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ baz { x anotherBaz { x x2 }}}")
+            runQuery("{ baz { x anotherBaz { x x2 }}}")
                 .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"x":2, "x2":"foo"}}}}""")
         }
 

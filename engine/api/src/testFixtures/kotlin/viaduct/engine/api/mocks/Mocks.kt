@@ -315,7 +315,7 @@ class MockTenantAPIBootstrapper(
 }
 
 class MockTenantModuleBootstrapper(
-    val schema: ViaductSchema,
+    val fullSchema: ViaductSchema,
     val fieldResolverExecutors: Iterable<Pair<Coordinate, FieldResolverExecutor>> = emptyList(),
     val nodeResolverExecutors: Iterable<Pair<String, NodeResolverExecutor>> = emptyList(),
     val checkerExecutors: Map<Coordinate, CheckerExecutor> = emptyMap(),
@@ -325,7 +325,7 @@ class MockTenantModuleBootstrapper(
 
     override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = nodeResolverExecutors
 
-    fun resolverAt(coord: Coordinate) = fieldResolverExecutors(schema).first { it.first == coord }.second
+    fun resolverAt(coord: Coordinate) = fieldResolverExecutors(fullSchema).first { it.first == coord }.second
 
     fun checkerAt(coord: Coordinate) = checkerExecutors[coord]
 
@@ -357,14 +357,14 @@ class MockTenantModuleBootstrapper(
         queryValue: Map<String, Any?> = emptyMap(),
         selections: RawSelectionSet? = null,
         context: EngineExecutionContext = contextMocks.engineExecutionContext,
-    ) = resolverAt(coord).invoke(schema, coord, arguments, objectValue, queryValue, selections, context)
+    ) = resolverAt(coord).invoke(fullSchema, coord, arguments, objectValue, queryValue, selections, context)
 
     fun checkField(
         coord: Coordinate,
         arguments: Map<String, Any?> = emptyMap(),
         objectDataMap: Map<String, Map<String, Any?>> = emptyMap(),
         context: EngineExecutionContext = contextMocks.engineExecutionContext,
-    ) = checkerAt(coord)!!.invoke(schema, coord, arguments, objectDataMap, context)
+    ) = checkerAt(coord)!!.invoke(fullSchema, coord, arguments, objectDataMap, context)
 
     fun toDispatcherRegistry(
         checkerExecutors: Map<Coordinate, CheckerExecutor>? = null,
@@ -379,7 +379,7 @@ class MockTenantModuleBootstrapper(
 
     val contextMocks by lazy {
         ContextMocks(
-            myFullSchema = schema,
+            myFullSchema = fullSchema,
             myDispatcherRegistry = this.toDispatcherRegistry(),
         )
     }

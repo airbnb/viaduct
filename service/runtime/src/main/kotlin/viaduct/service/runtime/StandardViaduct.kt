@@ -373,35 +373,6 @@ class StandardViaduct
         }
 
         /**
-         * Runs a query against the schema named "" (blank string) using
-         * a simplified execution context.  (Intended for testing.)
-         */
-        fun runQuery(
-            query: String,
-            variables: Map<String, Any?> = emptyMap(),
-        ): ExecutionResult = runQuery(SchemaId.Full, query, variables)
-
-        /**
-         * Runs a query against the schema using a simplified
-         * execution context.  (Intended for testing.)
-         */
-
-        /** Runs a query. */
-        fun runQuery(
-            schemaId: SchemaId,
-            query: String,
-            variables: Map<String, Any?> = emptyMap(),
-        ): ExecutionResult =
-            execute(
-                ExecutionInput.create(
-                    operationText = query,
-                    variables = variables,
-                    requestContext = Any(),
-                ),
-                schemaId,
-            )
-
-        /**
          * Creates ExecutionResult from Execution Result and sorts the errors based on a path
          *
          * @param executionResult the ExecutionResult

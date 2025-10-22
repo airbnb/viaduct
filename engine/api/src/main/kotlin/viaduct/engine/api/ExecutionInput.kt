@@ -1,5 +1,7 @@
 package viaduct.engine.api
 
+import java.util.UUID
+
 /**
  * Input required to execute a GraphQL operation in the engine.
  *
@@ -12,9 +14,12 @@ package viaduct.engine.api
  */
 data class ExecutionInput(
     val operationText: String,
-    val operationName: String?,
-    val operationId: String,
-    val variables: Map<String, Any?>,
-    val executionId: String,
+    val operationName: String? = null,
+    val operationId: String = run {
+        val hash = operationText.hashCode().toString(16)
+        if (operationName != null) "$hash-$operationName" else hash
+    },
+    val variables: Map<String, Any?> = emptyMap(),
+    val executionId: String = UUID.randomUUID().toString(),
     val requestContext: Any?
 )

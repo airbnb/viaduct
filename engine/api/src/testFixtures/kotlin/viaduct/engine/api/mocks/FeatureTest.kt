@@ -3,45 +3,22 @@
 package viaduct.engine.api.mocks
 
 import graphql.ExecutionResult
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.runBlocking
+import viaduct.engine.EngineConfiguration
+import viaduct.engine.EngineFactory
+import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ExecutionInput
+import viaduct.engine.api.TenantAPIBootstrapper.Companion.flatten
+import viaduct.engine.api.ViaductSchema
+import viaduct.engine.runtime.execution.DefaultCoroutineInterop
+import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
+import viaduct.engine.runtime.tenantloading.ExecutorValidator
 import viaduct.graphql.test.assertJson as realAssertJson
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.mocks.MockFlagManager
-import viaduct.service.runtime.SchemaConfiguration
-import viaduct.service.runtime.StandardViaduct
-
-/**
- * Convert a MockTenantModuleBootstrapper into a Viaduct builder
- * that has been initialized as follows:
- *
- * * withTenantAPIBootstrapperBuilders: constructed from `this`
- * * withSchemaRegistryBuilder: constructed `this.schema` and full-schema registered as "" (blank string)
- * * withFlagManager: MockFlagManager.Enabled
- * * withCheckerExecutorFactory: constructed from `this`
- *
- * Note this function assumes that `this` has a non-null
- * `MockTenantModuleBootstrapper.schema` property and will fail if it
- * doesn't.
- */
-fun MockTenantModuleBootstrapper.toViaductBuilder(): StandardViaduct.Builder {
-    val mods = listOf(this)
-
-    val tenantAPIBootstrapperBuilder = MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(mods))
-
-    val checkerExecutorFactory = MockCheckerExecutorFactory(
-        checkerExecutors = checkerExecutors,
-        typeCheckerExecutors = typeCheckerExecutors
-    )
-
-    val schemaConfiguration = SchemaConfiguration.fromSchema(schema) // this schema should already be built with the actual wiring
-
-    return StandardViaduct.Builder()
-        .withTenantAPIBootstrapperBuilders(listOf(tenantAPIBootstrapperBuilder))
-        .withFlagManager(MockFlagManager.Enabled)
-        .withSchemaConfiguration(schemaConfiguration)
-        .withCheckerExecutorFactory(checkerExecutorFactory)
-}
+import viaduct.service.runtime.noderesolvers.ViaductNodeResolverAPIBootstrapper
 
 /**
  * Test harness for the Viaduct engine configured with in-memory resolvers.
@@ -71,25 +48,85 @@ fun MockTenantModuleBootstrapper.toViaductBuilder(): StandardViaduct.Builder {
  *
  * ```
  *
- * See [MockTenantModuleBootstrapper.viaductBuilder] to understand how the
+ * See [MockTenantModuleBootstrapper.toEngineFactory] to understand how the
  * Viaduct engine is initialized for the feature test.
  *
  * Inside the FeatureTest block are the following:
  *
- * * this: a StandardViaduct (whose functions can be called unqualified)
+ * * this: an [Engine] (whose functions can be called unqualified)
  * * ExecutionResult.assertJson(String): compares `this` converted to JSON to an expectation
  */
-fun MockTenantModuleBootstrapper.runFeatureTest(block: FeatureTest.() -> Unit) {
-    val viaduct: StandardViaduct = toViaductBuilder().build()
-    viaduct.runFeatureTest(block)
+fun MockTenantModuleBootstrapper.runFeatureTest(
+    withoutDefaultQueryNodeResolvers: Boolean = false,
+    schema: ViaductSchema? = null,
+    block: FeatureTest.() -> Unit
+) {
+    val executableSchema = schema ?: fullSchema
+    val engine = toEngineFactory(withoutDefaultQueryNodeResolvers).create(executableSchema, fullSchema = fullSchema)
+    FeatureTest(engine).block()
 }
 
-fun StandardViaduct.runFeatureTest(block: FeatureTest.() -> Unit) = FeatureTest(this).block()
+/**
+ * Convert a MockTenantModuleBootstrapper into an EngineFactory
+ * that has been initialized with a dispatcher registry constructed from:
+ *
+ * - the full schema
+ * - mock tenant API bootstrappers
+ * - a mock checker executor factory
+ *
+ * and an [EngineConfiguration] constructed with MockFlagManager.Enabled.
+ */
+private fun MockTenantModuleBootstrapper.toEngineFactory(withoutDefaultQueryNodeResolvers: Boolean): EngineFactory {
+    val mods = listOf(this)
+    val tenantAPIBootstrapper = buildList {
+        add(MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(mods)))
+        if (!withoutDefaultQueryNodeResolvers) {
+            add(ViaductNodeResolverAPIBootstrapper.Builder())
+        }
+    }.map { it.create() }.flatten()
 
-@OptIn(ExperimentalCoroutinesApi::class)
+    val checkerExecutorFactory = MockCheckerExecutorFactory(
+        checkerExecutors = checkerExecutors,
+        typeCheckerExecutors = typeCheckerExecutors
+    )
+    val validator = ExecutorValidator(fullSchema)
+    val dispatcherRegistry = DispatcherRegistryFactory(
+        tenantAPIBootstrapper,
+        validator,
+        checkerExecutorFactory
+    ).create(fullSchema)
+    val config = EngineConfiguration.default.copy(
+        flagManager = MockFlagManager.Enabled,
+    )
+    return EngineFactory(config, dispatcherRegistry)
+}
+
 class FeatureTest(
-    val viaduct: StandardViaduct,
+    val engine: Engine
 ) {
+    /**
+     * Runs a query on the underlying engine with the given query and optional variables.
+     *
+     * @param query a GraphQL query string to execute
+     * @param variables a map of variable values
+     * @return the execution result from execution the engine
+     */
+    fun runQuery(
+        query: String,
+        variables: Map<String, Any?> = emptyMap(),
+    ): ExecutionResult {
+        val input = ExecutionInput(
+            operationText = query,
+            variables = variables,
+            requestContext = Any(),
+        )
+        return runBlocking {
+            DefaultCoroutineInterop.enterThreadLocalCoroutineContext {
+                engine.execute(input).awaitExecutionResult()
+            }.await()
+        }
+    }
+
     /**
      * Assert that this result serializes to same value as [expectedJson].
      *
@@ -101,4 +138,4 @@ class FeatureTest(
 
 suspend inline fun <reified T : Any?> EngineObjectData.fetchAs(selection: String) = this.fetch(selection) as T
 
-suspend inline fun <reified T : Any?> Map<String, Any?>.getAs(key: String) = this[key] as T
+inline fun <reified T : Any?> Map<String, Any?>.getAs(key: String) = this[key] as T

@@ -1,10 +1,8 @@
 package viaduct.engine.runtime.tenantloading
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.runFeatureTest
@@ -15,7 +13,7 @@ class CycleDetectorFeatureTest {
     fun `cycles in resolver are detected`() {
         // This should throw an exception during construction due to the cycle:
         // foo requires bar, bar requires foo
-        val exception = assertThrows<GraphQLBuildError> {
+        assertThrows<RequiredSelectionsCycleException> {
             MockTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int }") {
                 field("Query" to "foo") {
                     resolver {
@@ -31,10 +29,5 @@ class CycleDetectorFeatureTest {
                 }
             }.runFeatureTest { } // Empty block - just triggers construction
         }
-
-        // Look for RequiredSelectionsCycleException in the cause chain
-        val cause = generateSequence(exception.cause) { it.cause }
-            .firstOrNull { it is RequiredSelectionsCycleException }
-        assertInstanceOf(RequiredSelectionsCycleException::class.java, cause)
     }
 }

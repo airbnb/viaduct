@@ -54,11 +54,11 @@ class BatchFieldResolverTest {
             }
         }
         bootstrapper.runFeatureTest {
-            viaduct.runQuery("{ items(size: 1) { x y }}")
+            runQuery("{ items(size: 1) { x y }}")
                 .assertJson("""{"data": {"items": [{ "x": 1, "y": 2 }]}}""")
         }
         bootstrapper.runFeatureTest {
-            viaduct.runQuery("{ items { x y }}")
+            runQuery("{ items { x y }}")
                 .assertJson("""{"data": {"items": [{ "x": 1, "y": 2 }, { "x": 2, "y": 3 }]}}""")
         }
     }
@@ -89,7 +89,7 @@ class BatchFieldResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ items { x y }}")
+            runQuery("{ items { x y }}")
                 .assertJson("""{"data": {"items": [{ "x": 1, "y": 2 }, { "x": 2, "y": 2 }]}}""")
         }
     }
@@ -118,7 +118,7 @@ class BatchFieldResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ items { x y }}")
+            runQuery("{ items { x y }}")
                 .apply {
                     assertEquals(2, errors.size)
                     errors.forEachIndexed { idx, error ->
@@ -162,7 +162,7 @@ class BatchFieldResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ items { x y }}")
+            runQuery("{ items { x y }}")
                 .apply {
                     assertEquals(1, errors.size)
                     val error = errors.first()
@@ -213,7 +213,7 @@ class BatchFieldResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ items { x y } anotherItem { x y }}")
+            runQuery("{ items { x y } anotherItem { x y }}")
                 .assertJson("""{"data": {"items": [{ "x": 1, "y": 1 }, { "x": 2, "y": 2 }], "anotherItem": { "x": 1, "y": 1 }}}""")
         }
         // We disable caching for field data loaders, so the execCounts value is 3. Otherwise, it would be 2.

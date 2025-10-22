@@ -15,14 +15,13 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
-import viaduct.engine.api.mocks.toViaductBuilder
 import viaduct.graphql.test.assertJson
 import viaduct.service.runtime.noderesolvers.ViaductQueryNodeResolverModuleBootstrapper
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ViaductNodeResolversTest {
     companion object {
-        const val SCHEMA = """
+        private const val SCHEMA = """
               extend type Query {
                   user(id: ID!): User
               }
@@ -40,7 +39,7 @@ class ViaductNodeResolversTest {
                   irrelevant: String!
               }
           """
-        val MOCK_TENANT_MODULE_BOOTSTRAPPER = MockTenantModuleBootstrapper(SCHEMA) {
+        private val bootstrapper = MockTenantModuleBootstrapper(SCHEMA) {
             type("User") {
                 nodeUnbatchedExecutor { id, _, _ ->
                     mkEngineObjectData(
@@ -51,10 +50,10 @@ class ViaductNodeResolversTest {
             }
         }
 
-        const val INTERNAL_ID_1 = "123"
-        val GLOBAL_ID_1 = getGlobalId("User", INTERNAL_ID_1)
-        const val INTERNAL_ID_2 = "456"
-        val GLOBAL_ID_2 = getGlobalId("User", INTERNAL_ID_2)
+        private const val INTERNAL_ID_1 = "123"
+        private val GLOBAL_ID_1 = getGlobalId("User", INTERNAL_ID_1)
+        private const val INTERNAL_ID_2 = "456"
+        private val GLOBAL_ID_2 = getGlobalId("User", INTERNAL_ID_2)
 
         /**
          * Logic for endcoding the GlobalID string format.
@@ -75,10 +74,9 @@ class ViaductNodeResolversTest {
 
     @Test
     fun `node query with globalId resolves automatically`() {
-        MOCK_TENANT_MODULE_BOOTSTRAPPER.toViaductBuilder()
-            .build()
+        bootstrapper
             .runFeatureTest {
-                viaduct.runQuery(
+                runQuery(
                     """
                   query TestNodeQuery {
                       node(id: "$GLOBAL_ID_1") {
@@ -99,10 +97,9 @@ class ViaductNodeResolversTest {
 
     @Test
     fun `nodes query with mulitiple globalIds resolves automatically`() {
-        MOCK_TENANT_MODULE_BOOTSTRAPPER.toViaductBuilder()
-            .build()
+        bootstrapper
             .runFeatureTest {
-                viaduct.runQuery(
+                runQuery(
                     """
                   query TestNodeQuery {
                       nodes(ids: ["$GLOBAL_ID_1", "$GLOBAL_ID_2"]) {
@@ -126,11 +123,9 @@ class ViaductNodeResolversTest {
 
     @Test
     fun `node query with globalId returns null with framework provided resolver disabled`() {
-        MOCK_TENANT_MODULE_BOOTSTRAPPER.toViaductBuilder()
-            .withoutDefaultQueryNodeResolvers()
-            .build()
-            .runFeatureTest {
-                viaduct.runQuery(
+        bootstrapper
+            .runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+                runQuery(
                     """
                   query TestNodeQuery {
                       node(id: "$INTERNAL_ID_1") {
@@ -149,11 +144,9 @@ class ViaductNodeResolversTest {
     fun `nodes query with multiple globalIds errors with framework provided resolver disabled`() {
         // Per the schema Query.nodes cannot be null. However, if a resolver is not present,
         // Graphql defaults to null even if the field type is an array which violates the schema and errors.
-        MOCK_TENANT_MODULE_BOOTSTRAPPER.toViaductBuilder()
-            .withoutDefaultQueryNodeResolvers()
-            .build()
-            .runFeatureTest {
-                val result = viaduct.runQuery(
+        bootstrapper
+            .runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+                val result = runQuery(
                     """
                   query TestNodeQuery {
                       nodes(ids: ["$GLOBAL_ID_1", "$GLOBAL_ID_2"]) {
@@ -174,12 +167,11 @@ class ViaductNodeResolversTest {
 
     @Test
     fun `errors with a syntactically invalid global id string`() {
-        MOCK_TENANT_MODULE_BOOTSTRAPPER.toViaductBuilder()
-            .build()
+        bootstrapper
             .runFeatureTest {
                 val invalidGlobalId = getGlobalId("Invalid:Syntax", INTERNAL_ID_1)
 
-                val result = viaduct.runQuery(
+                val result = runQuery(
                     """
                   query TestNodeQuery {
                       node(id: "$invalidGlobalId") {
@@ -201,12 +193,11 @@ class ViaductNodeResolversTest {
 
     @Test
     fun `errors with a syntactically valid global id that does not exist`() {
-        MOCK_TENANT_MODULE_BOOTSTRAPPER.toViaductBuilder()
-            .build()
+        bootstrapper
             .runFeatureTest {
                 val nonexistentGlobalId = getGlobalId("People", INTERNAL_ID_1)
 
-                val result = viaduct.runQuery(
+                val result = runQuery(
                     """
                   query TestNodeQuery {
                       node(id: "$nonexistentGlobalId") {
@@ -228,12 +219,11 @@ class ViaductNodeResolversTest {
 
     @Test
     fun `errors with a global id that exists but is not an object type`() {
-        MOCK_TENANT_MODULE_BOOTSTRAPPER.toViaductBuilder()
-            .build()
+        bootstrapper
             .runFeatureTest {
                 val interfaceTypeGlobalId = getGlobalId("InterfaceType", INTERNAL_ID_1)
 
-                val result = viaduct.runQuery(
+                val result = runQuery(
                     """
                   query TestNodeQuery {
                       node(id: "$interfaceTypeGlobalId") {
@@ -259,12 +249,11 @@ class ViaductNodeResolversTest {
 
     @Test
     fun `errors with a global id that is an object type but does not extend node interface `() {
-        MOCK_TENANT_MODULE_BOOTSTRAPPER.toViaductBuilder()
-            .build()
+        bootstrapper
             .runFeatureTest {
                 val nonNodeTypeGlobalId = getGlobalId("NonNode", INTERNAL_ID_1)
 
-                val result = viaduct.runQuery(
+                val result = runQuery(
                     """
                   query TestNodeQuery {
                       node(id: "$nonNodeTypeGlobalId") {
@@ -308,8 +297,8 @@ class ViaductNodeResolversTest {
                     }
                 }
             }
-        }.toViaductBuilder().build().runFeatureTest {
-            viaduct.runQuery(
+        }.runFeatureTest {
+            runQuery(
                 """
                   query _ {
                       user {
@@ -337,7 +326,7 @@ class ViaductNodeResolversTest {
             )
 
             runBlocking {
-                val mockContext = MOCK_TENANT_MODULE_BOOTSTRAPPER.contextMocks.engineExecutionContext
+                val mockContext = bootstrapper.contextMocks.engineExecutionContext
                 val result = fieldResolver.batchResolve(listOf(mockSelector), mockContext)
                 val error = result[mockSelector]?.exceptionOrNull()
                 assertTrue(error!!.message!!.contains("Expected GlobalID \"123\" to be a string. This should never occur."))
@@ -356,7 +345,7 @@ class ViaductNodeResolversTest {
             )
 
             runBlocking {
-                val mockContext = MOCK_TENANT_MODULE_BOOTSTRAPPER.contextMocks.engineExecutionContext
+                val mockContext = bootstrapper.contextMocks.engineExecutionContext
                 val result = fieldResolver.batchResolve(listOf(mockSelector), mockContext)
                 val error = result[mockSelector]?.exceptionOrNull()
                 assertTrue(error!!.message!!.contains("Expected 'ids' argument to be a list. This should never occur."))

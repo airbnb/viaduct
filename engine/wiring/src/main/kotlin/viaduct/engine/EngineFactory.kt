@@ -11,7 +11,7 @@ import viaduct.engine.runtime.DispatcherRegistry
  */
 class EngineFactory(
     private val config: EngineConfiguration = EngineConfiguration.default,
-    private val dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Companion.Empty,
+    private val dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
 ) {
     /**
      * Creates a new Engine instance.

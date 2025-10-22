@@ -5,16 +5,31 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.RequiredSelectionSetRegistry
+import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.validation.Validator
+import viaduct.engine.runtime.validation.Validator.Companion.flatten
 
 /** A concrete implementation of a [Validator] for [DispatcherRegistry] */
 class ExecutorValidator(
-    val nodeResolverValidator: Validator<NodeResolverExecutorValidationCtx>,
-    val fieldResolverExecutorValidator: Validator<FieldResolverExecutorValidationCtx>,
-    val requiredSelectionsValidator: Validator<RequiredSelectionsValidationCtx>,
-    val checkerExecutorValidator: Validator<CheckerExecutorValidationCtx>,
+    private val nodeResolverValidator: Validator<NodeResolverExecutorValidationCtx>,
+    private val fieldResolverExecutorValidator: Validator<FieldResolverExecutorValidationCtx>,
+    private val requiredSelectionsValidator: Validator<RequiredSelectionsValidationCtx>,
+    private val checkerExecutorValidator: Validator<CheckerExecutorValidationCtx>,
 ) : Validator<ExecutorValidatorContext> {
+    // defaults from schema
+    constructor(schema: ViaductSchema) : this(
+        nodeResolverValidator = Validator.Unvalidated,
+        fieldResolverExecutorValidator = ResolverSelectionSetsAreProperlyTyped(schema),
+        requiredSelectionsValidator = listOf(
+            RequiredSelectionsAreSchematicallyValid(schema),
+            RequiredSelectionsAreAcyclic(schema),
+            FromArgumentVariablesHaveValidPaths(schema),
+            FromFieldVariablesHaveValidPaths(schema)
+        ).flatten(),
+        checkerExecutorValidator = CheckerSelectionSetsAreProperlyTyped(schema),
+    )
+
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: ExecutorValidatorContext) {
         ctx.nodeResolverExecutors.forEach { (typeName, executor) ->

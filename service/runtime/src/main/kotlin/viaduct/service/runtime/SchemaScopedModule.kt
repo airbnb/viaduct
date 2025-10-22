@@ -18,16 +18,8 @@ import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.DispatcherRegistry
-import viaduct.engine.runtime.tenantloading.CheckerSelectionSetsAreProperlyTyped
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
-import viaduct.engine.runtime.tenantloading.FromArgumentVariablesHaveValidPaths
-import viaduct.engine.runtime.tenantloading.FromFieldVariablesHaveValidPaths
-import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreAcyclic
-import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreSchematicallyValid
-import viaduct.engine.runtime.tenantloading.ResolverSelectionSetsAreProperlyTyped
-import viaduct.engine.runtime.validation.Validator
-import viaduct.engine.runtime.validation.Validator.Companion.flatten
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
 import viaduct.utils.slf4j.logger
@@ -93,17 +85,7 @@ internal class SchemaScopedModule(
     @Provides
     @Singleton
     fun providesExecutorValidator(schema: ViaductSchema): ExecutorValidator {
-        return ExecutorValidator(
-            nodeResolverValidator = Validator.Unvalidated,
-            fieldResolverExecutorValidator = ResolverSelectionSetsAreProperlyTyped(schema),
-            requiredSelectionsValidator = listOf(
-                RequiredSelectionsAreSchematicallyValid(schema),
-                RequiredSelectionsAreAcyclic(schema),
-                FromArgumentVariablesHaveValidPaths(schema),
-                FromFieldVariablesHaveValidPaths(schema)
-            ).flatten(),
-            checkerExecutorValidator = CheckerSelectionSetsAreProperlyTyped(schema),
-        )
+        return ExecutorValidator(schema)
     }
 
     @Provides

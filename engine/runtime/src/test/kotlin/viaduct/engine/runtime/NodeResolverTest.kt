@@ -51,7 +51,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{baz {x}}")
+            runQuery("{baz {x}}")
                 .assertJson("""{"data": {"baz": {"x": 42}}}""")
         }
     }
@@ -74,7 +74,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ baz { id } }")
+            runQuery("{ baz { id } }")
             assertTrue(invoked)
         }
     }
@@ -95,7 +95,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ baz { x } }")
+            val result = runQuery("{ baz { x } }")
             assertEquals(mapOf("baz" to null), result.getData())
             assertTrue(result.errors.any { it.path == listOf("baz") })
         }
@@ -127,7 +127,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ baz { y } }")
+            val result = runQuery("{ baz { y } }")
             assertTrue(yInvoked)
             assertEquals(mapOf("baz" to null), result.getData())
             assertTrue(result.errors.size == 1)
@@ -176,7 +176,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ baz { z } }")
+            val result = runQuery("{ baz { z } }")
             assertEquals(mapOf("baz" to mapOf("z" to null)), result.getData())
             assertEquals(listOf(listOf("baz", "z")), result.errors.map { it.path })
             assertTrue(result.errors[0].message.contains("expected err"))
@@ -206,7 +206,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{ bazList { x } }")
+            val result = runQuery("{ bazList { x } }")
             val expectedResultData = mapOf(
                 "bazList" to listOf(
                     mapOf("x" to 1),
@@ -242,7 +242,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            val result = viaduct.runQuery("{bazList { x }}")
+            val result = runQuery("{bazList { x }}")
 
             // Verify each node was resolved individually (not batched)
             assertEquals(mapOf("1" to 1, "2" to 1, "3" to 1, "4" to 1, "5" to 1), execCounts.mapValues { it.value.get() })
@@ -288,7 +288,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ baz { x anotherBaz { id x }}}")
+            runQuery("{ baz { x anotherBaz { id x }}}")
                 .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"id":"1", "x":2}}}}""")
 
             assertEquals(mapOf("1" to 1), execCounts.mapValues { it.value.get() })
@@ -320,7 +320,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ baz { x anotherBaz { x x2 }}}")
+            runQuery("{ baz { x anotherBaz { x x2 }}}")
                 .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"x":2, "x2":"foo"}}}}""")
 
             assertEquals(mapOf("1" to 2), execCounts.mapValues { it.value.get() })
@@ -355,7 +355,7 @@ class NodeResolverTest {
                 }
             }
         }.runFeatureTest {
-            viaduct.runQuery("{ baz { x x2 }}")
+            runQuery("{ baz { x x2 }}")
                 .assertJson("""{"data": {"baz": {"x":10, "x2":"10"}}}""")
 
             assertEquals(1, execCount.get())
