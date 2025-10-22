@@ -99,7 +99,7 @@ jobs:
         run: |
           python3 ./.github/scripts/publish_release.py
       - name: Create release tag
-        if: ${{ !inputs.publish_snapshot }} && ${{ !inputs.skip_publish }}
+        if: ${{ !inputs.publish_snapshot && !inputs.skip_publish }}
         uses: actions/github-script@v5
         with:
           script: |
