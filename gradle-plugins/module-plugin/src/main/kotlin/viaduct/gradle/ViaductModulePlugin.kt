@@ -95,6 +95,7 @@ class ViaductModulePlugin : Plugin<Project> {
                         )
                     )
                 )
+                rootProject.dependencies.add("runtimeOnly", project)
 
                 dependencies.add(
                     ViaductPluginCommon.Configs.CENTRAL_SCHEMA_INCOMING,

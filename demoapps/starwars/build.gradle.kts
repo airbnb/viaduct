@@ -26,9 +26,6 @@ dependencies {
     implementation(libs.spring.boot.starter.graphql)
     implementation(libs.spring.boot.starter.web)
 
-    runtimeOnly(project(":modules:filmography"))
-    runtimeOnly(project(":modules:universe"))
-
     testImplementation(libs.spring.boot.starter.test) {
         exclude(module = "junit")
     }
