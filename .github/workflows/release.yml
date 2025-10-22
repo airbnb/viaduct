@@ -6,6 +6,9 @@ on:
         release_version:
             description: 'Release version (e.g., 1.0.0)'
             required: true
+        previous_release_version:
+          description: 'Previous release version (e.g., 1.0.0) for changelog generation'
+          required: true
         publish_snapshot:
             description: 'Publish snapshot build'
             required: false
@@ -92,3 +95,36 @@ jobs:
           VIADUCT_SONATYPE_PASSWORD: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
         run: |
           python3 ./.github/scripts/publish_release.py
+      - name: Create release tag
+        if: ${{ !inputs.publish_snapshot }}
+        uses: actions/github-script@v5
+        with:
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/v${{ inputs.release_version }}',
+              sha: context.sha
+            })
+      - name: Generate Changelog
+        id: generate_changelog
+        if: ${{ !inputs.publish_snapshot }}
+        outputs:
+          changelog: ${{ steps.generate_changelog.outputs.changelog }}
+        run: |
+          python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }}" >> "$GITHUB_OUTPUT"
+      - name: Create Draft Release
+        id: create_release
+        if: ${{ !inputs.publish_snapshot }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ inputs.release_version }}"
+          release_name: Release ${{ github.ref }}
+          body: |
+            ## Changelog
+
+            ${{ steps.generate_changelog.outputs.changelog }}
+          draft: true # Set to true to create a draft release
+          prerelease: false # Set to true if it's a prerelease
