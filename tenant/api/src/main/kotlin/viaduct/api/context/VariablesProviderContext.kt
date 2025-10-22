@@ -7,5 +7,5 @@ import viaduct.api.types.Arguments
  * This is used to resolve variables dynamically based on the current request context.
  */
 interface VariablesProviderContext<T : Arguments> : ExecutionContext {
-    val args: T
+    val arguments: T
 }

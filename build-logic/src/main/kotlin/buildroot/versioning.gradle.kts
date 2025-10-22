@@ -32,7 +32,7 @@ fun getLatestVersionFromPortal(pluginId: String): String? {
     return try {
         // Convert plugin ID to Maven coordinates (com.airbnb.viaduct.module-gradle-plugin -> com/airbnb/viaduct/module-gradle-plugin)
         val mavenPath = pluginId.replace('.', '/')
-        val url = java.net.URL("https://plugins.gradle.org/m2/$mavenPath/maven-metadata.xml")
+        val url = java.net.URI("https://plugins.gradle.org/m2/$mavenPath/maven-metadata.xml").toURL()
         val connection = url.openConnection() as java.net.HttpURLConnection
         connection.requestMethod = "GET"
         connection.connectTimeout = 10000

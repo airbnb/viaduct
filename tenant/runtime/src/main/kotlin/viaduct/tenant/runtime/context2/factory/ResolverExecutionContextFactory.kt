@@ -1,11 +1,18 @@
 package viaduct.tenant.runtime.context2.factory
 
+import graphql.schema.GraphQLCompositeType
+import graphql.schema.GraphQLTypeUtil
+import java.util.Locale.getDefault
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
+import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.primaryConstructor
+import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.ResolverExecutionContext
+import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.NodeResolverBase
@@ -21,6 +28,7 @@ import viaduct.api.types.Query
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RawSelectionSet
+import viaduct.engine.api.ViaductSchema
 import viaduct.tenant.runtime.context2.FieldExecutionContextImpl
 import viaduct.tenant.runtime.context2.MutationFieldExecutionContextImpl
 import viaduct.tenant.runtime.context2.NodeExecutionContextImpl
@@ -99,19 +107,35 @@ class NodeExecutionContextFactory(
     }
 }
 
-class RegularFieldExecutionContextFactory(
+interface VariablesProviderContextFactory {
+    fun createVariablesProviderContext(
+        engineExecutionContext: EngineExecutionContext,
+        requestContext: Any?,
+        rawArguments: Map<String, Any?>
+    ): VariablesProviderContext<Arguments>
+}
+
+class FieldExecutionContextFactory private constructor(
     resolverBaseClass: Class<out ResolverBase<*>>,
+    expectedContextInterface: Class<out ResolverExecutionContext>,
     private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     resultType: Type<CompositeOutput>,
     private val argumentsType: ArgumentsType<Arguments>,
     private val objectType: ObjectType<Object>,
     private val queryType: ObjectType<Query>,
-) : ResolverExecutionContextFactoryBase<CompositeOutput>(
+) : VariablesProviderContextFactory,
+    ResolverExecutionContextFactoryBase<CompositeOutput>(
         resolverBaseClass,
-        FieldExecutionContext::class.java,
+        expectedContextInterface,
         resultType
     ) {
+    val ctor: KFunction<FieldExecutionContext<*, *, *, *>> = when (expectedContextInterface) {
+        FieldExecutionContext::class.java -> FieldExecutionContextImpl::class.primaryConstructor!!
+        MutationFieldExecutionContext::class.java -> MutationFieldExecutionContextImpl::class.primaryConstructor!!
+        else -> throw IllegalArgumentException("Expected context interface must be one of `FieldExecutionContext` or `MutationFieldExecutionContext` ($expectedContextInterface).")
+    }
+
     operator fun invoke(
         engineExecutionContext: EngineExecutionContext,
         rawSelections: RawSelectionSet?,
@@ -121,7 +145,7 @@ class RegularFieldExecutionContextFactory(
         rawQueryValue: EngineObjectData,
     ): FieldExecutionContext<*, *, *, *> {
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
-        val wrappedContext = FieldExecutionContextImpl(
+        val wrappedContext = ctor.call(
             internalContext,
             engineExecutionContext,
             this.toSelectionSet(rawSelections),
@@ -131,6 +155,15 @@ class RegularFieldExecutionContextFactory(
             queryType.makeGRT(internalContext, rawQueryValue),
         )
         return wrap(wrappedContext)
+    }
+
+    override fun createVariablesProviderContext(
+        engineExecutionContext: EngineExecutionContext,
+        requestContext: Any?,
+        rawArguments: Map<String, Any?>
+    ): VariablesProviderContext<Arguments> {
+        val ic = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
+        return VariablesProviderContextImpl(ic, requestContext, argumentsType.makeGRT(ic, rawArguments))
     }
 
     // visible for testing
@@ -138,56 +171,71 @@ class RegularFieldExecutionContextFactory(
         class Context<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(ctx: FieldExecutionContext<T, Q, A, O>) :
             FieldExecutionContext<T, Q, A, O> by ctx, InternalContext by (ctx as InternalContext)
     }
-}
 
-class MutationFieldExecutionContextFactory<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(
-    resolverBaseClass: Class<out ResolverBase<O>>,
-    private val globalIDCodec: GlobalIDCodec,
-    private val reflectionLoader: ReflectionLoader,
-    resultType: Type<CompositeOutput>,
-    private val argumentsType: ArgumentsType<Arguments>,
-    private val objectType: ObjectType<Object>,
-    private val queryType: ObjectType<Query>,
-) : ResolverExecutionContextFactoryBase<CompositeOutput>(
-        resolverBaseClass,
-        MutationFieldExecutionContext::class.java,
-        resultType
-    ) {
-    operator fun invoke(
-        engineExecutionContext: EngineExecutionContext,
-        rawSelections: RawSelectionSet?,
-        requestContext: Any?,
-        rawArguments: Map<String, Any?>,
-        rawObjectValue: EngineObjectData,
-        rawQueryValue: EngineObjectData,
-    ): MutationFieldExecutionContext<Object, Query, Arguments, CompositeOutput> {
-        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
-        val wrappedContext = MutationFieldExecutionContextImpl(
-            internalContext,
-            engineExecutionContext,
-            this.toSelectionSet(rawSelections),
-            requestContext,
-            argumentsType.makeGRT(internalContext, rawArguments),
-            objectType.makeGRT(internalContext, rawObjectValue),
-            queryType.makeGRT(internalContext, rawQueryValue),
-        )
-        return wrap(wrappedContext)
+    companion object {
+        /**
+         * Returns a field execution context factory for a field def.  Could be
+         * a "regular" or "mutation" context factory based on the type of the
+         * nested `Context` class found in [resolverBaseClass].
+         *
+         * Called by module bootstrapper only when a field exists and has a resolver on it.
+         * Thus, assumes `typeName.fieldName` is a valid field coordinate in [schema].
+         */
+        @Suppress("UNCHECKED_CAST")
+        fun of(
+            resolverBaseClass: Class<out ResolverBase<*>>,
+            globalIDCodec: GlobalIDCodec,
+            reflectionLoader: ReflectionLoader,
+            schema: ViaductSchema,
+            typeName: String,
+            fieldName: String,
+        ): FieldExecutionContextFactory {
+            val fieldDef = schema.schema.getObjectType(typeName)?.getFieldDefinition(fieldName)
+                ?: throw IllegalArgumentException("Called on a missing field coordinate ($typeName.$fieldName).")
+
+            val contextKClass: KClass<out ExecutionContext> =
+                resolverBaseClass.declaredClasses.firstOrNull {
+                    FieldExecutionContext::class.java.isAssignableFrom(it)
+                }?.kotlin as? KClass<out ExecutionContext>
+                    ?: throw IllegalArgumentException("No nested Context class found in ${resolverBaseClass.name}")
+
+            val expectedContextInterface: Class<out ResolverExecutionContext> =
+                if (contextKClass.isSubclassOf(MutationFieldExecutionContext::class)) {
+                    MutationFieldExecutionContext::class.java
+                } else {
+                    FieldExecutionContext::class.java
+                }
+
+            val queryType = ObjectType(reflectionLoader.reflectionFor(schema.schema.queryType.name).kcls as KClass<Query>)
+
+            val objectType = ObjectType(reflectionLoader.reflectionFor(typeName).kcls as KClass<Object>)
+
+            val argumentsType = ArgumentsType<Arguments>(
+                if (fieldDef.arguments.isEmpty()) {
+                    Arguments.NoArguments::class
+                } else {
+                    val fn = fieldName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(getDefault()) else it.toString() }
+                    reflectionLoader.reflectionFor("${typeName}_${fn}_Arguments").kcls
+                } as KClass<Arguments>,
+                schema
+            )
+
+            val resultType = Type.ofClass(
+                (GraphQLTypeUtil.unwrapAll(fieldDef.type) as? GraphQLCompositeType)?.let { type ->
+                    reflectionLoader.reflectionFor(type.name).kcls as KClass<CompositeOutput>
+                } ?: CompositeOutput.NotComposite::class
+            )
+
+            return FieldExecutionContextFactory(
+                resolverBaseClass,
+                expectedContextInterface,
+                globalIDCodec,
+                reflectionLoader,
+                resultType,
+                argumentsType,
+                objectType,
+                queryType,
+            )
+        }
     }
-
-    // visible for testing
-    class FakeResolverBase<O : CompositeOutput> : ResolverBase<O> {
-        class Context<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(ctx: MutationFieldExecutionContext<T, Q, A, O>) :
-            MutationFieldExecutionContext<T, Q, A, O> by ctx
-    }
-}
-
-class VariablesProviderContextFactory(
-    private val globalIDCodec: GlobalIDCodec,
-    private val reflectionLoader: ReflectionLoader,
-) {
-    operator fun <A : Arguments> invoke(
-        engineExecutionContext: EngineExecutionContext,
-        requestContext: Any?,
-        args: A
-    ) = VariablesProviderContextImpl(InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader), requestContext, args)
 }

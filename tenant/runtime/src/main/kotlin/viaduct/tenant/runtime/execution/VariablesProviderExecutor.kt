@@ -28,7 +28,7 @@ class VariablesProviderExecutor(
         val internalContext = InternalContextImpl(ctx.engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
         val args = ArgumentsArgs(internalContext, ctx.arguments)
         val variablesProviderCtx = VariablesProviderContextImpl(
-            args = argumentsFactory(args),
+            arguments = argumentsFactory(args),
             executionContext = ExecutionContextImpl(internalContext, ctx.engineExecutionContext.requestContext)
         )
 

@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.FieldCheckerDispatcherRegistry
 import viaduct.engine.api.FieldResolverDispatcherRegistry
 
-internal class ResolverInstrumentationTest {
+internal class ResolverDataFetcherInstrumentationTest {
     private val mockDispathcerRegistry: FieldResolverDispatcherRegistry = mockk()
     private val mockCheckerRegistry: FieldCheckerDispatcherRegistry = mockk()
     private val mockSchema: GraphQLSchema = mockk()

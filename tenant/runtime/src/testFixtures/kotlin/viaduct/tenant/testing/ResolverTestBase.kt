@@ -289,7 +289,7 @@ interface ResolverTestBase {
             VariablesProviderContext<T>,
             ExecutionContext by context,
             InternalContext by context.internal {
-            override val args: T = arguments
+            override val arguments: T = arguments
         }
     }
 

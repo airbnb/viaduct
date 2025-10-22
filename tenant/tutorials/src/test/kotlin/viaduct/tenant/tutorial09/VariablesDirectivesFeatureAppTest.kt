@@ -245,7 +245,7 @@ class VariablesDirectivesFeatureAppTest : FeatureAppTestBase() {
         @Variables("skipAnonymous: Boolean")
         class Vars : VariablesProvider<User_ComputedReviewsWithArgs_Arguments> {
             override suspend fun provide(context: VariablesProviderContext<User_ComputedReviewsWithArgs_Arguments>): Map<String, Any> {
-                val shouldSkipAnonymous = when (context.args.userType) {
+                val shouldSkipAnonymous = when (context.arguments.userType) {
                     "verified" -> true
                     else -> false
                 }

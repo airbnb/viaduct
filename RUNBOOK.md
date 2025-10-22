@@ -5,19 +5,12 @@ Viaduct OSS project.
 
 ## Github
 
-Adminstration is handled by Airbnb's open source committee.
+Administration is handled by Airbnb's open source committee.
 
 ## CircleCI
 
-We use CircleCI to run Viaduct's public [CI
-jobs](https://app.circleci.com/pipelines/github/airbnb/viaduct).
-
-### Invalidating CircleCI Cache
-
-CircleCI sometimes fails due to issues with the Gradle cache. This can
-be invalidated by changing the cache key is
-[.circleci/config.yml](.circleci/config.yml).
-[Example](https://github.com/airbnb/viaduct/commit/855dbda08f2dfb9a7fc58fe54ca8712a5d76fe8b)
+We use Github Actions to run Viaduct's public [CI
+jobs](https://github.com/airbnb/viaduct/actions).
 
 ## Gradle Plugin Portal
 
@@ -36,3 +29,4 @@ Viaduct has dual homes: Github and Airbnb's internal monorepo. We use
 [Copybara](https://github.com/google/copybara) to sync changes between
 the two source trees. Copybara runs on internal Airbnb infrastructure
 and is not accessible to outside contributors.
+

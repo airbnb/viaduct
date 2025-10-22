@@ -10,7 +10,7 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.NodeObject
 
 class VariablesProviderContextImpl<T : Arguments>(
-    override val args: T,
+    override val arguments: T,
     private val executionContext: ExecutionContext,
 ) : VariablesProviderContext<T>, ExecutionContext by executionContext, InternalContext by executionContext.internal {
     override fun <T : NodeObject> globalIDFor(

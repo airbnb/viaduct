@@ -10,6 +10,7 @@ import kotlinx.metadata.Modality
 import kotlinx.metadata.Visibility
 import kotlinx.metadata.hasAnnotations
 import kotlinx.metadata.isNullable
+import kotlinx.metadata.isSecondary
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
 import viaduct.codegen.km.CustomClassBuilder
@@ -53,6 +54,7 @@ private class ObjectBuilderGenV2(
                     .also { it.arguments += KmTypeProjection(KmVariance.INVARIANT, builderFor) }
             )
             .addPrimaryConstructor()
+            .addSecondaryConstructorForToBuilder()
             .addFieldSetters()
             .addBuildFun()
     }
@@ -62,6 +64,7 @@ private class ObjectBuilderGenV2(
         val kmConstructor = KmConstructor().also { constructor ->
             constructor.visibility = Visibility.PUBLIC
             constructor.hasAnnotations = false
+            constructor.isSecondary = true
             constructor.valueParameters.add(
                 KmValueParameter("context").also {
                     it.type = contextType
@@ -83,6 +86,40 @@ private class ObjectBuilderGenV2(
             body = buildString {
                 append("{\n")
                 append(checkNotNullParameterExpression(contextType, 1, "context"))
+                append("}")
+            }
+        )
+        return this
+    }
+
+    private fun CustomClassBuilder.addSecondaryConstructorForToBuilder(): CustomClassBuilder {
+        val kmConstructor = KmConstructor().also { constructor ->
+            constructor.visibility = Visibility.INTERNAL
+            constructor.hasAnnotations = false
+            constructor.isSecondary = true
+            constructor.valueParameters.addAll(
+                listOf(
+                    KmValueParameter("context").also {
+                        it.type = cfg.INTERNAL_CONTEXT.asKmName.asType()
+                    },
+                    KmValueParameter("graphQLObjectType").also {
+                        it.type = cfg.GRAPHQL_OBJECT_TYPE.asKmName.asType()
+                    },
+                    KmValueParameter("baseEngineObjectData").also {
+                        it.type = cfg.ENGINE_OBJECT_DATA.asKmName.asType()
+                    },
+                )
+            )
+        }
+
+        this.addConstructor(
+            kmConstructor,
+            superCall = "super($1, $2, $3);",
+            body = buildString {
+                append("{\n")
+                append(checkNotNullParameterExpression(cfg.INTERNAL_CONTEXT.asKmName.asType(), 1, "context"))
+                append(checkNotNullParameterExpression(cfg.GRAPHQL_OBJECT_TYPE.asKmName.asType(), 2, "graphQLObjectType"))
+                append(checkNotNullParameterExpression(cfg.ENGINE_OBJECT_DATA.asKmName.asType(), 3, "baseEngineObjectData"))
                 append("}")
             }
         )

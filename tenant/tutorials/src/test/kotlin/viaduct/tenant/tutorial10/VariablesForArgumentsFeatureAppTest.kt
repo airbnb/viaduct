@@ -172,7 +172,7 @@ class VariablesForArgumentsFeatureAppTest : FeatureAppTestBase() {
         class DashboardProvider : VariablesProvider<Query_DashboardPosts_Arguments> { // Generated arguments type
             override suspend fun provide(context: VariablesProviderContext<Query_DashboardPosts_Arguments>): Map<String, Any?> {
                 // ACCESS RESOLVER ARGUMENTS
-                val userType = context.args.userType
+                val userType = context.arguments.userType
 
                 // CONDITIONAL ARGUMENT COMPUTATION
                 return when (userType) {

@@ -44,11 +44,18 @@ class ArgumentsType<T : Arguments>(
     cls: KClass<T>,
     schema: ViaductSchema,
 ) : ExtendedType<T>(cls) {
-    private val constructor = kcls.getArgumentsGRTConstructor()
-    private val graphqlInputObjectType = Arguments.inputType(kcls.simpleName!!, schema)
+    private val isNoArguments = (cls == Arguments.NoArguments::class)
+    private val constructor = if (isNoArguments) null else cls.getArgumentsGRTConstructor()
+    private val graphqlInputObjectType = if (isNoArguments) null else Arguments.inputType(cls.simpleName!!, schema)
 
+    @Suppress("UNCHECKED_CAST")
     fun makeGRT(
         ctx: InternalContext,
         args: Map<String, Any?>
-    ) = constructor.call(ctx, args, graphqlInputObjectType)
+    ): T =
+        if (isNoArguments) {
+            Arguments.NoArguments as T
+        } else {
+            constructor!!.call(ctx, args, graphqlInputObjectType!!)
+        }
 }
