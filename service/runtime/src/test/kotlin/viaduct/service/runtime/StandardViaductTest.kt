@@ -18,7 +18,12 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertDoesNotThrow
+import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.FragmentLoader
+import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.graphql.utils.DefaultSchemaProvider
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
@@ -151,6 +156,75 @@ class StandardViaductTest {
             assertEquals(1, errors.size)
             assertEquals("Schema not found for schemaId=SchemaId(id='NONE')", errors.first().message)
             assertNull(result.getData())
+        }
+    }
+
+    @Test
+    fun `build should throw GraphQLBuildError when schema contains Subscription extension in OSS mode`() {
+        val sdl = """
+            extend type Query {
+                user: String
+            }
+
+            extend type Subscription {
+                userUpdated: String
+            }
+        """.trimIndent()
+        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
+
+        val exception = assertThrows<GraphQLBuildError> {
+            StandardViaduct.Builder()
+                .withNoTenantAPIBootstrapper()
+                .withSchemaConfiguration(schemaConfiguration)
+                .build()
+        }
+
+        assertEquals("Viaduct does not currently support subscriptions.", exception.message)
+    }
+
+    @Test
+    fun `build should allow Subscription when airbnbModeEnabled is true`() {
+        val sdl = """
+            extend type Query {
+                user: String
+            }
+
+            extend type Subscription {
+                userUpdated: String
+            }
+        """.trimIndent()
+        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
+        val fragmentLoader = mockk<FragmentLoader>(relaxed = true)
+
+        assertDoesNotThrow {
+            StandardViaduct.Builder()
+                .enableAirbnbBypassDoNotUse(
+                    fragmentLoader = fragmentLoader,
+                    tenantNameResolver = TenantNameResolver()
+                )
+                .withSchemaConfiguration(schemaConfiguration)
+                .build()
+        }
+    }
+
+    @Test
+    fun `build should succeed when schema has no Subscriptions in OSS mode`() {
+        val sdl = """
+            extend type Query {
+                user: String
+            }
+
+            extend type Mutation {
+                updateUser: String
+            }
+        """.trimIndent()
+        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
+
+        assertDoesNotThrow {
+            StandardViaduct.Builder()
+                .withNoTenantAPIBootstrapper()
+                .withSchemaConfiguration(schemaConfiguration)
+                .build()
         }
     }
 }

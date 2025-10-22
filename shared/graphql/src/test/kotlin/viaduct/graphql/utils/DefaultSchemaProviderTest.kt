@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.utils.DefaultSchemaProvider.DefaultDirective
 
@@ -208,7 +209,6 @@ class DefaultSchemaProviderTest {
         val registry = SchemaParser().parse(sdl)
 
         DefaultSchemaProvider.addDefaults(registry)
-
         val query = registry.getType("Query").get() as ObjectTypeDefinition
         val mutation = registry.getType("Mutation").get() as ObjectTypeDefinition
         val subscription = registry.getType("Subscription").get() as ObjectTypeDefinition
@@ -451,9 +451,9 @@ class DefaultSchemaProviderTest {
     }
 
     @Test
-    fun `addDefaults should error when Subscription type is manually defined`() {
+    fun `addDefaults should allow Subscription extension`() {
         val sdl = """
-            type Subscription {
+            extend type Subscription {
               userUpdated: String
             }
 
@@ -463,12 +463,24 @@ class DefaultSchemaProviderTest {
         """.trimIndent()
         val registry = SchemaParser().parse(sdl)
 
-        val exception = assertThrows<RuntimeException> { DefaultSchemaProvider.addDefaults(registry) }
+        assertDoesNotThrow { DefaultSchemaProvider.addDefaults(registry) }
+    }
 
-        assertAll(
-            { assertContains(exception.message ?: "", "Root type Subscription", message = "Should mention Subscription root") },
-            { assertContains(exception.message ?: "", "cannot be manually defined", message = "Should forbid manual def") }
-        )
+    @Test
+    fun `addDefaults should allow Subscription extension when airbnbModeEnabled is true`() {
+        val sdl = """
+            extend type Subscription {
+              userUpdated: String
+            }
+
+            type User {
+              name: String
+            }
+        """.trimIndent()
+        val registry = SchemaParser().parse(sdl)
+
+        assertDoesNotThrow { DefaultSchemaProvider.addDefaults(registry) }
+        assertTrue(registry.getType("Subscription").isPresent)
     }
 
     @Test

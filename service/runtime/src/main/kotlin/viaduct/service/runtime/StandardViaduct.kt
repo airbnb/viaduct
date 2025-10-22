@@ -210,6 +210,8 @@ class StandardViaduct
                     this.meterRegistry = meterRegistry
                 }
 
+            fun isAirbnbModeEnabled() = this.airbnbModeEnabled
+
             /**
              * Builds the Guice Module within Viaduct and gets Viaduct from the injector.
              * Uses the factory pattern for proper dependency injection.
@@ -262,6 +264,11 @@ class StandardViaduct
 
                     // Factory creates child injector with schema modules and returns StandardViaduct
                     return factory.createForSchema(schemaConfiguration)
+                        .also { viaduct ->
+                            if (!isAirbnbModeEnabled() && hasSubscriptions(viaduct.engineRegistry.getSchema(SchemaId.Full))) {
+                                throw GraphQLBuildError("Viaduct does not currently support subscriptions.")
+                            }
+                        }
                 } catch (e: ProvisionException) {
                     val isCausedByDispatcherRegistryFactory = e.cause?.stackTrace?.any {
                         it.className == DispatcherRegistryFactory::class.java.name
@@ -272,6 +279,16 @@ class StandardViaduct
                     }
                     throw e
                 }
+            }
+
+            /**
+             * Checks if the given schema contains Subscription operation type.
+             *
+             * @param schema the schema to check
+             * @return true if schema has subscriptions defined, false otherwise
+             */
+            private fun hasSubscriptions(schema: ViaductSchema): Boolean {
+                return schema.schema.subscriptionType != null
             }
 
             /**
@@ -336,7 +353,7 @@ class StandardViaduct
         ): CompletableFuture<ExecutionResult> {
             val engine = try {
                 engineRegistry.getEngine(schemaId)
-            } catch (e: EngineRegistry.SchemaNotFoundException) {
+            } catch (_: EngineRegistry.SchemaNotFoundException) {
                 return mkSchemaNotFoundError(schemaId)
             }
             return coroutineInterop.enterThreadLocalCoroutineContext {

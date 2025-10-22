@@ -14,7 +14,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalID
+import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.graphql.test.assertJson as mapAssertJson
@@ -54,29 +56,15 @@ class FieldResolverTest {
             )
 
     @Test
-    fun `subscription field resolver throws an exception`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { empty: Int } extend type Subscription { x: Int }")
-            .resolver("Subscription" to "x") { throw RuntimeException("error!") }
-            .build()
-            .assertJson(
-                """
-                {
-                    data: { x: null },
-                    errors: [{
-                        message: "java.lang.RuntimeException: error!",
-                        locations: [{ line: 1, column: 16 }],
-                        path: ["x"],
-                        extensions: {
-                            fieldName: "x",
-                            parentType: "Subscription",
-                            classification: "DataFetchingException"
-                        }
-                    }]
-                }
-                """.trimIndent(),
-                "subscription { x }"
-            )
+    fun `subscription field resolver throws an exception`() {
+        val exception = assertThrows<GraphQLBuildError> {
+            FeatureTestBuilder()
+                .sdl("extend type Query { empty: Int } extend type Subscription { x: Int }")
+                .resolver("Subscription" to "x") { throw GraphQLBuildError("error!") }
+                .build()
+        }
+        assertTrue(exception.message?.contains("Viaduct does not currently support subscriptions") == true)
+    }
 
     @Test
     fun `can query a document multiple times with different variables`() =

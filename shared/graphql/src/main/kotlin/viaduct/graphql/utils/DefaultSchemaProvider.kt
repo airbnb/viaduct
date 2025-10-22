@@ -512,7 +512,7 @@ object DefaultSchemaProvider {
         typeName: String,
         objectExtensions: Map<String, List<*>>,
         ifNeeded: Boolean = false,
-        allowExisting: Boolean = false,
+        allowExisting: Boolean = false
     ): Boolean {
         val hasExtensions = objectExtensions.containsKey(typeName)
         val hasDefinition = builder.getType(typeName).isPresent

@@ -22,9 +22,6 @@ class ViaductBuilderTest {
              type Mutation @scope(to: ["*"]) {
                _: String @deprecated
              }
-             type Subscription @scope(to: ["*"]) {
-               _: String @deprecated
-             }
 
              directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
 
