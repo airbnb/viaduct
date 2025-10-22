@@ -12,6 +12,7 @@ import viaduct.api.internal.ViaductObjectBuilder
 import viaduct.api.mocks.MockGlobalID
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.E1
 import viaduct.api.testschema.I1
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
@@ -132,7 +133,7 @@ class ViaductObjectBuilderTest {
                 O1::class
             )
             val e = assertThrows<IllegalArgumentException> { o1Builder.put("enumField", 10) }
-            assertEquals("Expected value of type E1 for field enumField, got Int", e.message)
+            assertEquals("Invalid enum value '10' for type ${E1::class.simpleName} for field enumField", e.message)
         }
 
     @Test

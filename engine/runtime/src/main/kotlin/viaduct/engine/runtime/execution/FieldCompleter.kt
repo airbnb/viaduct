@@ -473,16 +473,57 @@ class FieldCompleter(
         enumType: GraphQLEnumType,
         result: Any?
     ): Value<FieldCompletionResult> {
-        val serialized = try {
-            enumType.serialize(
-                result,
-                parameters.executionContext.graphQLContext,
-                parameters.executionContext.locale
-            ) as String
-        } catch (e: Exception) {
-            val err = FieldCompletionException(e, parameters)
-            parameters.errorAccumulator += err.graphQLErrors
-            return Value.fromThrowable(err)
+        // Handle enum serialization with schema version skew tolerance
+        // During hotswap/MTD, the runtime schema may have enum values that don't exist
+        // in compiled tenant code. We validate against the runtime GraphQL schema
+        // but avoid deserializing into Java enum types that may not have the value.
+        val serialized = when (result) {
+            null -> null
+            is String -> {
+                // String value - validate against runtime GraphQL schema
+                if (enumType.getValue(result) != null) {
+                    // Valid in runtime schema - use as-is without Java enum conversion
+                    // This allows version skew: runtime schema may have values unknown to compiled code
+                    result
+                } else {
+                    // Invalid in runtime schema - this is a real error
+                    val err = FieldCompletionException(
+                        IllegalArgumentException("Invalid enum value '$result' for type '${enumType.name}'"),
+                        parameters
+                    )
+                    parameters.errorAccumulator += err.graphQLErrors
+                    return Value.fromThrowable(err)
+                }
+            }
+            is Enum<*> -> {
+                // Java enum instance - extract name and validate
+                val enumName = result.name
+                if (enumType.getValue(enumName) != null) {
+                    enumName
+                } else {
+                    // Enum instance doesn't exist in runtime schema
+                    val err = FieldCompletionException(
+                        IllegalArgumentException("Enum value '$enumName' not found in schema type '${enumType.name}'"),
+                        parameters
+                    )
+                    parameters.errorAccumulator += err.graphQLErrors
+                    return Value.fromThrowable(err)
+                }
+            }
+            else -> {
+                // Unexpected type - try GraphQL Java's serialize as fallback
+                try {
+                    enumType.serialize(
+                        result,
+                        parameters.executionContext.graphQLContext,
+                        parameters.executionContext.locale
+                    ) as String
+                } catch (e: Exception) {
+                    val err = FieldCompletionException(e, parameters)
+                    parameters.errorAccumulator += err.graphQLErrors
+                    return Value.fromThrowable(err)
+                }
+            }
         }
 
         return Value.fromValue(

@@ -21,7 +21,7 @@ object SchemaUtils {
         return mkSchema(schemaContent)
     }
 
-    private fun mkSchema(sdl: String): ViaductSchema {
+    fun mkSchema(sdl: String): ViaductSchema {
         val tdr = SchemaParser().parse(sdl)
         DefaultSchemaProvider.addDefaults(tdr)
         return ViaductSchema(SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING))

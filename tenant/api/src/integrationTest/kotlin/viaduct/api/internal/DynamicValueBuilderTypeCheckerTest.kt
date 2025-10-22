@@ -59,12 +59,14 @@ class DynamicValueBuilderTypeCheckerTest {
         val enumField = o1Type.getField("enumField")
         val context = DynamicValueBuilderTypeChecker.FieldContext(enumField, o1Type)
         checker.checkType(enumField.type, null, context)
-        checker.checkType(enumField.type, E1.A, context)
 
-        val e = assertThrows<IllegalArgumentException> {
-            checker.checkType(enumField.type, "A", context)
-        }
-        assertEquals("Expected value of type E1 for field enumField, got String", e.message)
+        // Both enum values and strings are accepted for enum fields.
+        // The checkEnum implementation converts all values to strings via toString() and
+        // validates against the runtime GraphQL schema. This provides schema version skew
+        // tolerance: when the runtime schema has enum values not present in the compiled
+        // Java enum, string values can still be validated and passed through.
+        checker.checkType(enumField.type, E1.A, context)
+        checker.checkType(enumField.type, "A", context)
     }
 
     @Test
@@ -172,5 +174,51 @@ class DynamicValueBuilderTypeCheckerTest {
             checker.checkType(idField.type, 123, context)
         }
         assertEquals("Expected value of type String for field id, got Int", e.message)
+    }
+
+    @Test
+    fun testEnumSchemaVersionSkew_StringValueValidInRuntimeSchemaButNotInCompiledEnum() {
+        // This test verifies the schema version skew tolerance behavior where:
+        // 1. Runtime GraphQL schema has enum value "C" (added via hotswap/deployment)
+        // 2. Compiled Java enum E1 only has values A and B
+        // 3. String value "C" should be accepted because it's valid in runtime schema
+        //    even though conversion to Java enum E1.valueOf("C") would fail
+
+        // Create a schema with enum E1 having an additional value "C" not in compiled enum
+        val schemaWithNewEnumValue = SchemaUtils.mkSchema(
+            """
+            enum E1 {
+              A
+              B
+              C
+            }
+            type O1 {
+              enumField: E1
+            }
+            """.trimIndent()
+        )
+        val contextWithNewEnum = MockInternalContext.mk(schemaWithNewEnumValue, "viaduct.api.testschema")
+        val checkerWithNewEnum = DynamicValueBuilderTypeChecker(contextWithNewEnum)
+        val o1TypeWithNewEnum = schemaWithNewEnumValue.schema.getObjectType("O1")
+        val enumFieldWithNewEnum = o1TypeWithNewEnum.getField("enumField")
+        val fieldContext = DynamicValueBuilderTypeChecker.FieldContext(enumFieldWithNewEnum, o1TypeWithNewEnum)
+
+        // Test 1: Existing enum values (A, B) should work as before
+        checkerWithNewEnum.checkType(enumFieldWithNewEnum.type, "A", fieldContext)
+        checkerWithNewEnum.checkType(enumFieldWithNewEnum.type, "B", fieldContext)
+
+        // Test 2: NEW enum value "C" as string should be accepted
+        // This is the key test: "C" exists in runtime schema but not in compiled E1 enum
+        // The checkEnum method should:
+        // - Validate "C" exists in runtime GraphQL schema (passes)
+        // - Try to convert to Java enum E1.valueOf("C") (fails with IllegalArgumentException)
+        // - Accept the failure silently (version skew tolerance)
+        checkerWithNewEnum.checkType(enumFieldWithNewEnum.type, "C", fieldContext)
+
+        // Test 3: Invalid enum value (not in runtime schema) should still fail
+        val e = assertThrows<IllegalArgumentException> {
+            checkerWithNewEnum.checkType(enumFieldWithNewEnum.type, "INVALID", fieldContext)
+        }
+        assertEquals("Invalid enum value 'INVALID' for type E1 for field enumField", e.message)
     }
 }
