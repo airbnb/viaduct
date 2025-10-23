@@ -1,6 +1,7 @@
 package com.example.starwars.modules.universe.vehicles.models
 
 import viaduct.api.context.ExecutionContext
+import viaduct.api.context.globalIDFor
 
 /**
  * Builder class to map viaduct Vehicle from the Vehicle entity.
@@ -10,7 +11,7 @@ import viaduct.api.context.ExecutionContext
 class VehicleBuilder(private val ctx: ExecutionContext) {
     fun build(vehicle: Vehicle): viaduct.api.grts.Vehicle =
         viaduct.api.grts.Vehicle.Builder(ctx)
-            .id(ctx.globalIDFor(viaduct.api.grts.Vehicle.Reflection, vehicle.id))
+            .id(ctx.globalIDFor<viaduct.api.grts.Vehicle>(vehicle.id))
             .name(vehicle.name)
             .model(vehicle.model)
             .vehicleClass(vehicle.vehicleClass)

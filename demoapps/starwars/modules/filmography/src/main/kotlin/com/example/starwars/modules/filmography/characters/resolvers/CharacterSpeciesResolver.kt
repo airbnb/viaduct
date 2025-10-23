@@ -4,6 +4,7 @@ import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
+import viaduct.api.context.globalIDFor
 import viaduct.api.grts.Species
 
 /**
@@ -37,7 +38,7 @@ class CharacterSpeciesResolver : CharacterResolvers.Species() {
             val character = charactersById[characterId]
 
             val specie = character?.speciesId?.let {
-                ctx.nodeFor(ctx.globalIDFor(Species.Reflection, it))
+                ctx.nodeFor(ctx.globalIDFor<Species>(it))
             }
 
             if (specie != null) {

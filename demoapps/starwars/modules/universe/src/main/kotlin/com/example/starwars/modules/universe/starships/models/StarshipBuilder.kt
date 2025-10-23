@@ -1,6 +1,7 @@
 package com.example.starwars.modules.universe.starships.models
 
 import viaduct.api.context.ExecutionContext
+import viaduct.api.context.globalIDFor
 
 /**
  * A builder class for constructing [Starship] GraphQL objects from
@@ -12,7 +13,7 @@ class StarshipBuilder(private val ctx: ExecutionContext) {
     fun build(starship: Starship): viaduct.api.grts.Starship =
         // tag::global_id_example[3] Example using global IDs
         viaduct.api.grts.Starship.Builder(ctx)
-            .id(ctx.globalIDFor(viaduct.api.grts.Starship.Reflection, starship.id))
+            .id(ctx.globalIDFor<viaduct.api.grts.Starship>(starship.id))
             .name(starship.name)
             .model(starship.model)
             .starshipClass(starship.starshipClass)
