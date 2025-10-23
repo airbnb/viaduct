@@ -35,6 +35,8 @@ import viaduct.tenant.runtime.context2.NodeExecutionContextImpl
 import viaduct.tenant.runtime.context2.VariablesProviderContextImpl
 import viaduct.tenant.runtime.internal.InternalContextImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
+import viaduct.tenant.runtime.toInputLikeGRT
+import viaduct.tenant.runtime.toObjectGRT
 
 sealed class ResolverExecutionContextFactoryBase<R : CompositeOutput>(
     resolverBaseClass: Class<*>,
@@ -121,9 +123,9 @@ class FieldExecutionContextFactory private constructor(
     private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     resultType: Type<CompositeOutput>,
-    private val argumentsType: ArgumentsType<Arguments>,
-    private val objectType: ObjectType<Object>,
-    private val queryType: ObjectType<Query>,
+    private val argumentsCls: KClass<Arguments>,
+    private val objectCls: KClass<Object>,
+    private val queryCls: KClass<Query>,
 ) : VariablesProviderContextFactory,
     ResolverExecutionContextFactoryBase<CompositeOutput>(
         resolverBaseClass,
@@ -150,9 +152,9 @@ class FieldExecutionContextFactory private constructor(
             engineExecutionContext,
             this.toSelectionSet(rawSelections),
             requestContext,
-            argumentsType.makeGRT(internalContext, rawArguments),
-            objectType.makeGRT(internalContext, rawObjectValue),
-            queryType.makeGRT(internalContext, rawQueryValue),
+            rawArguments.toInputLikeGRT(internalContext, argumentsCls),
+            rawObjectValue.toObjectGRT(internalContext, objectCls),
+            rawQueryValue.toObjectGRT(internalContext, queryCls),
         )
         return wrap(wrappedContext)
     }
@@ -163,7 +165,7 @@ class FieldExecutionContextFactory private constructor(
         rawArguments: Map<String, Any?>
     ): VariablesProviderContext<Arguments> {
         val ic = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
-        return VariablesProviderContextImpl(ic, requestContext, argumentsType.makeGRT(ic, rawArguments))
+        return VariablesProviderContextImpl(ic, requestContext, rawArguments.toInputLikeGRT(ic, argumentsCls))
     }
 
     // visible for testing
@@ -206,19 +208,16 @@ class FieldExecutionContextFactory private constructor(
                     FieldExecutionContext::class.java
                 }
 
-            val queryType = ObjectType(reflectionLoader.reflectionFor(schema.schema.queryType.name).kcls as KClass<Query>)
+            val queryCls = reflectionLoader.reflectionFor(schema.schema.queryType.name).kcls as KClass<Query>
 
-            val objectType = ObjectType(reflectionLoader.reflectionFor(typeName).kcls as KClass<Object>)
+            val objectCls = reflectionLoader.reflectionFor(typeName).kcls as KClass<Object>
 
-            val argumentsType = ArgumentsType<Arguments>(
-                if (fieldDef.arguments.isEmpty()) {
-                    Arguments.NoArguments::class
-                } else {
-                    val fn = fieldName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(getDefault()) else it.toString() }
-                    reflectionLoader.reflectionFor("${typeName}_${fn}_Arguments").kcls
-                } as KClass<Arguments>,
-                schema
-            )
+            val argumentsCls = if (fieldDef.arguments.isEmpty()) {
+                Arguments.NoArguments::class
+            } else {
+                val fn = fieldName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(getDefault()) else it.toString() }
+                reflectionLoader.reflectionFor("${typeName}_${fn}_Arguments").kcls
+            } as KClass<Arguments>
 
             val resultType = Type.ofClass(
                 (GraphQLTypeUtil.unwrapAll(fieldDef.type) as? GraphQLCompositeType)?.let { type ->
@@ -232,9 +231,9 @@ class FieldExecutionContextFactory private constructor(
                 globalIDCodec,
                 reflectionLoader,
                 resultType,
-                argumentsType,
-                objectType,
-                queryType,
+                argumentsCls,
+                objectCls,
+                queryCls,
             )
         }
     }

@@ -2,21 +2,15 @@ package viaduct.tenant.runtime.featuretests.fixtures
 
 import graphql.schema.GraphQLSchema
 import javax.inject.Provider
-import kotlin.reflect.full.isSubclassOf
 import viaduct.api.FieldValue
 import viaduct.api.VariablesProvider
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.VariablesProviderContext
-import viaduct.api.internal.InternalContext
 import viaduct.api.internal.NodeResolverBase
-import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.ResolverBase
 import viaduct.api.types.Arguments
-import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
-import viaduct.api.types.Object
-import viaduct.api.types.Query
 import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
@@ -35,45 +29,6 @@ import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
-
-class ObjectStub(val ctx: InternalContext, val data: EngineObjectData) : ObjectBase(ctx, data), Object {
-    suspend inline fun <reified T> get(
-        fieldName: String,
-        alias: String? = null
-    ): T {
-        // lists are not supported due to type erasure
-        require(!T::class.isSubclassOf(List::class)) {
-            "Lists are not supported by this implementation of get. Use `get(key, baseClass)`"
-        }
-        return get(fieldName, T::class, alias)
-    }
-}
-
-class QueryStub(val ctx: InternalContext, val data: EngineObjectData) : ObjectBase(ctx, data), Query {
-    suspend inline fun <reified T> get(
-        fieldName: String,
-        alias: String? = null
-    ): T {
-        // lists are not supported due to type erasure
-        require(!T::class.isSubclassOf(List::class)) {
-            "Lists are not supported by this implementation of get. Use `get(key, baseClass)`"
-        }
-        return get(fieldName, T::class, alias)
-    }
-}
-
-class ArgumentsStub(
-    val inputData: Map<String, Any?>,
-) : Arguments {
-    /** try to get the argument with the provided name, returning null if no value is found */
-    @Suppress("UNCHECKED_CAST")
-    fun <T> tryGet(argName: String): T? = inputData[argName] as? T
-
-    /** get the argument with the provided name, will throw NullPointerException if no non-null value is found */
-    fun <T> get(argName: String): T = tryGet(argName)!!
-}
-
-class CompositeStub : CompositeOutput
 
 @Suppress("UNUSED_PARAMETER")
 class FieldUnbatchedResolverStub<Ctx : FieldExecutionContext<*, *, *, *>>(
@@ -154,11 +109,11 @@ class CheckerExecutorStub(
     }
 }
 
-fun VariablesProviderInfo.Companion.const(vars: Map<String, Any?>): VariablesProviderInfo = typed<ArgumentsStub>(vars.keys, { vars })
+fun VariablesProviderInfo.Companion.const(vars: Map<String, Any?>): VariablesProviderInfo = typed<viaduct.tenant.runtime.FakeArguments>(vars.keys, { vars })
 
 fun VariablesProviderInfo.Companion.untyped(
     vararg variables: String,
-    fn: suspend (args: ArgumentsStub) -> Map<String, Any?>
+    fn: suspend (args: viaduct.tenant.runtime.FakeArguments) -> Map<String, Any?>
 ): VariablesProviderInfo = typed(variables.toSet(), fn)
 
 fun <A : Arguments> VariablesProviderInfo.Companion.typed(

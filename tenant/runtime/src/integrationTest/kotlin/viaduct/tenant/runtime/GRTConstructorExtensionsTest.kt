@@ -3,61 +3,122 @@
 package viaduct.tenant.runtime
 
 import kotlin.Suppress
-import kotlin.reflect.KClass
-import kotlin.reflect.KFunction
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.ViaductTenantUsageException
+import viaduct.api.internal.ObjectBase
 import viaduct.api.mocks.MockInternalContext
-import viaduct.api.mocks.MockType
-import viaduct.api.types.NodeObject
 import viaduct.engine.api.UnsetSelectionException
 import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.tenant.runtime.globalid.CreateUserInput
 import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
+import viaduct.tenant.runtime.globalid.Mutation_CreateUser_Arguments
+import viaduct.tenant.runtime.globalid.Query_User_Arguments
 import viaduct.tenant.runtime.globalid.User
 
+// The unit-tests in GRTConstructorExtensions test its contents pretty comprehensively.
+// This file adds just a few more tests to ensure that things work as expected with
+// code-generated GRTs.
 class GRTConstructorExtensionsTest {
-    @Test
-    fun `getGRTConstructor - success with valid User type`() {
-        val constructor = User.Reflection.kcls.getGRTConstructor()
-        assertValidGRTConstructor(constructor, User::class)
+    val schema = GlobalIdFeatureAppTest.schema
+    val internalContext = MockInternalContext(GlobalIdFeatureAppTest.schema)
+    val userType = schema.schema.getObjectType("User")
+    val emptyUserEOD = mkEngineObjectData(userType, emptyMap())
+
+    // Test [KClass.getGRTConstructor] on code-generated GRTs
+
+    inline fun <reified T : Any> assertValidCtor() {
+        T::class.getGRTConstructor().requireValidGRTConstructorFor(T::class)
     }
 
     @Test
-    fun `getGRTConstructor - throws IllegalArgumentException for NodeObject class with no primary constructor`() {
-        assertThrows<IllegalArgumentException> {
-            NodeObject::class.getGRTConstructor()
-        }
+    fun `getGRTConstructor - success with generated CreateUserInput InputLike type`() {
+        assertValidCtor<CreateUserInput>()
     }
 
     @Test
-    fun `getGRTConstructor - throws IllegalArgumentException for MockType with invalid constructor`() {
-        val invalidType = MockType("InvalidType", NodeObject::class)
-
-        assertThrows<IllegalArgumentException> {
-            invalidType.kcls.getGRTConstructor()
-        }
+    fun `getGRTConstructor - success with generated Mutation_CreateUser_Arguments InputLike type`() {
+        assertValidCtor<Mutation_CreateUser_Arguments>()
     }
 
     @Test
-    fun `wrap - success with User type and can access provided fields`() {
-        val userType = GlobalIdFeatureAppTest.schema.schema.getObjectType("User")
-        val mockEngineObjectData = mkEngineObjectData(
-            userType,
-            mapOf(
-                "id" to "User:user123", // MockGlobalIDCodec expects "TypeName:internalId" format
-                "name" to "John Doe"
-                // Intentionally not providing email to test UnsetSelectionException
-            )
+    fun `getGRTConstructor - success with generated User object type`() {
+        assertValidCtor<User>()
+    }
+
+    // Test [KClass.toObjectGRT]
+
+    @Test
+    fun `toObjectGRT - success with User type`() {
+        val data = mapOf(
+            "id" to "User:user123", // MockGlobalIDCodec expects "TypeName:internalId" format
+            "name" to "John Doe",
         )
-        val internalContext = MockInternalContext(GlobalIdFeatureAppTest.schema)
-
-        val user = mockEngineObjectData.toGRT(internalContext, User.Reflection)
+        val gqlType = schema.schema.getObjectType("User")
+        val eod = mkEngineObjectData(gqlType, data)
+        val user = eod.toObjectGRT(internalContext, User::class)
 
         assertInstanceOf(User::class.java, user)
+        assertSame(eod, (user as ObjectBase).engineObject, "EngineObjectData should be preserved")
+    }
+
+    @Test
+    fun `toInputLikeGRT - success with CreateUserInput type`() {
+        val data = mapOf(
+            "id" to "User:user123",
+            "name" to "John Doe",
+            "email" to "john@example.com"
+        )
+        val inputType = schema.schema.getType("CreateUserInput") as graphql.schema.GraphQLInputObjectType
+        val input = data.toInputLikeGRT(internalContext, CreateUserInput::class)
+        assertInstanceOf(CreateUserInput::class.java, input)
+    }
+
+    @Test
+    fun `toInputLikeGRT - success with Mutation_CreateUser_Arguments type`() {
+        val data = mapOf(
+            "input" to mapOf(
+                "id" to "User:user123",
+                "name" to "John Doe",
+                "email" to "john@example.com"
+            )
+        )
+        val args = data.toInputLikeGRT(internalContext, Mutation_CreateUser_Arguments::class)
+        assertInstanceOf(Mutation_CreateUser_Arguments::class.java, args)
+    }
+
+    @Test
+    fun `toInputLikeGRT - success with Query_User_Arguments type`() {
+        val data = mapOf(
+            "id" to "User:user123"
+        )
+        val args = data.toInputLikeGRT(internalContext, Query_User_Arguments::class)
+        assertInstanceOf(Query_User_Arguments::class.java, args)
+    }
+
+    @Test
+    fun `toObjectGRT - success with User type and can access provided fields`() {
+        val data = mapOf(
+            "id" to "User:user123", // MockGlobalIDCodec expects "TypeName:internalId" format
+            "name" to "John Doe"
+            // Intentionally not providing email to test UnsetSelectionException
+        )
+        val gqlType = schema.schema.getObjectType("User")
+        val eod = mkEngineObjectData(gqlType, data)
+        val user = eod.toObjectGRT(internalContext, User::class)
+
+        // TODO (https://app.asana.com/1/150975571430/project/1207604899751448/task/1211682054265230?focus=true)
+
+        // The tests below add to what is done in the previous test.  However, they should really
+        // be done in the tests for the GRTs themselves.  That is, the responsibility of these tests
+        // is to make sure that an instance of [User] is created (and has the right EOD in it), it's
+        // someone else's responsibility to make sure that [User] behaves correctly.
+        //
+        // However, we're keeping this test for now until we confirm that it's indeed covered elsehwere.
 
         val globalId = runBlocking {
             user.getId()
@@ -76,68 +137,5 @@ class GRTConstructorExtensionsTest {
             }
         }
         assertInstanceOf(UnsetSelectionException::class.java, exception.cause)
-    }
-
-    @Test
-    fun `wrap - propagates IllegalArgumentException from getGRTConstructor`() {
-        val userType = GlobalIdFeatureAppTest.schema.schema.getObjectType("User")
-        val mockEngineObjectData = mkEngineObjectData(userType, emptyMap())
-        val internalContext = MockInternalContext(GlobalIdFeatureAppTest.schema)
-        val invalidType = MockType("InvalidType", NodeObject::class)
-
-        assertThrows<IllegalArgumentException> {
-            mockEngineObjectData.toGRT(internalContext, invalidType)
-        }
-    }
-
-    @Test
-    fun `wrap - created User can access engineObjectData normally`() {
-        val userType = GlobalIdFeatureAppTest.schema.schema.getObjectType("User")
-        val mockEngineObjectData = mkEngineObjectData(
-            userType,
-            mapOf(
-                "id" to "User:user123",
-                "name" to "John Doe",
-                "email" to "john@example.com"
-            )
-        )
-        val internalContext = MockInternalContext(GlobalIdFeatureAppTest.schema)
-
-        val user = mockEngineObjectData.toGRT(internalContext, User.Reflection)
-
-        // Test that the wrapped object can be used normally
-        // This tests that the constructor was called correctly and the object is functional
-        assertEquals(mockEngineObjectData, user.engineObject, "EngineObjectData should be preserved")
-    }
-
-    /**
-     * Validates that a constructor is a valid GRT constructor with expected signature.
-     * Checks that:
-     * - Constructor is not null
-     * - Constructor has exactly 2 parameters
-     * - Return type matches expected class
-     * - Parameters have correct types (InternalContext and EngineObject)
-     */
-    private fun <T : Any> assertValidGRTConstructor(
-        constructor: KFunction<T>?,
-        expectedReturnType: KClass<T>
-    ) {
-        constructor ?: throw AssertionError("Constructor should not be null for valid GRT type")
-
-        assertEquals(2, constructor.parameters.size, "Constructor should have 2 parameters")
-
-        assertEquals(expectedReturnType, constructor.returnType.classifier, "Return type should match expected class")
-
-        val parameterTypes = constructor.parameters.map { it.type.classifier?.toString()?.substringAfterLast(".") }
-        assertEquals(
-            "InternalContext",
-            parameterTypes[0],
-            "First parameter should be InternalContext"
-        )
-        assertEquals(
-            "EngineObject",
-            parameterTypes[1],
-            "Second parameter should be EngineObject"
-        )
     }
 }

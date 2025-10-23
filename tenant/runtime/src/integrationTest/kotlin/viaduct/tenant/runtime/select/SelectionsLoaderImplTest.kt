@@ -15,6 +15,7 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.Query as QueryType
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RawSelectionsLoader
+import viaduct.engine.api.mocks.mkEngineObjectData
 
 class SelectionsLoaderImplTest {
     private val context = MockInternalContext(SelectTestFeatureAppTest.schema).executionContext
@@ -22,8 +23,9 @@ class SelectionsLoaderImplTest {
     @Test
     fun `loads empty selections`(): Unit =
         runBlocking {
+            val queryType = SelectTestFeatureAppTest.schema.schema.getObjectType(Query.Reflection.name)
             val rawSelectionsLoader = mockk<RawSelectionsLoader> {
-                coEvery { load(any()) } returns mockk()
+                coEvery { load(any()) } returns mkEngineObjectData(queryType, emptyMap())
             }
             SelectionsLoaderImpl<QueryType>(rawSelectionsLoader)
                 .load(context, SelectionSet.empty(Query.Reflection))
@@ -32,8 +34,9 @@ class SelectionsLoaderImplTest {
     @Test
     fun `loads empty selections 2`(): Unit =
         runBlocking {
+            val queryType = SelectTestFeatureAppTest.schema.schema.getObjectType(Query.Reflection.name)
             val rawSelectionsLoader = mockk<RawSelectionsLoader> {
-                coEvery { load(any()) } returns mockk()
+                coEvery { load(any()) } returns mkEngineObjectData(queryType, emptyMap())
             }
             SelectionsLoaderImpl<Query>(rawSelectionsLoader)
                 .load(context, SelectionSetImpl(Query.Reflection, RawSelectionSet.empty(Query.Reflection.name)))

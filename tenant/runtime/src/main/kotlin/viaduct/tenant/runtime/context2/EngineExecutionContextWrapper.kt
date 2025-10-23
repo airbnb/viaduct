@@ -10,7 +10,7 @@ import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.tenant.runtime.select.SelectionSetImpl
-import viaduct.tenant.runtime.toGRT
+import viaduct.tenant.runtime.toObjectGRT
 
 /**
  * A wrapper around [EngineExecutionContext] that converts EEC methods into
@@ -52,13 +52,13 @@ class EngineExecutionContextWrapperImpl(
         ctx: InternalContext,
         resolverId: String,
         selections: SelectionSet<T>
-    ): T = engineExecutionContext.query(resolverId, selections.getRawSelectionSet()).toGRT(ctx, selections.type)
+    ): T = engineExecutionContext.query(resolverId, selections.getRawSelectionSet()).toObjectGRT(ctx, selections.type.kcls)
 
     override suspend fun <T : Mutation> mutation(
         ctx: InternalContext,
         resolverId: String,
         selections: SelectionSet<T>
-    ): T = engineExecutionContext.mutation(resolverId, selections.getRawSelectionSet()).toGRT(ctx, selections.type)
+    ): T = engineExecutionContext.mutation(resolverId, selections.getRawSelectionSet()).toObjectGRT(ctx, selections.type.kcls)
 
     private fun SelectionSet<*>.getRawSelectionSet() =
         (this as? SelectionSetImpl)?.rawSelectionSet
@@ -83,6 +83,6 @@ class EngineExecutionContextWrapperImpl(
         val id = ctx.globalIDCodec.serialize(globalID)
         val nodeReference = engineExecutionContext.createNodeReference(id, graphqlObjectType)
 
-        return nodeReference.toGRT(ctx, globalID.type)
+        return nodeReference.toObjectGRT(ctx, globalID.type.kcls)
     }
 }

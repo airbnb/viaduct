@@ -26,7 +26,7 @@ import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
-import viaduct.tenant.runtime.toGRT
+import viaduct.tenant.runtime.toObjectGRT
 
 interface PrebakedResults<T : CompositeOutput> {
     fun get(selections: SelectionSet<T>): T
@@ -139,7 +139,7 @@ open class MockResolverExecutionContext(
     override fun <T : NodeObject> nodeFor(globalID: GlobalID<T>): T {
         val id = globalIDCodec.serialize(globalID)
         val graphqlObjectType = schema.schema.getObjectType(globalID.type.name)
-        return MockNodeEngineObjectData(id, graphqlObjectType).toGRT(this, globalID.type)
+        return MockNodeEngineObjectData(id, graphqlObjectType).toObjectGRT(this, globalID.type.kcls)
     }
 
     override fun <T : NodeObject> globalIDStringFor(

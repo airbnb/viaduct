@@ -27,6 +27,9 @@ import viaduct.service.api.spi.Flags
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
+import viaduct.tenant.runtime.FakeArguments
+import viaduct.tenant.runtime.FakeObject
+import viaduct.tenant.runtime.FakeQuery
 import viaduct.tenant.runtime.context.factory.ArgumentsArgs
 import viaduct.tenant.runtime.context.factory.ArgumentsFactory
 import viaduct.tenant.runtime.context.factory.Factory
@@ -119,18 +122,18 @@ class FeatureTestBuilder {
             ObjectFactory.forClass(
                 objCls
                     .takeIf { it.supertypes.any { it.classifier == ObjectBase::class } }
-                    ?: ObjectStub::class
+                    ?: FakeObject::class
             )
 
         val queryFactory =
             ObjectFactory.forClass(
                 queryCls
                     .takeIf { it.supertypes.any { it.classifier == Query::class } }
-                    ?: QueryStub::class
+                    ?: FakeQuery::class
             )
 
         val argsFactory = ArgumentsFactory.ifClass(argumentsCls)
-            ?: Factory { args: ArgumentsArgs -> ArgumentsStub(args.arguments) }
+            ?: Factory { args: ArgumentsArgs -> FakeArguments(inputData = args.arguments) }
 
         val ctxFactory = FieldExecutionContextMetaFactory.create(
             objFactory,
@@ -176,7 +179,7 @@ class FeatureTestBuilder {
         resolverName: String? = null,
         resolveFn: suspend (ctx: UntypedFieldContext) -> Any?,
     ): FeatureTestBuilder =
-        resolver<UntypedFieldContext, ObjectStub, QueryStub, ArgumentsStub, CompositeStub>(
+        resolver<UntypedFieldContext, FakeObject, FakeQuery, FakeArguments, CompositeOutput>(
             coordinate = coordinate,
             resolveFn = resolveFn,
             resolverName = resolverName
@@ -194,7 +197,7 @@ class FeatureTestBuilder {
         resolverName: String? = null,
         resolveFn: suspend (ctx: UntypedMutationFieldContext) -> Any?,
     ): FeatureTestBuilder =
-        resolver<UntypedMutationFieldContext, ObjectStub, QueryStub, ArgumentsStub, CompositeStub>(
+        resolver<UntypedMutationFieldContext, FakeObject, FakeQuery, FakeArguments, CompositeOutput>(
             coordinate = coordinate,
             resolveFn = resolveFn,
             resolverName = resolverName

@@ -12,13 +12,13 @@ import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
-import viaduct.tenant.runtime.featuretests.fixtures.ArgumentsStub
+import viaduct.tenant.runtime.FakeArguments
+import viaduct.tenant.runtime.FakeObject
+import viaduct.tenant.runtime.FakeQuery
 import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
 import viaduct.tenant.runtime.featuretests.fixtures.Foo
-import viaduct.tenant.runtime.featuretests.fixtures.ObjectStub
 import viaduct.tenant.runtime.featuretests.fixtures.Query
-import viaduct.tenant.runtime.featuretests.fixtures.QueryStub
 import viaduct.tenant.runtime.featuretests.fixtures.Query_HasArgs1_Arguments
 import viaduct.tenant.runtime.featuretests.fixtures.UntypedFieldContext
 import viaduct.tenant.runtime.featuretests.fixtures.assertJson
@@ -66,13 +66,13 @@ class SanityTest {
             .assertJson("{data: {x: 42}}", "{x}")
 
     @Test
-    fun `resolver accesses parent object via explicit ObjectStub`() =
+    fun `resolver accesses parent object via explicit FakeObject`() =
         FeatureTestBuilder()
             .sdl("extend type Query { x: Int }")
             .resolver(
                 "Query" to "x",
-                { ctx: FieldExecutionContext<ObjectStub, QueryStub, Arguments, CompositeOutput.NotComposite> ->
-                    assertTrue(ctx.objectValue is ObjectStub)
+                { ctx: FieldExecutionContext<FakeObject, FakeQuery, Arguments, CompositeOutput.NotComposite> ->
+                    assertTrue(ctx.objectValue is FakeObject)
                     42
                 }
             )
@@ -80,11 +80,11 @@ class SanityTest {
             .assertJson("{data: {x: 42}}", "{x}")
 
     @Test
-    fun `resolver accesses parent object via implicit ObjectStub`() =
+    fun `resolver accesses parent object via implicit FakeObject`() =
         FeatureTestBuilder()
             .sdl("extend type Query { x: Int }")
             .resolver("Query" to "x") { ctx ->
-                assertTrue(ctx.objectValue is ObjectStub)
+                assertTrue(ctx.objectValue is FakeObject)
                 42
             }
             .build()
@@ -104,12 +104,12 @@ class SanityTest {
             .assertJson("{data: {hasArgs1: 42}}", "{hasArgs1(x: 42)}")
 
     @Test
-    fun `resolver accesses arguments via explicit ArgumentsStub`() =
+    fun `resolver accesses arguments via explicit FakeArguments`() =
         FeatureTestBuilder()
             .sdl("extend type Query { hasArgs1(x: Int!): Int! }")
             .resolver(
                 "Query" to "hasArgs1",
-                { ctx: FieldExecutionContext<Query, Query, ArgumentsStub, CompositeOutput> ->
+                { ctx: FieldExecutionContext<Query, Query, FakeArguments, CompositeOutput> ->
                     ctx.arguments.get<Int>("x")
                 }
             )
@@ -117,7 +117,7 @@ class SanityTest {
             .assertJson("{data: {hasArgs1: 42}}", "{hasArgs1(x: 42)}")
 
     @Test
-    fun `resolver accesses arguments via implicit ArgumentsStub`() =
+    fun `resolver accesses arguments via implicit FakeArguments`() =
         FeatureTestBuilder()
             .sdl("extend type Query { hasArgs1(x: Int!): Int! }")
             .resolver("Query" to "hasArgs1") { it.arguments.get<Int>("x") }
