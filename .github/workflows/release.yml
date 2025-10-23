@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+      previous_release_version:
+        description: 'Previous release version (e.g., 1.0.0) for changelog generation'
+        required: true
+      publish_snapshot:
+        description: 'Publish snapshot build'
+        required: false
+        default: false
+        type: boolean
+      skip_check:
+        description: 'Skip project check step'
+        required: false
+        default: false
+        type: boolean
+      skip_publish:
+        description: 'Skip publishing artifacts'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  publish-artifacts:
+    runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_SCAN: "false"
+    steps:
+      - name: Set release ref
+        if: ${{ !inputs.publish_snapshot }}
+        run: |
+          echo "RELEASE_REF=release/v${{ inputs.release_version }}" >> "$GITHUB_ENV"
+      - name: Set release ref for snapshot publish
+        if: inputs.publish_snapshot
+        run: |
+          echo "RELEASE_REF=main" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_REF }}
+
+      - name: Verify Gradle wrapper
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "❌ gradlew not found"
+            exit 1
+          fi
+          chmod +x ./gradlew
+          echo "✅ Gradle wrapper ready"
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+      - name: Download dependencies
+        run: |
+          echo "📥 Downloading Gradle dependencies..."
+          ./gradlew dependencies --no-scan || {
+            echo "❌ Failed to download dependencies"
+            exit 1
+          }
+          echo "✅ Dependencies downloaded successfully"
+      - name: Check project
+        if: ${{ !inputs.skip_check }}
+        run: |
+          echo "🔨 Building project..."
+          ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
+          ./gradlew check --no-scan || { echo "❌ Check failed"; exit 1; }
+          echo "✅ Project built successfully"
+      - name: Publish Artifacts
+        if: ${{ !inputs.skip_publish }}
+        env:
+          VIADUCT_GRADLE_PUBLISH_KEY: ${{ secrets.VIADUCT_GRADLE_PUBLISH_KEY }}
+          VIADUCT_GRADLE_PUBLISH_SECRET: ${{ secrets.VIADUCT_GRADLE_PUBLISH_SECRET }}
+          VIADUCT_SONATYPE_USERNAME: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
+          VIADUCT_SONATYPE_PASSWORD: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          python3 ./.github/scripts/publish_release.py
+      - name: Create release tag
+        if: ${{ !inputs.publish_snapshot && !inputs.skip_publish }}
+        uses: actions/github-script@v5
+        with:
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/v${{ inputs.release_version }}',
+              sha: context.sha
+            })
+      - name: Generate Changelog
+        id: generate_changelog
+        if: ${{ !inputs.publish_snapshot }}
+        run: |
+          echo "## Changelog\n\n" > ${{ runner.temp }}/changelog.txt
+          python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }}" > ${{ runner.temp }}/changelog.txt
+          cat ${{ runner.temp }}/changelog.txt
+      - name: Create Draft Release
+        id: create_release
+        if: ${{ !inputs.publish_snapshot }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ inputs.release_version }}"
+          release_name: Release ${{ inputs.release_version }}
+          body_path: "${{ runner.temp }}/changelog.txt"
+          draft: true # Set to true to create a draft release
+          prerelease: false # Set to true if it's a prerelease
