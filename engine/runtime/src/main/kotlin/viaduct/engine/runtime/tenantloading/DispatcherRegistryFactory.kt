@@ -83,9 +83,14 @@ class DispatcherRegistryFactory(
 
         // Register access checkers
         schema.schema.allTypesAsList.forEach { type ->
-            if (type is GraphQLObjectType) {
+            // Only register checkers for object types (skip types starting with "__" which are reserved by GraphQL)
+            if (type is GraphQLObjectType && !type.name.startsWith("__")) {
                 val typeName = type.name
                 type.fields.forEach { field ->
+                    // skip fields starting with "__" which are reserved by GraphQL
+                    if (field.name.startsWith("__")) {
+                        return@forEach
+                    }
                     checkerExecutorFactory.checkerExecutorForField(schema, typeName, field.name)?.let {
                         val fieldCoord = typeName to field.name
                         fieldCheckerDispatchers[fieldCoord] = CheckerDispatcherImpl(it)

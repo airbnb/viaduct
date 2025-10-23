@@ -205,4 +205,21 @@ class DispatcherRegistryAdditionalTests {
         assertNotNull(regularResolver)
         assertNotNull(batchResolver)
     }
+
+    @Test
+    fun `do not register checkers for introspection types or fields`() {
+        val checkerFactory = MockCheckerExecutorFactory()
+
+        val bootstrapper = MockTenantAPIBootstrapper(listOf(Samples.mockTenantModule))
+        val registry = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerFactory)
+            .create(Samples.testSchema)
+
+        // Introspection type and fields should not have checkers registered
+        assertNull(registry.getTypeCheckerDispatcher("__Schema"))
+        assertNull(registry.getFieldCheckerDispatcher("__Type", "kind"))
+        assertNull(registry.getFieldCheckerDispatcher("__Field", "name"))
+        assertNull(registry.getFieldCheckerDispatcher("TestType", "__typename"))
+        assertNull(registry.getFieldCheckerDispatcher("Query", "__typename"))
+        assertNull(registry.getFieldCheckerDispatcher("Query", "__schema"))
+    }
 }
