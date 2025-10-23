@@ -23,8 +23,7 @@ import viaduct.service.runtime.StandardViaduct
  * Usage:
  *
  * ```kotlin
- *    FeatureTestBuilder()
- *      .sdl(<schema>)
+ *    FeatureTestBuilder(<schema>)
  *      // configure a resolver class for a schema field
  *      .resolver(Query::class, FooField::class, FooFieldResolver::class)
  *      // or configure a resolver function that uses GRTs

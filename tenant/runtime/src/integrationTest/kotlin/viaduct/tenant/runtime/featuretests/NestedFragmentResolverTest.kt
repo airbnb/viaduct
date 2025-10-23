@@ -10,14 +10,13 @@ import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestSchemaFixture
 import viaduct.tenant.runtime.featuretests.fixtures.Foo
 import viaduct.tenant.runtime.featuretests.fixtures.Query
+import viaduct.tenant.runtime.featuretests.fixtures.get
 
 @ExperimentalCoroutinesApi
 class NestedFragmentResolverTest {
     @Test
     fun `fragment resolver processes a sibling field`() =
-        FeatureTestBuilder()
-            .sdl(FeatureTestSchemaFixture.sdl)
-            .grtPackage(Query.Reflection)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver(
                 "Query" to "string1",
                 { ctx: FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->

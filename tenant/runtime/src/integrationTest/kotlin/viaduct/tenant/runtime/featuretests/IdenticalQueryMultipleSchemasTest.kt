@@ -9,8 +9,7 @@ import viaduct.tenant.runtime.featuretests.fixtures.Foo
 @ExperimentalCoroutinesApi
 class IdenticalQueryMultipleSchemasTest {
     private fun configure(sdl: String): FeatureTest =
-        FeatureTestBuilder()
-            .sdl(sdl)
+        FeatureTestBuilder(sdl)
             .resolver("Query" to "foo") { Foo.Builder(it).value("fooValue").build() }
             .build()
 

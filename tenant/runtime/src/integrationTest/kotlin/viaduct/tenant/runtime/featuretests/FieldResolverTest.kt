@@ -14,9 +14,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalID
-import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.graphql.test.assertJson as mapAssertJson
@@ -24,16 +22,15 @@ import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.EnumType
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestSchemaFixture
-import viaduct.tenant.runtime.featuretests.fixtures.Query
 import viaduct.tenant.runtime.featuretests.fixtures.UntypedFieldContext
 import viaduct.tenant.runtime.featuretests.fixtures.assertJson
+import viaduct.tenant.runtime.featuretests.fixtures.get
 
 @ExperimentalCoroutinesApi
 class FieldResolverTest {
     @Test
     fun `query field resolver throws an exception`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x: Int }")
+        FeatureTestBuilder("extend type Query { x: Int }")
             .resolver("Query" to "x") { throw RuntimeException("error!") }
             .build()
             .assertJson(
@@ -56,21 +53,33 @@ class FieldResolverTest {
             )
 
     @Test
-    fun `subscription field resolver throws an exception`() {
-        val exception = assertThrows<GraphQLBuildError> {
-            FeatureTestBuilder()
-                .sdl("extend type Query { empty: Int } extend type Subscription { x: Int }")
-                .resolver("Subscription" to "x") { throw GraphQLBuildError("error!") }
-                .build()
-        }
-        assertTrue(exception.message?.contains("Viaduct does not currently support subscriptions") == true)
-    }
+    fun `subscription field resolver throws an exception`() =
+        FeatureTestBuilder("extend type Query { empty: Int } extend type Subscription { x: Int }")
+            .resolver("Subscription" to "x") { throw RuntimeException("error!") }
+            .build()
+            .assertJson(
+                """
+                {
+                    data: { x: null },
+                    errors: [{
+                        message: "java.lang.RuntimeException: error!",
+                        locations: [{ line: 1, column: 16 }],
+                        path: ["x"],
+                        extensions: {
+                            fieldName: "x",
+                            parentType: "Subscription",
+                            classification: "DataFetchingException"
+                        }
+                    }]
+                }
+                """.trimIndent(),
+                "subscription { x }"
+            )
 
     @Test
     fun `can query a document multiple times with different variables`() =
         // regression, see https://app.asana.com/0/1208357307661305/1209886139365688
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y:Int }")
             .resolver("Query" to "x") { 2 }
             .resolver("Query" to "y") { 3 }
             .build()
@@ -88,9 +97,7 @@ class FieldResolverTest {
 
     @Test
     fun `accessing field on node reference throws`() =
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver("Query" to "baz") { ctx ->
                 val id = ctx.globalIDFor(Baz.Reflection, "1")
                 ctx.nodeFor(ctx.globalIDFor(Baz.Reflection, "1")).also {
@@ -108,9 +115,7 @@ class FieldResolverTest {
 
     @Test
     fun `resolver can read and write enum values`() =
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver("Query" to "enumField") { EnumType.A }
             .resolver(
                 "Query" to "string1",
@@ -127,9 +132,7 @@ class FieldResolverTest {
 
     @Test
     fun `resolver can read and write globalid values`() =
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver("Query" to "idField") { ctx ->
                 // resolver returns a GRT value to the tenant runtime, which we expect to be unwrapped before
                 // it's handed over to the engine
@@ -161,9 +164,23 @@ class FieldResolverTest {
         // Records whether onCompleted observed resolversDone already at 0.
         var onCompletedAfterAllFields = false
 
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(
+            FeatureTestSchemaFixture.sdl,
+            instrumentation = object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFetchObject {
+                override fun beginFetchObject(
+                    parameters: InstrumentationExecutionStrategyParameters,
+                    state: InstrumentationState?
+                ): InstrumentationContext<Map<String, Any?>>? {
+                    // Mark that instrumentation began for this fetchObject.
+                    instrumentationBegun.countDown()
+                    return SimpleInstrumentationContext.whenCompleted { _, _ ->
+                        // onCompleted: check if both field resolvers had already finished.
+                        // await with 0 timeout returns true iff the latch is already at 0.
+                        onCompletedAfterAllFields = resolversDone.await(0, TimeUnit.MILLISECONDS)
+                    }
+                }
+            }.asStandardInstrumentation
+        )
             .resolver("Query" to "idField") { ctx ->
                 // Returns a GRT value that should be unwrapped before engine execution.
                 ctx.globalIDFor(Baz.Reflection, "1")
@@ -186,22 +203,6 @@ class FieldResolverTest {
                     resolversDone.countDown()
                     "2"
                 }
-            )
-            .instrumentation(
-                object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFetchObject {
-                    override fun beginFetchObject(
-                        parameters: InstrumentationExecutionStrategyParameters,
-                        state: InstrumentationState?
-                    ): InstrumentationContext<Map<String, Any?>>? {
-                        // Mark that instrumentation began for this fetchObject.
-                        instrumentationBegun.countDown()
-                        return SimpleInstrumentationContext.whenCompleted { _, _ ->
-                            // onCompleted: check if both field resolvers had already finished.
-                            // await with 0 timeout returns true iff the latch is already at 0.
-                            onCompletedAfterAllFields = resolversDone.await(0, TimeUnit.MILLISECONDS)
-                        }
-                    }
-                }.asStandardInstrumentation
             )
             .build()
             .execute("{string1, string2}")
@@ -227,9 +228,23 @@ class FieldResolverTest {
         var onCompletedAfterAllFields = false
 
         val resolversCalled = CountDownLatch(2)
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(
+            FeatureTestSchemaFixture.sdl,
+            instrumentation = object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFetchObject {
+                override fun beginFetchObject(
+                    parameters: InstrumentationExecutionStrategyParameters,
+                    state: InstrumentationState?
+                ): InstrumentationContext<Map<String, Any?>>? {
+                    // Mark that instrumentation began for this fetchObject.
+                    instrumentationBegun.countDown()
+                    return SimpleInstrumentationContext.whenCompleted { _, _ ->
+                        // onCompleted: check if both field resolvers had already finished.
+                        // await with 0 timeout returns true iff the latch is already at 0.
+                        onCompletedAfterAllFields = resolversDone.await(0, TimeUnit.MILLISECONDS)
+                    }
+                }
+            }.asStandardInstrumentation
+        )
             .resolver("Query" to "string1") { "InitialValue" }
             .resolver(
                 "Mutation" to "string1",
@@ -252,22 +267,6 @@ class FieldResolverTest {
                     resolverBegun.get().toString()
                 },
                 queryValueFragment = "string1"
-            )
-            .instrumentation(
-                object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFetchObject {
-                    override fun beginFetchObject(
-                        parameters: InstrumentationExecutionStrategyParameters,
-                        state: InstrumentationState?
-                    ): InstrumentationContext<Map<String, Any?>>? {
-                        // Mark that instrumentation began for this fetchObject.
-                        instrumentationBegun.countDown()
-                        return SimpleInstrumentationContext.whenCompleted { _, _ ->
-                            // onCompleted: check if both field resolvers had already finished.
-                            // await with 0 timeout returns true iff the latch is already at 0.
-                            onCompletedAfterAllFields = resolversDone.await(0, TimeUnit.MILLISECONDS)
-                        }
-                    }
-                }.asStandardInstrumentation
             )
             .build()
             .assertJson(

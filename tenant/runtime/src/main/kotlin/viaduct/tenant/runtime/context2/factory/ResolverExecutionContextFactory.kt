@@ -29,6 +29,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
+import viaduct.tenant.runtime.context2.EngineExecutionContextWrapperImpl
 import viaduct.tenant.runtime.context2.FieldExecutionContextImpl
 import viaduct.tenant.runtime.context2.MutationFieldExecutionContextImpl
 import viaduct.tenant.runtime.context2.NodeExecutionContextImpl
@@ -117,7 +118,8 @@ interface VariablesProviderContextFactory {
     ): VariablesProviderContext<Arguments>
 }
 
-class FieldExecutionContextFactory private constructor(
+// Visible for testing
+class FieldExecutionContextFactory internal constructor(
     resolverBaseClass: Class<out ResolverBase<*>>,
     expectedContextInterface: Class<out ResolverExecutionContext>,
     private val globalIDCodec: GlobalIDCodec,
@@ -147,9 +149,10 @@ class FieldExecutionContextFactory private constructor(
         rawQueryValue: EngineObjectData,
     ): FieldExecutionContext<*, *, *, *> {
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
+        val engineExecutionContextWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext)
         val wrappedContext = ctor.call(
             internalContext,
-            engineExecutionContext,
+            engineExecutionContextWrapper,
             this.toSelectionSet(rawSelections),
             requestContext,
             rawArguments.toInputLikeGRT(internalContext, argumentsCls),
@@ -216,7 +219,7 @@ class FieldExecutionContextFactory private constructor(
                 Arguments.NoArguments::class
             } else {
                 val fn = fieldName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(getDefault()) else it.toString() }
-                reflectionLoader.reflectionFor("${typeName}_${fn}_Arguments").kcls
+                reflectionLoader.getGRTKClassFor("${typeName}_${fn}_Arguments")
             } as KClass<Arguments>
 
             val resultType = Type.ofClass(

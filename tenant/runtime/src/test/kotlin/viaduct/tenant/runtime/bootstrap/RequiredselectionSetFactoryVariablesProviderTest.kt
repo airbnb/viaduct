@@ -18,7 +18,9 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.resolve
 import viaduct.engine.api.select.SelectionsParser
-import viaduct.tenant.runtime.context.factory.Factory
+import viaduct.tenant.runtime.context2.VariablesProviderContextImpl
+import viaduct.tenant.runtime.context2.factory.VariablesProviderContextFactory
+import viaduct.tenant.runtime.internal.InternalContextImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 /**
@@ -79,10 +81,23 @@ class RequiredselectionSetFactoryVariablesProviderTest {
     }
 
     /**
-     * Simple constant factory that returns empty MockArguments for all behavioral tests.
+     * Simple VariablesProviderContextFactory that returns empty MockArguments for all behavioral tests.
      * These tests focus on VariablesProvider execution, not argument construction.
      */
-    private val argumentsFactory = Factory.const(MockArguments())
+    private val variablesProviderContextFactory = object : VariablesProviderContextFactory {
+        override fun createVariablesProviderContext(
+            engineExecutionContext: viaduct.engine.api.EngineExecutionContext,
+            requestContext: Any?,
+            rawArguments: Map<String, Any?>
+        ): VariablesProviderContext<Arguments> {
+            val ic = InternalContextImpl(
+                engineExecutionContext.fullSchema,
+                MockGlobalIDCodec(),
+                mockReflectionLoader("viaduct.api.bootstrap.test.grts")
+            )
+            return VariablesProviderContextImpl(ic, requestContext, MockArguments())
+        }
+    }
 
     @Test
     fun `mkRequiredSelectionSets -- VariablesProvider that does not return declared variable should throw at request time`(): Unit =
@@ -92,7 +107,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
                 variablesProvider = VariablesProviderInfo(setOf("requiredVar")) { MockVariablesProvider(emptyMap()) }, // Declares but doesn't provide
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = emptyList(),
             ).objectSelections
 
@@ -118,7 +133,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
                 },
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = emptyList(),
             ).objectSelections
 
@@ -144,7 +159,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
                 },
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = emptyList(),
             ).objectSelections
 
@@ -172,7 +187,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
                 },
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = emptyList(),
             ).objectSelections
 

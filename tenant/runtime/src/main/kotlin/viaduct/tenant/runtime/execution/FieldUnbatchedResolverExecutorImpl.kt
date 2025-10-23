@@ -16,11 +16,7 @@ import viaduct.engine.api.FieldResolverExecutor.Selector
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
-import viaduct.tenant.runtime.context.factory.FieldArgs
-import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
-import viaduct.tenant.runtime.internal.InternalContextImpl
-import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
-import viaduct.tenant.runtime.select.SelectionsLoaderImpl
+import viaduct.tenant.runtime.context2.factory.FieldExecutionContextFactory
 
 /**
  * Executes a tenant-written field resolver's batchResolve function.
@@ -60,18 +56,13 @@ class FieldUnbatchedResolverExecutorImpl(
         selections: RawSelectionSet?,
         context: EngineExecutionContext,
     ): Any? {
-        val ctx = resolverContextFactory.make(
-            FieldArgs(
-                internalContext = InternalContextImpl(context.fullSchema, globalIDCodec, reflectionLoader),
-                arguments = arguments,
-                objectValue = objectValue,
-                queryValue = queryValue,
-                resolverId = resolverId,
-                selectionSetFactory = SelectionSetFactoryImpl(context.rawSelectionSetFactory),
-                selections = selections,
-                selectionsLoaderFactory = SelectionsLoaderImpl.Factory(context.rawSelectionsLoaderFactory),
-                engineExecutionContext = context,
-            )
+        val ctx = resolverContextFactory(
+            engineExecutionContext = context,
+            requestContext = context.requestContext, // TODO - get rid of this argument
+            rawSelections = selections,
+            rawArguments = arguments,
+            rawObjectValue = objectValue,
+            rawQueryValue = queryValue,
         )
         val resolver = mkResolver()
         val result = wrapResolveException(resolverId) {

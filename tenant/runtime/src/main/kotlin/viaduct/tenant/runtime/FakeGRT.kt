@@ -5,7 +5,9 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
+import viaduct.api.reflect.Type
 import viaduct.api.types.Arguments
+import viaduct.api.types.Mutation
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineObjectData
@@ -37,7 +39,24 @@ open class FakeObject(val ctx: InternalContext, val data: EngineObjectData) : Ob
  * directly independent of the constructor-protocol of "real" GRTs.
  */
 @FakeGRT
-class FakeQuery(ctx: InternalContext, data: EngineObjectData) : FakeObject(ctx, data), Query
+class FakeQuery(ctx: InternalContext, data: EngineObjectData) : FakeObject(ctx, data), Query {
+    object Reflection : Type<Query> {
+        override val name: String = "Query"
+        override val kcls = FakeQuery::class
+    }
+}
+
+/**
+ * For testing without codegen: [KClass.makeGRT] will construct these
+ * directly independent of the constructor-protocol of "real" GRTs.
+ */
+@FakeGRT
+class FakeMutation(ctx: InternalContext, data: EngineObjectData) : FakeObject(ctx, data), Mutation {
+    object Reflection : Type<Mutation> {
+        override val name: String = "Mutation"
+        override val kcls = FakeMutation::class
+    }
+}
 
 /**
  * For testing without codegen: [KClass.makeGRT] will construct these

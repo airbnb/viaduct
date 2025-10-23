@@ -36,6 +36,7 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.tenant.api))
 
     testImplementation(libs.viaduct.engine.runtime)
+    testImplementation(libs.viaduct.engine.wiring)
     testImplementation(libs.viaduct.tenant.runtime)
     testImplementation(libs.viaduct.tenant.wiring)
     testImplementation(libs.viaduct.service.runtime)
@@ -51,5 +52,6 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.strikt.core)
     testImplementation(libs.micrometer.core)
+    testImplementation(libs.slf4j.api)
     testImplementation(testFixtures(libs.viaduct.tenant.runtime))
 }

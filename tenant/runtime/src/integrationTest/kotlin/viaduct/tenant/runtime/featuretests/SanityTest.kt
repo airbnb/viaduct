@@ -22,6 +22,7 @@ import viaduct.tenant.runtime.featuretests.fixtures.Query
 import viaduct.tenant.runtime.featuretests.fixtures.Query_HasArgs1_Arguments
 import viaduct.tenant.runtime.featuretests.fixtures.UntypedFieldContext
 import viaduct.tenant.runtime.featuretests.fixtures.assertJson
+import viaduct.tenant.runtime.featuretests.fixtures.get
 
 /** tests to ensure that [FeatureTest] behaves as expected */
 @ExperimentalCoroutinesApi
@@ -29,32 +30,28 @@ import viaduct.tenant.runtime.featuretests.fixtures.assertJson
 class SanityTest {
     @Test
     fun `resolver uses an implicit UntypedFieldContext`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x: Int }")
+        FeatureTestBuilder("extend type Query { x: Int }")
             .resolver("Query" to "x") { 42 }
             .build()
             .assertJson("{data: {x: 42}}", "{x}")
 
     @Test
     fun `resolver uses an explicit UntypedFieldContext`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x: Int }")
+        FeatureTestBuilder("extend type Query { x: Int }")
             .resolver("Query" to "x") { _: UntypedFieldContext -> 42 }
             .build()
             .assertJson("{data: {x: 42}}", "{x}")
 
     @Test
     fun `resolver uses an explicit FieldExecutionContext`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x: Int }")
+        FeatureTestBuilder("extend type Query { x: Int }")
             .resolver("Query" to "x") { _: FieldExecutionContext<*, *, *, *> -> 42 }
             .build()
             .assertJson("{data: {x: 42}}", "{x}")
 
     @Test
     fun `resolver accesses parent object via explicit grt`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x: Int }")
+        FeatureTestBuilder("extend type Query { x: Int }")
             .resolver(
                 "Query" to "x",
                 { ctx: FieldExecutionContext<Query, Query, Arguments, CompositeOutput.NotComposite> ->
@@ -67,8 +64,7 @@ class SanityTest {
 
     @Test
     fun `resolver accesses parent object via explicit FakeObject`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x: Int }")
+        FeatureTestBuilder("extend type Query { x: Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: FieldExecutionContext<FakeObject, FakeQuery, Arguments, CompositeOutput.NotComposite> ->
@@ -81,8 +77,7 @@ class SanityTest {
 
     @Test
     fun `resolver accesses parent object via implicit FakeObject`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x: Int }")
+        FeatureTestBuilder("extend type Query { x: Int }", useFakeGRTs = true)
             .resolver("Query" to "x") { ctx ->
                 assertTrue(ctx.objectValue is FakeObject)
                 42
@@ -92,8 +87,7 @@ class SanityTest {
 
     @Test
     fun `resolver accesses arguments via explicit grt`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { hasArgs1(x: Int!): Int! }")
+        FeatureTestBuilder("extend type Query { hasArgs1(x: Int!): Int! }")
             .resolver(
                 "Query" to "hasArgs1",
                 { ctx: FieldExecutionContext<Query, Query, Query_HasArgs1_Arguments, CompositeOutput> ->
@@ -105,8 +99,7 @@ class SanityTest {
 
     @Test
     fun `resolver accesses arguments via explicit FakeArguments`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { hasArgs1(x: Int!): Int! }")
+        FeatureTestBuilder("extend type Query { hasArgs1(x: Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "hasArgs1",
                 { ctx: FieldExecutionContext<Query, Query, FakeArguments, CompositeOutput> ->
@@ -118,21 +111,19 @@ class SanityTest {
 
     @Test
     fun `resolver accesses arguments via implicit FakeArguments`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { hasArgs1(x: Int!): Int! }")
+        FeatureTestBuilder("extend type Query { hasArgs1(x: Int!): Int! }", useFakeGRTs = true)
             .resolver("Query" to "hasArgs1") { it.arguments.get<Int>("x") }
             .build()
             .assertJson("{data: {hasArgs1: 42}}", "{hasArgs1(x: 42)}")
 
     @Test
     fun `resolver accesses selections via explicit grt`() {
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    extend type Query { foo: Foo }
-                    type Foo { value: String }
-                """.trimIndent()
-            )
+        FeatureTestBuilder(
+            """
+                extend type Query { foo: Foo }
+                type Foo { value: String }
+            """.trimIndent()
+        )
             .resolver(
                 "Query" to "foo",
                 { ctx: FieldExecutionContext<Query, Query, Arguments, Foo> ->
@@ -146,14 +137,12 @@ class SanityTest {
 
     @Test
     fun `nodeResolver uses an implicit UntypedNodeContext`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    type Baz { id: ID! }
-                    extend type Query { baz: Baz }
-                """.trimIndent()
-            )
-            .grtPackage(Query.Reflection)
+        FeatureTestBuilder(
+            """
+                type Baz { id: ID! }
+                extend type Query { baz: Baz }
+            """.trimIndent()
+        )
             .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
             .nodeResolver("Baz") { ctx ->
                 Baz.Builder(ctx).build()
@@ -163,14 +152,12 @@ class SanityTest {
 
     @Test
     fun `nodeResolver uses an explicit NodeExecutionContext`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    type Baz { id: ID! }
-                    extend type Query { baz: Baz }
-                """.trimIndent()
-            )
-            .grtPackage(Query.Reflection)
+        FeatureTestBuilder(
+            """
+                type Baz { id: ID! }
+                extend type Query { baz: Baz }
+            """.trimIndent()
+        )
             .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
             .nodeResolver("Baz") { ctx: NodeExecutionContext<Baz> ->
                 Baz.Builder(ctx).build()
@@ -180,14 +167,12 @@ class SanityTest {
 
     @Test
     fun `nodeBatchResolver uses an implicit UntypedNodeContext`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    type Baz { id: ID! }
-                    extend type Query { baz: Baz }
-                """.trimIndent()
-            )
-            .grtPackage(Query.Reflection)
+        FeatureTestBuilder(
+            """
+                type Baz { id: ID! }
+                extend type Query { baz: Baz }
+            """.trimIndent()
+        )
             .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
             .nodeBatchResolver("Baz") { ctxs ->
                 ctxs.map { ctx -> FieldValue.ofValue(Baz.Builder(ctx).build()) }
@@ -198,14 +183,12 @@ class SanityTest {
 
     @Test
     fun `nodeBatchResolver uses an explicit NodeExecutionContext`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
-                    type Baz { id: ID! }
-                    extend type Query { baz: Baz }
-                """.trimIndent()
-            )
-            .grtPackage(Query.Reflection)
+        FeatureTestBuilder(
+            """
+                type Baz { id: ID! }
+                extend type Query { baz: Baz }
+            """.trimIndent()
+        )
             .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
             .nodeBatchResolver("Baz") { ctxs: List<NodeExecutionContext<Baz>> ->
                 ctxs.map { ctx -> FieldValue.ofValue(Baz.Builder(ctx).build()) }
