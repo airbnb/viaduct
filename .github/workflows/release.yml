@@ -126,7 +126,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: "v${{ inputs.release_version }}"
-          release_name: Release ${{ github.ref }}
+          release_name: Release ${{ inputs.release_version }}
           body_path: "${{ runner.temp }}/changelog.txt"
           draft: true # Set to true to create a draft release
           prerelease: false # Set to true if it's a prerelease
