@@ -13,7 +13,7 @@ Please use the discussion board for support questions.
 * Adhere to our [code of conduct](https://airbnb.io/codeofconduct).
 * Changes must be adequately documented and tested.
 * Pull requests must use our PR template (excluding screenshot section).
-* We welcome contributions ranging from tutorials to documentation improvements to bug reports and feature requests. We also welcome contributions to Viaduct itself.
+* We welcome contributions ranging from tutorials to documentation improvements to bug reports and feature requests. We also welcome contributions to Viaduct itself .
 * Major changes should first be discussed with an Issue. Be transparent and get community feedback.
 * Pull requests should be as small as possible. Make one change at a time.
 * At the same time, “gardening” is welcome. No need to make a separate pull request if you (eg) fix an unrelated typo or clear up a variable name along the way.
