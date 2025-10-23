@@ -31,3 +31,29 @@ You should see the following output:
 ```json
 {"data":{"greeting":"Hello, World!"}}
 ```
+
+#### GraphiQL
+
+With the server running, navigate to the following URL in your browser to bring up the [GraphiQL](https://github.com/graphql/graphiql) interface:
+
+[http://localhost:8080/graphiql?path=/graphql](http://localhost:8080/graphiql?path=/graphql)
+
+Then, run the following query:
+
+```graphql
+query HelloWorld {
+  greeting
+  author
+}
+```
+
+You should see this response:
+
+```json
+{
+  "data": {
+    "greeting": "Hello, World!",
+    "author": "Brian Kernighan"
+  }
+}
+```

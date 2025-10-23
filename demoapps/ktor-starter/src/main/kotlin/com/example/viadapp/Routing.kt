@@ -2,11 +2,14 @@ package com.example.viadapp
 
 import com.example.viadapp.injector.ViaductConfiguration
 import graphql.ExecutionResult
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
@@ -17,6 +20,15 @@ fun Application.configureRouting() {
     val viaduct = ViaductConfiguration.viaductService
 
     routing {
+        get("/graphiql") {
+            val resource = this::class.java.classLoader.getResource("graphiql/index.html")
+            if (resource != null) {
+                call.respondText(resource.readText(), ContentType.Text.Html)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "GraphiQL not found")
+            }
+        }
+
         route("/graphql") {
             post {
                 @Suppress("UNCHECKED_CAST")
