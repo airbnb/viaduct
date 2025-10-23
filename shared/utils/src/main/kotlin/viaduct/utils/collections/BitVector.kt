@@ -1,11 +1,9 @@
 package viaduct.utils.collections
 
-import java.util.stream.IntStream
 import kotlin.math.min
-import kotlin.streams.asSequence
 
 class BitVector private constructor(
-    private val size: Int,
+    val size: Int,
     private var bits: Long, // re-assigned in invert function
     // May be larger that (size+63)/64!!  so don't use its length
     private var extraBits: LongArray? = null
@@ -39,10 +37,6 @@ class BitVector private constructor(
             if (size <= -64) return -1L
             return -1L and ((1L shl -size) - 1)
         }
-    }
-
-    fun size(): Int {
-        return size
     }
 
     private fun check(idx: Int) {
@@ -83,7 +77,10 @@ class BitVector private constructor(
             val hi = ((idx - 64) + count - 1) shr 6
             val countInLo = 64 - startingBitInLo
             val countInHi = count - countInLo
-            result = result or ((extraBits!![hi] and ((1L shl countInHi) - 1)) shl countInLo)
+            // Note: countInHi can never be 64 given the constraints (count ≤ 64, countInLo ≥ 1)
+            // but we add a guard for defensive programming similar to line 72
+            val hiMask = (if (countInHi == 64) -1L else ((1L shl countInHi) - 1))
+            result = result or ((extraBits!![hi] and hiMask) shl countInLo)
         }
 
         return result
@@ -140,7 +137,7 @@ class BitVector private constructor(
         return BitVector(size - 1, newBits, newExtraBits)
     }
 
-    fun indices(): Iterable<Int> = IntStream.range(0, size).asSequence().asIterable()
+    fun indices(): IntRange = 0 until size
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -148,7 +145,7 @@ class BitVector private constructor(
         if (size != other.size) return false
         if (bits != other.bits) return false
         if (64 < size) {
-            val len = (size + 1) / 64
+            val len = (size - 1) / 64
             for (i in 0 until len) if (extraBits!![i] != other.extraBits!![i]) return false
         }
         return true
@@ -157,7 +154,7 @@ class BitVector private constructor(
     override fun hashCode(): Int {
         var result = 31 + (bits xor (bits ushr 32)).toInt()
         if (64 < size) {
-            val len = (size + 1) / 64
+            val len = (size - 1) / 64
             for (i in 0 until len) {
                 val element = extraBits!![i]
                 val elementHash = (element xor (element ushr 32)).toInt()
@@ -182,16 +179,21 @@ class BitVector private constructor(
     }
 
     class Builder {
-        private var inserted: LongArray? = LongArray(0)
+        private var inserted: LongArray? = LongArray(4) // Initial capacity
+        private var insertedSize: Int = 0 // Number of elements actually used
         private var buffer = 0L
         private var bitsInBuffer = 0
 
         private fun pushBuffer() {
-            val len = inserted!!.size
-            val tmp = LongArray(len + 1)
-            System.arraycopy(inserted!!, 0, tmp, 0, len)
-            inserted = tmp
-            inserted!![len] = buffer
+            // Grow array if needed using exponential growth
+            if (insertedSize == inserted!!.size) {
+                val newCapacity = maxOf(8, inserted!!.size * 2)
+                val tmp = LongArray(newCapacity)
+                System.arraycopy(inserted!!, 0, tmp, 0, insertedSize)
+                inserted = tmp
+            }
+            inserted!![insertedSize] = buffer
+            insertedSize++
             buffer = 0L
             bitsInBuffer = 0
         }
@@ -218,18 +220,22 @@ class BitVector private constructor(
 
         fun build(): BitVector {
             checkNotNull(inserted) { "Builder has already been built." }
-            val size = bitsInBuffer + 64 * inserted!!.size
+            val size = bitsInBuffer + 64 * insertedSize
             val bits: Long
             val extraBits: LongArray?
             if (size <= 64) {
                 bits = (if (size < 64) buffer else inserted!![0])
                 extraBits = null
             } else {
-                val insertedEndPosition = inserted!!.size - 1
+                // Trim array to actual size and rearrange
                 bits = inserted!![0]
-                System.arraycopy(inserted!!, 1, inserted!!, 0, insertedEndPosition)
-                inserted!![insertedEndPosition] = buffer
-                extraBits = inserted
+                val finalSize = if (bitsInBuffer > 0) insertedSize else insertedSize - 1
+                val result = LongArray(finalSize)
+                System.arraycopy(inserted!!, 1, result, 0, insertedSize - 1)
+                if (bitsInBuffer > 0) {
+                    result[finalSize - 1] = buffer
+                }
+                extraBits = result
             }
             inserted = null // prevent reuse
             return BitVector(size, bits, extraBits)
