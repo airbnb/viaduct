@@ -115,8 +115,9 @@ jobs:
         id: generate_changelog
         if: ${{ !inputs.publish_snapshot }}
         run: |
+          echo "## Changelog\n\n" > ${{ runner.temp }}/changelog.txt
           python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }} > ${{ runner.temp }}/changelog.txt
-          echo "changelog='$(cat ${{ runner.temp }}/changelog.txt)'" >> "$GITHUB_OUTPUT
+          cat ${{ runner.temp }}/changelog.txt
       - name: Create Draft Release
         id: create_release
         if: ${{ !inputs.publish_snapshot }}
@@ -126,9 +127,6 @@ jobs:
         with:
           tag_name: "v${{ inputs.release_version }}"
           release_name: Release ${{ github.ref }}
-          body: |
-            ## Changelog
-
-            ${{ steps.generate_changelog.outputs.changelog }}
+          body_path: "${{ runner.temp }}/changelog.txt"
           draft: true # Set to true to create a draft release
           prerelease: false # Set to true if it's a prerelease
