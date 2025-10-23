@@ -10,6 +10,7 @@ import org.gradle.kotlin.dsl.configure
 
 plugins {
     id("com.vanniktech.maven.publish")
+    signing
 }
 
 abstract class ViaductPublishingExtension @Inject constructor(objects: ObjectFactory) {
@@ -63,6 +64,19 @@ afterEvaluate {
                 url.set("https://github.com/airbnb/viaduct")
             }
         }
+    }
+
+    signing {
+        val signingKeyId: String? by project
+        val signingKey: String? by project
+        val signingPassword: String? by project
+        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        setRequired {
+            gradle.taskGraph.allTasks.any { it is PublishToMavenRepository }
+        }
+        project.logger.lifecycle(publishing.publications.toString())
+        publishing.publications.forEach { project.logger.lifecycle("Publication: ${it.name}") }
+        publishing.publications.forEach { sign(it) }
     }
 }
 
