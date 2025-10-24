@@ -135,7 +135,7 @@ interface ResolverTestBase {
         objectValue: Object = NullObject,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
-        requestContext: ExecutionContext? = null,
+        requestContext: Any? = null,
         selections: SelectionSet<*> = SelectionSet.NoSelections,
         contextQueryValues: List<Query> = emptyList()
     ): T {
@@ -445,6 +445,7 @@ private fun ResolverTestBase.mkFieldExecutionContext(
             objectValue = objectValue,
             queryValue = queryValue,
             arguments = arguments,
+            requestContext = requestContext,
             selectionsValue = selections,
             internalContext = internalContext,
             queryResults = queryResultsMap,
@@ -456,6 +457,7 @@ private fun ResolverTestBase.mkFieldExecutionContext(
             objectValue = objectValue,
             queryValue = queryValue,
             arguments = arguments,
+            requestContext = requestContext,
             selectionsValue = selections,
             internalContext = internalContext,
             queryResults = queryResultsMap,

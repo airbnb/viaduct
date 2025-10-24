@@ -8,27 +8,20 @@ import graphql.schema.idl.SchemaParser
 import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
-import viaduct.api.FieldValue
-import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
-import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.ResolverFor
-import viaduct.api.reflect.Type
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
-import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
 import viaduct.engine.api.ViaductSchema
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 class ExecutionContextResolverTest : DefaultAbstractResolverTestBase() {
     private val SCHEMA_SDL = """
-     directive @resolver on FIELD_DEFINITION | OBJECT
-
      type Query {
-       foo: String @resolver
+       foo: String
      }
     """
 
@@ -43,42 +36,26 @@ class ExecutionContextResolverTest : DefaultAbstractResolverTestBase() {
                 InternalContext by (inner as InternalContext)
 
             open suspend fun resolve(ctx: Context): String? = throw NotImplementedError("Query.field.resolve not implemented")
-
-            open suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String?>> = throw NotImplementedError("Query.field.batchResolve not implemented")
         }
+    }
+
+    private data class RequestContext constructor(
+        val user: String
+    )
+
+    override fun getSchema(): ViaductSchema {
+        val typeDefinitionRegistry = SchemaParser().parse(SCHEMA_SDL)
+        val runtimeWiring = RuntimeWiring.newRuntimeWiring().build()
+
+        return ViaductSchema(SchemaGenerator().makeExecutableSchema(typeDefinitionRegistry, runtimeWiring))
     }
 
     class QueryFieldResolver : QueryResolvers.Field() {
         override suspend fun resolve(ctx: Context): String {
             val requestContext = ctx.requestContext as? RequestContext
-                ?: throw RuntimeException("No request context")
+                ?: throw RuntimeException("No request context provided")
             return requestContext.user
         }
-    }
-
-    data class RequestContext constructor(
-        val user: String
-    ) : ExecutionContext {
-
-        override fun <T : NodeObject> globalIDFor(
-            type: Type<T>,
-            internalID: String
-        ): GlobalID<T> {
-            throw NotImplementedError("Query.field.resolve not implemented")
-        }
-
-        override val requestContext: Any?
-            get() = throw NotImplementedError("Query.field.resolve not implemented")
-    }
-
-    override fun getSchema(): ViaductSchema {
-        val schemaParser = SchemaParser()
-        val typeDefinitionRegistry = schemaParser.parse(SCHEMA_SDL)
-
-        val runtimeWiring = RuntimeWiring.newRuntimeWiring().build()
-        val graphQLSchema = SchemaGenerator().makeExecutableSchema(typeDefinitionRegistry, runtimeWiring)
-
-        return ViaductSchema(graphQLSchema)
     }
 
     @Test
