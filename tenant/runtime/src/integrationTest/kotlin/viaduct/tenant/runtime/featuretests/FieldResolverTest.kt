@@ -161,6 +161,8 @@ class FieldResolverTest {
         val resolversDone = CountDownLatch(2)
         // Latch to confirm instrumentation was invoked at all.
         val instrumentationBegun = CountDownLatch(1)
+        // Latch to synchronize whenCompleted callback execution
+        val onCompletedCalled = CountDownLatch(1)
         // Records whether onCompleted observed resolversDone already at 0.
         var onCompletedAfterAllFields = false
 
@@ -177,6 +179,7 @@ class FieldResolverTest {
                         // onCompleted: check if both field resolvers had already finished.
                         // await with 0 timeout returns true iff the latch is already at 0.
                         onCompletedAfterAllFields = resolversDone.await(0, TimeUnit.MILLISECONDS)
+                        onCompletedCalled.countDown()
                     }
                 }
             }.asStandardInstrumentation
@@ -208,8 +211,11 @@ class FieldResolverTest {
             .execute("{string1, string2}")
             .assertJson("{data: {string1: \"1\", string2: \"2\"}}")
 
-        assertTrue(instrumentationBegun.await(0, TimeUnit.MILLISECONDS)) {
+        assertTrue(instrumentationBegun.await(1, TimeUnit.SECONDS)) {
             "fetchObject instrumentation is never called."
+        }
+        assertTrue(onCompletedCalled.await(1, TimeUnit.SECONDS)) {
+            "fetchObject onCompleted callback was never invoked."
         }
         assertTrue(onCompletedAfterAllFields) {
             "fetchObject onCompleted was called before all field resolvers completed."
@@ -224,6 +230,8 @@ class FieldResolverTest {
         val resolversDone = CountDownLatch(2)
         // Latch to confirm instrumentation was invoked at all.
         val instrumentationBegun = CountDownLatch(1)
+        // Latch to synchronize whenCompleted callback execution
+        val onCompletedCalled = CountDownLatch(1)
         // Records whether onCompleted observed resolversDone already at 0.
         var onCompletedAfterAllFields = false
 
@@ -241,6 +249,7 @@ class FieldResolverTest {
                         // onCompleted: check if both field resolvers had already finished.
                         // await with 0 timeout returns true iff the latch is already at 0.
                         onCompletedAfterAllFields = resolversDone.await(0, TimeUnit.MILLISECONDS)
+                        onCompletedCalled.countDown()
                     }
                 }
             }.asStandardInstrumentation
@@ -274,8 +283,11 @@ class FieldResolverTest {
                 "mutation { string1, string2 }"
             )
 
-        assertTrue(instrumentationBegun.await(0, TimeUnit.MILLISECONDS)) {
+        assertTrue(instrumentationBegun.await(1, TimeUnit.SECONDS)) {
             "fetchObject instrumentation is never called."
+        }
+        assertTrue(onCompletedCalled.await(1, TimeUnit.SECONDS)) {
+            "fetchObject onCompleted callback was never invoked."
         }
         assertTrue(onCompletedAfterAllFields) {
             "fetchObject onCompleted was called before all field resolvers completed."
