@@ -9,10 +9,9 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.VariablesProvider
-import viaduct.api.globalid.GlobalIDCodec
+import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.ReflectionLoader
 import viaduct.api.mocks.MockGlobalID
 import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
@@ -20,9 +19,13 @@ import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.MockType
 import viaduct.api.types.Arguments
 import viaduct.api.types.NodeObject
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.tenant.runtime.context2.VariablesProviderContextImpl
+import viaduct.tenant.runtime.context2.factory.VariablesProviderContextFactory
+import viaduct.tenant.runtime.internal.InternalContextImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 class VariablesProviderExecutorTest {
@@ -32,6 +35,19 @@ class VariablesProviderExecutorTest {
     }
 
     private val objectData = mkEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap())
+    private val reflectionLoader = MockReflectionLoader()
+    private val globalIDCodec = MockGlobalIDCodec()
+
+    private inner class TestVariablesProviderContextFactory : VariablesProviderContextFactory {
+        override fun createVariablesProviderContext(
+            engineExecutionContext: EngineExecutionContext,
+            requestContext: Any?,
+            rawArguments: Map<String, Any?>
+        ): VariablesProviderContext<Arguments> {
+            val ic = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
+            return VariablesProviderContextImpl(ic, requestContext, MockArgs(rawArguments))
+        }
+    }
 
     /**
      * Tests that VariablesProviderExecutor correctly:
@@ -47,14 +63,13 @@ class VariablesProviderExecutorTest {
     fun resolve(): Unit =
         runBlocking {
             val adapter = VariablesProviderExecutor(
-                mockk<GlobalIDCodec>(),
-                mockk<ReflectionLoader>(),
                 variablesProvider = VariablesProviderInfo(setOf("foo", "bar")) {
                     VariablesProvider<MockArgs> { context ->
                         mapOf("foo" to context.arguments.a * 2, "bar" to context.arguments.b * 3)
                     }
-                }
-            ) { args -> MockArgs(args.arguments) }
+                },
+                variablesProviderContextFactory = TestVariablesProviderContextFactory()
+            )
 
             assertEquals(
                 mapOf("foo" to 10, "bar" to 21),
@@ -87,8 +102,6 @@ class VariablesProviderExecutorTest {
                 override val inputData: Map<String, Any?>
                     get() = mapOf("a" to 10, "b" to 14)
             }
-            val globalIDCodec = MockGlobalIDCodec()
-            val reflectionLoader = MockReflectionLoader()
             val mockInput = MockInputType(
                 MockInternalContext(MockSchema.minimal, globalIDCodec, reflectionLoader),
                 GraphQLInputObjectType.newInputObject().name("MockInputType").build()
@@ -96,14 +109,13 @@ class VariablesProviderExecutorTest {
             val mockGlobalID = MockGlobalID(MockType("User", NodeObject::class), "1234")
 
             val adapter = VariablesProviderExecutor(
-                globalIDCodec,
-                reflectionLoader,
                 variablesProvider = VariablesProviderInfo(setOf("foo", "bar")) {
                     VariablesProvider<MockArgs> { _ ->
                         mapOf("foo" to mockInput, "bar" to mockGlobalID)
                     }
-                }
-            ) { args -> MockArgs(args.arguments) }
+                },
+                variablesProviderContextFactory = TestVariablesProviderContextFactory()
+            )
 
             assertEquals(
                 mapOf("foo" to mapOf("a" to 10, "b" to 14), "bar" to "User:1234"),

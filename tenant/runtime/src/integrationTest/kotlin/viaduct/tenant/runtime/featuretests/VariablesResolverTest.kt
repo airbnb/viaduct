@@ -9,14 +9,15 @@ import viaduct.engine.api.GraphQLBuildError
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
 import viaduct.tenant.runtime.featuretests.fixtures.UntypedFieldContext
 import viaduct.tenant.runtime.featuretests.fixtures.const
+import viaduct.tenant.runtime.featuretests.fixtures.get
+import viaduct.tenant.runtime.featuretests.fixtures.tryGet
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 @ExperimentalCoroutinesApi
 class VariablesResolverTest {
     @Test
     fun `variables provider -- variable name overlaps with bound field arg`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(x:Int): Int!, bar(x:Int!): Int! }")
+        FeatureTestBuilder("extend type Query { foo(x:Int): Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
@@ -34,8 +35,7 @@ class VariablesResolverTest {
 
     @Test
     fun `variables provider -- uses an arg variable with the same name as an unbound argument`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }")
+        FeatureTestBuilder("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("baz") * 11 },
@@ -54,8 +54,7 @@ class VariablesResolverTest {
 
     @Test
     fun `from arg -- simple`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }")
+        FeatureTestBuilder("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
@@ -70,8 +69,7 @@ class VariablesResolverTest {
 
     @Test
     fun `from arg -- binds argument to variable with a different name`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }")
+        FeatureTestBuilder("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
@@ -86,13 +84,13 @@ class VariablesResolverTest {
 
     @Test
     fun `from arg -- path`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     input Inp { x:Int! }
                     extend type Query { foo(inp:Inp!): Int!, bar(x:Int!):Int! }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
@@ -105,13 +103,13 @@ class VariablesResolverTest {
 
     @Test
     fun `from arg -- empty path`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     input Inp { x:Int }
                     extend type Query { foo(x:Int!): Int!, bar(inp:Inp!):Int! }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
@@ -128,8 +126,7 @@ class VariablesResolverTest {
 
     @Test
     fun `from arg -- arg has default value`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(x:Int!=2):Int!, bar(x:Int):Int }")
+        FeatureTestBuilder("extend type Query { foo(x:Int!=2):Int!, bar(x:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
@@ -148,13 +145,13 @@ class VariablesResolverTest {
 
     @Test
     fun `from arg -- input field has default value`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     input Inp { x:Int!=2 }
                     extend type Query { foo(inp:Inp!):Int!, bar(x:Int!):Int! }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
@@ -173,13 +170,13 @@ class VariablesResolverTest {
 
     @Test
     fun `from arg -- path traverses through null object`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     input Inp { x:Int!=2 }
                     extend type Query { foo(inp:Inp):Int, bar(x:Int):Int }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext ->
@@ -199,8 +196,7 @@ class VariablesResolverTest {
 
     @Test
     fun `from arg -- variable name overlaps with bound selection arg`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(x:Int):Int!, bar(x:Int!):Int!, baz:Int! }")
+        FeatureTestBuilder("extend type Query { foo(x:Int):Int!, bar(x:Int!):Int!, baz:Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
@@ -222,8 +218,7 @@ class VariablesResolverTest {
     fun `from arg -- type validation`() =
         // this test case tries to use a nullable value, Query.foo(x:), in a position
         // where a non-nullable one is required, Query.bar(x:)
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(x:Int):Int!, bar(x:Int!):Int! }")
+        FeatureTestBuilder("extend type Query { foo(x:Int):Int!, bar(x:Int!):Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { _: UntypedFieldContext -> 5 },
@@ -240,8 +235,7 @@ class VariablesResolverTest {
 
     @Test
     fun `from arg -- arg from operation variable`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(y:Int!):Int!, bar(x:Int!): Int! }")
+        FeatureTestBuilder("extend type Query { foo(y:Int!):Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
@@ -263,8 +257,7 @@ class VariablesResolverTest {
         // The spirit of this test is that baz is queried multiple times with "x:$x", but
         // with different values of $x. We want to test that we are not memoizing bar on the
         // reference to variable $x, but rather the value of variable $x
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }")
+        FeatureTestBuilder("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("baz") * 11 },
@@ -283,8 +276,7 @@ class VariablesResolverTest {
 
     @Test
     fun `invalid variable reference`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo: Int!, bar(x:Int!): Int! }")
+        FeatureTestBuilder("extend type Query { foo: Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },

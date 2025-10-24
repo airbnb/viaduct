@@ -10,8 +10,7 @@ import viaduct.tenant.runtime.featuretests.fixtures.Foo
 class TrivialObjectTypeResolverTest {
     @Test
     fun `trivial resolver returns an object value`() =
-        FeatureTestBuilder()
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver("Query" to "foo") { Foo.Builder(it).value("VALUE").build() }
             .build()
             .assertJson(
@@ -21,14 +20,13 @@ class TrivialObjectTypeResolverTest {
 
     @Test
     fun `trivial resolver returns an object value with interface`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     extend type Query { iface: Interface }
                     interface Interface { value: String }
                     type Foo implements Interface { value: String }
-                """.trimIndent()
-            )
+            """.trimIndent()
+        )
             .resolver("Query" to "iface") { Foo.Builder(it).value("VALUE").build() }
             .build()
             .assertJson(
@@ -38,15 +36,14 @@ class TrivialObjectTypeResolverTest {
 
     @Test
     fun `trivial resolver returns an object value with union`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     extend type Query { union_: Union }
                     union Union = Foo | Bar
                     type Foo { value: String }
                     type Bar { value: String }
-                """.trimIndent()
-            )
+            """.trimIndent()
+        )
             .resolver("Query" to "union_") { Foo.Builder(it).value("VALUE").build() }
             .build()
             .assertJson(

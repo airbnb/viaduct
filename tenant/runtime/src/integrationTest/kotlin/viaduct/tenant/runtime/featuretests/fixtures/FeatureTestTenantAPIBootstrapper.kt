@@ -12,14 +12,14 @@ import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeUnbatchedResolverExecutorImpl
-import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
-import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 
 /** Intended for testing only - the implementation is naive and not scalable. */
 class FeatureTestTenantAPIBootstrapperBuilder(
     val fieldUnbatchedResolverStubs: Map<Coordinate, FieldUnbatchedResolverStub<*>>,
     val nodeUnbatchedResolverStubs: Map<String, NodeUnbatchedResolverStub>,
     val nodeBatchResolverStubs: Map<String, NodeBatchResolverStub>,
+    val reflectionLoader: ReflectionLoader,
+    val globalIDCodec: GlobalIDCodec,
 ) : TenantAPIBootstrapperBuilder {
     override fun create() =
         object : TenantAPIBootstrapper {
@@ -27,6 +27,8 @@ class FeatureTestTenantAPIBootstrapperBuilder(
                 fieldUnbatchedResolverStubs,
                 nodeUnbatchedResolverStubs,
                 nodeBatchResolverStubs,
+                reflectionLoader,
+                globalIDCodec,
             )
 
             override suspend fun tenantModuleBootstrappers() = listOf(module)
@@ -38,14 +40,21 @@ class FeatureTestTenantModuleBootstrapper(
     val fieldUnbatchedResolverStubs: Map<Coordinate, FieldUnbatchedResolverStub<*>>,
     val nodeUnbatchedResolverStubs: Map<String, NodeUnbatchedResolverStub>,
     val nodeBatchResolverExecutorStubs: Map<String, NodeBatchResolverStub>,
+    val reflectionLoader: ReflectionLoader,
+    val globalIDCodec: GlobalIDCodec,
 ) : TenantModuleBootstrapper {
-    private val reflectionLoader: ReflectionLoader = ReflectionLoaderImpl { name -> Class.forName("viaduct.tenant.runtime.featuretests.fixtures.$name").kotlin }
-    private val globalIDCodec: GlobalIDCodec = GlobalIDCodecImpl(reflectionLoader)
-
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> =
-        fieldUnbatchedResolverStubs.mapValues { (coord, stub) ->
+        fieldUnbatchedResolverStubs.mapNotNull { (coord, stub) ->
+            // Skip resolvers for fields that don't exist in the schema (e.g., after schema hot-swap)
+            val graphQLType = schema.schema.getType(coord.first) as? graphql.schema.GraphQLObjectType
+                ?: return@mapNotNull null
+            if (graphQLType.getFieldDefinition(coord.second) == null) {
+                return@mapNotNull null
+            }
+
             val (objectSelectionSet, querySelectionSet) = stub.requiredSelectionSets(coord, schema.schema, reflectionLoader)
-            FieldUnbatchedResolverExecutorImpl(
+            val resolverFactory = stub.resolverFactory(schema, reflectionLoader)
+            coord to FieldUnbatchedResolverExecutorImpl(
                 objectSelectionSet = objectSelectionSet,
                 querySelectionSet = querySelectionSet,
                 resolver = stub.resolver,
@@ -53,10 +62,10 @@ class FeatureTestTenantModuleBootstrapper(
                 resolverId = "${coord.first}.${coord.second}",
                 globalIDCodec = globalIDCodec,
                 reflectionLoader = reflectionLoader,
-                resolverContextFactory = stub.resolverFactory,
+                resolverContextFactory = resolverFactory,
                 resolverName = stub.resolverName ?: "test-field-unbatched-resolver"
             )
-        }.toList()
+        }
 
     override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> =
         nodeUnbatchedResolverStubs.mapValues { (typeName, stub) ->

@@ -1,4 +1,4 @@
-package viaduct.tenant.runtime.featuretests
+package viaduct.tenant.runtime
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -9,18 +9,16 @@ import viaduct.api.ViaductTenantUsageException
 import viaduct.api.mocks.MockInternalContext
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.mkEngineObjectData
-import viaduct.tenant.runtime.featuretests.fixtures.ArgumentsStub
-import viaduct.tenant.runtime.featuretests.fixtures.ObjectStub
 
 @ExperimentalCoroutinesApi
-class ObjectStubTest {
+class FakeObjectTest {
     private fun mk(
         sdl: String,
         vararg values: Pair<String, Any?>,
         type: String = "Query",
-    ): ObjectStub =
+    ): FakeObject =
         MockSchema.mk(sdl).let { schema ->
-            ObjectStub(
+            FakeObject(
                 MockInternalContext(schema),
                 mkEngineObjectData(schema.schema.getObjectType(type), values.toMap())
             )
@@ -57,20 +55,20 @@ class ObjectStubTest {
         }
 }
 
-class ArgumentsStubTest {
-    private fun mk(vararg pairs: Pair<String, Any?>): ArgumentsStub = ArgumentsStub(pairs.toMap())
+class FakeArgumentsTest {
+    private fun mk(vararg pairs: Pair<String, Any?>): FakeArguments = FakeArguments(inputData = pairs.toMap())
 
     @Test
     fun `get and tryGet`() {
         // empty
         mk().apply {
-            assertThrows<NullPointerException> { get<Int>("x") }
+            assertThrows<IllegalArgumentException> { get<Int>("x") }
             assertNull(tryGet<Int>("x"))
         }
 
         // explicit null
         mk("x" to null).apply {
-            assertThrows<NullPointerException> { get<Int>("x") }
+            assertThrows<IllegalArgumentException> { get<Int>("x") }
             assertNull(tryGet<Int>("x"))
         }
 

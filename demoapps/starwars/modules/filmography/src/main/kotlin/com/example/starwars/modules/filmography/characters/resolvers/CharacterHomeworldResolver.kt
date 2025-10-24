@@ -4,6 +4,7 @@ import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
+import viaduct.api.context.globalIDFor
 import viaduct.api.grts.Planet
 
 /**
@@ -67,7 +68,7 @@ class CharacterHomeworldResolver : CharacterResolvers.Homeworld() {
             // Lookup the character and its homeworld data
             val character = charactersById[characterId]
             val planet = character?.homeworldId?.let {
-                ctx.nodeFor(ctx.globalIDFor(Planet.Reflection, it))
+                ctx.nodeFor(ctx.globalIDFor<Planet>(it))
             }
 
             // Build and return the Planet object or null

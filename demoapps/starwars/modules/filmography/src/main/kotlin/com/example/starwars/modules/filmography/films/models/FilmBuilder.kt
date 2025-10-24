@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.films.models
 
 import viaduct.api.context.ExecutionContext
+import viaduct.api.context.globalIDFor
 import viaduct.api.grts.Film
 
 /**
@@ -12,7 +13,7 @@ import viaduct.api.grts.Film
 class FilmBuilder(private val ctx: ExecutionContext) {
     fun build(film: com.example.starwars.modules.filmography.films.models.Film): Film =
         Film.Builder(ctx)
-            .id(ctx.globalIDFor(Film.Reflection, film.id))
+            .id(ctx.globalIDFor<Film>(film.id))
             .title(film.title)
             .episodeID(film.episodeID)
             .director(film.director)

@@ -4,12 +4,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTest
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
+import viaduct.tenant.runtime.featuretests.fixtures.get
 
 @ExperimentalCoroutinesApi
 class TrivialScalarTypeResolverWithArgumentTest {
     private fun configure(): FeatureTest =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo(input: String): String }")
+        FeatureTestBuilder("extend type Query { foo(input: String): String }", useFakeGRTs = true)
             .resolver("Query" to "foo") { "resolved: ${it.arguments.get<String>("input")}" }
             .build()
 

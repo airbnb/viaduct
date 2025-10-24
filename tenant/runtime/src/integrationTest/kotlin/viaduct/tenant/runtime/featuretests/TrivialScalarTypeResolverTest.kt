@@ -8,8 +8,7 @@ import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
 class TrivialScalarTypeResolverTest {
     @Test
     fun `trivial resolver returns a static value`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { field: Int }")
+        FeatureTestBuilder("extend type Query { field: Int }")
             .resolver("Query" to "field") { 42 }
             .build()
             .assertJson("{data: {field:42}}", "{field}")
@@ -17,8 +16,7 @@ class TrivialScalarTypeResolverTest {
 
     @Test
     fun `resolver returns string value`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { stringField: String }")
+        FeatureTestBuilder("extend type Query { stringField: String }")
             .resolver("Query" to "stringField") { "test string value" }
             .build()
             .assertJson("{data: {stringField:\"test string value\"}}", "{stringField}")
@@ -26,8 +24,7 @@ class TrivialScalarTypeResolverTest {
 
     @Test
     fun `resolver returns computed int value`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { computedField: Int }")
+        FeatureTestBuilder("extend type Query { computedField: Int }")
             .resolver("Query" to "computedField") { 10 + 32 }
             .build()
             .assertJson("{data: {computedField:42}}", "{computedField}")
@@ -35,8 +32,7 @@ class TrivialScalarTypeResolverTest {
 
     @Test
     fun `resolver returns enum value`() {
-        FeatureTestBuilder()
-            .sdl("enum TestEnum { VALUE_A VALUE_B } extend type Query { enumField: TestEnum }")
+        FeatureTestBuilder("enum TestEnum { VALUE_A VALUE_B } extend type Query { enumField: TestEnum }")
             .resolver("Query" to "enumField") { "VALUE_A" }
             .build()
             .assertJson("{data: {enumField:\"VALUE_A\"}}", "{enumField}")

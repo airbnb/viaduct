@@ -108,44 +108,6 @@ val isPatchRelease = try {
     false
 }
 
-fun computeBaseVersion(repoMajor: Int, latestModule: String?, latestApp: String?, isPatch: Boolean, isMajorRelease: Boolean): String {
-
-    // For major version releases, always return the repo major version with .0.0
-    if (isMajorRelease) {
-        return "$repoMajor.0.0"
-    }
-
-    val latestVersions = listOfNotNull(latestModule, latestApp)
-        .map { parseVersion(it) }
-        .filter { (major, _, _) -> major == repoMajor }
-
-    if (latestVersions.isEmpty()) {
-        // No published versions for this major version yet
-        return if (isWeeklyRelease || releaseFlag || isReleaseTag) {
-            // First release for this major version - start with X.0.0
-            "$repoMajor.0.0"
-        } else {
-            // Snapshot before first release - use X.0.0
-            "$repoMajor.0.0"
-        }
-    }
-
-    val (latestMajor, latestMinor, latestPatch) = latestVersions
-        .maxByOrNull { (_, minor, patch) -> minor * 1000 + patch }!!
-
-    return if (isWeeklyRelease || releaseFlag || isReleaseTag) {
-        // This is a release - increment version
-        if (isPatch) {
-            "$latestMajor.$latestMinor.${latestPatch + 1}"
-        } else {
-            "$latestMajor.${latestMinor + 1}.0"
-        }
-    } else {
-        // This is a snapshot - use same version as last release
-        "$latestMajor.$latestMinor.$latestPatch"
-    }
-}
-
 // Use VERSION file directly for local builds and CI
 val baseVersion = baseVersionRaw
 
@@ -162,18 +124,8 @@ val isSnapshot = if (!pluginSnapshotEnv) {
     listOf(releaseFlag, isReleaseTag, isMajorVersionRelease, isPatchRelease).none { it }
 }
 
-// Generate unique snapshot versions for plugin publishing
 val computedVersionStr = if (isSnapshot) {
-    val isPluginPublish = env.environmentVariable("VIADUCT_PLUGIN_SNAPSHOT").orElse("false").map { it.toBoolean() }.get()
-    if (isPluginPublish) {
-        val timestamp = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-            .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-        val gitSha = env.environmentVariable("GIT_COMMIT").map { it.take(7) }.orElse("unknown").get()
-
-        "$baseVersion-SNAPSHOT-$timestamp-$gitSha"
-    } else {
-        "$baseVersion-SNAPSHOT"
-    }
+    "$baseVersion-SNAPSHOT"
 } else baseVersion
 
 gradle.allprojects {

@@ -15,20 +15,20 @@ import viaduct.utils.collections.BitVector.Builder
 internal class BitVectorBasicTests : BitVectorSetup() {
     @Test
     fun sizeIsAsSet() {
-        assertEquals(0, mk(0).size())
-        assertEquals(1, mk(1).size())
-        assertEquals(WS - 1, mk(WS - 1).size())
-        assertEquals(WS, mk(WS).size())
-        assertEquals(2 * WS - 1, mk(2 * WS - 1).size())
-        assertEquals(2 * WS, mk(2 * WS).size())
-        assertEquals(1010001000, mk(1010001000).size())
+        assertEquals(0, mk(0).size)
+        assertEquals(1, mk(1).size)
+        assertEquals(WS - 1, mk(WS - 1).size)
+        assertEquals(WS, mk(WS).size)
+        assertEquals(2 * WS - 1, mk(2 * WS - 1).size)
+        assertEquals(2 * WS, mk(2 * WS).size)
+        assertEquals(1010001000, mk(1010001000).size)
 
-        assertEquals(1, mk(-1).size())
-        assertEquals(WS - 1, mk(-WS + 1).size())
-        assertEquals(WS, mk(-WS).size())
-        assertEquals(2 * WS - 1, mk(-2 * WS + 1).size())
-        assertEquals(2 * WS, mk(-2 * WS).size())
-        assertEquals(1010001000, mk(-1010001000).size())
+        assertEquals(1, mk(-1).size)
+        assertEquals(WS - 1, mk(-WS + 1).size)
+        assertEquals(WS, mk(-WS).size)
+        assertEquals(2 * WS - 1, mk(-2 * WS + 1).size)
+        assertEquals(2 * WS, mk(-2 * WS).size)
+        assertEquals(1010001000, mk(-1010001000).size)
     }
 
     @Test
@@ -126,7 +126,7 @@ internal class BitVectorBasicTests : BitVectorSetup() {
     @Test
     fun invert() {
         var va: BitVector = mk(0).invert()
-        assertEquals(0, va.size())
+        assertEquals(0, va.size)
 
         va = mk(1).invert()
         va.checkInvariants()
@@ -182,48 +182,48 @@ internal class BitVectorBasicTests : BitVectorSetup() {
     @Test
     fun lsr() {
         var va: BitVector = mk(0).lsr()
-        assertEquals(0, va.size())
+        assertEquals(0, va.size)
 
         va = mk(-1).lsr()
         va.checkInvariants()
-        assertEquals(0, va.size())
+        assertEquals(0, va.size)
 
         va = mk(-2).lsr()
         va.checkInvariants()
-        assertEquals(1, va.size())
+        assertEquals(1, va.size)
         assertEquals(1L, va.get(0, 1))
 
         va = mk(-WS).lsr()
         va.checkInvariants()
-        assertEquals(WS - 1, va.size())
+        assertEquals(WS - 1, va.size)
         assertEquals(9223372036854775807L, va.get(0, WS - 1))
 
         va = mk(-WS - 1).lsr()
         va.checkInvariants()
-        assertEquals(WS, va.size())
+        assertEquals(WS, va.size)
         assertEquals(-1L, va.get(0, WS))
 
         va = mk(-WS - 2).lsr()
         va.checkInvariants()
-        assertEquals(WS + 1, va.size())
+        assertEquals(WS + 1, va.size)
         assertEquals(-1L, va.get(0, WS))
         assertEquals(1L, va.get(WS, 1))
 
         va = mk(-2 * WS).lsr()
         va.checkInvariants()
-        assertEquals(2 * WS - 1, va.size())
+        assertEquals(2 * WS - 1, va.size)
         assertEquals(-1L, va.get(0, WS))
         assertEquals(9223372036854775807L, va.get(WS, WS - 1))
 
         va = mk(-2 * WS - 1).lsr()
         va.checkInvariants()
-        assertEquals(2 * WS, va.size())
+        assertEquals(2 * WS, va.size)
         assertEquals(-1L, va.get(0, WS))
         assertEquals(-1L, va.get(WS, WS))
 
         va = mk(-2 * WS - 2).lsr()
         va.checkInvariants()
-        assertEquals(2 * WS + 1, va.size())
+        assertEquals(2 * WS + 1, va.size)
         assertEquals(-1L, va.get(0, WS))
         assertEquals(-1L, va.get(WS, WS))
         assertEquals(1L, va.get(2 * WS, 1))
@@ -295,39 +295,39 @@ internal class BitVectorBasicTests : BitVectorSetup() {
 
     @Test
     fun build() {
-        assertEquals(0, mkb().build().size())
-        assertEquals(0, mkb().add(1L, 0).build().size())
-        assertEquals(1, mkb().add(1L, 1).build().size())
+        assertEquals(0, mkb().build().size)
+        assertEquals(0, mkb().add(1L, 0).build().size)
+        assertEquals(1, mkb().add(1L, 1).build().size)
         assertEquals(6L, mkb().add(0L, 1).add(3L, 2).build().get(0, 3))
 
         var v: BitVector = mkb().add(0L, WS - 1).add(1L, 1).build()
         v.checkInvariants()
-        assertEquals(WS, v.size())
+        assertEquals(WS, v.size)
         assertEquals(1L shl (WS - 1), v.get(0, WS))
 
         v = mkb().add(0L, WS - 1).add(15L, 4).build()
         v.checkInvariants()
-        assertEquals(WS + 3, v.size())
+        assertEquals(WS + 3, v.size)
         assertEquals(15L, v.get(WS - 1, 4))
 
         v = mkb().add(1L, WS - 1).add(1L, 1).build()
         v.checkInvariants()
-        assertEquals(WS, v.size())
+        assertEquals(WS, v.size)
         assertEquals(1L or (1L shl (WS - 1)), v.get(0, WS))
 
         v = mkb().add(0L, WS).add(1L, 1).build()
         v.checkInvariants()
-        assertEquals(WS + 1, v.size())
+        assertEquals(WS + 1, v.size)
         assertEquals(2L, v.get(WS - 1, 2))
 
         v = mkb().add(0L, WS - 1).add(3L, 2).build()
         v.checkInvariants()
-        assertEquals(WS + 1, v.size())
+        assertEquals(WS + 1, v.size)
         assertEquals(3L, v.get(WS - 1, 2))
 
         v = mkb().add(0L, WS).add(0L, WS - 2).add(121L, 4).build()
         v.checkInvariants()
-        assertEquals(2 * WS + 2, v.size())
+        assertEquals(2 * WS + 2, v.size)
         assertEquals(9L, v.get(2 * WS - 2, 4))
     }
 
@@ -335,6 +335,25 @@ internal class BitVectorBasicTests : BitVectorSetup() {
     fun buildWithJunk() {
         assertEquals(1L, mkb().add(3L, 1).add(0L, 2).build().get(0, 2))
         assertEquals(3L, mkb().add(0L, WS - 1).add(15L, 2).add(0L, 2).build().get(WS - 1, 4))
+    }
+
+    @Test
+    fun `builder with exact multiple of 64 bits preserves data correctly`() {
+        // Bug: When bitsInBuffer == 0, Builder.build() creates an oversized extraBits array
+        // For 128 bits: creates extraBits.size=2 instead of 1, violating the invariant:
+        // ((size + 63) >> 6) - 1 == extraBits.size
+
+        val v = mkb()
+            .add(-1L, 64) // Add 64 bits
+            .add(-1L, 64) // Add another 64 bits (total 128, bitsInBuffer=0)
+            .build()
+
+        // checkInvariants() validates: ((128 + 63) >> 6) - 1 == extraBits.size
+        // Expected: 1, Actual: 2 (bug)
+        v.checkInvariants()
+        assertEquals(128, v.size)
+        assertEquals(-1L, v.get(0, 64))
+        assertEquals(-1L, v.get(64, 64))
     }
 
     // Equality testing
@@ -413,7 +432,7 @@ internal class BitVectorBasicTests : BitVectorSetup() {
                 assertEquals(v, cp, m)
 
                 // Manually invert: tests set, clear, get(int), and get(int,int)
-                val sz: Int = v.size()
+                val sz: Int = v.size
                 var n = 0
                 while (n < sz) {
                     val min: Int = Math.min(WS, (sz - n))
@@ -454,12 +473,12 @@ internal class BitVectorBasicTests : BitVectorSetup() {
 
     companion object {
         private fun isFull(v: BitVector): Int {
-            for (i in 0 until v.size()) if (!v.get(i)) return i
+            for (i in 0 until v.size) if (!v.get(i)) return i
             return -1
         }
 
         private fun isEmpty(v: BitVector): Int {
-            for (i in 0 until v.size()) if (v.get(i)) return i
+            for (i in 0 until v.size) if (v.get(i)) return i
             return -1
         }
 

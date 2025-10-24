@@ -1,0 +1,36 @@
+[versions]
+coroutinesReactor = "1.7.3"
+kotest = "5.8.0"
+kotlin = "1.9.24"
+reactor = "3.5.0"
+ktor = "2.3.7"
+
+[plugins]
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
+viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
+
+[libraries]
+# Common libraries
+jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
+kotlinx-coroutines-reactor = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-reactor", version.ref = "coroutinesReactor" }
+reactor-core = { group = "io.projectreactor", name = "reactor-core", version.ref = "reactor" }
+
+# Ktor-specific libraries
+ktor-server-core-jvm = { group = "io.ktor", name = "ktor-server-core-jvm" }
+ktor-server-core = { group = "io.ktor", name = "ktor-server-core" }
+ktor-server-jetty = { group = "io.ktor", name = "ktor-server-jetty" }
+ktor-server-content-negotiation = { group = "io.ktor", name = "ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-server-config-yaml = { group = "io.ktor", name = "ktor-server-config-yaml" }
+ktor-serialization-jackson = { group = "io.ktor", name = "ktor-serialization-jackson", version.ref = "ktor" }
+
+# Testing
+ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host" }
+kotlin-test-junit = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter" }
+kotest-runner-junit = { group = "io.kotest", name = "kotest-runner-junit5", version.ref = "kotest" }
+kotest-assertions-core = { group = "io.kotest", name = "kotest-assertions-core", version.ref = "kotest" }
+kotest-assertions-json = { group = "io.kotest", name = "kotest-assertions-json", version.ref = "kotest" }

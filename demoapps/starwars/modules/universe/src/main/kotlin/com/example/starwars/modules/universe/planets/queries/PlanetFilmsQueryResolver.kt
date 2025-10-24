@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.planets.queries
 import com.example.starwars.modules.universe.planets.models.PlanetsFilmsRepository
 import com.example.starwars.universe.resolverbases.PlanetResolvers
 import viaduct.api.Resolver
+import viaduct.api.context.nodeFor
 import viaduct.api.grts.Film
 
 /**
@@ -25,11 +26,8 @@ class PlanetFilmsQueryResolver : PlanetResolvers.Films() {
 
         // You need to iterate the internal films to request viaduct resolve the Films.
         return films.map {
-            // Create a global ID for the Film using its internal ID.
-            val globalId = ctx.globalIDFor(Film.Reflection, it.filmId)
-
             // Request Viaduct to resolve the Film node using the global ID.
-            ctx.nodeFor(globalId)
+            ctx.nodeFor<Film>(it.filmId)
         }
     }
 }

@@ -19,4 +19,8 @@ class ReflectionLoaderImpl(private val grtClassforName: (String) -> KClass<*>) :
         }
         return obj
     }
+
+    override fun getGRTKClassFor(name: String): KClass<*> {
+        return grtClassforName(name)
+    }
 }

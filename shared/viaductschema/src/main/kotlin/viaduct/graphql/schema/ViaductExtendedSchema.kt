@@ -319,11 +319,11 @@ interface ViaductExtendedSchema : ViaductSchema {
         abstract val listNullable: BitVector
 
         /** Scalar or enum type. */
-        override val isSimple get() = (listNullable.size() == 0 && baseTypeDef.isSimple)
-        override val isList get() = (listNullable.size() != 0)
+        override val isSimple get() = (listNullable.size == 0 && baseTypeDef.isSimple)
+        override val isList get() = (listNullable.size != 0)
         override val isNullable get() = if (isList) listNullable.get(0) else baseTypeNullable
 
-        override val listDepth get() = listNullable.size()
+        override val listDepth get() = listNullable.size
 
         /** Strip all list wrappers but maintain both base type and
          *  its nullability. */

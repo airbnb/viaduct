@@ -30,6 +30,7 @@ import viaduct.tenant.runtime.featuretests.fixtures.Foo
 import viaduct.tenant.runtime.featuretests.fixtures.Query
 import viaduct.tenant.runtime.featuretests.fixtures.UntypedFieldContext
 import viaduct.tenant.runtime.featuretests.fixtures.assertJson
+import viaduct.tenant.runtime.featuretests.fixtures.get
 
 @ExperimentalCoroutinesApi
 class FieldExecutionObservabilityTest {
@@ -37,9 +38,7 @@ class FieldExecutionObservabilityTest {
     fun `test no operation name should not break`() {
         val instrumentation = TestObservabilityInstrumentation()
 
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentation.asStandardInstrumentation())
             .resolver("Query" to "idField", resolverName = "query-id-field-resolver") { ctx ->
                 // resolver returns a GRT value to the tenant runtime, which we expect to be unwrapped before
                 // it's handed over to the engine
@@ -58,7 +57,6 @@ class FieldExecutionObservabilityTest {
                 },
                 resolverName = "query-string1-resolver"
             )
-            .instrumentation(instrumentation.asStandardInstrumentation())
             .build()
             .execute("{string1}")
             .assertJson("{data: {string1: \"1\"}}")
@@ -91,9 +89,7 @@ class FieldExecutionObservabilityTest {
     fun `resolver name is passed to instrumentation`() {
         val instrumentation = TestObservabilityInstrumentation()
 
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentation.asStandardInstrumentation())
             .resolver("Query" to "idField", resolverName = "query-id-field-resolver") { ctx ->
                 // resolver returns a GRT value to the tenant runtime, which we expect to be unwrapped before
                 // it's handed over to the engine
@@ -112,7 +108,6 @@ class FieldExecutionObservabilityTest {
                 },
                 resolverName = "query-string1-resolver"
             )
-            .instrumentation(instrumentation.asStandardInstrumentation())
             .build()
             .execute("query testQuery {string1}")
             .assertJson("{data: {string1: \"1\"}}")
@@ -145,9 +140,7 @@ class FieldExecutionObservabilityTest {
     fun `test same field is fetched multiple times`() {
         val instrumentation = TestObservabilityInstrumentation()
 
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentation.asStandardInstrumentation())
             .resolver("Query" to "idField", resolverName = "query-id-field-resolver") { ctx ->
                 // resolver returns a GRT value to the tenant runtime, which we expect to be unwrapped before
                 // it's handed over to the engine
@@ -166,7 +159,6 @@ class FieldExecutionObservabilityTest {
                 },
                 resolverName = "query-string1-resolver"
             )
-            .instrumentation(instrumentation.asStandardInstrumentation())
             .build()
             .execute("query testQuery {first: string1, second: string1}")
             .assertJson("{data: {first: \"1\", second: \"1\"}}")
@@ -205,9 +197,7 @@ class FieldExecutionObservabilityTest {
     fun `test a field is queried by both the operation and the resolver`() {
         val instrumentation = TestObservabilityInstrumentation()
 
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentation.asStandardInstrumentation())
             .resolver("Query" to "idField", resolverName = "query-id-field-resolver") { ctx ->
                 // resolver returns a GRT value to the tenant runtime, which we expect to be unwrapped before
                 // it's handed over to the engine
@@ -226,7 +216,6 @@ class FieldExecutionObservabilityTest {
                 },
                 resolverName = "query-string1-resolver"
             )
-            .instrumentation(instrumentation.asStandardInstrumentation())
             .build()
             .execute("query testQuery {idField, string1}")
         // No need to verify the execution result.
@@ -259,9 +248,7 @@ class FieldExecutionObservabilityTest {
     fun `test a field is queried by multiple resolvers`() {
         val instrumentation = TestObservabilityInstrumentation()
 
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentation.asStandardInstrumentation())
             .resolver("Query" to "idField", resolverName = "query-id-field-resolver") { ctx ->
                 // resolver returns a GRT value to the tenant runtime, which we expect to be unwrapped before
                 // it's handed over to the engine
@@ -285,7 +272,6 @@ class FieldExecutionObservabilityTest {
                 },
                 resolverName = "query-string2-resolver"
             )
-            .instrumentation(instrumentation.asStandardInstrumentation())
             .build()
             .execute("query testQuery {string1, string2}")
             .assertJson("{data: {string1: \"1\", string2: \"1\"}}")
@@ -320,9 +306,7 @@ class FieldExecutionObservabilityTest {
     fun `test a field is queried by multiple resolvers with different args`() {
         val instrumentation = TestObservabilityInstrumentation()
 
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentation.asStandardInstrumentation())
             .resolver(
                 "Query" to "hasArgs2",
                 resolveFn = { it.arguments.get<String>("x") + "_resolved" },
@@ -340,7 +324,6 @@ class FieldExecutionObservabilityTest {
                 "hasArgs2(x:\"string2\")",
                 resolverName = "query-string2-resolver"
             )
-            .instrumentation(instrumentation.asStandardInstrumentation())
             .build()
             .execute("query testQuery {string1, string2}")
             .assertJson("{data: {string1: \"string1_resolved\", string2: \"string2_resolved\"}}")
@@ -374,9 +357,7 @@ class FieldExecutionObservabilityTest {
     fun `test a field is queried by same resolver multiple times`() {
         val instrumentation = TestObservabilityInstrumentation()
 
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentation.asStandardInstrumentation())
             .resolver(
                 "Query" to "hasArgs1",
                 resolveFn = { it.arguments.get<Int>("x") * 2 },
@@ -389,7 +370,6 @@ class FieldExecutionObservabilityTest {
                 variables = listOf(FromArgumentVariable("x", "x")),
                 resolverName = "query-has-args3-resolver"
             )
-            .instrumentation(instrumentation.asStandardInstrumentation())
             .build()
             .execute("query testQuery {first: hasArgs3(x: 1), second: hasArgs3(x: 2)}")
             .assertJson("{data: {first: 6, second: 12}}")
@@ -425,8 +405,7 @@ class FieldExecutionObservabilityTest {
     fun `test variable resolvers`() {
         val instrumentation = TestObservabilityInstrumentation()
 
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int):Int, z:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int, z:Int }", useFakeGRTs = true, instrumentation = instrumentation.asStandardInstrumentation())
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.queryValue.get<Int>("y") * 5 },
@@ -436,7 +415,6 @@ class FieldExecutionObservabilityTest {
             )
             .resolver("Query" to "y", resolverName = "query-y-resolver") { it.arguments.get<Int>("b") * 3 }
             .resolver("Query" to "z", resolverName = "query-z-resolver") { 2 }
-            .instrumentation(instrumentation.asStandardInstrumentation())
             .build()
             .assertJson("{data: {x: 30}}", "query testQuery{x}")
 
@@ -464,9 +442,7 @@ class FieldExecutionObservabilityTest {
     fun `test resolved_by tag in nested fields`() {
         val resolvedByInstrumentation = TestObservabilityInstrumentation()
 
-        FeatureTestBuilder()
-            .sdl(FeatureTestSchemaFixture.sdl)
-            .grtPackage(Query.Reflection)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = resolvedByInstrumentation.asStandardInstrumentation)
             .resolver(
                 "Query" to "string1",
                 { ctx: FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
@@ -486,7 +462,6 @@ class FieldExecutionObservabilityTest {
             )
             .resolver("Foo" to "bar", resolverName = "foo-bar-resolver") { Bar.Builder(it).build() }
             .resolver("Bar" to "value", resolverName = "bar-value-resolver") { "Bar.value=[VALUE]" }
-            .instrumentation(resolvedByInstrumentation.asStandardInstrumentation)
             .build()
             .assertJson(
                 "{data: {string1: \"Query.string1=[Foo.value=[Bar.value=[VALUE]]]\", foo: {valueWithoutResolver: \"valueWithoutResolver\"}}}",

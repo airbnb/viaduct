@@ -4,6 +4,7 @@ import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
 import viaduct.api.Resolver
+import viaduct.api.context.nodeFor
 import viaduct.api.grts.Planet
 
 /**
@@ -23,8 +24,7 @@ class FilmPlanetsResolver : FilmResolvers.Planets() {
         val planetIds = characterIds.mapNotNull { CharacterRepository.findById(it)?.homeworldId }.toSet()
 
         return planetIds.map {
-            val globalId = ctx.globalIDFor(Planet.Reflection, it)
-            ctx.nodeFor(globalId)
+            ctx.nodeFor<Planet>(it)
         }
     }
 }

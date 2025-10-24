@@ -29,7 +29,9 @@ import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.variableNames
-import viaduct.tenant.runtime.context.factory.Factory
+import viaduct.tenant.runtime.context2.VariablesProviderContextImpl
+import viaduct.tenant.runtime.context2.factory.VariablesProviderContextFactory
+import viaduct.tenant.runtime.internal.InternalContextImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 /**
@@ -94,7 +96,20 @@ class RequiredSelectionSetFactoryTest {
         override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = vars
     }
 
-    private val argumentsFactory = Factory.const(MockArguments())
+    private val variablesProviderContextFactory = object : VariablesProviderContextFactory {
+        override fun createVariablesProviderContext(
+            engineExecutionContext: viaduct.engine.api.EngineExecutionContext,
+            requestContext: Any?,
+            rawArguments: Map<String, Any?>
+        ): VariablesProviderContext<Arguments> {
+            val ic = InternalContextImpl(
+                engineExecutionContext.fullSchema,
+                MockGlobalIDCodec(),
+                mockReflectionLoader("viaduct.api.bootstrap.test.grts")
+            )
+            return VariablesProviderContextImpl(ic, requestContext, MockArguments())
+        }
+    }
 
     @Resolver(
         "y(x:\$x, y:\$y, z:\$z), baz",
@@ -121,7 +136,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = MyResolverBase::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = MyResolverBase::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         ).objectSelections
@@ -137,7 +152,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = EmptyAnnotationResolver::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = EmptyAnnotationResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         )
@@ -156,7 +171,7 @@ class RequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = VariableWithoutFragmentResolver::class,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 annotation = VariableWithoutFragmentResolver::class.findAnnotation<Resolver>()!!,
                 resolverForType = "Query",
             )
@@ -173,7 +188,7 @@ class RequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = VariableWithoutSourceResolver::class,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 annotation = VariableWithoutSourceResolver::class.findAnnotation<Resolver>()!!,
                 resolverForType = "Query",
             )
@@ -193,7 +208,7 @@ class RequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = VariableWithBothSourcesResolver::class,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 annotation = VariableWithBothSourcesResolver::class.findAnnotation<Resolver>()!!,
                 resolverForType = "Query",
             )
@@ -212,7 +227,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = ValidFromFieldResolver::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = ValidFromFieldResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         )
@@ -232,7 +247,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = ValidFromArgumentResolver::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = ValidFromArgumentResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         )
@@ -247,7 +262,7 @@ class RequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = InvalidVariablesClassResolver::class,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 annotation = InvalidVariablesClassResolver::class.findAnnotation<Resolver>()!!,
                 resolverForType = "Query",
             )
@@ -267,7 +282,7 @@ class RequiredSelectionSetFactoryTest {
                 variablesProvider = VariablesProviderInfo(setOf("x")) { MockVariablesProvider(mapOf("x" to 1)) },
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = listOf(FromArgumentVariable("x", "x")), // Conflicts with VariablesProvider variable
             )
         }
@@ -286,7 +301,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProvider = VariablesProviderInfo(setOf("y")) { MockVariablesProvider(mapOf("y" to 2)) },
             objectSelections = objectSelections,
             querySelections = null,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = listOf(
                 FromArgumentVariable("boundX", "x"), // boundX is bound to argument x
                 FromObjectFieldVariable("z", "baz") // z is bound to field baz
@@ -309,7 +324,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = null,
-            argumentsFactory = Factory.const(MockArguments()),
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = emptyList(),
         )
         assertEquals(objectSelections, rss.objectSelections?.selections)
@@ -324,7 +339,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = null,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = listOf(
                 FromArgumentVariable("x", "x")
             ),
@@ -341,7 +356,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = null,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = listOf(
                 FromObjectFieldVariable("y", "baz")
             ),
@@ -358,7 +373,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProvider = VariablesProviderInfo(setOf("y")) { MockVariablesProvider() },
             objectSelections = objectSelections,
             querySelections = null,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = emptyList(),
         )
         assertEquals(objectSelections, rss.objectSelections?.selections)
@@ -376,7 +391,7 @@ class RequiredSelectionSetFactoryTest {
                 variablesProvider = null,
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = listOf(
                     FromArgumentVariable("x", "x1"),
                     FromArgumentVariable("x", "x2"),
@@ -390,7 +405,7 @@ class RequiredSelectionSetFactoryTest {
                 variablesProvider = null,
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = listOf(
                     FromObjectFieldVariable("x", "x1"),
                     FromArgumentVariable("x", "x2"),
@@ -404,7 +419,7 @@ class RequiredSelectionSetFactoryTest {
                 variablesProvider = null,
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = listOf(
                     FromObjectFieldVariable("x", "x1"),
                     FromArgumentVariable("x", "x2"),
@@ -426,7 +441,7 @@ class RequiredSelectionSetFactoryTest {
                 ),
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = emptyList(), // no @Variable annotations
             )
         }
@@ -449,7 +464,7 @@ class RequiredSelectionSetFactoryTest {
             ),
             objectSelections = objectSelections,
             querySelections = null,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = emptyList(),
         )
 
@@ -469,7 +484,7 @@ class RequiredSelectionSetFactoryTest {
                 ),
                 objectSelections = objectSelections,
                 querySelections = null,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = listOf(
                     FromArgumentVariable("usedVar", "arg"),
                     FromArgumentVariable("unusedAnnotationVar", "unused")
@@ -497,7 +512,7 @@ class RequiredSelectionSetFactoryTest {
             ),
             objectSelections = objectSelections,
             querySelections = null,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = listOf(FromArgumentVariable("y", "y")), // annotation variable y
         )
 
@@ -583,7 +598,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = EmptyVariablesResolver::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = EmptyVariablesResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         ).objectSelections
@@ -599,7 +614,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = CommasOnlyVariablesResolver::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = CommasOnlyVariablesResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         ).objectSelections
@@ -617,7 +632,7 @@ class RequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = InvalidSyntaxVariablesResolver::class,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 annotation = InvalidSyntaxVariablesResolver::class.findAnnotation<Resolver>()!!,
                 resolverForType = "Query",
             )
@@ -676,7 +691,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = NonExistentTypeVariablesResolver::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = NonExistentTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         ).objectSelections
@@ -694,7 +709,7 @@ class RequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = UnionTypeVariablesResolver::class,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 annotation = UnionTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
                 resolverForType = "Query",
             )
@@ -710,7 +725,7 @@ class RequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = InterfaceTypeVariablesResolver::class,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 annotation = InterfaceTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
                 resolverForType = "Query",
             )
@@ -726,7 +741,7 @@ class RequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = ObjectTypeVariablesResolver::class,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 annotation = ObjectTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
                 resolverForType = "Query",
             )
@@ -740,7 +755,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = ValidInputTypeVariablesResolver::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = ValidInputTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         ).objectSelections
@@ -759,7 +774,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = QueryOnlyResolver::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = QueryOnlyResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         )
@@ -774,7 +789,7 @@ class RequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             injector = injector,
             resolverCls = DualFragmentResolver::class,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = DualFragmentResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         )
@@ -791,7 +806,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = querySelections,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = listOf(
                 FromArgumentVariable("objVar", "x"),
                 FromQueryFieldVariable("queryVar", "baz")
@@ -836,7 +851,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = querySelections,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = listOf(
                 FromArgumentVariable("shared", "x")
             ),
@@ -862,7 +877,7 @@ class RequiredSelectionSetFactoryTest {
             },
             objectSelections = objectSelections,
             querySelections = querySelections,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = emptyList(),
         )
 
@@ -880,7 +895,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = querySelections,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = listOf(
                 FromArgumentVariable("objVar", "x"),
                 FromQueryFieldVariable("queryVar", "queryData") // Variable sourced from query field
@@ -902,7 +917,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = querySelections,
-            argumentsFactory = argumentsFactory,
+            variablesProviderContextFactory = variablesProviderContextFactory,
             variables = listOf(
                 FromObjectFieldVariable("objVar", "objData"),
                 FromQueryFieldVariable("queryVar", "queryData"),
@@ -923,7 +938,7 @@ class RequiredSelectionSetFactoryTest {
                 defaultSchema,
                 injector,
                 BadMultipleFieldsResolver::class,
-                argumentsFactory,
+                variablesProviderContextFactory,
                 Resolver(
                     objectValueFragment = "obj",
                     variables = arrayOf(
@@ -943,7 +958,7 @@ class RequiredSelectionSetFactoryTest {
                 defaultSchema,
                 injector,
                 BadNoFieldsResolver::class,
-                argumentsFactory,
+                variablesProviderContextFactory,
                 Resolver(
                     objectValueFragment = "obj",
                     variables = arrayOf(
@@ -988,7 +1003,7 @@ class RequiredSelectionSetFactoryTest {
                 defaultSchema,
                 injector,
                 EmptyQueryFieldPathResolver::class,
-                argumentsFactory,
+                variablesProviderContextFactory,
                 EmptyQueryFieldPathResolver::class.findAnnotation<Resolver>()!!,
                 "Query"
             )
@@ -1008,7 +1023,7 @@ class RequiredSelectionSetFactoryTest {
                 defaultSchema,
                 injector,
                 InvalidQueryFieldPathResolver::class,
-                argumentsFactory,
+                variablesProviderContextFactory,
                 InvalidQueryFieldPathResolver::class.findAnnotation<Resolver>()!!,
                 "Query"
             )
@@ -1029,7 +1044,7 @@ class RequiredSelectionSetFactoryTest {
                 defaultSchema,
                 injector,
                 QueryFieldToObjectTypeResolver::class,
-                argumentsFactory,
+                variablesProviderContextFactory,
                 QueryFieldToObjectTypeResolver::class.findAnnotation<Resolver>()!!,
                 "Query"
             )
@@ -1047,7 +1062,7 @@ class RequiredSelectionSetFactoryTest {
                 variablesProvider = null,
                 objectSelections = objectSelections,
                 querySelections = querySelections,
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = listOf(
                     FromArgumentVariable("argVar", "someArg"),
                     FromQueryFieldVariable("queryVar", "baz")
@@ -1064,7 +1079,7 @@ class RequiredSelectionSetFactoryTest {
                 variablesProvider = null,
                 objectSelections = SelectionsParser.parse("Query", "obj(x: \$queryVar)"),
                 querySelections = null, // No query selections provided
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = listOf(
                     FromQueryFieldVariable("queryVar", "baz")
                 ),
@@ -1080,7 +1095,7 @@ class RequiredSelectionSetFactoryTest {
                 variablesProvider = null,
                 objectSelections = SelectionsParser.parse("Query", "obj(x: \$queryVar)"),
                 querySelections = SelectionsParser.parse("Query", "foo"), // Only selects 'foo', not 'baz'
-                argumentsFactory = argumentsFactory,
+                variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = listOf(
                     FromQueryFieldVariable("queryVar", "baz") // But variable needs 'baz'
                 ),

@@ -23,13 +23,14 @@ import viaduct.tenant.runtime.featuretests.fixtures.Foo
 import viaduct.tenant.runtime.featuretests.fixtures.Query
 import viaduct.tenant.runtime.featuretests.fixtures.Union
 import viaduct.tenant.runtime.featuretests.fixtures.UntypedFieldContext
+import viaduct.tenant.runtime.featuretests.fixtures.get
+import viaduct.tenant.runtime.featuretests.fixtures.tryGet
 
 @ExperimentalCoroutinesApi
 class FromFieldVariablesResolverTest {
     @Test
     fun `from object field -- simple`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int):Int, z:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int, z:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 5 },
@@ -43,13 +44,13 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- variables used by field on non-root object`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     type Obj { x:Int, y(b:Int):Int, z:Int }
                     extend type Query { obj:Obj }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Obj" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 5 },
@@ -64,13 +65,13 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- simple mutation field`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     extend type Mutation { x:Int, y(b:Int):Int, z:Int }
                     extend type Query { empty:Int }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Mutation" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 5 },
@@ -87,8 +88,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- selection is field with omitted arg and default value`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int):Int, z(c:Int = 2):Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int, z(c:Int = 2):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 7 },
@@ -102,8 +102,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- selection is field with arg`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int!, y(b:Int!):Int!, z(c:Int!):Int! }")
+        FeatureTestBuilder("extend type Query { x:Int!, y(b:Int!):Int!, z(c:Int!):Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 7 },
@@ -117,8 +116,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- selection is field with omitted argument value`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 3 },
@@ -132,8 +130,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- selection is aliased`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int):Int, z:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int, z:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 5 },
@@ -147,8 +144,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- selection is list-valued`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:[Int]):Int, z:[Int] }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:[Int]):Int, z:[Int] }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 7 },
@@ -162,8 +158,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- single-field-multiple-variable -- multiple variables on required selection`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 7 },
@@ -181,8 +176,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- single-field-multiple-variable -- multiple required selections with variables`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int, w:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int, w:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 7 },
@@ -200,13 +194,13 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- selection traverses through object`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     extend type Query { x:Int, y(b:Int):Int, z:Obj }
                     type Obj { w:Int }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 5 },
@@ -220,13 +214,13 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- selection traverses through null object`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     extend type Query { x:Int, y(b:Int):Int!, z:Obj }
                     type Obj { w:Int }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 5 },
@@ -240,9 +234,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field -- selection traverses through union`() {
-        FeatureTestBuilder()
-            .sdl(FeatureTestSchemaFixture.sdl)
-            .grtPackage(Query.Reflection)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver(
                 "Query" to "string1",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<String>("hasArgs2") + "." },
@@ -266,8 +258,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from object field -- selection output type is not compatible with variable input type -- nullability mismatch`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int!):Int!, z:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int!):Int!, z:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { _: UntypedFieldContext -> 0 },
@@ -286,8 +277,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from object field -- selection output type is not compatible with variable input type -- type mismatch`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int!):Int!, z:String! }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int!):Int!, z:String! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { _: UntypedFieldContext -> 0 },
@@ -306,8 +296,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field - same variable name used in operation variable and annotation variable`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }")
+        FeatureTestBuilder("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext ->
@@ -330,8 +319,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from object field - same variable name used in multiple selection sets`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y:Int, z(c:Int):Int, w:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y:Int, z(c:Int):Int, w:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("z") * 5 },
@@ -355,8 +343,7 @@ class FromFieldVariablesResolverTest {
     @Test
     fun `from object field -- variable used in conditional directive`() {
         var yResolved = false
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:String, y:Boolean, z:Boolean! }")
+        FeatureTestBuilder("extend type Query { x:String, y:Boolean, z:Boolean! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext ->
@@ -381,8 +368,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from object field -- variable depends on a field in its own subselections`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { x(a:Int):Query, y:Int }")
+        FeatureTestBuilder("extend type Query { x(a:Int):Query, y:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { _: UntypedFieldContext -> fail("should not execute") },
@@ -398,8 +384,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from object field -- variable selects a field that uses it`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { x(a:Int):Int }")
+        FeatureTestBuilder("extend type Query { x(a:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { _: UntypedFieldContext -> fail("should not execute") },
@@ -414,8 +399,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from object field -- deadlock between 2 variables -- same selection set`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { x(a:Int):Int, y(b:Int):Int }")
+        FeatureTestBuilder("extend type Query { x(a:Int):Int, y(b:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { _: UntypedFieldContext -> fail("should not execute") },
@@ -434,8 +418,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from object field -- deadlock between 2 variables -- diff selection sets`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }")
+        FeatureTestBuilder("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { _: UntypedFieldContext -> fail("should not execute") },
@@ -456,8 +439,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from query field -- path refers to missing selection`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int):Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { _: UntypedFieldContext -> fail("should not execute") },
@@ -472,8 +454,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from query field -- path ends on object`() {
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int):Int, z:Query, w:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int, z:Query, w:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { _: UntypedFieldContext -> fail("should not execute") },
@@ -490,8 +471,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from query field -- simple`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int):Int, z:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int, z:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.queryValue.get<Int>("y") * 5 },
@@ -505,13 +485,13 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from query field -- variables used by field on non-root object`() =
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     type Obj { x:Int }
                     extend type Query { obj:Obj y(b:Int):Int, z:Int }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Obj" to "x",
                 { ctx: UntypedFieldContext -> ctx.queryValue.get<Int>("y") * 5 },
@@ -533,13 +513,13 @@ class FromFieldVariablesResolverTest {
         // Mutation.x = ($Query.z * 3) * 5
         // Mutation.x = (2 * 3) * 5
         // Mutation.x = 30
-        FeatureTestBuilder()
-            .sdl(
-                """
+        FeatureTestBuilder(
+            """
                     extend type Mutation { x:Int, y(b:Int):Int }
                     extend type Query { z:Int }
-                """.trimIndent()
-            )
+            """.trimIndent(),
+            useFakeGRTs = true,
+        )
             .resolver(
                 "Mutation" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 5 },
@@ -554,8 +534,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from query field -- binds variable to query field with different name`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(a:Int):Int, z:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(a:Int):Int, z:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.queryValue.get<Int>("y") * 5 },
@@ -569,8 +548,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from query field -- returns null value`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int!, y(a:Int):Int!, z:Int }")
+        FeatureTestBuilder("extend type Query { x:Int!, y(a:Int):Int!, z:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 2 },
@@ -585,8 +563,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `from query field -- single-field-multiple-variable -- multiple variables on required selection`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.queryValue.get<Int>("y") * 7 },
@@ -604,8 +581,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from query field -- variable name overlaps with object field variable`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo: String!, bar(x: String!): String! }")
+        FeatureTestBuilder("extend type Query { foo: String!, bar(x: String!): String! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "bar",
                 { _: UntypedFieldContext -> "result" },
@@ -626,8 +602,7 @@ class FromFieldVariablesResolverTest {
 
     @Test
     fun `invalid from query field -- variable name overlaps with argument variable`() =
-        FeatureTestBuilder()
-            .sdl("extend type Query { foo: String!, bar(name: String!): String! }")
+        FeatureTestBuilder("extend type Query { foo: String!, bar(name: String!): String! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "bar",
                 { _: UntypedFieldContext -> "result" },
@@ -654,8 +629,7 @@ class FromFieldVariablesResolverTest {
         // Query.x(2) = $Query.y(a:2, 3) * 7
         // Query.x(2) = 2 * 3 * 5 * 7
         // Query.x(2) = 210
-        FeatureTestBuilder()
-            .sdl("extend type Query { x(a:Int):Int, y(a:Int, b:Int):Int, z:Int }")
+        FeatureTestBuilder("extend type Query { x(a:Int):Int, y(a:Int, b:Int):Int, z:Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext ->
@@ -684,8 +658,7 @@ class FromFieldVariablesResolverTest {
         // Query.x = $Query.y(a:14, b:10) * 11
         // Query.x = (14 * 10 * 3) * 11
         // Query.x = 4620
-        FeatureTestBuilder()
-            .sdl("extend type Query { x:Int, y(a:Int, b:Int):Int, z(w:Int):Int }")
+        FeatureTestBuilder("extend type Query { x:Int, y(a:Int, b:Int):Int, z(w:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "x",
                 { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 11 },

@@ -96,6 +96,7 @@ class StandardViaduct
             private var chainInstrumentationWithDefaults: Boolean = false
             private var defaultQueryNodeResolversEnabled: Boolean = true
             private var meterRegistry: MeterRegistry? = null
+            private var allowSubscriptions: Boolean = false
 
             fun enableAirbnbBypassDoNotUse(
                 fragmentLoader: FragmentLoader,
@@ -177,15 +178,15 @@ class StandardViaduct
                     this.dataFetcherExceptionHandler = dataFetcherExceptionHandler
                 }
 
-            // fun withDataFetcherErrorReporter(dataFetcherErrorReporter: DataFetcherErrorReporter): Builder =
-            //     apply {
-            //         this.dataFetcherErrorReporter = dataFetcherErrorReporter
-            //     }
-            //
-            // fun withDataFetcherErrorBuilder(dataFetcherErrorBuilder: DataFetcherErrorBuilder): Builder =
-            //     apply {
-            //         this.dataFetcherErrorBuilder = dataFetcherErrorBuilder
-            //     }
+            fun withResolverErrorReporter(resolverErrorReporter: ResolverErrorReporter): Builder =
+                apply {
+                    this.resolverErrorReporter = resolverErrorReporter
+                }
+
+            fun withDataFetcherErrorBuilder(resolverErrorBuilder: ResolverErrorBuilder): Builder =
+                apply {
+                    this.resolverErrorBuilder = resolverErrorBuilder
+                }
 
             @Deprecated("For advance uses, Airbnb-use only", level = DeprecationLevel.WARNING)
             fun withInstrumentation(
@@ -210,7 +211,11 @@ class StandardViaduct
                     this.meterRegistry = meterRegistry
                 }
 
-            fun isAirbnbModeEnabled() = this.airbnbModeEnabled
+            @Deprecated("For testing only, subscriptions are not currently supported in Viaduct.", level = DeprecationLevel.WARNING)
+            fun allowSubscriptions(allow: Boolean) =
+                apply {
+                    allowSubscriptions = allow
+                }
 
             /**
              * Builds the Guice Module within Viaduct and gets Viaduct from the injector.
@@ -265,7 +270,7 @@ class StandardViaduct
                     // Factory creates child injector with schema modules and returns StandardViaduct
                     return factory.createForSchema(schemaConfiguration)
                         .also { viaduct ->
-                            if (!isAirbnbModeEnabled() && hasSubscriptions(viaduct.engineRegistry.getSchema(SchemaId.Full))) {
+                            if (!airbnbModeEnabled && !allowSubscriptions && hasSubscriptions(viaduct.engineRegistry.getSchema(SchemaId.Full))) {
                                 throw GraphQLBuildError("Viaduct does not currently support subscriptions.")
                             }
                         }

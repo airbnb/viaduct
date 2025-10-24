@@ -14,7 +14,7 @@ class MaskedSetTest {
     @Test
     fun `ctor -- all indices are valid`() {
         fun check(ms: MaskedSet<Int>) {
-            assertEquals(ms.valueToIndex.size, ms.exclude.size())
+            assertEquals(ms.valueToIndex.size, ms.exclude.size)
             ms.valueToIndex.forEach { _, i ->
                 assertDoesNotThrow {
                     ms.exclude.get(i)

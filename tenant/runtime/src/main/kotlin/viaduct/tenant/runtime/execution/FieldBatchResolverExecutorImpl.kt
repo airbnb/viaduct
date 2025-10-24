@@ -15,13 +15,7 @@ import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.FieldResolverExecutor.Selector
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
-import viaduct.tenant.runtime.context.factory.FieldArgs
-import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
-import viaduct.tenant.runtime.internal.InternalContextImpl
-import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
-import viaduct.tenant.runtime.select.SelectionsLoaderImpl
-
-// TODO: import viaduct.tenant.runtime.context2.FieldExecutionContextImpl
+import viaduct.tenant.runtime.context2.factory.FieldExecutionContextFactory
 
 /**
  * Executes a tenant-written field resolver's batchResolve function.
@@ -49,30 +43,13 @@ class FieldBatchResolverExecutorImpl(
         context: EngineExecutionContext
     ): Map<Selector, Result<Any?>> {
         val contexts = selectors.map { key ->
-/*
-            FieldExecutionContextImpl<*,*,*,*>(
-                schema = context.fullSchema,
-                globalIDCodec = globalIDCodec,
-                reflectionLoader = reflectionLoader,
-                arguments = key.arguments,
-                objectValue = key.objectValue,
-                queryValue = key.queryValue,
-                selections = key.selections,
+            resolverContextFactory(
                 engineExecutionContext = context,
-            )
-*/
-            resolverContextFactory.make(
-                FieldArgs(
-                    internalContext = InternalContextImpl(context.fullSchema, globalIDCodec, reflectionLoader),
-                    arguments = key.arguments,
-                    objectValue = key.objectValue,
-                    queryValue = key.queryValue,
-                    resolverId = resolverId,
-                    selectionSetFactory = SelectionSetFactoryImpl(context.rawSelectionSetFactory),
-                    selections = key.selections,
-                    selectionsLoaderFactory = SelectionsLoaderImpl.Factory(context.rawSelectionsLoaderFactory),
-                    engineExecutionContext = context,
-                )
+                requestContext = context.requestContext, // TODO - get rid of this argument
+                rawSelections = key.selections,
+                rawArguments = key.arguments,
+                rawObjectValue = key.objectValue,
+                rawQueryValue = key.queryValue,
             )
         }
         val resolver = resolver.get()

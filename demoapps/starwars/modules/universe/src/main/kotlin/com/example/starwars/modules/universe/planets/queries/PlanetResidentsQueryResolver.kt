@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.planets.queries
 import com.example.starwars.modules.universe.planets.models.PlanetsResidentsRepository
 import com.example.starwars.universe.resolverbases.PlanetResolvers
 import viaduct.api.Resolver
+import viaduct.api.context.nodeFor
 import viaduct.api.grts.Character
 
 /**
@@ -25,11 +26,8 @@ class PlanetResidentsQueryResolver : PlanetResolvers.Residents() {
         val residents = PlanetsResidentsRepository.findResidentsByPlanetId(planetId)
 
         return residents.map {
-            // Create a global ID for the Character using its internal ID.
-            val globalID = ctx.globalIDFor(Character.Reflection, it.characterId)
-
             // Request Viaduct to resolve the Character node using the global ID.
-            ctx.nodeFor(globalID)
+            ctx.nodeFor<Character>(it.characterId)
         }
     }
 }

@@ -10,14 +10,13 @@ import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestSchemaFixture
 import viaduct.tenant.runtime.featuretests.fixtures.Query
+import viaduct.tenant.runtime.featuretests.fixtures.get
 
 @ExperimentalCoroutinesApi
 class RequiredSelectionsTest {
     @Test
     fun `required selections use deep aliases`() =
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver(
                 "Query" to "string1",
                 { ctx: FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
@@ -32,9 +31,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment and objectValueFragment together`() =
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl + "\nextend type Query { globalConfig: String }")
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl + "\nextend type Query { globalConfig: String }")
             .resolver("Query" to "globalConfig") { "Premium" }
             .resolver("Query" to "baz") { Baz.Builder(it).id(it.globalIDFor(Baz.Reflection, "baz1")).x(100).build() }
             .resolver(
@@ -55,9 +52,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve mutation with queryValueFragment`() =
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver("Query" to "string1") { "InitialValue" }
             .resolver(
                 "Mutation" to "string1",
@@ -75,9 +70,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - nested object access`() =
-        FeatureTestBuilder()
-            .grtPackage(Query.Reflection)
-            .sdl(FeatureTestSchemaFixture.sdl)
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver(
                 "Baz" to "y",
                 { ctx: FieldExecutionContext<Baz, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->

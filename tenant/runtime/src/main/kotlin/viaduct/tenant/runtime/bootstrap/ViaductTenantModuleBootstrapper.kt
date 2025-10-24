@@ -1,21 +1,15 @@
 package viaduct.tenant.runtime.bootstrap
 
-import graphql.schema.FieldCoordinates
-import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.full.hasAnnotation
-import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.memberFunctions
 import viaduct.api.Resolver
 import viaduct.api.Variables
-import viaduct.api.context.FieldExecutionContext
-import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.ResolverFor
 import viaduct.api.reflect.Type
-import viaduct.api.types.Arguments
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.NodeResolverExecutor
@@ -23,13 +17,7 @@ import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.TenantModuleException
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.spi.TenantCodeInjector
-import viaduct.tenant.runtime.context.factory.ArgumentsFactory
-import viaduct.tenant.runtime.context.factory.FieldExecutionContextMetaFactory
-import viaduct.tenant.runtime.context.factory.MutationFieldExecutionContextMetaFactory
-import viaduct.tenant.runtime.context.factory.ObjectFactory
-import viaduct.tenant.runtime.context.factory.ResolverContextFactory
-import viaduct.tenant.runtime.context.factory.SelectionSetFactory as SelectionSetContextFactory
-import viaduct.tenant.runtime.context.factory.SelectionsLoaderFactory
+import viaduct.tenant.runtime.context2.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
@@ -38,7 +26,6 @@ import viaduct.tenant.runtime.execution.NodeUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.utils.slf4j.logger
-import viaduct.utils.string.capitalize
 
 /**
  * ViaductTenantModuleBootstrapper is responsible for bootstrapping the Viaduct tenant module.
@@ -84,14 +71,17 @@ class ViaductTenantModuleBootstrapper(
         for ((baseClass, resolverClasses) in resolverClassesByBaseClass) {
             val resolverForAnnotation = baseClass.annotations.firstOrNull { it is ResolverFor } as? ResolverFor
                 ?: throw TenantModuleException("ResolverBase class $baseClass does not have a @ResolverFor annotation")
+
             val typeName = resolverForAnnotation.typeName
             val fieldName = resolverForAnnotation.fieldName
-            if (schema.schema.getObjectType(typeName)?.getFieldDefinition(fieldName) == null) {
+            val fieldDef = schema.schema.getObjectType(typeName)?.getFieldDefinition(fieldName)
+            if (fieldDef == null) {
                 schema.schema.getType(typeName)?.let {
                     log.warn("Found resolver code for type {} which is not a GraphQL Object type ({}).", typeName)
                 } ?: log.warn("Found resolver code for {}.{}, which is an undefined field in the schema.", typeName, fieldName)
                 continue
             }
+
             if (resolverClasses.size != 1) {
                 // TODO: perform this validation _after_ all bootstrappers have run
                 // throw TenantModuleException("Expected exactly one resolver implementation for $typeName.$fieldName, found ${resolverClasses.size}: ${resolverClasses.map { it.name }}")
@@ -123,70 +113,26 @@ class ViaductTenantModuleBootstrapper(
                     }
                 }
 
-            val fieldContextClasses = FieldContextClasses(
-                FieldExecutionContext::class,
-                tenantResolverClassFinder,
-                baseClass,
-                schema,
-                typeName,
-                fieldName
+            val fieldExecutionContextFactory = FieldExecutionContextFactory.of(
+                resolverBaseClass = baseClass,
+                globalIDCodec = globalIDCodec,
+                reflectionLoader = reflectionLoader,
+                schema = schema,
+                typeName = typeName,
+                fieldName = fieldName,
             )
 
-            val contextKClass = fieldContextClasses.context
-
-            val argumentsFactory = fieldContextClasses.arguments.let {
-                if (it == Arguments.NoArguments::class) {
-                    ArgumentsFactory.NoArguments
-                } else {
-                    ArgumentsFactory.forClass(it)
-                }
-            }
-
-            val objectKClass = fieldContextClasses.objectValue
-            val queryKClass = fieldContextClasses.query
-            val resolverId = typeName to fieldName
-            val formattedResolverId = formatResolverId(resolverId)
-
-            // While the schema is used here on the next two lines, it
-            // is not _captured_ here.  That is, the `forField`
-            // function called below basically uses the name to the
-            // field's type to return something that does not contain
-            // a pointer to any piece of the schema.
-            //
-            // What it returns _does_ have a pointer to the GRT class
-            // for that type, i.e., it captures some version-scoped
-            // code state.  However, this is probably okay because the
-            // resolvers for this module will get rebuilt when new
-            // code comes in.
-            val fieldDef = schema.schema.getFieldDefinition(FieldCoordinates.coordinates(typeName, fieldName))
-            val selectionSetContextFactory = SelectionSetContextFactory.forField(fieldDef)
             val (objectSelectionSet, querySelectionSet) = requiredSelectionSetFactory.mkRequiredSelectionSets(
                 schema,
                 tenantCodeInjector,
                 resolverKClass,
-                argumentsFactory,
+                fieldExecutionContextFactory,
                 resolverAnnotation,
                 typeName,
             )
 
-            val fieldExecutionContextFactory = FieldExecutionContextMetaFactory.create(
-                objectValue = ObjectFactory.forClass(objectKClass),
-                queryValue = ObjectFactory.forClass(queryKClass),
-                argumentsFactory,
-                selectionSetContextFactory
-            )
-
-            val innerResolverContextFactory =
-                if (contextKClass.isSubclassOf(MutationFieldExecutionContext::class)) {
-                    MutationFieldExecutionContextMetaFactory.create(fieldExecutionContextFactory, SelectionsLoaderFactory.forMutation)
-                } else {
-                    fieldExecutionContextFactory
-                }
-
-            val resolverContextFactory = ResolverContextFactory.forClass(
-                contextKClass,
-                innerResolverContextFactory
-            )
+            val resolverId = typeName to fieldName
+            val formattedResolverId = formatResolverId(resolverId)
 
             // Java classes do not have the `resolve` function since it is suspended,
             // The implementation should be using a proxy class that hides that complexity
@@ -222,7 +168,7 @@ class ViaductTenantModuleBootstrapper(
                     resolverId = formattedResolverId,
                     globalIDCodec = globalIDCodec,
                     reflectionLoader = reflectionLoader,
-                    resolverContextFactory = resolverContextFactory,
+                    resolverContextFactory = fieldExecutionContextFactory,
                     resolverName = resolverKClass.qualifiedName!!
                 )
                 result.put(resolverId, resolverExecutor)?.let { extant ->
@@ -247,7 +193,7 @@ class ViaductTenantModuleBootstrapper(
                     resolverId = formattedResolverId,
                     globalIDCodec = globalIDCodec,
                     reflectionLoader = reflectionLoader,
-                    resolverContextFactory = resolverContextFactory,
+                    resolverContextFactory = fieldExecutionContextFactory,
                     resolverName = resolverKClass.qualifiedName!!,
                 )
                 result.put(resolverId, resolverExecutor)?.let { extant ->
@@ -377,26 +323,6 @@ class ViaductTenantModuleBootstrapper(
         private val log by logger()
 
         private fun formatResolverId(typeFieldTuple: Pair<String, String>): String = "${typeFieldTuple.first}.${typeFieldTuple.second}"
-
-        /**
-         * Finds the argument-type class for inputs of the resolver method for a given (typeName, fieldName) coordinate.
-         *
-         * @param typeName Viaduct type name as a string.
-         * @param fieldName Field name for type [typeName] as a string.
-         * @return KClass<out viaduct.api.types.Arguments> corresponding to type-fieldname coordinate.
-         *
-         */
-        fun findArgumentsClass(
-            classFinder: TenantResolverClassFinder,
-            typeName: String,
-            fieldName: String
-        ): KClass<out Arguments> = classFinder.argumentClassForName(argumentTypeName(typeName, fieldName))
-
-        // Utility function to get argumentTypeName based on type and field names.
-        private fun argumentTypeName(
-            typeName: String,
-            fieldName: String
-        ): String = "${typeName}_${fieldName.capitalize()}_Arguments"
     }
 
     private val Class<*>.isKotlinClass

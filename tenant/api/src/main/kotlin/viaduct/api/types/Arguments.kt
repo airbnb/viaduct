@@ -2,6 +2,7 @@ package viaduct.api.types
 
 import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
+import graphql.schema.GraphQLObjectType
 import viaduct.engine.api.ViaductSchema
 import viaduct.utils.string.decapitalize
 
@@ -13,13 +14,34 @@ interface Arguments : InputLike {
     object NoArguments : Arguments
 
     companion object {
+        /**
+         * Return a syntehtic input type for an Argument GRT.  "Synthetic"
+         * means the field names and types conform to the argument names
+         * and types, but the returned input type does _not_ exist in
+         * [schema].
+         *
+         * @throws IllegalArgumentException if [name] isn't a valid
+         * Arguments GRT name for a field with arguments in [schema]
+         */
         fun inputType(
             name: String,
             schema: ViaductSchema
         ): GraphQLInputObjectType {
-            val typeName = name.split("_").firstOrNull() ?: throw IllegalArgumentException("Invalid Arguments class name: $name")
-            val fieldName = name.split("_").getOrNull(1)?.decapitalize() ?: throw IllegalArgumentException("Invalid Arguments class name: $name")
-            val field = schema.schema.getObjectType(typeName)?.getField(fieldName) ?: throw IllegalArgumentException("Field $typeName.$fieldName not found")
+            val splitName = name.split("_")
+            require(splitName.size == 3 && splitName[2] == "Arguments") {
+                "Invalid Arguments class name ($name)."
+            }
+            val typeName = splitName[0]
+            val type = requireNotNull(schema.schema.getType(typeName)) {
+                "Type $typeName not in schema."
+            }
+            require(type is GraphQLObjectType) {
+                "Type $type is not an object type."
+            }
+            val fieldName = splitName[1].decapitalize()
+            val field = requireNotNull(type.getField(fieldName)) {
+                "Field $typeName.$fieldName not found."
+            }
             val fields = field.arguments.map {
                 val builder = GraphQLInputObjectField.Builder()
                     .name(it.name)
@@ -30,7 +52,9 @@ interface Arguments : InputLike {
                 }
                 builder.build()
             }
-            if (fields.isEmpty()) throw IllegalArgumentException("No arguments found for field $typeName.$fieldName")
+            require(!fields.isEmpty()) {
+                "No arguments found for field $typeName.$fieldName."
+            }
             return GraphQLInputObjectType.Builder()
                 .name(name)
                 .fields(fields)

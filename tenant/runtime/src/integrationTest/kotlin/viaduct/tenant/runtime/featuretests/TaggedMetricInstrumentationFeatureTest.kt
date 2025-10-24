@@ -13,10 +13,8 @@ class TaggedMetricInstrumentationFeatureTest {
     @Test
     fun `ensure execution is recorded`() {
         val registry = SimpleMeterRegistry()
-        FeatureTestBuilder()
-            .sdl("extend type Query { a: Int }")
+        FeatureTestBuilder("extend type Query { a: Int }", meterRegistry = registry)
             .resolver("Query" to "a") { 1 }
-            .meterRegistry(registry)
             .build()
             .assertJson("{data: {a: 1}}", "{ a }")
 
@@ -28,10 +26,8 @@ class TaggedMetricInstrumentationFeatureTest {
     @Test
     fun `ensure operation execution operation name tag is recorded if specified`() {
         val registry = SimpleMeterRegistry()
-        FeatureTestBuilder()
-            .sdl("extend type Query { a: Int }")
+        FeatureTestBuilder("extend type Query { a: Int }", meterRegistry = registry)
             .resolver("Query" to "a") { 1 }
-            .meterRegistry(registry)
             .build()
             .execute("query testQuery { a }", operationName = "testQuery")
 
@@ -47,10 +43,8 @@ class TaggedMetricInstrumentationFeatureTest {
     @Test
     fun `ensure validation error will be tagged as failure`() {
         val registry = SimpleMeterRegistry()
-        FeatureTestBuilder()
-            .sdl("extend type Query { a: Int }")
+        FeatureTestBuilder("extend type Query { a: Int }", meterRegistry = registry)
             .resolver("Query" to "a") { 1 }
-            .meterRegistry(registry)
             .build()
             .execute("{")
 
@@ -64,10 +58,8 @@ class TaggedMetricInstrumentationFeatureTest {
         val registry = SimpleMeterRegistry()
         var counter = 0
 
-        val viaduct = FeatureTestBuilder()
-            .sdl("extend type Query { a: Int }")
+        val viaduct = FeatureTestBuilder("extend type Query { a: Int }", meterRegistry = registry)
             .resolver("Query" to "a") { counter++ }
-            .meterRegistry(registry)
             .build()
 
         viaduct.assertJson("{data: {a: 0}}", "{ a }")
@@ -87,10 +79,8 @@ class TaggedMetricInstrumentationFeatureTest {
         val registry = SimpleMeterRegistry()
         var counter = 0
 
-        val viaduct = FeatureTestBuilder()
-            .sdl("extend type Query { a: Int }")
+        val viaduct = FeatureTestBuilder("extend type Query { a: Int }", meterRegistry = registry)
             .resolver("Query" to "a") { counter++ }
-            .meterRegistry(registry)
             .build()
 
         viaduct.assertJson("{data: {a: 0}}", "{ a }")
@@ -114,10 +104,8 @@ class TaggedMetricInstrumentationFeatureTest {
     fun `ensure field tags are present`() {
         val registry = SimpleMeterRegistry()
 
-        FeatureTestBuilder()
-            .sdl("extend type Query { a: Int }")
+        FeatureTestBuilder("extend type Query { a: Int }", meterRegistry = registry)
             .resolver("Query" to "a") { 1 }
-            .meterRegistry(registry)
             .build()
             .assertJson("{data: {a: 1}}", "query testQuery { a }")
 
@@ -132,10 +120,8 @@ class TaggedMetricInstrumentationFeatureTest {
     fun `ensure field failure tag is present`() {
         val registry = SimpleMeterRegistry()
 
-        FeatureTestBuilder()
-            .sdl("extend type Query { a: Int }")
+        FeatureTestBuilder("extend type Query { a: Int }", meterRegistry = registry)
             .resolver("Query" to "a") { throw RuntimeException("test exception") }
-            .meterRegistry(registry)
             .build()
             .execute("query testQuery { a }")
 
@@ -150,12 +136,10 @@ class TaggedMetricInstrumentationFeatureTest {
     fun `ensure field count is correct`() {
         val registry = SimpleMeterRegistry()
 
-        val viaduct = FeatureTestBuilder()
-            .sdl("extend type Query { a: Int, b: Int, c: Int }")
+        val viaduct = FeatureTestBuilder("extend type Query { a: Int, b: Int, c: Int }", meterRegistry = registry)
             .resolver("Query" to "a") { 1 }
             .resolver("Query" to "b") { 2 }
             .resolver("Query" to "c") { 3 }
-            .meterRegistry(registry)
             .build()
 
         viaduct.assertJson("{data: {a: 1}}", "{ a }")
@@ -183,10 +167,8 @@ class TaggedMetricInstrumentationFeatureTest {
     fun `ensure operation metric is recorded`() {
         val registry = SimpleMeterRegistry()
 
-        FeatureTestBuilder()
-            .sdl("extend type Query { a: Int }")
+        FeatureTestBuilder("extend type Query { a: Int }", meterRegistry = registry)
             .resolver("Query" to "a") { 1 }
-            .meterRegistry(registry)
             .build()
             .execute("query testQuery { a }")
 

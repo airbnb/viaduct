@@ -32,6 +32,10 @@ fun mockReflectionLoader(packageName: String) =
         override fun reflectionFor(name: String): Type<*> {
             return Class.forName("$packageName.$name\$Reflection").kotlin.objectInstance as Type<*>
         }
+
+        override fun getGRTKClassFor(name: String): KClass<*> {
+            return Class.forName("$packageName.$name").kotlin
+        }
     }
 
 val GraphQLSchema.viaduct: ViaductExtendedSchema
@@ -88,5 +92,9 @@ data class MockSelectionsLoader<T : CompositeOutput>(val t: T) : SelectionsLoade
 }
 
 class MockReflectionLoader(vararg val types: Type<*>) : ReflectionLoader {
-    override fun reflectionFor(name: String): Type<*> = types.first { it.name == name }
+    override fun reflectionFor(name: String): Type<*> = types.firstOrNull { it.name == name } ?: throw NoSuchElementException("$name not in { ${types.joinToString(",")} }")
+
+    override fun getGRTKClassFor(name: String): KClass<*> {
+        return reflectionFor(name).kcls
+    }
 }

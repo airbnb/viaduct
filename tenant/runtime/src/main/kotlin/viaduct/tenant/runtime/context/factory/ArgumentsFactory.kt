@@ -3,8 +3,8 @@ package viaduct.tenant.runtime.context.factory
 import kotlin.reflect.KClass
 import viaduct.api.internal.InternalContext
 import viaduct.api.types.Arguments
-import viaduct.tenant.runtime.getArgumentsGRTConstructor
-import viaduct.tenant.runtime.makeArgumentsGRTFactory
+import viaduct.tenant.runtime.getGRTConstructor
+import viaduct.tenant.runtime.toInputLikeGRT
 
 class ArgumentsArgs(
     /** A service-scoped [InternalContext] */
@@ -25,7 +25,7 @@ object ArgumentsFactory {
      */
     fun ifClass(argumentsCls: KClass<out Arguments>): Factory<ArgumentsArgs, Arguments>? =
         try {
-            argumentsCls.getArgumentsGRTConstructor() // Validate constructor exists
+            argumentsCls.getGRTConstructor() // Validate constructor exists
             forClass(argumentsCls)
         } catch (e: IllegalArgumentException) {
             null
@@ -36,9 +36,11 @@ object ArgumentsFactory {
      * provided [argumentsCls].
      */
     fun forClass(argumentsCls: KClass<out Arguments>): Factory<ArgumentsArgs, Arguments> {
-        val makeGRT = argumentsCls.makeArgumentsGRTFactory()
+        if (argumentsCls != Arguments.NoArguments::class) {
+            argumentsCls.getGRTConstructor() // Validate constructor exists
+        }
         return Factory { args ->
-            args.arguments.makeGRT(args.internalContext)
+            args.arguments.toInputLikeGRT(args.internalContext, argumentsCls)
         }
     }
 }

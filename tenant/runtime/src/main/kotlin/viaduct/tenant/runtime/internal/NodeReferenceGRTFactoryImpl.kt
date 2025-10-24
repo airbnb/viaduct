@@ -6,7 +6,7 @@ import viaduct.api.internal.InternalContext
 import viaduct.api.internal.NodeReferenceGRTFactory
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.NodeReference
-import viaduct.tenant.runtime.toGRT
+import viaduct.tenant.runtime.toObjectGRT
 
 /**
  * The canonical implementation of the `NodeReferenceGRTFactory` interface.
@@ -32,6 +32,6 @@ class NodeReferenceGRTFactoryImpl(
             type,
         )
 
-        return nodeReference.toGRT(internalContext, id.type)
+        return nodeReference.toObjectGRT(internalContext, id.type.kcls)
     }
 }
