@@ -18,7 +18,7 @@ import viaduct.api.types.Query
 import viaduct.engine.api.ViaductSchema
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
-class ExecutionContextResolverTest : DefaultAbstractResolverTestBase() {
+class RequestContextResolverTest : DefaultAbstractResolverTestBase() {
     private val SCHEMA_SDL = """
      type Query {
        foo: String
