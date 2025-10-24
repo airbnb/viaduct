@@ -18,7 +18,7 @@ import viaduct.api.types.Query
 import viaduct.engine.api.ViaductSchema
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
-class SimpleResolverTest : DefaultAbstractResolverTestBase() {
+class RequestContextResolverTest : DefaultAbstractResolverTestBase() {
     private val SCHEMA_SDL = """
      type Query {
        foo: String
@@ -39,11 +39,9 @@ class SimpleResolverTest : DefaultAbstractResolverTestBase() {
         }
     }
 
-    class QueryFieldResolver : QueryResolvers.Field() {
-        override suspend fun resolve(ctx: Context): String {
-            return "123"
-        }
-    }
+    private data class RequestContext constructor(
+        val user: String
+    )
 
     override fun getSchema(): ViaductSchema {
         val typeDefinitionRegistry = SchemaParser().parse(SCHEMA_SDL)
@@ -52,15 +50,24 @@ class SimpleResolverTest : DefaultAbstractResolverTestBase() {
         return ViaductSchema(SchemaGenerator().makeExecutableSchema(typeDefinitionRegistry, runtimeWiring))
     }
 
+    class QueryFieldResolver : QueryResolvers.Field() {
+        override suspend fun resolve(ctx: Context): String {
+            val requestContext = ctx.requestContext as? RequestContext
+                ?: throw RuntimeException("No request context provided")
+            return requestContext.user
+        }
+    }
+
     @Test
-    fun `test FooNameResolver returns greeting with name`(): Unit =
+    fun `test FooNameResolver returns string from RequestContext`(): Unit =
         runBlocking {
             val resolver = QueryFieldResolver()
 
             val result = runFieldResolver(
+                requestContext = RequestContext(user = "user123"),
                 resolver = resolver,
             )
 
-            assertEquals("123", result)
+            assertEquals("user123", result)
         }
 }

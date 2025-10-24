@@ -24,18 +24,20 @@ commands:
       - restore_cache:
           name: "Restore Gradle Dependencies (Partial Caching)"
           keys:
-            # Primary: Exact match on lock files and gradle version
-            - v7-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-{{ checksum "build.gradle.kts" }}
-            # Secondary: Match on lock files only (partial restore)
-            - v7-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-
-            # Tertiary: Match on gradle version only (basic restore)
-            - v7-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-
+            # Primary: Exact match on lock files, gradle version, and gradle settings
+            - v8-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-{{ checksum "build.gradle.kts" }}-{{ checksum "settings.gradle.kts" }}
+            # Secondary: Exact match on lock files, and gradle version only (partial restore)
+            - v8-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-{{ checksum "build.gradle.kts" }}-
+            # Tertiary: Match on lock files only (partial restore)
+            - v8-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-
+            # Quaternary: Match on gradle version only (basic restore)
+            - v8-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-
             # Fallback: Any gradle cache for this architecture
-            - v7-gradle-deps-{{ arch }}-
+            - v8-gradle-deps-{{ arch }}-
       - << parameters.steps >>
       - save_cache:
           name: "Save Gradle Dependencies Cache"
-          key: v7-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-{{ checksum "build.gradle.kts" }}
+          key: v8-gradle-deps-{{ arch }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "gradle/libs.versions.toml" }}-{{ checksum "build.gradle.kts" }}-{{ checksum "settings.gradle.kts" }}
           paths:
             - ~/.gradle/caches
             - ~/.gradle/wrapper
