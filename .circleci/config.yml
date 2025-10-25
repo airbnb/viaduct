@@ -2,7 +2,8 @@ version: 2.1
 
 orbs:
   gradle: circleci/gradle@3.0.0
-
+  slack: circleci/slack@4.12.5
+   
 executors:
   kotlin-gradle-executor:
     docker:
@@ -41,31 +42,21 @@ commands:
             - ~/.gradle/wrapper
             - .gradle
 
-  fail-step:
+  # Send alerts to Slack
+  send-error:
     parameters:
       message:
         type: string
     steps:
       - run:
-          name: Build Failure Handler
-          command: |
-            echo "❌ FAILURE: << parameters.message >>"
-            echo "📋 Build Information:"
-            echo "  - Job: ${CIRCLE_JOB}"
-            echo "  - Build: ${CIRCLE_BUILD_NUM}"
-            echo "  - Branch: ${CIRCLE_BRANCH}"
-            echo "  - SHA: ${CIRCLE_SHA1}"
-            echo "  - Workflow ID: ${CIRCLE_WORKFLOW_ID}"
-            echo "  - Node: ${CIRCLE_NODE_INDEX:-0}"
-            echo "⏰ Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-            echo "🔗 Build URL: ${CIRCLE_BUILD_URL}"
-            echo ""
-            echo "💡 Troubleshooting tips:"
-            echo "  1. Check the logs above for specific error messages"
-            echo "  2. Verify all dependencies are properly installed"
-            echo "  3. Review recent changes that might have caused this failure"
-            exit 1
+          name: Send alerts to slack when something fails
           when: on_fail
+          command: |
+            chmod +x /home/circleci/project/.circleci/scripts/circleci_pipeline_metadata.sh
+            /home/circleci/project/.circleci/scripts/circleci_pipeline_metadata.sh "<< parameters.message >>"
+            
+      - slack/notify:
+          event: fail
 
   setup-gradle:
     steps:
@@ -86,12 +77,11 @@ jobs:
     steps:
       - checkout
 
-
+      - run: echo "export MSG_DES=\"Gradle setup failed\"" > $BASH_ENV
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed"
 
       # Use Gradle orb for optimal caching
+      - run: echo "export MSG_DES=\"Dependency download failed\""  > $BASH_ENV 
       - gradle-with-cache:
           steps:
             - run:
@@ -103,9 +93,8 @@ jobs:
                     exit 1
                   }
                   echo "✅ Dependencies downloaded successfully"
-      - fail-step:
-          message: "Dependency download failed"
 
+      - run: echo "export MSG_DES=\"Project build failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -115,9 +104,8 @@ jobs:
                   ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
                   ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
                   echo "✅ Project built successfully"
-      - fail-step:
-          message: "Project build failed"
 
+      - run: echo "export MSG_DES=\"Failed to collect build artifacts\"" > $BASH_ENV
       - run:
           name: Collect build artifacts
           command: |
@@ -145,6 +133,7 @@ jobs:
           destination: package
 
       # TODO: Enable Dokka documentation generation
+      # - run: echo "export MSG_DES=\"Dokka documentation generation failed\"" > $BASH_ENV
       # Currently disabled due to complex multi-module conflicts and dependency issues
       # - gradle-with-cache:
       #     steps:
@@ -157,9 +146,6 @@ jobs:
       #               exit 1
       #             }
       #             echo "✅ Dokka documentation generated successfully"
-      # - fail-step:
-      #     message: "Dokka documentation generation failed"
-
       # - run:
       #     name: Dump Dokka problem report
       #     command: |
@@ -183,24 +169,25 @@ jobs:
             - "*/build"
             - build/package
 
+      - send-error:
+          message: $MSG_DES
+
   test:
     executor: kotlin-gradle-executor
     steps:
       - checkout
 
-
       # Restore workspace from build job
+      - run: echo "export MSG_DES=\"Failed to restore workspace in test job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in test job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in test job\"" > $BASH_ENV
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in test job"
-
+      
       - gradle-with-cache:
           steps:
+            - run: echo "export MSG_DES=\"Error running tests\"" > $BASH_ENV
             - run:
                 name: Run tests
                 command: |
@@ -211,6 +198,7 @@ jobs:
                   }
                   echo "✅ Test execution completed"
 
+            - run: echo "export MSG_DES=\"Report generation failed\"" > $BASH_ENV
             - run:
                 name: Generate coverage and test reports
                 command: |
@@ -221,8 +209,6 @@ jobs:
                   }
                   echo "✅ Reports generated successfully"
                 when: always
-      - fail-step:
-          message: "Report generation failed"
 
       # Store test results for CircleCI UI (JUnit XML files)
       - store_test_results:
@@ -238,19 +224,22 @@ jobs:
           path: build/reports
           destination: all-reports
 
+      - send-error:
+          message: $MSG_DES
+
   detekt:
     executor: kotlin-gradle-executor
     steps:
       - checkout
+      
+      - run: echo "export MSG_DES=\"Failed to restore workspace in detekt job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in detekt job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in detekt job\"" > $BASH_ENV
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in detekt job"
 
+      - run: echo "export MSG_DES=\"Detekt static analysis failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -262,26 +251,27 @@ jobs:
                     exit 1
                   }
                   echo "✅ Detekt analysis passed"
-      - fail-step:
-          message: "Detekt static analysis failed"
 
       - store_artifacts:
           path: build/reports/detekt
           destination: detekt-reports
 
+      - send-error:
+          message: $MSG_DES
+          
   ktlint:
     executor: kotlin-gradle-executor
     steps:
       - checkout
+
+      - run: echo "export MSG_DES=\"Failed to restore workspace in ktlint job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in ktlint job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in ktlint job\"" > $BASH_ENV
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in ktlint job"
 
+      - run: echo "export MSG_DES=\"Ktlint code formatting check failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -293,24 +283,23 @@ jobs:
                     exit 1
                   }
                   echo "✅ Ktlint formatting check passed"
-      - fail-step:
-          message: "Ktlint code formatting check failed"
 
+      - send-error:
+          message: $MSG_DES
+          
   docs:
     executor: kotlin-gradle-executor
     steps:
       - checkout
 
-
+      - run: echo "export MSG_DES=\"Failed to restore workspace in docs job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in docs job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in docs job\"" > $BASH_ENV
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in docs job"
 
+      - run: echo "export MSG_DES=\"Javadoc generation failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -322,28 +311,27 @@ jobs:
                     exit 1
                   }
                   echo "✅ Javadoc generated successfully"
-      - fail-step:
-          message: "Javadoc generation failed"
 
       - store_artifacts:
           path: build/docs/javadoc
           destination: javadoc
+          
+      - send-error:
+          message: $MSG_DES
 
   coverage-verification:
     executor: kotlin-gradle-executor
     steps:
       - checkout
 
-
+      - run: echo "export MSG_DES=\"Failed to restore workspace in coverage-verification job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project
-      - fail-step:
-          message: "Failed to restore workspace in coverage-verification job"
 
+      - run: echo "export MSG_DES=\"Gradle setup failed in coverage-verification job\"" > $BASH_ENV
       - setup-gradle
-      - fail-step:
-          message: "Gradle setup failed in coverage-verification job"
 
+      - run: echo "export MSG_DES=\"Coverage threshold verification failed\"" > $BASH_ENV
       - gradle-with-cache:
           steps:
             - run:
@@ -357,8 +345,9 @@ jobs:
                     exit 1
                   }
                   echo "✅ Coverage thresholds met successfully"
-      - fail-step:
-          message: "Coverage threshold verification failed"
+                  
+      - send-error:
+          message: $MSG_DES
 
   deploy-docs:
     docker:
@@ -367,6 +356,7 @@ jobs:
     steps:
       - checkout
 
+      - run: echo "export MSG_DES=\"Git installation failed\"" > $BASH_ENV
       - run:
           name: Install Git
           command: |
@@ -376,12 +366,12 @@ jobs:
               exit 1
             }
             echo "✅ Git installed successfully"
-      - fail-step:
-          message: "Git installation failed"
 
+      - run: echo "export MSG_DES=\"Failed to restore workspace in deploy-docs job\"" > $BASH_ENV
       - attach_workspace:
           at: ~/project/
 
+      - run: echo "export MSG_DES=\"Documentation verification failed\"" > $BASH_ENV
       - run:
           name: Verify Dokka documentation exists
           command: |
@@ -397,9 +387,8 @@ jobs:
               exit 1
             }
             echo "✅ Documentation verification completed"
-      - fail-step:
-          message: "Documentation verification failed"
 
+      - run: echo "export MSG_DES=\"Documentation verification failed\"" > $BASH_ENV
       - run:
           name: Deploy Dokka HTML to GitHub Pages
           command: |
@@ -415,8 +404,9 @@ jobs:
               exit 1
             }
             echo "✅ Documentation deployed successfully"
-      - fail-step:
-          message: "Documentation deployment failed"
+
+      - send-error:
+          message: $MSG_DES
 
 workflows:
   build-and-test:
@@ -471,3 +461,4 @@ workflows:
       - coverage-verification:
           requires:
             - test
+
