@@ -1,6 +1,10 @@
 package viaduct.service
 
+import graphql.execution.DataFetcherExceptionHandler
+import io.micrometer.core.instrument.MeterRegistry
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.ResolverErrorBuilder
+import viaduct.service.api.spi.ResolverErrorReporter
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
@@ -56,6 +60,55 @@ class ViaductBuilder {
     fun withSchemaConfiguration(schemaConfiguration: SchemaConfiguration) =
         apply {
             builder.withSchemaConfiguration(schemaConfiguration)
+        }
+
+    /**
+     * Configures the MeterRegistry for metrics collection.
+     * This enables observability by tracking metrics such as query execution times,
+     * error rates, and other operational metrics.
+     *
+     * @param meterRegistry The MeterRegistry instance to use for metrics collection
+     * @return This Builder instance for method chaining
+     */
+    fun withMeterRegistry(meterRegistry: MeterRegistry) =
+        apply {
+            builder.withMeterRegistry(meterRegistry)
+        }
+
+    /**
+     * Configures the ResolverErrorReporter for error reporting.
+     * This enables reporting of resolver errors to external monitoring systems.
+     *
+     * @param resolverErrorReporter The ResolverErrorReporter instance to use for error reporting
+     * @return This Builder instance for method chaining
+     */
+    fun withResolverErrorReporter(resolverErrorReporter: ResolverErrorReporter) =
+        apply {
+            builder.withResolverErrorReporter(resolverErrorReporter)
+        }
+
+    /**
+     * Configures the ResolverErrorBuilder for building custom error responses.
+     * This works in conjunction with the ResolverErrorReporter to format error messages.
+     *
+     * @param resolverErrorBuilder The ResolverErrorBuilder instance to use for building errors
+     * @return This Builder instance for method chaining
+     */
+    fun withDataFetcherErrorBuilder(resolverErrorBuilder: ResolverErrorBuilder) =
+        apply {
+            builder.withDataFetcherErrorBuilder(resolverErrorBuilder)
+        }
+
+    /**
+     * Configures the DataFetcherExceptionHandler for handling data fetcher exceptions.
+     * This provides custom exception handling logic for errors that occur during data fetching.
+     *
+     * @param dataFetcherExceptionHandler The DataFetcherExceptionHandler instance to use
+     * @return This Builder instance for method chaining
+     */
+    fun withDataFetcherExceptionHandler(dataFetcherExceptionHandler: DataFetcherExceptionHandler) =
+        apply {
+            builder.withDataFetcherExceptionHandler(dataFetcherExceptionHandler)
         }
 
     /**
