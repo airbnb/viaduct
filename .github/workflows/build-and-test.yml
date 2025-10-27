@@ -40,7 +40,8 @@ jobs:
     name: Build (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      GRADLE_SCAN: "false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -73,7 +74,7 @@ jobs:
       - name: Download dependencies
         run: |
           echo "📥 Downloading Gradle dependencies..."
-          ./gradlew dependencies --no-scan || {
+          ./gradlew dependencies || {
             echo "❌ Failed to download dependencies"
             exit 1
           }
@@ -82,8 +83,8 @@ jobs:
       - name: Build project (without tests)
         run: |
           echo "🔨 Building project..."
-          ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
-          ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
+          ./gradlew clean || { echo "❌ Clean failed"; exit 1; }
+          ./gradlew assemble || { echo "❌ Assemble failed"; exit 1; }
           echo "✅ Project built successfully"
 
       - name: Collect build artifacts
@@ -122,7 +123,8 @@ jobs:
     needs: build
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      GRADLE_SCAN: "false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -160,7 +162,7 @@ jobs:
       - name: Run tests
         run: |
           echo "🧪 Running tests..."
-          ./gradlew test --no-scan --continue || {
+          ./gradlew test --continue || {
             echo "⚠️ Some tests failed, but continuing"
             echo "Test failures are not blocking the pipeline"
           }
@@ -170,7 +172,7 @@ jobs:
         if: always()
         run: |
           echo "📊 Generating aggregated coverage and test reports..."
-          ./gradlew testAndCoverage --no-scan --no-configuration-cache || {
+          ./gradlew testAndCoverage --no-configuration-cache || {
             echo "❌ Failed to generate reports"
             exit 1
           }
@@ -207,7 +209,8 @@ jobs:
     needs: build
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      GRADLE_SCAN: "false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -263,7 +266,8 @@ jobs:
     needs: build
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      GRADLE_SCAN: "false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -313,7 +317,8 @@ jobs:
     if: failure() || success()
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      GRADLE_SCAN: "false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -346,7 +351,7 @@ jobs:
       - name: Verify coverage thresholds
         run: |
           echo "🎯 Verifying coverage thresholds..."
-          ./gradlew testCodeCoverageVerification --no-scan --no-configuration-cache -x testCodeCoverageReport || {
+          ./gradlew testCodeCoverageVerification --no-configuration-cache -x testCodeCoverageReport || {
             echo "❌ Coverage thresholds not met"
             echo "Please check the coverage report and add more tests"
             exit 1
