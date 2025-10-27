@@ -115,18 +115,17 @@ jobs:
         id: generate_changelog
         if: ${{ !inputs.publish_snapshot }}
         run: |
-          echo "## Changelog\n\n" > ${{ runner.temp }}/changelog.txt
-          python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }}" > ${{ runner.temp }}/changelog.txt
-          cat ${{ runner.temp }}/changelog.txt
+          echo "## Changelog\n\n" > ${{ github.workspace }}-CHANGELOG.txt
+          python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }}" >> ${{ github.workspace }}-CHANGELOG.txt
+          cat ${{ github.workspace }}-CHANGELOG.txt
       - name: Create Draft Release
         id: create_release
         if: ${{ !inputs.publish_snapshot }}
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ inputs.release_version }}"
-          release_name: Release ${{ inputs.release_version }}
-          body_path: "${{ runner.temp }}/changelog.txt"
+          name: Release ${{ inputs.release_version }}
+          body_path: ${{ github.workspace }}-CHANGELOG.txt
           draft: true # Set to true to create a draft release
           prerelease: false # Set to true if it's a prerelease
+          generate_release_notes: false

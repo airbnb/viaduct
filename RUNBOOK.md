@@ -68,8 +68,15 @@ Update parameters as needed. This workflow will:
 9. Release manager reviews draft Github release and artifacts published to Sonatype and Gradle. This includes reviewing the changelog.
     - If the release manager rejects the release, start over with an incremented patch version. Once artifacts are published, they may not be changed.
 10. If the release manager is satisfied, manually publish the Sonatype deployments. Make sure to publish all three deployments. Publishing takes 5-10 minutes.
-11. Release manager must verify standalone demo apps against the newly published versions of artifacts in Maven Central and Gradle Plugin Portal.
-    - At their discretion, the release manager uses copybara to update the standalone demo apps.
+    11. Release manager must verify standalone demo apps against the newly published versions of artifacts in Maven Central and Gradle Plugin Portal.
+      - At their discretion, the release manager uses copybara to update the standalone demo apps. From `projects/viaduct/oss` in Treehouse:
+
+        ```shell
+        export IS_RELEASE=true
+        export PUBLISHED_VERSION=0.X.0
+        python3 _infra/scripts/publish_all_demoapps.py
+        ```
+
 12. Release manager manually publishes the Github release.
 
 ### Inbound Pull Request Process
