@@ -35,7 +35,7 @@ jobs:
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["21"]') }}
     runs-on: ${{ matrix.os }}
     name: Build (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
@@ -117,7 +117,7 @@ jobs:
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["21"]') }}
     name: Test (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
@@ -202,7 +202,7 @@ jobs:
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["21"]') }}
     name: detekt (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
@@ -258,7 +258,7 @@ jobs:
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["21"]') }}
     name: ktlint (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
@@ -307,7 +307,7 @@ jobs:
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["21"]') }}
     name: coverage verification (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: test
     if: failure() || success()
