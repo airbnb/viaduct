@@ -114,7 +114,7 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
     }
 
     @Test
-    fun `checkAll -- roundtrips objects and input objects`() {
+    fun `checkAll -- roundTrips objects and input objects`() {
         val schema = mkSchema(
             """
                 input Inp { x:Int }
@@ -172,7 +172,6 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
     @Test
     fun `create with custom generator`() {
         val obj = IR.Value.Object("Query", mapOf("x" to IR.Value.Number(1)))
-        val schema = "type Query { x:Int }".asSchema
         val domain = object : Domain<IR.Value.Object> {
             override fun objectToIR(): Bijection<IR.Value.Object, IR.Value.Object> = Bijection(::checkAndPass, ::checkAndPass)
 

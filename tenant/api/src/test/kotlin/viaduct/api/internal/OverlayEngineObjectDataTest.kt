@@ -1,5 +1,6 @@
 package viaduct.api.internal
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -8,6 +9,7 @@ import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.UnsetSelectionException
 import viaduct.engine.api.mocks.MockSchema
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OverlayEngineObjectDataTest {
     private val schema = MockSchema.mk(
         """

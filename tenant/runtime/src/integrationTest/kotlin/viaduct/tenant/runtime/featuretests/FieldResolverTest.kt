@@ -235,7 +235,7 @@ class FieldResolverTest {
         // Records whether onCompleted observed resolversDone already at 0.
         var onCompletedAfterAllFields = false
 
-        val resolversCalled = CountDownLatch(2)
+        CountDownLatch(2)
         FeatureTestBuilder(
             FeatureTestSchemaFixture.sdl,
             instrumentation = object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFetchObject {
@@ -257,7 +257,7 @@ class FieldResolverTest {
             .resolver("Query" to "string1") { "InitialValue" }
             .resolver(
                 "Mutation" to "string1",
-                { ctx: UntypedFieldContext ->
+                { _: UntypedFieldContext ->
                     resolverBegun.incrementAndGet()
                     // Simulate work; then signal completion for this field.
                     sleep(300)
@@ -268,7 +268,7 @@ class FieldResolverTest {
             )
             .resolver(
                 "Mutation" to "string2",
-                { ctx: UntypedFieldContext ->
+                { _: UntypedFieldContext ->
                     resolverBegun.incrementAndGet()
                     // Simulate work; then signal completion for this field.
                     sleep(300)

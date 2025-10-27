@@ -18,7 +18,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core.jvm)
     implementation(libs.viaduct.tenant.runtime)
 
-
     testImplementation(libs.guice)
     testFixturesImplementation(libs.viaduct.engine.api)
     testFixturesImplementation(testFixtures(libs.viaduct.tenant.api))

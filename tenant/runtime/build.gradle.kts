@@ -28,7 +28,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.core.jvm)
 
-
     testFixturesImplementation(libs.viaduct.engine.api)
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
     testFixturesImplementation(libs.viaduct.service.runtime)

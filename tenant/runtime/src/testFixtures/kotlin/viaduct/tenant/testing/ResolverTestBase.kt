@@ -300,7 +300,7 @@ interface ResolverTestBase {
         selections: SelectionSet<T> = mockk<SelectionSet<T>>(),
         contextQueryValues: List<Query> = emptyList()
     ): NodeExecutionContext<T> {
-        val innerCtx = mkNodeExecutionContext(id, selections, requestContext, contextQueryValues)
+        val innerCtx = mkNodeExecutionContext(id, selections, contextQueryValues)
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
 
@@ -317,7 +317,6 @@ interface ResolverTestBase {
             objectValue,
             queryValue,
             arguments,
-            requestContext,
             selections,
             ctxKClass.isSubclassOf(MutationFieldExecutionContext::class),
             contextQueries
@@ -365,7 +364,6 @@ private fun <T : NodeObject> getNodeResolverContextKClass(resolver: NodeResolver
 private fun <T : NodeObject> ResolverTestBase.mkNodeExecutionContext(
     id: GlobalID<T>,
     selections: SelectionSet<T>,
-    requestContext: Any? = null,
     contextQueryValues: List<Query> = emptyList()
 ): NodeExecutionContext<T> {
     val internalContext = context.internal
@@ -432,7 +430,6 @@ private fun ResolverTestBase.mkFieldExecutionContext(
     objectValue: Object,
     queryValue: Query,
     arguments: Arguments,
-    requestContext: Any?,
     selections: SelectionSet<*>,
     mutation: Boolean,
     contextQueryValues: List<Query> = emptyList()
@@ -504,6 +501,7 @@ fun <R, T : ObjectBase.Builder<R>> T.put(
     )
 }
 
+@Suppress("USELESS_CAST")
 private fun <T : CompositeOutput> prebakedResultsOf(results: Map<String, T>) =
     object : PrebakedResults<T> {
         override fun get(selections: SelectionSet<T>): T {
@@ -525,7 +523,6 @@ private fun <T : CompositeOutput> prebakedResultsOf(results: Map<String, T>) =
                 )
             }
 
-            @Suppress("UNCHECKED_CAST")
             return result as T
         }
     }

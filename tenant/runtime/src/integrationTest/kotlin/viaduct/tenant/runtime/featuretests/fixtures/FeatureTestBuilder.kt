@@ -115,6 +115,7 @@ class FeatureTestBuilder(
             resolverName
         )
 
+    @Suppress("UNUSED", "UNUSED_PARAMETER", "UNUSED_VARIABLE")
     fun <
         Ctx : FieldExecutionContext<T, Q, A, O>,
         T : Object,
@@ -336,7 +337,7 @@ class FeatureTestBuilder(
     }
 
     fun build(): FeatureTest {
-        val tenantPackageFinder = TestTenantPackageFinder(packageToResolverBases)
+        TestTenantPackageFinder(packageToResolverBases)
 
         val featureTestTenantAPIBootstrapperBuilder = FeatureTestTenantAPIBootstrapperBuilder(
             resolverStubs,

@@ -42,15 +42,15 @@ class MockNodeEngineObjectData(
     override val id: String,
     override val graphQLObjectType: GraphQLObjectType,
 ) : NodeEngineObjectData, NodeReference {
-    override suspend fun fetch(selection: String): Any? = idOrThrow(selection)
+    override suspend fun fetch(selection: String): Any = idOrThrow(selection)
 
-    override suspend fun fetchOrNull(selection: String): Any? = idOrThrow(selection)
+    override suspend fun fetchOrNull(selection: String): Any = idOrThrow(selection)
 
     override suspend fun fetchSelections(): Iterable<String> {
         throw UnsupportedOperationException()
     }
 
-    private suspend fun idOrThrow(selection: String): Any? {
+    private fun idOrThrow(selection: String): Any {
         if (selection == "id") {
             return id
         }
@@ -136,6 +136,7 @@ open class MockResolverExecutionContext(
         return queryResults.get(selections as SelectionSet<Query>) as T
     }
 
+    @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun <T : NodeObject> nodeFor(globalID: GlobalID<T>): T {
         val id = globalIDCodec.serialize(globalID)
         val graphqlObjectType = schema.schema.getObjectType(globalID.type.name)
@@ -154,6 +155,7 @@ open class MockResolverExecutionContext(
     }
 }
 
+@Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 class MockFieldExecutionContext<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(
     override val objectValue: T,
     override val queryValue: Q,
@@ -167,6 +169,7 @@ class MockFieldExecutionContext<T : Object, Q : Query, A : Arguments, O : Compos
     override fun selections() = selectionsValue
 }
 
+@Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 class MockMutationFieldExecutionContext<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(
     override val objectValue: T,
     override val queryValue: Q,
@@ -186,6 +189,7 @@ class MockMutationFieldExecutionContext<T : Object, Q : Query, A : Arguments, O 
     }
 }
 
+@Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 class MockNodeExecutionContext<T : NodeObject>(
     override val id: GlobalID<T>,
     private val selectionsValue: SelectionSet<T>,
@@ -195,12 +199,4 @@ class MockNodeExecutionContext<T : NodeObject>(
 ) : MockResolverExecutionContext(internalContext, queryResults, selectionSetFactory),
     NodeExecutionContext<T> {
     override fun selections() = selectionsValue
-}
-
-// Helper function to create a consistent key for SelectionSet lookup
-private fun createSelectionSetKey(selectionSet: SelectionSet<*>): String {
-    return when (selectionSet) {
-        SelectionSet.NoSelections -> "NoSelections"
-        else -> selectionSet.toString()
-    }
 }

@@ -51,7 +51,6 @@ class AccessCheckExecutionTest {
         private val booType = schema.schema.getObjectType("Boo")
         private val bazType = schema.schema.getObjectType("Baz")
         private val barType = schema.schema.getObjectType("Bar")
-        private val queryType = schema.schema.getObjectType("Query")
     }
 
     @Test
@@ -412,7 +411,7 @@ class AccessCheckExecutionTest {
         MockTenantModuleBootstrapper(schema) {
             field("Query" to "boo") {
                 resolver {
-                    fn { _, _, _, _, ctx -> mkEngineObjectData(booType, mapOf("value" to 2)) }
+                    fn { _, _, _, _, _ -> mkEngineObjectData(booType, mapOf("value" to 2)) }
                 }
                 checker {
                     fn { _, _ -> /* access granted */ }

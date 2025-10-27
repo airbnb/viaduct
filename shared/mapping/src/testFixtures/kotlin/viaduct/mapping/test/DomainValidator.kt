@@ -43,7 +43,7 @@ class DomainValidator<From, To> private constructor(
     ) {
         runBlocking {
             val random = randomSource()
-            fromGen.take(iter, random)
+            valueGen.take(iter, random)
                 .forEach { from ->
                     checkOrThrow(from, random.seed)
                 }

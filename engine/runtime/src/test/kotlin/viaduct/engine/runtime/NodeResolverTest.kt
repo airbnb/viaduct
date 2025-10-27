@@ -341,7 +341,7 @@ class NodeResolverTest {
                 }
             }
             type("Baz") {
-                nodeUnbatchedExecutor { id, _, _ ->
+                nodeUnbatchedExecutor { _, _, _ ->
                     execCount.incrementAndGet()
                     mkEngineObjectData(objectType, mapOf("x" to 10))
                 }
@@ -349,7 +349,7 @@ class NodeResolverTest {
             field("Baz" to "x2") {
                 resolver {
                     querySelections("baz { x }")
-                    fn { _, _, queryValue, _, ctx ->
+                    fn { _, _, queryValue, _, _ ->
                         (queryValue.fetch("baz") as EngineObjectData).fetch("x")
                     }
                 }

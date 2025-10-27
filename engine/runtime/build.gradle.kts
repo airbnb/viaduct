@@ -40,7 +40,6 @@ dependencies {
     testFixturesApi(libs.viaduct.service.api)
     testFixturesApi(libs.viaduct.shared.arbitrary)
 
-
     testFixturesImplementation(libs.caffeine)
     testFixturesImplementation(libs.checker.qual)
     testFixturesImplementation(libs.graphql.java.extension)
