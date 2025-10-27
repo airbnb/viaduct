@@ -114,7 +114,7 @@ jobs:
           path: build/
 
   test:
-    runs-on: ${{ inputs.os || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
@@ -200,7 +200,7 @@ jobs:
           path: build/reports
 
   detekt:
-    runs-on: ${{ inputs.os || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
@@ -257,7 +257,7 @@ jobs:
           path: '**/build/reports/detekt/**/*'
 
   ktlint:
-    runs-on: ${{ inputs.os || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
@@ -307,7 +307,7 @@ jobs:
           echo "✅ Ktlint formatting check passed"
 
   coverage-verification:
-    runs-on: ${{ inputs.os || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
