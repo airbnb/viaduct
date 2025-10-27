@@ -1,3 +1,4 @@
+# tag::viaduct-plugins[3] Add viaduct plugins with refs in toml
 [plugins]
 viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }

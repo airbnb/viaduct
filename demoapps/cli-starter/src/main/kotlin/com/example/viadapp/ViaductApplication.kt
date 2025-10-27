@@ -1,4 +1,5 @@
 @file:Suppress("ForbiddenImport")
+// tag::application-kt[51] Setup of the main application to create and execute viaduct.
 
 package com.example.viadapp
 
@@ -16,6 +17,7 @@ fun main(argv: Array<String>) {
     rootLogger.level = Level.ERROR
 
     // Create a Viaduct engine using the BasicViaductFactory
+    // tag::building-viaduct[5] Building viaduct from BasicViaductFactory
     val viaduct = BasicViaductFactory.create(
         tenantRegistrationInfo = TenantRegistrationInfo(
             tenantPackagePrefix = "com.example.viadapp"
@@ -23,6 +25,7 @@ fun main(argv: Array<String>) {
     )
 
     // Create an execution input
+    // tag::create-execution-input[12] Creating an execution input
     val executionInput = ExecutionInput.create(
         operationText = (
             argv.getOrNull(0)
@@ -36,6 +39,7 @@ fun main(argv: Array<String>) {
     )
 
     // Run the query
+    // tag::viaduct-execute-operation[3] Execute a query through Viaduct.
     val result = runBlocking {
         viaduct.execute(executionInput)
     }
