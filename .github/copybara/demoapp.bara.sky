@@ -1,0 +1,48 @@
+# Unified Copybara configuration for publishing Viaduct demo apps
+# This config is parameterized and used by all demo apps
+#
+# Expected CLI arguments:
+#   - DEMOAPP_NAME: Name of the demo app subdirectory (e.g., "starwars")
+#   - SOURCE_REPO: Source repository URL (e.g., "file:///path/to/repo")
+#   - DESTINATION_REPO: Destination repository URL (passed via --git-destination-url)
+
+sourceUrl = core.get_config("SOURCE_REPO")
+demoappName = core.get_config("DEMOAPP_NAME")
+
+core.workflow(
+    name = "airbnb-viaduct-to-" + demoappName,
+    origin = git.origin(
+        url = sourceUrl,
+        ref = "HEAD",
+    ),
+    destination = git.destination(
+        url = core.get_config("DESTINATION_REPO"),
+        fetch = "main",
+        push = "main",
+    ),
+    origin_files = glob(["demoapps/" + demoappName + "/**"], exclude = [
+        # Exclude build artifacts
+        "demoapps/" + demoappName + "/build/**",
+        "demoapps/" + demoappName + "/.gradle/**",
+
+        # Exclude IDE files
+        "demoapps/" + demoappName + "/.idea/**",
+        "demoapps/" + demoappName + "/.settings/**",
+        "demoapps/" + demoappName + "/.classpath",
+        "demoapps/" + demoappName + "/.project",
+        "demoapps/" + demoappName + "/bin/**",
+
+        # Exclude local database files
+        "demoapps/" + demoappName + "/**/*.db",
+        "demoapps/" + demoappName + "/**/*.db-journal",
+    ]),
+    destination_files = glob(["**"], exclude = [
+        ".git/**",
+    ]),
+    authoring = authoring.pass_thru("ViaBot <viabot@ductworks.io>"),
+    mode = "SQUASH",
+    transformations = [
+        # Move files from demoapps/<name>/ to root
+        core.move("demoapps/" + demoappName, ""),
+    ],
+)
