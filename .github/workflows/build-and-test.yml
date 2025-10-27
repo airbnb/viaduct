@@ -2,17 +2,45 @@ name: Build and Test (Gradle)
 
 on:
   workflow_dispatch:
+    inputs:
+      java_versions:
+        description: "Java versions to run (array, e.g. [11,17,21])"
+        required: false
+        default: "[11,17,21]"
+      os:
+        description: "Select operating system"
+        required: false
+        type: choice
+        options:
+          - ubuntu-latest
+          - ubuntu-24.04
+          - ubuntu-22.04
+          - ubuntu-24.04-arm
+          - ubuntu-22.04-arm
+          - macos-latest
+          - macos-26
+          - macos-15-intel 
+          - macos-15
+          - macos-13
+          - macos-14      
+        default: ubuntu-latest
   push:
     branches: [main]
   pull_request:
+    branches:
+      - main
 
-jobs:
+jobs: 
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+    runs-on: ${{ matrix.os }}
+    name: Build (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
+      GRADLE_SCAN: "false"
     steps:
       - uses: actions/checkout@v4
 
@@ -24,12 +52,12 @@ jobs:
           fi
           chmod +x ./gradlew
           echo "✅ Gradle wrapper ready"
-
+          
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: ${{ matrix.java }}
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -45,7 +73,7 @@ jobs:
       - name: Download dependencies
         run: |
           echo "📥 Downloading Gradle dependencies..."
-          ./gradlew dependencies || {
+          ./gradlew dependencies --no-scan || {
             echo "❌ Failed to download dependencies"
             exit 1
           }
@@ -54,8 +82,8 @@ jobs:
       - name: Build project (without tests)
         run: |
           echo "🔨 Building project..."
-          ./gradlew clean || { echo "❌ Clean failed"; exit 1; }
-          ./gradlew assemble || { echo "❌ Assemble failed"; exit 1; }
+          ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
+          ./gradlew assemble --no-scan || { echo "❌ Assemble failed"; exit 1; }
           echo "✅ Project built successfully"
 
       - name: Collect build artifacts
@@ -81,16 +109,20 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: build
+          name: build-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.os || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+    name: Test (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
+      GRADLE_SCAN: "false"
     steps:
       - uses: actions/checkout@v4
 
@@ -105,14 +137,14 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: build
+          name: build-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/
-
+          
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: ${{ matrix.java }}
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -128,7 +160,7 @@ jobs:
       - name: Run tests
         run: |
           echo "🧪 Running tests..."
-          ./gradlew test --continue || {
+          ./gradlew test --no-scan --continue || {
             echo "⚠️ Some tests failed, but continuing"
             echo "Test failures are not blocking the pipeline"
           }
@@ -138,7 +170,7 @@ jobs:
         if: always()
         run: |
           echo "📊 Generating aggregated coverage and test reports..."
-          ./gradlew testAndCoverage --no-configuration-cache || {
+          ./gradlew testAndCoverage --no-scan --no-configuration-cache || {
             echo "❌ Failed to generate reports"
             exit 1
           }
@@ -148,30 +180,34 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-results
+          name: junit-results-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/test-results-for-circleci
 
       - name: Upload JaCoCo coverage reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-reports
+          name: coverage-reports-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/reports/jacoco
 
       - name: Upload all reports (for debugging)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: all-reports
+          name: all-reports-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/reports
 
   detekt:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.os || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+    name: detekt (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
+      GRADLE_SCAN: "false"
     steps:
       - uses: actions/checkout@v4
 
@@ -188,7 +224,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: ${{ matrix.java }}
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -214,16 +250,20 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: detekt-reports
+          name: detekt-reports-java-${{ matrix.java }}-${{ matrix.os }}
           path: '**/build/reports/detekt/**/*'
 
   ktlint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.os || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+    name: ktlint (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
+      GRADLE_SCAN: "false"
     steps:
       - uses: actions/checkout@v4
 
@@ -240,7 +280,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: ${{ matrix.java }}
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -263,12 +303,17 @@ jobs:
           echo "✅ Ktlint formatting check passed"
 
   coverage-verification:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.os || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["11","17","21"]') }}
+    name: coverage verification (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: test
+    if: failure() || success()
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
+      GRADLE_SCAN: "false"
     steps:
       - uses: actions/checkout@v4
 
@@ -285,7 +330,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: ${{ matrix.java }}
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -301,10 +346,59 @@ jobs:
       - name: Verify coverage thresholds
         run: |
           echo "🎯 Verifying coverage thresholds..."
-          ./gradlew testCodeCoverageVerification --no-configuration-cache -x testCodeCoverageReport || {
+          ./gradlew testCodeCoverageVerification --no-scan --no-configuration-cache -x testCodeCoverageReport || {
             echo "❌ Coverage thresholds not met"
             echo "Please check the coverage report and add more tests"
             exit 1
           }
           echo "✅ Coverage thresholds met successfully"
 
+  slack-alerts:
+    runs-on: ubuntu-latest
+    needs: [build, test, detekt, ktlint, coverage-verification]
+    if: always()
+    steps:
+      - name: Detect failed job and step
+        id: check_failures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=${{ github.run_id }}
+
+          failed_jobs=$(gh api repos/${{ github.repository }}/actions/runs/$run_id/jobs \
+            --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
+
+          failed_steps=$(gh api repos/${{ github.repository }}/actions/runs/$run_id/jobs \
+            --jq '[.jobs[] | select(.conclusion=="failure") | .steps[] | select(.conclusion=="failure") | .name] | join(", ")')
+
+          alert_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          echo "failed_jobs=$failed_jobs" >> "$GITHUB_OUTPUT"
+          echo "failed_steps=$failed_steps" >> "$GITHUB_OUTPUT"
+          echo "alert_time=$alert_time" >> "$GITHUB_OUTPUT"
+
+      - name: Post formatted failure alert to Slack
+        if: ${{ steps.check_failures.outputs.failed_jobs != '' }}
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: |
+              :x: *GitHub Actions Pipeline Failure*
+              > *${{ github.workflow }}* (#${{ github.run_number }}) in repository: `${{ github.event.repository.name }}`
+
+              ```
+              ❗ Description  : One or more jobs failed
+              🧩 Failed Jobs  : ${{ steps.check_failures.outputs.failed_jobs }}
+              🧱 Failed Step  : ${{ steps.check_failures.outputs.failed_steps }}
+              🌿 Branch       : ${{ github.ref_name }}
+              🧑‍💻 Actor        : ${{ github.actor }}
+              🔢 Commit SHA   : ${{ github.sha }}
+              🕒 Time         : ${{ steps.check_failures.outputs.alert_time }}
+              ```
+
+              *Links:*
+              • 🔗 [Repository](${{ github.server_url }}/${{ github.repository }})
+              • 🚀 [Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
