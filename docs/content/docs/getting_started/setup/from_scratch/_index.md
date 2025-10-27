@@ -67,7 +67,7 @@ Create `src/main/kotlin/com/example/viadapp/resolvers/HelloWorldResolvers.kt`:
 
 {{< codetag path="demoapps/cli-starter/src/main/kotlin/com/example/resolvers/HelloWorldResolvers.kt" tag="resolvers-setup">}}
 
-### Building adn running the Application
+### Building and running the Application
 
 Build your application:
 
