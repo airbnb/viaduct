@@ -6,7 +6,7 @@ on:
       java_versions:
         description: "Java versions to run (array, e.g. [11,17,21])"
         required: false
-        default: "[11,17,21]"
+        default: "[21]"
       os:
         description: "Select operating system"
         required: false
