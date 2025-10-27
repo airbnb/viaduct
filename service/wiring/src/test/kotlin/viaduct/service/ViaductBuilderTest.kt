@@ -80,7 +80,7 @@ class ViaductBuilderTest {
 
     @Test
     fun testWithResolverErrorReporter() {
-        val errorReporter = ResolverErrorReporter { exception, fieldDefinition, dataFetchingEnvironment, errorMessage, metadata ->
+        val errorReporter = ResolverErrorReporter { _, _, _, _, _ ->
             // No-op for testing
         }
         val schemaConfiguration = SchemaConfiguration.fromSchema(
@@ -233,7 +233,7 @@ class ViaductBuilderTest {
     fun testBuilderReturnsCorrectInstance() {
         val meterRegistry = SimpleMeterRegistry()
         val builder = ViaductBuilder()
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
+        SchemaConfiguration.fromSchema(
             schema,
             scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
         )

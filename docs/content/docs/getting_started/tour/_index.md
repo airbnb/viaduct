@@ -28,12 +28,7 @@ You can see that a Viaduct application is a Gradle project. Let's examine each k
 
 Here's what you'll see in the schema:
 
-```graphql
-extend type Query {
-  greeting: String @resolver
-  author: String @resolver
-}
-```
+{{< codetag path="demoapps/cli-starter/src/main/viaduct/schema/schema.graphqls" tag="schema-config">}}
 
 Viaduct itself has built-in definitions for the root GraphQL types `Query` and `Mutation` (Viaduct doesn't yet support subscriptions). Since `Query` is built-in, application code should extend it as illustrated above.
 
@@ -45,49 +40,21 @@ You'll notice that both fields have `@resolver` applied to them, meaning that a 
 
 ### 1. Creating the Viaduct Engine
 
-```kotlin
-val viaduct = BasicViaductFactory.create(
-    schemaRegistrationInfo = SchemaRegistrationInfo(
-        scopes = listOf(SchemaScopeInfo(SCHEMA_ID))
-    ),
-    tenantRegistrationInfo = TenantRegistrationInfo(
-        tenantPackagePrefix = "com.example.viadapp"
-    )
-)
-```
+{{< codetag path="demoapps/cli-starter/src/main/kotlin/com/example/viadapp/ViaductApplication.kt" tag="building-viaduct">}}
 
 This creates an instance of the Viaduct engine. The `SchemaRegistrationInfo` defines which schemas are available (in this case, our "helloworld" schema), and the `TenantRegistrationInfo` tells Viaduct where to find your resolver code.
 
 ### 2. Preparing the Query
 
-```kotlin
-val executionInput = ExecutionInput.create(
-    schemaId = SCHEMA_ID,
-    operationText = (
-        argv.getOrNull(0)
-            ?: """
-                 query {
-                     greeting
-                 }
-            """.trimIndent()
-    ),
-    variables = emptyMap(),
-)
-```
+
+{{< codetag path="demoapps/cli-starter/src/main/kotlin/com/example/viadapp/ViaductApplication.kt" tag="create-execution-input">}}
 
 This creates an `ExecutionInput` that wraps the GraphQL query to be executed. It takes the query from command-line arguments, or uses a default query if none is provided.
 
 ### 3. Executing the Query
 
-```kotlin
-val result = runBlocking {
-    coroutineScope {
-        withThreadLocalCoroutineContext {
-            viaduct.execute(executionInput)
-        }
-    }
-}
-```
+
+{{< codetag path="demoapps/cli-starter/src/main/kotlin/com/example/viadapp/ViaductApplication.kt" tag="viaduct-execute-operation">}}
 
 This sends the query to the Viaduct engine and waits for the result. Viaduct uses Kotlin coroutines for asynchronous execution.
 
@@ -97,14 +64,7 @@ This sends the query to the Viaduct engine and waits for the result. Viaduct use
 
 Each resolver is a class that extends a generated base class and overrides the `resolve` function:
 
-```kotlin
-@Resolver("")
-class GreetingResolver : QueryResolvers.Greeting() {
-    override suspend fun resolve(ctx: Context): String {
-        return "Hello, World!"
-    }
-}
-```
+{{< codetag path="demoapps/cli-starter/src/main/kotlin/com/example/resolvers/HelloWorldResolvers.kt" tag="greeting-resolver">}}
 
 The `@Resolver` annotation specifies which other fields this resolver depends on (in this case, none, so it's an empty string).
 
@@ -112,14 +72,8 @@ The `@Resolver` annotation specifies which other fields this resolver depends on
 
 At the top of `build.gradle.kts` you'll see:
 
-```kotlin
-plugins {
-    alias(libs.plugins.kotlinJvm)
-    alias(libs.plugins.viaduct.application)
-    alias(libs.plugins.viaduct.module)
-    application
-}
-```
+
+{{< codetag path="demoapps/cli-starter/build.gradle.kts" tag="plugins-config">}}
 
 You can see the two Viaduct plugins appearing here:
 

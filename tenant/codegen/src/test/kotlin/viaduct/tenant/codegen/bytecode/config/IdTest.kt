@@ -29,16 +29,14 @@ class IdTest {
         fieldName: String,
         expectedReg: String,
         expectedIn: String? = null,
-        idOf: String? = null,
     ) {
-        val grtTypeName = idOf ?: typeName
         val field = schema.field(typeName, fieldName)
         field.assertKotlinTypeString(expectedReg, pkg = pkgName, baseTypeMapper = baseTypeMapper)
         field.assertKotlinTypeString(expectedIn ?: expectedReg, pkg = pkgName, isInput = true, baseTypeMapper = baseTypeMapper)
     }
 
     @Test
-    fun `TypeDef_isID`() =
+    fun `TypeDef isID`() =
         myWithSchema(
             """
             scalar ID
@@ -147,19 +145,18 @@ class IdTest {
             check("Object", "f3", "kotlin.collections.List<kotlin.String?>?")
             check("Object", "f4", "kotlin.collections.List<kotlin.String>")
 
-            check("Object", "f5", "${GlobalID("MyNode")}?", idOf = "MyNode")
-            check("Object", "f6", "${GlobalID("MyNode")}", idOf = "MyNode")
-            check("Object", "f7", "kotlin.collections.List<${GlobalID("MyNode")}?>?", "kotlin.collections.List<out ${GlobalID("MyNode")}?>?", idOf = "MyNode")
-            check("Object", "f8", "kotlin.collections.List<${GlobalID("MyNode")}>", "kotlin.collections.List<out ${GlobalID("MyNode")}>", idOf = "MyNode")
+            check("Object", "f5", "${GlobalID("MyNode")}?")
+            check("Object", "f6", "${GlobalID("MyNode")}")
+            check("Object", "f7", "kotlin.collections.List<${GlobalID("MyNode")}?>?", "kotlin.collections.List<out ${GlobalID("MyNode")}?>?")
+            check("Object", "f8", "kotlin.collections.List<${GlobalID("MyNode")}>", "kotlin.collections.List<out ${GlobalID("MyNode")}>")
 
-            check("Object", "f9", "${GlobalID("MyInterface")}?", "${GlobalOutID("MyInterface")}?", idOf = "MyInterface")
-            check("Object", "fA", "${GlobalID("MyInterface")}", "${GlobalOutID("MyInterface")}", idOf = "MyInterface")
+            check("Object", "f9", "${GlobalID("MyInterface")}?", "${GlobalOutID("MyInterface")}?")
+            check("Object", "fA", "${GlobalID("MyInterface")}", "${GlobalOutID("MyInterface")}")
             check(
                 "Object",
                 "fB",
                 "kotlin.collections.List<${GlobalID("MyInterface")}?>?",
                 "kotlin.collections.List<out ${GlobalOutID("MyInterface")}?>?",
-                idOf = "MyInterface"
             )
         }
 

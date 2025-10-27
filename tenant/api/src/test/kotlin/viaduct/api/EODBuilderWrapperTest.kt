@@ -254,6 +254,7 @@ class EODBuilderWrapperTest {
     }
 
     @Test
+    @Suppress("USELESS_CAST")
     fun `put handles multiple fields including enum`() {
         val wrapper = EODBuilderWrapper(testObjectType, globalIDCodec)
 

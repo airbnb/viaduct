@@ -14,7 +14,6 @@ dependencies {
     api(libs.viaduct.shared.viaductschema)
     api(libs.viaduct.shared.mapping)
 
-
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.utils)
     implementation(libs.kotest.common.jvm)

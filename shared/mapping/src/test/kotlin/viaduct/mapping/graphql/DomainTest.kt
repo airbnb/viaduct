@@ -6,6 +6,7 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.take
 import io.kotest.property.forAll
+import java.util.Locale.getDefault
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -101,14 +102,11 @@ object TestDomain1 : Domain<TestDomain1.Value.Object> {
     private fun toIRObject(obj: Value.Object): IR.Value.Object {
         // example of name transformations
         val newName = obj.name.lowercase()
-        val newFields = obj.fields.mapValues { (n, v) -> toIR(n, v) }
+        val newFields = obj.fields.mapValues { (_, v) -> toIR(v) }
         return IR.Value.Object(newName, newFields)
     }
 
-    private fun toIR(
-        fieldName: String,
-        value: Value
-    ): IR.Value =
+    private fun toIR(value: Value): IR.Value =
         when (value) {
             is Value.Char -> IR.Value.Number(value.value.code)
             is Value.Int -> IR.Value.Number(value.value)
@@ -117,7 +115,7 @@ object TestDomain1 : Domain<TestDomain1.Value.Object> {
 
     private fun fromIRObject(ir: IR.Value.Object): Value.Object {
         // unwind name transformation
-        val newName = ir.name.capitalize()
+        val newName = ir.name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(getDefault()) else it.toString() }
         val newFields = ir.fields.mapValues { (n, v) -> fromIR(n, v) }
 
         return Value.Object(newName, newFields)

@@ -8,6 +8,7 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldComplete
 import graphql.schema.DataFetcher
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -66,6 +67,7 @@ class ViaductExecutionStrategyTest {
     // are I/O-bound (database queries, API calls), giving plenty of time for all loads to register
     // before any batch completes. The batching logic being tested here is identical regardless of
     // thread count - we're just eliminating timing variance in the test fixture.
+    @OptIn(ObsoleteCoroutinesApi::class)
     val nextTickDispatcher = NextTickDispatcher(
         wrappedDispatcher = kotlinx.coroutines.newSingleThreadContext("test-dispatcher"),
         flagManager = FlagManager.disabled

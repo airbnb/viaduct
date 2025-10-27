@@ -72,7 +72,7 @@ class ContextFactoryFeatureAppTest : FeatureAppTestBase() {
 
         @Variables("var: Int!")
         class VarProvider : VariablesProvider<Arguments> {
-            override suspend fun provide(ctx: VariablesProviderContext<Arguments>) = mapOf("var" to ctx.requestContext)
+            override suspend fun provide(context: VariablesProviderContext<Arguments>) = mapOf("var" to context.requestContext)
         }
     }
 

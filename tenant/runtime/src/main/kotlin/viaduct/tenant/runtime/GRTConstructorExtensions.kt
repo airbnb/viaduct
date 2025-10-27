@@ -85,7 +85,7 @@ fun <T : InputLike> Map<String, Any?>.toInputLikeGRT(
  * conforms to the signature required for that kind of GRT.
  * For [FakeGRT]s all checks are skipped (useful for testing).
  */
-fun <T : Any> KFunction<T>.requireValidGRTConstructorFor(kcls: KClass<out T>,): KFunction<T> {
+fun <T : Any> KFunction<T>.requireValidGRTConstructorFor(kcls: KClass<out T>): KFunction<T> {
     val kind = when {
         kcls.isSubclassOf(Object::class) -> Object::class
         kcls.isSubclassOf(InputLike::class) -> InputLike::class

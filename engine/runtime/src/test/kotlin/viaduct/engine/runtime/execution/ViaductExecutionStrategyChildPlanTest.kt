@@ -89,7 +89,7 @@ class ViaductExecutionStrategyChildPlanTest {
                         "name" to DataFetcher { env ->
                             env.getSource<Map<String, Any>>()!!["name"]
                         },
-                        "details" to DataFetcher { env ->
+                        "details" to DataFetcher { _ ->
                             // childPlanExecutionStepInfos.add(env.executionStepInfo)
                             "Entity details"
                         },

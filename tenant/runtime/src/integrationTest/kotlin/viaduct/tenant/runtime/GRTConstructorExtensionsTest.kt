@@ -73,7 +73,7 @@ class GRTConstructorExtensionsTest {
             "name" to "John Doe",
             "email" to "john@example.com"
         )
-        val inputType = schema.schema.getType("CreateUserInput") as graphql.schema.GraphQLInputObjectType
+        schema.schema.getType("CreateUserInput") as graphql.schema.GraphQLInputObjectType
         val input = data.toInputLikeGRT(internalContext, CreateUserInput::class)
         assertInstanceOf(CreateUserInput::class.java, input)
     }

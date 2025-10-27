@@ -33,7 +33,7 @@ import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
-@Suppress("UNUSED_PARAMETER")
+@Suppress("UNUSED_PARAMETER", "UNCHECKED_CAST")
 class FieldUnbatchedResolverStub<Ctx : FieldExecutionContext<*, *, *, *>>(
     val objectSelections: ParsedSelections? = null,
     val querySelections: ParsedSelections? = null,

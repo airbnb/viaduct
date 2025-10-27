@@ -56,8 +56,6 @@ class NodeReferenceFactoryImplTest {
 
     private fun createDefaultNodeReference(
         globalIDImpl: GlobalIDImpl<out NodeObject>,
-        resolver: () -> Unit = {},
-        fetcher: () -> Any? = { "user" },
         graphqlObjectType: GraphQLObjectType = GlobalIdFeatureAppTest.schema.schema.getObjectType(globalIDImpl.type.name),
         globalIDCodec: GlobalIDCodec = MockGlobalIDCodec(),
     ): NodeReference {
@@ -93,7 +91,7 @@ class NodeReferenceFactoryImplTest {
         val invalidNameUserType = MockType("TypeThatDoesNotExist", User::class)
         val globalId = GlobalIDImpl(invalidNameUserType, "123")
 
-        val defaultNodeEngineObjectData = createDefaultNodeReference(
+        createDefaultNodeReference(
             globalId,
             graphqlObjectType = GraphQLObjectType.newObject().name("FakeObject").build()
         )
