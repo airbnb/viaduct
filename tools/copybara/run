@@ -3,11 +3,6 @@
 # This script runs Copybara via Gradle, which downloads it from Maven Central
 #
 # Usage: tools/copybara/run [copybara arguments]
-#
-# This mimics the Bazel-based approach from Treehouse where:
-# 1. Copybara is fetched from Maven Central (similar to Bazel's @com_github_google_copybara//jar)
-# 2. Runs from the repository root (similar to run_in_workspace_root_binary)
-# 3. Executes com.google.copybara.Main as a Java binary
 
 set -e
 
@@ -17,7 +12,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Navigate to repository root (two levels up from tools/copybara/)
 REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 
-# Change to repository root to match Bazel's run_in_workspace_root behavior
+# Change to repository root
 cd "$REPO_ROOT"
 
 # Export REPO_ROOT so copybara config can use it if needed
