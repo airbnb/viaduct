@@ -28,7 +28,9 @@ on:
           - windows-2019
         default: ubuntu-latest
   push:
-    branches: [main]
+    branches:
+      - main
+      - wphillips/complex_shell_test
   pull_request:
     branches:
       - main
