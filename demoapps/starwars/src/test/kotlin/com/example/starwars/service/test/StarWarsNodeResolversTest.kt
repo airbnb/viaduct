@@ -1,18 +1,13 @@
 package com.example.starwars.service.test
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldNotBeEmpty
+import io.micronaut.http.client.HttpClient
+import io.micronaut.http.client.annotation.Client
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest
+import jakarta.inject.Inject
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.client.TestRestTemplate
-import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
 import viaduct.api.grts.Character
 import viaduct.api.grts.Film
 import viaduct.api.grts.Planet
@@ -22,31 +17,11 @@ import viaduct.api.grts.Vehicle
 /**
  * Tests for verifying Node and Nodes query functionality in the Star Wars GraphQL API.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@MicronautTest
 class StarWarsNodeResolversTest {
-    @Autowired
-    private lateinit var restTemplate: TestRestTemplate
-
-    @LocalServerPort
-    private var port: Int = 0
-
-    private val objectMapper = ObjectMapper()
-
-    private fun executeGraphQLQuery(query: String): JsonNode {
-        val headers = HttpHeaders()
-        headers.contentType = MediaType.APPLICATION_JSON
-
-        val request = mapOf("query" to query)
-        val entity = HttpEntity(request, headers)
-
-        val response = restTemplate.postForEntity(
-            "http://localhost:$port/graphql",
-            entity,
-            String::class.java
-        )
-
-        return objectMapper.readTree(response.body)
-    }
+    @Inject
+    @field:Client("/")
+    lateinit var client: HttpClient
 
     @Test
     fun `node query resolves Character automatically`() {
@@ -64,21 +39,22 @@ class StarWarsNodeResolversTest {
             }
         """.trimIndent()
 
-        val result = executeGraphQLQuery(query)
+        val result = client.executeGraphQLQuery(query)
 
         // Verify no errors
-        assertTrue(result.get("errors")?.isNull ?: true, "Query should not have errors")
+        val errors = result.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val character = result.get("data").get("node")
-        assertNotNull(character, "Character should be found")
-        assertEquals("Luke Skywalker", character.get("name").asText())
-        assertEquals("19BBY", character.get("birthYear").asText())
-        assertEquals("blue", character.get("eyeColor").asText())
+        character shouldNotBe null
+        character.get("name").asText() shouldBe "Luke Skywalker"
+        character.get("birthYear").asText() shouldBe "19BBY"
+        character.get("eyeColor").asText() shouldBe "blue"
 
         // The id field should contain the GlobalID
         val returnedId = character.get("id").asText()
-        assertNotNull(returnedId, "Character ID should be present")
-        assertTrue(returnedId.isNotEmpty(), "Character ID should not be empty")
+        returnedId shouldNotBe null
+        returnedId.shouldNotBeEmpty()
     }
 
     @Test
@@ -97,21 +73,22 @@ class StarWarsNodeResolversTest {
             }
         """.trimIndent()
 
-        val result = executeGraphQLQuery(query)
+        val result = client.executeGraphQLQuery(query)
 
         // Verify no errors
-        assertTrue(result.get("errors")?.isNull ?: true, "Query should not have errors")
+        val errors = result.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val film = result.get("data").get("node")
-        assertNotNull(film, "Film should be found")
-        assertEquals("A New Hope", film.get("title").asText())
-        assertEquals(4, film.get("episodeID").asInt())
-        assertEquals("George Lucas", film.get("director").asText())
+        film shouldNotBe null
+        film.get("title").asText() shouldBe "A New Hope"
+        film.get("episodeID").asInt() shouldBe 4
+        film.get("director").asText() shouldBe "George Lucas"
 
         // The id field should contain the GlobalID
         val returnedId = film.get("id").asText()
-        assertNotNull(returnedId, "Film ID should be present")
-        assertTrue(returnedId.isNotEmpty(), "Film ID should not be empty")
+        returnedId shouldNotBe null
+        returnedId.shouldNotBeEmpty()
     }
 
     @Test
@@ -130,21 +107,22 @@ class StarWarsNodeResolversTest {
             }
         """.trimIndent()
 
-        val result = executeGraphQLQuery(query)
+        val result = client.executeGraphQLQuery(query)
 
         // Verify no errors
-        assertTrue(result.get("errors")?.isNull ?: true, "Query should not have errors")
+        val errors = result.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val planet = result.get("data").get("node")
-        assertNotNull(planet, "Planet should be found")
-        assertEquals("Tatooine", planet.get("name").asText())
-        assertEquals(10465, planet.get("diameter").asInt())
-        assertEquals(23, planet.get("rotationPeriod").asInt())
+        planet shouldNotBe null
+        planet.get("name").asText() shouldBe "Tatooine"
+        planet.get("diameter").asInt() shouldBe 10465
+        planet.get("rotationPeriod").asInt() shouldBe 23
 
         // The id field should contain the GlobalID
         val returnedId = planet.get("id").asText()
-        assertNotNull(returnedId, "Planet ID should be present")
-        assertTrue(returnedId.isNotEmpty(), "Planet ID should not be empty")
+        returnedId shouldNotBe null
+        returnedId.shouldNotBeEmpty()
     }
 
     @Test
@@ -163,21 +141,22 @@ class StarWarsNodeResolversTest {
             }
         """.trimIndent()
 
-        val result = executeGraphQLQuery(query)
+        val result = client.executeGraphQLQuery(query)
 
         // Verify no errors
-        assertTrue(result.get("errors")?.isNull ?: true, "Query should not have errors")
+        val errors = result.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val species = result.get("data").get("node")
-        assertNotNull(species, "Species should be found")
-        assertEquals("Human", species.get("name").asText())
-        assertEquals("mammal", species.get("classification").asText())
-        assertEquals("sentient", species.get("designation").asText())
+        species shouldNotBe null
+        species.get("name").asText() shouldBe "Human"
+        species.get("classification").asText() shouldBe "mammal"
+        species.get("designation").asText() shouldBe "sentient"
 
         // The id field should contain the GlobalID
         val returnedId = species.get("id").asText()
-        assertNotNull(returnedId, "Species ID should be present")
-        assertTrue(returnedId.isNotEmpty(), "Species ID should not be empty")
+        returnedId shouldNotBe null
+        returnedId.shouldNotBeEmpty()
     }
 
     @Test
@@ -196,21 +175,22 @@ class StarWarsNodeResolversTest {
             }
         """.trimIndent()
 
-        val result = executeGraphQLQuery(query)
+        val result = client.executeGraphQLQuery(query)
 
         // Verify no errors
-        assertTrue(result.get("errors")?.isNull ?: true, "Query should not have errors")
+        val errors = result.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val vehicle = result.get("data").get("node")
-        assertNotNull(vehicle, "Vehicle should be found")
-        assertEquals("Speeder bike", vehicle.get("name").asText())
-        assertEquals("74-Z speeder bike", vehicle.get("model").asText())
-        assertEquals("speeder", vehicle.get("vehicleClass").asText())
+        vehicle shouldNotBe null
+        vehicle.get("name").asText() shouldBe "Speeder bike"
+        vehicle.get("model").asText() shouldBe "74-Z speeder bike"
+        vehicle.get("vehicleClass").asText() shouldBe "speeder"
 
         // The id field should contain the GlobalID
         val returnedId = vehicle.get("id").asText()
-        assertNotNull(returnedId, "Vehicle ID should be present")
-        assertTrue(returnedId.isNotEmpty(), "Vehicle ID should not be empty")
+        returnedId shouldNotBe null
+        returnedId.shouldNotBeEmpty()
     }
 
     @Test
@@ -238,20 +218,21 @@ class StarWarsNodeResolversTest {
             }
         """.trimIndent()
 
-        val result = executeGraphQLQuery(query)
+        val result = client.executeGraphQLQuery(query)
 
         // Verify no errors
-        assertTrue(result.get("errors")?.isNull ?: true, "Query should not have errors")
+        val errors = result.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val nodes = result.get("data").get("nodes")
-        assertNotNull(nodes, "Nodes should be found")
-        assertEquals(3, nodes.size(), "Should return 3 nodes")
+        nodes shouldNotBe null
+        nodes.size() shouldBe 3
 
         // Verify each node has an ID
         for (node in nodes) {
             val id = node.get("id")?.asText()
-            assertNotNull(id, "Each node should have an ID")
-            assertTrue(id!!.isNotEmpty(), "Each node ID should not be empty")
+            id shouldNotBe null
+            id!!.shouldNotBeEmpty()
         }
 
         // Verify we got different types (at least one should have name, one should have title)
@@ -259,8 +240,8 @@ class StarWarsNodeResolversTest {
         val hasFilmTitle = nodes.any { it.has("title") && it.get("title").asText() == "A New Hope" }
         val hasPlanetName = nodes.any { it.has("name") && it.get("name").asText() == "Tatooine" }
 
-        assertTrue(hasCharacterName, "Should include Character with name Luke Skywalker")
-        assertTrue(hasFilmTitle, "Should include Film with title A New Hope")
-        assertTrue(hasPlanetName, "Should include Planet with name Tatooine")
+        hasCharacterName shouldBe true
+        hasFilmTitle shouldBe true
+        hasPlanetName shouldBe true
     }
 }

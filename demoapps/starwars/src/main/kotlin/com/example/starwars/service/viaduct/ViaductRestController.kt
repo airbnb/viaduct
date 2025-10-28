@@ -1,18 +1,15 @@
 package com.example.starwars.service.viaduct
 
 import graphql.ExecutionResult
+import io.micronaut.http.HttpResponse
+import io.micronaut.http.HttpStatus
+import io.micronaut.http.annotation.Body
+import io.micronaut.http.annotation.Controller
+import io.micronaut.http.annotation.Header
+import io.micronaut.http.annotation.Post
 import kotlinx.coroutines.future.await
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
-import org.springframework.web.bind.annotation.RestController
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.Viaduct
 
 /**
  * Query fields in the incoming GraphQL request. By default, GraphQL requests
@@ -36,22 +33,21 @@ private const val SCOPES_HEADER = "X-Viaduct-Scopes"
  * based on the scopes provided in the request headers.
  */
 // tag::viaduct_graphql_controller[18] Viaduct GraphQL Controller
-@RestController
+@Controller
 class ViaductRestController {
-    @Autowired
-    lateinit var viaduct: Viaduct
+    private val viaduct = ViaductInstance.viaduct
 
-    @PostMapping("/graphql")
+    @Post("/graphql")
     suspend fun graphql(
-        @RequestBody request: Map<String, Any>,
-        @RequestHeader headers: HttpHeaders
-    ): ResponseEntity<Map<String, Any>> {
+        @Body request: Map<String, Any>,
+        @Header(SCOPES_HEADER) scopesHeader: String?
+    ): HttpResponse<Map<String, Any>> {
         val executionInput = createExecutionInput(request)
         // tag::run_query[7] Runs the query example
-        val scopes = parseScopes(headers)
+        val scopes = parseScopes(scopesHeader)
         val schemaId = determineSchemaId(scopes)
         val result = viaduct.executeAsync(executionInput, schemaId).await()
-        return ResponseEntity.status(statusCode(result)).body(result.toSpecification())
+        return HttpResponse.status<Map<String, Any>>(statusCode(result)).body(result.toSpecification())
     }
 
     // tag::parse_scopes[7] Parse scopes example
@@ -59,8 +55,7 @@ class ViaductRestController {
     /**
      * Extract the scopes from the request headers. If no scopes are provided, default to [DEFAULT_SCOPE].
      */
-    private fun parseScopes(headers: HttpHeaders): Set<String> {
-        val scopesHeader = headers.getFirst(SCOPES_HEADER)
+    private fun parseScopes(scopesHeader: String?): Set<String> {
         return scopesHeader?.split(",")?.map { it.trim() }?.toSet() ?: setOf(DEFAULT_SCOPE_ID)
     }
 
@@ -86,7 +81,7 @@ class ViaductRestController {
      * Viaduct ExecutionInput is similar to the standard GraphQL ExecutionInput,
      * but includes the schema ID to specify which schema to use for execution.
      */
-    private fun createExecutionInput(request: Map<String, Any>,): ExecutionInput {
+    private fun createExecutionInput(request: Map<String, Any>): ExecutionInput {
         @Suppress("UNCHECKED_CAST")
         return ExecutionInput.create(
             operationText = request[QUERY_FIELD] as String,

@@ -18,7 +18,7 @@ how to implement resolvers, field-level context, pagination, fragments, and mock
 ### Start the demo app
 
 ```bash
-./gradlew bootRun
+./gradlew run
 ```
 
 This will start the server at `http://localhost:8080`.

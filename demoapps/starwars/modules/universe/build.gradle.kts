@@ -9,5 +9,5 @@ viaductModule {
 }
 
 dependencies {
-    implementation(libs.spring.context)
+    // No additional dependencies needed for Micronaut
 }

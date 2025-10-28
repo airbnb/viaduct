@@ -1,18 +1,14 @@
 package com.example.starwars.service.test
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
+import io.micronaut.http.client.HttpClient
+import io.micronaut.http.client.annotation.Client
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest
+import jakarta.inject.Inject
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.client.TestRestTemplate
-import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
 
 /**
  * Batch resolver integration tests.
@@ -20,24 +16,11 @@ import org.springframework.http.MediaType
  * These tests focus on verifying that batch resolvers correctly optimize data fetching
  * and prevent N+1 query problems in various scenarios.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@MicronautTest
 class BatchResolverIntegrationTest {
-    @Autowired
-    private lateinit var restTemplate: TestRestTemplate
-
-    @LocalServerPort
-    private var port: Int = 0
-
-    private val objectMapper = ObjectMapper()
-
-    private fun executeGraphQLQuery(query: String): JsonNode {
-        val headers = HttpHeaders()
-        headers.contentType = MediaType.APPLICATION_JSON
-        val request = mapOf("query" to query)
-        val entity = HttpEntity(request, headers)
-        val response = restTemplate.postForEntity("http://localhost:$port/graphql", entity, String::class.java)
-        return objectMapper.readTree(response.body)
-    }
+    @Inject
+    @field:Client("/")
+    lateinit var client: HttpClient
 
     @Test
     fun `batch resolver prevents N+1 queries for film counts`() {
@@ -50,19 +33,20 @@ class BatchResolverIntegrationTest {
             }
         """.trimIndent()
 
-        val response = executeGraphQLQuery(query)
+        val response = client.executeGraphQLQuery(query)
 
-        assertTrue(response.get("errors")?.isNull ?: true, "Query should execute without errors")
+        val errors = response.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val characters = response.get("data").get("allCharacters")
-        assertEquals(3, characters.size(), "Should return 3 characters")
+        characters.size() shouldBe 3
 
         // Verify all characters have film counts (all should be 3 based on test data)
         for (characterNode in characters) {
             val characterName = characterNode.get("name").asText()
             val filmCount = characterNode.get("filmCount").asInt()
 
-            assertEquals(3, filmCount, "$characterName should appear in 3 films")
+            filmCount shouldBe 3
             println("✅ $characterName appears in $filmCount films")
         }
     }
@@ -77,20 +61,22 @@ class BatchResolverIntegrationTest {
             }
         """.trimIndent()
 
-        val response = executeGraphQLQuery(query)
+        val response = client.executeGraphQLQuery(query)
 
-        assertTrue(response.get("errors")?.isNull ?: true, "Query should execute without errors")
+        val errors = response.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val characters = response.get("data").get("allCharacters")
-        assertEquals(3, characters.size(), "Should return 3 characters")
+        characters.size() shouldBe 3
 
         // Verify rich summaries contain expected data
         for (characterNode in characters) {
             val richSummary = characterNode.get("richSummary").asText()
 
-            assertTrue(richSummary.contains("3 films"), "Summary should mention film count")
-            assertTrue(richSummary.contains("from"), "Summary should mention homeworld")
-            assertTrue(richSummary.contains("(") && richSummary.contains(")"), "Summary should contain birth year")
+            richSummary shouldContain "3 films"
+            richSummary shouldContain "from"
+            richSummary shouldContain "("
+            richSummary shouldContain ")"
 
             println("✅ Rich summary: $richSummary")
         }
@@ -109,19 +95,20 @@ class BatchResolverIntegrationTest {
             }
         """.trimIndent()
 
-        val response = executeGraphQLQuery(query)
+        val response = client.executeGraphQLQuery(query)
 
-        assertTrue(response.get("errors")?.isNull ?: true, "Query should execute without errors")
+        val errors = response.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val films = response.get("data").get("allFilms")
-        assertEquals(2, films.size(), "Should return 2 films")
+        films.size() shouldBe 2
 
         // Verify each film has main characters
         for (filmNode in films) {
             val filmTitle = filmNode.get("title").asText()
             val mainCharacters = filmNode.get("mainCharacters")
 
-            assertEquals(5, mainCharacters.size(), "$filmTitle should have 5 main characters")
+            mainCharacters.size() shouldBe 5
 
             // Verify we have the main Star Wars characters
             val characterNames = mutableSetOf<String>()
@@ -129,9 +116,9 @@ class BatchResolverIntegrationTest {
                 characterNames.add(characterNode.get("name").asText())
             }
 
-            assertTrue(characterNames.contains("Luke Skywalker"))
-            assertTrue(characterNames.contains("Princess Leia"))
-            assertTrue(characterNames.contains("Han Solo"))
+            characterNames shouldContain "Luke Skywalker"
+            characterNames shouldContain "Princess Leia"
+            characterNames shouldContain "Han Solo"
 
             println("✅ $filmTitle has ${mainCharacters.size()} characters")
         }
@@ -152,21 +139,22 @@ class BatchResolverIntegrationTest {
             }
         """.trimIndent()
 
-        val response = executeGraphQLQuery(query)
+        val response = client.executeGraphQLQuery(query)
 
-        assertTrue(response.get("errors")?.isNull ?: true, "Complex query should execute efficiently")
+        val errors = response.get("errors")
+        (errors?.isNull ?: true) shouldBe true
 
         val characters = response.get("data").get("allCharacters")
-        assertEquals(5, characters.size(), "Should return 5 characters")
+        characters.size() shouldBe 5
 
         // Verify all fields are resolved efficiently
         for (characterNode in characters) {
             val characterName = characterNode.get("name").asText()
 
-            assertNotNull(characterNode.get("filmCount"), "$characterName should have film count")
-            assertNotNull(characterNode.get("richSummary"), "$characterName should have rich summary")
-            assertNotNull(characterNode.get("homeworld"), "$characterName should have homeworld")
-            assertNotNull(characterNode.get("species"), "$characterName should have species")
+            characterNode.get("filmCount") shouldNotBe null
+            characterNode.get("richSummary") shouldNotBe null
+            characterNode.get("homeworld") shouldNotBe null
+            characterNode.get("species") shouldNotBe null
 
             println("✅ All fields resolved efficiently for $characterName")
         }

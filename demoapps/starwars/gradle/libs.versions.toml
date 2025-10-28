@@ -1,34 +1,41 @@
 [versions]
 coroutinesReactor = "1.7.3"
-dependencyManagement = "1.1.7"
 kotest = "5.8.0"
 kotlin = "1.9.24"
+micronaut = "4.6.0"
+micronautKotlin = "4.7.0"
 reactor = "3.5.0"
-springBoot = "3.5.0"
-springContext = "6.2.7"
-mockk-jvm = "1.13.3"
+assertj = "3.24.2"
+logback-classic = "1.4.14"
+guice = "6.0.0"
 
 [plugins]
-dependencyManagement = { id = "io.spring.dependency-management", version.ref = "dependencyManagement" }
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-kotlinSpring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
-springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }
+kotlinKapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+micronautApplication = { id = "io.micronaut.application", version.ref = "micronaut" }
 viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
 
 [libraries]
 jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin" }
+micronaut-inject-java = { group = "io.micronaut", name = "micronaut-inject-java" }
+micronaut-validation = { group = "io.micronaut", name = "micronaut-http-validation" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+viaduct-engine-wiring = { group = "com.airbnb.viaduct", name = "engine-wiring" }
+guice = { group = "com.google.inject", name = "guice", version.ref = "guice" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
 kotlinx-coroutines-reactor = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-reactor", version.ref = "coroutinesReactor" }
+micronaut-graphql = { group = "io.micronaut.graphql", name = "micronaut-graphql" }
+micronaut-http-server-netty = { group = "io.micronaut", name = "micronaut-http-server-netty" }
+micronaut-http-client = { group = "io.micronaut", name = "micronaut-http-client"}
+micronaut-inject-kotlin = { group = "io.micronaut.kotlin", name = "micronaut-kotlin-runtime", version.ref = "micronautKotlin" }
+micronaut-jackson-databind = { group = "io.micronaut", name = "micronaut-jackson-databind" }
+micronaut-test-kotest5 = { group = "io.micronaut.test", name = "micronaut-test-kotest5" }
+micronaut-inject = { group = "io.micronaut", name = "micronaut-inject" }
 reactor-core = { group = "io.projectreactor", name = "reactor-core", version.ref = "reactor" }
-spring-boot-starter-graphql = { group = "org.springframework.boot", name = "spring-boot-starter-graphql" }
-spring-boot-starter-test = { group = "org.springframework.boot", name = "spring-boot-starter-test" }
-spring-boot-starter-web = { group = "org.springframework.boot", name = "spring-boot-starter-web" }
-spring-context = { group = "org.springframework", name = "spring-context", version.ref = "springContext" }
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter" }
+assertj-core = { group = "org.assertj", name = "assertj-core", version.ref = "assertj" }
 kotest-runner-junit = { group = "io.kotest", name = "kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { group = "io.kotest", name = "kotest-assertions-core", version.ref = "kotest" }
 kotest-assertions-json = { group = "io.kotest", name = "kotest-assertions-json", version.ref = "kotest" }
-io-mockk-dsl = { module = "io.mockk:mockk-dsl", version.ref = "mockk-jvm" }
-io-mockk-jvm = { module = "io.mockk:mockk-jvm", version.ref = "mockk-jvm" }
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback-classic" }

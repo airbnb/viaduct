@@ -1,18 +1,13 @@
 package com.example.starwars.service.test
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldNotBeEmpty
+import io.micronaut.http.client.HttpClient
+import io.micronaut.http.client.annotation.Client
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest
+import jakarta.inject.Inject
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.client.TestRestTemplate
-import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
 import viaduct.api.grts.Character
 
 /**
@@ -24,43 +19,11 @@ import viaduct.api.grts.Character
  * 3. How GlobalID provides a unique, typed identifier for objects in the graph
  * 4. The correct pattern: query with string ID, get encoded GlobalID back
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@MicronautTest
 class GlobalIDDemoTest {
-    @Autowired
-    private lateinit var restTemplate: TestRestTemplate
-
-    @LocalServerPort
-    private var port: Int = 0
-
-    private val objectMapper = ObjectMapper()
-
-    private fun executeGraphQLQuery(query: String): JsonNode {
-        val headers = HttpHeaders()
-        headers.contentType = MediaType.APPLICATION_JSON
-
-        val request = mapOf("query" to query)
-        val entity = HttpEntity(request, headers)
-
-        val response = restTemplate.postForEntity(
-            "http://localhost:$port/graphql",
-            entity,
-            String::class.java
-        )
-
-        val result = objectMapper.readTree(response.body)
-
-        // If there are errors, print them for debugging
-        val errors = result.get("errors")
-        if (errors != null && !errors.isNull && errors.isArray && errors.size() > 0) {
-            println("GraphQL Errors:")
-            for (i in 0 until errors.size()) {
-                val error = errors.get(i)
-                println("  Error $i: ${error.toPrettyString()}")
-            }
-        }
-
-        return result
-    }
+    @Inject
+    @field:Client("/")
+    lateinit var client: HttpClient
 
     @Test
     fun `should demonstrate GlobalID with Node interface`() {
@@ -81,29 +44,25 @@ class GlobalIDDemoTest {
             }
         """.trimIndent()
 
-        val result = executeGraphQLQuery(query)
+        val result = client.executeGraphQLQuery(query)
 
         // Verify no errors occurred
         val errors = result.get("errors")
         val hasErrors = errors != null && !errors.isNull && errors.isArray && errors.size() > 0
-        assertEquals(
-            false,
-            hasErrors,
-            "GraphQL query should not return errors${if (hasErrors) ". Errors: ${errors!!.toPrettyString()}" else ""}"
-        )
+        hasErrors shouldBe false
 
         val character = result.get("data").get("node")
-        assertNotNull(character, "Character should be found")
+        character shouldNotBe null
 
         // Verify basic character data
-        assertEquals("Luke Skywalker", character.get("name").asText())
-        assertEquals("19BBY", character.get("birthYear").asText())
-        assertEquals("blue", character.get("eyeColor").asText())
+        character.get("name").asText() shouldBe "Luke Skywalker"
+        character.get("birthYear").asText() shouldBe "19BBY"
+        character.get("eyeColor").asText() shouldBe "blue"
 
         // Verify GlobalID (encoded format from Node interface)
         val characterId = character.get("id").asText()
-        assertNotNull(characterId, "GlobalID should be present")
-        assertTrue(characterId.isNotEmpty(), "GlobalID should not be empty")
+        characterId shouldNotBe null
+        characterId.shouldNotBeEmpty()
         // GlobalID is encoded, so we just verify it's a valid non-empty string
     }
 
@@ -123,27 +82,23 @@ class GlobalIDDemoTest {
             }
         """.trimIndent()
 
-        val result = executeGraphQLQuery(query)
+        val result = client.executeGraphQLQuery(query)
 
         // Verify no errors occurred
         val errors = result.get("errors")
         val hasErrors = errors != null && !errors.isNull && errors.isArray && errors.size() > 0
-        assertEquals(
-            false,
-            hasErrors,
-            "GraphQL query should not return errors${if (hasErrors) ". Errors: ${errors!!.toPrettyString()}" else ""}"
-        )
+        hasErrors shouldBe false
 
         val character = result.get("data").get("node")
-        assertNotNull(character, "Character should be found")
+        character shouldNotBe null
 
         // Verify person data
-        assertEquals("Princess Leia", character.get("name").asText())
+        character.get("name").asText() shouldBe "Princess Leia"
 
         // Verify encoded GlobalID
         val characterId = character.get("id").asText()
-        assertNotNull(characterId, "GlobalID should be present")
-        assertTrue(characterId.isNotEmpty(), "GlobalID should not be empty")
+        characterId shouldNotBe null
+        characterId.shouldNotBeEmpty()
 
         // The GlobalID is encoded, so we verify it's a valid non-empty string
         // In the Node interface pattern, the id field contains the encoded GlobalID
@@ -161,21 +116,17 @@ class GlobalIDDemoTest {
             }
         """.trimIndent()
 
-        val result = executeGraphQLQuery(query)
+        val result = client.executeGraphQLQuery(query)
 
         // Verify no errors occurred
         val errors = result.get("errors")
         val hasErrors = errors != null && !errors.isNull && errors.isArray && errors.size() > 0
-        assertEquals(
-            false,
-            hasErrors,
-            "GraphQL query should not return errors${if (hasErrors) ". Errors: ${errors!!.toPrettyString()}" else ""}"
-        )
+        hasErrors shouldBe false
 
         val characters = result.get("data").get("allCharacters")
 
         // Verify we got multiple characters
-        assertEquals(3, characters.size(), "Should return 3 characters")
+        characters.size() shouldBe 3
 
         // Verify each person has a valid encoded GlobalID
         for (personNode in characters) {
@@ -183,8 +134,8 @@ class GlobalIDDemoTest {
             val name = personNode.get("name").asText()
 
             // Verify encoded GlobalID is present and non-empty for each person
-            assertNotNull(characterId, "GlobalID should be present for person: $name")
-            assertTrue(characterId.isNotEmpty(), "GlobalID should not be empty for person: $name")
+            characterId shouldNotBe null
+            characterId.shouldNotBeEmpty()
 
             // The GlobalID is encoded, so we just verify it's a valid non-empty string
             // Each person implementing Node interface gets their own encoded GlobalID

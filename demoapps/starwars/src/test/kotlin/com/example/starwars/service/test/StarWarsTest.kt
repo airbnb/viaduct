@@ -2,12 +2,12 @@ package com.example.starwars.service.test
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
-import org.springframework.boot.test.context.SpringBootTest
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 
 /**
- * Basic test to verify that the Spring application context loads successfully.
+ * Basic test to verify that the Micronaut application context loads successfully.
  */
-@SpringBootTest
+@MicronautTest
 class StarWarsTest : StringSpec({
     "should start application context" {
         true shouldBe true

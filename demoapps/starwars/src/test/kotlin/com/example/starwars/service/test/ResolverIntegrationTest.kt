@@ -1,55 +1,30 @@
 package com.example.starwars.service.test
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotBeEmpty
+import io.micronaut.http.client.HttpClient
+import io.micronaut.http.client.annotation.Client
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest
+import jakarta.inject.Inject
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.client.TestRestTemplate
-import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
 import viaduct.api.grts.Character
 import viaduct.api.grts.Film
 import viaduct.api.grts.Species
 
 /**
- * Integration tests for GraphQL resolvers using Spring Boot's TestRestTemplate.
+ * Integration tests for GraphQL resolvers.
  *
  * These tests cover queries and mutations across multiple resolvers,
  * ensuring end-to-end functionality of the GraphQL API.
  */
-// tag::resolver_base_test[32] Example of integration test for GraphQL resolvers
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@MicronautTest
 class ResolverIntegrationTest {
-    @Autowired
-    private lateinit var restTemplate: TestRestTemplate
-
-    @LocalServerPort
-    private var port: Int = 0
-
-    private val objectMapper = ObjectMapper()
-
-    private fun executeGraphQLQuery(query: String): JsonNode {
-        val headers = HttpHeaders()
-        headers.contentType = MediaType.APPLICATION_JSON
-
-        val request = mapOf("query" to query)
-        val entity = HttpEntity(request, headers)
-
-        val response = restTemplate.postForEntity(
-            "http://localhost:$port/graphql",
-            entity,
-            String::class.java
-        )
-
-        return objectMapper.readTree(response.body)
-    }
+    @Inject
+    @field:Client("/")
+    lateinit var client: HttpClient
 
     @Nested
     inner class QueryResolvers {
@@ -66,10 +41,10 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val characters = response.path("data").path("allCharacters")
 
-            assertTrue(characters.size() > 0)
+            (characters.size() > 0) shouldBe true
         }
 
         @Test
@@ -83,10 +58,10 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val films = response.path("data").path("allFilms")
 
-            assertTrue(films.size() > 0)
+            (films.size() > 0) shouldBe true
         }
 
         @Test
@@ -100,12 +75,12 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val searchCharacterData = response.path("data").path("searchCharacter")
             val characterName = searchCharacterData.path("name").asText()
 
-            assertNotNull(characterName)
-            assertTrue(characterName.contains("Luke"), "Expected person name to contain 'Luke', got: '$characterName'")
+            characterName shouldNotBe null
+            characterName shouldContain "Luke"
         }
     }
 
@@ -132,15 +107,15 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val filmId = response.path("data").path("node").path("id").asText()
             val filmTitle = response.path("data").path("node").path("title").asText()
             val filmDirector = response.path("data").path("node").path("director").asText()
 
             val expectedGlobalId = Film.Reflection.globalId("1")
-            assertEquals(expectedGlobalId, filmId)
-            assertNotNull(filmTitle)
-            assertNotNull(filmDirector)
+            filmId shouldBe expectedGlobalId
+            filmTitle shouldNotBe null
+            filmDirector shouldNotBe null
         }
     }
 
@@ -176,16 +151,16 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val characterId = response.path("data").path("node").path("id").asText()
             val characterName = response.path("data").path("node").path("name").asText()
             val homeworld = response.path("data").path("node").path("homeworld")
 
             // With Node interface, id field returns encoded GlobalID
-            assertNotNull(characterId)
-            assertTrue(characterId.isNotEmpty(), "Expected non-empty GlobalID, got: '$characterId'")
-            assertNotNull(characterName)
-            assertNotNull(homeworld)
+            characterId shouldNotBe null
+            characterId.shouldNotBeEmpty()
+            characterName shouldNotBe null
+            homeworld shouldNotBe null
         }
 
         @Test
@@ -206,10 +181,10 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val homeworld = response.path("data").path("node").path("homeworld")
 
-            assertNotNull(homeworld.path("id").asText())
+            homeworld.path("id").asText() shouldNotBe null
         }
 
         @Test
@@ -230,10 +205,10 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val species = response.path("data").path("node").path("species")
 
-            assertNotNull(species)
+            species shouldNotBe null
         }
     }
 
@@ -260,16 +235,16 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val characterId = response.path("data").path("character").path("id").asText()
             val filmId = response.path("data").path("film").path("id").asText()
 
             // With Node interface, person id returns encoded GlobalID
             val expectedCharacterGlobalId = Character.Reflection.globalId("1")
-            assertEquals(expectedCharacterGlobalId, characterId)
+            characterId shouldBe expectedCharacterGlobalId
             // Film now also uses GlobalID format (implements Node interface)
             val expectedFilmGlobalId = Film.Reflection.globalId("1")
-            assertEquals(expectedFilmGlobalId, filmId)
+            filmId shouldBe expectedFilmGlobalId
         }
 
         @Test
@@ -286,10 +261,10 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val person = response.path("data").path("node")
 
-            assertTrue(person.isNull)
+            person.isMissingNode shouldBe true
         }
 
         @Test
@@ -318,12 +293,12 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val personHomeworld = response.path("data").path("character").path("homeworld")
             val filmDirector = response.path("data").path("film").path("director").asText()
 
-            assertNotNull(personHomeworld)
-            assertNotNull(filmDirector)
+            personHomeworld shouldNotBe null
+            filmDirector shouldNotBe null
         }
     }
 
@@ -366,24 +341,24 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
             val createdCharacter = response.path("data").path("createCharacter")
 
-            assertNotNull(createdCharacter)
-            assertNotNull(createdCharacter.path("id").asText())
-            assertEquals("Chewbacca", createdCharacter.path("name").asText())
-            assertEquals("200BBY", createdCharacter.path("birthYear").asText())
-            assertEquals("blue", createdCharacter.path("eyeColor").asText())
-            assertEquals("male", createdCharacter.path("gender").asText())
-            assertEquals("brown", createdCharacter.path("hairColor").asText())
-            assertEquals(228, createdCharacter.path("height").asInt())
-            assertEquals(112.0, createdCharacter.path("mass").asDouble())
-            assertNotNull(createdCharacter.path("homeworld").path("id").asText())
-            assertEquals("Kashyyyk", createdCharacter.path("homeworld").path("name").asText())
-            assertNotNull(createdCharacter.path("species").path("id").asText())
-            assertEquals("Wookiee", createdCharacter.path("species").path("name").asText())
-            assertEquals("Chewbacca", createdCharacter.path("displayName").asText())
-            assertEquals("Chewbacca (200BBY)", createdCharacter.path("displaySummary").asText())
+            createdCharacter shouldNotBe null
+            createdCharacter.path("id").asText() shouldNotBe null
+            createdCharacter.path("name").asText() shouldBe "Chewbacca"
+            createdCharacter.path("birthYear").asText() shouldBe "200BBY"
+            createdCharacter.path("eyeColor").asText() shouldBe "blue"
+            createdCharacter.path("gender").asText() shouldBe "male"
+            createdCharacter.path("hairColor").asText() shouldBe "brown"
+            createdCharacter.path("height").asInt() shouldBe 228
+            createdCharacter.path("mass").asDouble() shouldBe 112.0
+            createdCharacter.path("homeworld").path("id").asText() shouldNotBe null
+            createdCharacter.path("homeworld").path("name").asText() shouldBe "Kashyyyk"
+            createdCharacter.path("species").path("id").asText() shouldNotBe null
+            createdCharacter.path("species").path("name").asText() shouldBe "Wookiee"
+            createdCharacter.path("displayName").asText() shouldBe "Chewbacca"
+            createdCharacter.path("displaySummary").asText() shouldBe "Chewbacca (200BBY)"
         }
 
         @Test
@@ -407,13 +382,13 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val errors = response.path("errors")
-            assertNotNull(errors)
-            assertTrue(errors.isArray && errors.size() == 1)
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
-            assertTrue(errorMessage.contains("IllegalArgumentException: Illegal base64 character"))
+            errorMessage shouldContain "IllegalArgumentException: Illegal base64 character"
         }
 
         @Test
@@ -437,13 +412,13 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val errors = response.path("errors")
-            assertNotNull(errors)
-            assertTrue(errors.isArray && errors.size() == 1)
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
-            assertTrue(errorMessage.contains("IllegalArgumentException: Illegal base64 character"))
+            errorMessage shouldContain "IllegalArgumentException: Illegal base64 character"
         }
 
         @Test
@@ -467,7 +442,7 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val createResult = executeGraphQLQuery(createCharacterQuery)
+            val createResult = client.executeGraphQLQuery(createCharacterQuery)
 
             val query = """
                 mutation {
@@ -478,11 +453,11 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val updatedCharacter = response.path("data").path("updateCharacterName")
-            assertNotNull(updatedCharacter)
-            assertEquals("Chewbacca Updated", updatedCharacter.path("name").asText())
+            updatedCharacter shouldNotBe null
+            updatedCharacter.path("name").asText() shouldBe "Chewbacca Updated"
         }
 
         @Test
@@ -496,15 +471,15 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val updatedCharacter = response.path("data").path("updateCharacterName")
-            assertTrue(updatedCharacter.isNull)
+            updatedCharacter.isMissingNode shouldBe true
             val errors = response.path("errors")
-            assertNotNull(errors)
-            assertTrue(errors.isArray && errors.size() == 1)
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
-            assertTrue(errorMessage.contains("Character with ID 9999 not found"))
+            errorMessage shouldContain "Character with ID 9999 not found"
         }
 
         @Test
@@ -531,12 +506,12 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val updatedFilm = response.path("data").path("addCharacterToFilm")
-            assertNotNull(updatedFilm)
-            assertEquals("A New Hope", updatedFilm.path("film").path("title").asText())
-            assertEquals("Chewbacca", updatedFilm.path("character").path("name").asText())
+            updatedFilm shouldNotBe null
+            updatedFilm.path("film").path("title").asText() shouldBe "A New Hope"
+            updatedFilm.path("character").path("name").asText() shouldBe "Chewbacca"
         }
 
         @Test
@@ -559,15 +534,15 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val updatedFilm = response.path("data").path("addCharacterToFilm")
-            assertTrue(updatedFilm.isNull)
+            updatedFilm.isMissingNode shouldBe true
             val errors = response.path("errors")
-            assertNotNull(errors)
-            assertTrue(errors.isArray && errors.size() == 1)
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
-            assertTrue(errorMessage.contains("Film with ID 9999 not found"))
+            errorMessage shouldContain "Film with ID 9999 not found"
         }
 
         @Test
@@ -589,15 +564,15 @@ class ResolverIntegrationTest {
                     }
                 }
             """.trimIndent()
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val updatedFilm = response.path("data").path("addCharacterToFilm")
-            assertTrue(updatedFilm.isNull)
+            updatedFilm.isMissingNode shouldBe true
             val errors = response.path("errors")
-            assertNotNull(errors)
-            assertTrue(errors.isArray && errors.size() == 1)
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
-            assertTrue(errorMessage.contains("Character with ID 9999 not found"))
+            errorMessage shouldContain "Character with ID 9999 not found"
         }
 
         @Test
@@ -619,15 +594,15 @@ class ResolverIntegrationTest {
                     }
                 }
             """.trimIndent()
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val updatedFilm = response.path("data").path("addCharacterToFilm")
-            assertTrue(updatedFilm.isNull)
+            updatedFilm.isMissingNode shouldBe true
             val errors = response.path("errors")
-            assertNotNull(errors)
-            assertTrue(errors.isArray && errors.size() == 1)
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
-            assertTrue(errorMessage.contains("Character with ID 1 is already in film with ID 1"))
+            errorMessage shouldContain "Character with ID 1 is already in film with ID 1"
         }
 
         @Test
@@ -650,7 +625,7 @@ class ResolverIntegrationTest {
                     }
                 }
             """.trimIndent()
-            val createResult = executeGraphQLQuery(createCharacterQuery)
+            val createResult = client.executeGraphQLQuery(createCharacterQuery)
 
             val query = """
     mutation {
@@ -658,10 +633,10 @@ class ResolverIntegrationTest {
         }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val deleteResult = response.path("data").path("deleteCharacter").asBoolean()
-            assertTrue(deleteResult, "Expected deleteCharacter to return true")
+            deleteResult shouldBe true
         }
 
         @Test
@@ -672,15 +647,15 @@ class ResolverIntegrationTest {
     }
             """.trimIndent()
 
-            val response = executeGraphQLQuery(query)
+            val response = client.executeGraphQLQuery(query)
 
             val deleteResult = response.path("data").path("deleteCharacter")
-            assertTrue(deleteResult.isNull)
+            deleteResult.isMissingNode shouldBe true
             val errors = response.path("errors")
-            assertNotNull(errors)
-            assertTrue(errors.isArray && errors.size() == 1)
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
-            assertTrue(errorMessage.contains("Character with ID 9999 not found"))
+            errorMessage shouldContain "Character with ID 9999 not found"
         }
     }
 }
