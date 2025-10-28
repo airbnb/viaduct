@@ -1,119 +1,54 @@
 # Unified Copybara configuration for publishing Viaduct demo apps
-# This config defines workflows for each demo app
+# This config dynamically creates workflows for all demo apps
 
-# Starwars demo app workflow
-core.workflow(
-    name = "airbnb-viaduct-to-starwars",
-    origin = git.origin(
-        url = "file:///Users/walter_phillips/airlab/repos/viaduct-test",
-        ref = "HEAD",
-    ),
-    destination = git.destination(
-        url = "git@github.com:viaduct-graphql/starwars.git",
-        fetch = "main",
-        push = "main",
-    ),
-    origin_files = glob(["demoapps/starwars/**"], exclude = [
-        # Exclude build artifacts
-        "demoapps/starwars/build/**",
-        "demoapps/starwars/.gradle/**",
+# Define all demo apps that should be published
+# Add new demo apps here to automatically include them in publishing
+DEMO_APPS = [
+    "starwars",
+    "cli-starter",
+    "ktor-starter",
+]
 
-        # Exclude IDE files
-        "demoapps/starwars/.idea/**",
-        "demoapps/starwars/.settings/**",
-        "demoapps/starwars/.classpath",
-        "demoapps/starwars/.project",
-        "demoapps/starwars/bin/**",
+# Function to create a workflow for a specific demo app
+def create_demoapp_workflow(demoapp_name):
+    """Creates a workflow for publishing a demo app."""
+    core.workflow(
+        name = "airbnb-viaduct-to-" + demoapp_name,
+        origin = git.origin(
+            url = "https://github.com/airbnb/viaduct.git",  # Placeholder, actual path is current directory
+            ref = "HEAD",
+        ),
+        destination = git.destination(
+            url = "git@github.com:viaduct-graphql/" + demoapp_name + ".git",  # Will be overridden by --git-destination-url
+            fetch = "main",
+            push = "main",
+        ),
+        origin_files = glob(["demoapps/" + demoapp_name + "/**"], exclude = [
+            # Exclude build artifacts
+            "demoapps/" + demoapp_name + "/build/**",
+            "demoapps/" + demoapp_name + "/.gradle/**",
 
-        # Exclude local database files
-        "demoapps/starwars/**/*.db",
-        "demoapps/starwars/**/*.db-journal",
-    ]),
-    destination_files = glob(["**"], exclude = [
-        ".git/**",
-    ]),
-    authoring = authoring.pass_thru("ViaBot <viabot@ductworks.io>"),
-    mode = "SQUASH",
-    transformations = [
-        # Move files from demoapps/starwars/ to root
-        core.move("demoapps/starwars", ""),
-    ],
-)
+            # Exclude IDE files
+            "demoapps/" + demoapp_name + "/.idea/**",
+            "demoapps/" + demoapp_name + "/.settings/**",
+            "demoapps/" + demoapp_name + "/.classpath",
+            "demoapps/" + demoapp_name + "/.project",
+            "demoapps/" + demoapp_name + "/bin/**",
 
-# CLI Starter demo app workflow
-core.workflow(
-    name = "airbnb-viaduct-to-cli-starter",
-    origin = git.origin(
-        url = "file:///Users/walter_phillips/airlab/repos/viaduct-test",
-        ref = "HEAD",
-    ),
-    destination = git.destination(
-        url = "git@github.com:viaduct-graphql/cli-starter.git",
-        fetch = "main",
-        push = "main",
-    ),
-    origin_files = glob(["demoapps/cli-starter/**"], exclude = [
-        # Exclude build artifacts
-        "demoapps/cli-starter/build/**",
-        "demoapps/cli-starter/.gradle/**",
+            # Exclude local database files
+            "demoapps/" + demoapp_name + "/**/*.db",
+            "demoapps/" + demoapp_name + "/**/*.db-journal",
+        ]),
+        destination_files = glob(["**"], exclude = [
+            ".git/**",
+        ]),
+        authoring = authoring.pass_thru("ViaBot <viabot@ductworks.io>"),
+        mode = "SQUASH",
+        transformations = [
+            # Move files from demoapps/<name>/ to root
+            core.move("demoapps/" + demoapp_name, ""),
+        ],
+    )
 
-        # Exclude IDE files
-        "demoapps/cli-starter/.idea/**",
-        "demoapps/cli-starter/.settings/**",
-        "demoapps/cli-starter/.classpath",
-        "demoapps/cli-starter/.project",
-        "demoapps/cli-starter/bin/**",
-
-        # Exclude local database files
-        "demoapps/cli-starter/**/*.db",
-        "demoapps/cli-starter/**/*.db-journal",
-    ]),
-    destination_files = glob(["**"], exclude = [
-        ".git/**",
-    ]),
-    authoring = authoring.pass_thru("ViaBot <viabot@ductworks.io>"),
-    mode = "SQUASH",
-    transformations = [
-        # Move files from demoapps/cli-starter/ to root
-        core.move("demoapps/cli-starter", ""),
-    ],
-)
-
-# Ktor Starter demo app workflow
-core.workflow(
-    name = "airbnb-viaduct-to-ktor-starter",
-    origin = git.origin(
-        url = "file:///Users/walter_phillips/airlab/repos/viaduct-test",
-        ref = "HEAD",
-    ),
-    destination = git.destination(
-        url = "git@github.com:viaduct-graphql/ktor-starter.git",
-        fetch = "main",
-        push = "main",
-    ),
-    origin_files = glob(["demoapps/ktor-starter/**"], exclude = [
-        # Exclude build artifacts
-        "demoapps/ktor-starter/build/**",
-        "demoapps/ktor-starter/.gradle/**",
-
-        # Exclude IDE files
-        "demoapps/ktor-starter/.idea/**",
-        "demoapps/ktor-starter/.settings/**",
-        "demoapps/ktor-starter/.classpath",
-        "demoapps/ktor-starter/.project",
-        "demoapps/ktor-starter/bin/**",
-
-        # Exclude local database files
-        "demoapps/ktor-starter/**/*.db",
-        "demoapps/ktor-starter/**/*.db-journal",
-    ]),
-    destination_files = glob(["**"], exclude = [
-        ".git/**",
-    ]),
-    authoring = authoring.pass_thru("ViaBot <viabot@ductworks.io>"),
-    mode = "SQUASH",
-    transformations = [
-        # Move files from demoapps/ktor-starter/ to root
-        core.move("demoapps/ktor-starter", ""),
-    ],
-)
+# Create workflows for all demo apps using list comprehension
+[create_demoapp_workflow(demoapp) for demoapp in DEMO_APPS]
