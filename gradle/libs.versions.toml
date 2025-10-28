@@ -77,9 +77,9 @@ viaduct-shared-deferred = { module = "com.airbnb.viaduct:shared-deferred", versi
 viaduct-shared-graphql = { module = "com.airbnb.viaduct:shared-graphql", version.ref = "project" }
 viaduct-shared-invariants = { module = "com.airbnb.viaduct:shared-invariants", version.ref = "project" }
 viaduct-shared-logging = { module = "com.airbnb.viaduct:shared-logging", version.ref = "project" }
+viaduct-shared-mapping = { module = "com.airbnb.viaduct:shared-mapping", version.ref = "project" }
 viaduct-shared-utils = { module = "com.airbnb.viaduct:shared-utils", version.ref = "project" }
 viaduct-shared-viaductschema = { module = "com.airbnb.viaduct:shared-viaductschema", version.ref = "project" }
-viaduct-shared-mapping = { module = "com.airbnb.viaduct:shared-mapping", version.ref = "project" }
 
 viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version.ref = "project" }
 

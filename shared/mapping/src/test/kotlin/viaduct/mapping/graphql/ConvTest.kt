@@ -1,6 +1,6 @@
 @file:Suppress("ForbiddenImport")
 
-package viaduct.utils.bijection
+package viaduct.mapping.graphql
 
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
@@ -11,41 +11,40 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
-import viaduct.utils.collections.Some
 
-class BijectionTest {
-    private val intToString = Bijection<Int, String>({ it.toString() }, { it.toInt() })
-    private val plusOne = Bijection<Int, Int>({ it + 1 }, { it - 1 })
+class ConvTest {
+    private val intToString = Conv<Int, String>({ it.toString() }, { it.toInt() })
+    private val plusOne = Conv<Int, Int>({ it + 1 }, { it - 1 })
 
     @Test
     fun `identity`(): Unit =
         runBlocking {
-            val bij = Bijection.identity<Any>()
+            val conv = Conv.identity<Any>()
 
             // primitive
             Arb.int().forAll {
-                val forwardSame = bij(it) == it
-                val invertSame = bij.invert(it) == it
+                val forwardSame = conv(it) == it
+                val invertSame = conv.invert(it) == it
                 forwardSame && invertSame
             }
 
             // non-primitive
             arbitrary { object {} }.forAll {
-                val forwardSame = bij(it) === it
-                val invertSame = bij.invert(it) === it
+                val forwardSame = conv(it) === it
+                val invertSame = conv.invert(it) === it
                 forwardSame && invertSame
             }
         }
 
     @Test
     fun `identity -- referential equality`() {
-        assertSame(Bijection.identity<Int>(), Bijection.identity<Int>())
+        assertSame(Conv.identity<Int>(), Conv.identity<Int>())
     }
 
     @Test
     fun `identity -- inverse returns self`() {
-        val bij = Bijection.identity<Any>()
-        assertSame(bij, bij.inverse())
+        val conv = Conv.identity<Any>()
+        assertSame(conv, conv.inverse())
     }
 
     @Test
@@ -62,17 +61,17 @@ class BijectionTest {
             val forward = { x: Int -> x.toString() }
             val reverse = { x: String -> x.toInt() }
             assertEquals(
-                Bijection(forward, reverse),
-                Bijection(forward, reverse)
+                Conv(forward, reverse),
+                Conv(forward, reverse)
             )
             assertEquals(
-                Bijection(forward, reverse),
-                Bijection(reverse, forward).inverse()
+                Conv(forward, reverse),
+                Conv(reverse, forward).inverse()
             )
 
             assertNotEquals(
-                Bijection(forward, reverse),
-                Bijection(reverse, forward)
+                Conv(forward, reverse),
+                Conv(reverse, forward)
             )
         }
 
@@ -106,10 +105,10 @@ class BijectionTest {
     }
 
     @Test
-    fun `Impl -- andThen Bijection`(): Unit =
+    fun `Impl -- andThen Conv`(): Unit =
         runBlocking {
-            val bij = intToString.andThen(intToString.inverse())
-            Arb.int().forAll { bij(it) == it }
+            val conv = intToString.andThen(intToString.inverse())
+            Arb.int().forAll { conv(it) == it }
         }
 
     @Test
@@ -127,43 +126,28 @@ class BijectionTest {
         }
 
     @Test
-    fun `Impl -- infix andThen Bijection`(): Unit =
+    fun `Impl -- infix andThen Conv`(): Unit =
         runBlocking {
-            val bij = intToString andThen intToString.inverse()
-            Arb.int().forAll { bij(it) == it }
+            val conv = intToString andThen intToString.inverse()
+            Arb.int().forAll { conv(it) == it }
         }
 
     @Test
     fun `Impl -- andThen functions`(): Unit =
         runBlocking {
-            val bij = intToString.andThen(
+            val conv = intToString.andThen(
                 forward = { "_$it" },
                 inverse = { it.drop(0) }
             )
-            Arb.int().forAll { bij(it) == "_$it" }
+            Arb.int().forAll { conv(it) == "_$it" }
         }
 
     @Test
-    fun `Impl -- compose Bijection`(): Unit =
+    fun `Impl -- compose Conv`(): Unit =
         runBlocking {
-            val bij = intToString.compose(Bijection({ it + 1 }, { it - 1 }))
+            val conv = intToString.compose(Conv({ it + 1 }, { it - 1 }))
             Arb.int(Int.MIN_VALUE..(Int.MAX_VALUE - 1)).forAll {
-                bij(it) == "${it + 1}"
+                conv(it) == "${it + 1}"
             }
         }
-
-    @Test
-    fun `asInjection -- always reversible`(): Unit =
-        runBlocking {
-            val inj = intToString.asInjection
-            Arb.int().forAll {
-                inj.invert(inj(it)) == Some(it)
-            }
-        }
-
-    @Test
-    fun `asInjection -- equality`() {
-        assertEquals(intToString.asInjection, intToString.asInjection)
-        assertNotEquals(plusOne.asInjection, intToString.asInjection)
-    }
 }

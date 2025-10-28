@@ -6,7 +6,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
 import java.time.temporal.TemporalAccessor
-import viaduct.utils.bijection.Bijection
 
 /**
  * [IR] is a special [Domain] that models an intermediate representation ("IR") for values.
@@ -17,7 +16,7 @@ import viaduct.utils.bijection.Bijection
  * @see [Domain.objectToIR]
  */
 object IR : Domain<IR.Value.Object> {
-    override fun objectToIR(): Bijection<Value.Object, Value.Object> = Bijection.identity()
+    override fun objectToIR(): Conv<Value.Object, Value.Object> = Conv.identity()
 
     sealed interface Value {
         /** A representation of a GraphQL boolean value */

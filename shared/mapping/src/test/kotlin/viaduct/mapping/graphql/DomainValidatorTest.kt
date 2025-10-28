@@ -16,12 +16,11 @@ import viaduct.arbitrary.common.checkInvariants
 import viaduct.arbitrary.graphql.GenInterfaceStubsIfNeeded
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.arbitrary.graphql.graphQLSchema
-import viaduct.mapping.test.BijectionError
-import viaduct.mapping.test.DomainIsNotBijective
 import viaduct.mapping.test.DomainValidator
-import viaduct.utils.bijection.Bijection
+import viaduct.mapping.test.RoundtripError
+import viaduct.mapping.test.ValueRoundtripError
 
-class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
+class DomainValidatorTest : KotestPropertyBase() {
     private val cfg = Config.default + (GenInterfaceStubsIfNeeded to true)
 
     @Test
@@ -35,20 +34,20 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
         }
 
     @Test
-    fun `checkAll with schema -- throws DomainIsNotBijective with seed for invalid domain`(): Unit =
+    fun `checkAll with schema -- throws ValueRoundtripError with seed for invalid domain`(): Unit =
         runBlocking {
             Arb.graphQLSchema(cfg).checkInvariants(100) { schema, check ->
                 val validator = DomainValidator(NonBijectiveTestDomain, schema)
                 val exception = runCatching { validator.checkAll(100) }.exceptionOrNull()
 
                 if (check.isInstanceOf(
-                        DomainIsNotBijective::class,
+                        ValueRoundtripError::class,
                         exception,
-                        "exception is not DomainIsNotBijective: {0}",
+                        "exception is not ValueRoundtripError: {0}",
                         arrayOf(exception.toString())
                     )
                 ) {
-                    exception as DomainIsNotBijective
+                    exception as ValueRoundtripError
                     // Verify that exception contains a seed for reproducibility
                     check.isTrue(
                         exception.seed != null,
@@ -59,7 +58,7 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
         }
 
     @Test
-    fun `checkAll with schema -- throws BijectionError with seed when domain throws`(): Unit =
+    fun `checkAll with schema -- throws RoundtripError with seed when domain throws`(): Unit =
         runBlocking {
             Arb.graphQLSchema(cfg).checkInvariants(100) { schema, check ->
                 val err = RuntimeException()
@@ -67,13 +66,13 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
                 val exception = runCatching { validator.checkAll(1) }.exceptionOrNull()
 
                 if (check.isInstanceOf(
-                        BijectionError::class,
+                        RoundtripError::class,
                         exception,
-                        "exception is not BijectionError: {0}",
+                        "exception is not RoundtripError: {0}",
                         arrayOf(exception.toString())
                     )
                 ) {
-                    exception as BijectionError
+                    exception as RoundtripError
                     check.isSameInstanceAs(
                         err,
                         exception.cause,
@@ -92,7 +91,7 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
     @Test
     fun `checkAll -- fails for non-bijective domain`() {
         val schema = "type Query { x:Int }".asSchema
-        assertThrows<DomainIsNotBijective> {
+        assertThrows<ValueRoundtripError> {
             DomainValidator(NonBijectiveTestDomain, schema).checkAll()
         }
     }
@@ -124,8 +123,8 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
         val mappedForward = mutableSetOf<String>()
         val inverted = mutableSetOf<String>()
         val domain = object : Domain<IR.Value.Object> {
-            override fun objectToIR(): Bijection<IR.Value.Object, IR.Value.Object> =
-                Bijection(
+            override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> =
+                Conv(
                     { it.also { mappedForward += it.name } },
                     { it.also { inverted += it.name } }
                 )
@@ -141,19 +140,19 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
     }
 
     @Test
-    fun `check -- throws DomainIsNotBijective for non-bijective domain`() {
+    fun `check -- throws ValueRoundtripError for non-bijective domain`() {
         val schema = "type Query { x:Int }".asSchema
-        val err = assertThrows<DomainIsNotBijective> {
+        val err = assertThrows<ValueRoundtripError> {
             DomainValidator(NonBijectiveTestDomain, schema).check(IR.Value.Object("Query", emptyMap()))
         }
         assertNull(err.seed)
     }
 
     @Test
-    fun `check -- throws BijectionError for throwing domain`() {
+    fun `check -- throws RoundtripError for throwing domain`() {
         val schema = "type Query { x:Int }".asSchema
         val cause = RuntimeException()
-        val err = assertThrows<BijectionError> {
+        val err = assertThrows<RoundtripError> {
             DomainValidator(ThrowingTestDomain(cause), schema)
                 .check(IR.Value.Object("Query", emptyMap()))
         }
@@ -162,7 +161,7 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
     }
 
     @Test
-    fun `check -- does not throw for bijective domain`() {
+    fun `check -- does not throw for valid domain`() {
         val schema = "type Query { x:Int }".asSchema
         assertDoesNotThrow {
             DomainValidator(IdentityDomain, schema).check(IR.Value.Object("Query", emptyMap()))
@@ -173,7 +172,7 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
     fun `create with custom generator`() {
         val obj = IR.Value.Object("Query", mapOf("x" to IR.Value.Number(1)))
         val domain = object : Domain<IR.Value.Object> {
-            override fun objectToIR(): Bijection<IR.Value.Object, IR.Value.Object> = Bijection(::checkAndPass, ::checkAndPass)
+            override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> = Conv(::checkAndPass, ::checkAndPass)
 
             fun checkAndPass(inp: IR.Value.Object): IR.Value.Object =
                 inp.also {
@@ -188,17 +187,17 @@ class DomainValidatorTest : KotestPropertyBase(110265041170030832L) {
 }
 
 private object NonBijectiveTestDomain : Domain<IR.Value.Object> {
-    override fun objectToIR(): Bijection<IR.Value.Object, IR.Value.Object> =
-        Bijection(
+    override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> =
+        Conv(
             { it },
             { it.copy(name = it.name + "_") }
         )
 }
 
 private class ThrowingTestDomain(val cause: Throwable) : Domain<IR.Value.Object> {
-    override fun objectToIR(): Bijection<IR.Value.Object, IR.Value.Object> = Bijection({ throw cause }, { it })
+    override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> = Conv({ throw cause }, { it })
 }
 
 private object IdentityDomain : Domain<IR.Value.Object> {
-    override fun objectToIR(): Bijection<IR.Value.Object, IR.Value.Object> = Bijection.identity()
+    override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> = Conv.identity()
 }

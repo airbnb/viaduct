@@ -17,7 +17,6 @@ import viaduct.arbitrary.common.randomSource
 import viaduct.arbitrary.graphql.GenInterfaceStubsIfNeeded
 import viaduct.arbitrary.graphql.graphQLSchema
 import viaduct.mapping.test.objectIR
-import viaduct.utils.bijection.Bijection
 
 class DomainTest : KotestPropertyBase() {
     private val cfg = Config.default + (GenInterfaceStubsIfNeeded to true)
@@ -97,7 +96,7 @@ object TestDomain1 : Domain<TestDomain1.Value.Object> {
         data class Object(val name: String, val fields: Map<String, Value>) : Value
     }
 
-    override fun objectToIR(): Bijection<Value.Object, IR.Value.Object> = Bijection(::toIRObject, ::fromIRObject)
+    override fun objectToIR(): Conv<Value.Object, IR.Value.Object> = Conv(::toIRObject, ::fromIRObject)
 
     private fun toIRObject(obj: Value.Object): IR.Value.Object {
         // example of name transformations
@@ -147,7 +146,7 @@ object TestDomain2 : Domain<TestDomain2.Value.Object> {
         data class Object(val name: String, val fields: Map<String, Value>) : Value
     }
 
-    private val valueBijection = Bijection<Value, IR.Value>(
+    private val valueConv = Conv<Value, IR.Value>(
         forward = { v ->
             when (v) {
                 is Value.Int -> IR.Value.Number(v.value)
@@ -162,13 +161,13 @@ object TestDomain2 : Domain<TestDomain2.Value.Object> {
         }
     )
 
-    override fun objectToIR(): Bijection<Value.Object, IR.Value.Object> =
-        Bijection<Value.Object, IR.Value.Object>(
+    override fun objectToIR(): Conv<Value.Object, IR.Value.Object> =
+        Conv<Value.Object, IR.Value.Object>(
             forward = { obj ->
-                IR.Value.Object(obj.name, obj.fields.mapValues { (_, v) -> valueBijection(v) })
+                IR.Value.Object(obj.name, obj.fields.mapValues { (_, v) -> valueConv(v) })
             },
             inverse = { ir ->
-                Value.Object(ir.name, ir.fields.mapValues { (_, v) -> valueBijection.inverse()(v) })
+                Value.Object(ir.name, ir.fields.mapValues { (_, v) -> valueConv.inverse()(v) })
             }
         )
 }

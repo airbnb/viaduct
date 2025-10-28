@@ -34,12 +34,11 @@ import viaduct.arbitrary.graphql.graphQLFieldName
 import viaduct.arbitrary.graphql.graphQLName
 import viaduct.arbitrary.graphql.graphQLSchema
 import viaduct.mapping.test.DomainValidator
-import viaduct.utils.bijection.Bijection
 
 class IRTest : KotestPropertyBase() {
     @Test
     fun `IR -- objectToIR`() {
-        assertEquals(Bijection.identity<IR.Value.Object>(), IR.objectToIR())
+        assertEquals(Conv.identity<IR.Value.Object>(), IR.objectToIR())
     }
 
     @Test

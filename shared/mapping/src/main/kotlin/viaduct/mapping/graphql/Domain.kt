@@ -1,7 +1,5 @@
 package viaduct.mapping.graphql
 
-import viaduct.utils.bijection.Bijection
-
 /**
  * A [Domain] models a family of value types that can participate in object mapping.
  *
@@ -10,12 +8,12 @@ import viaduct.utils.bijection.Bijection
  */
 interface Domain<ObjectType> {
     /**
-     * A reversible conversion between objects in this domain to objects in the IR domain.
+     * A conversion between objects in this domain to objects in the IR domain.
      *
-     * A valid Bijection for this Domain should be able to pass the `validateDomain` check in DomainValidator.kt
+     * A valid [Conv] for this Domain should be able to pass the `validateDomain` check in DomainValidator.kt
      */
-    fun objectToIR(): Bijection<ObjectType, IR.Value.Object>
+    fun objectToIR(): Conv<ObjectType, IR.Value.Object>
 
-    /** Return a reversible conversion between objects in this domain and the target domain */
-    infix fun <T> map(target: Domain<T>): Bijection<ObjectType, T> = objectToIR() andThen target.objectToIR().inverse()
+    /** Return a [Conv] between objects in this domain and the target domain */
+    infix fun <T> map(target: Domain<T>): Conv<ObjectType, T> = objectToIR() andThen target.objectToIR().inverse()
 }

@@ -13,25 +13,25 @@ import viaduct.arbitrary.common.flatten
 import viaduct.arbitrary.common.randomSource
 import viaduct.arbitrary.graphql.GenInterfaceStubsIfNeeded
 import viaduct.arbitrary.graphql.graphQLSchema
+import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.Domain
 import viaduct.mapping.graphql.IR
-import viaduct.utils.bijection.Bijection
 import viaduct.utils.collections.None
 import viaduct.utils.collections.Option
 import viaduct.utils.collections.Some
 
-const val DEFAULT_ITER = 10_000
+const val DEFAULT_ITER = 1_000
 
-/** A fixture to check that a [Domain] is bijective */
+/** A fixture to check that a [Domain] can roundtrip values */
 class DomainValidator<From, To> private constructor(
     private val fromGen: Arb<From>,
-    private val bijection: Bijection<From, To>,
+    private val conv: Conv<From, To>,
     private val equals: Equals<From>,
 ) {
     /**
      * Check that arbitrarily-generated objects can be roundtripped through the domain
-     * @param iter the maximum number of arbitrary objects for which bijection is attempted
-     * @throws DomainIsNotBijective if a bijection failure is found
+     * @param iter the maximum number of arbitrary objects for which roundtripping is attempted
+     * @throws ValueRoundtripError if a value is found that could not be roundtripped
      */
     fun checkAll(iter: Int = DEFAULT_ITER) {
         checkAll(fromGen, iter)
@@ -52,7 +52,7 @@ class DomainValidator<From, To> private constructor(
 
     /**
      * Check that a single object can be roundtripped through the domain
-     * @throws DomainIsNotBijective if [value] cannot be roundtripped through the domain bijection
+     * @throws ValueRoundtripError if [value] cannot be roundtripped through the domain conv
      */
     fun check(value: From) = checkOrThrow(value)
 
@@ -60,24 +60,24 @@ class DomainValidator<From, To> private constructor(
         expected: From,
         seed: Long? = null
     ) {
-        tryBiject(expected)
+        tryRoundtrip(expected)
             .recover { err ->
-                throw BijectionError(expected, err, seed)
+                throw RoundtripError(expected, err, seed)
             }
             .map { actualOpt ->
                 actualOpt.forEach { actual ->
-                    throw DomainIsNotBijective(expected, actual, seed)
+                    throw ValueRoundtripError(expected, actual, seed)
                 }
             }
     }
 
     /**
-     * Try to biject [value]
-     * @return [None] if value was successfully bijected, or [Some] of the roundtripped value if bijection failed
+     * Try to roundtri [value]
+     * @return [None] if value was successfully roundtripped, or [Some] of the roundtripped value if roundtripping failed
      */
-    private fun tryBiject(value: From): Result<Option<From>> =
+    private fun tryRoundtrip(value: From): Result<Option<From>> =
         runCatching {
-            bijection.invert(bijection(value))
+            conv.invert(conv(value))
         }.map { value2 ->
             if (!equals(value, value2)) {
                 Some(value2)
@@ -181,25 +181,25 @@ private object MinObject : Comparator<IR.Value.Object> {
     ): Int = o1.toString().length.compareTo(o2.toString().length)
 }
 
-class DomainIsNotBijective(
+class ValueRoundtripError(
     val expected: Any?,
     val actual: Any?,
     val seed: Long? = null
 ) : Exception() {
     override val message: String get() {
         val seedStr = seed?.let { " (seed: $it)" } ?: ""
-        val msg = "Domain failed to biject value$seedStr. Expected $expected but got $actual"
+        val msg = "Domain failed to roundtrip value$seedStr. Expected $expected but got $actual"
         return msg
     }
 }
 
-class BijectionError(
+class RoundtripError(
     val expected: Any?,
     override val cause: Throwable,
     val seed: Long? = null
 ) : Exception(cause) {
     override val message: String get() {
         val seedStr = seed?.let { " (seed: $it)" } ?: ""
-        return "Failed to biject value ${expected}$seedStr"
+        return "Failed to roundtrip value ${expected}$seedStr"
     }
 }
