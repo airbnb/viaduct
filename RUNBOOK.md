@@ -89,6 +89,10 @@ Treehouse:
 1. External contributor opens a pull request against `airbnb/viaduct`.
 2. Viaduct maintainer reviews and approves the pull request in Github.
 3. Viaduct maintainer applies the changes to Treehouse using Copybara.
-    - In Treehouse, run `./_infra/scripts/inbound/manual-inbound.sh <inbound-pr-number>`
+    - **One-time setup**:
+      - Authenticate with GitHub CLI: `gh auth login` (for github.com) and `gh auth login --hostname git.musta.ch` (for internal GHE)
+      - Configure your GitHub username: `yak config githubUsername YOUR_GITHUB_USERNAME`
+    - Run `yak script projects/viaduct/oss:pull-me` to automatically pull your latest PR, or
+    - Run `yak script projects/viaduct/oss:pull-me <PR_NUMBER>` to pull a specific PR
     - Stamp and merge the change in Treehouse.
 4. Treehouse CI will automatically update the Github repo and close the inbound PR.
