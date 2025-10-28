@@ -108,6 +108,7 @@ jobs:
 
           echo "✅ Collected:"
           find build/package -type f -maxdepth 2 -print
+        shell: bash
 
       - uses: actions/upload-artifact@v4
         with:
