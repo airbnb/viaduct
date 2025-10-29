@@ -65,10 +65,9 @@ jobs:
           access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
           sot_repo: airbnb/viaduct
           destination_repo: ${{ matrix.demoapp.repo }}
-          workflow: push
+          workflow: airbnb-viaduct-to-${{ matrix.demoapp.name }}
           custom_config: .github/copybara/copy.bara.sky
           copybara_options: |
-            airbnb-viaduct-to-${{ matrix.demoapp.name }}
             --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git
             --git-committer-email=viabot@ductworks.io
             --git-committer-name=ViaBot
