@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Copybara for ${{ matrix.demoapp.name }}
-        uses: fireboy1919/copybara-action@v1.2.3
+        uses: fireboy1919/copybara-action@1.2.3
         with:
           ssh_key: "dummy"  # Required by action but not used - we use HTTPS with access_token
           access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
