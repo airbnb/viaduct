@@ -4,10 +4,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish-demoapps:
+  # Validation job - checks versions and builds
+  validate:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        demoapp: [starwars, cli-starter, ktor-starter]
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -30,8 +36,40 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      - name: Publish Demo Apps
-        env:
-          VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+      - name: Validate ${{ matrix.demoapp }}
         run: |
-          python3 ./.github/scripts/publish_all_demoapps.py
+          python3 ./.github/scripts/validate_demoapp.py ${{ matrix.demoapp }}
+
+  # Publish job - runs copybara for each demo app
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        demoapp:
+          - name: starwars
+            repo: viaduct-graphql/starwars
+          - name: cli-starter
+            repo: viaduct-graphql/cli-starter
+          - name: ktor-starter
+            repo: viaduct-graphql/ktor-starter
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run Copybara for ${{ matrix.demoapp.name }}
+        uses: fireboy1919/copybara-action@042b4395839f3a374a6455b541e29e40c949d717
+        with:
+          ssh_key: "dummy"  # Required by action but not used - we use HTTPS with access_token
+          access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+          copybara_config: .github/copybara/copy.bara.sky
+          copybara_workflow: airbnb-viaduct-to-${{ matrix.demoapp.name }}
+          copybara_options: |
+            --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git
+            --git-committer-email=viabot@ductworks.io
+            --git-committer-name=ViaBot
+            --force
+            -v SOURCE_REPO=file://${{ github.workspace }}
+            -v DEMOAPP_NAME=${{ matrix.demoapp.name }}
+            -v DESTINATION_REPO=https://github.com/${{ matrix.demoapp.repo }}.git
