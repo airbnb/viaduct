@@ -10,12 +10,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# OS platforms to test on release (latest versions, both macOS architectures, Windows)
+# OS platforms to test on release (latest versions, both macOS architectures)
 OS_PLATFORMS=(
     "ubuntu-latest"
     "macos-latest"      # Apple Silicon (ARM)
     "macos-15-intel"    # Intel
-    "windows-latest"
 )
 
 # All supported Java versions

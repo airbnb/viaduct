@@ -23,9 +23,6 @@ on:
           - macos-15
           - macos-13
           - macos-14      
-          - windows-latest
-          - windows-2022
-          - windows-2019
         default: ubuntu-latest
   pull_request:
     branches:

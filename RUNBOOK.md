@@ -52,10 +52,10 @@ This is the week's release candidate branch. This branch is called `release/vX.Y
     ```
 
     This will trigger builds on all supported combinations:
-    - OS: ubuntu-latest, macos-latest, macos-15-intel, windows-latest
+    - OS: ubuntu-latest, macos-latest, macos-15-intel
     - Java: 11, 17, 21
 
-    Monitor the triggered builds and verify all 12 combinations pass successfully before the Wednesday meeting.
+    Monitor the triggered builds and verify all 9 combinations pass successfully before the Wednesday meeting.
 
 5. At the Wednesday OSS team meeting, the release manager presents a proposed changelog for the release candidate branch and leads a discussion to reach approval on the week's release.
 6. If the team agrees on releasing the proposed change set, the release manager proceeds with the release.
