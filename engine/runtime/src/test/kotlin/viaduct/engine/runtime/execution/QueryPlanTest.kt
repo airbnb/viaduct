@@ -29,6 +29,8 @@ import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.ParsedSelections
+import viaduct.engine.api.QueryPlanExecutionCondition
+import viaduct.engine.api.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
 import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
@@ -704,6 +706,58 @@ class QueryPlanTest {
         }
     }
 
+    @Test
+    fun `QueryPlan can be built with custom ExecutionCondition`() {
+        Fixture("type Query { x:Int }") {
+            val customCondition = QueryPlanExecutionCondition { false }
+            val plan = runExecutionTest {
+                val params = mkQPParameters("{x}", ViaductSchema(schema), requiredSelectionSetRegistry)
+                    .copy(executionCondition = customCondition)
+                QueryPlan.build(params, "{x}".asDocument, inCheckerContext = false)
+            }
+
+            // Verify the ExecutionCondition is stored in the plan
+            expectThat(plan.executionCondition).isEqualTo(customCondition)
+            expectThat(plan.executionCondition.shouldExecute()).isEqualTo(false)
+        }
+    }
+
+    @Test
+    fun `Child QueryPlans inherit ExecutionCondition from RSS, not parameters`() {
+        // Build registry with child RSS that creates child plans
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldResolverEntry("Query" to "x", "y")
+            .build()
+
+        Fixture("type Query { x:Int, y:Int }", reg) {
+            val customCondition = QueryPlanExecutionCondition { false }
+            val plan = runExecutionTest {
+                val params = mkQPParameters("{x}", ViaductSchema(schema), reg)
+                    .copy(executionCondition = customCondition)
+                QueryPlan.build(params, "{x}".asDocument, inCheckerContext = false)
+            }
+
+            // Verify the root plan has the custom ExecutionCondition from parameters
+            expectThat(plan.executionCondition).isEqualTo(customCondition)
+
+            // Verify child plans have ALWAYS_EXECUTE (the default from RSS), not the custom condition from parameters
+            val field = plan.selectionSet.selections.first() as QueryPlan.Field
+            val childPlan = field.childPlans.first()
+            expectThat(childPlan.executionCondition).isEqualTo(ALWAYS_EXECUTE)
+            expectThat(childPlan.executionCondition.shouldExecute()).isEqualTo(true)
+        }
+    }
+
+    @Test
+    fun `QueryPlan defaults to ALWAYS_EXECUTE when not specified`() {
+        Fixture("type Query { x:Int }") {
+            val plan = buildPlan("{x}")
+
+            expectThat(plan.executionCondition).isEqualTo(ALWAYS_EXECUTE)
+            expectThat(plan.executionCondition.shouldExecute()).isEqualTo(true)
+        }
+    }
+
     private class Fixture(
         sdl: String,
         val requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
@@ -863,7 +917,8 @@ private fun mkQueryPlan(
     variablesResolvers,
     parentType,
     childPlans,
-    attribution
+    attribution,
+    executionCondition = ALWAYS_EXECUTE
 )
 
 internal fun mkQPParameters(

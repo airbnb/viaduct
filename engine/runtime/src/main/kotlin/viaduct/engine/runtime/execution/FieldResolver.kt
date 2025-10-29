@@ -201,6 +201,10 @@ class FieldResolver(
         parameters: ExecutionParameters,
         plan: QueryPlan
     ) {
+        if (!plan.executionCondition.shouldExecute()) {
+            return
+        }
+
         plan.childPlans.forEach { launchQueryPlan(parameters, it) }
 
         val field = checkNotNull(parameters.field)

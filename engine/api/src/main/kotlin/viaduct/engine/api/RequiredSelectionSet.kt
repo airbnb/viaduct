@@ -1,18 +1,21 @@
 package viaduct.engine.api
 
 import graphql.language.AstPrinter
+import viaduct.engine.api.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
 import viaduct.graphql.utils.collectVariableReferences
 
 /**
  * Represents a set of selections that are required.
  *
  * @param forChecker True if this is a RSS for a checker or checker variable resolver
+ * @param executionCondition Determines whether QueryPlans built from this RSS should execute at runtime (defaults to always execute).
  */
 data class RequiredSelectionSet(
     val selections: ParsedSelections,
     val variablesResolvers: List<VariablesResolver>,
     val forChecker: Boolean,
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
+    val executionCondition: QueryPlanExecutionCondition = ALWAYS_EXECUTE,
 ) {
     init {
         val refs = selections.selections.collectVariableReferences()

@@ -23,6 +23,8 @@ import kotlinx.coroutines.future.await
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FieldResolverDispatcherRegistry
+import viaduct.engine.api.QueryPlanExecutionCondition
+import viaduct.engine.api.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.VariablesResolver
@@ -47,6 +49,7 @@ data class QueryPlan(
     val parentType: GraphQLOutputType,
     val childPlans: List<QueryPlan>,
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
+    val executionCondition: QueryPlanExecutionCondition,
 ) {
     /**
      * Configuration for building a QueryPlan.
@@ -58,7 +61,8 @@ data class QueryPlan(
         val schema: ViaductSchema,
         val registry: RequiredSelectionSetRegistry,
         val executeAccessChecksInModstrat: Boolean,
-        val fieldResolverDispatcherRegistry: FieldResolverDispatcherRegistry = DispatcherRegistry.Empty
+        val fieldResolverDispatcherRegistry: FieldResolverDispatcherRegistry = DispatcherRegistry.Empty,
+        val executionCondition: QueryPlanExecutionCondition = ALWAYS_EXECUTE
     )
 
     /**
@@ -277,7 +281,7 @@ data class QueryPlan(
         ): QueryPlan {
             fun build(): QueryPlan =
                 QueryPlanBuilder(parameters, fragmentsByName, emptyList())
-                    .build(selectionSet, parentType, attribution, inCheckerContext)
+                    .build(selectionSet, parentType, attribution, inCheckerContext, parameters.executionCondition)
 
             return if (useCache) {
                 val cacheKey = QueryPlanCacheKey(parameters.query, documentKey, parameters.schema.hashCode(), parameters.executeAccessChecksInModstrat, inCheckerContext)
@@ -328,16 +332,18 @@ private class QueryPlanBuilder(
         selectionSet: GJSelectionSet,
         parentType: GraphQLCompositeType,
         attribution: ExecutionAttribution?,
-        inCheckerContext: Boolean
+        inCheckerContext: Boolean,
+        executionCondition: QueryPlanExecutionCondition
     ): QueryPlan {
-        return createQueryPlan(selectionSet, parentType, attribution, inCheckerContext)
+        return createQueryPlan(selectionSet, parentType, attribution, inCheckerContext, executionCondition)
     }
 
     private fun createQueryPlan(
         selectionSet: GJSelectionSet,
         parentType: GraphQLCompositeType,
         attribution: ExecutionAttribution?,
-        inCheckerContext: Boolean
+        inCheckerContext: Boolean,
+        executionCondition: QueryPlanExecutionCondition
     ): QueryPlan {
         check(!built) { "Builder cannot be reused" }
         built = true
@@ -359,7 +365,8 @@ private class QueryPlanBuilder(
             variablesResolvers = variablesResolvers,
             parentType = parentType,
             childPlans = state.childPlans,
-            attribution = attribution
+            attribution = attribution,
+            executionCondition = executionCondition
         )
     }
 
@@ -431,7 +438,8 @@ private class QueryPlanBuilder(
                     rss.selections.selections,
                     targetType,
                     attribution = rss.attribution,
-                    inCheckerContext = inCheckerContext
+                    inCheckerContext = inCheckerContext,
+                    executionCondition = rss.executionCondition
                 )
         }
     }
@@ -454,7 +462,8 @@ private class QueryPlanBuilder(
                         rss.selections.selections,
                         parentType = parameters.schema.schema.getTypeAs(rss.selections.typeName),
                         attribution = rss.attribution,
-                        inCheckerContext = state.inCheckerContext
+                        inCheckerContext = state.inCheckerContext,
+                        executionCondition = rss.executionCondition
                     )
             }
         }
