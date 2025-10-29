@@ -77,3 +77,6 @@ signing {
     }
     sign(publishing.publications["mavenJava"])
 }
+
+// Apply copybara tasks from separate script
+apply(from = "copybara.gradle.kts")

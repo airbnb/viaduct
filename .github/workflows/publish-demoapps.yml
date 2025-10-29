@@ -1,0 +1,37 @@
+name: Publish Demo Apps
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish-demoapps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Publish Demo Apps
+        env:
+          VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+        run: |
+          python3 ./.github/scripts/publish_all_demoapps.py
