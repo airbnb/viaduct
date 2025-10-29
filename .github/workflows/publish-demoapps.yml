@@ -77,7 +77,7 @@ jobs:
             demoapps/${{ matrix.demoapp.name }}/gradle.properties
 
       - name: Run Copybara for ${{ matrix.demoapp.name }}
-        uses: olivr/copybara-action@v1.2.3
+        uses: fireboy1919/copybara-action@v1.2.3
         with:
           ssh_key: ${{ secrets.VIADUCT_GRAPHQL_DEPLOY_KEY }}
           access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
