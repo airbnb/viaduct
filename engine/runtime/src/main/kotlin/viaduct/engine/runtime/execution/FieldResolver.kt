@@ -207,22 +207,19 @@ class FieldResolver(
 
         plan.childPlans.forEach { launchQueryPlan(parameters, it) }
 
-        val field = checkNotNull(parameters.field)
-        val def = parameters.executionStepInfo.fieldDefinition
-
         // Produce the object data and field arguments for the current field and make them available to child
         // plan VariablesResolver.
         val engineExecCtx =
             parameters.executionContext.findLocalContextForType<EngineExecutionContextImpl>()
 
-        val arguments = FieldExecutionHelpers.getArgumentValues(
-            parameters,
-            def.arguments,
-            field.mergedField.arguments,
-        ).get()
-
         parameters.launchOnRootScope {
-            val variables = resolveVariables(plan.variablesResolvers, arguments, parameters.parentEngineResult, parameters.queryEngineResult, engineExecCtx)
+            val variables = resolveVariables(
+                plan.variablesResolvers,
+                parameters.executionStepInfo.arguments,
+                parameters.parentEngineResult,
+                parameters.queryEngineResult,
+                engineExecCtx
+            )
             val planParameters = parameters.forChildPlan(plan, CoercedVariables(variables))
             fetchObject(plan.parentType as GraphQLObjectType, planParameters)
         }

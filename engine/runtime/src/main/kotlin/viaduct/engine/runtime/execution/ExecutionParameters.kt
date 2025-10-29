@@ -124,18 +124,17 @@ data class ExecutionParameters(
     ): ExecutionParameters {
         val coord = objectType.name to field.mergedField.name
         val fieldDef = executionContext.graphQLSchema.getFieldDefinition(coord.gj)
-        val key = FieldExecutionHelpers.buildOERKeyForField(this, fieldDef, field)
-
-        val newGjParams = gjParameters.transform {
-            it.parent(gjParameters)
-            it.path(path.segment(field.responseKey))
-            it.field(field.mergedField)
-        }
+        val path = path.segment(field.responseKey)
+        val mergedField = field.mergedField
         val executionStepInfo = FieldExecutionHelpers.createExecutionStepInfo(
-            newGjParams,
+            graphQLSchema.codeRegistry,
+            executionContext,
+            coercedVariables,
+            mergedField,
+            path,
+            executionStepInfo,
             fieldDef,
             objectType,
-            key.arguments
         )
         return copy(
             parentEngineResult = parentEngineResult,

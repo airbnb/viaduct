@@ -67,25 +67,21 @@ class AccessCheckRunner(
 
         val typeName = objectEngineResult.graphQLObjectType.name
         val checkerDispatcher = engineExecutionContext.dispatcherRegistry.getTypeCheckerDispatcher(typeName)
-        if (checkerDispatcher == null) {
             // No access check for this field, return immediately
-            return Value.nullValue
-        }
+            ?: return Value.nullValue
 
         // fetch the selection sets of any child plans for this type
         val fieldTypeChildPlans = field.fieldTypeChildPlans[objectEngineResult.graphQLObjectType] ?: emptyList()
         if (fieldTypeChildPlans.isNotEmpty()) {
-            // Produce the object data and field arguments for the current field and make them available to child
-            // plan VariablesResolver.
-            val arguments = FieldExecutionHelpers.getArgumentValues(
-                parameters,
-                parameters.executionStepInfo.fieldDefinition.arguments,
-                field.mergedField.arguments,
-            ).get()
-
             fieldTypeChildPlans.forEach { childPlan ->
                 parameters.launchOnRootScope {
-                    val variables = resolveVariables(childPlan.variablesResolvers, arguments, parameters.parentEngineResult, parameters.queryEngineResult, engineExecutionContext)
+                    val variables = resolveVariables(
+                        childPlan.variablesResolvers,
+                        parameters.executionStepInfo.arguments,
+                        parameters.parentEngineResult,
+                        parameters.queryEngineResult,
+                        engineExecutionContext
+                    )
                     val planParameters = parameters.forFieldTypeChildPlan(
                         childPlan,
                         CoercedVariables(variables),
