@@ -18,8 +18,8 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.resolve
 import viaduct.engine.api.select.SelectionsParser
-import viaduct.tenant.runtime.context2.VariablesProviderContextImpl
-import viaduct.tenant.runtime.context2.factory.VariablesProviderContextFactory
+import viaduct.tenant.runtime.context.VariablesProviderContextImpl
+import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
 import viaduct.tenant.runtime.internal.InternalContextImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 

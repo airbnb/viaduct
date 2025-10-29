@@ -29,7 +29,7 @@ import viaduct.service.api.spi.ResolverErrorReporter
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
-import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
+import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo

@@ -1,4 +1,4 @@
-package viaduct.tenant.runtime.context2.factory
+package viaduct.tenant.runtime.context.factory
 
 import io.mockk.mockk
 import kotlin.reflect.KClass
@@ -31,8 +31,8 @@ import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.tenant.runtime.FakeMutation
 import viaduct.tenant.runtime.FakeObject
 import viaduct.tenant.runtime.FakeQuery
-import viaduct.tenant.runtime.context2.FieldExecutionContextImpl
-import viaduct.tenant.runtime.context2.MutationFieldExecutionContextImpl
+import viaduct.tenant.runtime.context.FieldExecutionContextImpl
+import viaduct.tenant.runtime.context.MutationFieldExecutionContextImpl
 
 /**
  * Tests for ResolverExecutionContextFactory - tests that the factory correctly constructs

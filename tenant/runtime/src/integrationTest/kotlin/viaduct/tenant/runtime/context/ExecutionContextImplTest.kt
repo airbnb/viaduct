@@ -1,78 +1,53 @@
-@file:Suppress("ForbiddenImport")
-
 package viaduct.tenant.runtime.context
 
-import graphql.schema.GraphQLObjectType
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlin.reflect.KClass
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.api.context.FieldExecutionContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.globalid.GlobalIDCodec
-import viaduct.api.internal.InternalContext
-import viaduct.api.internal.NodeReferenceGRTFactory
-import viaduct.api.internal.select.SelectionSetFactory
-import viaduct.api.internal.select.SelectionsLoader
-import viaduct.api.mocks.MockGlobalID
 import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
+import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.engine.api.NodeReference
+import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
+import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
 import viaduct.tenant.runtime.globalid.User
-import viaduct.tenant.runtime.internal.NodeReferenceGRTFactoryImpl
 import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
-import viaduct.tenant.runtime.select.Foo
-import viaduct.tenant.runtime.select.SelectTestFeatureAppTest
-import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 
 @ExperimentalCoroutinesApi
-class ExecutionContextImplTest {
-    private object Obj : Object
-
-    private object Q : Query
-
-    private object Args : Arguments
-
-    private val queryObject = mockk<Query>()
-
+class ExecutionContextImplTest : ContextTestBase() {
     private fun mk(
         obj: Object = Obj,
         query: Query = Q,
         args: Arguments = Args,
         globalIDCodec: GlobalIDCodec = MockGlobalIDCodec(),
-        selectionSet: SelectionSet<*> = SelectionSet.NoSelections,
-        queryLoader: SelectionsLoader<Query> = SelectionsLoader.Companion.const(queryObject),
-        selectionSetFactory: SelectionSetFactory = SelectionSetFactoryImpl(mockk()),
-        nodeReferenceFactory: NodeReferenceGRTFactory = mockk<NodeReferenceGRTFactory>()
-    ) = FieldExecutionContextImpl(
-        ResolverExecutionContextImpl(
-            MockInternalContext(SelectTestFeatureAppTest.schema, globalIDCodec),
+        selectionSet: SelectionSet<CompositeOutput> = noSelections,
+    ): FieldExecutionContext<Object, Query, Arguments, CompositeOutput> =
+        FieldExecutionContextImpl(
+            MockInternalContext(GlobalIdFeatureAppTest.schema, globalIDCodec),
+            EngineExecutionContextWrapperImpl(ContextMocks(GlobalIdFeatureAppTest.schema).engineExecutionContext),
+            selectionSet,
             null, // requestContext
-            queryLoader,
-            selectionSetFactory,
-            nodeReferenceFactory
-        ),
-        obj,
-        query,
-        args,
-        selectionSet,
-    )
+            args,
+            obj,
+            query,
+        )
 
     @Test
     fun `globalIDFor - valid type and id returns GlobalID`() {
@@ -82,7 +57,7 @@ class ExecutionContextImplTest {
 
         assertEquals(User.Reflection, result.type)
         assertEquals("123", result.internalID)
-        assertTrue(result is GlobalIDImpl)
+        assertTrue(result is GlobalIDImpl<*>)
     }
 
     @Test
@@ -113,7 +88,7 @@ class ExecutionContextImplTest {
 
         assertEquals(User.Reflection, result.type)
         assertEquals("", result.internalID)
-        assertTrue(result is GlobalIDImpl)
+        assertTrue(result is GlobalIDImpl<*>)
     }
 
     @Test
@@ -126,7 +101,7 @@ class ExecutionContextImplTest {
 
         assertEquals(User.Reflection, result.type)
         assertEquals(specialInternalId, result.internalID)
-        assertTrue(result is GlobalIDImpl)
+        assertTrue(result is GlobalIDImpl<*>)
     }
 
     @Test
@@ -139,7 +114,7 @@ class ExecutionContextImplTest {
 
         assertEquals(User.Reflection, result.type)
         assertEquals(unicodeInternalId, result.internalID)
-        assertTrue(result is GlobalIDImpl)
+        assertTrue(result is GlobalIDImpl<*>)
     }
 
     @Test
@@ -152,7 +127,7 @@ class ExecutionContextImplTest {
 
         assertEquals(User.Reflection, result.type)
         assertEquals(whitespaceInternalId, result.internalID)
-        assertTrue(result is GlobalIDImpl)
+        assertTrue(result is GlobalIDImpl<*>)
     }
 
     @Test
@@ -166,7 +141,7 @@ class ExecutionContextImplTest {
         assertEquals(User.Reflection, result.type)
         assertEquals(longInternalId, result.internalID)
         assertEquals(10000, result.internalID.length)
-        assertTrue(result is GlobalIDImpl)
+        assertTrue(result is GlobalIDImpl<*>)
     }
 
     @Test
@@ -185,8 +160,8 @@ class ExecutionContextImplTest {
         val ctx = mk()
 
         val internalId = "123"
-        val globalId1 = ctx.globalIDFor(User.Reflection, internalId)
-        val globalId2 = ctx.globalIDFor(User.Reflection, internalId)
+        val globalId1: GlobalID<User> = ctx.globalIDFor(User.Reflection, internalId)
+        val globalId2: GlobalID<User> = ctx.globalIDFor(User.Reflection, internalId)
 
         assertEquals(globalId1, globalId2)
         assertEquals(globalId1.hashCode(), globalId2.hashCode())
@@ -299,83 +274,6 @@ class ExecutionContextImplTest {
                 "Round-trip failed for internal ID: '$originalInternalId'"
             )
             assertEquals(User.Reflection.name, decodedGlobalId.type.name)
-        }
-    }
-
-    @Test
-    fun `nodeFor - exceptions from NodeReferenceFactory are propagated back to caller`() {
-        val mockNodeReferenceFactory = mockk<NodeReferenceGRTFactory>()
-        val ctx = mk(nodeReferenceFactory = mockNodeReferenceFactory)
-
-        val globalId = GlobalIDImpl(User.Reflection, "")
-
-        val err = RuntimeException()
-        every { mockNodeReferenceFactory.nodeFor<NodeObject>(any(), any()) } throws err
-
-        assertSame(
-            err,
-            assertThrows<RuntimeException> {
-                ctx.nodeFor(globalId)
-            }
-        )
-    }
-
-    @Test
-    fun `nodeFor - data from NodeReferenceFactory are propagated back to caller`() {
-        val mockNodeReferenceFactory = mockk<NodeReferenceGRTFactory>()
-        val ctx = mk(nodeReferenceFactory = mockNodeReferenceFactory)
-
-        val globalId = GlobalIDImpl(User.Reflection, "")
-
-        val result = mockk<User>()
-        every { mockNodeReferenceFactory.nodeFor<NodeObject>(any(), any()) } returns result
-
-        assertSame(
-            result,
-            ctx.nodeFor(globalId)
-        )
-    }
-
-    private class FooType : Type<Foo> {
-        override val name: String = "Foo"
-        override val kcls: KClass<out Foo> = Foo::class
-    }
-
-    private fun createMockInternalContext(globalIDCodec: GlobalIDCodec = MockGlobalIDCodec()): InternalContext = MockInternalContext(SelectTestFeatureAppTest.schema, globalIDCodec)
-
-    @Suppress("KotlinConstantConditions")
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `nodeFor - data from NodeReferenceFactory are the same as the result`() {
-        val fooType = FooType()
-        val globalId = GlobalIDImpl(fooType, "123")
-
-        val nodeReference = object : NodeReference {
-            override val id: String
-                get() = MockGlobalIDCodec().serialize(globalId)
-
-            override val graphQLObjectType: GraphQLObjectType
-                get() = SelectTestFeatureAppTest.schema.schema.getObjectType(fooType.name)
-        }
-
-        val nodeReferenceFactory: (String, GraphQLObjectType) -> NodeReference = { _, _ ->
-            nodeReference
-        }
-
-        val factory = NodeReferenceGRTFactoryImpl(nodeReferenceFactory)
-        val internalContext = createMockInternalContext()
-
-        val resultFromFactory = factory.nodeFor(globalId, internalContext)
-
-        assertNotNull(resultFromFactory, "nodeFor should return a non-null result for valid NodeObject type")
-        assertEquals(Foo::class, resultFromFactory::class, "Result should be an instance of User")
-
-        val ctx = mk(nodeReferenceFactory = factory)
-
-        runBlocking {
-            val idFromFactory = (resultFromFactory.getId() as MockGlobalID).internalID
-            val idFromFieldExecutionContext = (ctx.nodeFor(globalId).getId() as MockGlobalID).internalID
-            assertEquals(idFromFactory, idFromFieldExecutionContext)
         }
     }
 }

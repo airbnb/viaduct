@@ -1,4 +1,4 @@
-package viaduct.tenant.runtime.context2
+package viaduct.tenant.runtime.context
 
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext

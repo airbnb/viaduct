@@ -16,7 +16,7 @@ import viaduct.engine.api.FieldResolverExecutor.Selector
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
-import viaduct.tenant.runtime.context2.factory.FieldExecutionContextFactory
+import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
 /**
  * Executes a tenant-written field resolver's batchResolve function.

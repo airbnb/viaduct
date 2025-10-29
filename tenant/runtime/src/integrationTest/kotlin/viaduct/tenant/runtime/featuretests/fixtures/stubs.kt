@@ -28,8 +28,8 @@ import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.tenant.runtime.bootstrap.RequiredSelectionSetFactory
-import viaduct.tenant.runtime.context2.factory.FieldExecutionContextFactory
-import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
+import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
+import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 

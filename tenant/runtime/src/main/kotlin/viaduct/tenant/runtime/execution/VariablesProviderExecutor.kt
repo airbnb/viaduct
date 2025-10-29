@@ -6,7 +6,7 @@ import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.internal
 import viaduct.api.types.Arguments
 import viaduct.engine.api.VariablesResolver
-import viaduct.tenant.runtime.context2.factory.VariablesProviderContextFactory
+import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 /** Adapts a tenant-defined [VariablesProvider] to a [VariablesResolver] that can be executed by the engine */

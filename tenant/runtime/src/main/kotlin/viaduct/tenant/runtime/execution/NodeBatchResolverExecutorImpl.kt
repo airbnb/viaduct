@@ -13,7 +13,7 @@ import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeResolverExecutor
-import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
+import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 class NodeBatchResolverExecutorImpl(
     val resolver: Provider<out NodeResolverBase<*>>,

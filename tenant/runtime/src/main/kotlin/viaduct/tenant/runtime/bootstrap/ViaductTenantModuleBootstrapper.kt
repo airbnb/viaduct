@@ -17,8 +17,8 @@ import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.TenantModuleException
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.spi.TenantCodeInjector
-import viaduct.tenant.runtime.context2.factory.FieldExecutionContextFactory
-import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
+import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
+import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl

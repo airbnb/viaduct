@@ -14,7 +14,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.RawSelectionSet
-import viaduct.tenant.runtime.context2.factory.NodeExecutionContextFactory
+import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 class NodeUnbatchedResolverExecutorImpl(
     val resolver: Provider<out @JvmSuppressWildcards NodeResolverBase<*>>,

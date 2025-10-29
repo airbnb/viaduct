@@ -26,7 +26,7 @@ import viaduct.engine.api.checkDisjoint
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.graphql.utils.collectVariableReferences
 import viaduct.service.api.spi.TenantCodeInjector
-import viaduct.tenant.runtime.context2.factory.VariablesProviderContextFactory
+import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
 import viaduct.tenant.runtime.execution.VariablesProviderExecutor
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 

@@ -1,21 +1,35 @@
 package viaduct.tenant.runtime.context
 
 import viaduct.api.context.FieldExecutionContext
-import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.internal
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 
-class FieldExecutionContextImpl<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(
-    private val executionContext: ResolverExecutionContext,
-    override val objectValue: T,
-    override val queryValue: Q,
-    override val arguments: A,
-    private val selections: SelectionSet<O>,
-) : FieldExecutionContext<T, Q, A, O>, ResolverExecutionContext by executionContext, InternalContext by executionContext.internal {
+/**
+ * Needed to "close" our implementation hierarchy
+ */
+sealed class SealedFieldExecutionContextImpl(
+    baseData: InternalContext,
+    engineExecutionContextWrapper: EngineExecutionContextWrapper,
+    private val selections: SelectionSet<CompositeOutput>,
+    override val requestContext: Any?,
+    override val arguments: Arguments,
+    override val objectValue: Object,
+    override val queryValue: Query,
+) : FieldExecutionContext<Object, Query, Arguments, CompositeOutput>,
+    ResolverExecutionContextImpl(baseData, engineExecutionContextWrapper) {
     override fun selections() = selections
 }
+
+class FieldExecutionContextImpl(
+    baseData: InternalContext,
+    engineExecutionContextWrapper: EngineExecutionContextWrapper,
+    selections: SelectionSet<CompositeOutput>,
+    requestContext: Any?,
+    arguments: Arguments,
+    objectValue: Object,
+    queryValue: Query,
+) : SealedFieldExecutionContextImpl(baseData, engineExecutionContextWrapper, selections, requestContext, arguments, objectValue, queryValue)

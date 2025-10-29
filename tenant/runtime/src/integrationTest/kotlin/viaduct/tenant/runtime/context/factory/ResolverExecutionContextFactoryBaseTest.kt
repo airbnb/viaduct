@@ -1,4 +1,4 @@
-package viaduct.tenant.runtime.context2.factory
+package viaduct.tenant.runtime.context.factory
 
 import io.mockk.mockk
 import kotlin.reflect.KClass

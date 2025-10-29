@@ -1,4 +1,4 @@
-package viaduct.tenant.runtime.context2
+package viaduct.tenant.runtime.context
 
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi

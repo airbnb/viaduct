@@ -1,68 +1,57 @@
-@file:Suppress("ForbiddenImport")
+@file:OptIn(ExperimentalCoroutinesApi::class)
 
 package viaduct.tenant.runtime.context
 
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalIDCodec
-import viaduct.api.internal.NodeReferenceGRTFactory
-import viaduct.api.internal.select.SelectionSetFactory
-import viaduct.api.internal.select.SelectionsLoader
 import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
+import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
-import viaduct.engine.api.mocks.mkRawSelectionSetFactory
 import viaduct.engine.api.mocks.variables
 import viaduct.tenant.runtime.select.Foo
 import viaduct.tenant.runtime.select.Query
 import viaduct.tenant.runtime.select.SelectTestFeatureAppTest
-import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
 
-class FieldExecutionContextImplTest {
-    private object Obj : Object
-
-    private object Q : QueryType
-
-    private object Args : Arguments
-
+class FieldExecutionContextImplTest : ContextTestBase() {
     private val queryObject = mockk<Query>()
 
     private fun mk(
         obj: Object = Obj,
         query: QueryType = Q,
         args: Arguments = Args,
-        requestContext: Any? = null,
         globalIDCodec: GlobalIDCodec = MockGlobalIDCodec(),
-        selectionSet: SelectionSet<*> = SelectionSet.NoSelections,
-        queryLoader: SelectionsLoader<QueryType> = SelectionsLoader.const(queryObject),
-        selectionSetFactory: SelectionSetFactory =
-            SelectionSetFactoryImpl(mkRawSelectionSetFactory(SelectTestFeatureAppTest.schema)),
-        nodeReferenceFactory: NodeReferenceGRTFactory = mockk<NodeReferenceGRTFactory>()
-    ) = FieldExecutionContextImpl(
-        ResolverExecutionContextImpl(
+        selectionSet: SelectionSet<CompositeOutput> = noSelections,
+    ): FieldExecutionContextImpl {
+        val wrapper = createMockingWrapper(
+            schema = SelectTestFeatureAppTest.schema,
+            queryMock = queryObject
+        )
+
+        return FieldExecutionContextImpl(
             MockInternalContext(SelectTestFeatureAppTest.schema, globalIDCodec),
-            requestContext,
-            queryLoader,
-            selectionSetFactory,
-            nodeReferenceFactory
-        ),
-        obj,
-        query,
-        args,
-        selectionSet,
-    )
+            wrapper,
+            selectionSet,
+            null, // requestContext
+            args,
+            obj,
+            query,
+        )
+    }
 
     @Test
-    fun properties(): Unit =
-        runBlocking {
+    fun properties() =
+        runBlockingTest {
             val ctx = mk()
             assertEquals(Obj, ctx.objectValue)
             assertEquals(Q, ctx.queryValue)
@@ -89,8 +78,8 @@ class FieldExecutionContextImplTest {
     }
 
     @Test
-    fun query(): Unit =
-        runBlocking {
+    fun query() =
+        runBlockingTest {
             val ctx = mk()
             ctx.selectionsFor(Query.Reflection, "__typename").also {
                 assertTrue(it.contains(Query.Reflection.Fields.__typename))
