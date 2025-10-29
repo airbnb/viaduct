@@ -187,10 +187,9 @@ For additional support:
 
 # Demo Applications
 For more detailed, real-world examples of Viaduct in action, explore the complete demo applications located
-in the demoapps directory at the root of the project. There you'll find three fully-functional applications:
+in the demoapps directory at the root of the project. There you'll find two fully-functional applications:
 - [Star Wars API](../../../../../../../demoapps/starwars) - A comprehensive GraphQL API demonstrating advanced Viaduct patterns
 - [CLI Starter](../../../../../../../demoapps/cli-starter) - Command-line application starter template
-- [Spring Starter](../../../../../../../demoapps/spring-starter) - Spring Boot integration example
 
 
 Each of these demoapps showcase how to use viaduct in a gradle project.

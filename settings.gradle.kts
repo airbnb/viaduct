@@ -27,7 +27,6 @@ includeBuild("gradle-plugins") {
 includeBuild("demoapps/cli-starter")
 includeBuild("demoapps/ktor-starter")
 includeBuild("demoapps/starwars")
-includeBuild("demoapps/spring-starter")
 
 // integration tests
 include(":tenant:codegen-integration-tests")

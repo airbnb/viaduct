@@ -1,5 +1,0 @@
-extend type Query {
-  greeting: String @resolver
-  author: String @resolver
-  throwException: String @resolver
-}

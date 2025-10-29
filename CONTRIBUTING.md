@@ -103,7 +103,7 @@ Run tests with:
 To build and test demo apps:
 
 ```bash
-./gradlew :cli-starter:build :cli-starter:test :spring-starter:build :spring-starter:test :starwars:build :starwars:test
+./gradlew :cli-starter:build :cli-starter:test :starwars:build :starwars:test
 ```
 
 # Release Process
