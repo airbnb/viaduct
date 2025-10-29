@@ -51,6 +51,7 @@ ktlintPlugin = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintPlug
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 jacoco = { id = "jacoco", version.ref = "jacoco" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+dokkaJavaDoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokka" }
 gradle-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "gradle-maven-publish" }
 develocity = { id = "com.gradle.develocity", version.ref = "develocity" }
 foojay-resolver-convention = { id = "org.gradle.toolchains.foojay-resolver-convention", version.ref = "foojay-resolver-convention" }

@@ -6,11 +6,13 @@ import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 
 plugins {
     id("org.jetbrains.dokka")
+    id("org.jetbrains.dokka-javadoc")
 }
 
 dokka {
     // Shared configuration for documented modules goes here
     moduleVersion.set(project.version.toString())
+    moduleName.set(displayName(project))
 
     val repoRootProject = repoRoot()
 
@@ -26,6 +28,11 @@ dokka {
         suppressObviousFunctions.set(true)
         suppressInheritedMembers.set(true)
         outputDirectory.set(repoRootProject.dir("docs/static/apis/" + project.name))
+    }
+
+    dokkaPublications.javadoc {
+        suppressObviousFunctions.set(true)
+        suppressInheritedMembers.set(true)
     }
 
     dokkaSourceSets.configureEach {

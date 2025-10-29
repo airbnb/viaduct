@@ -10,6 +10,7 @@ import org.gradle.kotlin.dsl.configure
 
 plugins {
     id("com.vanniktech.maven.publish")
+    id("conventions.dokka")
     signing
 }
 
@@ -21,7 +22,6 @@ abstract class ViaductPublishingExtension @Inject constructor(objects: ObjectFac
 
 val viaductPublishing = extensions.create<ViaductPublishingExtension>("viaductPublishing")
 
-// Keep the “type” selection early — that part is fine.
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
     publishToMavenCentral(automaticRelease = false)
@@ -31,7 +31,7 @@ mavenPublishing {
     when {
         plugins.hasPlugin("java-platform") -> configure(JavaPlatform())
         plugins.hasPlugin("com.gradle.plugin-publish") -> configure(GradlePublishPlugin())
-        else -> configure(KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = true))
+        else -> configure(KotlinJvm(javadocJar = JavadocJar.Dokka("dokkaGeneratePublicationJavadoc"), sourcesJar = true))
     }
 }
 
