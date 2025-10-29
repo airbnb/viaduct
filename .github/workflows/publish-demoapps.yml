@@ -4,10 +4,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish-demoapps:
+  # Validation job - checks versions and builds
+  validate:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        demoapp: [starwars, cli-starter, ktor-starter]
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -30,8 +36,59 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      - name: Publish Demo Apps
-        env:
-          VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+      - name: Validate ${{ matrix.demoapp }}
         run: |
-          python3 ./.github/scripts/publish_all_demoapps.py
+          python3 ./.github/scripts/validate_demoapp.py ${{ matrix.demoapp }}
+
+  # Publish job - runs copybara for each demo app
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        demoapp:
+          - name: starwars
+            repo: viaduct-graphql/starwars
+          - name: cli-starter
+            repo: viaduct-graphql/cli-starter
+          - name: ktor-starter
+            repo: viaduct-graphql/ktor-starter
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from branch
+        id: version
+        run: |
+          BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+          if [[ $BRANCH_NAME =~ ^release/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Publishing version: $VERSION"
+          else
+            echo "Error: Not on a release branch"
+            exit 1
+          fi
+
+      - name: Update gradle.properties for ${{ matrix.demoapp.name }}
+        run: |
+          sed -i "s/^viaductVersion=.*/viaductVersion=${{ steps.version.outputs.version }}/" \
+            demoapps/${{ matrix.demoapp.name }}/gradle.properties
+
+      - name: Run Copybara for ${{ matrix.demoapp.name }}
+        uses: olivr/copybara-action@v1.2.3
+        with:
+          ssh_key: ${{ secrets.VIADUCT_GRAPHQL_DEPLOY_KEY }}
+          access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+          copybara_config: .github/copybara/copy.bara.sky
+          copybara_workflow: airbnb-viaduct-to-${{ matrix.demoapp.name }}
+          copybara_options: |
+            --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git
+            --git-committer-email=viabot@ductworks.io
+            --git-committer-name=ViaBot
+            --force
+          custom_commit_message: |
+            Sync from airbnb/viaduct
+
+            Version: ${{ steps.version.outputs.version }}
