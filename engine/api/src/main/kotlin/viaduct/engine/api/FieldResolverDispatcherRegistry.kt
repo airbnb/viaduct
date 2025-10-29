@@ -9,4 +9,11 @@ interface FieldResolverDispatcherRegistry {
         typeName: String,
         fieldName: String
     ): FieldResolverDispatcher?
+
+    object Empty : FieldResolverDispatcherRegistry {
+        override fun getFieldResolverDispatcher(
+            typeName: String,
+            fieldName: String
+        ): FieldResolverDispatcher? = null
+    }
 }
