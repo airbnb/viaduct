@@ -1,11 +1,14 @@
 package com.example.starwars.modules.filmography.characters.models
 
+import jakarta.inject.Singleton
+
 /**
  * Repository object for managing relationships between characters and films
  * in the Star Wars demo application.
  *
  */
-object CharacterFilmsRepository {
+@Singleton
+class CharacterFilmsRepository {
     /**
      * In-memory map to store character-film relationships.
      * Key: Character ID

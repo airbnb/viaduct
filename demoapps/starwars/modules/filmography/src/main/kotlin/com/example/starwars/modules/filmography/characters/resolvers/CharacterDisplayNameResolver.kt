@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 
 /**
@@ -11,10 +12,12 @@ import viaduct.api.Resolver
  */
 // tag::resolver_example[8] Example of a simple resolver
 @Resolver("name")
-class CharacterDisplayNameResolver : CharacterResolvers.DisplayName() {
-    override suspend fun resolve(ctx: Context): String? {
-        // Directly returns the name of the character from the context. The "name" field is
-        // automatically fetched due to the @Resolver annotation.
-        return ctx.objectValue.getName()
+class CharacterDisplayNameResolver
+    @Inject
+    constructor() : CharacterResolvers.DisplayName() {
+        override suspend fun resolve(ctx: Context): String? {
+            // Directly returns the name of the character from the context. The "name" field is
+            // automatically fetched due to the @Resolver annotation.
+            return ctx.objectValue.getName()
+        }
     }
-}

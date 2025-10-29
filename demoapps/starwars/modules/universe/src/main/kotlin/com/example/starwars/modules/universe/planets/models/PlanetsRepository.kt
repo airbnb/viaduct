@@ -1,12 +1,15 @@
 package com.example.starwars.modules.universe.planets.models
 
+import jakarta.inject.Singleton
+
 // Data constants
 const val UNKNOWN_DIAMETER = 0
 
 /**
  * Repository object storing planet data in memory.
  */
-object PlanetsRepository {
+@Singleton
+class PlanetsRepository {
     private val planets: List<Planet> = listOf(
         Planet(
             id = "1",

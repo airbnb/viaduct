@@ -2,6 +2,7 @@ package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
+import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
 import viaduct.api.context.globalIDFor
@@ -48,35 +49,39 @@ import viaduct.api.grts.Planet
 @Resolver(
     objectValueFragment = "fragment _ on Character { id }"
 )
-class CharacterHomeworldResolver : CharacterResolvers.Homeworld() {
-    override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Planet?>> {
-        // Extract character IDs from contexts
-        val characterIds = contexts.map { ctx ->
-            ctx.objectValue.getId().internalID
-        }
-
-        // Batch lookup: find characters and their homeworld IDs
-        val charactersById = CharacterRepository.findCharactersAsMap(characterIds)
-
-        // TODO: Validate homeworld Id
-
-        // Return results in the same order as contexts
-        return contexts.map { ctx ->
-            // Obtain character ID from current context
-            val characterId = ctx.objectValue.getId().internalID
-
-            // Lookup the character and its homeworld data
-            val character = charactersById[characterId]
-            val planet = character?.homeworldId?.let {
-                ctx.nodeFor(ctx.globalIDFor<Planet>(it))
+class CharacterHomeworldResolver
+    @Inject
+    constructor(
+        private val characterRepository: CharacterRepository
+    ) : CharacterResolvers.Homeworld() {
+        override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Planet?>> {
+            // Extract character IDs from contexts
+            val characterIds = contexts.map { ctx ->
+                ctx.objectValue.getId().internalID
             }
 
-            // Build and return the Planet object or null
-            if (planet != null) {
-                FieldValue.ofValue(planet)
-            } else {
-                FieldValue.ofValue(null)
+            // Batch lookup: find characters and their homeworld IDs
+            val charactersById = characterRepository.findCharactersAsMap(characterIds)
+
+            // TODO: Validate homeworld Id
+
+            // Return results in the same order as contexts
+            return contexts.map { ctx ->
+                // Obtain character ID from current context
+                val characterId = ctx.objectValue.getId().internalID
+
+                // Lookup the character and its homeworld data
+                val character = charactersById[characterId]
+                val planet = character?.homeworldId?.let {
+                    ctx.nodeFor(ctx.globalIDFor<Planet>(it))
+                }
+
+                // Build and return the Planet object or null
+                if (planet != null) {
+                    FieldValue.ofValue(planet)
+                } else {
+                    FieldValue.ofValue(null)
+                }
             }
         }
     }
-}

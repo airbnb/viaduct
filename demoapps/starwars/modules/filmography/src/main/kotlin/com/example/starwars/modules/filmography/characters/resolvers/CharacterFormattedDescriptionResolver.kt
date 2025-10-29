@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 
 /**
@@ -57,51 +58,53 @@ import viaduct.api.Resolver
     }
     """
 )
-class CharacterFormattedDescriptionResolver : CharacterResolvers.FormattedDescription() {
-    override suspend fun resolve(ctx: Context): String? {
-        val character = ctx.objectValue
-        val name = character.getName() ?: "Unknown"
-        val format = ctx.arguments.format
+class CharacterFormattedDescriptionResolver
+    @Inject
+    constructor() : CharacterResolvers.FormattedDescription() {
+        override suspend fun resolve(ctx: Context): String? {
+            val character = ctx.objectValue
+            val name = character.getName() ?: "Unknown"
+            val format = ctx.arguments.format
 
-        return when (format) {
-            "detailed" -> {
-                val birthYear = character.getBirthYear()
-                val eyeColor = character.getEyeColor()
-                val hairColor = character.getHairColor()
+            return when (format) {
+                "detailed" -> {
+                    val birthYear = character.getBirthYear()
+                    val eyeColor = character.getEyeColor()
+                    val hairColor = character.getHairColor()
 
-                buildString {
-                    append(name)
-                    birthYear?.let { append(" (born $it)") }
-                    if (eyeColor != null || hairColor != null) {
-                        append(" - ")
-                        eyeColor?.let { append("$it eyes") }
-                        if (eyeColor != null && hairColor != null) append(", ")
-                        hairColor?.let { append("$it hair") }
+                    buildString {
+                        append(name)
+                        birthYear?.let { append(" (born $it)") }
+                        if (eyeColor != null || hairColor != null) {
+                            append(" - ")
+                            eyeColor?.let { append("$it eyes") }
+                            if (eyeColor != null && hairColor != null) append(", ")
+                            hairColor?.let { append("$it hair") }
+                        }
                     }
                 }
-            }
 
-            "year-only" -> {
-                val birthYear = character.getBirthYear()
-                birthYear?.let { "$name (born $it)" } ?: "$name (birth year unknown)"
-            }
+                "year-only" -> {
+                    val birthYear = character.getBirthYear()
+                    birthYear?.let { "$name (born $it)" } ?: "$name (birth year unknown)"
+                }
 
-            "appearance-only" -> {
-                val eyeColor = character.getEyeColor()
-                val hairColor = character.getHairColor()
+                "appearance-only" -> {
+                    val eyeColor = character.getEyeColor()
+                    val hairColor = character.getHairColor()
 
-                buildString {
-                    append(name)
-                    if (eyeColor != null || hairColor != null) {
-                        append(" - ")
-                        eyeColor?.let { append("$it eyes") }
-                        if (eyeColor != null && hairColor != null) append(", ")
-                        hairColor?.let { append("$it hair") }
+                    buildString {
+                        append(name)
+                        if (eyeColor != null || hairColor != null) {
+                            append(" - ")
+                            eyeColor?.let { append("$it eyes") }
+                            if (eyeColor != null && hairColor != null) append(", ")
+                            hairColor?.let { append("$it hair") }
+                        }
                     }
                 }
-            }
 
-            else -> name // default format - just name
+                else -> name // default format - just name
+            }
         }
     }
-}

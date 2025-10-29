@@ -1,11 +1,14 @@
 package com.example.starwars.modules.universe.species.models
 
+import jakarta.inject.Singleton
+
 /**
  * Repository for managing and retrieving species data.
  *
  * This is a mock implementation with hardcoded data for demonstration purposes.
  */
-object SpeciesRepository {
+@Singleton
+class SpeciesRepository {
     private val species = listOf(
         Species(
             id = "1",

@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.films.resolvers
 import com.example.starwars.filmography.NodeResolvers
 import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 
 /**
@@ -12,13 +13,17 @@ import viaduct.api.Resolver
  */
 // tag::node_resolver_example[10] Example of a node resolver
 @Resolver
-class FilmNodeResolver : NodeResolvers.Film() {
-    override suspend fun resolve(ctx: Context): viaduct.api.grts.Film {
-        val filmId = ctx.id.internalID
+class FilmNodeResolver
+    @Inject
+    constructor(
+        private val filmsRepository: FilmsRepository,
+    ) : NodeResolvers.Film() {
+        override suspend fun resolve(ctx: Context): viaduct.api.grts.Film {
+            val filmId = ctx.id.internalID
 
-        val film = FilmsRepository.findFilmById(filmId)
-            ?: throw IllegalArgumentException("Film with ID $filmId not found")
+            val film = filmsRepository.findFilmById(filmId)
+                ?: throw IllegalArgumentException("Film with ID $filmId not found")
 
-        return FilmBuilder(ctx).build(film)
+            return FilmBuilder(ctx).build(film)
+        }
     }
-}

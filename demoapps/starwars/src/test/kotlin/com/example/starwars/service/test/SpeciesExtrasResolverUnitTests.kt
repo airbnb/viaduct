@@ -2,6 +2,7 @@
 
 package com.example.starwars.service.test
 
+import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.modules.universe.species.resolvers.SpeciesCulturalNotesResolver
 import com.example.starwars.modules.universe.species.resolvers.SpeciesRarityLevelResolver
 import com.example.starwars.modules.universe.species.resolvers.SpeciesSpecialAbilitiesResolver
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertIterableEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.Species
 import viaduct.engine.SchemaFactory
@@ -35,6 +37,13 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
         SchemaFactory(DefaultCoroutineInterop)
             .fromResources("com.example.starwars", Regex(".*\\.graphqls"))
 
+    private lateinit var speciesRepository: SpeciesRepository
+
+    @BeforeEach
+    fun setUp() {
+        speciesRepository = SpeciesRepository()
+    }
+
     /**
      * Build Species GRT containing only the GlobalID
      */
@@ -46,7 +55,7 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `SpeciesCulturalNotesResolver returns cultural notes from extrasData`(): Unit =
         runBlocking {
-            val resolver = SpeciesCulturalNotesResolver()
+            val resolver = SpeciesCulturalNotesResolver(speciesRepository)
 
             val result = runFieldResolver(
                 resolver = resolver,
@@ -59,7 +68,7 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `SpeciesRarityLevelResolver returns rarity level from extrasData`(): Unit =
         runBlocking {
-            val resolver = SpeciesRarityLevelResolver()
+            val resolver = SpeciesRarityLevelResolver(speciesRepository)
 
             val result = runFieldResolver(
                 resolver = resolver,
@@ -72,7 +81,7 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `SpeciesSpecialAbilitiesResolver returns abilities list from extrasData`(): Unit =
         runBlocking {
-            val resolver = SpeciesSpecialAbilitiesResolver()
+            val resolver = SpeciesSpecialAbilitiesResolver(speciesRepository)
 
             val result = runFieldResolver(
                 resolver = resolver,
@@ -88,7 +97,7 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `SpeciesTechnologicalLevelResolver returns tech level from extrasData`(): Unit =
         runBlocking {
-            val resolver = SpeciesTechnologicalLevelResolver()
+            val resolver = SpeciesTechnologicalLevelResolver(speciesRepository)
 
             val result = runFieldResolver(
                 resolver = resolver,
@@ -104,10 +113,10 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
             val fakeId = "non-existent-id-123"
             val grt = speciesGrtForId(fakeId)
 
-            val notes = runFieldResolver(SpeciesCulturalNotesResolver(), grt)
-            val rarity = runFieldResolver(SpeciesRarityLevelResolver(), grt)
-            val abilities = runFieldResolver(SpeciesSpecialAbilitiesResolver(), grt)
-            val tech = runFieldResolver(SpeciesTechnologicalLevelResolver(), grt)
+            val notes = runFieldResolver(SpeciesCulturalNotesResolver(speciesRepository), grt)
+            val rarity = runFieldResolver(SpeciesRarityLevelResolver(speciesRepository), grt)
+            val abilities = runFieldResolver(SpeciesSpecialAbilitiesResolver(speciesRepository), grt)
+            val tech = runFieldResolver(SpeciesTechnologicalLevelResolver(speciesRepository), grt)
 
             assertNull(notes)
             assertNull(rarity)

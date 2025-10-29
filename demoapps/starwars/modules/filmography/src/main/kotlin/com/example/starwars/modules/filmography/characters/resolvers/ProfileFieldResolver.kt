@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 import viaduct.api.Variable
 
@@ -67,26 +68,28 @@ import viaduct.api.Variable
     """,
     variables = [Variable("includeDetails", fromArgument = "includeDetails")]
 )
-class ProfileFieldResolver : CharacterResolvers.CharacterProfile() {
-    override suspend fun resolve(ctx: Context): String? {
-        val character = ctx.objectValue
-        val name = character.getName() ?: "Unknown"
+class ProfileFieldResolver
+    @Inject
+    constructor() : CharacterResolvers.CharacterProfile() {
+        override suspend fun resolve(ctx: Context): String? {
+            val character = ctx.objectValue
+            val name = character.getName() ?: "Unknown"
 
-        return try {
-            // If includeDetails is true, these fields will be available
-            val birthYear = character.getBirthYear()
-            val height = character.getHeight()
-            val mass = character.getMass()
+            return try {
+                // If includeDetails is true, these fields will be available
+                val birthYear = character.getBirthYear()
+                val height = character.getHeight()
+                val mass = character.getMass()
 
-            buildString {
-                append("Character Profile: $name")
-                birthYear?.let { append(", Born: $it") }
-                height?.let { append(", Height: ${it}cm") }
-                mass?.let { append(", Mass: ${it}kg") }
+                buildString {
+                    append("Character Profile: $name")
+                    birthYear?.let { append(", Born: $it") }
+                    height?.let { append(", Height: ${it}cm") }
+                    mass?.let { append(", Mass: ${it}kg") }
+                }
+            } catch (e: Exception) {
+                // If includeDetails is false, detailed fields won't be available
+                "Character Profile: $name (basic info only)"
             }
-        } catch (e: Exception) {
-            // If includeDetails is false, detailed fields won't be available
-            "Character Profile: $name (basic info only)"
         }
     }
-}

@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 
 /**
@@ -16,14 +17,16 @@ import viaduct.api.Resolver
         birthYear
     """
 )
-class CharacterDisplaySummaryResolver : CharacterResolvers.DisplaySummary() {
-    override suspend fun resolve(ctx: Context): String? {
-        val character = ctx.objectValue
+class CharacterDisplaySummaryResolver
+    @Inject
+    constructor() : CharacterResolvers.DisplaySummary() {
+        override suspend fun resolve(ctx: Context): String? {
+            val character = ctx.objectValue
 
-        // Builds a summary using the fetched fields, those are provided by the @Resolver annotation above
-        val name = character.getName() ?: "Unknown"
-        val birthYear = character.getBirthYear() ?: "Unknown birth year"
+            // Builds a summary using the fetched fields, those are provided by the @Resolver annotation above
+            val name = character.getName() ?: "Unknown"
+            val birthYear = character.getBirthYear() ?: "Unknown birth year"
 
-        return "$name ($birthYear)"
+            return "$name ($birthYear)"
+        }
     }
-}

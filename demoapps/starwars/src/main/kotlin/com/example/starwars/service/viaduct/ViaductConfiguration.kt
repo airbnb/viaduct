@@ -1,5 +1,7 @@
 package com.example.starwars.service.viaduct
 
+import io.micronaut.context.annotation.Bean
+import io.micronaut.context.annotation.Factory
 import viaduct.service.BasicViaductFactory
 import viaduct.service.SchemaRegistrationInfo
 import viaduct.service.TenantRegistrationInfo
@@ -12,10 +14,13 @@ const val EXTRAS_SCOPE_ID = "extras"
 val DEFAULT_SCHEMA_ID = SchemaId.Scoped("publicSchema", setOf(DEFAULT_SCOPE_ID))
 val EXTRAS_SCHEMA_ID = SchemaId.Scoped("publicSchemaWithExtras", setOf(DEFAULT_SCOPE_ID, EXTRAS_SCOPE_ID))
 
-// Create Viaduct as a singleton object, completely outside Micronaut
-object ViaductInstance {
-    val viaduct: Viaduct by lazy {
-        BasicViaductFactory.create(
+@Factory
+class ViaductConfiguration(
+    val micronautTenantCodeInjector: MicronautTenantCodeInjector
+) {
+    @Bean
+    fun providesViaduct(): Viaduct {
+        return BasicViaductFactory.create(
             schemaRegistrationInfo = SchemaRegistrationInfo(
                 scopes = listOf(
                     DEFAULT_SCHEMA_ID.toSchemaScopeInfo(),
@@ -25,7 +30,8 @@ object ViaductInstance {
                 resourcesIncluded = ".*\\.graphqls"
             ),
             tenantRegistrationInfo = TenantRegistrationInfo(
-                tenantPackagePrefix = "com.example.starwars"
+                tenantPackagePrefix = "com.example.starwars",
+                tenantCodeInjector = micronautTenantCodeInjector
             )
         )
     }

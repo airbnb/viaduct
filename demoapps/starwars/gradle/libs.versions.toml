@@ -8,6 +8,8 @@ reactor = "3.5.0"
 assertj = "3.24.2"
 logback-classic = "1.4.14"
 guice = "6.0.0"
+jackson = "2.15.2"
+micronautGraphql = "4.2.0"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -17,21 +19,21 @@ viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", ver
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
 
 [libraries]
-jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin" }
-micronaut-inject-java = { group = "io.micronaut", name = "micronaut-inject-java" }
-micronaut-validation = { group = "io.micronaut", name = "micronaut-http-validation" }
+jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
+micronaut-inject-java = { group = "io.micronaut", name = "micronaut-inject-java", version.ref = "micronaut" }
+micronaut-validation = { group = "io.micronaut", name = "micronaut-http-validation", version.ref = "micronaut" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
 viaduct-engine-wiring = { group = "com.airbnb.viaduct", name = "engine-wiring" }
 guice = { group = "com.google.inject", name = "guice", version.ref = "guice" }
-kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
+kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
 kotlinx-coroutines-reactor = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-reactor", version.ref = "coroutinesReactor" }
-micronaut-graphql = { group = "io.micronaut.graphql", name = "micronaut-graphql" }
-micronaut-http-server-netty = { group = "io.micronaut", name = "micronaut-http-server-netty" }
-micronaut-http-client = { group = "io.micronaut", name = "micronaut-http-client"}
+micronaut-graphql = { group = "io.micronaut.graphql", name = "micronaut-graphql", version.ref = "micronautGraphql" }
+micronaut-http-server-netty = { group = "io.micronaut", name = "micronaut-http-server-netty", version.ref = "micronaut" }
+micronaut-http-client = { group = "io.micronaut", name = "micronaut-http-client", version.ref = "micronaut" }
 micronaut-inject-kotlin = { group = "io.micronaut.kotlin", name = "micronaut-kotlin-runtime", version.ref = "micronautKotlin" }
-micronaut-jackson-databind = { group = "io.micronaut", name = "micronaut-jackson-databind" }
-micronaut-test-kotest5 = { group = "io.micronaut.test", name = "micronaut-test-kotest5" }
-micronaut-inject = { group = "io.micronaut", name = "micronaut-inject" }
+micronaut-jackson-databind = { group = "io.micronaut", name = "micronaut-jackson-databind", version.ref = "micronaut" }
+micronaut-test-kotest5 = { group = "io.micronaut.test", name = "micronaut-test-kotest5", version.ref = "micronaut" }
+micronaut-inject = { group = "io.micronaut", name = "micronaut-inject", version.ref = "micronaut" }
 reactor-core = { group = "io.projectreactor", name = "reactor-core", version.ref = "reactor" }
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter" }
 assertj-core = { group = "org.assertj", name = "assertj-core", version.ref = "assertj" }

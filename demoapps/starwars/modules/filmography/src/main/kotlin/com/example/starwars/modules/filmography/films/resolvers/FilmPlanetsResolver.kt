@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.films.resolvers
 import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 import viaduct.api.context.nodeFor
 import viaduct.api.grts.Planet
@@ -15,16 +16,21 @@ import viaduct.api.grts.Planet
  * @resolver("fragment _ on Film { id }"): Fragment syntax for accessing film ID
  */
 @Resolver("id")
-class FilmPlanetsResolver : FilmResolvers.Planets() {
-    override suspend fun resolve(ctx: Context): List<Planet?>? {
-        val filmId = ctx.objectValue.getId().internalID
+class FilmPlanetsResolver
+    @Inject
+    constructor(
+        private val characterRepository: CharacterRepository,
+        private val filmCharactersRepository: FilmCharactersRepository
+    ) : FilmResolvers.Planets() {
+        override suspend fun resolve(ctx: Context): List<Planet?>? {
+            val filmId = ctx.objectValue.getId().internalID
 
-        val characterIds = FilmCharactersRepository.findCharactersByFilmId(filmId)
+            val characterIds = filmCharactersRepository.findCharactersByFilmId(filmId)
 
-        val planetIds = characterIds.mapNotNull { CharacterRepository.findById(it)?.homeworldId }.toSet()
+            val planetIds = characterIds.mapNotNull { characterRepository.findById(it)?.homeworldId }.toSet()
 
-        return planetIds.map {
-            ctx.nodeFor<Planet>(it)
+            return planetIds.map {
+                ctx.nodeFor<Planet>(it)
+            }
         }
     }
-}

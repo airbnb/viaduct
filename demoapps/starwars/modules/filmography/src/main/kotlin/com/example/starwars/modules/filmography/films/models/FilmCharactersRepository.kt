@@ -1,6 +1,9 @@
 package com.example.starwars.modules.filmography.films.models
 
-object FilmCharactersRepository {
+import jakarta.inject.Singleton
+
+@Singleton
+class FilmCharactersRepository {
     private val filmCharacterRelations = mutableMapOf(
         "1" to mutableListOf("1", "2", "3", "4", "5"), // A New Hope characters
         "2" to mutableListOf("1", "2", "3", "4", "5"), // Empire characters

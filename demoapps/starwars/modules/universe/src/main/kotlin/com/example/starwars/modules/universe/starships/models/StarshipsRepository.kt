@@ -1,11 +1,14 @@
 package com.example.starwars.modules.universe.starships.models
 
+import jakarta.inject.Singleton
+
 /**
  * In-memory data store for Star Wars starships.
  *
  * This serves as the backing data source for the starships GraphQL API.
  */
-object StarshipsRepository {
+@Singleton
+class StarshipsRepository {
     private val starships = listOf(
         Starship(
             id = "1",

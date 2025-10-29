@@ -33,6 +33,11 @@ dependencies {
     implementation(libs.micronaut.graphql)
     implementation(libs.micronaut.http.server.netty)
     implementation(libs.micronaut.jackson.databind)
+    implementation(libs.micronaut.inject)
+
+    kapt(libs.micronaut.inject.java)
+    kapt(libs.micronaut.inject.kotlin)
+
     runtimeOnly(libs.logback.classic)
 
     runtimeOnly(project(":modules:filmography"))
@@ -66,3 +71,4 @@ tasks.withType<JavaExec> {
         "--add-opens", "java.base/java.lang=ALL-UNNAMED"
     )
 }
+

@@ -2,6 +2,7 @@ package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterFilmsRepository
+import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
 
@@ -40,23 +41,27 @@ import viaduct.api.Resolver
  */
 // tag::film_count_batch_resolver[20] FilmCountBatchResolver
 @Resolver(objectValueFragment = "fragment _ on Character { id }")
-class CharacterFilmCountResolver : CharacterResolvers.FilmCount() {
-    override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Int>> {
-        // Extract all unique character IDs from the contexts
-        val characterIds = contexts.map { it.objectValue.getId().internalID }.toSet()
+class CharacterFilmCountResolver
+    @Inject
+    constructor(
+        val characterFilmsRepository: CharacterFilmsRepository
+    ) : CharacterResolvers.FilmCount() {
+        override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Int>> {
+            // Extract all unique character IDs from the contexts
+            val characterIds = contexts.map { it.objectValue.getId().internalID }.toSet()
 
-        // Perform a single batch query to get film counts for all characters
-        // We only compute one time for each character, despite multiple requests
-        val filmCounts = characterIds.associateWith { characterId ->
-            CharacterFilmsRepository.findFilmsByCharacterId(characterId).size
-        }
+            // Perform a single batch query to get film counts for all characters
+            // We only compute one time for each character, despite multiple requests
+            val filmCounts = characterIds.associateWith { characterId ->
+                characterFilmsRepository.findFilmsByCharacterId(characterId).size
+            }
 
-        // For each context gets the character ID and map to the precomputed film count
-        // and return the results in the same order as contexts
-        return contexts.map { ctx ->
-            val characterId = ctx.objectValue.getId().internalID
+            // For each context gets the character ID and map to the precomputed film count
+            // and return the results in the same order as contexts
+            return contexts.map { ctx ->
+                val characterId = ctx.objectValue.getId().internalID
 
-            FieldValue.ofValue(filmCounts[characterId] ?: 0)
+                FieldValue.ofValue(filmCounts[characterId] ?: 0)
+            }
         }
     }
-}

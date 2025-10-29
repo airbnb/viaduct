@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.characters.queries
 import com.example.starwars.filmography.resolverbases.QueryResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 
 /**
@@ -21,22 +22,26 @@ import viaduct.api.Resolver
  */
 // tag::id_of_example[19] Example of idOF usage
 @Resolver
-class SearchCharacterQueryResolver : QueryResolvers.SearchCharacter() {
-    override suspend fun resolve(ctx: Context): viaduct.api.grts.Character? {
-        val search = ctx.arguments.search
-        val byName = search.byName
-        val byId = search.byId
-        val byBirthYear = search.byBirthYear
+class SearchCharacterQueryResolver
+    @Inject
+    constructor(
+        private val characterRepository: CharacterRepository
+    ) : QueryResolvers.SearchCharacter() {
+        override suspend fun resolve(ctx: Context): viaduct.api.grts.Character? {
+            val search = ctx.arguments.search
+            val byName = search.byName
+            val byId = search.byId
+            val byBirthYear = search.byBirthYear
 
-        val character = when {
-            byName != null -> CharacterRepository.findCharactersByName(byName).firstOrNull()
-            byId != null -> CharacterRepository.findById(byId.internalID)
-            byBirthYear != null -> CharacterRepository.findCharactersByYearOfBirth(byBirthYear).firstOrNull()
-            else -> null
-        }
+            val character = when {
+                byName != null -> characterRepository.findCharactersByName(byName).firstOrNull()
+                byId != null -> characterRepository.findById(byId.internalID)
+                byBirthYear != null -> characterRepository.findCharactersByYearOfBirth(byBirthYear).firstOrNull()
+                else -> null
+            }
 
-        return character?.let {
-            CharacterBuilder(ctx).build(character)
+            return character?.let {
+                CharacterBuilder(ctx).build(character)
+            }
         }
     }
-}

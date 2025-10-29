@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.films.resolvers
 
 import com.example.starwars.filmography.resolverbases.FilmResolvers
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 
 /**
@@ -20,11 +21,13 @@ import viaduct.api.Resolver
     }
     """
 )
-class FilmProductionDetailsResolver : FilmResolvers.ProductionDetails() {
-    override suspend fun resolve(ctx: Context): String? {
-        // Access the source Film from the context
-        val film = ctx.objectValue
-        val producerList = film.getProducers()?.filterNotNull()?.joinToString(", ") ?: "Unknown producers"
-        return "${film.getTitle()} was released on ${film.getReleaseDate()}, directed by ${film.getDirector()} and produced by $producerList"
+class FilmProductionDetailsResolver
+    @Inject
+    constructor() : FilmResolvers.ProductionDetails() {
+        override suspend fun resolve(ctx: Context): String? {
+            // Access the source Film from the context
+            val film = ctx.objectValue
+            val producerList = film.getProducers()?.filterNotNull()?.joinToString(", ") ?: "Unknown producers"
+            return "${film.getTitle()} was released on ${film.getReleaseDate()}, directed by ${film.getDirector()} and produced by $producerList"
+        }
     }
-}

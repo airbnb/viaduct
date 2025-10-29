@@ -1,6 +1,9 @@
 package com.example.starwars.modules.filmography.films.models
 
-object FilmsRepository {
+import jakarta.inject.Singleton
+
+@Singleton
+class FilmsRepository {
     private val films = listOf(
         Film(
             id = "1",

@@ -2,12 +2,14 @@
 
 package com.example.starwars.service.test
 
+import com.example.starwars.modules.universe.starships.models.StarshipsRepository
 import com.example.starwars.modules.universe.starships.queries.AllStarshipsQueryResolver
 import com.example.starwars.modules.universe.starships.resolvers.StarshipNodeResolver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.Query
 import viaduct.api.grts.Query_AllStarships_Arguments
@@ -32,12 +34,19 @@ class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
         SchemaFactory(DefaultCoroutineInterop)
             .fromResources("com.example.starwars", Regex(".*\\.graphqls"))
 
+    private lateinit var starshipsRepository: StarshipsRepository
+
+    @BeforeEach
+    fun setUp() {
+        starshipsRepository = StarshipsRepository()
+    }
+
     private fun queryObj() = Query.Builder(context).build()
 
     @Test
     fun `AllStarshipsResolver returns default page size when limit is not provided`(): Unit =
         runBlocking {
-            val resolver = AllStarshipsQueryResolver()
+            val resolver = AllStarshipsQueryResolver(starshipsRepository)
             val args = Query_AllStarships_Arguments.Builder(context).build()
 
             val result = runFieldResolver(
@@ -54,7 +63,7 @@ class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `AllStarshipsResolver respects custom limit and maps fields`(): Unit =
         runBlocking {
-            val resolver = AllStarshipsQueryResolver()
+            val resolver = AllStarshipsQueryResolver(starshipsRepository)
             val limit = 2
             val args = Query_AllStarships_Arguments.Builder(context).limit(limit).build()
 
@@ -75,7 +84,7 @@ class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `starship by id returns the correct Starship using node resolver`(): Unit =
         runBlocking {
-            val resolver = StarshipNodeResolver()
+            val resolver = StarshipNodeResolver(starshipsRepository)
             val starshipId = "1" // Millennium Falcon ID
 
             val starshipGlobalId = context.globalIDFor(Starship.Reflection, starshipId)
@@ -89,7 +98,7 @@ class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `starship by id returns the correct X-wing using node resolver`(): Unit =
         runBlocking {
-            val resolver = StarshipNodeResolver()
+            val resolver = StarshipNodeResolver(starshipsRepository)
             val starshipId = "2" // X-wing ID
 
             val starshipGlobalId = context.globalIDFor(Starship.Reflection, starshipId)

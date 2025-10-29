@@ -1,12 +1,14 @@
 package com.example.starwars.modules.filmography.characters.models
 
+import jakarta.inject.Singleton
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Repository object for managing character data in the Star Wars demo application.
  *
  */
-object CharacterRepository {
+@Singleton
+class CharacterRepository {
     /** Atomic integer to generate unique character IDs. */
     private val charactersIdSequence = AtomicInteger(1)
 

@@ -10,6 +10,7 @@ import io.micronaut.http.annotation.Post
 import kotlinx.coroutines.future.await
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
+import viaduct.service.api.Viaduct
 
 /**
  * Query fields in the incoming GraphQL request. By default, GraphQL requests
@@ -34,9 +35,9 @@ private const val SCOPES_HEADER = "X-Viaduct-Scopes"
  */
 // tag::viaduct_graphql_controller[18] Viaduct GraphQL Controller
 @Controller
-class ViaductRestController {
-    private val viaduct = ViaductInstance.viaduct
-
+class ViaductRestController(
+    private val viaduct: Viaduct
+) {
     @Post("/graphql")
     suspend fun graphql(
         @Body request: Map<String, Any>,

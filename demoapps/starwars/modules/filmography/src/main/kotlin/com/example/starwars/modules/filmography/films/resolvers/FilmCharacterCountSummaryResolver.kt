@@ -2,6 +2,7 @@ package com.example.starwars.modules.filmography.films.resolvers
 
 import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 
 /**
@@ -19,15 +20,19 @@ import viaduct.api.Resolver
     }
     """
 )
-class FilmCharacterCountSummaryResolver : FilmResolvers.CharacterCountSummary() {
-    override suspend fun resolve(ctx: Context): String? {
-        // Access the source Film from the context
-        val film = ctx.objectValue
-        val filmId = film.getId().internalID
+class FilmCharacterCountSummaryResolver
+    @Inject
+    constructor(
+        val filmCharactersRepository: FilmCharactersRepository
+    ) : FilmResolvers.CharacterCountSummary() {
+        override suspend fun resolve(ctx: Context): String? {
+            // Access the source Film from the context
+            val film = ctx.objectValue
+            val filmId = film.getId().internalID
 
-        // Access character count from the relationship data
-        val characterCount = FilmCharactersRepository.findCharactersByFilmId(filmId).size
+            // Access character count from the relationship data
+            val characterCount = filmCharactersRepository.findCharactersByFilmId(filmId).size
 
-        return "${film.getTitle()} features $characterCount main characters"
+            return "${film.getTitle()} features $characterCount main characters"
+        }
     }
-}

@@ -1,9 +1,12 @@
 package com.example.starwars.modules.universe.planets.models
 
+import jakarta.inject.Singleton
+
 /**
  * Repository for managing the association between planets and their residents (characters).
  */
-object PlanetsResidentsRepository {
+@Singleton
+class PlanetsResidentsRepository {
     val planetResidents = mapOf(
         "1" to listOf("1", "4"), // Tatooine has Luke and Vader
         "2" to listOf("2"), // Alderaan has Leia

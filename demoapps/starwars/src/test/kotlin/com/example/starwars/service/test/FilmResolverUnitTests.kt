@@ -2,6 +2,7 @@
 
 package com.example.starwars.service.test
 
+import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
 import com.example.starwars.modules.filmography.films.resolvers.FilmCharacterCountSummaryResolver
 import com.example.starwars.modules.filmography.films.resolvers.FilmDisplayTitleResolver
 import com.example.starwars.modules.filmography.films.resolvers.FilmProductionDetailsResolver
@@ -9,6 +10,7 @@ import com.example.starwars.modules.filmography.films.resolvers.FilmSummaryResol
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.Film
 import viaduct.engine.SchemaFactory
@@ -31,6 +33,13 @@ class FilmResolverUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema =
         SchemaFactory(DefaultCoroutineInterop)
             .fromResources("com.example.starwars", Regex(".*\\.graphqls"))
+
+    private lateinit var filmCharactersRepository: FilmCharactersRepository
+
+    @BeforeEach
+    fun setUp() {
+        filmCharactersRepository = FilmCharactersRepository()
+    }
 
     @Test
     fun `FilmDisplayTitleResolver returns title`(): Unit =
@@ -109,7 +118,7 @@ class FilmResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `FilmCharacterCountSummaryResolver counts characters`(): Unit =
         runBlocking {
-            val resolver = FilmCharacterCountSummaryResolver()
+            val resolver = FilmCharacterCountSummaryResolver(filmCharactersRepository)
 
             val result = runFieldResolver(
                 resolver = resolver,

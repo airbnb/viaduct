@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 
 /**
@@ -18,16 +19,18 @@ import viaduct.api.Resolver
     }
     """
 )
-class CharacterAppearanceDescriptionResolver : CharacterResolvers.AppearanceDescription() {
-    override suspend fun resolve(ctx: Context): String? {
-        // Gets the character from the context with the data specified in the @Resolver
-        val character = ctx.objectValue
+class CharacterAppearanceDescriptionResolver
+    @Inject
+    constructor() : CharacterResolvers.AppearanceDescription() {
+        override suspend fun resolve(ctx: Context): String? {
+            // Gets the character from the context with the data specified in the @Resolver
+            val character = ctx.objectValue
 
-        // Builds a description using the fetched fields, providing defaults if any are missing
-        val name = character.getName() ?: "Someone"
-        val eyeColor = character.getEyeColor() ?: "unknown eyes"
-        val hairColor = character.getHairColor() ?: "unknown hair"
+            // Builds a description using the fetched fields, providing defaults if any are missing
+            val name = character.getName() ?: "Someone"
+            val eyeColor = character.getEyeColor() ?: "unknown eyes"
+            val hairColor = character.getHairColor() ?: "unknown hair"
 
-        return "$name has $eyeColor eyes and $hairColor hair"
+            return "$name has $eyeColor eyes and $hairColor hair"
+        }
     }
-}

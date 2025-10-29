@@ -2,6 +2,7 @@
 
 package com.example.starwars.service.test
 
+import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.characters.resolvers.CharacterAppearanceDescriptionResolver
 import com.example.starwars.modules.filmography.characters.resolvers.CharacterDisplayNameResolver
 import com.example.starwars.modules.filmography.characters.resolvers.CharacterDisplaySummaryResolver
@@ -12,6 +13,7 @@ import com.example.starwars.modules.filmography.characters.resolvers.ProfileFiel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.Character
 import viaduct.api.grts.Character_CharacterProfile_Arguments
@@ -29,6 +31,13 @@ class CharacterResolverUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema =
         SchemaFactory(DefaultCoroutineInterop)
             .fromResources("com.example.starwars", Regex(".*\\.graphqls"))
+
+    lateinit var characterRepository: CharacterRepository
+
+    @BeforeEach
+    fun setUp() {
+        characterRepository = CharacterRepository()
+    }
 
     @Test
     fun `DisplayNameResolver returns name correctly`(): Unit =
@@ -262,7 +271,7 @@ class CharacterResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `CharacterBatchNodeResolver resolves multiple ids`() =
         runBlocking {
-            val resolver = CharacterNodeResolver()
+            val resolver = CharacterNodeResolver(characterRepository)
 
             val ids = listOf("1", "2").map {
                 context.globalIDFor(Character.Reflection, it)

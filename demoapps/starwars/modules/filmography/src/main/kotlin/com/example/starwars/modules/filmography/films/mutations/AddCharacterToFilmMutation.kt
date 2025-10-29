@@ -7,6 +7,7 @@ import com.example.starwars.modules.filmography.characters.models.CharacterRepos
 import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 import viaduct.api.grts.AddCharacterToFilmPayload
 
@@ -17,38 +18,45 @@ import viaduct.api.grts.AddCharacterToFilmPayload
  * to specific tenants or contexts. All resolvers here are scoped to "starwars".
  */
 @Resolver
-class AddCharacterToFilmMutation : MutationResolvers.AddCharacterToFilm() {
-    override suspend fun resolve(ctx: Context): AddCharacterToFilmPayload? {
-        // Extract input arguments
-        val input = ctx.arguments.input
-        val filmId = input.filmId.internalID
-        val characterId = input.characterId?.internalID ?: throw IllegalArgumentException("Character ID is required")
+class AddCharacterToFilmMutation
+    @Inject
+    constructor(
+        private val characterFilmsRepository: CharacterFilmsRepository,
+        private val filmCharactersRepository: FilmCharactersRepository,
+        private val filmsRepository: FilmsRepository,
+        private val characterRepository: CharacterRepository
+    ) : MutationResolvers.AddCharacterToFilm() {
+        override suspend fun resolve(ctx: Context): AddCharacterToFilmPayload? {
+            // Extract input arguments
+            val input = ctx.arguments.input
+            val filmId = input.filmId.internalID
+            val characterId = input.characterId?.internalID ?: throw IllegalArgumentException("Character ID is required")
 
-        // Early validation to ensure both character and film exist
-        CharacterRepository.findById(characterId)
-            ?: throw IllegalArgumentException("Character with ID $characterId not found")
+            // Early validation to ensure both character and film exist
+            characterRepository.findById(characterId)
+                ?: throw IllegalArgumentException("Character with ID $characterId not found")
 
-        FilmsRepository.findFilmById(filmId)
-            ?: throw IllegalArgumentException("Film with ID $filmId not found")
+            filmsRepository.findFilmById(filmId)
+                ?: throw IllegalArgumentException("Film with ID $filmId not found")
 
-        // Add character to film in both repositories to maintain consistency
-        CharacterFilmsRepository.addCharacterToFilm(characterId, filmId)
-        FilmCharactersRepository.addCharacterToFilm(filmId, characterId)
+            // Add character to film in both repositories to maintain consistency
+            characterFilmsRepository.addCharacterToFilm(characterId, filmId)
+            filmCharactersRepository.addCharacterToFilm(filmId, characterId)
 
-        // Fetch updated entities
-        val character = CharacterRepository.findById(characterId)
-            ?: throw IllegalArgumentException("Character with ID $characterId not found")
+            // Fetch updated entities
+            val character = characterRepository.findById(characterId)
+                ?: throw IllegalArgumentException("Character with ID $characterId not found")
 
-        val film = FilmsRepository.findFilmById(filmId)
-            ?: throw IllegalArgumentException("Film with ID $filmId not found")
+            val film = filmsRepository.findFilmById(filmId)
+                ?: throw IllegalArgumentException("Film with ID $filmId not found")
 
-        // From updated entities, build GraphQL objects to build the payload
-        val filmGrt = FilmBuilder(ctx).build(film)
-        val characterGrt = CharacterBuilder(ctx).build(character)
+            // From updated entities, build GraphQL objects to build the payload
+            val filmGrt = FilmBuilder(ctx).build(film)
+            val characterGrt = CharacterBuilder(ctx).build(character)
 
-        return AddCharacterToFilmPayload.Builder(ctx)
-            .film(filmGrt)
-            .character(characterGrt)
-            .build()
+            return AddCharacterToFilmPayload.Builder(ctx)
+                .film(filmGrt)
+                .character(characterGrt)
+                .build()
+        }
     }
-}

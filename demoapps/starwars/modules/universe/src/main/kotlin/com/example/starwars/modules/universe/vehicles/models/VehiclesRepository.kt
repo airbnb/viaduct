@@ -1,10 +1,13 @@
 package com.example.starwars.modules.universe.vehicles.models
 
+import jakarta.inject.Singleton
+
 /**
  * In-memory Repository for Star Wars vehicles and related entities.
  * This serves as the backing data source for the GraphQL API.
  */
-object VehiclesRepository {
+@Singleton
+class VehiclesRepository {
     private val vehicles: List<Vehicle> = listOf(
         Vehicle(
             id = "1",

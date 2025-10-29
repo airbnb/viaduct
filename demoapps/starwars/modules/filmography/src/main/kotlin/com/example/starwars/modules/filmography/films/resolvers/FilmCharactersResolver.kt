@@ -4,6 +4,7 @@ import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
+import jakarta.inject.Inject
 import viaduct.api.Resolver
 import viaduct.api.grts.Character
 
@@ -15,13 +16,18 @@ import viaduct.api.grts.Character
  * @resolver("fragment _ on Film { id }"): Fragment syntax for accessing film ID
  */
 @Resolver("id")
-class FilmCharactersResolver : FilmResolvers.Characters() {
-    override suspend fun resolve(ctx: Context): List<Character?>? {
-        val filmId = ctx.objectValue.getId().internalID
+class FilmCharactersResolver
+    @Inject
+    constructor(
+        private val characterRepository: CharacterRepository,
+        private val filmCharactersRepository: FilmCharactersRepository
+    ) : FilmResolvers.Characters() {
+        override suspend fun resolve(ctx: Context): List<Character?>? {
+            val filmId = ctx.objectValue.getId().internalID
 
-        return FilmCharactersRepository.findCharactersByFilmId(filmId).map {
-            val character = CharacterRepository.findById(it) ?: throw IllegalArgumentException("Character with ID $it not found")
-            CharacterBuilder(ctx).build(character)
+            return filmCharactersRepository.findCharactersByFilmId(filmId).map {
+                val character = characterRepository.findById(it) ?: throw IllegalArgumentException("Character with ID $it not found")
+                CharacterBuilder(ctx).build(character)
+            }
         }
     }
-}

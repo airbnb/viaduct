@@ -8,6 +8,7 @@ import com.example.starwars.modules.filmography.characters.queries.SearchCharact
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
 import com.example.starwars.modules.filmography.films.queries.AllFilmsQueryResolver
 import com.example.starwars.modules.filmography.films.resolvers.FilmNodeResolver
+import com.example.starwars.modules.universe.planets.models.PlanetsRepository
 import com.example.starwars.modules.universe.planets.queries.AllPlanetsQueryResolver
 import com.example.starwars.modules.universe.planets.resolvers.PlanetNodeResolver
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
@@ -20,6 +21,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.Character
 import viaduct.api.grts.CharacterSearchInput
@@ -44,11 +46,26 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
         SchemaFactory(DefaultCoroutineInterop)
             .fromResources("com.example.starwars", Regex(".*\\.graphqls"))
 
+    lateinit var characterRepository: CharacterRepository
+    lateinit var filmsRepository: FilmsRepository
+    lateinit var speciesRepository: SpeciesRepository
+    lateinit var vehiclesRepository: VehiclesRepository
+    lateinit var planetsRepository: PlanetsRepository
+
+    @BeforeEach
+    fun setUp() {
+        characterRepository = CharacterRepository()
+        filmsRepository = FilmsRepository()
+        speciesRepository = SpeciesRepository()
+        vehiclesRepository = VehiclesRepository()
+        planetsRepository = PlanetsRepository()
+    }
+
     @Test
     fun `search character by name returns a matching character`(): Unit =
         runBlocking {
-            val reference = CharacterRepository.findAll().first()
-            val resolver = SearchCharacterQueryResolver()
+            val reference = characterRepository.findAll().first()
+            val resolver = SearchCharacterQueryResolver(characterRepository)
 
             val args = Query_SearchCharacter_Arguments.Builder(context)
                 .search(
@@ -72,8 +89,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `search character by id returns exact character`(): Unit =
         runBlocking {
-            val reference = CharacterRepository.findAll().first()
-            val resolver = SearchCharacterQueryResolver()
+            val reference = characterRepository.findAll().first()
+            val resolver = SearchCharacterQueryResolver(characterRepository)
 
             val gid = context.globalIDFor(Character.Reflection, reference.id)
 
@@ -99,7 +116,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     fun `allCharacters respects limit and maps fields`(): Unit =
         runBlocking {
             val limit = 3
-            val resolver = AllCharactersQueryResolver()
+            val resolver = AllCharactersQueryResolver(characterRepository)
 
             val args = Query_AllCharacters_Arguments.Builder(context)
                 .limit(limit)
@@ -112,7 +129,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
 
             assertNotNull(result)
             assertEquals(limit, result!!.size)
-            val ref = CharacterRepository.findAll().first()
+            val ref = characterRepository.findAll().first()
             val first = result.first()!!
             assertEquals(ref.name, first.getName())
             assertEquals(ref.birthYear, first.getBirthYear())
@@ -122,7 +139,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     fun `allFilms respects limit and maps fields`(): Unit =
         runBlocking {
             val limit = 2
-            val resolver = AllFilmsQueryResolver()
+            val resolver = AllFilmsQueryResolver(filmsRepository)
 
             val args = Query_AllFilms_Arguments.Builder(context)
                 .limit(limit)
@@ -135,7 +152,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
 
             assertNotNull(result)
             assertEquals(limit, result!!.size)
-            val ref = FilmsRepository.getAllFilms().first()
+            val ref = filmsRepository.getAllFilms().first()
             val first = result.first()!!
             assertEquals(ref.title, first.getTitle())
             assertEquals(ref.episodeID, first.getEpisodeID())
@@ -145,7 +162,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     fun `allPlanets respects limit and maps fields`(): Unit =
         runBlocking {
             val limit = 4
-            val resolver = AllPlanetsQueryResolver()
+            val resolver = AllPlanetsQueryResolver(planetsRepository)
 
             val args = Query_AllPlanets_Arguments.Builder(context)
                 .limit(limit)
@@ -166,7 +183,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     fun `allSpecies respects limit and maps fields`(): Unit =
         runBlocking {
             val limit = 1
-            val resolver = AllSpeciesQueryResolver()
+            val resolver = AllSpeciesQueryResolver(speciesRepository)
 
             val args = Query_AllSpecies_Arguments.Builder(context)
                 .limit(limit)
@@ -179,7 +196,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
 
             assertNotNull(result)
             assertEquals(limit, result!!.size)
-            val ref = SpeciesRepository.findAll().first()
+            val ref = speciesRepository.findAll().first()
             val first = result.first()!!
             assertEquals(ref.name, first.getName())
         }
@@ -188,7 +205,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     fun `allVehicles respects limit and maps fields`(): Unit =
         runBlocking {
             val limit = 1
-            val resolver = AllVehiclesQueryResolver()
+            val resolver = AllVehiclesQueryResolver(vehiclesRepository)
 
             val args = Query_AllVehicles_Arguments.Builder(context)
                 .limit(limit)
@@ -201,7 +218,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
 
             assertNotNull(result)
             assertEquals(limit, result!!.size)
-            val ref = VehiclesRepository.findAll().first()
+            val ref = vehiclesRepository.findAll().first()
             val first = result.first()!!
             assertEquals(ref.name, first.getName())
             assertEquals(ref.model, first.getModel())
@@ -210,8 +227,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `vehicle by id returns the correct Vehicle using node resolver`(): Unit =
         runBlocking {
-            val ref = VehiclesRepository.findAll().first()
-            val resolver = VehicleNodeResolver()
+            val ref = vehiclesRepository.findAll().first()
+            val resolver = VehicleNodeResolver(vehiclesRepository)
 
             // Create global ID for the vehicle
             val vehicleGlobalId = context.globalIDFor(Vehicle.Reflection, ref.id)
@@ -227,8 +244,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `film by id returns the correct Film using node resolver`(): Unit =
         runBlocking {
-            val ref = FilmsRepository.getAllFilms().first()
-            val resolver = FilmNodeResolver()
+            val ref = filmsRepository.getAllFilms().first()
+            val resolver = FilmNodeResolver(filmsRepository)
 
             // Create global ID for the film
             val filmGlobalId = context.globalIDFor(Film.Reflection, ref.id)
@@ -243,7 +260,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `planet by id returns the correct Planet using node resolver`(): Unit =
         runBlocking {
-            val resolver = PlanetNodeResolver()
+            val resolver = PlanetNodeResolver(planetsRepository)
 
             // Create global ID for the planet
             val planetGlobalId = context.globalIDFor(Planet.Reflection, "1")
@@ -258,8 +275,8 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
     @Test
     fun `species by id returns the correct Species using node resolver`(): Unit =
         runBlocking {
-            val ref = SpeciesRepository.findAll().first()
-            val resolver = SpeciesNodeQueryResolver()
+            val ref = speciesRepository.findAll().first()
+            val resolver = SpeciesNodeQueryResolver(speciesRepository)
 
             // Create global ID for the species
             val speciesGlobalId = context.globalIDFor(Species.Reflection, ref.id)
