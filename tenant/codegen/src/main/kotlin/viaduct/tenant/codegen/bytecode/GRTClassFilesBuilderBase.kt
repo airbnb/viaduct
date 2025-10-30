@@ -4,7 +4,7 @@ import java.io.File
 import viaduct.codegen.km.KmClassFilesBuilder
 import viaduct.codegen.utils.JavaName
 import viaduct.codegen.utils.KmName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.invariants.InvariantChecker
 import viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
 import viaduct.tenant.codegen.bytecode.config.hashForSharding
@@ -30,7 +30,7 @@ abstract class GRTClassFilesBuilderBase protected constructor(
 ) {
     internal val baseTypeMapper: BaseTypeMapper get() = args.baseTypeMapper
 
-    protected val ViaductExtendedSchema.TypeDef.isInShard
+    protected val ViaductSchema.TypeDef.isInShard
         get() =
             hashForSharding() % args.workerCount == args.workerNumber
 
@@ -46,20 +46,20 @@ abstract class GRTClassFilesBuilderBase protected constructor(
         return kmClassFilesBuilder.buildClassLoader()
     }
 
-    fun addAll(schema: ViaductExtendedSchema): GRTClassFilesBuilderBase {
+    fun addAll(schema: ViaductSchema): GRTClassFilesBuilderBase {
         if (isLoaded) throw IllegalStateException("Can't call addAll twice.")
         setup()
         for (def in schema.types.values) {
             if (!def.isInShard) continue
             when (def) {
-                is ViaductExtendedSchema.Enum -> addEnum(def)
-                is ViaductExtendedSchema.Input -> addInput(def)
-                is ViaductExtendedSchema.Interface -> addInterface(def)
-                is ViaductExtendedSchema.Object -> addObject(def)
-                is ViaductExtendedSchema.Scalar -> { // skip
+                is ViaductSchema.Enum -> addEnum(def)
+                is ViaductSchema.Input -> addInput(def)
+                is ViaductSchema.Interface -> addInterface(def)
+                is ViaductSchema.Object -> addObject(def)
+                is ViaductSchema.Scalar -> { // skip
                 }
 
-                is ViaductExtendedSchema.Union -> addUnion(def)
+                is ViaductSchema.Union -> addUnion(def)
                 else -> throw IllegalArgumentException("Can't handle $def")
             }
         }
@@ -75,17 +75,17 @@ abstract class GRTClassFilesBuilderBase protected constructor(
      * Will be called after individual type adders (e.g. [addEnum]) have been called
      * for each type in the schema.
      */
-    protected open fun subclassAddAll(schema: ViaductExtendedSchema) {}
+    protected open fun subclassAddAll(schema: ViaductSchema) {}
 
-    protected abstract fun addEnum(def: ViaductExtendedSchema.Enum)
+    protected abstract fun addEnum(def: ViaductSchema.Enum)
 
-    protected abstract fun addInput(def: ViaductExtendedSchema.Input)
+    protected abstract fun addInput(def: ViaductSchema.Input)
 
-    protected abstract fun addInterface(def: ViaductExtendedSchema.Interface)
+    protected abstract fun addInterface(def: ViaductSchema.Interface)
 
-    protected abstract fun addObject(def: ViaductExtendedSchema.Object)
+    protected abstract fun addObject(def: ViaductSchema.Object)
 
-    protected abstract fun addUnion(def: ViaductExtendedSchema.Union)
+    protected abstract fun addUnion(def: ViaductSchema.Union)
 
     /** Return true if the codegen algorithm generates a GRT for this
      *  type.  This method is used by [addSchemaGRTReference] to determine
@@ -95,7 +95,7 @@ abstract class GRTClassFilesBuilderBase protected constructor(
      *  in [addAll] was required to fully implement the logic for
      *  `_Argument` types in [addOject].)
      */
-    protected abstract fun isGenerated(def: ViaductExtendedSchema.TypeDef): Boolean
+    protected abstract fun isGenerated(def: ViaductSchema.TypeDef): Boolean
 
     /** First thing [addAll] does is call this function to allow subclasses
      *  to further initialize themselves if needed.
@@ -118,7 +118,7 @@ abstract class GRTClassFilesBuilderBase protected constructor(
      *      DefaultImpls methods.
      *    - If you're generating a method body that calls one of [def]'s methods, Javassist won't be able to compile it
      */
-    fun addSchemaGRTReference(def: ViaductExtendedSchema.TypeDef) {
+    fun addSchemaGRTReference(def: ViaductSchema.TypeDef) {
         if (def.isInShard && isGenerated(def)) return
 
         val fqn = def.name.kmFQN(pkg)

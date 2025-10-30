@@ -1,8 +1,8 @@
 package viaduct.graphql.schema.graphqljava
 
-import viaduct.graphql.schema.ViaductExtendedSchema
-import viaduct.graphql.schema.test.ViaductExtendedSchemaContract
+import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.test.ViaductSchemaContract
 
-class FilteredSchemaViaductExtendedContractTest : ViaductExtendedSchemaContract {
-    override fun makeSchema(schema: String): ViaductExtendedSchema = GJSchema.fromRegistry(readTypes(schema)).filter(NoopSchemaFilter())
+class FilteredSchemaViaductExtendedContractTest : ViaductSchemaContract {
+    override fun makeSchema(schema: String): ViaductSchema = GJSchema.fromRegistry(readTypes(schema)).filter(NoopSchemaFilter())
 }

@@ -34,7 +34,6 @@ import graphql.language.Value
 import graphql.schema.idl.TypeDefinitionRegistry
 import java.io.File
 import java.net.URL
-import viaduct.graphql.schema.ViaductExtendedSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.parseWrappers
 import viaduct.utils.collections.BitVector
@@ -42,7 +41,7 @@ import viaduct.utils.timer.Timer
 
 private typealias RawTypeMap = Map<String, GJSchemaRaw.TypeDef>
 
-/** This is an implementation of the [ViaductExtendedSchema] classes that uses the
+/** This is an implementation of the [ViaductSchema] classes that uses the
  *  `graphql.language` classes from the graphql-java library as the underlying
  *  representation.  It is an alternative to [GJSchema], which uses the
  *  `graphql.schema` classes: it's quite expensive in graphql-java to convert
@@ -86,7 +85,7 @@ class GJSchemaRaw private constructor(
     override val queryTypeDef: Object?,
     override val mutationTypeDef: Object?,
     override val subscriptionTypeDef: Object?
-) : ViaductExtendedSchema {
+) : ViaductSchema {
     override fun toString() = types.toString()
 
     fun toTypeExpr(
@@ -239,7 +238,7 @@ class GJSchemaRaw private constructor(
                 val objectExtensions = registry.objectTypeExtensions()
                 registry.getTypes(ObjectTypeDefinition::class.java).forEach {
                     // Filter out the VIADUCT_IGNORE stub type if it exists.
-                    if (it.name != ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL) {
+                    if (it.name != ViaductSchema.VIADUCT_IGNORE_SYMBOL) {
                         val x = objectExtensions[it.name] ?: emptyList()
                         val v = Object(registry, it, x, result, unionsMap[it.name] ?: emptyList(), valueConverter)
                         result[it.name] = v
@@ -344,13 +343,13 @@ class GJSchemaRaw private constructor(
     // since those constructors are being called when [typeMap] has
     // been populatd, we can use [typeMap] without further laziness.
 
-    sealed interface Def : ViaductExtendedSchema.Def {
+    sealed interface Def : ViaductSchema.Def {
         val def: NamedNode<*>
 
         override fun hasAppliedDirective(name: String) = appliedDirectives.find { it.name == name } != null
     }
 
-    sealed interface TypeDef : ViaductExtendedSchema.TypeDef, Def {
+    sealed interface TypeDef : ViaductSchema.TypeDef, Def {
         override val def: TypeDefinition<*>
         val extensionDefs: List<TypeDefinition<*>>
 
@@ -367,9 +366,9 @@ class GJSchemaRaw private constructor(
         override fun toString() = describe()
     }
 
-    abstract class Arg : HasDefaultValue(), ViaductExtendedSchema.Arg
+    abstract class Arg : HasDefaultValue(), ViaductSchema.Arg
 
-    interface HasArgs : Def, ViaductExtendedSchema.HasArgs {
+    interface HasArgs : Def, ViaductSchema.HasArgs {
         override val args: List<Arg>
     }
 
@@ -379,7 +378,7 @@ class GJSchemaRaw private constructor(
         override val type: TypeExpr,
         protected override val _defaultValue: Any?,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>
-    ) : ViaductExtendedSchema.DirectiveArg, Arg() {
+    ) : ViaductSchema.DirectiveArg, Arg() {
         override val name = def.name
 
         override fun toString() = describe()
@@ -389,7 +388,7 @@ class GJSchemaRaw private constructor(
         override val def: DirectiveDefinition,
         protected val typeMap: RawTypeMap,
         protected val valueConverter: ValueConverter
-    ) : ViaductExtendedSchema.Directive, HasArgs {
+    ) : ViaductSchema.Directive, HasArgs {
         override val name = def.name
         override val isRepeatable: Boolean = def.isRepeatable
         override val args =
@@ -400,7 +399,7 @@ class GJSchemaRaw private constructor(
 
         override val sourceLocation =
             def.sourceLocation?.sourceName?.let {
-                ViaductExtendedSchema.SourceLocation(it)
+                ViaductSchema.SourceLocation(it)
             }
 
         override val allowedLocations =
@@ -418,12 +417,12 @@ class GJSchemaRaw private constructor(
         override val extensionDefs: List<ScalarTypeExtensionDefinition>,
         protected override val typeMap: RawTypeMap,
         valueConverter: ValueConverter
-    ) : ViaductExtendedSchema.Scalar, TypeDefImpl() {
+    ) : ViaductSchema.Scalar, TypeDefImpl() {
         override val name = def.name
 
         override val sourceLocation =
             def.sourceLocation?.sourceName?.let {
-                ViaductExtendedSchema.SourceLocation(it)
+                ViaductSchema.SourceLocation(it)
             }
 
         override val appliedDirectives by lazy {
@@ -437,8 +436,8 @@ class GJSchemaRaw private constructor(
         override val containingDef: Enum,
         override val def: EnumValueDefinition,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>,
-        override val containingExtension: ViaductExtendedSchema.Extension<Enum, EnumValue>
-    ) : ViaductExtendedSchema.EnumValue, Def {
+        override val containingExtension: ViaductSchema.Extension<Enum, EnumValue>
+    ) : ViaductSchema.EnumValue, Def {
         override val name = def.name
 
         override fun toString() = describe()
@@ -450,12 +449,12 @@ class GJSchemaRaw private constructor(
         override val extensionDefs: List<EnumTypeExtensionDefinition>,
         protected override val typeMap: RawTypeMap,
         valueConverter: ValueConverter
-    ) : ViaductExtendedSchema.Enum, TypeDefImpl() {
+    ) : ViaductSchema.Enum, TypeDefImpl() {
         override val name = def.name
         override val values by lazy { extensions.flatMap { it.members } }
         override val extensions by lazy {
             (listOf(def) + extensionDefs).map { gjLangTypeDef ->
-                ViaductExtendedSchema.Extension.of(
+                ViaductSchema.Extension.of(
                     def = this@Enum,
                     memberFactory = { containingExtension ->
                         gjLangTypeDef.enumValueDefinitions.map { evd ->
@@ -467,7 +466,7 @@ class GJSchemaRaw private constructor(
                     appliedDirectives = gjLangTypeDef.directives.toAppliedDirectives(registry, typeMap, valueConverter),
                     sourceLocation =
                         gjLangTypeDef.sourceLocation?.sourceName?.let {
-                            ViaductExtendedSchema.SourceLocation(it)
+                            ViaductSchema.SourceLocation(it)
                         }
                 )
             }
@@ -481,7 +480,7 @@ class GJSchemaRaw private constructor(
         override val possibleObjectTypes: Set<Object> get() = setOf<Object>()
     }
 
-    sealed interface CompositeOutput : ViaductExtendedSchema.CompositeOutput, TypeDef
+    sealed interface CompositeOutput : ViaductSchema.CompositeOutput, TypeDef
 
     class Union internal constructor(
         registry: TypeDefinitionRegistry,
@@ -489,16 +488,16 @@ class GJSchemaRaw private constructor(
         override val extensionDefs: List<UnionTypeExtensionDefinition>,
         protected override val typeMap: RawTypeMap,
         valueConverter: ValueConverter
-    ) : ViaductExtendedSchema.Union, CompositeOutput, TypeDefImpl() {
+    ) : ViaductSchema.Union, CompositeOutput, TypeDefImpl() {
         override val name = def.name
         override val possibleObjectTypes by lazy { extensions.flatMap { it.members }.toSet() }
         override val extensions by lazy {
             (listOf(def) + extensionDefs).map { gjLangTypeDef ->
-                ViaductExtendedSchema.Extension.of(
+                ViaductSchema.Extension.of(
                     def = this@Union,
                     memberFactory = { _ ->
                         gjLangTypeDef.memberTypes
-                            .filter { (it as TypeName).name != ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL }
+                            .filter { (it as TypeName).name != ViaductSchema.VIADUCT_IGNORE_SYMBOL }
                             .map { (it as TypeName).name }
                             .map { typeMap[it] as Object }
                     },
@@ -506,7 +505,7 @@ class GJSchemaRaw private constructor(
                     appliedDirectives = gjLangTypeDef.directives.toAppliedDirectives(registry, typeMap, valueConverter),
                     sourceLocation =
                         gjLangTypeDef.sourceLocation?.sourceName?.let {
-                            ViaductExtendedSchema.SourceLocation(it)
+                            ViaductSchema.SourceLocation(it)
                         }
                 )
             }
@@ -517,7 +516,7 @@ class GJSchemaRaw private constructor(
         }
     }
 
-    abstract class HasDefaultValue : ViaductExtendedSchema.HasDefaultValue, Def {
+    abstract class HasDefaultValue : ViaductSchema.HasDefaultValue, Def {
         abstract override val containingDef: Def
 
         abstract override val type: TypeExpr
@@ -543,15 +542,15 @@ class GJSchemaRaw private constructor(
         override val type: TypeExpr,
         protected override val _defaultValue: Any?,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>
-    ) : ViaductExtendedSchema.FieldArg, Arg() {
+    ) : ViaductSchema.FieldArg, Arg() {
         override val name = def.name
 
         override fun toString() = describe()
     }
 
-    sealed class Field : ViaductExtendedSchema.Field, HasArgs, HasDefaultValue() {
+    sealed class Field : ViaductSchema.Field, HasArgs, HasDefaultValue() {
         abstract override val containingDef: Record
-        abstract override val containingExtension: ViaductExtendedSchema.Extension<Record, Field>
+        abstract override val containingExtension: ViaductSchema.Extension<Record, Field>
         abstract override val type: TypeExpr
         abstract override val args: List<FieldArg>
 
@@ -562,13 +561,13 @@ class GJSchemaRaw private constructor(
         registry: TypeDefinitionRegistry,
         typeMap: RawTypeMap,
         override val def: FieldDefinition,
-        override val containingExtension: ViaductExtendedSchema.Extension<Record, Field>,
+        override val containingExtension: ViaductSchema.Extension<Record, Field>,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>,
         valueConverter: ValueConverter
     ) : Field() {
         override val name = def.name
         override val type = typeMap.toTypeExpr(def.type)
-        override val isOverride = ViaductExtendedSchema.isOverride(this)
+        override val isOverride = ViaductSchema.isOverride(this)
         override val containingDef get() = containingExtension.def
         protected override val _defaultValue = HasDefaultValue.NO_DEFAULT
         override val args =
@@ -583,21 +582,21 @@ class GJSchemaRaw private constructor(
         override val def: InputValueDefinition,
         override val type: TypeExpr,
         protected override val _defaultValue: Any?,
-        override val containingExtension: ViaductExtendedSchema.Extension<Record, Field>,
+        override val containingExtension: ViaductSchema.Extension<Record, Field>,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>
     ) : Field() {
         override val name = def.name
-        override val isOverride = ViaductExtendedSchema.isOverride(this)
+        override val isOverride = ViaductSchema.isOverride(this)
         override val args = emptyList<FieldArg>()
         override val containingDef get() = containingExtension.def as Input
     }
 
-    sealed interface Record : ViaductExtendedSchema.Record, TypeDef {
+    sealed interface Record : ViaductSchema.Record, TypeDef {
         override val fields: List<Field>
 
         override fun field(name: String) = fields.find { name == it.name }
 
-        override fun field(path: Iterable<String>): Field = ViaductExtendedSchema.field(this, path)
+        override fun field(path: Iterable<String>): Field = ViaductSchema.field(this, path)
 
         override val supers: List<Interface>
         override val unions: List<Union>
@@ -635,7 +634,7 @@ class GJSchemaRaw private constructor(
         protected override val typeMap: RawTypeMap,
         memberNames: Iterable<String>,
         valueConverter: ValueConverter
-    ) : ViaductExtendedSchema.Interface, CompositeOutput,
+    ) : ViaductSchema.Interface, CompositeOutput,
         ImplementingType(registry, def, typeMap, valueConverter) {
         override val name = def.name
         override val fields by lazy { extensions.flatMap { it.members } }
@@ -643,11 +642,11 @@ class GJSchemaRaw private constructor(
         override val unions = emptyList<Union>()
         override val extensions by lazy {
             (listOf(def) + extensionDefs).map { gjLangTypeDef ->
-                ViaductExtendedSchema.ExtensionWithSupers.of(
+                ViaductSchema.ExtensionWithSupers.of(
                     def = this@Interface,
                     memberFactory = { containingExtension ->
                         gjLangTypeDef.fieldDefinitions
-                            .filter { it.name != ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL }
+                            .filter { it.name != ViaductSchema.VIADUCT_IGNORE_SYMBOL }
                             .map { fieldDefinition ->
                                 val ad = fieldDefinition.directives.toAppliedDirectives(registry, typeMap, valueConverter)
                                 OutputField(registry, typeMap, fieldDefinition, containingExtension, ad, valueConverter)
@@ -661,7 +660,7 @@ class GJSchemaRaw private constructor(
                         },
                     sourceLocation =
                         gjLangTypeDef.sourceLocation?.sourceName?.let {
-                            ViaductExtendedSchema.SourceLocation(it)
+                            ViaductSchema.SourceLocation(it)
                         }
                 )
             }
@@ -675,7 +674,7 @@ class GJSchemaRaw private constructor(
         protected override val typeMap: RawTypeMap,
         unionNames: Iterable<String>,
         valueConverter: ValueConverter
-    ) : ViaductExtendedSchema.Object,
+    ) : ViaductSchema.Object,
         CompositeOutput,
         ImplementingType(registry, def, typeMap, valueConverter) {
         override val name = def.name
@@ -684,11 +683,11 @@ class GJSchemaRaw private constructor(
         override val unions by lazy { unionNames.map { typeMap[it] as Union } }
         override val extensions by lazy {
             (listOf(def) + extensionDefs).map { gjLangTypeDef ->
-                ViaductExtendedSchema.ExtensionWithSupers.of(
+                ViaductSchema.ExtensionWithSupers.of(
                     def = this@Object,
                     memberFactory = { containingExtension ->
                         gjLangTypeDef.fieldDefinitions
-                            .filter { it.name != ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL }
+                            .filter { it.name != ViaductSchema.VIADUCT_IGNORE_SYMBOL }
                             .map { fieldDefinition ->
                                 val ad = fieldDefinition.directives.toAppliedDirectives(registry, typeMap, valueConverter)
                                 OutputField(registry, typeMap, fieldDefinition, containingExtension, ad, valueConverter)
@@ -700,7 +699,7 @@ class GJSchemaRaw private constructor(
                         gjLangTypeDef.implements.map { typeMap[(it as TypeName).name] as Interface },
                     sourceLocation =
                         gjLangTypeDef.sourceLocation?.sourceName?.let {
-                            ViaductExtendedSchema.SourceLocation(it)
+                            ViaductSchema.SourceLocation(it)
                         }
                 )
             }
@@ -714,7 +713,7 @@ class GJSchemaRaw private constructor(
         override val extensionDefs: List<InputObjectTypeExtensionDefinition>,
         protected override val typeMap: RawTypeMap,
         valueConverter: ValueConverter
-    ) : ViaductExtendedSchema.Input, Record, TypeDefImpl() {
+    ) : ViaductSchema.Input, Record, TypeDefImpl() {
         override val name = def.name
         override val fields by lazy { extensions.flatMap { it.members } }
         override val appliedDirectives = typeMap.collectDirectives(registry, def, extensionDefs, valueConverter)
@@ -723,7 +722,7 @@ class GJSchemaRaw private constructor(
 
         private fun createInputField(
             def: InputValueDefinition,
-            containingExtension: ViaductExtendedSchema.Extension<Record, Field>,
+            containingExtension: ViaductSchema.Extension<Record, Field>,
             appliedDirectives: List<ViaductSchema.AppliedDirective>,
             valueConverter: ValueConverter
         ): InputField {
@@ -738,7 +737,7 @@ class GJSchemaRaw private constructor(
 
         override val extensions by lazy {
             (listOf(def) + extensionDefs).map { gjLangTypeDef ->
-                ViaductExtendedSchema.Extension.of(
+                ViaductSchema.Extension.of(
                     def = this@Input,
                     memberFactory = { containingExtension ->
                         gjLangTypeDef.inputValueDefinitions.map {
@@ -750,7 +749,7 @@ class GJSchemaRaw private constructor(
                     appliedDirectives = gjLangTypeDef.directives.toAppliedDirectives(registry, typeMap, valueConverter),
                     sourceLocation =
                         gjLangTypeDef.sourceLocation?.sourceName?.let {
-                            ViaductExtendedSchema.SourceLocation(it)
+                            ViaductSchema.SourceLocation(it)
                         }
                 )
             }
@@ -763,7 +762,7 @@ class GJSchemaRaw private constructor(
         private val baseTypeDefName: String,
         override val baseTypeNullable: Boolean = true, // GraphQL default is types are nullable
         override val listNullable: BitVector = NO_WRAPPERS
-    ) : ViaductExtendedSchema.TypeExpr() {
+    ) : ViaductSchema.TypeExpr() {
         override val baseTypeDef get() =
             typeMap[baseTypeDefName] ?: throw java.lang.IllegalStateException("Bad basetype name: $baseTypeDefName")
 
@@ -774,7 +773,7 @@ class GJSchemaRaw private constructor(
 internal fun Directive.toAppliedDirective(
     def: DirectiveDefinition,
     valueConverter: ValueConverter,
-    typeExprConverter: (Type<*>) -> ViaductExtendedSchema.TypeExpr
+    typeExprConverter: (Type<*>) -> ViaductSchema.TypeExpr
 ): ViaductSchema.AppliedDirective {
     val args = def.inputValueDefinitions
     return ViaductSchema.AppliedDirective.of(
@@ -794,7 +793,7 @@ internal fun Directive.toAppliedDirective(
     )
 }
 
-internal fun <T : ViaductExtendedSchema.TypeExpr> Type<*>.toTypeExpr(createTypeExpr: (String, Boolean, BitVector) -> T): T {
+internal fun <T : ViaductSchema.TypeExpr> Type<*>.toTypeExpr(createTypeExpr: (String, Boolean, BitVector) -> T): T {
     val listNullable = BitVector.Builder()
     var currentNullableBit = 1L
     var t = this

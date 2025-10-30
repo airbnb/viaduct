@@ -13,13 +13,13 @@ import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.hasReflectedType
 
 internal fun GRTClassFilesBuilder.reflectedTypeGen(
-    def: ViaductExtendedSchema.TypeDef,
+    def: ViaductSchema.TypeDef,
     container: CustomClassBuilder
 ) {
     ReflectedTypeBuilder(
@@ -30,7 +30,7 @@ internal fun GRTClassFilesBuilder.reflectedTypeGen(
 }
 
 internal fun GRTClassFilesBuilder.reflectedTypeGen(
-    def: ViaductExtendedSchema.TypeDef,
+    def: ViaductSchema.TypeDef,
     container: EnumClassBuilder
 ) {
     ReflectedTypeBuilder(
@@ -42,7 +42,7 @@ internal fun GRTClassFilesBuilder.reflectedTypeGen(
 
 private class ReflectedTypeBuilder(
     override val grtClassFilesBuilder: GRTClassFilesBuilder,
-    private val def: ViaductExtendedSchema.TypeDef,
+    private val def: ViaductSchema.TypeDef,
     private val typeBuilder: CustomClassBuilder,
 ) : MirrorUtils {
     init {
@@ -56,7 +56,7 @@ private class ReflectedTypeBuilder(
     fun build() {
         buildNameProperty()
         buildKclsProperty()
-        if (def is ViaductExtendedSchema.Record || def is ViaductExtendedSchema.CompositeOutput) {
+        if (def is ViaductSchema.Record || def is ViaductSchema.CompositeOutput) {
             FieldsObjectBuilder(grtClassFilesBuilder, typeBuilder, def)
                 .build()
         }
@@ -117,7 +117,7 @@ private class ReflectedTypeBuilder(
 private class FieldsObjectBuilder(
     override val grtClassFilesBuilder: GRTClassFilesBuilder,
     container: CustomClassBuilder,
-    private val def: ViaductExtendedSchema.TypeDef
+    private val def: ViaductSchema.TypeDef
 ) : MirrorUtils {
     private val fieldsBuilder =
         container.nestedClassBuilder(
@@ -127,7 +127,7 @@ private class FieldsObjectBuilder(
 
     fun build() {
         buildSimpleFieldProperty("__typename")
-        if (def is ViaductExtendedSchema.Record) {
+        if (def is ViaductSchema.Record) {
             def.fields.forEach { f ->
                 grtClassFilesBuilder.addSchemaGRTReference(f.type.baseTypeDef)
 
@@ -183,7 +183,7 @@ private class FieldsObjectBuilder(
     private fun buildCompositeFieldProperty(
         name: String,
         unwrappedFieldType: KmType,
-        reflectedType: ViaductExtendedSchema.TypeDef
+        reflectedType: ViaductSchema.TypeDef
     ) {
         val fieldType = cfg.REFLECTED_COMPOSITE_FIELD.asKmName.asType().also {
             // CompositeField<Parent: GRT, UnwrappedType: GRT>
@@ -223,18 +223,18 @@ private class FieldsObjectBuilder(
     }
 }
 
-private fun GRTClassFilesBuilder.reflectedTypeKmNameForDef(def: ViaductExtendedSchema.TypeDef): KmName =
+private fun GRTClassFilesBuilder.reflectedTypeKmNameForDef(def: ViaductSchema.TypeDef): KmName =
     def.asTypeExpr().baseTypeKmType(this.pkg, this.baseTypeMapper, null).name.append(".${cfg.REFLECTION_NAME}")
 
-private fun GRTClassFilesBuilder.reflectedTypeForDef(def: ViaductExtendedSchema.TypeDef): KmType = reflectedTypeKmNameForDef(def).asType()
+private fun GRTClassFilesBuilder.reflectedTypeForDef(def: ViaductSchema.TypeDef): KmType = reflectedTypeKmNameForDef(def).asType()
 
 private interface MirrorUtils {
     val grtClassFilesBuilder: GRTClassFilesBuilder
 
-    val ViaductExtendedSchema.TypeDef.grtType: KmType
+    val ViaductSchema.TypeDef.grtType: KmType
         get() = name.kmFQN(grtClassFilesBuilder.pkg).asType()
 
-    val ViaductExtendedSchema.TypeDef.instanceExpr: String
+    val ViaductSchema.TypeDef.instanceExpr: String
         get() = let { def ->
             // This getter returns an expression that points to the object instance of the reflective type for
             // the provided Def.

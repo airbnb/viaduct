@@ -4,10 +4,10 @@ package viaduct.tenant.codegen.kotlingen.bytecode
 
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 
-fun KotlinGRTFilesBuilder.enumKotlinGen(typeDef: ViaductExtendedSchema.Enum) = STContents(enumSTGroup, EnumModelImpl(typeDef, pkg, reflectedTypeGen(typeDef)))
+fun KotlinGRTFilesBuilder.enumKotlinGen(typeDef: ViaductSchema.Enum) = STContents(enumSTGroup, EnumModelImpl(typeDef, pkg, reflectedTypeGen(typeDef)))
 
 interface EnumModel {
     /** Packege into which code will be generated. */
@@ -38,7 +38,7 @@ private val enumSTGroup = stTemplate(
 )
 
 private class EnumModelImpl(
-    private val typeDef: ViaductExtendedSchema.Enum,
+    private val typeDef: ViaductSchema.Enum,
     override val pkg: String,
     reflectedType: STContents
 ) : EnumModel {

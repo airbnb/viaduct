@@ -1,7 +1,7 @@
 package viaduct.tenant.codegen.graphql.bridge
 
 import viaduct.graphql.schema.SchemaFilter
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Filters the schema to just the elements that are in at least one of the given scopes.
@@ -16,21 +16,21 @@ class ScopedSchemaFilter(private val appliedScopes: Set<String>) : SchemaFilter 
         }
     }
 
-    override fun includeTypeDef(typeDef: ViaductExtendedSchema.TypeDef): Boolean {
+    override fun includeTypeDef(typeDef: ViaductSchema.TypeDef): Boolean {
         return appliedScopes.any { typeDef.isInScope(it) }
     }
 
-    override fun includeField(field: ViaductExtendedSchema.Field): Boolean {
+    override fun includeField(field: ViaductSchema.Field): Boolean {
         return appliedScopes.any { field.isInScope(it) }
     }
 
-    override fun includeEnumValue(enumValue: ViaductExtendedSchema.EnumValue): Boolean {
+    override fun includeEnumValue(enumValue: ViaductSchema.EnumValue): Boolean {
         return appliedScopes.any { enumValue.isInScope(it) }
     }
 
     override fun includeSuper(
-        record: ViaductExtendedSchema.HasExtensionsWithSupers<*, *>,
-        superInterface: ViaductExtendedSchema.Interface
+        record: ViaductSchema.HasExtensionsWithSupers<*, *>,
+        superInterface: ViaductSchema.Interface
     ): Boolean {
         val ext = record.extensions.first { it.supers.any { it.name == superInterface.name } }
         val extensionScopes = ext.scopes?.toSet() ?: return false

@@ -11,7 +11,7 @@ import viaduct.codegen.km.kmListOfType
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.withSchema
@@ -36,7 +36,7 @@ class KmUtilsTest {
             }
             """.trimIndent()
         ) {
-            val input = schema.types["ListTest"] as ViaductExtendedSchema.Input
+            val input = schema.types["ListTest"] as ViaductSchema.Input
 
             val nullNull = kmListOfType(Km.STRING.asNullableType(), true)
             assertKmTypeEquals(nullNull, input.field("field1")!!.kmType(pkg, baseTypeMapper))
@@ -103,7 +103,7 @@ class KmUtilsTest {
             }
             """.trimIndent()
         ) {
-            val input = schema.types["ListVarianceTest"] as ViaductExtendedSchema.Input
+            val input = schema.types["ListVarianceTest"] as ViaductSchema.Input
 
             val scalarList = input.field("scalarList")!!.kmType(pkg, baseTypeMapper, isInput = true)
             assertEquals(KmVariance.INVARIANT, scalarList.arguments[0].variance)
@@ -169,7 +169,7 @@ class KmUtilsTest {
             }
             """.trimIndent()
         ) {
-            val input = schema.types["ListVarianceTest"] as ViaductExtendedSchema.Input
+            val input = schema.types["ListVarianceTest"] as ViaductSchema.Input
 
             val scalarList = input.field("scalarList")!!.kmType(pkg, baseTypeMapper, isInput = true)
             assertEquals(KmVariance.INVARIANT, scalarList.arguments[0].variance)
@@ -315,7 +315,7 @@ class KmUtilsTest {
             }
             """.trimIndent()
         ) {
-            val input = schema.types["ListTest"] as ViaductExtendedSchema.Input
+            val input = schema.types["ListTest"] as ViaductSchema.Input
 
             assertEquals(
                 "java.lang.Boolean.valueOf(true)",
@@ -378,7 +378,7 @@ class KmUtilsTest {
                 "new testing.F(2.7182818284)",
                 input.field("n")!!.type.valueInCtSyntax(mapOf<String, Double>("f" to 2.7182818284), pkg)
             )
-            val bt = input.field("e")!!.type.baseTypeDef as ViaductExtendedSchema.Enum
+            val bt = input.field("e")!!.type.baseTypeDef as ViaductSchema.Enum
             val v = bt.values.find { it.name == "A" }!!
             assertEquals(
                 "\"A\"",

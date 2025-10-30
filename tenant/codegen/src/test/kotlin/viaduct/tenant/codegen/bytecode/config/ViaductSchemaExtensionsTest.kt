@@ -9,7 +9,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.codegen.km.KmClassFilesBuilder
 import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.KmName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.GJSchema
 import viaduct.graphql.schema.test.mkSchema
 import viaduct.tenant.codegen.bytecode.util.assertKotlinTypeString
@@ -21,7 +21,7 @@ class ViaductSchemaExtensionsTest {
         schemaText: String,
         schemaFilePath: String,
         repoRoot: File
-    ): ViaductExtendedSchema {
+    ): ViaductSchema {
         val schemaFile = repoRoot.resolve("$schemaFilePath")
         schemaFile.parentFile.mkdirs()
         schemaFile.createNewFile()
@@ -268,7 +268,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `ViaductBaseTypeMapper getAdditionalTypeMapping returns empty map`() {
-        val mapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
+        val mapper = ViaductBaseTypeMapper(ViaductSchema.Empty)
         val mappings = mapper.getAdditionalTypeMapping()
 
         assertTrue(mappings.isEmpty())
@@ -276,7 +276,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `ViaductBaseTypeMapper getGlobalIdType returns correct type`() {
-        val mapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
+        val mapper = ViaductBaseTypeMapper(ViaductSchema.Empty)
         val globalIdType = mapper.getGlobalIdType()
 
         assertTrue(globalIdType == JavaBinaryName("viaduct.api.globalid.GlobalID"))
@@ -284,7 +284,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `ViaductBaseTypeMapper useGlobalIdTypeAlias returns false`() {
-        val mapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
+        val mapper = ViaductBaseTypeMapper(ViaductSchema.Empty)
         val usesAlias = mapper.useGlobalIdTypeAlias()
 
         assertFalse(usesAlias)
@@ -295,7 +295,7 @@ class ViaductSchemaExtensionsTest {
         val schema = mkSchema("type TestObject { field: String }")
         val mapper = ViaductBaseTypeMapper(schema)
         val builder = KmClassFilesBuilder()
-        val objectDef = schema.typedef("TestObject") as ViaductExtendedSchema.Object
+        val objectDef = schema.typedef("TestObject") as ViaductSchema.Object
         val fqn = KmName("test/TestObject")
 
         // Should not throw exception - testing that method executes properly
@@ -307,7 +307,7 @@ class ViaductSchemaExtensionsTest {
         val schema = mkSchema("interface TestInterface { field: String }")
         val mapper = ViaductBaseTypeMapper(schema)
         val builder = KmClassFilesBuilder()
-        val interfaceDef = schema.typedef("TestInterface") as ViaductExtendedSchema.Interface
+        val interfaceDef = schema.typedef("TestInterface") as ViaductSchema.Interface
         val fqn = KmName("test/TestInterface")
 
         // Should not throw exception - testing that method executes properly
@@ -325,7 +325,7 @@ class ViaductSchemaExtensionsTest {
         )
         val mapper = ViaductBaseTypeMapper(schema)
         val builder = KmClassFilesBuilder()
-        val unionDef = schema.typedef("TestUnion") as ViaductExtendedSchema.Union
+        val unionDef = schema.typedef("TestUnion") as ViaductSchema.Union
         val fqn = KmName("test/TestUnion")
 
         // Should not throw exception - testing that method executes properly
@@ -337,7 +337,7 @@ class ViaductSchemaExtensionsTest {
         val schema = mkSchema("input TestInput { field: String }")
         val mapper = ViaductBaseTypeMapper(schema)
         val builder = KmClassFilesBuilder()
-        val inputDef = schema.typedef("TestInput") as ViaductExtendedSchema.Input
+        val inputDef = schema.typedef("TestInput") as ViaductSchema.Input
         val fqn = KmName("test/TestInput")
 
         // Should not throw exception - testing that method executes properly
@@ -349,7 +349,7 @@ class ViaductSchemaExtensionsTest {
         val schema = mkSchema("enum TestEnum { VALUE_A, VALUE_B }")
         val mapper = ViaductBaseTypeMapper(schema)
         val builder = KmClassFilesBuilder()
-        val enumDef = schema.typedef("TestEnum") as ViaductExtendedSchema.Enum
+        val enumDef = schema.typedef("TestEnum") as ViaductSchema.Enum
         val fqn = KmName("test/TestEnum")
 
         // Should not throw exception - testing that method executes properly
@@ -384,7 +384,7 @@ class ViaductSchemaExtensionsTest {
         val schema = mkSchema("type TestQuery { field: String }")
 
         // Manually create objects to test the logic since mkSchema creates default Query/Mutation
-        val testObj = schema.typedef("TestQuery") as ViaductExtendedSchema.Object
+        val testObj = schema.typedef("TestQuery") as ViaductSchema.Object
 
         // Test regular object eligibility - should be true for non-PagedConnection types
         assertTrue(testObj.isEligible(ViaductBaseTypeMapper(schema)))
@@ -399,7 +399,7 @@ class ViaductSchemaExtensionsTest {
             """.trimIndent()
         )
 
-        val connectionObj = schema.typedef("TestConnection") as ViaductExtendedSchema.Object
+        val connectionObj = schema.typedef("TestConnection") as ViaductSchema.Object
         assertFalse(connectionObj.isEligible(ViaductBaseTypeMapper(schema)))
     }
 
@@ -412,7 +412,7 @@ class ViaductSchemaExtensionsTest {
             """.trimIndent()
         )
 
-        val interfaceDef = schema.typedef("TestInterface") as ViaductExtendedSchema.Interface
+        val interfaceDef = schema.typedef("TestInterface") as ViaductSchema.Interface
         assertTrue(interfaceDef.noArgsAnywhere("field"))
     }
 
@@ -425,7 +425,7 @@ class ViaductSchemaExtensionsTest {
             """.trimIndent()
         )
 
-        val interfaceDef = schema.typedef("TestInterface") as ViaductExtendedSchema.Interface
+        val interfaceDef = schema.typedef("TestInterface") as ViaductSchema.Interface
         assertFalse(interfaceDef.noArgsAnywhere("field"))
     }
 
@@ -438,7 +438,7 @@ class ViaductSchemaExtensionsTest {
             """.trimIndent()
         )
 
-        val interfaceDef = schema.typedef("TestInterface") as ViaductExtendedSchema.Interface
+        val interfaceDef = schema.typedef("TestInterface") as ViaductSchema.Interface
         assertFalse(interfaceDef.noArgsAnywhere("field"))
     }
 
@@ -508,7 +508,7 @@ class ViaductSchemaExtensionsTest {
     @Test
     fun `Object isEligible returns true for regular objects`() {
         val schema = mkSchema("type RegularObject { field: String }")
-        val obj = schema.typedef("RegularObject") as ViaductExtendedSchema.Object
+        val obj = schema.typedef("RegularObject") as ViaductSchema.Object
 
         assertTrue(obj.isEligible(ViaductBaseTypeMapper(schema)))
     }
@@ -524,7 +524,7 @@ class ViaductSchemaExtensionsTest {
             """.trimIndent()
         )
 
-        val connectionObj = schema.typedef("TestConnection") as ViaductExtendedSchema.Object
+        val connectionObj = schema.typedef("TestConnection") as ViaductSchema.Object
         assertFalse(connectionObj.isEligible(ViaductBaseTypeMapper(schema)))
     }
 
@@ -537,14 +537,14 @@ class ViaductSchemaExtensionsTest {
             """.trimIndent()
         )
 
-        val connectionObj = schema.typedef("TestConnection") as ViaductExtendedSchema.Object
+        val connectionObj = schema.typedef("TestConnection") as ViaductSchema.Object
         assertTrue(connectionObj.isPagedConnection)
     }
 
     @Test
     fun `isPagedConnection returns false for regular objects`() {
         val schema = mkSchema("type RegularObject { field: String }")
-        val obj = schema.typedef("RegularObject") as ViaductExtendedSchema.Object
+        val obj = schema.typedef("RegularObject") as ViaductSchema.Object
 
         assertFalse(obj.isPagedConnection)
     }

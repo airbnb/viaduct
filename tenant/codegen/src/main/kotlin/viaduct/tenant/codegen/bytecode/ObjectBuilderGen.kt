@@ -19,13 +19,13 @@ import viaduct.codegen.km.castObjectExpression
 import viaduct.codegen.km.checkNotNullParameterExpression
 import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.name
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
 import viaduct.tenant.codegen.bytecode.config.kmType
 
 internal fun GRTClassFilesBuilder.objectBuilderGenV2(
-    def: ViaductExtendedSchema.Object,
+    def: ViaductSchema.Object,
     container: CustomClassBuilder,
 ): CustomClassBuilder {
     val result = container.nestedClassBuilder(JavaIdName("Builder"))
@@ -40,7 +40,7 @@ internal fun GRTClassFilesBuilder.objectBuilderGenV2(
 
 private class ObjectBuilderGenV2(
     private val grtClassFilesBuilder: GRTClassFilesBuilderBase,
-    private val def: ViaductExtendedSchema.Object,
+    private val def: ViaductSchema.Object,
     private val builderClass: CustomClassBuilder,
     private val builderFor: KmType
 ) {
@@ -133,7 +133,7 @@ private class ObjectBuilderGenV2(
         return this
     }
 
-    private fun CustomClassBuilder.addFieldSetter(field: ViaductExtendedSchema.Field) {
+    private fun CustomClassBuilder.addFieldSetter(field: ViaductSchema.Field) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
         val fieldKmType = field.kmType(pkg, baseTypeMapper, isInput = true)

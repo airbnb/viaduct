@@ -18,7 +18,7 @@ import viaduct.api.types.Mutation
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.GJSchema
 
 fun mkSchema(sdl: String): GraphQLSchema {
@@ -38,7 +38,7 @@ fun mockReflectionLoader(packageName: String) =
         }
     }
 
-val GraphQLSchema.viaduct: ViaductExtendedSchema
+val GraphQLSchema.viaduct: ViaductSchema
     get() =
         GJSchema.fromSchema(this)
 

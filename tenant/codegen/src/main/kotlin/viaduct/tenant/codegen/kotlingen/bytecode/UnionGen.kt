@@ -4,10 +4,10 @@ package viaduct.tenant.codegen.kotlingen.bytecode
 
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 
-fun KotlinGRTFilesBuilder.unionKotlinGen(typeDef: ViaductExtendedSchema.Union) = STContents(unionSTGroup, UnionModelImpl(typeDef, pkg, reflectedTypeGen(typeDef)))
+fun KotlinGRTFilesBuilder.unionKotlinGen(typeDef: ViaductSchema.Union) = STContents(unionSTGroup, UnionModelImpl(typeDef, pkg, reflectedTypeGen(typeDef)))
 
 private interface UnionModel {
     /** Packege into which code will be generated. */
@@ -33,7 +33,7 @@ private val unionSTGroup = stTemplate(
 )
 
 private class UnionModelImpl(
-    private val typeDef: ViaductExtendedSchema.Union,
+    private val typeDef: ViaductSchema.Union,
     override val pkg: String,
     reflectedType: STContents
 ) : UnionModel {

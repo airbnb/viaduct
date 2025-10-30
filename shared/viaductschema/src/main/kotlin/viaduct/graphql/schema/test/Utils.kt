@@ -8,7 +8,7 @@ import org.reflections.Reflections
 import org.reflections.scanners.Scanners
 import org.reflections.util.ClasspathHelper
 import org.reflections.util.ConfigurationBuilder
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.GJSchemaRaw
 import viaduct.graphql.schema.graphqljava.readTypesFromURLs
 
@@ -24,11 +24,11 @@ private val MIN_SCHEMA: String = """
 
 """.trimIndent()
 
-fun mkSchema(schema: String): ViaductExtendedSchema = GJSchemaRaw.fromRegistry(SchemaParser().parse(MIN_SCHEMA + schema))
+fun mkSchema(schema: String): ViaductSchema = GJSchemaRaw.fromRegistry(SchemaParser().parse(MIN_SCHEMA + schema))
 
 fun mkGraphQLSchema(schema: String): GraphQLSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(MIN_SCHEMA + schema))
 
-fun loadGraphQLSchema(): ViaductExtendedSchema {
+fun loadGraphQLSchema(): ViaductSchema {
     // scan all the graphqls files in the classloader and load them as the schema
     val packageWithSchema = System.getenv()["PACKAGE_WITH_SCHEMA"] ?: "graphql"
     val reflections = Reflections(

@@ -4,16 +4,14 @@ import graphql.language.StringValue
 import kotlinx.metadata.KmType
 import kotlinx.metadata.isNullable
 import viaduct.codegen.utils.Km
-import viaduct.graphql.schema.ViaductExtendedSchema
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.graphql.schema.ViaductSchema.Field
 
 /** is this TypeDef the BackingData scalar? */
-val ViaductExtendedSchema.TypeDef.isBackingDataType: Boolean get() =
-    kind == ViaductExtendedSchema.TypeDefKind.SCALAR && name == "BackingData"
+val ViaductSchema.TypeDef.isBackingDataType: Boolean get() =
+    kind == ViaductSchema.TypeDefKind.SCALAR && name == "BackingData"
 
 /** is this Field a customized BackingData scalar */
-val ViaductExtendedSchema.Field.isBackingDataType: Boolean get() =
+val ViaductSchema.Field.isBackingDataType: Boolean get() =
     this.type.baseTypeDef.isBackingDataType
 
 /**
@@ -22,7 +20,7 @@ val ViaductExtendedSchema.Field.isBackingDataType: Boolean get() =
  * codegen and be caught in the schema validation. If a field has @backingData directive but not BackingData
  * base type, codegen will proceed as usual and the violation will be caught in the schema validation.
  */
-val ViaductExtendedSchema.Record.codegenIncludedFields: Iterable<ViaductExtendedSchema.Field> get() =
+val ViaductSchema.Record.codegenIncludedFields: Iterable<ViaductSchema.Field> get() =
     fields.filter { !it.isBackingDataType }
 
 /** derive a BackingData instance from the AppliedDirective's, if one exists */
@@ -41,6 +39,6 @@ data class BackingData(val fqClass: String) {
 }
 
 /** create a KmType describing the customized BackingData */
-fun ViaductExtendedSchema.TypeExpr.backingDataType(): KmType {
+fun ViaductSchema.TypeExpr.backingDataType(): KmType {
     return Km.ANY.asType().apply { isNullable = baseTypeNullable }
 }

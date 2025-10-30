@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.GJSchema
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 
@@ -15,7 +15,7 @@ import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 // While each test case makes only a small number of assertions, they are useful places
 // for setting a breakpoint to inspect the generated output before it gets compiled.
 class FieldResolverGeneratorTest {
-    private fun mkSchema(sdl: String): ViaductExtendedSchema {
+    private fun mkSchema(sdl: String): ViaductSchema {
         val tdr = SchemaParser().parse(sdl)
         val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(tdr)
         return GJSchema.fromSchema(schema)
@@ -26,7 +26,7 @@ class FieldResolverGeneratorTest {
         typeName: String
     ): String {
         val schema = mkSchema(sdl)
-        val type = schema.types[typeName] as ViaductExtendedSchema.Record
+        val type = schema.types[typeName] as ViaductSchema.Record
         val contents = genResolver(typeName, type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema))
         return contents.toString()
     }

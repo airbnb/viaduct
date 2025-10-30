@@ -3,13 +3,13 @@ package viaduct.tenant.codegen.kotlingen
 import java.io.File
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.tenantModule
 
 private const val RESOLVER_DIRECTIVE = "resolver"
 
-fun ViaductExtendedSchema.generateNodeResolvers(args: Args) {
+fun ViaductSchema.generateNodeResolvers(args: Args) {
     val gen = NodeResolverGenerator(
         this,
         args.tenantPackage,
@@ -22,7 +22,7 @@ fun ViaductExtendedSchema.generateNodeResolvers(args: Args) {
 }
 
 private class NodeResolverGenerator(
-    private val schema: ViaductExtendedSchema,
+    private val schema: ViaductSchema,
     private val tenantPackage: String,
     private val tenantPackagePrefix: String,
     private val grtPackage: String,
@@ -50,7 +50,7 @@ private class NodeResolverGenerator(
         }
     }
 
-    private fun isTenantOwnedNode(def: ViaductExtendedSchema.TypeDef): Boolean {
+    private fun isTenantOwnedNode(def: ViaductSchema.TypeDef): Boolean {
         return if (!isFeatureAppTest) {
             def.isNode && def.sourceLocation?.tenantModule == targetTenantModule
         } else {
@@ -58,7 +58,7 @@ private class NodeResolverGenerator(
         }
     }
 
-    private fun hasResolverDirective(def: ViaductExtendedSchema.TypeDef): Boolean = def.hasAppliedDirective(RESOLVER_DIRECTIVE)
+    private fun hasResolverDirective(def: ViaductSchema.TypeDef): Boolean = def.hasAppliedDirective(RESOLVER_DIRECTIVE)
 }
 
 internal fun genNodeResolvers(

@@ -15,14 +15,14 @@ import viaduct.codegen.km.boxedJavaName
 import viaduct.codegen.km.checkNotNullParameterExpression
 import viaduct.codegen.km.getterName
 import viaduct.codegen.utils.Km
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
 
-internal fun GRTClassFilesBuilder.objectGenV2(def: ViaductExtendedSchema.Object) {
+internal fun GRTClassFilesBuilder.objectGenV2(def: ViaductSchema.Object) {
     val builder = this.kmClassFilesBuilder.customClassBuilder(
         ClassKind.CLASS,
         def.name.kmFQN(this.pkg),
@@ -41,7 +41,7 @@ internal fun GRTClassFilesBuilder.objectGenV2(def: ViaductExtendedSchema.Object)
  */
 private class ObjectClassGenV2(
     private val grtClassFilesBuilder: GRTClassFilesBuilder,
-    private val def: ViaductExtendedSchema.Object,
+    private val def: ViaductSchema.Object,
     private val objectClass: CustomClassBuilder,
 ) {
     private val pkg = grtClassFilesBuilder.pkg
@@ -111,7 +111,7 @@ private class ObjectClassGenV2(
         return this
     }
 
-    private fun CustomClassBuilder.addFieldGetter(field: ViaductExtendedSchema.Field) {
+    private fun CustomClassBuilder.addFieldGetter(field: ViaductSchema.Field) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
         val kmFun = KmFunction(getterName(field.name)).also {
@@ -144,7 +144,7 @@ private class ObjectClassGenV2(
         )
     }
 
-    private fun CustomClassBuilder.addFieldGetterToPassDefaultValue(field: ViaductExtendedSchema.Field) {
+    private fun CustomClassBuilder.addFieldGetterToPassDefaultValue(field: ViaductSchema.Field) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
         val kmFun = KmFunction(getterName(field.name)).also {

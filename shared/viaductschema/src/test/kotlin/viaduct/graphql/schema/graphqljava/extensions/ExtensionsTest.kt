@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.GJSchema
 import viaduct.graphql.schema.graphqljava.readTypes
 
@@ -24,7 +24,7 @@ internal class ExtensionsTest {
 
     private fun mockFieldWithSourceLoc(pathStr: String): GJSchema.Field {
         val field = mockk<GJSchema.Field>()
-        val sourceLoc = ViaductExtendedSchema.SourceLocation(pathStr)
+        val sourceLoc = ViaductSchema.SourceLocation(pathStr)
         every { field.sourceLocation } returns sourceLoc
         return field
     }

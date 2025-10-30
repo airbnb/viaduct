@@ -34,7 +34,7 @@ import io.kotest.property.arbitrary.short
 import io.kotest.property.arbitrary.string
 import kotlin.random.nextInt
 import viaduct.arbitrary.common.Config
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.GraphQLTypeRelations
 import viaduct.mapping.graphql.RawENull
 import viaduct.mapping.graphql.RawEnum
@@ -165,15 +165,15 @@ private abstract class GenCtx {
 }
 
 /**
- * Generates values for a provided [ViaductExtendedSchema.TypeExpr] in the [RawValue] domain
+ * Generates values for a provided [ViaductSchema.TypeExpr] in the [RawValue] domain
  *
  * @see RawValue
  */
-class ViaductExtendedSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : ValueGen<ViaductExtendedSchema.TypeExpr, RawValue> {
+class ViaductSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : ValueGen<ViaductSchema.TypeExpr, RawValue> {
     private val scalarGen = ScalarRawValueGen(cfg, rs)
 
     private data class Ctx(
-        val type: ViaductExtendedSchema.TypeExpr,
+        val type: ViaductSchema.TypeExpr,
         override val depthBudget: Int,
         val listDepth: Int,
         override val input: Boolean,
@@ -181,7 +181,7 @@ class ViaductExtendedSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : 
         override val cfg: Config,
         private val forceNonNullable: Boolean = false,
     ) : GenCtx() {
-        val def: ViaductExtendedSchema.TypeDef = type.baseTypeDef
+        val def: ViaductSchema.TypeDef = type.baseTypeDef
         val isList: Boolean = type.isList && type.listDepth > listDepth
         override val nullable =
             if (forceNonNullable) {
@@ -194,25 +194,25 @@ class ViaductExtendedSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : 
 
         fun traverseList(): Ctx = copy(listDepth = listDepth + 1, forceNonNullable = false)
 
-        fun traverseField(field: ViaductExtendedSchema.Field): Ctx = traverseType(field.type)
+        fun traverseField(field: ViaductSchema.Field): Ctx = traverseType(field.type)
 
-        fun traverseType(type: ViaductExtendedSchema.TypeExpr): Ctx = copy(type = type, depthBudget = depthBudget - 1, listDepth = 0, forceNonNullable = false)
+        fun traverseType(type: ViaductSchema.TypeExpr): Ctx = copy(type = type, depthBudget = depthBudget - 1, listDepth = 0, forceNonNullable = false)
 
         fun inullOr(
-            field: ViaductExtendedSchema.Field,
+            field: ViaductSchema.Field,
             fn: () -> RawValue
         ): RawValue = inullOr(field.hasDefault, field.type.isNullable, input, fn)
 
         fun asNonNullable(): Ctx = copy(forceNonNullable = true)
     }
 
-    override fun invoke(type: ViaductExtendedSchema.TypeExpr): RawValue =
+    override fun invoke(type: ViaductSchema.TypeExpr): RawValue =
         gen(
             Ctx(
                 type = type,
                 depthBudget = cfg[MaxValueDepth],
                 listDepth = 0,
-                input = type.baseTypeDef is ViaductExtendedSchema.Input,
+                input = type.baseTypeDef is ViaductSchema.Input,
                 rs = rs,
                 cfg = cfg
             )
@@ -233,17 +233,17 @@ class ViaductExtendedSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : 
                     }
                 }
             }
-        } else if (c.def is ViaductExtendedSchema.Scalar) {
+        } else if (c.def is ViaductSchema.Scalar) {
             c.enullOr {
                 scalarGen(c.def.name)
             }
-        } else if (c.def is ViaductExtendedSchema.Enum) {
+        } else if (c.def is ViaductSchema.Enum) {
             c.enullOr {
                 RawEnum(
                     Arb.of(c.def.values.toList()).next(rs).name
                 )
             }
-        } else if (c.def is ViaductExtendedSchema.Input) {
+        } else if (c.def is ViaductSchema.Input) {
             if (c.def.hasAppliedDirective("oneOf")) {
                 val field = Arb.element(c.def.fields.toList()).next(rs)
                 RawInput(
@@ -261,7 +261,7 @@ class ViaductExtendedSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : 
                     )
                 }
             }
-        } else if (c.def is ViaductExtendedSchema.Object) {
+        } else if (c.def is ViaductSchema.Object) {
             RawObject(
                 c.def.name,
                 c.def.fields.map { field ->
@@ -271,7 +271,7 @@ class ViaductExtendedSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : 
                     fieldValue.let { field.name to it }
                 }
             )
-        } else if (c.def is ViaductExtendedSchema.CompositeOutput) {
+        } else if (c.def is ViaductSchema.CompositeOutput) {
             Arb.of(c.def.possibleObjectTypes)
                 .next(rs)
                 .let { gen(c.traverseType(it.asTypeExpr())) }

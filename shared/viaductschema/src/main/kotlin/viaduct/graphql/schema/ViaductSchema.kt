@@ -1,131 +1,40 @@
 package viaduct.graphql.schema
 
-/** Abstract representation of a GraphQL schema.  The main entry into
- *  a schema is the [types] map from type-names to
- *  [ViaductSchema.TypeDef] instances.
- *
- *  These interfaces and classes are meant to be subclassed into
- *  specific implementations (e.g., [GJSchema] is an implementation
- *  that wraps a graphql-java schema).  To that end, there are no
- *  default implementations for any function that returns a type
- *  intended to be subtyped (e.g., TypeExpr or Object).  As a
- *  convenience, we have provided a few default implementations for
- *  member functions that return scalars like Boolean and String, and
- *  a few static functions for default implementations of member
- *  functions that return other types.
- *
- *  There are two "flavors" of ViaductSchema: [ViaductSchema] itself,
- *  which is a much more abstracted version of GraphQL schemas that is
- *  well suited for runtime use-cases, and [ViaductExtendedSchema],
- *  which exposes more of the "parse tree" of a GraphQL schema; in
- *  particular, it exposes the "extensions" structure of the schema
- *  (i.e., what definitions appear in what extensions) plus source-
- *  location information, among other details.
- *  [ViaductExtendedSchema] is better suited for use in build-tools
- *  which use this more detailed information while processing a
- *  schema.  Instances of [ViaductExtendedSchema] should always be
- *  subtypes of [ViaductSchema].
- *
- *  There is an important invariant maintained by all implementations
- *  of [ViaductSchema], which is that they are "closed."  Put
- *  differently, object-equality is equality in the schema.  More
- *  specifically, for every TypeDef in the value-set of this map, any
- *  other type-def _reachable_ from that type-def is also in the map,
- *  i.e., `schema[typeDef.name] === typeDef` for all typeDefs
- *  reachable from type definitions in the value-set of a schema.  Put
- *  more simply, within a schema, there's exactly one TypeDef object
- *  for each unique type-definition in the GraphQL schema.  And the
- *  same is true for field- and enum-value definitions.
- *
- *  We have a number of use-cases in which we start with an initial
- *  "full" schema and filter it down to a subset.  For example, we do
- *  this with scopes, and we do this with compilation schemas.  The
- *  class [FilteredSchema] encapsulates the logic of building a
- *  filtered schema: developers provide an instance of [SchemaFilter],
- *  and the constructor of [FilteredSchema] will apply this to a base
- *  schema to generate a filtered one.
- *
- *  The [checkBridgeSchemaInvariants] function checks this
- *  closed-property and other invariants on ViaductExtendedSchemas.
- *  This checker confirms a few, but not most, of GraphQL's
- *  schema-validation rules: it's assumed that schema validation
- *  happens before the construction of a Viaduct(Extended)Schema.
- *  (For example, one uses graphql-java to create a validated
- *  GraphQLSchema objects, and then uses the [GJSchema] class to
- *  create a [ValidatedExtendedSchema] from that). However, there's
- *  one validation rule, where [ValidatedExtendedSchema]s is
- *  more relaxed than the GraphQL spec, which is:
- *  [ValidatedExtendedSchema]s allow "empty types."  That is, object,
- *  interface, and input-object types with no fields; enumerations
- *  with no values, and unions with no members.
- *  [checkBridgeSchemaInvariants] takes a flag,
- *  [SchemaInvariantOptions], that toggles between strict and relaxed
- *  checking of empty types.
- * [ViaductExtendedSchema] supports one serialization mechanism and two
- *  deserialization mechanisms.  The serialization mechanism consists
- *  of the extension function [ViaductExtendedSchema.toRegistry] which
- *  converts a [ViaductExtendedSchema] into a graphql-java
- *  `TypeRegistry`.  From there one can use graphql-java's
- *  pretty-printer to serialize to a text file.  For deserialization,
- *  the class `GJSchema` converts a graphql-java GraphQLSchema and
- *  converts that into a [ViaductExtendedSchema], while the class
- *  [GJSchemaRaw] converts a [TypeRegistry] into a
- *  [ViaductExtendedSchema] (in both cases, graphql-java can also be
- *  used to parse GraphQL text files).  Because [GraphQLSchema]
- *  objects are GraphQL-validated, [GJSchema] are as well, while
- *  [GJSchemaRaw] objects are not.  However, [GJSchemaRaw] is much
- *  faster to create (from raw text files) than [GJSchema].  Once
- *  earlier stages in your build process validate that GraphQL SDL
- *  source text, tools are faster for using [GJSchemaRaw] and assuming
- *  that the schema they are reading is valid.
- *
- *  While it's convenient that [ViaductExtendedSchema] allows for
- *  empty types, empty types can cause interoperability issues with
- *  these serde mechanisms, because graphql-java generally does not
- *  support empty types.  To increase interoperability with
- *  graphql-java and other toolsets, the
- *  [ViaductExtendedSchema.toRegistry] function inserts a fake field
- *  named [ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL] into every object,
- *  interface, and input-object type in the schema. In addition,
- *  it inserts the fake object-type [ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL]
- *  into every schema, and adds this fake type as a fake member to
- *  every union of the schema.  This ensures that serialized versions
- *  of [ViaductExtendedSchema] will be valid GraphQL schemas.  On the
- *  other side, both [GJSchema] and [GJSchemaRaw] strip out these fake
- *  entries and the fake type.
- *
- *  There are a number of places in these classes where we need to
- *  represent "real values."  For example, the arguments provided to
- *  an applied directive, the default value of an input field, and the
- *  arguments passed to a field in a selection-set: these all need a
- *  representation of real values.  This set of classes is agnostic
- *  about how that representation is done.  It uses [Any?] as the type
- *  of real values, and does not further specify what that means.  As
- *  a result, for example, the invariant checker for
- *  [ViaductExtendedSchema] does not interrogate those values.
- *  Implementations of these classes should document the specific way
- *  they represent real values.
- */
+import viaduct.utils.collections.BitVector
+
+/** See KDoc for [ViaductSchema] for background. */
 interface ViaductSchema {
     val types: Map<String, TypeDef>
     val directives: Map<String, Directive>
 
-    /**
-     *  The [Object] (type definition) associated with the query-root
-     *  of this schema.
-     *
-     *  Even though the GraphQL spec requires that every schema has a
-     *  query-root type, the [ViaductSchema] abstraction is sometimes
-     *  used at build-time to represent "partial" schemas, i.e.,
-     *  collections of SDL definitions that will be combined into a
-     *  complete schema but which, but themselves, are not complete
-     *  schemas.  In these scenarios, the query-root type def can be
-     *  missing.
-     */
     val queryTypeDef: Object?
-
     val mutationTypeDef: Object?
     val subscriptionTypeDef: Object?
+
+    /** For testing. */
+    object Empty : ViaductSchema {
+        override val types = emptyMap<String, TypeDef>()
+        override val directives = emptyMap<String, Directive>()
+        override val queryTypeDef = null
+        override val mutationTypeDef = null
+        override val subscriptionTypeDef = null
+    }
+
+    fun filter(
+        filter: SchemaFilter,
+        schemaInvariantOptions: SchemaInvariantOptions = SchemaInvariantOptions.DEFAULT,
+    ) = FilteredSchema(
+        filter,
+        this.types.entries,
+        directives.entries,
+        schemaInvariantOptions,
+        queryTypeDef?.name,
+        mutationTypeDef?.name,
+        subscriptionTypeDef?.name
+    )
+
+    // Everything below this line (inside the BridgeSchema definition) are
+    // static interface and class definitions
 
     /** The name and arguments of a directive applied to a schema element
      *  (e.g., a type-definition, field-definition, etc.).  Implementations
@@ -184,35 +93,41 @@ interface ViaductSchema {
         }
     }
 
-    /** Supertype of all type definitions, as well as field
-     *  enum-value definitions.
-     */
-    interface Def {
-        val name: String
+    interface Selection {
+        val subselections: Collection<Selection>
+        val directives: Collection<ViaductSchema.AppliedDirective>
 
-        fun hasAppliedDirective(name: String): Boolean
+        interface Conditional : Selection {
+            val condition: CompositeOutput
+        }
 
-        val appliedDirectives: Collection<AppliedDirective>
-
-        /** Think of this as the inheritable version of toString.  In
-         *  exception messages and other diagnostic contexts, we want
-         *  a fuller description of schema objects, which is provided
-         *  by this method.  Implementing classes should use this
-         *  method in their toString implementations.
-         */
-        fun describe(): String
+        interface Field : Selection {
+            val fieldName: String
+            val arguments: Map<String, Any?>
+        }
     }
 
-    interface DirectiveArg : Arg {
-        override val containingDef: Directive
+    enum class TypeDefKind {
+        ENUM,
+        INPUT,
+        INTERFACE,
+        SCALAR,
+        OBJECT,
+        UNION;
 
-        override fun describe() = "DirectiveArg<${containingDef.name}.$name:$type>"
+        val isSimple
+            get() = (this == SCALAR || this == ENUM)
     }
 
     interface Directive : HasArgs {
+        override val name: String
         override val args: Collection<DirectiveArg>
         val allowedLocations: Set<Location>
         val isRepeatable: Boolean
+
+        override val appliedDirectives: Collection<ViaductSchema.AppliedDirective>
+
+        override fun describe() = "Directive<$name>[${if (isRepeatable) "repeatable on" else ""} ${allowedLocations.joinToString("| ")}]"
 
         enum class Location {
             QUERY,
@@ -235,53 +150,147 @@ interface ViaductSchema {
             INPUT_OBJECT,
             INPUT_FIELD_DEFINITION
         }
+    }
 
-        override fun describe() = "Directive<$name>[${if (isRepeatable) "repeatable on" else ""} ${allowedLocations.joinToString("| ")}]"
+    data class SourceLocation(val sourceName: String)
+
+    interface Extension<out D : TypeDef, out M : Def> {
+        val def: D
+        val members: Collection<M>
+        val isBase: Boolean
+        val appliedDirectives: Collection<ViaductSchema.AppliedDirective>
+        val sourceLocation: SourceLocation?
+
+        fun hasAppliedDirective(name: String) = appliedDirectives.any { it.name == name }
+
+        companion object {
+            fun <D : TypeDef, M : Def> of(
+                def: D,
+                memberFactory: (Extension<D, M>) -> Collection<M>,
+                isBase: Boolean,
+                appliedDirectives: Collection<ViaductSchema.AppliedDirective>,
+                sourceLocation: SourceLocation? = null
+            ) = object : Extension<D, M> {
+                override val def = def
+                override val members = memberFactory(this)
+                override val isBase = isBase
+                override val appliedDirectives = appliedDirectives
+                override val sourceLocation = sourceLocation
+            }
+        }
+    }
+
+    interface ExtensionWithSupers<out D : TypeDef, out M : Def> : Extension<D, M> {
+        val supers: Collection<Interface>
+
+        companion object {
+            fun <D : TypeDef, M : Def> of(
+                def: D,
+                memberFactory: (Extension<D, M>) -> Collection<M>,
+                isBase: Boolean,
+                appliedDirectives: Collection<ViaductSchema.AppliedDirective>,
+                supers: Collection<Interface>,
+                sourceLocation: SourceLocation? = null
+            ) = object : ExtensionWithSupers<D, M> {
+                override val def = def
+                override val members = memberFactory(this)
+                override val isBase = isBase
+                override val appliedDirectives = appliedDirectives
+                override val supers = supers
+                override val sourceLocation = sourceLocation
+            }
+        }
+    }
+
+    interface HasExtensions<D : TypeDef, M : Def> : TypeDef {
+        val extensions: Collection<Extension<D, M>>
+    }
+
+    interface HasExtensionsWithSupers<D : Record, M : Field> : CompositeOutput, Record, HasExtensions<D, M> {
+        override val extensions: Collection<ExtensionWithSupers<D, M>>
+    }
+
+    /** Supertype of all type definitions, as well as field
+     *  enum-value definitions.  Compare to GraphQLDirectiveContainer
+     *  in graphql-java.
+     */
+    interface Def {
+        val name: String
+        val appliedDirectives: Collection<ViaductSchema.AppliedDirective>
+        val sourceLocation: SourceLocation?
+
+        fun hasAppliedDirective(name: String) = appliedDirectives.any { it.name == name }
+
+        fun describe(): String
+
+        /** Override this in schema implementations that wrap other definitions, e.g. FilteredSchema */
+        fun unwrapAll(): Def = this
     }
 
     interface TypeDef : Def {
+        val kind: TypeDefKind
+
         /** True for scalar and enumeration types. */
         val isSimple: Boolean
+            get() = kind.isSimple
 
         /** Returns a _nullable_ type-expr for this def. */
         fun asTypeExpr(): TypeExpr
 
         /** Returns the set of Object types possibly subsumed by this
-         *  type definition.  It's the empty set of types other
+         *  type definition.  It's the empty set for any type other
          *  than Object, Interface, or Union. */
         val possibleObjectTypes: Set<Object>
     }
 
     interface Scalar : TypeDef {
+        override val kind get() = TypeDefKind.SCALAR
+
         override fun describe() = "Scalar<$name>"
-    }
-
-    /** Tagging interface for Object, Interface, and Union, i.e.,
-     *  anything that can be a supertype of an object-value type. */
-    interface CompositeOutput : TypeDef
-
-    interface Union : TypeDef, CompositeOutput {
-        override fun describe() = "Union<$name>"
     }
 
     interface EnumValue : Def {
         val containingDef: Enum
+        val containingExtension: Extension<ViaductSchema.Enum, ViaductSchema.EnumValue>
+        override val sourceLocation get() = containingExtension.sourceLocation
 
         override fun describe() = "EnumValue<$name>"
     }
 
-    interface Enum : TypeDef {
+    interface Enum : HasExtensions<Enum, EnumValue> {
+        override val kind get() = TypeDefKind.ENUM
+
         val values: Collection<EnumValue>
+        override val extensions: Collection<Extension<Enum, EnumValue>>
+        override val sourceLocation get() = extensions.firstOrNull().let {
+            requireNotNull(it) { "Enum $this has no extensions" }
+            it.sourceLocation
+        }
 
         fun value(name: String): EnumValue?
 
         override fun describe() = "Enum<$name>"
     }
 
-    interface HasDefaultValue {
-        val containingDef: Def
+    /** Tagging interface for Object, Interface, and Union, i.e.,
+     *  anything that can be a supertype of an object-value type. */
+    interface CompositeOutput : TypeDef
 
+    interface Union : CompositeOutput, HasExtensions<Union, Object> {
+        override val kind get() = TypeDefKind.UNION
+        override val extensions: Collection<Extension<Union, Object>>
+        override val sourceLocation get() = extensions.firstOrNull().let {
+            requireNotNull(it) { "Union $this has no extensions" }
+            it.sourceLocation
+        }
+
+        override fun describe() = "Union<$name>"
+    }
+
+    interface HasDefaultValue : Def {
+        val containingDef: Def
         val type: TypeExpr
+        override val sourceLocation get() = containingDef.sourceLocation
 
         /** Returns the default value; throws NoSuchElementException if none is explicit in the schema. */
         val defaultValue: Any?
@@ -289,21 +298,25 @@ interface ViaductSchema {
         /** Returns true if there's an explicitly defined default. */
         val hasDefault: Boolean
 
-        /** If there's an explicit default value in the schema, that's returned.
-         *  If the type is nullable, then null is returned.
-         *  Otherwise, throws NoSuchElementException.
+        /** Returns the explicit default value if there is one, or null if the field
+         *  is a nullable field of a non-Object containing definition.
+         *  Throws NoSuchElementException for the rest.
          */
-        val effectiveDefaultValue: Any?
+        val effectiveDefaultValue
+            get() =
+                when {
+                    hasDefault -> defaultValue
+                    type.isNullable && this.containingDef !is CompositeOutput -> null
+                    else -> throw NoSuchElementException("No default value for ${this.describe()}")
+                }
 
         /** Returns true iff [effectiveDefaultValue] would _not_ throw an exception. */
-        val hasEffectiveDefault: Boolean
+        val hasEffectiveDefault
+            get() =
+                hasDefault || (type.isNullable && this.containingDef !is CompositeOutput)
     }
 
-    /**
-     *  Argument to fields, operations, and (in extended schemas) directive-defs.
-     *  In the case of arguments to operations, the names of those always start with '$'.
-     */
-    interface Arg : Def, HasDefaultValue
+    interface Arg : HasDefaultValue
 
     interface FieldArg : Arg {
         override val containingDef: Field
@@ -311,22 +324,26 @@ interface ViaductSchema {
         override fun describe() = "FieldArg<${containingDef.containingDef.name}.${containingDef.name}.$name:$type>"
     }
 
-    /**
-     *  Definitions that have arguments (fields, operations,
-     *   and (in extended schemas) directive-defs).
-     */
+    interface DirectiveArg : Arg {
+        override val containingDef: Directive
+
+        override fun describe() = "DirectiveArg<${containingDef.name}.$name:$type>"
+    }
+
     interface HasArgs : Def {
         val args: Collection<Arg>
     }
 
-    /** Represents fields for all of the interface, object, and input types. */
-    interface Field : HasArgs, HasDefaultValue {
+    /** Represents fields for all of interface, object, and input types. */
+    interface Field : HasDefaultValue, HasArgs {
         override val containingDef: Record
+        val containingExtension: Extension<Record, Field>
+        override val sourceLocation get() = containingExtension.sourceLocation
 
-        /** List of arguments defined in this field.  Empty for
-         *  input types.  Returned in the order they appeared
-         *  in the schema source text.
-         */
+        /** This is ordered based on the ordering in the schema source text.
+         *  Important because code generators may want to order
+         *  generated function-signatures in an order that matches
+         *  what's in the schema. */
         override val args: Collection<FieldArg>
 
         /** For fields in interfaces and objects, this is true if
@@ -335,83 +352,171 @@ interface ViaductSchema {
          */
         val isOverride: Boolean
 
+        val hasArgs get() = args.isNotEmpty()
+
         override fun describe() = "Field<$name:$type>"
     }
 
-    /** Supertype for types that have fields, i.e., input, interface
-     *  and object types.
-     */
+    /** Supertype for GraphQL interface-, input-, and object-types.
+     *  This common interface is useful because various aspects of codegen
+     *  work the same for all three types. */
     interface Record : TypeDef {
         val fields: Collection<Field>
+        val extensions: Collection<Extension<Record, Field>>
+        override val sourceLocation get() = extensions.firstOrNull().let {
+            requireNotNull(it) { "Record $this has no extensions" }
+            it.sourceLocation
+        }
 
         fun field(name: String): Field?
 
-        /** Iteratively calls [field] down a chain of [Record]-valued fields.
-         *  Throws [IllegalArgumentException] if a non-[Record] or missing
-         *  field is found in the path.
-         */
+        // override with "= super.field(path) as Field" to get more precise typing
         fun field(path: Iterable<String>): Field
-    }
 
-    interface Input : Record {
-        override fun describe() = "Input<$name>"
-    }
-
-    interface Interface : Record, CompositeOutput {
-        /** List of interfaces implemented by this interface. */
+        /** For object and interface types, the list of interfaces directly
+         *  implemented by the type.  Empty for InputTypes. */
         val supers: Collection<Interface>
+
+        /** For object types, the list of unions that contain it (empty for
+         *  other types). */
+        val unions: Collection<Union>
+    }
+
+    interface Interface : HasExtensionsWithSupers<Interface, Field> {
+        override val kind get() = TypeDefKind.INTERFACE
+        override val extensions: Collection<ExtensionWithSupers<Interface, Field>>
 
         override fun describe() = "Interface<$name>"
     }
 
-    interface Object : Record, CompositeOutput {
-        /** List of interfaces implemented by this interface. */
-        val supers: Collection<Interface>
-
-        /** List of unions that contain this object type. */
-        val unions: Collection<Union>
+    interface Object : HasExtensionsWithSupers<Object, Field> {
+        override val kind get() = TypeDefKind.OBJECT
+        override val extensions: Collection<ExtensionWithSupers<Object, Field>>
 
         override fun describe() = "Object<$name>"
     }
 
-    interface Selection {
-        val subselections: Collection<Selection>
-        val directives: Collection<AppliedDirective>
+    interface Input : Record, HasExtensions<Input, Field> {
+        override val kind get() = TypeDefKind.INPUT
+        override val extensions: Collection<Extension<Input, Field>>
 
-        interface Conditional : Selection {
-            val condition: CompositeOutput
+        override fun describe() = "Input<$name>"
+    }
+
+    /** A type expression is the type of a GraphQL value.
+     *  Type expressions are used to provide static types
+     *  to fields and to arguments.
+     *
+     *  The property `baseTypeDef` contains the base-type
+     *  of the expression.
+     *
+     *  The property `baseTypeNullable` indicates whether or
+     *  not that base-type is nullable.
+     *
+     *  The property `listNullable` is a bit-vector describing
+     *  the list-structure of the type (if any).  The size of
+     *  this vector indicates the depth of the list-nesting
+     *  (size zero means the type is not a list, size one
+     *  means a list of the base type, size two means a list
+     *  of lists of the base type, and so forth).
+     *
+     *  For each list depth, the corresponding bit in `listDepth`
+     *  indicates whether or not that list is nullable.  (Note
+     *  bit zero corresponds to list-depth zero corresponds to
+     *  the _outermost_ list-wrapper for the type.)
+     *
+     *  Examples:
+     *
+     *     - base= String, baseNullable= true, listNullable.size=0
+     *     this would a nullable String.
+     *
+     *     - base= Int, baseNullable = false, listNullable=0b10
+     *     this would be a non-nullable list of nullable lists
+     *     of non-nullable integers.  (Why?  The outer-most
+     *     non-nullable is list-depth zero, which corresponds
+     *     to bit zero (LSB), whose value is zero - which means
+     *     non-nullable.  The inner-list is list-depth one, which
+     *     corresponds to bit one, whose value is one - which means
+     *     nullable.)
+     *
+     *  The equality (and hashcode) operations reflect the following
+     *  assumptions: two type-expressions are equal iff (a) their
+     *  type-names are equal (because they are assumed to come from
+     *  the same schema), their base-type nullable indicators are
+     *  equal, and their listNullable bit vectors are equal.
+     */
+    abstract class TypeExpr {
+        // This class overrides equals and hashCode as well as toString -
+        // that's too many things to make it an interface as we did all
+        // the other types...
+
+        abstract val baseTypeNullable: Boolean
+        abstract val baseTypeDef: TypeDef
+        abstract val listNullable: BitVector
+
+        /** Scalar or enum type. */
+        val isSimple get() = (listNullable.size == 0 && baseTypeDef.isSimple)
+        val isList get() = (listNullable.size != 0)
+        val isNullable get() = if (isList) listNullable.get(0) else baseTypeNullable
+
+        val listDepth get() = listNullable.size
+
+        /** Strip all list wrappers but maintain both base type and
+         *  its nullability. */
+        abstract fun unwrapLists(): TypeExpr
+
+        fun nullableAtDepth(depth: Int): Boolean {
+            require(depth in 0..listDepth)
+            return if (isList && depth < listDepth) listNullable.get(depth) else baseTypeNullable
         }
 
-        interface Field : Selection {
-            val fieldName: String
-            val arguments: Map<String, Any?>
+        override fun equals(other: Any?) =
+            other is TypeExpr &&
+                baseTypeDef.name == other.baseTypeDef.name &&
+                baseTypeNullable == other.baseTypeNullable &&
+                listNullable == other.listNullable
+
+        override fun hashCode() = (31 * 31) * baseTypeDef.name.hashCode() + 31 * baseTypeNullable.hashCode() + listNullable.hashCode()
+
+        override fun toString() = "${unparseWrappers()} ${baseTypeDef.name}"
+
+        companion object {
+            val NO_WRAPPERS = BitVector(0)
         }
     }
 
-    interface TypeExpr {
-        val isSimple: Boolean
-        val isList: Boolean
-        val isNullable: Boolean
+    companion object {
+        // Used to indicate that a field or type should be ignored by ViaductSchema
+        // but allowed to be used in other intermediate representations like GJSchema, GJSchemaRaw,
+        // compilation schema sdl files, etc.
+        final const val VIADUCT_IGNORE_SYMBOL = "VIADUCT_IGNORE"
 
-        val baseTypeNullable: Boolean
-        val baseTypeDef: TypeDef
+        // use in impl class as "override fun field(...): Field = BridgeSchema.field(this, rec, path)"
+        inline fun <reified T : Field> field(
+            rec: Record,
+            path: Iterable<String>
+        ): T {
+            val pathIter = path.iterator()
+            if (!pathIter.hasNext()) throw IllegalArgumentException("Path must have at least one member.")
+            var i = 0
+            var result: Field? = rec.field(pathIter.next())
+            while (true) {
+                if (result == null) throw IllegalArgumentException("Missing path segment ($path @ $i).")
+                if (!pathIter.hasNext()) break
+                val subrec = result.type.baseTypeDef
+                if (subrec !is Record) throw IllegalArgumentException("Non-record path segment ($path @ $i).")
+                result = subrec.field(pathIter.next())
+                i++
+            }
+            return result!! as T
+        }
 
-        /** Strip all list wrappers (if any) but maintains both
-         *  the base type and its nullability.
-         */
-        fun unwrapLists(): TypeExpr
-
-        /** Returns the list-dept of this type expression.
-         *  If it's not a list type, then 0 is returned.
-         */
-        val listDepth: Int
-
-        /** Returns true if the type-expression is nullable at
-         *  list-depth [depth] (where 0 is the "outer" list
-         *  and [listDepth-1] is the innermost one).  Throws
-         *  [IllegalArgumentException] if [depth] is out of
-         *  bounds.
-         */
-        fun nullableAtDepth(depth: Int): Boolean
+        // use as "override val isOverride by lazy { BridgeSchema.isOverride(this) }"
+        fun isOverride(field: Field): Boolean {
+            for (s in field.containingDef.supers) {
+                if (s.field(field.name) != null) return true
+            }
+            return false
+        }
     }
 }

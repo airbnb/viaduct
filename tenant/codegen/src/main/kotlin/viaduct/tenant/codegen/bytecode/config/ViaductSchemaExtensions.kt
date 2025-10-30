@@ -8,7 +8,7 @@ import kotlinx.metadata.isNullable
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 
 // Utilities expressed as extension functions go here.  Constants and
 // other utility functions go in Config.kt
@@ -27,17 +27,17 @@ import viaduct.graphql.schema.ViaductExtendedSchema
  *   when true, v1 objects definitions will be represented using their
  *   Value class
  */
-fun ViaductExtendedSchema.HasDefaultValue.kmType(
+fun ViaductSchema.HasDefaultValue.kmType(
     pkg: KmName,
     baseTypeMapper: BaseTypeMapper,
     isInput: Boolean = false,
     useSchemaValueType: Boolean = false
 ): KmType = type.kmType(pkg, baseTypeMapper, this, isInput, useSchemaValueType)
 
-fun ViaductExtendedSchema.TypeExpr.kmType(
+fun ViaductSchema.TypeExpr.kmType(
     pkg: KmName,
     baseTypeMapper: BaseTypeMapper,
-    field: ViaductExtendedSchema.HasDefaultValue?,
+    field: ViaductSchema.HasDefaultValue?,
     isInput: Boolean,
     useSchemaValueType: Boolean
 ): KmType {
@@ -46,7 +46,7 @@ fun ViaductExtendedSchema.TypeExpr.kmType(
     if (useSchemaValueType) {
         val baseType = this.baseTypeDef
         if (!this.isList &&
-            baseType is ViaductExtendedSchema.Object &&
+            baseType is ViaductSchema.Object &&
             !baseType.isConnection &&
             !baseType.isNode &&
             !cfg.nativeGraphQLTypeToKmName(baseTypeMapper).containsKey(baseType.name)
@@ -65,14 +65,14 @@ fun ViaductExtendedSchema.TypeExpr.kmType(
             KmVariance.INVARIANT
         } else {
             when (this.baseTypeDef.kind) {
-                ViaductExtendedSchema.TypeDefKind.OBJECT -> {
+                ViaductSchema.TypeDefKind.OBJECT -> {
                     baseTypeMapper.getInputVarianceForObject() ?: KmVariance.INVARIANT
                 }
 
-                ViaductExtendedSchema.TypeDefKind.ENUM, ViaductExtendedSchema.TypeDefKind.INTERFACE, ViaductExtendedSchema.TypeDefKind.UNION
+                ViaductSchema.TypeDefKind.ENUM, ViaductSchema.TypeDefKind.INTERFACE, ViaductSchema.TypeDefKind.UNION
                 -> KmVariance.OUT
 
-                ViaductExtendedSchema.TypeDefKind.SCALAR -> {
+                ViaductSchema.TypeDefKind.SCALAR -> {
                     if (result.name == Km.ANY || result.name == baseTypeMapper.getGlobalIdType().asKmName) {
                         // JSON types map to kotlin/Any
                         KmVariance.OUT
@@ -97,16 +97,16 @@ fun ViaductExtendedSchema.TypeExpr.kmType(
 }
 
 /** return a KmType describing this HasDefaultValue's base (unwrapped) type */
-fun ViaductExtendedSchema.HasDefaultValue.baseTypeKmType(
+fun ViaductSchema.HasDefaultValue.baseTypeKmType(
     pkg: KmName,
     baseTypeMapper: BaseTypeMapper
 ): KmType = this.type.baseTypeKmType(pkg, baseTypeMapper, this)
 
 /** return a KmType describing this TypeExpr's base (unwrapped) type */
-fun ViaductExtendedSchema.TypeExpr.baseTypeKmType(
+fun ViaductSchema.TypeExpr.baseTypeKmType(
     pkg: KmName,
     baseTypeMapper: BaseTypeMapper,
-    field: ViaductExtendedSchema.HasDefaultValue?,
+    field: ViaductSchema.HasDefaultValue?,
     isInput: Boolean = false,
 ): KmType {
     // Check if mapper wants to handle this type
@@ -125,10 +125,10 @@ fun ViaductExtendedSchema.TypeExpr.baseTypeKmType(
 // *** HasDefault-related utilities *** //
 
 /**
- * Returns true iff [ViaductExtendedSchema.HasDefaultValue.viaductDefaultValue]
+ * Returns true iff [ViaductSchema.HasDefaultValue.viaductDefaultValue]
  * would _not_ throw an exception.  (Public for test generator.)
  */
-val ViaductExtendedSchema.HasDefaultValue.hasViaductDefaultValue get() = type.isNullable
+val ViaductSchema.HasDefaultValue.hasViaductDefaultValue get() = type.isNullable
 
 /**
  * For GraphQL input-type and argument defs, returns the default value the generated constructor
@@ -141,10 +141,10 @@ val ViaductExtendedSchema.HasDefaultValue.hasViaductDefaultValue get() = type.is
  * list for fields that have a list-type (even if the field is nullable, null for
  * non-list fields that are nullable, and throws an exception otherwise.
  */
-val ViaductExtendedSchema.HasDefaultValue.viaductDefaultValue: Any?
+val ViaductSchema.HasDefaultValue.viaductDefaultValue: Any?
     get() {
         if (!type.isNullable) throw NoSuchElementException("No default value for ${this.describe()}")
-        return if (containingDef is ViaductExtendedSchema.Object && type.isList) {
+        return if (containingDef is ViaductSchema.Object && type.isList) {
             emptyList<Any?>()
         } else {
             null
@@ -153,12 +153,12 @@ val ViaductExtendedSchema.HasDefaultValue.viaductDefaultValue: Any?
 
 // *** TypeDef-related utilities *** //
 
-fun ViaductExtendedSchema.TypeDef.hashForSharding(): Int {
+fun ViaductSchema.TypeDef.hashForSharding(): Int {
     val h = name.hashCode()
     return if (0 <= h) h else -h
 }
 
-fun ViaductExtendedSchema.Object.isEligible(baseTypeMapper: BaseTypeMapper): Boolean {
+fun ViaductSchema.Object.isEligible(baseTypeMapper: BaseTypeMapper): Boolean {
     if (name == "Query" || name == "Mutation") return true
 
     // PagedConnection types are generated via Kotlin src codegen (ConnectionTypeGenerator)
@@ -167,16 +167,16 @@ fun ViaductExtendedSchema.Object.isEligible(baseTypeMapper: BaseTypeMapper): Boo
 }
 
 // Internal for test generators
-val ViaductExtendedSchema.TypeDef.isPagedConnection
+val ViaductSchema.TypeDef.isPagedConnection
     get() =
-        this is ViaductExtendedSchema.Object && supers.any { it.name == "PagedConnection" }
+        this is ViaductSchema.Object && supers.any { it.name == "PagedConnection" }
 
 /**
  * GraphQL allows implementing interfaces and object-types to add
  * arguments to fields where the parent has none.  This is a feature
  * we can't support in Kotlin, so here we're scanning for this use case.
  */
-fun ViaductExtendedSchema.Interface.noArgsAnywhere(fieldName: String): Boolean {
+fun ViaductSchema.Interface.noArgsAnywhere(fieldName: String): Boolean {
     if (this.field(fieldName)!!.hasArgs) return false
 
     for (objType in this.possibleObjectTypes) {
@@ -188,25 +188,25 @@ fun ViaductExtendedSchema.Interface.noArgsAnywhere(fieldName: String): Boolean {
 /**
  * True if this type implements the Node interface
  */
-val ViaductExtendedSchema.TypeDef.isNode: Boolean
-    get() = (name == "Node" && this is ViaductExtendedSchema.Interface) ||
-        (this is ViaductExtendedSchema.Record && supers.any { it.isNode })
+val ViaductSchema.TypeDef.isNode: Boolean
+    get() = (name == "Node" && this is ViaductSchema.Interface) ||
+        (this is ViaductSchema.Record && supers.any { it.isNode })
 
 /**
  * True is this type implements the PagedConnection interface,
  * either directly or indirectly.
  */
-val ViaductExtendedSchema.TypeDef.isConnection: Boolean
-    get() = (name == "PagedConnection" && this is ViaductExtendedSchema.Interface) ||
-        (this is ViaductExtendedSchema.Interface && supers.any { it.isConnection }) ||
-        (this is ViaductExtendedSchema.Object && supers.any { it.isConnection })
+val ViaductSchema.TypeDef.isConnection: Boolean
+    get() = (name == "PagedConnection" && this is ViaductSchema.Interface) ||
+        (this is ViaductSchema.Interface && supers.any { it.isConnection }) ||
+        (this is ViaductSchema.Object && supers.any { it.isConnection })
 
 /** True if this type has a Reflection object generated for it */
-val ViaductExtendedSchema.TypeDef.hasReflectedType: Boolean
+val ViaductSchema.TypeDef.hasReflectedType: Boolean
     // scalar types do not support reflection because they are outside the GRT model
-    get() = this !is ViaductExtendedSchema.Scalar
+    get() = this !is ViaductSchema.Scalar
 
-val ViaductExtendedSchema.SourceLocation.tenantModule: String?
+val ViaductSchema.SourceLocation.tenantModule: String?
     get() = this.sourceName.let {
         cfg.moduleExtractor.find(it)?.groups?.get(1)?.value
     }?.substringBefore("/src/")

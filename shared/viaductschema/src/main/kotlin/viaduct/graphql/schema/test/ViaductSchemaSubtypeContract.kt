@@ -12,11 +12,11 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 
 @Suppress("ktlint:standard:indent")
-abstract class ViaductExtendedSchemaSubtypeContract {
-    /** Override this with the ViaductExtendedSchema class you want to test. */
+abstract class ViaductSchemaSubtypeContract {
+    /** Override this with the ViaductSchema class you want to test. */
     abstract fun getSchemaClass(): KClass<*>
 
     /** If true, skips tests for `.extensions` fields, which are sometimes delegated
@@ -40,7 +40,7 @@ abstract class ViaductExtendedSchemaSubtypeContract {
             for (className in OPTIONAL_CLASS_NAMES) {
                 (
                     getSchemaClass().nestedClasses.firstOrNull { it.simpleName == className }
-                        ?: ViaductExtendedSchema::class.nestedClasses.firstOrNull { it.simpleName == className }
+                        ?: ViaductSchema::class.nestedClasses.firstOrNull { it.simpleName == className }
                 )
                     ?.let { result[className] = it }
             }

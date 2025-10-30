@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.codegen.st.STContents
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 
 class EnumGenTest {
     private fun genEnum(
@@ -13,7 +13,7 @@ class EnumGenTest {
     ): STContents {
         val schema = mkSchema(sdl)
         val builder = mkKotlinGRTFilesBuilder(schema)
-        return builder.enumKotlinGen(schema.types[typename]!! as ViaductExtendedSchema.Enum)
+        return builder.enumKotlinGen(schema.types[typename]!! as ViaductSchema.Enum)
     }
 
     @Test

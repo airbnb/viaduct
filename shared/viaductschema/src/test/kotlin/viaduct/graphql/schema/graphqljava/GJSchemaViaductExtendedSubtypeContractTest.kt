@@ -1,7 +1,7 @@
 package viaduct.graphql.schema.graphqljava
 
-import viaduct.graphql.schema.test.ViaductExtendedSchemaSubtypeContract
+import viaduct.graphql.schema.test.ViaductSchemaSubtypeContract
 
-class GJSchemaViaductExtendedSubtypeContractTest : ViaductExtendedSchemaSubtypeContract() {
+class GJSchemaViaductExtendedSubtypeContractTest : ViaductSchemaSubtypeContract() {
     override fun getSchemaClass() = GJSchema::class
 }

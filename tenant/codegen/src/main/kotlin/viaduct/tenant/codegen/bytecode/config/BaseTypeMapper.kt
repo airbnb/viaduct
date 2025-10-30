@@ -10,7 +10,7 @@ import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg.REFLECTION_NAME
 
 /**
@@ -19,9 +19,9 @@ import viaduct.tenant.codegen.bytecode.config.cfg.REFLECTION_NAME
  */
 interface BaseTypeMapper {
     fun mapBaseType(
-        type: ViaductExtendedSchema.TypeExpr,
+        type: ViaductSchema.TypeExpr,
         pkg: KmName,
-        field: ViaductExtendedSchema.HasDefaultValue? = null,
+        field: ViaductSchema.HasDefaultValue? = null,
         isInput: Boolean = false,
     ): KmType?
 
@@ -42,7 +42,7 @@ interface BaseTypeMapper {
      * This encapsulates the logic for handling different type kinds and build modes.
      */
     fun addSchemaGRTReference(
-        def: ViaductExtendedSchema.TypeDef,
+        def: ViaductSchema.TypeDef,
         fqn: KmName,
         kmClassFilesBuilder: KmClassFilesBuilder
     )
@@ -63,12 +63,12 @@ interface BaseTypeMapper {
  * Viaduct implementation of BaseTypeMapper that handles standard cases.
  */
 class ViaductBaseTypeMapper(
-    val schema: ViaductExtendedSchema,
+    val schema: ViaductSchema,
 ) : BaseTypeMapper {
     override fun mapBaseType(
-        type: ViaductExtendedSchema.TypeExpr,
+        type: ViaductSchema.TypeExpr,
         pkg: KmName,
-        field: ViaductExtendedSchema.HasDefaultValue?,
+        field: ViaductSchema.HasDefaultValue?,
         isInput: Boolean,
     ): KmType? {
         val baseTypeDef = type.baseTypeDef
@@ -94,7 +94,7 @@ class ViaductBaseTypeMapper(
     }
 
     override fun addSchemaGRTReference(
-        def: ViaductExtendedSchema.TypeDef,
+        def: ViaductSchema.TypeDef,
         fqn: KmName,
         kmClassFilesBuilder: KmClassFilesBuilder
     ) {
@@ -106,14 +106,14 @@ class ViaductBaseTypeMapper(
         }
 
         when (def) {
-            is ViaductExtendedSchema.Object -> {
+            is ViaductSchema.Object -> {
                 // Modern mode: objects are treated as classes (not interfaces)
                 kmClassFilesBuilder.addExternalClassReference(fqn, nested = nested)
             }
-            is ViaductExtendedSchema.Interface, is ViaductExtendedSchema.Union -> {
+            is ViaductSchema.Interface, is ViaductSchema.Union -> {
                 kmClassFilesBuilder.addExternalClassReference(fqn, isInterface = true, nested = nested)
             }
-            is ViaductExtendedSchema.Input, is ViaductExtendedSchema.Enum -> {
+            is ViaductSchema.Input, is ViaductSchema.Enum -> {
                 kmClassFilesBuilder.addExternalClassReference(fqn, nested = nested)
             }
         }
@@ -142,9 +142,9 @@ class ViaductBaseTypeMapper(
      * @param isInput type is being used in an input context, e.g., as
      *   setter for a field or the continuation param of a suspend fun
      */
-    internal fun ViaductExtendedSchema.TypeExpr.idKmType(
+    internal fun ViaductSchema.TypeExpr.idKmType(
         pkg: KmName,
-        field: ViaductExtendedSchema.HasDefaultValue?,
+        field: ViaductSchema.HasDefaultValue?,
         isInput: Boolean = false,
     ): KmType {
         val idTypeName = this@ViaductBaseTypeMapper.getGlobalIdType().asKmName // The "GlobalID" in GlobalID<Foo>
@@ -163,7 +163,7 @@ class ViaductBaseTypeMapper(
             }
         }
 
-        val notGraphQLObjectType = (grtBaseTypeDef.kind != ViaductExtendedSchema.TypeDefKind.OBJECT)
+        val notGraphQLObjectType = (grtBaseTypeDef.kind != ViaductSchema.TypeDefKind.OBJECT)
         val variance = if (isInput && notGraphQLObjectType) {
             KmVariance.OUT
         } else {

@@ -4,14 +4,14 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.util.assertKotlinTypeString
 import viaduct.tenant.codegen.bytecode.util.expr
 import viaduct.tenant.codegen.bytecode.util.field
 import viaduct.tenant.codegen.bytecode.util.typedef
 
 class BackingDataTest {
-    private fun mkSchema(sdl: String = ""): ViaductExtendedSchema =
+    private fun mkSchema(sdl: String = ""): ViaductSchema =
         viaduct.graphql.schema.test.mkSchema(
             """
                 scalar BackingData
@@ -82,9 +82,9 @@ class BackingDataTest {
                 }
             """.trimIndent()
         )
-        assertEquals(listOf(schema.field("Obj", "f2")), (schema.typedef("Obj") as ViaductExtendedSchema.Record).codegenIncludedFields)
-        assertEquals(listOf(schema.field("Interface", "f2")), (schema.typedef("Interface") as ViaductExtendedSchema.Record).codegenIncludedFields)
-        assertEquals(listOf(schema.field("Input", "f2")), (schema.typedef("Input") as ViaductExtendedSchema.Record).codegenIncludedFields)
+        assertEquals(listOf(schema.field("Obj", "f2")), (schema.typedef("Obj") as ViaductSchema.Record).codegenIncludedFields)
+        assertEquals(listOf(schema.field("Interface", "f2")), (schema.typedef("Interface") as ViaductSchema.Record).codegenIncludedFields)
+        assertEquals(listOf(schema.field("Input", "f2")), (schema.typedef("Input") as ViaductSchema.Record).codegenIncludedFields)
     }
 
     @Test

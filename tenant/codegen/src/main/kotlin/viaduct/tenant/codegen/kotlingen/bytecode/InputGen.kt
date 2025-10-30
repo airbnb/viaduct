@@ -5,7 +5,7 @@ import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
 import viaduct.codegen.utils.JavaName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.kmType
 
 fun KotlinGRTFilesBuilder.inputKotlinGen(
@@ -42,7 +42,7 @@ private interface InputModel {
     /** Submodel for "fields" in this type. */
     class FieldModel(
         pkg: String,
-        fieldDef: ViaductExtendedSchema.HasDefaultValue,
+        fieldDef: ViaductSchema.HasDefaultValue,
         baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
     ) {
         /** For fields whose names match Kotlin keywords (e.g., "private"),
@@ -119,7 +119,7 @@ private val inputSTGroup =
 private class InputModelImpl(
     override val pkg: String,
     override val className: String,
-    fieldDefs: Iterable<ViaductExtendedSchema.HasDefaultValue>,
+    fieldDefs: Iterable<ViaductSchema.HasDefaultValue>,
     override val taggingInterface: String,
     reflectedType: STContents?,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper

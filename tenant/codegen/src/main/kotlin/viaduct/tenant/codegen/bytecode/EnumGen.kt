@@ -1,9 +1,9 @@
 package viaduct.tenant.codegen.bytecode
 
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 
-internal fun GRTClassFilesBuilder.enumGen(def: ViaductExtendedSchema.Enum) {
+internal fun GRTClassFilesBuilder.enumGen(def: ViaductSchema.Enum) {
     kmClassFilesBuilder.enumClassBuilder(
         kmName = def.name.kmFQN(pkg),
         def.values.map { it.name }

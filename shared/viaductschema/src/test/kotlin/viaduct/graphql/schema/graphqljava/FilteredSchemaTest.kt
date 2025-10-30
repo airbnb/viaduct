@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.FilteredSchema
 import viaduct.graphql.schema.SchemaFilter
 import viaduct.graphql.schema.SchemaInvariantOptions
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.checkBridgeSchemaInvariants
 import viaduct.graphql.schema.test.SchemaDiff
 import viaduct.invariants.InvariantChecker
@@ -20,7 +20,7 @@ import viaduct.invariants.InvariantChecker
 
 class FilteredSchemaTest {
     companion object {
-        lateinit var unfilteredTestSchema: ViaductExtendedSchema
+        lateinit var unfilteredTestSchema: ViaductSchema
 
         private val testSchemaString =
             """
@@ -244,8 +244,8 @@ class FilteredSchemaTest {
     }
 
     fun `test unwrapAll`(
-        unfilteredSchema: ViaductExtendedSchema,
-        filteredSchema: ViaductExtendedSchema
+        unfilteredSchema: ViaductSchema,
+        filteredSchema: ViaductSchema
     ) {
         val checker = InvariantChecker()
         for (def in filteredSchema.types.values) {
@@ -261,26 +261,26 @@ class FilteredSchemaTest {
     }
 
     fun InvariantChecker.checkUnwrapping(
-        unfilteredDef: ViaductExtendedSchema.Def,
-        filteredDef: ViaductExtendedSchema.Def
+        unfilteredDef: ViaductSchema.Def,
+        filteredDef: ViaductSchema.Def
     ) {
         isSameInstanceAs(unfilteredDef, filteredDef.unwrapAll(), "UNWRAP_WORKS")
         when (filteredDef) {
-            is ViaductExtendedSchema.Enum -> {
+            is ViaductSchema.Enum -> {
                 for (values in filteredDef.values) {
-                    val unfilteredValue = (unfilteredDef as ViaductExtendedSchema.Enum).value(values.name)!!
+                    val unfilteredValue = (unfilteredDef as ViaductSchema.Enum).value(values.name)!!
                     checkUnwrapping(unfilteredValue, values)
                 }
             }
-            is ViaductExtendedSchema.HasArgs -> {
+            is ViaductSchema.HasArgs -> {
                 for (arg in filteredDef.args) {
-                    val unfilteredArg = (unfilteredDef as ViaductExtendedSchema.HasArgs).args.first { it.name == arg.name }
+                    val unfilteredArg = (unfilteredDef as ViaductSchema.HasArgs).args.first { it.name == arg.name }
                     checkUnwrapping(unfilteredArg, arg)
                 }
             }
-            is ViaductExtendedSchema.Record -> {
+            is ViaductSchema.Record -> {
                 for (field in filteredDef.fields) {
-                    val unfilteredField = (unfilteredDef as ViaductExtendedSchema.Record).field(field.name)!!
+                    val unfilteredField = (unfilteredDef as ViaductSchema.Record).field(field.name)!!
                     checkUnwrapping(unfilteredField, field)
                 }
             }
@@ -288,22 +288,22 @@ class FilteredSchemaTest {
         }
     }
 
-    private fun FilteredSchema.Def<*>.checkUnfilteredDef(expectedUnfilteredDefClass: KClass<out ViaductExtendedSchema.Def>) {
+    private fun FilteredSchema.Def<*>.checkUnfilteredDef(expectedUnfilteredDefClass: KClass<out ViaductSchema.Def>) {
         assertTrue(expectedUnfilteredDefClass.isInstance(this.unfilteredDef))
         assertEquals(this.name, this.unfilteredDef.name)
     }
 }
 
 class EmptyTypesSchemaFilter : SchemaFilter {
-    override fun includeTypeDef(typeDef: ViaductExtendedSchema.TypeDef) = true
+    override fun includeTypeDef(typeDef: ViaductSchema.TypeDef) = true
 
-    override fun includeField(field: ViaductExtendedSchema.Field) = field.containingDef is ViaductExtendedSchema.Input
+    override fun includeField(field: ViaductSchema.Field) = field.containingDef is ViaductSchema.Input
 
-    override fun includeEnumValue(enumValue: ViaductExtendedSchema.EnumValue) = true
+    override fun includeEnumValue(enumValue: ViaductSchema.EnumValue) = true
 
     override fun includeSuper(
-        record: ViaductExtendedSchema.HasExtensionsWithSupers<*, *>,
-        superInterface: ViaductExtendedSchema.Interface
+        record: ViaductSchema.HasExtensionsWithSupers<*, *>,
+        superInterface: ViaductSchema.Interface
     ) = true
 }
 
@@ -311,14 +311,14 @@ class SuffixSchemaFilter(
     private val suffixToFilter: String,
     private val superSuffix: String
 ) : SchemaFilter {
-    override fun includeTypeDef(typeDef: ViaductExtendedSchema.TypeDef) = !typeDef.name.endsWith(suffixToFilter)
+    override fun includeTypeDef(typeDef: ViaductSchema.TypeDef) = !typeDef.name.endsWith(suffixToFilter)
 
-    override fun includeField(field: ViaductExtendedSchema.Field) = !field.name.endsWith(suffixToFilter)
+    override fun includeField(field: ViaductSchema.Field) = !field.name.endsWith(suffixToFilter)
 
-    override fun includeEnumValue(enumValue: ViaductExtendedSchema.EnumValue) = !enumValue.name.endsWith(suffixToFilter)
+    override fun includeEnumValue(enumValue: ViaductSchema.EnumValue) = !enumValue.name.endsWith(suffixToFilter)
 
     override fun includeSuper(
-        record: ViaductExtendedSchema.HasExtensionsWithSupers<*, *>,
-        superInterface: ViaductExtendedSchema.Interface
+        record: ViaductSchema.HasExtensionsWithSupers<*, *>,
+        superInterface: ViaductSchema.Interface
     ) = superInterface.name.endsWith(superSuffix)
 }

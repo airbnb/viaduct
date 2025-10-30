@@ -7,12 +7,12 @@ import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
 import viaduct.codegen.utils.JavaName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
 
-fun KotlinGRTFilesBuilder.interfaceKotlinGen(typeDef: ViaductExtendedSchema.Interface) = STContents(interfaceSTGroup, InterfaceModelImpl(typeDef, pkg, reflectedTypeGen(typeDef), baseTypeMapper))
+fun KotlinGRTFilesBuilder.interfaceKotlinGen(typeDef: ViaductSchema.Interface) = STContents(interfaceSTGroup, InterfaceModelImpl(typeDef, pkg, reflectedTypeGen(typeDef), baseTypeMapper))
 
 private interface InterfaceModel {
     /** Packege into which code will be generated. */
@@ -36,7 +36,7 @@ private interface InterfaceModel {
     /** Submodel for "fields" in this type. */
     class FieldModel(
         pkg: String,
-        fieldDef: ViaductExtendedSchema.Field,
+        fieldDef: ViaductSchema.Field,
         baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
     ) {
         /** Field getter name. */
@@ -66,7 +66,7 @@ private val interfaceSTGroup =
     )
 
 private class InterfaceModelImpl(
-    private val typeDef: ViaductExtendedSchema.Interface,
+    private val typeDef: ViaductSchema.Interface,
     override val pkg: String,
     reflectedType: STContents,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper

@@ -26,7 +26,6 @@ import graphql.language.UnionTypeDefinition
 import graphql.language.UnionTypeExtensionDefinition
 import graphql.language.Value
 import graphql.schema.idl.TypeDefinitionRegistry
-import viaduct.graphql.schema.ViaductExtendedSchema
 import viaduct.graphql.schema.ViaductSchema
 
 data class TypeDefinitionRegistryOptions(
@@ -39,36 +38,36 @@ data class TypeDefinitionRegistryOptions(
 }
 
 /** See KDoc for [ViaductSchema] for a background. */
-fun ViaductExtendedSchema.toRegistry(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): TypeDefinitionRegistry {
+fun ViaductSchema.toRegistry(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): TypeDefinitionRegistry {
     val result = TypeDefinitionRegistry()
     this.types.entries.map { (_, value) ->
         when (value) {
-            is ViaductExtendedSchema.Object -> {
+            is ViaductSchema.Object -> {
                 result.add(value.toObjectTypeDefinition(options))
                 result.addAll(value.toObjectTypeDefinitionExtensions())
             }
 
-            is ViaductExtendedSchema.Interface -> {
+            is ViaductSchema.Interface -> {
                 result.add(value.toInterfaceTypeDefinition(options))
                 result.addAll(value.toInterfaceTypeDefinitionExtensions())
             }
 
-            is ViaductExtendedSchema.Union -> {
+            is ViaductSchema.Union -> {
                 result.add(value.unionTypeDefinition(options))
                 result.addAll(value.unionTypeDefinitionExtensions())
             }
 
-            is ViaductExtendedSchema.Enum -> {
+            is ViaductSchema.Enum -> {
                 result.add(value.enumTypeDefinition())
                 result.addAll(value.enumTypeDefinitionExtensions())
             }
 
-            is ViaductExtendedSchema.Input -> {
+            is ViaductSchema.Input -> {
                 result.add(value.toInputObjectTypeDefinition())
                 result.addAll(value.toInputObjectTypeDefinitionExtensions())
             }
 
-            is ViaductExtendedSchema.Scalar -> result.add(value.scalarTypeDefinition())
+            is ViaductSchema.Scalar -> result.add(value.scalarTypeDefinition())
             else -> throw IllegalArgumentException("Unexpected type definition: $value")
         }
     }
@@ -82,31 +81,31 @@ fun ViaductExtendedSchema.toRegistry(options: TypeDefinitionRegistryOptions = Ty
 }
 
 // Returns a registry with all the types merged into a single base type definition (without extension definitions)
-fun ViaductExtendedSchema.toRegistryWithoutExtensionTypeDefinitions(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): TypeDefinitionRegistry {
+fun ViaductSchema.toRegistryWithoutExtensionTypeDefinitions(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): TypeDefinitionRegistry {
     val result = TypeDefinitionRegistry()
     this.types.entries.map { (_, value) ->
         when (value) {
-            is ViaductExtendedSchema.Object -> {
+            is ViaductSchema.Object -> {
                 result.add(value.toMergedObjectTypeDefinition(options))
             }
 
-            is ViaductExtendedSchema.Interface -> {
+            is ViaductSchema.Interface -> {
                 result.add(value.toMergedInterfaceTypeDefinition(options))
             }
 
-            is ViaductExtendedSchema.Union -> {
+            is ViaductSchema.Union -> {
                 result.add(value.toMergedUnionTypeDefinition(options))
             }
 
-            is ViaductExtendedSchema.Enum -> {
+            is ViaductSchema.Enum -> {
                 result.add(value.toMergedEnumTypeDefinition())
             }
 
-            is ViaductExtendedSchema.Input -> {
+            is ViaductSchema.Input -> {
                 result.add(value.toMergedInputTypeDefinition())
             }
 
-            is ViaductExtendedSchema.Scalar -> result.add(value.scalarTypeDefinition())
+            is ViaductSchema.Scalar -> result.add(value.scalarTypeDefinition())
             else -> throw IllegalArgumentException("Unexpected type definition: $value")
         }
     }
@@ -118,7 +117,7 @@ fun ViaductExtendedSchema.toRegistryWithoutExtensionTypeDefinitions(options: Typ
     return result
 }
 
-fun ViaductExtendedSchema.Directive.toDirectiveDefinition() =
+fun ViaductSchema.Directive.toDirectiveDefinition() =
     DirectiveDefinition.newDirectiveDefinition()
         .name(name)
         .inputValueDefinitions(args.map { it.inputValueDefinition() })
@@ -126,9 +125,9 @@ fun ViaductExtendedSchema.Directive.toDirectiveDefinition() =
         .directiveLocations(allowedLocations.map { DirectiveLocation(it.name) })
         .build()
 
-fun ViaductExtendedSchema.Scalar.scalarTypeDefinition() = ScalarTypeDefinition.newScalarTypeDefinition().name(this.name).build()
+fun ViaductSchema.Scalar.scalarTypeDefinition() = ScalarTypeDefinition.newScalarTypeDefinition().name(this.name).build()
 
-fun ViaductExtendedSchema.Object.toMergedObjectTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): ObjectTypeDefinition {
+fun ViaductSchema.Object.toMergedObjectTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): ObjectTypeDefinition {
     val allFields = extensions.flatMap { it.members }
     // Add the viaduct ignore symbol to the object type
     // for empty record types cases so that graphql-java considers the
@@ -154,7 +153,7 @@ fun ViaductExtendedSchema.Object.toMergedObjectTypeDefinition(options: TypeDefin
 private fun getViaductIgnoreSymbolAsFieldDefinitionList(): List<FieldDefinition> {
     return listOf(
         FieldDefinition.newFieldDefinition()
-            .name(ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL)
+            .name(ViaductSchema.VIADUCT_IGNORE_SYMBOL)
             .type(TypeName("String"))
             .build()
     )
@@ -165,14 +164,14 @@ private fun getViaductIgnoreSymbolAsFieldDefinitionList(): List<FieldDefinition>
 // generated type registry as valid since graphql-java does not allow empty unions
 private fun getViaductIgnoreSymbolAsObjectTypeDefinition(): ObjectTypeDefinition {
     return ObjectTypeDefinition.newObjectTypeDefinition()
-        .name(ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL)
+        .name(ViaductSchema.VIADUCT_IGNORE_SYMBOL)
         .fieldDefinitions(getViaductIgnoreSymbolAsFieldDefinitionList())
         .build()
 }
 
-private fun ViaductExtendedSchema.SourceLocation.toSourceLocationDefinition() = graphql.language.SourceLocation(-1, -1, this.sourceName)
+private fun ViaductSchema.SourceLocation.toSourceLocationDefinition() = graphql.language.SourceLocation(-1, -1, this.sourceName)
 
-fun ViaductExtendedSchema.Object.toObjectTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT) =
+fun ViaductSchema.Object.toObjectTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT) =
     ObjectTypeDefinition.newObjectTypeDefinition()
         .name(extensions.first().def.name)
         .fieldDefinitions(
@@ -184,7 +183,7 @@ fun ViaductExtendedSchema.Object.toObjectTypeDefinition(options: TypeDefinitionR
         .implementz(extensions.first().supers.map { TypeName(it.name) })
         .build()
 
-fun ViaductExtendedSchema.Object.toObjectTypeDefinitionExtensions() =
+fun ViaductSchema.Object.toObjectTypeDefinitionExtensions() =
     extensions.drop(1).mapNotNull { extension ->
         if (extension.members.isEmpty()) {
             return@mapNotNull null
@@ -197,7 +196,7 @@ fun ViaductExtendedSchema.Object.toObjectTypeDefinitionExtensions() =
             .build()
     }
 
-fun ViaductExtendedSchema.Field.toFieldDefinition(): FieldDefinition {
+fun ViaductSchema.Field.toFieldDefinition(): FieldDefinition {
     return FieldDefinition.newFieldDefinition().name(name)
         .type(type.toTypeForTypeDefinition())
         .inputValueDefinitions(args.map { it.inputValueDefinition() })
@@ -205,7 +204,7 @@ fun ViaductExtendedSchema.Field.toFieldDefinition(): FieldDefinition {
         .build()
 }
 
-fun ViaductExtendedSchema.Input.toMergedInputTypeDefinition(): InputObjectTypeDefinition {
+fun ViaductSchema.Input.toMergedInputTypeDefinition(): InputObjectTypeDefinition {
     val allFields = extensions.flatMap { it.members }
     return InputObjectTypeDefinition.newInputObjectDefinition()
         .name(allFields.first().containingDef.name)
@@ -223,7 +222,7 @@ fun ViaductExtendedSchema.Input.toMergedInputTypeDefinition(): InputObjectTypeDe
         .build()
 }
 
-fun ViaductExtendedSchema.Input.toInputObjectTypeDefinition() =
+fun ViaductSchema.Input.toInputObjectTypeDefinition() =
     InputObjectTypeDefinition.newInputObjectDefinition()
         .name(extensions.first().def.name)
         .inputValueDefinitions(
@@ -239,7 +238,7 @@ fun ViaductExtendedSchema.Input.toInputObjectTypeDefinition() =
         .sourceLocation(sourceLocation?.toSourceLocationDefinition())
         .build()
 
-fun ViaductExtendedSchema.Input.toInputObjectTypeDefinitionExtensions() =
+fun ViaductSchema.Input.toInputObjectTypeDefinitionExtensions() =
     extensions.drop(1).map { extension ->
         InputObjectTypeExtensionDefinition.newInputObjectTypeExtensionDefinition()
             .name(extension.def.name)
@@ -257,7 +256,7 @@ fun ViaductExtendedSchema.Input.toInputObjectTypeDefinitionExtensions() =
             .build()
     }
 
-fun ViaductExtendedSchema.Interface.toMergedInterfaceTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): InterfaceTypeDefinition {
+fun ViaductSchema.Interface.toMergedInterfaceTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): InterfaceTypeDefinition {
     val allFields = extensions.flatMap { it.members }
     // Add the viaduct ignore symbol to the interface type
     // for empty interface cases so that graphql-java considers the
@@ -277,7 +276,7 @@ fun ViaductExtendedSchema.Interface.toMergedInterfaceTypeDefinition(options: Typ
         .build()
 }
 
-fun ViaductExtendedSchema.Interface.toInterfaceTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT) =
+fun ViaductSchema.Interface.toInterfaceTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT) =
     InterfaceTypeDefinition.newInterfaceTypeDefinition()
         .name(extensions.first().def.name)
         .definitions(
@@ -289,7 +288,7 @@ fun ViaductExtendedSchema.Interface.toInterfaceTypeDefinition(options: TypeDefin
         .implementz(extensions.first().supers.map { TypeName(it.name) })
         .build()
 
-fun ViaductExtendedSchema.Interface.toInterfaceTypeDefinitionExtensions() =
+fun ViaductSchema.Interface.toInterfaceTypeDefinitionExtensions() =
     extensions.drop(1).mapNotNull { extension ->
         if (extension.members.isEmpty()) {
             return@mapNotNull null
@@ -302,7 +301,7 @@ fun ViaductExtendedSchema.Interface.toInterfaceTypeDefinitionExtensions() =
             .build()
     }
 
-fun ViaductExtendedSchema.Arg.inputValueDefinition() =
+fun ViaductSchema.Arg.inputValueDefinition() =
     InputValueDefinition.newInputValueDefinition().name(name)
         .type(type.toTypeForTypeDefinition())
         .defaultValue(if (hasDefault) effectiveDefaultValue as Value<*>? else null)
@@ -320,7 +319,7 @@ fun ViaductSchema.AppliedDirective.toDirectiveForTypeDefinition() =
             }.filter { it.value != null }
         ).build()
 
-fun ViaductExtendedSchema.Union.toMergedUnionTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): UnionTypeDefinition {
+fun ViaductSchema.Union.toMergedUnionTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): UnionTypeDefinition {
     val allMembers = extensions.flatMap { it.members }
 
     // Add the viaduct ignore symbol to the union type
@@ -328,7 +327,7 @@ fun ViaductExtendedSchema.Union.toMergedUnionTypeDefinition(options: TypeDefinit
     // generated type registry as valid since graphql-java does not allow empty unions
     val allMemberDefs = allMembers.map { TypeName(it.name) } +
         if (options.addStubsOnEmptyTypes) {
-            listOf(TypeName(ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL))
+            listOf(TypeName(ViaductSchema.VIADUCT_IGNORE_SYMBOL))
         } else {
             emptyList()
         }
@@ -340,18 +339,18 @@ fun ViaductExtendedSchema.Union.toMergedUnionTypeDefinition(options: TypeDefinit
         .build()
 }
 
-fun ViaductExtendedSchema.Union.unionTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT) =
+fun ViaductSchema.Union.unionTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT) =
     UnionTypeDefinition.newUnionTypeDefinition()
         .name(extensions.first().def.name)
         .memberTypes(
             extensions.first().members.map { TypeName(it.name) } +
-                if (options.addStubsOnEmptyTypes) listOf(TypeName(ViaductExtendedSchema.VIADUCT_IGNORE_SYMBOL)) else emptyList()
+                if (options.addStubsOnEmptyTypes) listOf(TypeName(ViaductSchema.VIADUCT_IGNORE_SYMBOL)) else emptyList()
         )
         .directives(appliedDirectives.map { it.toDirectiveForTypeDefinition() })
         .sourceLocation(sourceLocation?.toSourceLocationDefinition())
         .build()
 
-fun ViaductExtendedSchema.Union.unionTypeDefinitionExtensions() =
+fun ViaductSchema.Union.unionTypeDefinitionExtensions() =
     extensions.drop(1).mapNotNull { extension ->
         if (extension.members.isEmpty()) {
             return@mapNotNull null
@@ -365,7 +364,7 @@ fun ViaductExtendedSchema.Union.unionTypeDefinitionExtensions() =
             .build()
     }
 
-fun ViaductExtendedSchema.Enum.toMergedEnumTypeDefinition(): EnumTypeDefinition {
+fun ViaductSchema.Enum.toMergedEnumTypeDefinition(): EnumTypeDefinition {
     val allMembers = extensions.flatMap { it.members }
     return EnumTypeDefinition.newEnumTypeDefinition()
         .name(extensions.first().def.name)
@@ -382,7 +381,7 @@ fun ViaductExtendedSchema.Enum.toMergedEnumTypeDefinition(): EnumTypeDefinition 
         .build()
 }
 
-fun ViaductExtendedSchema.Enum.enumTypeDefinition() =
+fun ViaductSchema.Enum.enumTypeDefinition() =
     EnumTypeDefinition.newEnumTypeDefinition()
         .name(extensions.first().def.name)
         .enumValueDefinitions(
@@ -397,7 +396,7 @@ fun ViaductExtendedSchema.Enum.enumTypeDefinition() =
         .sourceLocation(sourceLocation?.toSourceLocationDefinition())
         .build()
 
-fun ViaductExtendedSchema.Enum.enumTypeDefinitionExtensions() =
+fun ViaductSchema.Enum.enumTypeDefinitionExtensions() =
     extensions.drop(1).map { extension ->
         EnumTypeExtensionDefinition.newEnumTypeExtensionDefinition()
             .name(this.name)
@@ -414,7 +413,7 @@ fun ViaductExtendedSchema.Enum.enumTypeDefinitionExtensions() =
             .build()
     }
 
-private fun ViaductExtendedSchema.TypeExpr.constructNestedListType(
+private fun ViaductSchema.TypeExpr.constructNestedListType(
     baseType: Type<*>,
     listDepth: Int
 ): Type<*> =
@@ -423,7 +422,7 @@ private fun ViaductExtendedSchema.TypeExpr.constructNestedListType(
         if (nullableAtDepth(index)) listType else NonNullType(listType)
     }
 
-fun ViaductExtendedSchema.TypeExpr.toTypeForTypeDefinition(): Type<*> {
+fun ViaductSchema.TypeExpr.toTypeForTypeDefinition(): Type<*> {
     val typeName = TypeName(baseTypeDef.name)
     val baseType = if (!baseTypeNullable) NonNullType(typeName) else typeName
     return if (isList) {

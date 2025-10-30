@@ -4,7 +4,7 @@ import graphql.language.Node
 import graphql.schema.GraphQLDirectiveContainer
 import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLSchema
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.checkBridgeSchemaInvariants
 import viaduct.invariants.InvariantChecker
 
@@ -138,7 +138,7 @@ class GJSchemaCheck(
     }
 
     private fun checkDefaultValue(
-        actual: ViaductExtendedSchema.HasDefaultValue,
+        actual: ViaductSchema.HasDefaultValue,
         check: InvariantChecker
     ) {
         if (!actual.hasDefault) {
@@ -161,7 +161,7 @@ class GJSchemaCheck(
 
     private fun checkFieldInvariants() {
         for (def in schema.types.values) {
-            if (def !is ViaductExtendedSchema.Record) continue
+            if (def !is ViaductSchema.Record) continue
             check.withContext(def.name) {
                 for (field in def.fields) {
                     check.withContext(field.name) {
@@ -187,7 +187,7 @@ class GJSchemaCheck(
 
     private fun checkSourceLocationInvariants() {
         for (d in schema.types.values) {
-            if (d !is ViaductExtendedSchema.HasExtensions<*, *>) continue
+            if (d !is ViaductSchema.HasExtensions<*, *>) continue
             check.withContext(d.name) {
                 val expectedExts: List<Node<*>?> =
                     when (d) {

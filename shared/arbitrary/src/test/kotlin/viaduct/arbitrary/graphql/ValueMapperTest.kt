@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.mapping.graphql.RawENull
 import viaduct.mapping.graphql.RawINull
 import viaduct.mapping.graphql.RawInput
@@ -229,11 +229,11 @@ private inline fun <reified T : GraphQLType> GraphQLSchema.type(coord: String) =
         }
     }
 
-private fun ViaductExtendedSchema.type(coord: String) =
+private fun ViaductSchema.type(coord: String) =
     asCoordinate(coord).let { (type, field) ->
         this.types[type]!!.asTypeExpr().let {
             if (field != null) {
-                (it.baseTypeDef as ViaductExtendedSchema.Record).field(field)!!.type
+                (it.baseTypeDef as ViaductSchema.Record).field(field)!!.type
             } else {
                 it
             }

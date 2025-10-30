@@ -2,13 +2,12 @@ package viaduct.graphql.schema.test
 
 import graphql.language.Node
 import java.lang.IllegalArgumentException
-import viaduct.graphql.schema.ViaductExtendedSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.invariants.InvariantChecker
 
 class SchemaDiff(
-    private val expected: ViaductExtendedSchema,
-    private val actual: ViaductExtendedSchema,
+    private val expected: ViaductSchema,
+    private val actual: ViaductSchema,
     private val checker: InvariantChecker = InvariantChecker(),
     private val extraDiffs: ExtraDiffsVisitor = object : ExtraDiffsVisitor { },
     private val includeIntrospectiveTypes: Boolean = false
@@ -31,15 +30,15 @@ class SchemaDiff(
     }
 
     private fun visit(
-        expectedDefs: Iterable<ViaductExtendedSchema.Def>,
-        actualDefs: Iterable<ViaductExtendedSchema.Def>,
+        expectedDefs: Iterable<ViaductSchema.Def>,
+        actualDefs: Iterable<ViaductSchema.Def>,
         kind: String
     ) {
         sameNames(
             expectedDefs,
             actualDefs,
             kind,
-            ViaductExtendedSchema.Def::name
+            ViaductSchema.Def::name
         ).forEach { visit(it.first, it.second) }
     }
 
@@ -75,14 +74,14 @@ class SchemaDiff(
     }
 
     private fun visitDirectives(
-        expectedDirectives: Iterable<Map.Entry<String, ViaductExtendedSchema.Directive>>,
-        actualDirectives: Iterable<Map.Entry<String, ViaductExtendedSchema.Directive>>
+        expectedDirectives: Iterable<Map.Entry<String, ViaductSchema.Directive>>,
+        actualDirectives: Iterable<Map.Entry<String, ViaductSchema.Directive>>
     ) {
         sameNames(
             expectedDirectives.map { it.value },
             actualDirectives.map { it.value },
             "DIRECTIVE",
-            ViaductExtendedSchema.Directive::name
+            ViaductSchema.Directive::name
         ).forEach {
             checker.withContext(it.first.name) {
                 visit(it.first.args, it.second.args, "DIRECTIVE_ARG")
@@ -91,8 +90,8 @@ class SchemaDiff(
     }
 
     private fun visit(
-        expectedDef: ViaductExtendedSchema.Def,
-        actualDef: ViaductExtendedSchema.Def
+        expectedDef: ViaductSchema.Def,
+        actualDef: ViaductSchema.Def
     ) {
         try {
             checker.pushContext(actualDef.name)
@@ -113,7 +112,7 @@ class SchemaDiff(
             extraDiffs.visitDef(expectedDef, actualDef, checker)
 
             // Checks specific to each [BridgeSchema.Def] subclass
-            if (expectedDef is ViaductExtendedSchema.HasDefaultValue) {
+            if (expectedDef is ViaductSchema.HasDefaultValue) {
                 cvt(expectedDef, actualDef) { exp, act ->
                     hasSameKind(exp.containingDef, act.containingDef, "CONTAINING_TYPES_AGREE")
                     checker.isEqualTo(exp.type, act.type, "ARG_TYPE_AGREE")
@@ -134,7 +133,7 @@ class SchemaDiff(
                     }
                 }
             }
-            if (expectedDef is ViaductExtendedSchema.TypeDef) {
+            if (expectedDef is ViaductSchema.TypeDef) {
                 cvt(expectedDef, actualDef) { exp, act ->
                     checker.isEqualTo(exp.kind, act.kind, "KIND_AGREES")
                     checker.isEqualTo(exp.isSimple, act.isSimple, "IS_SIMPLE_AGREE")
@@ -143,43 +142,43 @@ class SchemaDiff(
                         exp.possibleObjectTypes,
                         act.possibleObjectTypes,
                         "POSSIBLE_OBJECT_TYPE",
-                        ViaductExtendedSchema.Def::name
+                        ViaductSchema.Def::name
                     )
                 }
             }
-            if (expectedDef is ViaductExtendedSchema.HasExtensions<*, *>) {
+            if (expectedDef is ViaductSchema.HasExtensions<*, *>) {
                 cvt(expectedDef, actualDef) { exp, act ->
-                    fun ViaductExtendedSchema.Extension<*, *>.memberKeys() = this.members.map { it.name }.sorted().joinToString("::")
-                    sameNames(exp.extensions, act.extensions, "EXTENSION", ViaductExtendedSchema.Extension<*, *>::memberKeys)
+                    fun ViaductSchema.Extension<*, *>.memberKeys() = this.members.map { it.name }.sorted().joinToString("::")
+                    sameNames(exp.extensions, act.extensions, "EXTENSION", ViaductSchema.Extension<*, *>::memberKeys)
                 }
             }
-            if (expectedDef is ViaductExtendedSchema.HasExtensionsWithSupers<*, *>) {
+            if (expectedDef is ViaductSchema.HasExtensionsWithSupers<*, *>) {
                 cvt(expectedDef, actualDef) { exp, act ->
-                    fun ViaductExtendedSchema.Extension<*, *>.supersKeys() = this.members.map { it.name }.sorted().joinToString("::")
-                    sameNames(exp.extensions, act.extensions, "EXTENSION", ViaductExtendedSchema.Extension<*, *>::supersKeys)
+                    fun ViaductSchema.Extension<*, *>.supersKeys() = this.members.map { it.name }.sorted().joinToString("::")
+                    sameNames(exp.extensions, act.extensions, "EXTENSION", ViaductSchema.Extension<*, *>::supersKeys)
                 }
             }
-            if (expectedDef is ViaductExtendedSchema.Record) {
+            if (expectedDef is ViaductSchema.Record) {
                 cvt(expectedDef, actualDef) { exp, act ->
-                    sameNames(exp.supers, act.supers, "SUPER", ViaductExtendedSchema.Def::name)
-                    sameNames(exp.unions, act.unions, "UNION", ViaductExtendedSchema.Def::name)
+                    sameNames(exp.supers, act.supers, "SUPER", ViaductSchema.Def::name)
+                    sameNames(exp.unions, act.unions, "UNION", ViaductSchema.Def::name)
                     visit(exp.fields, act.fields, "FIELD")
                 }
             }
             when (expectedDef) {
-                is ViaductExtendedSchema.Arg ->
+                is ViaductSchema.Arg ->
                     cvt(expectedDef, actualDef) { exp, act ->
                         hasSameKind(exp.containingDef, act.containingDef, "ARG_DEF_KIND_AGREE")
                         checker.isEqualTo(exp.containingDef.name, act.containingDef.name, "ARG_DEF_NAMES_AGREE")
                         extraDiffs.visitArg(exp, act, checker)
                     }
-                is ViaductExtendedSchema.Enum ->
+                is ViaductSchema.Enum ->
                     cvt(expectedDef, actualDef) { exp, act ->
                         visit(exp.values, act.values, "ENUM_VALUE")
                         extraDiffs.visitEnum(exp, act, checker)
                     }
 
-                is ViaductExtendedSchema.EnumValue ->
+                is ViaductSchema.EnumValue ->
                     cvt(expectedDef, actualDef) { exp, act ->
                         checker.isEqualTo(
                             exp.containingDef.name,
@@ -197,7 +196,7 @@ class SchemaDiff(
                         extraDiffs.visitEnumValue(exp, act, checker)
                     }
 
-                is ViaductExtendedSchema.Field ->
+                is ViaductSchema.Field ->
                     cvt(expectedDef, actualDef) { exp, act ->
                         checker.isEqualTo(exp.isOverride, act.isOverride, "OVERRIDE_KIND_AGREE")
                         checker.isEqualTo(exp.hasArgs, act.hasArgs, "FIELD_HAS_ARGS_AGREE")
@@ -214,20 +213,20 @@ class SchemaDiff(
                         extraDiffs.visitField(exp, act, checker)
                     }
 
-                is ViaductExtendedSchema.Object ->
-                    extraDiffs.visitObject(expectedDef, actualDef as ViaductExtendedSchema.Object, checker)
+                is ViaductSchema.Object ->
+                    extraDiffs.visitObject(expectedDef, actualDef as ViaductSchema.Object, checker)
 
-                is ViaductExtendedSchema.Input ->
-                    extraDiffs.visitInput(expectedDef, actualDef as ViaductExtendedSchema.Input, checker)
+                is ViaductSchema.Input ->
+                    extraDiffs.visitInput(expectedDef, actualDef as ViaductSchema.Input, checker)
 
-                is ViaductExtendedSchema.Interface ->
-                    extraDiffs.visitInterface(expectedDef, actualDef as ViaductExtendedSchema.Interface, checker)
+                is ViaductSchema.Interface ->
+                    extraDiffs.visitInterface(expectedDef, actualDef as ViaductSchema.Interface, checker)
 
-                is ViaductExtendedSchema.Scalar ->
-                    extraDiffs.visitScalar(expectedDef, actualDef as ViaductExtendedSchema.Scalar, checker)
+                is ViaductSchema.Scalar ->
+                    extraDiffs.visitScalar(expectedDef, actualDef as ViaductSchema.Scalar, checker)
 
-                is ViaductExtendedSchema.Union ->
-                    extraDiffs.visitUnion(expectedDef, actualDef as ViaductExtendedSchema.Union, checker)
+                is ViaductSchema.Union ->
+                    extraDiffs.visitUnion(expectedDef, actualDef as ViaductSchema.Union, checker)
 
                 else -> throw IllegalStateException("Unknown type: $expectedDef")
             }
@@ -245,43 +244,43 @@ class SchemaDiff(
     }
 
     private fun hasSameKind(
-        expectedDef: ViaductExtendedSchema.Def,
-        actualDef: ViaductExtendedSchema.Def,
+        expectedDef: ViaductSchema.Def,
+        actualDef: ViaductSchema.Def,
         msg: String
     ): Boolean {
         return when (actualDef) {
-            is ViaductExtendedSchema.Directive -> {
-                checker.isInstanceOf<ViaductExtendedSchema.Directive>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.Directive -> {
+                checker.isInstanceOf<ViaductSchema.Directive>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.DirectiveArg -> {
-                checker.isInstanceOf<ViaductExtendedSchema.DirectiveArg>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.DirectiveArg -> {
+                checker.isInstanceOf<ViaductSchema.DirectiveArg>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.FieldArg -> {
-                checker.isInstanceOf<ViaductExtendedSchema.FieldArg>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.FieldArg -> {
+                checker.isInstanceOf<ViaductSchema.FieldArg>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.Enum -> {
-                checker.isInstanceOf<ViaductExtendedSchema.Enum>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.Enum -> {
+                checker.isInstanceOf<ViaductSchema.Enum>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.EnumValue -> {
-                checker.isInstanceOf<ViaductExtendedSchema.EnumValue>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.EnumValue -> {
+                checker.isInstanceOf<ViaductSchema.EnumValue>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.Field -> {
-                checker.isInstanceOf<ViaductExtendedSchema.Field>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.Field -> {
+                checker.isInstanceOf<ViaductSchema.Field>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.Input -> {
-                checker.isInstanceOf<ViaductExtendedSchema.Input>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.Input -> {
+                checker.isInstanceOf<ViaductSchema.Input>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.Interface -> {
-                checker.isInstanceOf<ViaductExtendedSchema.Interface>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.Interface -> {
+                checker.isInstanceOf<ViaductSchema.Interface>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.Object -> {
-                checker.isInstanceOf<ViaductExtendedSchema.Object>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.Object -> {
+                checker.isInstanceOf<ViaductSchema.Object>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.Scalar -> {
-                checker.isInstanceOf<ViaductExtendedSchema.Scalar>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.Scalar -> {
+                checker.isInstanceOf<ViaductSchema.Scalar>(expectedDef, "${msg}_AGREE")
             }
-            is ViaductExtendedSchema.Union -> {
-                checker.isInstanceOf<ViaductExtendedSchema.Union>(expectedDef, "${msg}_AGREE")
+            is ViaductSchema.Union -> {
+                checker.isInstanceOf<ViaductSchema.Union>(expectedDef, "${msg}_AGREE")
             }
             else -> throw IllegalArgumentException("Unexpected class $actualDef")
         }

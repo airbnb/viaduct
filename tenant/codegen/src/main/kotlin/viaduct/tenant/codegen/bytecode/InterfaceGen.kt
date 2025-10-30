@@ -12,13 +12,13 @@ import viaduct.codegen.km.CustomClassBuilder
 import viaduct.codegen.km.getterName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
 
-internal fun GRTClassFilesBuilder.interfaceGen(def: ViaductExtendedSchema.Interface) {
+internal fun GRTClassFilesBuilder.interfaceGen(def: ViaductSchema.Interface) {
     kmClassFilesBuilder.customClassBuilder(
         ClassKind.INTERFACE,
         def.name.kmFQN(pkg),
@@ -55,7 +55,7 @@ internal fun GRTClassFilesBuilder.interfaceGen(def: ViaductExtendedSchema.Interf
 }
 
 private fun CustomClassBuilder.addSuspendingGetterFun(
-    field: ViaductExtendedSchema.Field,
+    field: ViaductSchema.Field,
     pkg: KmName,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
     valueParam: KmValueParameter? = null

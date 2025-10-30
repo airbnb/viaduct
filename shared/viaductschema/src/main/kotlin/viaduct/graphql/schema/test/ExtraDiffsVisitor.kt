@@ -1,10 +1,10 @@
 package viaduct.graphql.schema.test
 
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.invariants.InvariantChecker
 
 /** Both [visitDef] and then (sequentially) the more specific visitor are
- *  called for each [ViaductExtendedSchema.Def] in the schema.  In the case of nested
+ *  called for each [ViaductSchema.Def] in the schema.  In the case of nested
  *  items, calls are made in a stack-like manner, i.e., [visitDef] is called
  *  on the parent, [visitDef] on the child, then
  *  kind-specific [visitXyz] on the child, then kind-specific [visitAbc on
@@ -13,68 +13,68 @@ import viaduct.invariants.InvariantChecker
  */
 interface ExtraDiffsVisitor {
     fun visitDirective(
-        expected: ViaductExtendedSchema.Directive,
-        actual: ViaductExtendedSchema.Directive,
+        expected: ViaductSchema.Directive,
+        actual: ViaductSchema.Directive,
         c: InvariantChecker
     ) {}
 
     fun visitArg(
-        expected: ViaductExtendedSchema.Arg,
-        actual: ViaductExtendedSchema.Arg,
+        expected: ViaductSchema.Arg,
+        actual: ViaductSchema.Arg,
         c: InvariantChecker
     ) {}
 
     fun visitDef(
-        expected: ViaductExtendedSchema.Def,
-        actual: ViaductExtendedSchema.Def,
+        expected: ViaductSchema.Def,
+        actual: ViaductSchema.Def,
         c: InvariantChecker
     ) {}
 
     fun visitEnum(
-        expected: ViaductExtendedSchema.Enum,
-        actual: ViaductExtendedSchema.Enum,
+        expected: ViaductSchema.Enum,
+        actual: ViaductSchema.Enum,
         c: InvariantChecker
     ) {}
 
     fun visitEnumValue(
-        expected: ViaductExtendedSchema.EnumValue,
-        actual: ViaductExtendedSchema.EnumValue,
+        expected: ViaductSchema.EnumValue,
+        actual: ViaductSchema.EnumValue,
         c: InvariantChecker
     ) {}
 
     fun visitField(
-        expected: ViaductExtendedSchema.Field,
-        actual: ViaductExtendedSchema.Field,
+        expected: ViaductSchema.Field,
+        actual: ViaductSchema.Field,
         c: InvariantChecker
     ) {}
 
     fun visitInput(
-        expected: ViaductExtendedSchema.Input,
-        actual: ViaductExtendedSchema.Input,
+        expected: ViaductSchema.Input,
+        actual: ViaductSchema.Input,
         c: InvariantChecker
     ) {}
 
     fun visitInterface(
-        expected: ViaductExtendedSchema.Interface,
-        actual: ViaductExtendedSchema.Interface,
+        expected: ViaductSchema.Interface,
+        actual: ViaductSchema.Interface,
         c: InvariantChecker
     ) {}
 
     fun visitObject(
-        expected: ViaductExtendedSchema.Object,
-        actual: ViaductExtendedSchema.Object,
+        expected: ViaductSchema.Object,
+        actual: ViaductSchema.Object,
         c: InvariantChecker
     ) {}
 
     fun visitScalar(
-        expected: ViaductExtendedSchema.Scalar,
-        actual: ViaductExtendedSchema.Scalar,
+        expected: ViaductSchema.Scalar,
+        actual: ViaductSchema.Scalar,
         c: InvariantChecker
     ) {}
 
     fun visitUnion(
-        expected: ViaductExtendedSchema.Union,
-        actual: ViaductExtendedSchema.Union,
+        expected: ViaductSchema.Union,
+        actual: ViaductSchema.Union,
         c: InvariantChecker
     ) {}
 }

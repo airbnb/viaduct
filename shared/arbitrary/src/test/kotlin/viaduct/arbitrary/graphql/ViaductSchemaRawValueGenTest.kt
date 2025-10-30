@@ -13,7 +13,7 @@ import viaduct.mapping.graphql.RawObject
 import viaduct.mapping.graphql.RawValue.Companion.inull
 import viaduct.mapping.graphql.RawValue.Companion.obj
 
-class ViaductExtendedSchemaRawValueGenTest : KotestPropertyBase() {
+class ViaductSchemaRawValueGenTest : KotestPropertyBase() {
     @Test
     fun `non-null recursive output types`(): Unit =
         runBlocking {

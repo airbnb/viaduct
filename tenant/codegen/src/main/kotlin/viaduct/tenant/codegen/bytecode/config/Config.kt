@@ -9,7 +9,7 @@ import kotlinx.metadata.visibility
 import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.JavaName
 import viaduct.codegen.utils.KmName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.baseGraphqlScalarTypeMapping
 import viaduct.utils.string.capitalize
 
@@ -30,16 +30,16 @@ object cfg {
     val JSON_PROPERTY_ANNOTATION = "com/fasterxml/jackson/annotation/JsonProperty"
     val JSON_PROPERTY_ORDER_ANNNOTATION = "com/fasterxml/jackson/annotation/JsonPropertyOrder"
 
-    fun argumentTypeName(field: ViaductExtendedSchema.Field): String = argumentTypeName(field.containingDef.name, field.name)
+    fun argumentTypeName(field: ViaductSchema.Field): String = argumentTypeName(field.containingDef.name, field.name)
 
     fun argumentTypeName(
         typeName: String,
         fieldName: String
     ): String = "${typeName}_${fieldName.capitalize()}_Arguments"
 
-    fun needsQuerySelections(field: ViaductExtendedSchema.Field) = field.hasAppliedDirective("component")
+    fun needsQuerySelections(field: ViaductSchema.Field) = field.hasAppliedDirective("component")
 
-    fun isHasClearableFieldsInputType(def: ViaductExtendedSchema.TypeDef) = def.hasAppliedDirective("hasClearableFields")
+    fun isHasClearableFieldsInputType(def: ViaductSchema.TypeDef) = def.hasAppliedDirective("hasClearableFields")
 
     val QUERY_SELECTIONS_FIELD_NAME = "querySelections"
 
@@ -79,7 +79,7 @@ object cfg {
     val BUILD_TIME_MODULE_EXTRACTOR = Regex("modules/(.*?)/schema")
     val TEST_TIME_MODULE_EXTRACTOR = Regex("/graphql/([^/]*)")
 
-    /** Used by [ViaductExtendedSchema.Field.crossModule] to extract the module name
+    /** Used by [ViaductSchema.Field.crossModule] to extract the module name
      *  from a GraphQL type's source location.  Unfortunately, different
      *  patterns are needed for the bytecode-generator (which uses a Bazel
      *  target to read the central schema) and testing code (which uses a

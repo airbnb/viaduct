@@ -2,22 +2,21 @@ package viaduct.tenant.codegen.graphql.bridge
 
 import graphql.language.ArrayValue
 import graphql.language.StringValue
-import viaduct.graphql.schema.ViaductExtendedSchema
 import viaduct.graphql.schema.ViaductSchema
 
-fun ViaductExtendedSchema.Def.isInScope(scope: String): Boolean {
+fun ViaductSchema.Def.isInScope(scope: String): Boolean {
     return when (this) {
-        is ViaductExtendedSchema.Enum,
-        is ViaductExtendedSchema.Input,
-        is ViaductExtendedSchema.Interface,
-        is ViaductExtendedSchema.Object,
-        is ViaductExtendedSchema.Union -> {
+        is ViaductSchema.Enum,
+        is ViaductSchema.Input,
+        is ViaductSchema.Interface,
+        is ViaductSchema.Object,
+        is ViaductSchema.Union -> {
             this.appliedDirectives.includesScope(scope)
         }
-        is ViaductExtendedSchema.Field -> {
+        is ViaductSchema.Field -> {
             this.containingExtension.appliedDirectives.includesScope(scope) && this.type.baseTypeDef.isInScope(scope)
         }
-        is ViaductExtendedSchema.EnumValue -> {
+        is ViaductSchema.EnumValue -> {
             this.containingExtension.appliedDirectives.includesScope(scope)
         }
         else -> true
@@ -46,7 +45,7 @@ private fun Iterable<ViaductSchema.AppliedDirective>.includesScope(scope: String
  *  listed in that directive.  Otherwise, return null.  Throws
  *  an exception if the directive is not well-formed.
  */
-val ViaductExtendedSchema.Extension<*, *>.scopes: List<String>? get() {
+val ViaductSchema.Extension<*, *>.scopes: List<String>? get() {
     val dirs = this.appliedDirectives.filter { it.name == "scope" }
     if (dirs.size == 0) return null
 

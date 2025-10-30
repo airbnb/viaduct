@@ -16,7 +16,7 @@ import viaduct.utils.collections.BitVector
  *  means a not-nullable list of nullable elements, each
  *  element, if not null, is itself a list of non-null
  *  elements having the bast-type as their type. */
-fun ViaductExtendedSchema.TypeExpr.unparseWrappers(): String {
+fun ViaductSchema.TypeExpr.unparseWrappers(): String {
     val result = StringBuilder()
     for (i in 0 until listDepth)
         result.append(if (nullableAtDepth(i)) '?' else '!')
@@ -25,7 +25,7 @@ fun ViaductExtendedSchema.TypeExpr.unparseWrappers(): String {
 }
 
 /** Parse our internal shorthand for wrappers (see
- *  [ViaductExtendedSchema.TypeExpr.unparseWrappers] for the syntax).  The method checks
+ *  [ViaductSchema.TypeExpr.unparseWrappers] for the syntax).  The method checks
  *  the entire string for syntactic correctness, so the
  *  caller of this method can always assume there
  *  `wrappers.charAt(wrappers.length-1)` -- which gives the
@@ -42,7 +42,7 @@ fun parseWrappers(wrappers: String): BitVector {
     if (baseWrapper != '?' && baseWrapper != '!') {
         throw IllegalArgumentException("Bad wrapper syntax ($wrappers).")
     }
-    if (sz == 1) return ViaductExtendedSchema.TypeExpr.NO_WRAPPERS
+    if (sz == 1) return ViaductSchema.TypeExpr.NO_WRAPPERS
     val result = BitVector(wrappers.length - 1)
     for (i in 0..sz - 2) {
         when (wrappers[i]) {

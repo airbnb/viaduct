@@ -1,10 +1,10 @@
 package viaduct.tenant.codegen.bytecode
 
 import kotlinx.metadata.ClassKind
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 
-internal fun GRTClassFilesBuilder.unionGenV2(def: ViaductExtendedSchema.Union) {
+internal fun GRTClassFilesBuilder.unionGenV2(def: ViaductSchema.Union) {
     kmClassFilesBuilder.customClassBuilder(
         ClassKind.INTERFACE,
         def.name.kmFQN(pkg),

@@ -8,10 +8,10 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.codegen.km.ctdiff.ClassDiff
-import viaduct.graphql.schema.ViaductExtendedSchema
-import viaduct.graphql.schema.ViaductExtendedSchema.Object
-import viaduct.graphql.schema.ViaductExtendedSchema.TypeDef
-import viaduct.graphql.schema.ViaductExtendedSchema.TypeDefKind
+import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.ViaductSchema.Object
+import viaduct.graphql.schema.ViaductSchema.TypeDef
+import viaduct.graphql.schema.ViaductSchema.TypeDefKind
 import viaduct.graphql.schema.test.loadGraphQLSchema
 import viaduct.graphql.schema.test.mkSchema
 import viaduct.invariants.InvariantChecker
@@ -78,7 +78,7 @@ object ClassNames {
     ): Sequence<Names> = fromSchema(loadGraphQLSchema(), packages, typePredicate)
 
     fun fromSchema(
-        schema: ViaductExtendedSchema,
+        schema: ViaductSchema,
         packages: Packages,
         typePredicate: Predicate<TypeDef> = NoScalars,
     ): Sequence<Names> =

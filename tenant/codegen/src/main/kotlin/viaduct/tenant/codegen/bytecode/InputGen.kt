@@ -19,12 +19,12 @@ import viaduct.codegen.km.castObjectExpression
 import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.kmType
 
-internal fun GRTClassFilesBuilder.inputGen(def: ViaductExtendedSchema.Input) {
+internal fun GRTClassFilesBuilder.inputGen(def: ViaductSchema.Input) {
     makeInputClass(
         def.name.kmFQN(this.pkg),
         def.fields,
@@ -34,7 +34,7 @@ internal fun GRTClassFilesBuilder.inputGen(def: ViaductExtendedSchema.Input) {
     }
 }
 
-internal fun GRTClassFilesBuilder.fieldArgumentsInputGen(field: ViaductExtendedSchema.Field) {
+internal fun GRTClassFilesBuilder.fieldArgumentsInputGen(field: ViaductSchema.Field) {
     if (field.args.none()) return
 
     makeInputClass(
@@ -46,7 +46,7 @@ internal fun GRTClassFilesBuilder.fieldArgumentsInputGen(field: ViaductExtendedS
 
 private fun GRTClassFilesBuilder.makeInputClass(
     className: KmName,
-    fields: Iterable<ViaductExtendedSchema.HasDefaultValue>,
+    fields: Iterable<ViaductSchema.HasDefaultValue>,
     taggingInterface: KmName
 ): CustomClassBuilder {
     val builder = kmClassFilesBuilder.customClassBuilder(
@@ -62,7 +62,7 @@ private fun GRTClassFilesBuilder.makeInputClass(
 
 private class InputClassGen(
     private val grtClassFilesBuilder: GRTClassFilesBuilderBase,
-    private val fields: Iterable<ViaductExtendedSchema.HasDefaultValue>,
+    private val fields: Iterable<ViaductSchema.HasDefaultValue>,
     private val inputClass: CustomClassBuilder,
 ) {
     private val pkg = grtClassFilesBuilder.pkg
@@ -187,7 +187,7 @@ private class InputClassGen(
         return this
     }
 
-    private fun CustomClassBuilder.addFieldProperty(field: ViaductExtendedSchema.HasDefaultValue) {
+    private fun CustomClassBuilder.addFieldProperty(field: ViaductSchema.HasDefaultValue) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
         val fieldType = field.kmType(pkg, baseTypeMapper)

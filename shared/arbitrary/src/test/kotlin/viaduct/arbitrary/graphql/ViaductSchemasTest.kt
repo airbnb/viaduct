@@ -7,9 +7,9 @@ import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.checkInvariants
 import viaduct.graphql.schema.checkBridgeSchemaInvariants
 
-class ViaductExtendedSchemasTest : KotestPropertyBase() {
+class ViaductSchemasTest : KotestPropertyBase() {
     @Test
-    fun `generates valid ViaductExtendedSchemas`() =
+    fun `generates valid ViaductSchemas`() =
         Arb.viaductExtendedSchema().checkInvariants(100) { schema, check ->
             checkBridgeSchemaInvariants(schema, check)
         }

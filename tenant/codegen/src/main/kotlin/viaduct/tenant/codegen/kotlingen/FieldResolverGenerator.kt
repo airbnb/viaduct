@@ -5,20 +5,20 @@ import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
 import viaduct.codegen.utils.JavaName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.tenantModule
 import viaduct.utils.string.capitalize
 
 private const val RESOLVER_DIRECTIVE = "resolver"
 
-fun ViaductExtendedSchema.generateFieldResolvers(args: Args) {
+fun ViaductSchema.generateFieldResolvers(args: Args) {
     FieldResolverGenerator(this, args.tenantPackage, args.tenantPackagePrefix, args.resolverGeneratedDir, args.grtPackage, args.isFeatureAppTest, args.baseTypeMapper)
         .generate()
 }
 
 private class FieldResolverGenerator(
-    private val schema: ViaductExtendedSchema,
+    private val schema: ViaductSchema,
     private val tenantPackage: String,
     private val tenantPackagePrefix: String,
     private val resolverGeneratedDir: File,
@@ -40,11 +40,11 @@ private class FieldResolverGenerator(
         }
     }
 
-    private fun tenantResolverFields(typeDef: ViaductExtendedSchema.TypeDef): List<ViaductExtendedSchema.Field>? {
-        if (typeDef !is ViaductExtendedSchema.Object) return null
+    private fun tenantResolverFields(typeDef: ViaductSchema.TypeDef): List<ViaductSchema.Field>? {
+        if (typeDef !is ViaductSchema.Object) return null
 
         val targetTenantModule = tenantPackage.replace("$tenantPackagePrefix.", "").replace(".", "/")
-        val resolverFields = mutableListOf<ViaductExtendedSchema.Field>()
+        val resolverFields = mutableListOf<ViaductSchema.Field>()
         for (extension in typeDef.extensions) {
             // This check will not pass for feature test app run so just generate field resolvers
             // even if the tenantModule doesn't match for it
@@ -60,7 +60,7 @@ private class FieldResolverGenerator(
 // internal for testing
 internal fun genResolver(
     typeName: String,
-    fields: Collection<ViaductExtendedSchema.Field>,
+    fields: Collection<ViaductSchema.Field>,
     tenantPackage: String,
     grtPackage: String,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
@@ -88,14 +88,14 @@ private class ResolversModelImpl(
     tenantPackage: String,
     grtPackage: String,
     override val typeName: String,
-    fields: Collection<ViaductExtendedSchema.Field>,
+    fields: Collection<ViaductSchema.Field>,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
 ) : ResolversModel {
     override val pkg: String = tenantPackage
     override val resolvers: List<ResolverModel> = fields.map { ResolverModelImpl(it, grtPackage, baseTypeMapper) }
 }
 
-private class ResolverModelImpl(val field: ViaductExtendedSchema.Field, val grtPackage: String, val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper) : ResolverModel {
+private class ResolverModelImpl(val field: ViaductSchema.Field, val grtPackage: String, val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper) : ResolverModel {
     override val gqlTypeName: String = this.field.containingDef.name
     override val gqlFieldName: String = this.field.name
     override val resolverName: String = gqlFieldName.capitalize()
@@ -108,7 +108,7 @@ private class ResolverModelImpl(val field: ViaductExtendedSchema.Field, val grtP
             "viaduct.api.types.Arguments.NoArguments"
         }
     override val grtOutputName: String =
-        if (field.type.baseTypeDef is ViaductExtendedSchema.CompositeOutput) {
+        if (field.type.baseTypeDef is ViaductSchema.CompositeOutput) {
             "$grtPackage.${field.type.baseTypeDef.name}"
         } else {
             "viaduct.api.types.CompositeOutput.NotComposite"

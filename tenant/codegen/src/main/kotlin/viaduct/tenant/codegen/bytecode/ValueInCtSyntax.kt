@@ -2,7 +2,6 @@ package viaduct.tenant.codegen.bytecode
 
 import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.KmName
-import viaduct.graphql.schema.ViaductExtendedSchema
 import viaduct.graphql.schema.ViaductSchema
 
 /** Assumes that [value] is a valid value for [this] type,
@@ -12,7 +11,7 @@ import viaduct.graphql.schema.ViaductSchema
  *  Note we use string representation for Enum values to avoid
  *  dependency on the Enum classes.
  */
-fun ViaductExtendedSchema.TypeExpr.valueInCtSyntax(
+fun ViaductSchema.TypeExpr.valueInCtSyntax(
     value: Any?,
     pkg: KmName
 ): String = valueInCtSyntax(this, this.listDepth, value, pkg)
@@ -24,7 +23,7 @@ fun ViaductExtendedSchema.TypeExpr.valueInCtSyntax(
  *  an unboxed setting, then this function will wrap the
  *  expression in a call to the proper boxing function.
  */
-internal fun ViaductExtendedSchema.TypeExpr.ctBoxedExpr(unboxedExpr: String): String =
+internal fun ViaductSchema.TypeExpr.ctBoxedExpr(unboxedExpr: String): String =
     if (this.isList || this.isNullable) {
         unboxedExpr
     } else {
@@ -40,7 +39,7 @@ internal fun ViaductExtendedSchema.TypeExpr.ctBoxedExpr(unboxedExpr: String): St
     }
 
 private fun valueInCtSyntax(
-    type: ViaductExtendedSchema.TypeExpr,
+    type: ViaductSchema.TypeExpr,
     depth: Int,
     value: Any?,
     pkg: KmName
@@ -58,7 +57,7 @@ private fun valueInCtSyntax(
 
     val baseTypeDef = type.baseTypeDef
 
-    if (baseTypeDef is ViaductExtendedSchema.Enum) {
+    if (baseTypeDef is ViaductSchema.Enum) {
         if (value is ViaductSchema.EnumValue) {
             return "\"${value.name}\""
         } else {
@@ -99,7 +98,7 @@ private fun valueInCtSyntax(
         "JSON" -> throw IllegalArgumentException("JSON not supported ($type)")
         "String", "ID" -> return "\"$value\""
         else -> {
-            if (baseTypeDef !is ViaductExtendedSchema.Input) throw IllegalArgumentException("Cannot generate value for $type")
+            if (baseTypeDef !is ViaductSchema.Input) throw IllegalArgumentException("Cannot generate value for $type")
             if (value !is Map<*, *>) throw IllegalArgumentException("Cannot generate value for $type")
             val args = baseTypeDef.fields.joinToString { it.type.valueInCtSyntax(value[it.name], pkg) }
             val baseType = typeToCtSyntax(type.baseTypeDef, boxed = false, pkg)
@@ -109,7 +108,7 @@ private fun valueInCtSyntax(
 }
 
 private fun typeToCtSyntax(
-    typeDef: ViaductExtendedSchema.TypeDef,
+    typeDef: ViaductSchema.TypeDef,
     boxed: Boolean,
     pkg: KmName
 ): JavaBinaryName =

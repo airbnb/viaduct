@@ -1,6 +1,6 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 
 /** This class represents the public API to the Kotlin code generator.  Everything
  *  else in this package (or its subpackages) is either internal or public for
@@ -26,17 +26,17 @@ abstract class KotlinGRTFilesBuilder protected constructor(
 
     private var isLoaded = false
 
-    fun addAll(schema: ViaductExtendedSchema): KotlinGRTFilesBuilder {
+    fun addAll(schema: ViaductSchema): KotlinGRTFilesBuilder {
         if (isLoaded) throw IllegalStateException("Can't call addAll twice.")
         setup()
         for (def in schema.types.values) {
             when (def) {
-                is ViaductExtendedSchema.Enum -> addEnum(def)
-                is ViaductExtendedSchema.Input -> addInput(def)
-                is ViaductExtendedSchema.Interface -> addInterface(def)
-                is ViaductExtendedSchema.Object -> addObject(def)
-                is ViaductExtendedSchema.Scalar -> { /* skip */ }
-                is ViaductExtendedSchema.Union -> addUnion(def)
+                is ViaductSchema.Enum -> addEnum(def)
+                is ViaductSchema.Input -> addInput(def)
+                is ViaductSchema.Interface -> addInterface(def)
+                is ViaductSchema.Object -> addObject(def)
+                is ViaductSchema.Scalar -> { /* skip */ }
+                is ViaductSchema.Union -> addUnion(def)
                 else -> throw IllegalArgumentException("Can't handle $def")
             }
         }
@@ -52,17 +52,17 @@ abstract class KotlinGRTFilesBuilder protected constructor(
      * Will be called after individual type adders (e.g. [addEnum]) have been called
      * for each type in the schema.
      */
-    protected open fun subclassAddAll(schema: ViaductExtendedSchema) {}
+    protected open fun subclassAddAll(schema: ViaductSchema) {}
 
-    protected abstract fun addEnum(def: ViaductExtendedSchema.Enum)
+    protected abstract fun addEnum(def: ViaductSchema.Enum)
 
-    protected abstract fun addInput(def: ViaductExtendedSchema.Input)
+    protected abstract fun addInput(def: ViaductSchema.Input)
 
-    protected abstract fun addInterface(def: ViaductExtendedSchema.Interface)
+    protected abstract fun addInterface(def: ViaductSchema.Interface)
 
-    protected abstract fun addObject(def: ViaductExtendedSchema.Object)
+    protected abstract fun addObject(def: ViaductSchema.Object)
 
-    protected abstract fun addUnion(def: ViaductExtendedSchema.Union)
+    protected abstract fun addUnion(def: ViaductSchema.Union)
 
     /** First thing [addAll] does is call this function to allow subclasses
      *  to further initialize themselves if needed.
@@ -82,5 +82,5 @@ abstract class KotlinGRTFilesBuilder protected constructor(
  *  in [addAll] was required to fully implement the logic for
  *  `_Argument` types in [KotlinGRTFilesBuilder.addObject].)
  */
-val ViaductExtendedSchema.TypeDef.isGenerated: Boolean
+val ViaductSchema.TypeDef.isGenerated: Boolean
     get() = !this.name.startsWith("__")

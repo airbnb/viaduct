@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.ValueConverter
 import viaduct.graphql.schema.graphqljava.test.ValueConverterContract.Companion.schema
 
@@ -44,7 +44,7 @@ import viaduct.graphql.schema.graphqljava.test.ValueConverterContract.Companion.
  */
 abstract class ValueConverterContract {
     /** Subclasses initialize this with a GJSchema with a particular value converter to be tested. */
-    lateinit var viaductExtendedSchema: ViaductExtendedSchema
+    lateinit var viaductExtendedSchema: ViaductSchema
 
     /** Subclasses initialize this with expected default values for paths in [schema]. */
     lateinit var defaultValues: Map<String, Any?>
@@ -138,19 +138,19 @@ abstract class ValueConverterContract {
 
         // The rest of this file is implementation details
 
-        private val ViaductExtendedSchema.HasDefaultValue.key: String
+        private val ViaductSchema.HasDefaultValue.key: String
             get() =
                 when (this) {
-                    is ViaductExtendedSchema.Field -> "${this.containingDef.name}.${this.name}"
-                    is ViaductExtendedSchema.FieldArg ->
+                    is ViaductSchema.Field -> "${this.containingDef.name}.${this.name}"
+                    is ViaductSchema.FieldArg ->
                         "${this.containingDef.containingDef.name}.${this.containingDef.name}.${this.name}"
 
                     else -> throw IllegalArgumentException("Unexpected type: $this")
                 }
 
-        private fun ViaductExtendedSchema.cases(allElements: Boolean = false): List<ViaductExtendedSchema.HasDefaultValue> =
+        private fun ViaductSchema.cases(allElements: Boolean = false): List<ViaductSchema.HasDefaultValue> =
             this.types.values.filter { it.name.startsWith("Subject") }.flatMap {
-                it as ViaductExtendedSchema.Record
+                it as ViaductSchema.Record
                 it.fields.mapNotNull { field ->
                     if (!allElements && !field.hasEffectiveDefault) return@mapNotNull null
                     field
@@ -179,13 +179,13 @@ abstract class ValueConverterContract {
         }
     }
 
-    private fun typeOf(key: String): ViaductExtendedSchema.TypeExpr =
+    private fun typeOf(key: String): ViaductSchema.TypeExpr =
         viaductExtendedSchema
             .cases(allElements = true)
             .find { it.key == key }!!
             .let { case ->
                 when (case) {
-                    is ViaductExtendedSchema.TypeDef -> case.asTypeExpr()
+                    is ViaductSchema.TypeDef -> case.asTypeExpr()
                     else -> case.type
                 }
             }

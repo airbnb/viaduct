@@ -1,15 +1,14 @@
 package viaduct.tenant.codegen.bytecode.config
 
 import graphql.language.StringValue
-import viaduct.graphql.schema.ViaductExtendedSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.IdOf.Companion.idOf
 
 /**
  * Whether the type is the GraphQL `ID` scalar type
  */
-internal val ViaductExtendedSchema.TypeDef.isID: Boolean
-    get() = kind == ViaductExtendedSchema.TypeDefKind.SCALAR && name == "ID"
+internal val ViaductSchema.TypeDef.isID: Boolean
+    get() = kind == ViaductSchema.TypeDefKind.SCALAR && name == "ID"
 
 /**
  * A more ergonomic representation of the @idOf directive
@@ -33,7 +32,7 @@ data class IdOf(val type: String) {
  * function tells you the "Foo" in `GlobalID<Foo>` - or returns null
  * if you should just use `String` instead.
  */
-fun ViaductExtendedSchema.HasDefaultValue.grtNameForIdParam(): String? {
+fun ViaductSchema.HasDefaultValue.grtNameForIdParam(): String? {
     val isNodeIdField = isNodeIdField(this)
     val idOf = this.appliedDirectives.idOf
 
@@ -49,7 +48,7 @@ fun ViaductExtendedSchema.HasDefaultValue.grtNameForIdParam(): String? {
     }
 }
 
-private fun isNodeIdField(field: ViaductExtendedSchema.HasDefaultValue): Boolean {
-    val containerType = field.containingDef as? ViaductExtendedSchema.TypeDef
+private fun isNodeIdField(field: ViaductSchema.HasDefaultValue): Boolean {
+    val containerType = field.containingDef as? ViaductSchema.TypeDef
     return field.name == "id" && containerType?.isNode == true
 }

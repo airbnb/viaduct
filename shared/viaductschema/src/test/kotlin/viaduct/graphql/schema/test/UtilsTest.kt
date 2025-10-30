@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 
 internal class UtilsTest {
     private val sdl = """
@@ -17,7 +17,7 @@ internal class UtilsTest {
     @Test
     fun testMkSchema() {
         val viaductExtendedSchema = mkSchema(sdl)
-        assertEquals(ViaductExtendedSchema.TypeDefKind.OBJECT, viaductExtendedSchema.types["Foo"]?.kind)
+        assertEquals(ViaductSchema.TypeDefKind.OBJECT, viaductExtendedSchema.types["Foo"]?.kind)
     }
 
     @Test

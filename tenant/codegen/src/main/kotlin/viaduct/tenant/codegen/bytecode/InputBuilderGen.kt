@@ -23,14 +23,13 @@ import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
-import viaduct.graphql.schema.ViaductExtendedSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.ValueConverter
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.kmType
 
 internal fun GRTClassFilesBuilder.inputBuilderGen(
-    fields: Iterable<ViaductExtendedSchema.HasDefaultValue>,
+    fields: Iterable<ViaductSchema.HasDefaultValue>,
     container: CustomClassBuilder,
     inputTaggingInterface: KmName
 ): CustomClassBuilder {
@@ -48,7 +47,7 @@ internal fun GRTClassFilesBuilder.inputBuilderGen(
 
 private class InputBuilderGenV2(
     private val grtClassFilesBuilder: GRTClassFilesBuilderBase,
-    private val fields: Iterable<ViaductExtendedSchema.HasDefaultValue>,
+    private val fields: Iterable<ViaductSchema.HasDefaultValue>,
     private val builderBuilder: CustomClassBuilder,
     private val builderClass: CustomClassBuilder,
     private val builderFor: KmType,
@@ -174,7 +173,7 @@ private class InputBuilderGenV2(
 
     private fun generatePutFieldNameWithValue(
         mapName: String,
-        field: ViaductExtendedSchema.HasDefaultValue,
+        field: ViaductSchema.HasDefaultValue,
         value: Any?
     ): String {
         if (value == null) {
@@ -191,7 +190,7 @@ private class InputBuilderGenV2(
                 if (e.key == "__typename") {
                     return@mapNotNull null
                 }
-                val f = t.field(e.key)!! as ViaductExtendedSchema.HasDefaultValue
+                val f = t.field(e.key)!! as ViaductSchema.HasDefaultValue
                 generatePutFieldNameWithValue(fieldMapName, f, e.value)
             }.joinToString("\n")
 
@@ -210,7 +209,7 @@ private class InputBuilderGenV2(
      * Given field type and its value (which complies to its type), return the boxed value expression for Ct syntax.
      */
     private fun boxedValueCtExpression(
-        fieldType: ViaductExtendedSchema.TypeExpr,
+        fieldType: ViaductSchema.TypeExpr,
         value: Any?
     ): String {
         val vExp = fieldType.valueInCtSyntax(value, pkg)
@@ -258,7 +257,7 @@ private class InputBuilderGenV2(
         return this
     }
 
-    private fun CustomClassBuilder.addFieldSetter(field: ViaductExtendedSchema.HasDefaultValue) {
+    private fun CustomClassBuilder.addFieldSetter(field: ViaductSchema.HasDefaultValue) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
         val fieldKmType = field.kmType(pkg, baseTypeMapper, isInput = true)

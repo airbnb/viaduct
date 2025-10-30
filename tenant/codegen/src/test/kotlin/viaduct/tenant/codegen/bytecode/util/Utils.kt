@@ -3,34 +3,34 @@ package viaduct.tenant.codegen.bytecode.util
 import org.junit.jupiter.api.Assertions.assertEquals
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.utils.JavaName
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.tenant.codegen.bytecode.config.kmType
 
 const val expectedPkg = "pkg"
 
-fun ViaductExtendedSchema.TypeDef.assertKotlinTypeString(
+fun ViaductSchema.TypeDef.assertKotlinTypeString(
     expected: String,
     isInput: Boolean = false,
     pkg: String = expectedPkg,
-    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
+    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductSchema.Empty)
 ) = asTypeExpr().assertKotlinTypeString(expected, field = null, isInput = isInput, pkg = pkg, baseTypeMapper = baseTypeMapper)
 
-fun ViaductExtendedSchema.HasDefaultValue.assertKotlinTypeString(
+fun ViaductSchema.HasDefaultValue.assertKotlinTypeString(
     expected: String,
     isInput: Boolean = false,
     pkg: String = expectedPkg,
-    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
+    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductSchema.Empty)
 ) = type.assertKotlinTypeString(expected, field = this, isInput = isInput, pkg = pkg, baseTypeMapper = baseTypeMapper)
 
-fun ViaductExtendedSchema.TypeExpr.assertKotlinTypeString(
+fun ViaductSchema.TypeExpr.assertKotlinTypeString(
     expected: String,
-    field: ViaductExtendedSchema.HasDefaultValue?,
+    field: ViaductSchema.HasDefaultValue?,
     isInput: Boolean = false,
     useSchemaValueType: Boolean = false,
     pkg: String = expectedPkg,
-    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
+    baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductSchema.Empty)
 ) {
     assertEquals(
         expected,
@@ -38,21 +38,21 @@ fun ViaductExtendedSchema.TypeExpr.assertKotlinTypeString(
     )
 }
 
-fun ViaductExtendedSchema.typedef(type: String): ViaductExtendedSchema.TypeDef = types[type]!!
+fun ViaductSchema.typedef(type: String): ViaductSchema.TypeDef = types[type]!!
 
-fun ViaductExtendedSchema.expr(
+fun ViaductSchema.expr(
     type: String,
     field: String? = null
-): ViaductExtendedSchema.TypeExpr =
+): ViaductSchema.TypeExpr =
     typedef(type).let { t ->
         if (field == null) {
             t.asTypeExpr()
         } else {
-            (t as ViaductExtendedSchema.Record).field(field)!!.type
+            (t as ViaductSchema.Record).field(field)!!.type
         }
     }
 
-fun ViaductExtendedSchema.field(
+fun ViaductSchema.field(
     type: String,
     field: String
-): ViaductExtendedSchema.Field = (types[type]!! as ViaductExtendedSchema.Record).field(field)!!
+): ViaductSchema.Field = (types[type]!! as ViaductSchema.Record).field(field)!!

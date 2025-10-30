@@ -5,7 +5,7 @@ import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.parseWrappers
 import viaduct.graphql.schema.unparseWrappers
 
@@ -55,9 +55,9 @@ class TypeExprTests {
 
     private fun tex(f: String): String = field(f).unparseWrappers()
 
-    private fun type(name: String): ViaductExtendedSchema.TypeExpr = schema.types[name]!!.asTypeExpr()
+    private fun type(name: String): ViaductSchema.TypeExpr = schema.types[name]!!.asTypeExpr()
 
-    private fun field(f: String): ViaductExtendedSchema.TypeExpr {
+    private fun field(f: String): ViaductSchema.TypeExpr {
         val coords = f.split('.')
         val tname: String = coords[0]
         val fname: String = coords[1]
@@ -85,7 +85,7 @@ class TypeExprTests {
      * assert that a TypeExpr has nullableAtDepth values that match the indexed
      * expected values
      */
-    private fun ViaductExtendedSchema.TypeExpr.assertNullableAtDepth(vararg expected: Boolean) {
+    private fun ViaductSchema.TypeExpr.assertNullableAtDepth(vararg expected: Boolean) {
         assertThrows(IllegalArgumentException::class.java) { this.nullableAtDepth(-1) }
         expected.forEachIndexed { i, expect ->
             withClue("${this.unparseWrappers()}@$i") {

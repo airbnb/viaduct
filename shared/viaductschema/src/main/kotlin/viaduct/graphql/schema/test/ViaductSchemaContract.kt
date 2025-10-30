@@ -10,7 +10,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.ViaductSchema
 
-/** A set of unit tests for SimpleBridgeSchema implementations, with emphasis on
+typealias NSE = NoSuchElementException
+
+/** A set of unit tests for ViaductSchema implementations, with emphasis on
  *  catching error cases (non-error cases are tested pretty well in the "full"
  *  tests).
  */
@@ -21,13 +23,21 @@ interface ViaductSchemaContract {
             block: (ViaductSchema.TypeDef) -> Unit
         ) = block(this.types[type] ?: throw IllegalArgumentException("Unknown type $type"))
 
+        private fun ViaductSchema.withExtensions(
+            type: String,
+            block: (Iterable<ViaductSchema.Extension<*, *>>) -> Unit
+        ) = block(
+            (this.types[type] as? ViaductSchema.HasExtensions<*, *>)?.extensions
+                ?: throw IllegalArgumentException("Unknown on non-extensions type $type")
+        )
+
         private fun ViaductSchema.withField(
             type: String,
             field: String,
             block: (ViaductSchema.Field) -> Unit
         ) = block((this.types[type]!! as ViaductSchema.Record).field(field)!!)
 
-        private fun ViaductSchema.withFieldArg(
+        private fun ViaductSchema.withArg(
             type: String,
             field: String,
             arg: String,
@@ -90,7 +100,7 @@ interface ViaductSchemaContract {
             }
             """.trimIndent()
         ).apply {
-            withFieldArg("Query", "foo", "bar") {
+            withArg("Query", "foo", "bar") {
                 assertFalse(it.hasEffectiveDefault, "Query")
                 assertThrows<NSE>("Query") { it.effectiveDefaultValue }
             }
@@ -114,11 +124,11 @@ interface ViaductSchemaContract {
             }
             """.trimIndent()
         ).apply {
-            withFieldArg("Query", "foo", "a") {
+            withArg("Query", "foo", "a") {
                 assertTrue(it.hasEffectiveDefault, "Query.a")
                 assertNull(it.effectiveDefaultValue, "Query.a")
             }
-            withFieldArg("Query", "foo", "b") {
+            withArg("Query", "foo", "b") {
                 assertTrue(it.hasEffectiveDefault, "Query.b")
                 assertNotNull(it.effectiveDefaultValue, "Query.b")
             }
@@ -206,16 +216,95 @@ interface ViaductSchemaContract {
         ).apply {
             withType("Query") { assertToStingContains("Query", it, "Object") }
             withField("Query", "foo") { assertToStingContains("Query.foo", it, "Field", "String") }
-            withFieldArg("Query", "foo", "a") { assertToStingContains("Query.foo.a", it, "Arg", "Int") }
+            withArg("Query", "foo", "a") { assertToStingContains("Query.foo.a", it, "Arg", "Int") }
             withType("E") { assertToStingContains("E", it, "Enum") }
             (this.types["E"]!! as ViaductSchema.Enum).value("A")!!.let { assertToStingContains("E.A", it, "EnumValue") }
             withType("I") { assertToStingContains("I", it, "Input") }
             withField("I", "a") { assertToStingContains("I.a", it, "Field", "Int") }
             withType("A") { assertToStingContains("A", it, "Interface") }
             withField("A", "a") { assertToStingContains("A.a", it, "Field", "Int") }
-            withFieldArg("A", "a", "b") { assertToStingContains("I.a.b", it, "Arg", "String") }
+            withArg("A", "a", "b") { assertToStingContains("I.a.b", it, "Arg", "String") }
             withType("S") { assertToStingContains("S", it, "Scalar") }
             withType("U") { assertToStingContains("U", it, "Union") }
+        }
+    }
+
+    @Test
+    fun `asTypeExpr works`() {
+        makeSchema(
+            """
+            enum E { A }
+            input I { a: Int }
+            interface A { a(b: [String]): Int }
+            union U = Query
+            type Query {
+              e0: E
+              e1: E!
+              e2: [E]
+              i0(i:I): String
+              a0: A
+              s0: String
+              s1: String!
+              s2: [String]
+              q0: Query
+              u0: U
+            }
+            """.trimIndent()
+        ).apply {
+            withField("Query", "e0") {
+                assertTrue(it.type.isSimple, "e0")
+                assertFalse(it.type.isList, "[e0]")
+                assertEquals(0, it.type.listDepth, "[e0]d")
+                assertTrue(it.type.isNullable, "e0?")
+            }
+            withField("Query", "e1") {
+                assertTrue(it.type.isSimple, "e1")
+                assertFalse(it.type.isList, "[e1]")
+                assertEquals(0, it.type.listDepth, "[e1]d")
+                assertFalse(it.type.isNullable, "e1?")
+            }
+            withField("Query", "e2") {
+                assertFalse(it.type.isSimple, "e2")
+                assertTrue(it.type.isList, "[e2]")
+                assertEquals(1, it.type.listDepth, "[e2]d")
+                assertTrue(it.type.isNullable, "e2?")
+            }
+            withArg("Query", "i0", "i") {
+                assertFalse(it.type.isSimple, "i0")
+                assertFalse(it.type.isList, "[i0]")
+                assertEquals(0, it.type.listDepth, "[i0]d")
+                assertTrue(it.type.isNullable, "i0?")
+            }
+            withField("Query", "a0") {
+                assertFalse(it.type.isSimple, "a0")
+                assertFalse(it.type.isList, "[a0]")
+                assertEquals(0, it.type.listDepth, "[a0]d")
+                assertTrue(it.type.isNullable, "a0?")
+            }
+            withField("Query", "s0") {
+                assertTrue(it.type.isSimple, "s0")
+                assertFalse(it.type.isList, "[s0]")
+                assertEquals(0, it.type.listDepth, "[s0]d")
+                assertTrue(it.type.isNullable, "s0?")
+            }
+            withField("Query", "s1") {
+                assertTrue(it.type.isSimple, "s1")
+                assertFalse(it.type.isList, "[s1]")
+                assertEquals(0, it.type.listDepth, "[s1]d")
+                assertFalse(it.type.isNullable, "s1?")
+            }
+            withField("Query", "s2") {
+                assertFalse(it.type.isSimple, "s2")
+                assertTrue(it.type.isList, "[s2]")
+                assertEquals(1, it.type.listDepth, "[s2]d")
+                assertTrue(it.type.isNullable, "s2?")
+            }
+            withField("Query", "q0") {
+                assertFalse(it.type.isSimple, "q0")
+                assertFalse(it.type.isList, "[q0]")
+                assertEquals(0, it.type.listDepth, "[q0]d")
+                assertTrue(it.type.isNullable, "q0?")
+            }
         }
     }
 
@@ -260,19 +349,79 @@ interface ViaductSchemaContract {
     }
 
     @Test
+    fun `test extension lists are properly constructed`() {
+        makeSchema(
+            """
+            directive @d1 on UNION
+            type Query { f1: String }
+            extend type Query { f2: Int }
+            interface A { f1: String }
+            extend interface A { f2: Int }
+            enum E { V1 }
+            extend enum E { V2 }
+            input I { f1: String }
+            extend input I { f2: Int }
+            type T1 { f1: String }
+            type T2 { f2: Int }
+            union U = T1
+            extend union U = T2
+            extend union U @d1
+            """.trimIndent()
+        ).apply {
+            withExtensions("Query") {
+                assertEquals(2, it.count())
+                assertTrue(it.first().isBase)
+                assertFalse(it.last().isBase)
+            }
+            withExtensions("A") {
+                assertEquals(2, it.count())
+                assertTrue(it.first().isBase)
+                assertFalse(it.last().isBase)
+            }
+            withExtensions("E") {
+                assertEquals(2, it.count())
+                assertTrue(it.first().isBase)
+                assertFalse(it.last().isBase)
+            }
+            withExtensions("I") {
+                assertEquals(2, it.count())
+                assertTrue(it.first().isBase)
+                assertFalse(it.last().isBase)
+            }
+            withExtensions("T1") {
+                assertEquals(1, it.count())
+                assertTrue(it.first().isBase)
+            }
+            withExtensions("U") {
+                assertEquals(3, it.count())
+                assertTrue(it.first().isBase)
+                assertFalse(it.elementAt(1).isBase)
+                assertFalse(it.last().isBase)
+            }
+        }
+    }
+
+    @Test
     fun `test appliedDirectives returns the right list of directive names`() {
-        // TODO(https://app.asana.com/1/150975571430/project/1203659453427089/task/1210815630416759?focus=true): add tests for directives on args & scalars
         makeSchema(
             """
             directive @d1 on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
             directive @d2 on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
             directive @d3 on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
             directive @d4 on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
+            directive @d5 on ARGUMENT_DEFINITION
+            directive @d6 on ARGUMENT_DEFINITION
+            directive @d7 on SCALAR
+            directive @d8 on SCALAR
+            scalar CustomScalar @d7
+            extend scalar CustomScalar @d8
             type Query @d1 {
                 f1: String @d3
+                f3(arg1: String @d5): Int
             }
             extend type Query @d2 {
                 f2: Int @d3 @d4
+                f4(arg2: Int @d5 @d6): String
             }
             enum Enum @d1 {
                 V1 @d3
@@ -288,6 +437,7 @@ interface ViaductSchemaContract {
             }
             interface Interface @d1 {
                 f1: Enum @d3
+                f3(arg3: Boolean @d5): String
             }
             extend interface Interface @d2 {
                 f2: String @d3 @d4
@@ -328,6 +478,72 @@ interface ViaductSchemaContract {
             withField("Interface", "f2") {
                 assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { it.name })
             }
+            withArg("Query", "f3", "arg1") {
+                assertEquals(listOf("d5"), it.appliedDirectives.map { it.name })
+            }
+            withArg("Query", "f4", "arg2") {
+                assertEquals(listOf("d5", "d6"), it.appliedDirectives.map { it.name })
+            }
+            withArg("Interface", "f3", "arg3") {
+                assertEquals(listOf("d5"), it.appliedDirectives.map { it.name })
+            }
+            withType("CustomScalar") {
+                assertEquals(listOf("d7", "d8"), it.appliedDirectives.map { it.name })
+            }
+        }
+    }
+
+    @Test
+    fun `test extensionAppliedDirectives`() {
+        fun assertions(
+            extensionAppliedDirectives: Iterable<ViaductSchema.AppliedDirective>,
+            a1Value: String
+        ) {
+            assertEquals(1, extensionAppliedDirectives.count())
+            val dir = extensionAppliedDirectives.first()
+            assertEquals("d1", dir.name)
+            assertEquals("StringValue{value='$a1Value'}", dir.arguments["a1"].toString())
+        }
+        makeSchema(
+            """
+            directive @d1(a1: String) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+            type Query @d1(a1: "obj1") {
+                f1: String
+            }
+            extend type Query @d1(a1: "obj2") {
+                f2: Int
+            }
+            enum Enum @d1(a1: "enum1") {
+                V1
+            }
+            extend enum Enum @d1(a1: "enum2") {
+                V2
+            }
+            input Input @d1(a1: "input1") {
+                f1: Int
+            }
+            extend input Input @d1(a1: "input2") {
+                f2: Boolean
+            }
+            interface Interface @d1(a1: "interf1") {
+                f1: Enum
+            }
+            extend interface Interface @d1(a1: "interf2") {
+                f2: String
+            }
+            """.trimIndent()
+        ).apply {
+            withEnumValue("Enum", "V1") { assertions(it.containingExtension.appliedDirectives, "enum1") }
+            withEnumValue("Enum", "V2") { assertions(it.containingExtension.appliedDirectives, "enum2") }
+
+            withField("Query", "f1") { assertions(it.containingExtension.appliedDirectives, "obj1") }
+            withField("Query", "f2") { assertions(it.containingExtension.appliedDirectives, "obj2") }
+
+            withField("Input", "f1") { assertions(it.containingExtension.appliedDirectives, "input1") }
+            withField("Input", "f2") { assertions(it.containingExtension.appliedDirectives, "input2") }
+
+            withField("Interface", "f1") { assertions(it.containingExtension.appliedDirectives, "interf1") }
+            withField("Interface", "f2") { assertions(it.containingExtension.appliedDirectives, "interf2") }
         }
     }
 

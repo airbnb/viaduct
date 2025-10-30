@@ -16,7 +16,7 @@ import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
 import viaduct.arbitrary.common.Config
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.mapping.graphql.RawObject
 import viaduct.mapping.graphql.RawValue
 import viaduct.mapping.graphql.ValueMapper
@@ -136,28 +136,28 @@ fun Arb.Companion.rawValueFor(
     cfg: Config = Config.default
 ): Arb<RawValue> = rawValueFor(type, TypeReferenceResolver.fromTypes(types), cfg)
 
-/** Generate an arbitrary [RawValue] for a provided [ViaductExtendedSchema.TypeDef] */
+/** Generate an arbitrary [RawValue] for a provided [ViaductSchema.TypeDef] */
 fun Arb.Companion.rawValueFor(
-    def: ViaductExtendedSchema.TypeDef,
+    def: ViaductSchema.TypeDef,
     cfg: Config = Config.default
 ): Arb<RawValue> = rawValueFor(type = def.asTypeExpr(), cfg = cfg)
 
-/** Generate an arbitrary [RawValue] for a provided [ViaductExtendedSchema.TypeExpr] */
+/** Generate an arbitrary [RawValue] for a provided [ViaductSchema.TypeExpr] */
 fun Arb.Companion.rawValueFor(
-    type: ViaductExtendedSchema.TypeExpr,
+    type: ViaductSchema.TypeExpr,
     cfg: Config = Config.default
 ): Arb<RawValue> =
     arbitrary { rs ->
-        ViaductExtendedSchemaRawValueGen(cfg, rs)(type)
+        ViaductSchemaRawValueGen(cfg, rs)(type)
     }
 
 /**
- * Generate an arbitrary value for a provided [ViaductExtendedSchema.TypeExpr], that has
+ * Generate an arbitrary value for a provided [ViaductSchema.TypeExpr], that has
  * been mapped by the provided [viaduct.mapping.graphql.ValueMapper].
  */
 fun <T> Arb.Companion.mappedValueFor(
-    type: ViaductExtendedSchema.TypeExpr,
-    mapper: ValueMapper<ViaductExtendedSchema.TypeExpr, RawValue, T>,
+    type: ViaductSchema.TypeExpr,
+    mapper: ValueMapper<ViaductSchema.TypeExpr, RawValue, T>,
     cfg: Config = Config.default
 ): Arb<T> =
     rawValueFor(type, cfg).map { raw ->
@@ -165,12 +165,12 @@ fun <T> Arb.Companion.mappedValueFor(
     }
 
 /**
- * Generate an arbitrary value for a provided [ViaductExtendedSchema.TypeDef], that has
+ * Generate an arbitrary value for a provided [ViaductSchema.TypeDef], that has
  * been mapped by the provided [ValueMapper].
  */
 fun <T> Arb.Companion.mappedValueFor(
-    def: ViaductExtendedSchema.TypeDef,
-    mapper: ValueMapper<ViaductExtendedSchema.TypeExpr, RawValue, T>,
+    def: ViaductSchema.TypeDef,
+    mapper: ValueMapper<ViaductSchema.TypeExpr, RawValue, T>,
     cfg: Config = Config.default
 ): Arb<T> =
     mappedValueFor(

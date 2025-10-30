@@ -3,7 +3,7 @@ package viaduct.tenant.codegen.kotlingen
 import java.io.File
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 
 class ArgsTest {
@@ -23,7 +23,7 @@ class ArgsTest {
             modernModuleGeneratedDir,
             metainfGeneratedDir,
             resolverGeneratedDir,
-            baseTypeMapper = ViaductBaseTypeMapper(ViaductExtendedSchema.Empty)
+            baseTypeMapper = ViaductBaseTypeMapper(ViaductSchema.Empty)
         )
 
         assertEquals("TENANT PACKAGE", args.tenantPackage)

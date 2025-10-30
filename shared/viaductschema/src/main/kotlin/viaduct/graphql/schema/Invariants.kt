@@ -14,7 +14,7 @@ data class SchemaInvariantOptions(
 }
 
 fun checkBridgeSchemaInvariants(
-    schema: ViaductExtendedSchema,
+    schema: ViaductSchema,
     check: InvariantChecker,
     options: SchemaInvariantOptions = SchemaInvariantOptions.DEFAULT
 ) {
@@ -54,25 +54,25 @@ fun checkBridgeSchemaInvariants(
 }
 
 private fun checkBackPointerInvariants(
-    def: ViaductExtendedSchema.TypeDef,
+    def: ViaductSchema.TypeDef,
     check: InvariantChecker
 ) {
     when (def) {
-        is ViaductExtendedSchema.Directive ->
+        is ViaductSchema.Directive ->
             def.args.forEach {
                 check.withContext(it.name) {
                     check.isSameInstanceAs(def, it.containingDef, "BACKPOINTER")
                 }
             }
 
-        is ViaductExtendedSchema.Enum ->
+        is ViaductSchema.Enum ->
             def.values.forEach {
                 check.withContext(it.name) {
                     check.isSameInstanceAs(def, it.containingDef, "BACKPOINTER")
                 }
             }
 
-        is ViaductExtendedSchema.Record ->
+        is ViaductSchema.Record ->
             def.fields.forEach { field ->
                 check.withContext(field.name) {
                     check.isSameInstanceAs(def, field.containingDef, "BACKPOINTER")
@@ -84,15 +84,15 @@ private fun checkBackPointerInvariants(
                 }
             }
 
-        is ViaductExtendedSchema.Scalar -> { }
-        is ViaductExtendedSchema.Union -> { }
+        is ViaductSchema.Scalar -> { }
+        is ViaductSchema.Union -> { }
         else -> throw IllegalArgumentException("Unknown type ($def).")
     }
 }
 
 fun checkTypeExprReferentialIntegrity(
-    schema: ViaductExtendedSchema,
-    type: ViaductExtendedSchema.TypeExpr,
+    schema: ViaductSchema,
+    type: ViaductSchema.TypeExpr,
     check: InvariantChecker
 ) {
     val n = type.baseTypeDef.name
@@ -101,10 +101,10 @@ fun checkTypeExprReferentialIntegrity(
 }
 
 fun checkExtensionReferentialIntegrity(
-    schema: ViaductExtendedSchema,
-    containingDef: ViaductExtendedSchema.HasExtensions<*, *>,
+    schema: ViaductSchema,
+    containingDef: ViaductSchema.HasExtensions<*, *>,
     allExpectedMembers: Iterable<*>,
-    allExpectedSupers: Iterable<ViaductExtendedSchema.Interface>?,
+    allExpectedSupers: Iterable<ViaductSchema.Interface>?,
     check: InvariantChecker
 ) {
     for (ext in containingDef.extensions) check.withContext(ext.members.joinToString("::") { it.name }) {
@@ -112,7 +112,7 @@ fun checkExtensionReferentialIntegrity(
         check.containsAtMostElementsIn(allExpectedMembers, ext.members, "EXTENSION_MEMBERS_INTEGRITY")
         check.containsNoDuplicates(ext.members.map { it.name }, "EXTENSION_MEMBERS_NO_DUPLICATES")
         if (allExpectedSupers != null) {
-            ext as ViaductExtendedSchema.ExtensionWithSupers<*, *>
+            ext as ViaductSchema.ExtensionWithSupers<*, *>
             check.isNotNull(ext.supers, "EXTENSION_SUPERS_NOT_NULL")
             check.containsAtMostElementsIn(allExpectedSupers, ext.supers, "EXTENSION_SUPERS_INTEGRITY")
             check.containsNoDuplicates(ext.supers.map { it.name }, "EXTENSION_SUPERS_NO_DUPLICATES")
@@ -122,7 +122,7 @@ fun checkExtensionReferentialIntegrity(
     check.containsNoDuplicates(allActualMembers.map { it.name }, "EXTENSION_MEMBERS_NO_DUPLICATES")
     check.containsExactlyElementsIn(allExpectedMembers, allActualMembers, "EXTENSION_MEMBERS_EXHAUSTIVE")
     if (allExpectedSupers != null) {
-        containingDef as ViaductExtendedSchema.HasExtensionsWithSupers<*, *>
+        containingDef as ViaductSchema.HasExtensionsWithSupers<*, *>
         val allActualSupers = containingDef.extensions.flatMap { it.supers }
         check.containsNoDuplicates(allActualSupers.map { it.name }, "EXTENSION_SUPERS_NO_DUPLICATES")
         check.containsExactlyElementsIn(allExpectedSupers, allActualSupers, "EXTENSION_SUPERS_EXHAUSTIVE")
@@ -130,8 +130,8 @@ fun checkExtensionReferentialIntegrity(
 }
 
 private fun checkReferentialIntegrity(
-    schema: ViaductExtendedSchema,
-    def: ViaductExtendedSchema.TypeDef,
+    schema: ViaductSchema,
+    def: ViaductSchema.TypeDef,
     check: InvariantChecker
 ) {
     check.isSameInstanceAs(schema.types[def.name]!!, def, "DEF_INTEGRITY")
@@ -142,10 +142,10 @@ private fun checkReferentialIntegrity(
 
     val allExpectedSupers =
         when (def) {
-            is ViaductExtendedSchema.HasExtensionsWithSupers<*, *> -> def.supers
+            is ViaductSchema.HasExtensionsWithSupers<*, *> -> def.supers
             else -> null
         }
-    if (def is ViaductExtendedSchema.Enum) {
+    if (def is ViaductSchema.Enum) {
         checkExtensionReferentialIntegrity(schema, def, def.values, allExpectedSupers, check)
         def.values.forEach { value ->
             check.withContext(value.name) {
@@ -156,10 +156,10 @@ private fun checkReferentialIntegrity(
         }
     }
 
-    if (def is ViaductExtendedSchema.Record) {
+    if (def is ViaductSchema.Record) {
         checkExtensionReferentialIntegrity(
             schema,
-            def as ViaductExtendedSchema.HasExtensions<*, *>,
+            def as ViaductSchema.HasExtensions<*, *>,
             def.fields,
             allExpectedSupers,
             check
@@ -181,39 +181,39 @@ private fun checkReferentialIntegrity(
         def.unions.forEach { check.isSameInstanceAs(schema.types[it.name]!!, it, "UNION_INTEGRITY ${it.name}") }
     }
 
-    if (def is ViaductExtendedSchema.Union) {
+    if (def is ViaductSchema.Union) {
         checkExtensionReferentialIntegrity(schema, def, def.possibleObjectTypes, allExpectedSupers, check)
     }
 }
 
 private fun checkEmptyListInvariants(
-    def: ViaductExtendedSchema.TypeDef,
+    def: ViaductSchema.TypeDef,
     check: InvariantChecker
 ) {
     when (def) {
-        is ViaductExtendedSchema.Enum -> { }
+        is ViaductSchema.Enum -> { }
 
-        is ViaductExtendedSchema.Input -> {
+        is ViaductSchema.Input -> {
             check.isEmpty(def.supers, "SUPERS_EMPTY")
             check.isEmpty(def.unions, "UNIONS_EMPTY")
         }
 
-        is ViaductExtendedSchema.Interface -> {
+        is ViaductSchema.Interface -> {
             check.isEmpty(def.unions, "UNIONS_EMPTY")
         }
 
-        is ViaductExtendedSchema.Object -> { }
-        is ViaductExtendedSchema.Scalar -> { }
-        is ViaductExtendedSchema.Union -> { }
+        is ViaductSchema.Object -> { }
+        is ViaductSchema.Scalar -> { }
+        is ViaductSchema.Union -> { }
         else -> throw IllegalArgumentException("Unknown type ($def).")
     }
 }
 
 private fun checkExtensionsInvariants(
-    def: ViaductExtendedSchema.TypeDef,
+    def: ViaductSchema.TypeDef,
     check: InvariantChecker
 ) {
-    if (def is ViaductExtendedSchema.HasExtensions<*, *>) {
+    if (def is ViaductSchema.HasExtensions<*, *>) {
         check.isNotEmpty(def.extensions, "EXTENSIONS_NOT_EMPTY")
         val exts = def.extensions.iterator()
         check.isTrue(exts.next().isBase, "FIRST_EXTENSION_IS_BASE")
@@ -224,7 +224,7 @@ private fun checkExtensionsInvariants(
 }
 
 private fun checkToTypeExprInvariants(
-    def: ViaductExtendedSchema.TypeDef,
+    def: ViaductSchema.TypeDef,
     check: InvariantChecker
 ) {
     check.isEqualTo("?", def.asTypeExpr().unparseWrappers(), "TO_TYPE_EXPR_NOT_NULLABLE")
@@ -232,28 +232,28 @@ private fun checkToTypeExprInvariants(
 }
 
 private fun checkValidSchemaInvariants(
-    def: ViaductExtendedSchema.TypeDef,
+    def: ViaductSchema.TypeDef,
     check: InvariantChecker,
     options: SchemaInvariantOptions
 ) {
     when (def) {
-        is ViaductExtendedSchema.Enum -> {
+        is ViaductSchema.Enum -> {
             check.isNotEmpty(def.values, "ENUM_VALUES_NOT_EMPTY")
         }
-        is ViaductExtendedSchema.Input -> {
+        is ViaductSchema.Input -> {
             check.isNotEmpty(def.fields, "INPUT_FIELDS_NOT_EMPTY")
         }
-        is ViaductExtendedSchema.Interface -> {
+        is ViaductSchema.Interface -> {
             if (!options.allowEmptyTypes) {
                 check.isNotEmpty(def.fields, "INTERFACE_FIELDS_NOT_EMPTY")
             }
         }
-        is ViaductExtendedSchema.Object -> {
+        is ViaductSchema.Object -> {
             if (!options.allowEmptyTypes) {
                 check.isNotEmpty(def.fields, "OBJECT_FIELDS_NOT_EMPTY")
             }
         }
-        is ViaductExtendedSchema.Union -> {
+        is ViaductSchema.Union -> {
             if (!options.allowEmptyTypes) {
                 check.isNotEmpty(def.possibleObjectTypes, "UNION_MEMBERS_NOT_EMPTY")
             }
@@ -262,20 +262,20 @@ private fun checkValidSchemaInvariants(
 }
 
 private fun checkMiscInvariants(
-    def: ViaductExtendedSchema.Def,
+    def: ViaductSchema.Def,
     check: InvariantChecker
 ) {
-    if (def is ViaductExtendedSchema.TypeDef) {
-        val isSimple = def is ViaductExtendedSchema.Scalar || def is ViaductExtendedSchema.Enum
+    if (def is ViaductSchema.TypeDef) {
+        val isSimple = def is ViaductSchema.Scalar || def is ViaductSchema.Enum
         check.isEqualTo(isSimple, def.isSimple, "CORRECT_IS_SIMPLE")
         when (def) {
-            is ViaductExtendedSchema.Enum -> check.isEqualTo(ViaductExtendedSchema.TypeDefKind.ENUM, def.kind, "CORRECT_ENUM")
-            is ViaductExtendedSchema.Input -> check.isEqualTo(ViaductExtendedSchema.TypeDefKind.INPUT, def.kind, "CORRECT_INPUT")
-            is ViaductExtendedSchema.Interface ->
-                check.isEqualTo(ViaductExtendedSchema.TypeDefKind.INTERFACE, def.kind, "CORRECT_INTERFACE")
-            is ViaductExtendedSchema.Object -> check.isEqualTo(ViaductExtendedSchema.TypeDefKind.OBJECT, def.kind, "CORRECT_OBJECT")
-            is ViaductExtendedSchema.Scalar -> check.isEqualTo(ViaductExtendedSchema.TypeDefKind.SCALAR, def.kind, "CORRECT_SCALAR")
-            is ViaductExtendedSchema.Union -> check.isEqualTo(ViaductExtendedSchema.TypeDefKind.UNION, def.kind, "CORRECT_UNION")
+            is ViaductSchema.Enum -> check.isEqualTo(ViaductSchema.TypeDefKind.ENUM, def.kind, "CORRECT_ENUM")
+            is ViaductSchema.Input -> check.isEqualTo(ViaductSchema.TypeDefKind.INPUT, def.kind, "CORRECT_INPUT")
+            is ViaductSchema.Interface ->
+                check.isEqualTo(ViaductSchema.TypeDefKind.INTERFACE, def.kind, "CORRECT_INTERFACE")
+            is ViaductSchema.Object -> check.isEqualTo(ViaductSchema.TypeDefKind.OBJECT, def.kind, "CORRECT_OBJECT")
+            is ViaductSchema.Scalar -> check.isEqualTo(ViaductSchema.TypeDefKind.SCALAR, def.kind, "CORRECT_SCALAR")
+            is ViaductSchema.Union -> check.isEqualTo(ViaductSchema.TypeDefKind.UNION, def.kind, "CORRECT_UNION")
             else -> throw IllegalArgumentException("Unknown type ($def).")
         }
     } else {
@@ -293,7 +293,7 @@ private fun checkMiscInvariants(
         }
     }
 
-    if (def is ViaductExtendedSchema.HasDefaultValue) {
+    if (def is ViaductSchema.HasDefaultValue) {
         if (def.hasDefault) {
             check.doesNotThrow("HAS_DEFAULTS_NO_THROW") { def.defaultValue }
         } else {
@@ -307,13 +307,13 @@ private fun checkMiscInvariants(
     }
 
     when (def) {
-        is ViaductExtendedSchema.Record -> def.fields.forEach { checkMiscInvariants(it, check) }
-        is ViaductExtendedSchema.Enum -> def.values.forEach { checkMiscInvariants(it, check) }
-        is ViaductExtendedSchema.Field ->
+        is ViaductSchema.Record -> def.fields.forEach { checkMiscInvariants(it, check) }
+        is ViaductSchema.Enum -> def.values.forEach { checkMiscInvariants(it, check) }
+        is ViaductSchema.Field ->
             check.withContext(def.name) {
                 check.isEqualTo(def.args.isNotEmpty(), def.hasArgs, "CORRECT_HAS_ARGS")
                 def.args.forEach { checkMiscInvariants(it, check) }
             }
     }
-    if (def !is ViaductExtendedSchema.TypeDef) check.popContext()
+    if (def !is ViaductSchema.TypeDef) check.popContext()
 }

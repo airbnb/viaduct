@@ -20,7 +20,7 @@ import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeReference
 import graphql.schema.GraphQLTypeUtil
 import viaduct.arbitrary.graphql.BridgeGJToRaw.ifNotINull
-import viaduct.graphql.schema.ViaductExtendedSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.mapping.graphql.RawENull
 import viaduct.mapping.graphql.RawEnum
 import viaduct.mapping.graphql.RawINull
@@ -33,13 +33,13 @@ import viaduct.mapping.graphql.RawValue.Companion.scalar
 import viaduct.mapping.graphql.ValueMapper
 
 private data class BridgeTypeCtx(
-    val type: ViaductExtendedSchema.TypeExpr,
+    val type: ViaductSchema.TypeExpr,
     val listDepth: Int,
 ) {
     val isList: Boolean = type.isList && type.listDepth > listDepth
-    val isScalar: Boolean = !isList && type.baseTypeDef is ViaductExtendedSchema.Scalar
-    val isInput: Boolean = !isList && type.baseTypeDef is ViaductExtendedSchema.Input
-    val isEnum: Boolean = !isList && type.baseTypeDef is ViaductExtendedSchema.Enum
+    val isScalar: Boolean = !isList && type.baseTypeDef is ViaductSchema.Scalar
+    val isInput: Boolean = !isList && type.baseTypeDef is ViaductSchema.Input
+    val isEnum: Boolean = !isList && type.baseTypeDef is ViaductSchema.Enum
     val isNullable: Boolean = type.nullableAtDepth(listDepth)
 
     fun <U> asNullable(fn: () -> U): U {
@@ -47,19 +47,19 @@ private data class BridgeTypeCtx(
         return fn()
     }
 
-    fun <U> asScalar(fn: (ViaductExtendedSchema.Scalar) -> U): U {
+    fun <U> asScalar(fn: (ViaductSchema.Scalar) -> U): U {
         if (!isScalar) throw IllegalStateException("Expected scalar type but found $type")
-        return fn(type.baseTypeDef as ViaductExtendedSchema.Scalar)
+        return fn(type.baseTypeDef as ViaductSchema.Scalar)
     }
 
-    fun <U> asEnum(fn: (ViaductExtendedSchema.Enum) -> U): U {
+    fun <U> asEnum(fn: (ViaductSchema.Enum) -> U): U {
         if (!isEnum) throw IllegalStateException("Expected enum type but found $type")
-        return fn(type.baseTypeDef as ViaductExtendedSchema.Enum)
+        return fn(type.baseTypeDef as ViaductSchema.Enum)
     }
 
-    fun <U> asInput(fn: (ViaductExtendedSchema.Input) -> U): U {
+    fun <U> asInput(fn: (ViaductSchema.Input) -> U): U {
         if (!isInput) throw IllegalStateException("Expected input type but found $type")
-        return fn(type.baseTypeDef as ViaductExtendedSchema.Input)
+        return fn(type.baseTypeDef as ViaductSchema.Input)
     }
 
     fun <U> asList(fn: () -> U): U {
@@ -124,9 +124,9 @@ private class GJTypeCtx private constructor(
     }
 }
 
-object BridgeGJToRaw : ValueMapper<ViaductExtendedSchema.TypeExpr, Value<*>, RawValue>, RawValue.DSL() {
+object BridgeGJToRaw : ValueMapper<ViaductSchema.TypeExpr, Value<*>, RawValue>, RawValue.DSL() {
     override fun invoke(
-        type: ViaductExtendedSchema.TypeExpr,
+        type: ViaductSchema.TypeExpr,
         value: Value<*>
     ): RawValue = toRaw(BridgeTypeCtx(type, 0), value)
 
@@ -197,9 +197,9 @@ internal object ScalarGJToRaw : ValueMapper<String, ScalarValue<*>, RawScalar> {
         }
 }
 
-object BridgeRawToGJ : ValueMapper<ViaductExtendedSchema.TypeExpr, RawValue, Value<*>> {
+object BridgeRawToGJ : ValueMapper<ViaductSchema.TypeExpr, RawValue, Value<*>> {
     override fun invoke(
-        type: ViaductExtendedSchema.TypeExpr,
+        type: ViaductSchema.TypeExpr,
         value: RawValue
     ): Value<*> = toGJ(BridgeTypeCtx(type, 0), value)
 
