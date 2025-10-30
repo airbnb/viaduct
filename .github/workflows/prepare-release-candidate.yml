@@ -169,7 +169,12 @@ jobs:
       - name: Commit changes
         run: |
           git add VERSION gradle.properties demoapps/*/gradle.properties build-test-plugins/gradle.properties
-          git commit -m "Bump version to ${{ steps.version.outputs.next_snapshot_version }}
+
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "No changes to commit - version files already up to date"
+          else
+            git commit -m "Bump version to ${{ steps.version.outputs.next_snapshot_version }}
 
           Preparing release candidate for version ${{ steps.version.outputs.next_version }}.
 
@@ -179,6 +184,8 @@ jobs:
           - All demo app gradle.properties files
 
           Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+            echo "Changes committed successfully"
+          fi
 
       - name: Push branch
         run: |
