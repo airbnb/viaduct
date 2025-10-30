@@ -59,9 +59,8 @@ jobs:
           fetch-depth: 0
 
       - name: Run Copybara for ${{ matrix.demoapp.name }}
-        uses: fireboy1919/copybara-action@v1.2.7
+        uses: fireboy1919/copybara-action@v1.2.8
         with:
-          ssh_key: "dummy"
           access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
           sot_repo: airbnb/viaduct
           destination_repo: ${{ matrix.demoapp.repo }}
