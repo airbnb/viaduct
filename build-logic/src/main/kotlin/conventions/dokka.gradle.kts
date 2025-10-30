@@ -9,6 +9,14 @@ plugins {
     id("org.jetbrains.dokka-javadoc")
 }
 
+// Suppress Dokka's internal consumable configurations to avoid Gradle variant ambiguity
+// with other plugins like jacoco-report-aggregation
+configurations.configureEach {
+    if (name.contains("dokka", ignoreCase = true) && name.contains("Consumable", ignoreCase = true)) {
+        isCanBeConsumed = false
+    }
+}
+
 dokka {
     // Shared configuration for documented modules goes here
     moduleVersion.set(project.version.toString())
