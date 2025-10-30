@@ -76,10 +76,6 @@ private interface ResolverModel {
     val gqlTypeName: String
     val gqlFieldName: String
     val resolverName: String
-    val queryGrtTypeName: String
-    val grtTypeName: String
-    val grtArgsName: String
-    val grtOutputName: String
     val typeSpecifier: String
     val ctxInterface: String
 }
@@ -99,15 +95,15 @@ private class ResolverModelImpl(val field: ViaductSchema.Field, val grtPackage: 
     override val gqlTypeName: String = this.field.containingDef.name
     override val gqlFieldName: String = this.field.name
     override val resolverName: String = gqlFieldName.capitalize()
-    override val queryGrtTypeName: String = "$grtPackage.Query"
-    override val grtTypeName: String = "$grtPackage.$gqlTypeName"
-    override val grtArgsName: String =
+    private val queryGrtTypeName: String = "$grtPackage.Query"
+    private val grtTypeName: String = "$grtPackage.$gqlTypeName"
+    private val grtArgsName: String =
         if (field.hasArgs) {
             "$grtPackage.${gqlTypeName}_${gqlFieldName.capitalize()}_Arguments"
         } else {
             "viaduct.api.types.Arguments.NoArguments"
         }
-    override val grtOutputName: String =
+    private val grtOutputName: String =
         if (field.type.baseTypeDef is ViaductSchema.CompositeOutput) {
             "$grtPackage.${field.type.baseTypeDef.name}"
         } else {
@@ -118,9 +114,9 @@ private class ResolverModelImpl(val field: ViaductSchema.Field, val grtPackage: 
     override val ctxInterface: String
         get() =
             if (this.field.containingDef.name == "Mutation") {
-                "viaduct.api.context.MutationFieldExecutionContext"
+                "viaduct.api.context.MutationFieldExecutionContext<$queryGrtTypeName, $grtArgsName, $grtOutputName>"
             } else {
-                "viaduct.api.context.FieldExecutionContext"
+                "viaduct.api.context.FieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
             }
 }
 
@@ -150,8 +146,8 @@ private val resolverST = stTemplate(
     @ResolverFor(typeName = "<mdl.gqlTypeName>", fieldName = "<mdl.gqlFieldName>")
     abstract class <mdl.resolverName> : ResolverBase\<<mdl.typeSpecifier>\> {
         class Context(
-            private val inner: <mdl.ctxInterface>\<<mdl.grtTypeName>, <mdl.queryGrtTypeName>, <mdl.grtArgsName>, <mdl.grtOutputName>\>
-        ) : <mdl.ctxInterface>\<<mdl.grtTypeName>, <mdl.queryGrtTypeName>, <mdl.grtArgsName>, <mdl.grtOutputName>\> by inner, InternalContext by (inner as InternalContext)
+            private val inner: <mdl.ctxInterface>
+        ) : <mdl.ctxInterface> by inner, InternalContext by (inner as InternalContext)
         open suspend fun resolve(ctx: Context): <mdl.typeSpecifier> =
             throw NotImplementedError("<mdl.gqlTypeName>.<mdl.gqlFieldName>.resolve not implemented")
 

@@ -170,8 +170,7 @@ class MockFieldExecutionContext<T : Object, Q : Query, A : Arguments, O : Compos
 }
 
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
-class MockMutationFieldExecutionContext<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(
-    override val objectValue: T,
+class MockMutationFieldExecutionContext<Q : Query, A : Arguments, O : CompositeOutput>(
     override val queryValue: Q,
     override val arguments: A,
     private val selectionsValue: SelectionSet<O>,
@@ -180,7 +179,7 @@ class MockMutationFieldExecutionContext<T : Object, Q : Query, A : Arguments, O 
     private val mutationResults: PrebakedResults<Mutation> = EmptyPrebakedResults<Mutation>(),
     selectionSetFactory: SelectionSetFactory? = null,
 ) : MockResolverExecutionContext(internalContext, queryResults, selectionSetFactory),
-    MutationFieldExecutionContext<T, Q, A, O> {
+    MutationFieldExecutionContext<Q, A, O> {
     override fun selections() = selectionsValue
 
     override suspend fun <T : Mutation> mutation(selections: SelectionSet<T>): T {

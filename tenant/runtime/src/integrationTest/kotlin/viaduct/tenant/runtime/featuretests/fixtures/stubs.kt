@@ -4,6 +4,7 @@ import graphql.schema.GraphQLSchema
 import javax.inject.Provider
 import viaduct.api.FieldValue
 import viaduct.api.VariablesProvider
+import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.InternalContext
@@ -34,7 +35,7 @@ import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 @Suppress("UNUSED_PARAMETER", "UNCHECKED_CAST")
-class FieldUnbatchedResolverStub<Ctx : FieldExecutionContext<*, *, *, *>>(
+class FieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContext<*, *, *>>(
     val objectSelections: ParsedSelections? = null,
     val querySelections: ParsedSelections? = null,
     val coord: Coordinate,

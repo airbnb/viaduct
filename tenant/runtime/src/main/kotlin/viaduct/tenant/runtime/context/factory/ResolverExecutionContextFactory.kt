@@ -4,9 +4,9 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLTypeUtil
 import java.util.Locale.getDefault
 import kotlin.reflect.KClass
-import kotlin.reflect.KFunction
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.primaryConstructor
+import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
@@ -121,7 +121,7 @@ interface VariablesProviderContextFactory {
 // Visible for testing
 class FieldExecutionContextFactory internal constructor(
     resolverBaseClass: Class<out ResolverBase<*>>,
-    expectedContextInterface: Class<out ResolverExecutionContext>,
+    private val expectedContextInterface: Class<out BaseFieldExecutionContext<*, *, *>>,
     private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     resultType: Type<CompositeOutput>,
@@ -134,12 +134,6 @@ class FieldExecutionContextFactory internal constructor(
         expectedContextInterface,
         resultType
     ) {
-    val ctor: KFunction<FieldExecutionContext<*, *, *, *>> = when (expectedContextInterface) {
-        FieldExecutionContext::class.java -> FieldExecutionContextImpl::class.primaryConstructor!!
-        MutationFieldExecutionContext::class.java -> MutationFieldExecutionContextImpl::class.primaryConstructor!!
-        else -> throw IllegalArgumentException("Expected context interface must be one of `FieldExecutionContext` or `MutationFieldExecutionContext` ($expectedContextInterface).")
-    }
-
     operator fun invoke(
         engineExecutionContext: EngineExecutionContext,
         rawSelections: RawSelectionSet?,
@@ -147,18 +141,29 @@ class FieldExecutionContextFactory internal constructor(
         rawArguments: Map<String, Any?>,
         rawObjectValue: EngineObjectData,
         rawQueryValue: EngineObjectData,
-    ): FieldExecutionContext<*, *, *, *> {
+    ): BaseFieldExecutionContext<*, *, *> {
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
         val engineExecutionContextWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext)
-        val wrappedContext = ctor.call(
-            internalContext,
-            engineExecutionContextWrapper,
-            this.toSelectionSet(rawSelections),
-            requestContext,
-            rawArguments.toInputLikeGRT(internalContext, argumentsCls),
-            rawObjectValue.toObjectGRT(internalContext, objectCls),
-            rawQueryValue.toObjectGRT(internalContext, queryCls),
-        )
+        val wrappedContext = when (expectedContextInterface) {
+            FieldExecutionContext::class.java -> FieldExecutionContextImpl(
+                internalContext,
+                engineExecutionContextWrapper,
+                this.toSelectionSet(rawSelections),
+                requestContext,
+                rawArguments.toInputLikeGRT(internalContext, argumentsCls),
+                rawObjectValue.toObjectGRT(internalContext, objectCls),
+                rawQueryValue.toObjectGRT(internalContext, queryCls),
+            )
+            MutationFieldExecutionContext::class.java -> MutationFieldExecutionContextImpl(
+                internalContext,
+                engineExecutionContextWrapper,
+                this.toSelectionSet(rawSelections),
+                requestContext,
+                rawArguments.toInputLikeGRT(internalContext, argumentsCls),
+                rawQueryValue.toObjectGRT(internalContext, queryCls),
+            )
+            else -> throw IllegalArgumentException("Expected context interface must be one of `FieldExecutionContext` or `MutationFieldExecutionContext` ($expectedContextInterface).")
+        }
         return wrap(wrappedContext)
     }
 
@@ -200,11 +205,11 @@ class FieldExecutionContextFactory internal constructor(
 
             val contextKClass: KClass<out ExecutionContext> =
                 resolverBaseClass.declaredClasses.firstOrNull {
-                    FieldExecutionContext::class.java.isAssignableFrom(it)
+                    BaseFieldExecutionContext::class.java.isAssignableFrom(it)
                 }?.kotlin as? KClass<out ExecutionContext>
                     ?: throw IllegalArgumentException("No nested Context class found in ${resolverBaseClass.name}")
 
-            val expectedContextInterface: Class<out ResolverExecutionContext> =
+            val expectedContextInterface: Class<out BaseFieldExecutionContext<*, *, *>> =
                 if (contextKClass.isSubclassOf(MutationFieldExecutionContext::class)) {
                     MutationFieldExecutionContext::class.java
                 } else {

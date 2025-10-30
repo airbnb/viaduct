@@ -12,6 +12,7 @@ import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
+import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
@@ -305,22 +306,30 @@ interface ResolverTestBase {
     }
 
     fun ResolverTestBase.createResolverContext(
-        ctxKClass: KClass<out FieldExecutionContext<*, *, *, *>>,
+        ctxKClass: KClass<out ResolverExecutionContext>,
         objectValue: Object = NullObject,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
         requestContext: Any? = null,
         selections: SelectionSet<*> = SelectionSet.NoSelections,
         contextQueries: List<Query> = emptyList()
-    ): FieldExecutionContext<*, *, *, *> {
-        val innerCtx = mkFieldExecutionContext(
-            objectValue,
-            queryValue,
-            arguments,
-            selections,
-            ctxKClass.isSubclassOf(MutationFieldExecutionContext::class),
-            contextQueries
-        )
+    ): ResolverExecutionContext {
+        val innerCtx = if (ctxKClass.isSubclassOf(MutationFieldExecutionContext::class)) {
+            mkMutationFieldExecutionContext(
+                queryValue,
+                arguments,
+                selections,
+                contextQueries
+            )
+        } else {
+            mkFieldExecutionContext(
+                objectValue,
+                queryValue,
+                arguments,
+                selections,
+                contextQueries
+            )
+        }
         // Primary constructor is null when Ctx is FieldExecutionContext
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
@@ -431,34 +440,40 @@ private fun ResolverTestBase.mkFieldExecutionContext(
     queryValue: Query,
     arguments: Arguments,
     selections: SelectionSet<*>,
-    mutation: Boolean,
     contextQueryValues: List<Query> = emptyList()
 ): FieldExecutionContext<*, *, *, *> {
     val internalContext = context.internal
     val queryResultsMap = buildContextQueryMap(contextQueryValues)
 
-    return if (mutation) {
-        MockMutationFieldExecutionContext(
-            objectValue = objectValue,
-            queryValue = queryValue,
-            arguments = arguments,
-            selectionsValue = selections,
-            internalContext = internalContext,
-            queryResults = queryResultsMap,
-            // No mutation results -- can be extended later if needed
-            selectionSetFactory = ossSelectionSetFactory,
-        )
-    } else {
-        MockFieldExecutionContext(
-            objectValue = objectValue,
-            queryValue = queryValue,
-            arguments = arguments,
-            selectionsValue = selections,
-            internalContext = internalContext,
-            queryResults = queryResultsMap,
-            selectionSetFactory = ossSelectionSetFactory,
-        )
-    }
+    return MockFieldExecutionContext(
+        objectValue = objectValue,
+        queryValue = queryValue,
+        arguments = arguments,
+        selectionsValue = selections,
+        internalContext = internalContext,
+        queryResults = queryResultsMap,
+        selectionSetFactory = ossSelectionSetFactory,
+    )
+}
+
+private fun ResolverTestBase.mkMutationFieldExecutionContext(
+    queryValue: Query,
+    arguments: Arguments,
+    selections: SelectionSet<*>,
+    contextQueryValues: List<Query> = emptyList()
+): MutationFieldExecutionContext<*, *, *> {
+    val internalContext = context.internal
+    val queryResultsMap = buildContextQueryMap(contextQueryValues)
+
+    return MockMutationFieldExecutionContext(
+        queryValue = queryValue,
+        arguments = arguments,
+        selectionsValue = selections,
+        internalContext = internalContext,
+        queryResults = queryResultsMap,
+        // No mutation results -- can be extended later if needed
+        selectionSetFactory = ossSelectionSetFactory,
+    )
 }
 
 /**

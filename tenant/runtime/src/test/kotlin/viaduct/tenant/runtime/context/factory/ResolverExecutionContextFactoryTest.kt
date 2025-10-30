@@ -2,13 +2,11 @@ package viaduct.tenant.runtime.context.factory
 
 import io.mockk.mockk
 import kotlin.reflect.KClass
-import kotlin.reflect.KFunction
-import kotlin.reflect.full.primaryConstructor
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import strikt.api.expectThat
-import strikt.assertions.isA
 import strikt.assertions.isNotNull
 import strikt.assertions.startsWith
 import viaduct.api.context.FieldExecutionContext
@@ -31,8 +29,6 @@ import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.tenant.runtime.FakeMutation
 import viaduct.tenant.runtime.FakeObject
 import viaduct.tenant.runtime.FakeQuery
-import viaduct.tenant.runtime.context.FieldExecutionContextImpl
-import viaduct.tenant.runtime.context.MutationFieldExecutionContextImpl
 
 /**
  * Tests for ResolverExecutionContextFactory - tests that the factory correctly constructs
@@ -156,9 +152,18 @@ class ResolverExecutionContextFactoryTest {
             "testField"
         )
 
-        assertNotNull(factory)
-        // Verify ctor was set correctly
-        assertNotNull(factory.ctor)
+        val contextMocks = ContextMocks(myFullSchema = schema)
+        val queryType = schema.schema.queryType
+
+        val result = factory(
+            engineExecutionContext = contextMocks.engineExecutionContext,
+            rawSelections = null,
+            requestContext = null,
+            rawArguments = emptyMap(),
+            rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
+            rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
+        )
+        assertInstanceOf(FieldExecutionContext::class.java, result)
     }
 
     @Test
@@ -175,9 +180,18 @@ class ResolverExecutionContextFactoryTest {
             "testMutation"
         )
 
-        assertNotNull(factory)
-        // Verify ctor was set correctly
-        assertNotNull(factory.ctor)
+        val contextMocks = ContextMocks(myFullSchema = schema)
+        val queryType = schema.schema.queryType
+
+        val result = factory(
+            engineExecutionContext = contextMocks.engineExecutionContext,
+            rawSelections = null,
+            requestContext = null,
+            rawArguments = emptyMap(),
+            rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
+            rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
+        )
+        assertInstanceOf(MutationFieldExecutionContext::class.java, result)
     }
 
     @Test
@@ -232,7 +246,7 @@ class ResolverExecutionContextFactoryTest {
     // ============================================================================
 
     @Test
-    fun `FieldExecutionContextFactory constructor -- successful construction with valid resolver base`() {
+    fun `FieldExecutionContextFactory constructor -- constructs FieldExecutionContext`() {
         // Should successfully construct factory when resolver has valid nested Context class
         @Suppress("UNCHECKED_CAST")
         val factory = FieldExecutionContextFactory(
@@ -245,23 +259,47 @@ class ResolverExecutionContextFactoryTest {
             FakeObject::class as KClass<Object>,
             FakeQuery::class as KClass<Query>
         )
+        val contextMocks = ContextMocks(myFullSchema = schema)
+        val queryType = schema.schema.queryType
 
-        assertNotNull(factory)
-        assertNotNull(factory.ctor)
+        val result = factory(
+            engineExecutionContext = contextMocks.engineExecutionContext,
+            rawSelections = null,
+            requestContext = null,
+            rawArguments = emptyMap(),
+            rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
+            rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
+        )
+        assertInstanceOf(FieldExecutionContext::class.java, result)
+    }
+
+    @Test
+    fun `FieldExecutionContextFactory constructor -- constructs MutationFieldExecutionContext`() {
+        // Verify the ctor is set to MutationFieldExecutionContextImpl's primary constructor
+        @Suppress("UNCHECKED_CAST")
+        val factory = FieldExecutionContextFactory(
+            FakeMutationResolverBase::class.java,
+            MutationFieldExecutionContext::class.java,
+            codec,
+            reflectionLoader,
+            Type.ofClass(CompositeOutput.NotComposite::class),
+            Arguments.NoArguments::class as KClass<Arguments>,
+            FakeObject::class as KClass<Object>,
+            FakeQuery::class as KClass<Query>
+        )
 
         val contextMocks = ContextMocks(myFullSchema = schema)
         val queryType = schema.schema.queryType
 
-        assertNotNull(
-            factory(
-                engineExecutionContext = contextMocks.engineExecutionContext,
-                rawSelections = null,
-                requestContext = null,
-                rawArguments = emptyMap(),
-                rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
-                rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
-            )
+        val result = factory(
+            engineExecutionContext = contextMocks.engineExecutionContext,
+            rawSelections = null,
+            requestContext = null,
+            rawArguments = emptyMap(),
+            rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
+            rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
         )
+        assertInstanceOf(MutationFieldExecutionContext::class.java, result)
     }
 
     @Test
@@ -300,65 +338,6 @@ class ResolverExecutionContextFactoryTest {
         }
     }
 
-    @Test
-    fun `FieldExecutionContextFactory constructor -- sets correct ctor for FieldExecutionContext`() {
-        // Verify the ctor is set to FieldExecutionContextImpl's primary constructor
-        @Suppress("UNCHECKED_CAST")
-        val factory = FieldExecutionContextFactory(
-            FieldExecutionContextFactory.FakeResolverBase::class.java,
-            FieldExecutionContext::class.java,
-            codec,
-            reflectionLoader,
-            Type.ofClass(CompositeOutput.NotComposite::class),
-            Arguments.NoArguments::class as KClass<Arguments>,
-            FakeObject::class as KClass<Object>,
-            FakeQuery::class as KClass<Query>
-        )
-
-        // Verify ctor points to FieldExecutionContextImpl's primary constructor
-        val expectedCtor = FieldExecutionContextImpl::class.primaryConstructor
-        assertNotNull(expectedCtor)
-        assertNotNull(factory.ctor)
-        // They should be the same constructor
-        expectThat(factory.ctor).isA<kotlin.reflect.KFunction<*>>()
-    }
-
-    @Test
-    fun `FieldExecutionContextFactory constructor -- sets correct ctor for MutationFieldExecutionContext`() {
-        // Verify the ctor is set to MutationFieldExecutionContextImpl's primary constructor
-        @Suppress("UNCHECKED_CAST")
-        val factory = FieldExecutionContextFactory(
-            FakeMutationResolverBase::class.java,
-            MutationFieldExecutionContext::class.java,
-            codec,
-            reflectionLoader,
-            Type.ofClass(CompositeOutput.NotComposite::class),
-            Arguments.NoArguments::class as KClass<Arguments>,
-            FakeObject::class as KClass<Object>,
-            FakeQuery::class as KClass<Query>
-        )
-
-        // Verify ctor points to MutationFieldExecutionContextImpl's primary constructor
-        val expectedCtor = MutationFieldExecutionContextImpl::class.primaryConstructor
-        assertNotNull(expectedCtor)
-        assertNotNull(factory.ctor)
-        expectThat(factory.ctor).isA<KFunction<*>>()
-
-        val contextMocks = ContextMocks(myFullSchema = schema)
-        val queryType = schema.schema.queryType
-
-        assertNotNull(
-            factory(
-                engineExecutionContext = contextMocks.engineExecutionContext,
-                rawSelections = null,
-                requestContext = null,
-                rawArguments = emptyMap(),
-                rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
-                rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
-            )
-        )
-    }
-
     // Note: invoke() tests for FieldExecutionContextFactory are covered by integration tests
     // like FieldExecutionContextFactoryCtorBugTest which use MockTenantModuleBootstrapper
 
@@ -393,8 +372,8 @@ class ResolverExecutionContextFactoryTest {
 
     private class FakeMutationResolverBase : ResolverBase<CompositeOutput> {
         @Suppress("UNCHECKED_CAST")
-        class Context(ctx: MutationFieldExecutionContext<*, *, *, *>) :
-            MutationFieldExecutionContext<Object, Query, Arguments, CompositeOutput> by (ctx as MutationFieldExecutionContext<Object, Query, Arguments, CompositeOutput>),
+        class Context(ctx: MutationFieldExecutionContext<*, *, *>) :
+            MutationFieldExecutionContext<Query, Arguments, CompositeOutput> by (ctx as MutationFieldExecutionContext<Query, Arguments, CompositeOutput>),
             InternalContext by (ctx as InternalContext)
     }
 }

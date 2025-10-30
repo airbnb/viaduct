@@ -6,14 +6,13 @@ import kotlin.reflect.KClass
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.slf4j.LoggerFactory
 import viaduct.api.FieldValue
-import viaduct.api.context.FieldExecutionContext
+import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.reflect.Type
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
-import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.CheckerExecutor
@@ -89,8 +88,7 @@ class FeatureTestBuilder(
      * For a simpler API, see the overloaded [resolver] that operates on an [UntypedFieldContext].
      */
     inline fun <
-        reified Ctx : FieldExecutionContext<T, Q, A, O>,
-        reified T : Object,
+        reified Ctx : BaseFieldExecutionContext<Q, A, O>,
         reified Q : Query,
         reified A : Arguments,
         reified O : CompositeOutput
@@ -104,7 +102,6 @@ class FeatureTestBuilder(
         resolverName: String? = null
     ): FeatureTestBuilder =
         resolver(
-            T::class,
             Q::class,
             A::class,
             O::class,
@@ -119,13 +116,11 @@ class FeatureTestBuilder(
 
     @Suppress("UNUSED", "UNUSED_PARAMETER", "UNUSED_VARIABLE")
     fun <
-        Ctx : FieldExecutionContext<T, Q, A, O>,
-        T : Object,
+        Ctx : BaseFieldExecutionContext<Q, A, O>,
         Q : Query,
         A : Arguments,
         O : CompositeOutput
         > resolver(
-        objCls: KClass<T>,
         queryCls: KClass<Q>,
         argumentsCls: KClass<A>,
         outputCls: KClass<O>,
@@ -170,7 +165,7 @@ class FeatureTestBuilder(
         resolverName: String? = null,
         resolveFn: suspend (ctx: UntypedFieldContext) -> Any?,
     ): FeatureTestBuilder =
-        resolver<UntypedFieldContext, viaduct.api.types.Object, viaduct.api.types.Query, viaduct.api.types.Arguments, CompositeOutput>(
+        resolver<UntypedFieldContext, viaduct.api.types.Query, viaduct.api.types.Arguments, CompositeOutput>(
             coordinate = coordinate,
             resolveFn = resolveFn,
             resolverName = resolverName
@@ -188,7 +183,7 @@ class FeatureTestBuilder(
         resolverName: String? = null,
         resolveFn: suspend (ctx: UntypedMutationFieldContext) -> Any?,
     ): FeatureTestBuilder =
-        resolver<UntypedMutationFieldContext, viaduct.api.types.Object, viaduct.api.types.Query, viaduct.api.types.Arguments, CompositeOutput>(
+        resolver<UntypedMutationFieldContext, viaduct.api.types.Query, viaduct.api.types.Arguments, CompositeOutput>(
             coordinate = coordinate,
             resolveFn = resolveFn,
             resolverName = resolverName

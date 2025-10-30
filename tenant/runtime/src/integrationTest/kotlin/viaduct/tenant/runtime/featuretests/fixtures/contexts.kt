@@ -13,7 +13,7 @@ import viaduct.api.types.Query
 typealias UntypedFieldContext = FieldExecutionContext<Object, Query, Arguments, CompositeOutput>
 
 /** An alias for [MutationFieldExecution] that allows a mutation resolver to read non-GRT data and write either GRT or non-GRT data */
-typealias UntypedMutationFieldContext = MutationFieldExecutionContext<Object, Query, Arguments, CompositeOutput>
+typealias UntypedMutationFieldContext = MutationFieldExecutionContext<Query, Arguments, CompositeOutput>
 
 /** An alias for [NodeExecutionContext] that allows a node resolver to read non-GRT data and write either GRT or non-GRT data */
 typealias UntypedNodeContext = NodeExecutionContext<NodeObject>
