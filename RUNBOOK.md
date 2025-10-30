@@ -42,12 +42,26 @@ Viaduct follows a weekly release cadence.
 against the main branch, bumping `VERSION` from `0.X.0-SNAPSHOT` to `0.(X+1).0-SNAPSHOT` and updates all the
 demo app `gradle.properties` files to match.
 3. Once this PR is approved and merged, the release manager creates a branch off the SHA just before this version bump.
-This is the week’s release candidate branch. This branch is called `release/vX.Y.Z`
-4. At the Wednesday OSS team meeting, the release manager presents a proposed changelog for the release candidate branch and leads a discussion to reach approval on the week’s release.
-5. If the team agrees on releasing the proposed change set, the release manager proceeds with the release.
+This is the week's release candidate branch. This branch is called `release/vX.Y.Z`
+4. The release manager triggers comprehensive testing across all supported environments by running:
+
+    ```shell
+    gh workflow run ".github/workflows/trigger-all-builds.yml" \
+    --ref release/vX.Y.Z \
+    -f reason="Testing release candidate v0.X.0"
+    ```
+
+    This will trigger builds on all supported combinations:
+    - OS: ubuntu-latest, macos-latest, macos-15-intel
+    - Java: 11, 17, 21
+
+    Monitor the triggered builds and verify all 9 combinations pass successfully before the Wednesday meeting.
+
+5. At the Wednesday OSS team meeting, the release manager presents a proposed changelog for the release candidate branch and leads a discussion to reach approval on the week's release.
+6. If the team agrees on releasing the proposed change set, the release manager proceeds with the release.
     - If necessary based on team discussion, the release manager may wait for an in-flight change to land and will cherry-pick the change into the release branch once it is merged into the main branch.
-6. In the release candidate branch, the release manager bumps the `VERSION` file to the desired release version and updates the demo app gradle.properties files to match the version file.
-7. The release manager manually invokes a Github Action that uses `HEAD` of the release candidate branch via
+7. In the release candidate branch, the release manager bumps the `VERSION` file to the desired release version and updates the demo app gradle.properties files to match the version file.
+8. The release manager manually invokes a Github Action that uses `HEAD` of the release candidate branch via
 
 ```
 gh workflow run ".github/workflows/release.yml" \
@@ -64,11 +78,11 @@ Update parameters as needed. This workflow will:
   - Pushes a `vX.Y.Z` tag to Github.
   - Create a draft Github release with changelog.
 
-8. Verify that deployments to Sonatype are successfully validated. Log in as `viaductbot` (credentials in shared 1Password vault).
-9. Release manager reviews draft Github release and artifacts published to Sonatype and Gradle. This includes reviewing the changelog.
+9. Verify that deployments to Sonatype are successfully validated. Log in as `viaductbot` (credentials in shared 1Password vault).
+10. Release manager reviews draft Github release and artifacts published to Sonatype and Gradle. This includes reviewing the changelog.
     - If the release manager rejects the release, start over with an incremented patch version. Once artifacts are published, they may not be changed.
-10. If the release manager is satisfied, manually publish the Sonatype deployments. Make sure to publish all three deployments. Publishing takes 5-10 minutes.
-    11. Release manager must verify standalone demo apps against the newly published versions of artifacts in Maven Central and Gradle Plugin Portal.
+11. If the release manager is satisfied, manually publish the Sonatype deployments. Make sure to publish all three deployments. Publishing takes 5-10 minutes.
+12. Release manager must verify standalone demo apps against the newly published versions of artifacts in Maven Central and Gradle Plugin Portal.
       - At their discretion, the release manager uses copybara to update the standalone demo apps. From `projects/viaduct/oss` in Treehouse:
 
         ```shell
@@ -77,7 +91,7 @@ Update parameters as needed. This workflow will:
         python3 _infra/scripts/publish_all_demoapps.py
         ```
 
-12. Release manager manually publishes the Github release.
+13. Release manager manually publishes the Github release.
 
 ### Inbound Pull Request Process
 

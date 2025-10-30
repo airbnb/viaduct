@@ -24,8 +24,6 @@ on:
           - macos-13
           - macos-14      
         default: ubuntu-latest
-  push:
-    branches: [main]
   pull_request:
     branches:
       - main
@@ -45,20 +43,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify Gradle wrapper
-        run: |
-          if [ ! -f "./gradlew" ]; then
-            echo "❌ gradlew not found"
-            exit 1
-          fi
-          chmod +x ./gradlew
-          echo "✅ Gradle wrapper ready"
-          
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -79,6 +71,7 @@ jobs:
             exit 1
           }
           echo "✅ Dependencies downloaded successfully"
+        shell: bash
 
       - name: Build project (without tests)
         run: |
@@ -86,6 +79,7 @@ jobs:
           ./gradlew clean || { echo "❌ Clean failed"; exit 1; }
           ./gradlew assemble || { echo "❌ Assemble failed"; exit 1; }
           echo "✅ Project built successfully"
+        shell: bash
 
       - name: Collect build artifacts
         run: |
@@ -107,6 +101,7 @@ jobs:
 
           echo "✅ Collected:"
           find build/package -type f -maxdepth 2 -print
+        shell: bash
 
       - uses: actions/upload-artifact@v4
         with:
@@ -128,25 +123,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify Gradle wrapper
-        run: |
-          if [ ! -f "./gradlew" ]; then
-            echo "❌ gradlew not found"
-            exit 1
-          fi
-          chmod +x ./gradlew
-          echo "✅ Gradle wrapper ready"
-
       - uses: actions/download-artifact@v4
         with:
           name: build-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/
-          
+
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -167,6 +156,7 @@ jobs:
             echo "Test failures are not blocking the pipeline"
           }
           echo "✅ Test execution completed"
+        shell: bash
 
       - name: Generate coverage and test reports
         if: always()
@@ -177,6 +167,7 @@ jobs:
             exit 1
           }
           echo "✅ Reports generated successfully"
+        shell: bash
 
       - name: Upload JUnit test results
         if: always()
@@ -214,20 +205,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify Gradle wrapper
-        run: |
-          if [ ! -f "./gradlew" ]; then
-            echo "❌ gradlew not found"
-            exit 1
-          fi
-          chmod +x ./gradlew
-          echo "✅ Gradle wrapper ready"
-
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -248,6 +233,7 @@ jobs:
             exit 1
           }
           echo "✅ Detekt analysis passed"
+        shell: bash
 
       - name: Upload Detekt reports
         if: always()
@@ -271,20 +257,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify Gradle wrapper
-        run: |
-          if [ ! -f "./gradlew" ]; then
-            echo "❌ gradlew not found"
-            exit 1
-          fi
-          chmod +x ./gradlew
-          echo "✅ Gradle wrapper ready"
-
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -305,6 +285,7 @@ jobs:
             exit 1
           }
           echo "✅ Ktlint formatting check passed"
+        shell: bash
 
   coverage-verification:
     runs-on: ${{ matrix.os }}
@@ -322,20 +303,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify Gradle wrapper
-        run: |
-          if [ ! -f "./gradlew" ]; then
-            echo "❌ gradlew not found"
-            exit 1
-          fi
-          chmod +x ./gradlew
-          echo "✅ Gradle wrapper ready"
-
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -357,6 +332,7 @@ jobs:
             exit 1
           }
           echo "✅ Coverage thresholds met successfully"
+        shell: bash
 
   slack-alerts:
     runs-on: ubuntu-latest

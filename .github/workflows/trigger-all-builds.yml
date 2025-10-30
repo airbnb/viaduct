@@ -1,0 +1,26 @@
+name: Trigger All Build Combinations
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for triggering all builds'
+        required: false
+        default: 'Manual trigger'
+
+jobs:
+  trigger-builds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Trigger all build combinations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "🚀 Triggering builds on all supported OS and Java combinations..."
+          echo "Reason: ${{ inputs.reason || 'Called from another workflow' }}"
+          chmod +x ./.github/scripts/trigger_all_builds.sh
+          ./.github/scripts/trigger_all_builds.sh
+        shell: bash
