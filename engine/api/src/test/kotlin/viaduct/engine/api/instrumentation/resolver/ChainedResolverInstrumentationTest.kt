@@ -19,7 +19,7 @@ class ChainedResolverInstrumentationTest {
 
     @Test
     fun `createInstrumentationState creates state for all instrumentations`() {
-        val parameters = ViaductResolverInstrumentation.CreateInstrumentationStateParameters(mockk())
+        val parameters = ViaductResolverInstrumentation.CreateInstrumentationStateParameters()
         val state1 = object : ViaductResolverInstrumentation.InstrumentationState {}
         val state2 = object : ViaductResolverInstrumentation.InstrumentationState {}
 
@@ -40,7 +40,7 @@ class ChainedResolverInstrumentationTest {
 
     @Test
     fun `beginExecuteResolver delegates to all instrumentations`() {
-        val parameters = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters()
+        val parameters = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(mockk())
         val state1 = object : ViaductResolverInstrumentation.InstrumentationState {}
         val state2 = object : ViaductResolverInstrumentation.InstrumentationState {}
         val onCompleted1 = mockk<ViaductResolverInstrumentation.OnCompleted>(relaxed = true)
@@ -56,7 +56,7 @@ class ChainedResolverInstrumentationTest {
         }
 
         val chained = ChainedResolverInstrumentation(listOf(instr1, instr2))
-        val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters(mockk()))
+        val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
         val result = chained.beginExecuteResolver(parameters, state)
 
         assertNotNull(result)
@@ -93,7 +93,7 @@ class ChainedResolverInstrumentationTest {
         }
 
         val chained = ChainedResolverInstrumentation(listOf(instr1, instr2))
-        val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters(mockk()))
+        val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
         val result = chained.beginFetchSelection(parameters, state)
 
         assertNotNull(result)

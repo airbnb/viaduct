@@ -6,7 +6,6 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
-import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
@@ -52,11 +51,11 @@ class ResolverInstrumentationTest {
         val resolverToFieldMap: ConcurrentHashMap<String, CopyOnWriteArrayList<String>>,
     ) : ViaductResolverInstrumentation {
         data class State(
-            val metadata: ResolverMetadata,
+            var currentResolverName: String? = null,
         ) : ViaductResolverInstrumentation.InstrumentationState
 
         override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
-            return State(parameters.resolverMetadata)
+            return State()
         }
 
         override fun beginExecuteResolver(
@@ -64,7 +63,8 @@ class ResolverInstrumentationTest {
             state: ViaductResolverInstrumentation.InstrumentationState?
         ): ViaductResolverInstrumentation.OnCompleted {
             state as State
-            resolverToFieldMap.computeIfAbsent(state.metadata.name) { CopyOnWriteArrayList() }
+            state.currentResolverName = parameters.resolverMetadata.name
+            resolverToFieldMap.computeIfAbsent(parameters.resolverMetadata.name) { CopyOnWriteArrayList() }
             return ViaductResolverInstrumentation.NOOP_ON_COMPLETED
         }
 
@@ -73,7 +73,7 @@ class ResolverInstrumentationTest {
             state: ViaductResolverInstrumentation.InstrumentationState?
         ): ViaductResolverInstrumentation.OnCompleted {
             state as State
-            val resolverName = state.metadata.name
+            val resolverName = state.currentResolverName!!
 
             assertTrue { resolverToFieldMap.containsKey(resolverName) }
 

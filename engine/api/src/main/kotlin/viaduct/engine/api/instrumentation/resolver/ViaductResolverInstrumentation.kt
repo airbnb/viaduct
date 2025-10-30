@@ -42,7 +42,7 @@ interface ViaductResolverInstrumentation {
     }
 
     data class CreateInstrumentationStateParameters(
-        val resolverMetadata: ResolverMetadata,
+        val placeholder: Boolean = false
     )
 
     /**
@@ -52,7 +52,7 @@ interface ViaductResolverInstrumentation {
     fun createInstrumentationState(parameters: CreateInstrumentationStateParameters): InstrumentationState = DEFAULT_INSTRUMENTATION_STATE
 
     data class InstrumentExecuteResolverParameters(
-        val placeholder: Boolean = false
+        val resolverMetadata: ResolverMetadata,
     )
 
     /**

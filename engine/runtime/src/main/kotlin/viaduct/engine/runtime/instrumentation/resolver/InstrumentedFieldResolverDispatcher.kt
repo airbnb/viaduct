@@ -28,14 +28,14 @@ class InstrumentedFieldResolverDispatcher(
         selections: RawSelectionSet?,
         context: EngineExecutionContext
     ): Any? {
-        val createStateParameter = ViaductResolverInstrumentation.CreateInstrumentationStateParameters(
-            resolverMetadata = dispatcher.resolverMetadata
-        )
+        val createStateParameter = ViaductResolverInstrumentation.CreateInstrumentationStateParameters()
         val state = SafeInstrumentation.execute {
             instrumentation.createInstrumentationState(createStateParameter)
         } ?: return dispatcher.resolve(arguments, objectValue, queryValue, selections, context)
 
-        val resolverExecuteParam = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters()
+        val resolverExecuteParam = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
+            resolverMetadata = dispatcher.resolverMetadata
+        )
         val resolverExecuteCtx = SafeInstrumentation.execute {
             instrumentation.beginExecuteResolver(parameters = resolverExecuteParam, state = state)
         } ?: return dispatcher.resolve(arguments, objectValue, queryValue, selections, context)
