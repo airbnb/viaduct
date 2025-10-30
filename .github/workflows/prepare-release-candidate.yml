@@ -15,9 +15,6 @@ on:
   schedule:
     # Run every Monday at 9 AM UTC (prior to Wednesday meeting)
     - cron: '0 9 * * MON'
-  push:
-    branches:
-      - wphillips/prepare-release-candidates
 
 permissions:
   contents: write
