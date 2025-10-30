@@ -19,7 +19,7 @@ def create_demoapp_workflow(demoapp_name):
             ref = "HEAD",
         ),
         destination = git.destination(
-            url = "git@github.com:viaduct-graphql/" + demoapp_name + ".git",  # Will be overridden by --git-destination-url
+            url = "https://github.com/viaduct-graphql/" + demoapp_name + ".git",
             fetch = "main",
             push = "main",
         ),
