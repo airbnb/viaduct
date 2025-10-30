@@ -24,6 +24,7 @@ class DemoAppVersionTest {
         // List of demoapps to check
         val demoappDirs = listOf(
             "cli-starter",
+            "jetty-starter",
             "starwars"
         )
 
