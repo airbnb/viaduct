@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Copybara for ${{ matrix.demoapp.name }}
-        uses: fireboy1919/copybara-action@28f9d0d2da25116e1cc7230dae233a47e4311aee
+        uses: fireboy1919/copybara-action@e83642c7e23bdff2c07d3f62c04aa7d01e85ae76
         with:
           ssh_key: "dummy"
           access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
