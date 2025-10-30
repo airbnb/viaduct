@@ -17,6 +17,7 @@ import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.fragment.ExecutableFragmentParser
 import viaduct.engine.api.fragment.ViaductExecutableFragmentParser
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.ResolverErrorBuilder
@@ -48,6 +49,7 @@ class StandardViaductModule(
         bind(ResolverErrorBuilder::class.java).toInstance(engineConfiguration.resolverErrorBuilder)
         bind(TenantAPIBootstrapper::class.java).toInstance(tenantBootstrapper)
         bind(TenantNameResolver::class.java).toInstance(tenantNameResolver)
+        bind(ViaductResolverInstrumentation::class.java).toInstance(engineConfiguration.resolverInstrumentation)
 
         val resolvedDocumentProviderFactory =
             documentProviderFactory ?: DocumentProviderFactory { _, _ -> CachingPreparsedDocumentProvider() }

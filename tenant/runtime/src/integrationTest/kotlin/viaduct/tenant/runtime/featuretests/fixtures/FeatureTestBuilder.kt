@@ -23,6 +23,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.service.api.spi.Flags
 import viaduct.service.api.spi.ResolverErrorReporter
@@ -60,7 +61,8 @@ class FeatureTestBuilder(
     private val sdl: String,
     private val useFakeGRTs: Boolean = false,
     private val instrumentation: Instrumentation? = null,
-    private val meterRegistry: MeterRegistry? = null
+    private val meterRegistry: MeterRegistry? = null,
+    private val resolverInstrumentation: ViaductResolverInstrumentation? = null
 ) {
     private val reflectionLoaderForFeatureTestBootstrapper: ReflectionLoader = run {
         if (useFakeGRTs) {
@@ -387,6 +389,10 @@ class FeatureTestBuilder(
 
         meterRegistry?.let {
             standardViaduct.withMeterRegistry(it)
+        }
+
+        resolverInstrumentation?.let {
+            standardViaduct.withResolverInstrumentation(it)
         }
 
         // Log data-fetcher exceptions for diagnostic purposes

@@ -17,16 +17,19 @@ import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.TenantModuleException
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.CheckerDispatcherImpl
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.NodeResolverDispatcherImpl
+import viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher
 import viaduct.engine.runtime.validation.Validator
 
 class DispatcherRegistryFactory(
     private val tenantAPIBootstrapper: TenantAPIBootstrapper,
     private val validator: Validator<ExecutorValidatorContext>,
     private val checkerExecutorFactory: CheckerExecutorFactory,
+    private val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT
 ) {
     companion object {
         private fun log() = getLogger(this::class.java.name.substringBefore("\$Companion"))
@@ -64,7 +67,7 @@ class DispatcherRegistryFactory(
 
             var tenantContributesExecutors = false
             for ((fieldCoord, executor) in tenantFieldResolverExecutors) {
-                fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(executor)
+                fieldResolverDispatchers[fieldCoord] = InstrumentedFieldResolverDispatcher(FieldResolverDispatcherImpl(executor), resolverInstrumentation)
                 fieldResolverExecutorsToValidate[fieldCoord] = executor
                 tenantContributesExecutors = true
             }

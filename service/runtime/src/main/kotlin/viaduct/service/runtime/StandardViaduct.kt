@@ -25,6 +25,7 @@ import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.TenantAPIBootstrapper.Companion.flatten
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
@@ -96,6 +97,7 @@ class StandardViaduct
             private var chainInstrumentationWithDefaults: Boolean = false
             private var defaultQueryNodeResolversEnabled: Boolean = true
             private var meterRegistry: MeterRegistry? = null
+            private var resolverInstrumentation: ViaductResolverInstrumentation? = null
             private var allowSubscriptions: Boolean = false
 
             fun enableAirbnbBypassDoNotUse(
@@ -211,6 +213,11 @@ class StandardViaduct
                     this.meterRegistry = meterRegistry
                 }
 
+            fun withResolverInstrumentation(resolverInstrumentation: ViaductResolverInstrumentation): Builder =
+                apply {
+                    this.resolverInstrumentation = resolverInstrumentation
+                }
+
             @Deprecated("For testing only, subscriptions are not currently supported in Viaduct.", level = DeprecationLevel.WARNING)
             fun allowSubscriptions(allow: Boolean) =
                 apply {
@@ -241,6 +248,7 @@ class StandardViaduct
                         meterRegistry = builder.meterRegistry ?: meterRegistry,
                         additionalInstrumentation = builder.instrumentation ?: additionalInstrumentation,
                         chainInstrumentationWithDefaults = builder.chainInstrumentationWithDefaults,
+                        resolverInstrumentation = builder.resolverInstrumentation ?: resolverInstrumentation,
                     )
                 }
 

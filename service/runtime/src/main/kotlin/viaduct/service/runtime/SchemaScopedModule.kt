@@ -17,6 +17,7 @@ import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
@@ -105,10 +106,11 @@ internal class SchemaScopedModule(
         schema: ViaductSchema,
         tenantBootstrapper: TenantAPIBootstrapper,
         @Suppress("UNUSED_PARAMETER") flagManager: FlagManager,
+        resolverInstrumentation: ViaductResolverInstrumentation
     ): DispatcherRegistry {
         log.info("Creating DispatcherRegistry for Viaduct Modern")
         val startTime = System.currentTimeMillis()
-        val dispatcherRegistry = DispatcherRegistryFactory(tenantBootstrapper, validator, checkerExecutorFactory).create(schema)
+        val dispatcherRegistry = DispatcherRegistryFactory(tenantBootstrapper, validator, checkerExecutorFactory, resolverInstrumentation).create(schema)
         val elapsedTime = System.currentTimeMillis() - startTime
         log.info("Created DispatcherRegistry for Viaduct Modern after [$elapsedTime] ms")
         return dispatcherRegistry

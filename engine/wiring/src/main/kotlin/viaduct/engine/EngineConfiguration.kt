@@ -8,6 +8,7 @@ import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.fragment.ViaductExecutableFragmentParser
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.ViaductFragmentLoader
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
@@ -36,6 +37,7 @@ data class EngineConfiguration(
     val meterRegistry: MeterRegistry? = null,
     val additionalInstrumentation: Instrumentation? = null,
     val chainInstrumentationWithDefaults: Boolean = false,
+    val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT
 ) {
     companion object {
         val default = EngineConfiguration()
