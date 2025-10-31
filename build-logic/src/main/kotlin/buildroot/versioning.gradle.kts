@@ -215,22 +215,22 @@ if (gradle.parent == null) {
         versionFile.set(layout.projectDirectory.file("VERSION"))
     }
 
-    tasks.register("weeklyRelease") {
+    tasks.register<Exec>("weeklyRelease") {
         group = "publishing"
         description = "Publish a weekly release of Viaduct Gradle plugins"
 
-        doLast {
+        commandLine("./gradlew", "gradle-plugins:publishPlugins", "--no-daemon")
+        environment("WEEKLY_RELEASE", "true")
+
+        doFirst {
             logger.lifecycle("=== WEEKLY RELEASE ===")
             logger.lifecycle("This will publish a new minor version release to Gradle Plugin Portal")
 
             // Set environment for weekly release
             System.setProperty("WEEKLY_RELEASE", "true")
+        }
 
-            exec {
-                commandLine("./gradlew", "gradle-plugins:publishPlugins", "--no-daemon")
-                environment("WEEKLY_RELEASE", "true")
-            }
-
+        doLast {
             logger.lifecycle("Weekly release completed!")
         }
     }

@@ -6,6 +6,8 @@ weight: 3
 
 This guide walks you through creating a Viaduct application from the ground up, giving you a deeper understanding of how Viaduct projects are structured.
 
+> **Before you begin**: Review the [Compatibility section](../#compatibility) to choose appropriate Gradle and Kotlin versions for your project.
+
 ## Getting Started
 
 We'll build a simple CLI application that demonstrates the core concepts of Viaduct. This will be a single-module project where both the Viaduct application and schema are located inside the `src` directory.

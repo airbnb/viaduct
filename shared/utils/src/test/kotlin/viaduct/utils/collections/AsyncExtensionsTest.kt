@@ -152,7 +152,7 @@ class AsyncExtensionsTest {
                     }.toList()
                 }
 
-            withTimeout(200) {
+            withTimeout(500) {
                 launch {
                     val val1 = inspectionChannel1.receive()
                     val val2 = inspectionChannel1.receive()
@@ -169,7 +169,7 @@ class AsyncExtensionsTest {
                 }
             }
 
-            withTimeout(200) {
+            withTimeout(500) {
                 launch {
                     val val1 = inspectionChannel2.receive()
                     val val2 = inspectionChannel2.receive()

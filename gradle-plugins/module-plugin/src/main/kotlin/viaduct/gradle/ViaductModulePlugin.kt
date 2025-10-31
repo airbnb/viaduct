@@ -206,8 +206,11 @@ class ViaductModulePlugin : Plugin<Project> {
         configurations.configureEach {
             withDependencies {
                 filterIsInstance<ProjectDependency>().forEach { pd ->
-                    val target = pd.dependencyProject
-                    if (target.plugins.hasPlugin(ViaductModulePlugin::class.java) &&
+                    // Find project by name - works for both flat and nested structures
+                    // since rootProject.allprojects includes all subprojects at any depth
+                    val target = rootProject.allprojects.find { it.name == pd.name }
+                    if (target != null &&
+                        target.plugins.hasPlugin(ViaductModulePlugin::class.java) &&
                         this@enforceNoDirectModuleDeps != rootProject &&
                         target != rootProject
                     ) {

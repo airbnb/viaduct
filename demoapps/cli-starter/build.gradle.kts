@@ -1,6 +1,8 @@
 // tag::gradle-config[37] build gradle of viaduct.
 // tag::plugins-config[7] How plugins for viaduct are setup.
 plugins {
+    // Use a Kotlin version compatible with your Gradle version
+    // Gradle 8.x: Kotlin 1.9.x or 2.x | Gradle 9.x: Kotlin 2.0+
     kotlin("jvm") version "1.9.24"
     alias(libs.plugins.viaduct.application)
     alias(libs.plugins.viaduct.module)
