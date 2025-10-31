@@ -1,6 +1,9 @@
 name: Prepare Release
 
 on:
+  push:
+    branches:
+      - candidate/v0.8.0
   workflow_dispatch:
     inputs:
       candidate_branch:
@@ -105,23 +108,16 @@ jobs:
         run: |
           RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
           echo "Updating VERSION file to: $RELEASE_VERSION"
-          ./gradlew bumpVersion -PnewVersion="$RELEASE_VERSION" --no-daemon --no-configuration-cache --quiet
+          ./gradlew bumpVersion -PnewVersion="$RELEASE_VERSION" --no-daemon --quiet
           echo "✅ VERSION file updated"
           echo "New VERSION:"
           cat VERSION
 
       - name: Update demo app gradle.properties
         run: |
-          RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
-          echo "Updating demo app gradle.properties to: $RELEASE_VERSION"
-
-          # Update all demo app gradle.properties files
-          find demoapps -name "gradle.properties" -type f | while read -r file; do
-            sed -i "s/^viaductVersion=.*/viaductVersion=$RELEASE_VERSION/" "$file"
-            echo "✅ Updated $file"
-          done
-
-          echo "✅ All demo app gradle.properties files updated"
+          echo "Syncing demo app versions..."
+          ./gradlew syncDemoAppVersions --no-daemon --quiet
+          echo "✅ Demo app gradle.properties files updated"
 
       - name: Show changes
         run: |
