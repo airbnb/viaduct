@@ -59,19 +59,31 @@ jobs:
           fetch-depth: 0
           fetch-tags: false
 
-      - name: Remove other branch refs to prevent copybara confusion
-        run: |
-          # Keep only the current branch, remove all other remote refs
-          current_branch="${{ github.ref_name }}"
-          cd ${{ github.workspace }}
-          git for-each-ref --format='%(refname)' refs/remotes/origin | grep -v "refs/remotes/origin/$current_branch$" | xargs -r -n 1 git update-ref -d
-
       - name: Run Copybara for ${{ matrix.demoapp.name }}
-        uses: fireboy1919/copybara-action@v1.2.8
-        with:
-          access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
-          sot_repo: airbnb/viaduct
-          destination_repo: ${{ matrix.demoapp.repo }}
-          workflow: airbnb-viaduct-to-${{ matrix.demoapp.name }}
-          custom_config: .github/copybara/copy.bara.sky
-          copybara_options: --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git --git-committer-email=viabot@ductworks.io --git-committer-name=ViaBot --force -v SOURCE_REPO=file://${{ github.workspace }} -v SOURCE_REF=${{ github.sha }} -v DEMOAPP_NAME=${{ matrix.demoapp.name }} -v DESTINATION_REPO=https://github.com/${{ matrix.demoapp.repo }}.git
+        env:
+          GITHUB_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+        run: |
+          # Configure git credentials
+          git config --global credential.helper store
+          echo "https://x-access-token:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
+          git config --global user.email "viabot@ductworks.io"
+          git config --global user.name "ViaBot"
+
+          # Run copybara with explicit last-rev to limit commit range
+          docker run --rm \
+            -v ${{ github.workspace }}:/usr/src/app \
+            -v ~/.git-credentials:/root/.git-credentials \
+            -v ~/.gitconfig:/root/.gitconfig \
+            olivr/copybara:latest \
+            copybara \
+            /usr/src/app/.github/copybara/copy.bara.sky \
+            airbnb-viaduct-to-${{ matrix.demoapp.name }} \
+            --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git \
+            --git-committer-email=viabot@ductworks.io \
+            --git-committer-name=ViaBot \
+            --last-rev=c7791a39a9f09cc9eea299ddbd670059c034ec75 \
+            --force \
+            -v SOURCE_REPO=file:///usr/src/app \
+            -v SOURCE_REF=${{ github.sha }} \
+            -v DEMOAPP_NAME=${{ matrix.demoapp.name }} \
+            -v DESTINATION_REPO=https://github.com/${{ matrix.demoapp.repo }}.git
