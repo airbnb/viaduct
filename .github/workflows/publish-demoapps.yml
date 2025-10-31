@@ -75,6 +75,12 @@ jobs:
           # Debug: Check what's inside the container
           docker run --rm -v ${{ github.workspace }}:/usr/src/app -w /usr/src/app olivr/copybara:latest ls -la /usr/src/app/.github/copybara/
 
+          # Debug: Check if the mount to /root works
+          docker run --rm \
+            -v ${{ github.workspace }}/.github/copybara/copy.bara.sky:/root/copy.bara.sky \
+            olivr/copybara:latest \
+            ls -la /root/
+
           # Run copybara with explicit last-rev to limit commit range
           docker run --rm \
             -v ${{ github.workspace }}:/usr/src/app \
