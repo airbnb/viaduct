@@ -60,14 +60,23 @@ jobs:
           fetch-tags: false
 
       - name: Run Copybara for ${{ matrix.name }}
-        uses: olivr/copybara-action@v1.2.5
+        uses: fireboy1919/copybara-action@v1.0.1
         with:
+          ssh_key: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
           access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+          ssh_known_hosts: github.com
           sot_repo: airbnb/viaduct
           sot_branch: ${{ github.ref_name }}
           destination_repo: ${{ matrix.repo }}
           destination_branch: main
-          custom_config: .github/copybara/copy.bara.sky
-          workflow: push
-          copybara_options: airbnb-viaduct-to-${{ matrix.name }} --force --last-rev=c7791a39a9f09cc9eea299ddbd670059c034ec75 -v SOURCE_REF=${{ github.sha }} -v DEMOAPP_NAME=${{ matrix.name }}
-          committer: ViaBot <viabot@ductworks.io>
+          copybara_config: .github/copybara/copy.bara.sky
+          workflow_name: airbnb-viaduct-to-${{ matrix.name }}
+          copybara_subcommand: migrate
+          copybara_options: |
+            --git-destination-url=https://github.com/${{ matrix.repo }}.git
+            --git-committer-email=viabot@ductworks.io
+            --git-committer-name=ViaBot
+            --last-rev=c7791a39a9f09cc9eea299ddbd670059c034ec75
+            --force
+            -v SOURCE_REF=${{ github.sha }}
+            -v DEMOAPP_NAME=${{ matrix.name }}
