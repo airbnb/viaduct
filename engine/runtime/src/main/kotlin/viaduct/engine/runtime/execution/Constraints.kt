@@ -233,7 +233,7 @@ interface Constraints {
         /** create a new [Constraints] derived from the provided properties */
         operator fun invoke(
             directives: List<Directive>,
-            possibleTypes: Iterable<GraphQLObjectType>
+            possibleTypes: Collection<GraphQLObjectType>
         ): Constraints = Constraints(directives, MaskedSet(possibleTypes))
 
         /** create a new [Constraints] derived from the provided properties */

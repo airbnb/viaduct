@@ -17,7 +17,7 @@ class MaskedSet<T> private constructor(
      * minus the number of bits set in [exclude]
      */
     val size: Int
-) {
+) : Iterable<T> {
     companion object {
         /** An empty [MaskedSet] */
         val empty: MaskedSet<Nothing> = MaskedSet(emptyMap(), BitVector(0), 0)
@@ -44,19 +44,43 @@ class MaskedSet<T> private constructor(
     fun isEmpty(): Boolean = size == 0
 
     /**
-     * Return a copy of this [MaskedSet] as a List.
-     * The ordering of the returned List will match the order of values used to create this MaskedSet,
-     * minus duplicates
+     * Returns an iterator over the non-excluded elements in this MaskedSet.
+     * The iteration order matches the insertion order of the original values.
+     * This implementation uses a custom iterator to avoid intermediate allocations.
      */
-    fun toList(): List<T> {
-        val l = mutableListOf<T>()
-        for ((v, i) in valueToIndex) {
-            if (!exclude.get(i)) {
-                l.add(v)
+    override fun iterator(): Iterator<T> =
+        object : Iterator<T> {
+            private val entryIterator = valueToIndex.iterator()
+            private var nextValue: T? = null
+            private var hasNext = false
+
+            init {
+                advance()
+            }
+
+            private fun advance() {
+                while (entryIterator.hasNext()) {
+                    val (value, index) = entryIterator.next()
+                    if (!exclude.get(index)) {
+                        nextValue = value
+                        hasNext = true
+                        return
+                    }
+                }
+                hasNext = false
+                nextValue = null
+            }
+
+            override fun hasNext(): Boolean = hasNext
+
+            override fun next(): T {
+                if (!hasNext) throw NoSuchElementException()
+                val result = nextValue
+                advance()
+                @Suppress("UNCHECKED_CAST")
+                return result as T
             }
         }
-        return l
-    }
 
     /**
      * Return a new [MaskedSet] that is the logical intersection of this and [other]

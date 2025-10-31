@@ -33,6 +33,7 @@ import viaduct.engine.api.gj
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.execution.QueryPlan.Field
 import viaduct.graphql.utils.collectVariableReferences
+import viaduct.utils.collections.MaskedSet
 
 /**
  * QueryPlan is an intermediate representation of a GraphQL selection set.
@@ -387,17 +388,19 @@ private class QueryPlanBuilder(
         }
 
     private fun buildRequiredSelectionSetPlans(
-        parentType: GraphQLCompositeType,
+        possibleParentTypes: MaskedSet<GraphQLObjectType>,
         field: GJField,
         state: State
     ): List<QueryPlan> =
-        buildList {
-            val resolverRsses = parameters.registry.getFieldResolverRequiredSelectionSets(parentType.name, field.name)
-            addAll(buildChildPlansFromRequiredSelectionSets(resolverRsses, false))
-            // Checker RSS's only depend on the raw slot
-            if (!state.inCheckerContext) {
-                val checkerRsses = parameters.registry.getFieldCheckerRequiredSelectionSets(parentType.name, field.name, parameters.executeAccessChecksInModstrat)
-                addAll(buildChildPlansFromRequiredSelectionSets(checkerRsses, true))
+        possibleParentTypes.flatMap { parentType ->
+            buildList {
+                val resolverRsses = parameters.registry.getFieldResolverRequiredSelectionSets(parentType.name, field.name)
+                addAll(buildChildPlansFromRequiredSelectionSets(resolverRsses, false))
+                // Checker RSS's only depend on the raw slot
+                if (!state.inCheckerContext) {
+                    val checkerRsses = parameters.registry.getFieldCheckerRequiredSelectionSets(parentType.name, field.name, parameters.executeAccessChecksInModstrat)
+                    addAll(buildChildPlansFromRequiredSelectionSets(checkerRsses, true))
+                }
             }
         }
 
@@ -412,7 +415,7 @@ private class QueryPlanBuilder(
         val possibleFieldTypes = parameters.schema.rels.possibleObjectTypes(fieldType)
 
         val fieldTypeChildPlanMap = mutableMapOf<GraphQLObjectType, List<QueryPlan>>()
-        possibleFieldTypes.toList().forEach { it ->
+        possibleFieldTypes.forEach { it ->
             val requiredSelectionSets =
                 parameters.registry.getTypeCheckerRequiredSelectionSets(it.name, parameters.executeAccessChecksInModstrat)
             val childPlans = buildChildPlansFromRequiredSelectionSets(requiredSelectionSets, true)
@@ -480,11 +483,6 @@ private class QueryPlanBuilder(
 
             val possibleParentTypes = parameters.schema.rels.possibleObjectTypes(parentType)
 
-            val fieldChildPlans = buildRequiredSelectionSetPlans(parentType, sel, state)
-            val planChildPlans = buildVariablesPlans(sel, state)
-
-            val fieldTypeChildPlans = buildFieldTypeChildPlans(fieldType, state)
-
             val fieldConstraints = constraints
                 .withDirectives(sel.directives)
                 .narrowTypes(possibleParentTypes)
@@ -492,6 +490,10 @@ private class QueryPlanBuilder(
             if (fieldConstraints.solve(Constraints.Ctx.empty) == Constraints.Resolution.Drop) {
                 return state
             }
+
+            val fieldChildPlans = buildRequiredSelectionSetPlans(possibleParentTypes, sel, state)
+            val planChildPlans = buildVariablesPlans(sel, state)
+            val fieldTypeChildPlans = buildFieldTypeChildPlans(fieldType, state)
 
             val resolverCoordinate = if (parameters.fieldResolverDispatcherRegistry.getFieldResolverDispatcher(parentType.name, sel.name) != null) {
                 coord

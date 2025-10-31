@@ -232,6 +232,7 @@ object FieldExecutionHelpers {
         parameters: ExecutionParameters
     ): QueryPlan.SelectionSet =
         CollectFields.shallowStrictCollect(
+            parameters.graphQLSchema,
             parameters.selectionSet,
             parameters.coercedVariables,
             objectType,

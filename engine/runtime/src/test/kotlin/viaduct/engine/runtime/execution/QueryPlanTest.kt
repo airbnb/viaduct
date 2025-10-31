@@ -904,8 +904,8 @@ internal fun buildPlan(
         }
     }
 
-private fun mkQueryPlan(
-    selectionSet: SelectionSet,
+internal fun mkQueryPlan(
+    selectionSet: SelectionSet = SelectionSet(emptyList()),
     fragments: Fragments = Fragments.empty,
     variablesResolvers: List<VariablesResolver> = emptyList(),
     parentType: GraphQLOutputType,

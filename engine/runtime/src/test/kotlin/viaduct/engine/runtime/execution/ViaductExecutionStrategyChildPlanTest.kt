@@ -570,7 +570,7 @@ class ViaductExecutionStrategyChildPlanTest {
 
     @Test
     @Suppress("UNCHECKED_CAST")
-    fun `interface types with RSS use correct parent type for child plans`() {
+    fun `interface types with RSS use correct parent type for child plans - inline fragments`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedStepInfos = ConcurrentLinkedQueue<Pair<String, ExecutionStepInfo>>()
@@ -667,6 +667,377 @@ class ViaductExecutionStrategyChildPlanTest {
                 assertEquals("User", userStepInfo!!.objectType?.name, "Child plan should use concrete User type, not Entity interface")
                 assertEquals("/entity/id", userStepInfo.path.toString(), "Child plan should have correct path")
                 assertEquals("id", userStepInfo.field.singleField.name, "Child plan should execute for 'id' field")
+            }
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `interface types with RSS execute child plans for direct field selection`() {
+        runExecutionTest {
+            withContext(nextTickDispatcher) {
+                val capturedTypes = ConcurrentLinkedQueue<Pair<String, String?>>()
+
+                val sdl = """
+                    type Query {
+                        entity: Entity
+                    }
+
+                    interface Entity {
+                        id: ID!
+                        restricted: String
+                    }
+
+                    type User implements Entity {
+                        id: ID!
+                        name: String
+                        restricted: String
+                    }
+
+                    type Admin implements Entity {
+                        id: ID!
+                        role: String
+                        restricted: String
+                    }
+                """
+
+                val query = """
+                    {
+                        entity {
+                            restricted
+                        }
+                    }
+                """
+
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "entity" to DataFetcher { _ ->
+                            mapOf("id" to "user-456", "__typename" to "User")
+                        }
+                    ),
+                    "User" to mapOf(
+                        "id" to DataFetcher { env ->
+                            val objectType = env.executionStepInfo.objectType?.name
+                            capturedTypes.add("User.id" to objectType)
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "name" to DataFetcher { "Jane" },
+                        "restricted" to DataFetcher { "user-restricted-direct" }
+                    ),
+                    "Admin" to mapOf(
+                        "id" to DataFetcher { env ->
+                            val objectType = env.executionStepInfo.objectType?.name
+                            capturedTypes.add("Admin.id" to objectType)
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "role" to DataFetcher { "super" },
+                        "restricted" to DataFetcher { "admin-restricted-direct" }
+                    )
+                )
+
+                val requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                    .fieldResolverEntry("User" to "restricted", "id")
+                    .fieldResolverEntry("Admin" to "restricted", "id")
+                    .build()
+
+                val typeResolvers = mapOf(
+                    "Entity" to TypeResolver { env ->
+                        val obj = env.getObject<Map<String, Any>>()
+                        val typename = obj["__typename"] as? String
+                        env.schema.getObjectType(typename ?: "User")
+                    }
+                )
+
+                val executionResult = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = query,
+                    typeResolvers = typeResolvers,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry
+                )
+
+                val data = executionResult.getData<Map<String, Any?>>()
+                assertNotNull(data)
+                val entity = data["entity"] as Map<String, Any?>
+                assertEquals("user-restricted-direct", entity["restricted"])
+
+                assertTrue(
+                    capturedTypes.isNotEmpty(),
+                    "Expected RSS child plan to execute when selecting field directly on interface.",
+                )
+
+                val userType = capturedTypes.find { it.first == "User.id" }?.second
+                assertEquals(
+                    "User",
+                    userType,
+                    "Child plan should use concrete User type when field selected directly on Entity interface"
+                )
+            }
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `interface narrowing to intermediate interface skips child plans for non-implementing types`() {
+        runExecutionTest {
+            withContext(nextTickDispatcher) {
+                val executionLog = ConcurrentLinkedQueue<String>()
+
+                val sdl = """
+                    type Query {
+                        entity(asUser: Boolean!): Entity!
+                    }
+
+                    interface Entity {
+                        id: ID!
+                        name: String
+                    }
+
+                    interface VerifiedEntity implements Entity {
+                        id: ID!
+                        name: String
+                        restricted: String
+                    }
+
+                    type User implements VerifiedEntity & Entity {
+                        id: ID!
+                        name: String
+                        restricted: String
+                    }
+
+                    type Admin implements Entity {
+                        id: ID!
+                        name: String
+                    }
+                """
+
+                val query = """
+                    query EntityQuery(${'$'}asUser: Boolean!) {
+                        entity(asUser: ${'$'}asUser) {
+                            ... on VerifiedEntity {
+                                restricted
+                            }
+                        }
+                    }
+                """
+
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "entity" to DataFetcher { env ->
+                            val asUser = env.getArgument<Boolean>("asUser")
+                            if (asUser) {
+                                mapOf("__typename" to "User", "id" to "user-1", "name" to "Usery", "restricted" to "secret")
+                            } else {
+                                mapOf("__typename" to "Admin", "id" to "admin-9", "name" to "Boss")
+                            }
+                        }
+                    ),
+                    "User" to mapOf(
+                        "id" to DataFetcher { env ->
+                            executionLog.add("User:id")
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "restricted" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["restricted"]
+                        }
+                    ),
+                    "Admin" to mapOf(
+                        "id" to DataFetcher { env ->
+                            executionLog.add("Admin:id")
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        }
+                    )
+                )
+
+                val typeResolvers = mapOf(
+                    "Entity" to TypeResolver { env ->
+                        env.schema.getObjectType(env.getObject<Map<String, Any>>()!!["__typename"] as String)
+                    },
+                    "VerifiedEntity" to TypeResolver { env ->
+                        env.schema.getObjectType(env.getObject<Map<String, Any>>()!!["__typename"] as String)
+                    }
+                )
+
+                val requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                    .fieldResolverEntry("User" to "restricted", "id")
+                    .build()
+
+                // Test with User (implements VerifiedEntity) - child plan should execute
+                executionLog.clear()
+                val userResult = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = query,
+                    typeResolvers = typeResolvers,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry,
+                    variables = mapOf("asUser" to true)
+                )
+                val userData = userResult.getData<Map<String, Any?>>()!!
+                assertEquals("secret", (userData["entity"] as Map<String, Any?>)["restricted"])
+                assertEquals(
+                    listOf("User:id"),
+                    executionLog.toList(),
+                    "Child plan should execute for User which implements VerifiedEntity"
+                )
+
+                // Test with Admin (only implements Entity) - child plan should NOT execute
+                executionLog.clear()
+                val adminResult = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = query,
+                    typeResolvers = typeResolvers,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry,
+                    variables = mapOf("asUser" to false)
+                )
+                val adminData = adminResult.getData<Map<String, Any?>>()!!
+                assertNull(
+                    (adminData["entity"] as Map<String, Any?>)["restricted"],
+                    "Admin should not have restricted field since it doesn't implement VerifiedEntity"
+                )
+                assertEquals(
+                    emptyList<String>(),
+                    executionLog.toList(),
+                    "No child plan should execute for Admin which only implements Entity"
+                )
+            }
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `interface narrowing and broadening preserves correct child plan execution`() {
+        runExecutionTest {
+            withContext(nextTickDispatcher) {
+                val executionLog = ConcurrentLinkedQueue<String>()
+
+                val sdl = """
+                    type Query {
+                        entity(asUser: Boolean!): Entity!
+                    }
+
+                    interface Entity {
+                        id: ID!
+                        name: String
+                    }
+
+                    interface VerifiedEntity implements Entity {
+                        id: ID!
+                        name: String
+                        restricted: String
+                    }
+
+                    type User implements VerifiedEntity & Entity {
+                        id: ID!
+                        name: String
+                        restricted: String
+                    }
+
+                    type Admin implements Entity {
+                        id: ID!
+                        name: String
+                    }
+                """
+
+                val query = """
+                    query EntityQuery(${'$'}asUser: Boolean!) {
+                        entity(asUser: ${'$'}asUser) {
+                            ... on VerifiedEntity {
+                                restricted
+                                ... on Entity {
+                                    name
+                                }
+                            }
+                        }
+                    }
+                """
+
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "entity" to DataFetcher { env ->
+                            val asUser = env.getArgument<Boolean>("asUser")
+                            if (asUser) {
+                                mapOf("__typename" to "User", "id" to "user-1", "name" to "Usery", "restricted" to "secret")
+                            } else {
+                                mapOf("__typename" to "Admin", "id" to "admin-9", "name" to "Boss")
+                            }
+                        }
+                    ),
+                    "User" to mapOf(
+                        "id" to DataFetcher { env ->
+                            executionLog.add("User:id")
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "name" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["name"]
+                        },
+                        "restricted" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["restricted"]
+                        }
+                    ),
+                    "Admin" to mapOf(
+                        "id" to DataFetcher { env ->
+                            executionLog.add("Admin:id")
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "name" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["name"]
+                        }
+                    )
+                )
+
+                val typeResolvers = mapOf(
+                    "Entity" to TypeResolver { env ->
+                        env.schema.getObjectType(env.getObject<Map<String, Any>>()!!["__typename"] as String)
+                    },
+                    "VerifiedEntity" to TypeResolver { env ->
+                        env.schema.getObjectType(env.getObject<Map<String, Any>>()!!["__typename"] as String)
+                    }
+                )
+
+                val requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                    .fieldResolverEntry("User" to "restricted", "id")
+                    .build()
+
+                // Test with User - should execute child plan and access both narrow and broad fields
+                executionLog.clear()
+                val userResult = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = query,
+                    typeResolvers = typeResolvers,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry,
+                    variables = mapOf("asUser" to true)
+                )
+                val userData = userResult.getData<Map<String, Any?>>()!!
+                val userEntity = userData["entity"] as Map<String, Any?>
+                assertEquals("secret", userEntity["restricted"])
+                assertEquals("Usery", userEntity["name"])
+                assertEquals(
+                    listOf("User:id"),
+                    executionLog.toList(),
+                    "Child plan should execute for User when narrowed to VerifiedEntity, even when broadened back to Entity"
+                )
+
+                // Test with Admin - should not execute child plan or access restricted field
+                executionLog.clear()
+                val adminResult = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = query,
+                    typeResolvers = typeResolvers,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry,
+                    variables = mapOf("asUser" to false)
+                )
+                val adminData = adminResult.getData<Map<String, Any?>>()!!
+                val adminEntity = adminData["entity"] as Map<String, Any?>
+                assertNull(adminEntity["restricted"], "Admin should not have restricted field")
+                assertNull(adminEntity["name"], "Admin should not have name field either since narrow failed")
+                assertEquals(
+                    emptyList<String>(),
+                    executionLog.toList(),
+                    "No child plan should execute for Admin when narrow to VerifiedEntity fails"
+                )
             }
         }
     }

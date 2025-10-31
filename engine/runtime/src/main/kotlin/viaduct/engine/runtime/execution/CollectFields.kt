@@ -3,6 +3,8 @@ package viaduct.engine.runtime.execution
 import graphql.execution.CoercedVariables
 import graphql.execution.MergedField
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLOutputType
+import graphql.schema.GraphQLSchema
 import viaduct.engine.runtime.execution.Constraints.Resolution
 import viaduct.engine.runtime.execution.QueryPlan.CollectedField
 import viaduct.engine.runtime.execution.QueryPlan.Field
@@ -23,6 +25,7 @@ object CollectFields {
      * an exception.
      */
     fun shallowStrictCollect(
+        schema: GraphQLSchema,
         selectionSet: SelectionSet,
         variables: CoercedVariables,
         parentType: GraphQLObjectType,
@@ -30,6 +33,7 @@ object CollectFields {
     ): SelectionSet {
         val result = collect(
             State(
+                schema = schema,
                 acc = emptyList(),
                 pending = selectionSet.selections,
                 spreadFragments = emptySet(),
@@ -42,15 +46,18 @@ object CollectFields {
 
     /** models the state while collecting fields within a single SelectionSet */
     private data class State(
+        val schema: GraphQLSchema,
         val acc: List<Selection>,
         val pending: List<Selection>,
         val spreadFragments: Set<String>,
         val fragments: Fragments,
-        val constraintsCtx: Constraints.Ctx
+        val constraintsCtx: Constraints.Ctx,
     ) {
         fun fragmentDef(name: String): FragmentDefinition = requireNotNull(fragments[name]) { "Fragment `$name` is not defined" }
 
         fun asSelectionSet(): SelectionSet = SelectionSet(acc)
+
+        fun constrainedTypes() = constraintsCtx.parentTypes.toSet()
     }
 
     /**
@@ -95,6 +102,7 @@ object CollectFields {
                             collectedFieldIndices[sel.responseKey] = acc.size
                             acc += sel
                         }
+
                         else -> {
                             // we've already collected a field with this responseKey.
                             // Look it up by its index and merge
@@ -111,7 +119,10 @@ object CollectFields {
                             sel.resultKey,
                             sel.selectionSet,
                             MergedField.newMergedField(sel.field).build(),
-                            childPlans = sel.childPlans,
+                            // filter child plans to those that apply to the constrained type or root types
+                            childPlans = sel.childPlans.filter {
+                                state.constrainedTypes().contains(it.parentType) || it.parentType.isRootType(state.schema)
+                            },
                             fieldTypeChildPlans = sel.fieldTypeChildPlans,
                             collectedFieldMetadata = sel.metadata
                         )
@@ -139,6 +150,11 @@ object CollectFields {
             spreadFragments = visitedFragments
         )
     }
+
+    private fun GraphQLOutputType.isRootType(schema: GraphQLSchema) =
+        this == schema.queryType ||
+            this == schema.mutationType ||
+            this == schema.subscriptionType
 
     private fun merge(
         host: CollectedField,

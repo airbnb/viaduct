@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class MaskedSetTest {
     private fun <T> mk(vararg values: T): MaskedSet<T> = MaskedSet(values.toList())
@@ -15,7 +16,7 @@ class MaskedSetTest {
     fun `ctor -- all indices are valid`() {
         fun check(ms: MaskedSet<Int>) {
             assertEquals(ms.valueToIndex.size, ms.exclude.size)
-            ms.valueToIndex.forEach { _, i ->
+            ms.valueToIndex.forEach { (_, i) ->
                 assertDoesNotThrow {
                     ms.exclude.get(i)
                 }
@@ -166,5 +167,60 @@ class MaskedSetTest {
             left.intersect(mk(1, 3)),
             right.intersect(mk(1, 2)),
         )
+    }
+
+    @Test
+    fun `iterator -- empty`() {
+        val iter = MaskedSet.empty<Int>().iterator()
+        assertFalse(iter.hasNext())
+    }
+
+    @Test
+    fun `iterator -- non-empty preserves order`() {
+        val ms = mk(1, 2, 3)
+        val result = mutableListOf<Int>()
+        for (value in ms) {
+            result.add(value)
+        }
+        assertEquals(listOf(1, 2, 3), result)
+    }
+
+    @Test
+    fun `iterator -- intersected skips excluded elements`() {
+        val ms = mk(1, 2, 3, 4, 5).intersect(mk(2, 4))
+        val result = mutableListOf<Int>()
+        for (value in ms) {
+            result.add(value)
+        }
+        assertEquals(listOf(2, 4), result)
+    }
+
+    @Test
+    fun `iterator -- throws NoSuchElementException when exhausted`() {
+        val iter = mk(1).iterator()
+        assertTrue(iter.hasNext())
+        assertEquals(1, iter.next())
+        assertFalse(iter.hasNext())
+
+        assertThrows<NoSuchElementException> {
+            iter.next()
+        }
+    }
+
+    @Test
+    fun `iterator -- matches toList result`() {
+        val testCases = listOf(
+            mk<Int>(),
+            mk(1),
+            mk(1, 2, 3),
+            mk(1, 2, 3).intersect(mk(2)),
+            mk(1, 2, 3, 4, 5).intersect(mk(5, 3, 1))
+        )
+
+        testCases.forEach { ms ->
+            val fromIterator = mutableListOf<Int>()
+            ms.forEach { fromIterator.add(it) }
+            assertEquals(ms.toList(), fromIterator)
+        }
     }
 }
