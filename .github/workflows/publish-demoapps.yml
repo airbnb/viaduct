@@ -57,6 +57,14 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          fetch-tags: false
+
+      - name: Remove other branch refs to prevent copybara confusion
+        run: |
+          # Keep only the current branch, remove all other remote refs
+          current_branch="${{ github.ref_name }}"
+          cd ${{ github.workspace }}
+          git for-each-ref --format='%(refname)' refs/remotes/origin | grep -v "refs/remotes/origin/$current_branch$" | xargs -r git update-ref -d
 
       - name: Run Copybara for ${{ matrix.demoapp.name }}
         uses: fireboy1919/copybara-action@v1.2.8
