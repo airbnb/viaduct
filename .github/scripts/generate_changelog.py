@@ -15,7 +15,7 @@ def main():
   git_cmd = [
     'git', 'log',
     f'{args.commit1}..{args.commit2}',
-    '--format=format:%s by AUTHORS_START%(trailers:key=Co-authored-by,valueonly,separator=%x7C)AUTHORS_END %n'
+    '--format=format:%s by AUTHOR_START%aeAUTHOR_END CO_AUTHORS_START%(trailers:key=Co-authored-by,valueonly,separator=%x7C)CO_AUTHORS_END'
   ]
 
   result = subprocess.run(git_cmd, capture_output=True, text=True)
@@ -29,21 +29,59 @@ def main():
   print(changelog)
 
 def format_entry(entry):
-  author_start_idx = entry.find('AUTHORS_START') + 'AUTHORS_START'.__len__()
-  author_end_idx = entry.find('AUTHORS_END')
+  # Extract commit author
+  author_start_idx = entry.find('AUTHOR_START') + 'AUTHOR_START'.__len__()
+  author_end_idx = entry.find('AUTHOR_END')
+  commit_author_email = entry[author_start_idx:author_end_idx].strip()
 
-  authors_segment = entry[author_start_idx:author_end_idx]
-  authors = authors_segment.split('|')
-  usernames = [extract_username(author_str) for author_str in authors]
+  # Extract co-authors
+  co_author_start_idx = entry.find('CO_AUTHORS_START') + 'CO_AUTHORS_START'.__len__()
+  co_author_end_idx = entry.find('CO_AUTHORS_END')
+  co_authors_segment = entry[co_author_start_idx:co_author_end_idx].strip()
 
-  commit_info = entry[:author_start_idx - 'AUTHORS_START'.__len__()].strip()
+  # Build list of all authors
+  usernames = []
 
-  return commit_info + ' ' + ', '.join(usernames)
+  # Add commit author
+  commit_author_username = extract_username_from_email(commit_author_email)
+  if commit_author_username:
+    usernames.append(commit_author_username)
+
+  # Add co-authors if present
+  if co_authors_segment:
+    co_authors = co_authors_segment.split('|')
+    co_author_usernames = [extract_username(author_str) for author_str in co_authors if author_str.strip()]
+    usernames.extend([u for u in co_author_usernames if u])
+
+  # Get commit message part
+  commit_info = entry[:entry.find(' by AUTHOR_START')].strip()
+
+  # Format output
+  if usernames:
+    return commit_info + ' by ' + ', '.join(usernames)
+  else:
+    return commit_info + ' by @anonymous'
+
+def extract_username_from_email(email: str) -> str:
+  """Extract username from email address."""
+  if not email:
+    return ""
+  match = re.search(r'^([^@]+)@', email)
+  if match:
+    username = match.group(1)
+    # Filter out common bot/system accounts
+    if username not in ['noreply', 'no-reply', 'github-actions', 'viaductbot']:
+      return "@" + username
+  return ""
 
 def extract_username(author_line: str) -> str:
+  """Extract username from Co-authored-by format: Name <email>"""
   match = re.search(r'<([^@]+)@', author_line)
   if match:
-    return "@" + match.group(1)
+    username = match.group(1)
+    # Filter out common bot/system accounts
+    if username not in ['noreply', 'no-reply', 'github-actions', 'viaductbot']:
+      return "@" + username
   return ""
 
 if __name__ == '__main__':

@@ -1,0 +1,227 @@
+name: Prepare Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: 'Optional: Override next version (e.g., 0.8.0). If not provided, will auto-increment from current VERSION'
+        required: false
+        type: string
+      update_existing:
+        description: 'Update existing candidate branch if it exists (will force push and update PR)'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # Run every Monday at 9 AM UTC (prior to Wednesday meeting)
+    - cron: '0 9 * * MON'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare-release-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for changelog generation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine next version
+        id: version
+        run: |
+          CURRENT_VERSION=$(cat VERSION | tr -d '\n')
+          echo "Current version: $CURRENT_VERSION"
+
+          if [ -n "${{ github.event.inputs.version_override }}" ]; then
+            NEXT_VERSION="${{ github.event.inputs.version_override }}"
+            echo "Using override version: $NEXT_VERSION"
+          else
+            # Extract major.minor.patch from current version (strip -SNAPSHOT)
+            BASE_VERSION="${CURRENT_VERSION%-SNAPSHOT}"
+
+            # Parse version components
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+            # Increment minor version
+            NEXT_MINOR=$((MINOR + 1))
+            NEXT_VERSION="${MAJOR}.${NEXT_MINOR}.0"
+            echo "Auto-incremented version: $NEXT_VERSION"
+          fi
+
+          NEXT_SNAPSHOT_VERSION="${NEXT_VERSION}-SNAPSHOT"
+
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "next_snapshot_version=$NEXT_SNAPSHOT_VERSION" >> $GITHUB_OUTPUT
+          echo "branch_name=candidate/v${NEXT_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Find last release tag
+        id: last_release
+        run: |
+          # Find the most recent version tag
+          LAST_TAG=$(git tag -l "v*" --sort=-version:refname | head -n 1)
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous release tag found, using first commit"
+            LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          echo "Last release tag: $LAST_TAG"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "Generating changelog from ${{ steps.last_release.outputs.last_tag }} to HEAD"
+          python3 .github/scripts/generate_changelog.py ${{ steps.last_release.outputs.last_tag }} HEAD > /tmp/changelog_entries.txt
+
+          # Create PR body with changelog
+          cat > /tmp/changelog.md << EOF
+          ## Changes in this release candidate
+
+          $(cat /tmp/changelog_entries.txt)
+
+          ---
+
+          This PR bumps the version from \`${{ steps.version.outputs.current_version }}\` to \`${{ steps.version.outputs.next_snapshot_version }}\` in preparation for the next release.
+
+          **Release Process Checklist:**
+          - [ ] Review changelog for accuracy
+          - [ ] Verify all version files have been updated correctly
+          - [ ] Discuss and approve at Wednesday OSS team meeting
+          EOF
+
+          echo "Changelog generated successfully"
+
+      - name: Create or update release candidate branch
+        run: |
+          BRANCH_NAME="${{ steps.version.outputs.branch_name }}"
+          UPDATE_EXISTING="${{ github.event.inputs.update_existing }}"
+
+          # Check if branch exists on remote
+          if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
+            if [ "$UPDATE_EXISTING" = "true" ]; then
+              echo "Branch $BRANCH_NAME exists on remote. Updating it..."
+              git fetch origin "$BRANCH_NAME"
+              git checkout -B "$BRANCH_NAME" "origin/$BRANCH_NAME"
+              echo "branch_exists=true" >> $GITHUB_ENV
+            else
+              echo "⚠️  Warning: Branch $BRANCH_NAME already exists on remote."
+              echo "To update it, re-run with 'update_existing' set to true."
+              echo "Otherwise, delete the remote branch first or use a different version."
+              exit 1
+            fi
+          else
+            # Check if branch already exists locally
+            if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+              echo "Branch $BRANCH_NAME already exists locally, deleting it"
+              git branch -D "$BRANCH_NAME"
+            fi
+
+            git checkout -b "$BRANCH_NAME"
+            echo "branch_exists=false" >> $GITHUB_ENV
+            echo "Created new branch: $BRANCH_NAME"
+          fi
+
+      - name: Update VERSION file
+        run: |
+          echo "${{ steps.version.outputs.next_snapshot_version }}" > VERSION
+          echo "Updated VERSION to ${{ steps.version.outputs.next_snapshot_version }}"
+
+      - name: Update gradle.properties files
+        run: |
+          NEXT_SNAPSHOT="${{ steps.version.outputs.next_snapshot_version }}"
+
+          # Update main gradle.properties
+          if [ -f "gradle.properties" ]; then
+            sed -i "s/^viaductVersion=.*/viaductVersion=$NEXT_SNAPSHOT/" gradle.properties
+            echo "✅ Updated gradle.properties"
+          fi
+
+          # Update all demo app gradle.properties
+          find demoapps -name "gradle.properties" -type f | while read -r file; do
+            sed -i "s/^viaductVersion=.*/viaductVersion=$NEXT_SNAPSHOT/" "$file"
+            echo "✅ Updated $file"
+          done
+
+          # Update build-test-plugins gradle.properties if it exists
+          if [ -f "build-test-plugins/gradle.properties" ]; then
+            sed -i "s/^viaductVersion=.*/viaductVersion=$NEXT_SNAPSHOT/" build-test-plugins/gradle.properties
+            echo "✅ Updated build-test-plugins/gradle.properties"
+          fi
+
+          echo ""
+          echo "Verifying all files were updated:"
+          grep -r "viaductVersion=" gradle.properties demoapps/*/gradle.properties build-test-plugins/gradle.properties 2>/dev/null || true
+
+      - name: Commit changes
+        run: |
+          git add VERSION gradle.properties demoapps/*/gradle.properties build-test-plugins/gradle.properties
+
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "No changes to commit - version files already up to date"
+          else
+            git commit -m "Bump version to ${{ steps.version.outputs.next_snapshot_version }}
+
+          Preparing release candidate for version ${{ steps.version.outputs.next_version }}.
+
+          Updates:
+          - VERSION file
+          - gradle.properties
+          - All demo app gradle.properties files
+
+          Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+            echo "Changes committed successfully"
+          fi
+
+      - name: Push branch
+        run: |
+          BRANCH_NAME="${{ steps.version.outputs.branch_name }}"
+
+          if [ "${{ env.branch_exists }}" = "true" ]; then
+            echo "Force pushing updates to existing branch..."
+            git push --force origin "$BRANCH_NAME"
+          else
+            echo "Pushing new branch..."
+            git push origin "$BRANCH_NAME"
+          fi
+
+      - name: Create or Update Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="${{ steps.version.outputs.branch_name }}"
+          PR_TITLE="Release Candidate: Bump version to ${{ steps.version.outputs.next_snapshot_version }}"
+
+          # Check if PR already exists for this branch
+          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Updating existing PR #$EXISTING_PR"
+            gh pr edit "$EXISTING_PR" \
+              --title "$PR_TITLE" \
+              --body-file /tmp/changelog.md
+            echo "✅ Updated PR #$EXISTING_PR with new changelog"
+          else
+            echo "Creating new PR"
+            gh pr create \
+              --title "$PR_TITLE" \
+              --body-file /tmp/changelog.md \
+              --base main \
+              --head "$BRANCH_NAME" \
+              --label "release-candidate"
+            echo "✅ Created new PR"
+          fi
