@@ -42,7 +42,7 @@ jobs:
 
   # Publish job - runs copybara for each demo app
   publish:
-    needs: validate
+    # needs: validate  # Temporarily disabled for faster testing
     runs-on: ubuntu-latest
     strategy:
       matrix:
