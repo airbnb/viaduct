@@ -105,7 +105,7 @@ jobs:
         run: |
           RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
           echo "Updating VERSION file to: $RELEASE_VERSION"
-          ./gradlew bumpVersion -PnewVersion="$RELEASE_VERSION" --no-daemon --quiet
+          ./gradlew bumpVersion -PnewVersion="$RELEASE_VERSION" --no-daemon --no-configuration-cache --quiet
           echo "✅ VERSION file updated"
           echo "New VERSION:"
           cat VERSION
@@ -113,7 +113,7 @@ jobs:
       - name: Update demo app gradle.properties
         run: |
           echo "Syncing demo app versions..."
-          ./gradlew syncDemoAppVersions --no-daemon --quiet
+          ./gradlew syncDemoAppVersions --no-daemon --no-configuration-cache --quiet
           echo "✅ Demo app gradle.properties files updated"
 
       - name: Show changes
