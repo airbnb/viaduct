@@ -78,12 +78,13 @@ jobs:
           # Run copybara with explicit last-rev to limit commit range
           docker run --rm \
             -v ${{ github.workspace }}:/usr/src/app \
+            -v ${{ github.workspace }}/.github/copybara/copy.bara.sky:/root/copy.bara.sky \
             -v ~/.git-credentials:/root/.git-credentials \
             -v ~/.gitconfig:/root/.gitconfig \
             -w /usr/src/app \
             olivr/copybara:latest \
             copybara \
-            /usr/src/app/.github/copybara/copy.bara.sky \
+            /root/copy.bara.sky \
             airbnb-viaduct-to-${{ matrix.demoapp.name }} \
             --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git \
             --git-committer-email=viabot@ductworks.io \
