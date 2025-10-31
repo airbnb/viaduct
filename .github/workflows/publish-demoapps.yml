@@ -72,6 +72,9 @@ jobs:
           # Debug: Check if config file exists
           ls -la ${{ github.workspace }}/.github/copybara/copy.bara.sky
 
+          # Debug: Check what's inside the container
+          docker run --rm -v ${{ github.workspace }}:/usr/src/app -w /usr/src/app olivr/copybara:latest ls -la /usr/src/app/.github/copybara/
+
           # Run copybara with explicit last-rev to limit commit range
           docker run --rm \
             -v ${{ github.workspace }}:/usr/src/app \
