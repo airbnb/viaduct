@@ -1,0 +1,191 @@
+name: Prepare Release
+
+on:
+  push:
+    branches:
+      - candidate/v0.8.0
+  workflow_dispatch:
+    inputs:
+      candidate_branch:
+        description: 'Release candidate branch name (e.g., candidate/v0.8.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate candidate branch format
+        run: |
+          CANDIDATE="${{ github.event.inputs.candidate_branch }}"
+          if [[ ! "$CANDIDATE" =~ ^candidate/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Error: Invalid candidate branch format: $CANDIDATE"
+            echo "Expected format: candidate/vX.Y.Z (e.g., candidate/v0.8.0)"
+            exit 1
+          fi
+          echo "✅ Valid candidate branch format: $CANDIDATE"
+
+      - name: Checkout candidate branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.candidate_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Extract and validate version
+        id: version
+        run: |
+          # Extract version from branch name (e.g., candidate/v0.8.0 -> 0.8.0)
+          CANDIDATE="${{ github.event.inputs.candidate_branch }}"
+          VERSION="${CANDIDATE#candidate/v}"
+          echo "Extracted version from branch: $VERSION"
+
+          # Read current VERSION file
+          CURRENT_VERSION=$(cat VERSION | tr -d '\n')
+          echo "Current VERSION file: $CURRENT_VERSION"
+
+          # Validate that VERSION file matches expected snapshot version
+          EXPECTED_SNAPSHOT="${VERSION}-SNAPSHOT"
+          if [ "$CURRENT_VERSION" != "$EXPECTED_SNAPSHOT" ]; then
+            echo "⚠️  Warning: VERSION file ($CURRENT_VERSION) doesn't match expected snapshot version ($EXPECTED_SNAPSHOT)"
+            echo "This may indicate the candidate branch hasn't been properly prepared."
+            echo "Proceeding with stripping -SNAPSHOT from current VERSION file..."
+            # Strip -SNAPSHOT from whatever is in the VERSION file
+            RELEASE_VERSION="${CURRENT_VERSION%-SNAPSHOT}"
+          else
+            RELEASE_VERSION="$VERSION"
+          fi
+
+          RELEASE_BRANCH="release/v${RELEASE_VERSION}"
+
+          echo "release_version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
+          echo "release_branch=$RELEASE_BRANCH" >> $GITHUB_OUTPUT
+          echo "candidate_branch=$CANDIDATE" >> $GITHUB_OUTPUT
+
+          echo "Release version: $RELEASE_VERSION"
+          echo "Release branch: $RELEASE_BRANCH"
+
+      - name: Check if release branch already exists
+        run: |
+          RELEASE_BRANCH="${{ steps.version.outputs.release_branch }}"
+
+          # Check if branch exists on remote
+          if git ls-remote --heads origin "$RELEASE_BRANCH" | grep -q "$RELEASE_BRANCH"; then
+            echo "❌ Error: Release branch $RELEASE_BRANCH already exists on remote"
+            echo "Please delete the existing release branch first or use a different version"
+            exit 1
+          fi
+
+          # Check if branch exists locally
+          if git show-ref --verify --quiet "refs/heads/$RELEASE_BRANCH"; then
+            echo "Branch $RELEASE_BRANCH exists locally, deleting it"
+            git branch -D "$RELEASE_BRANCH"
+          fi
+
+          echo "✅ Release branch name is available: $RELEASE_BRANCH"
+
+      - name: Create release branch
+        run: |
+          RELEASE_BRANCH="${{ steps.version.outputs.release_branch }}"
+          git checkout -b "$RELEASE_BRANCH"
+          echo "✅ Created release branch: $RELEASE_BRANCH"
+
+      - name: Update VERSION file
+        run: |
+          RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
+          echo "Updating VERSION file to: $RELEASE_VERSION"
+          ./gradlew bumpVersion -PnewVersion="$RELEASE_VERSION" --no-daemon --quiet
+          echo "✅ VERSION file updated"
+          echo "New VERSION:"
+          cat VERSION
+
+      - name: Update demo app gradle.properties
+        run: |
+          echo "Syncing demo app versions..."
+          ./gradlew syncDemoAppVersions --no-daemon --quiet
+          echo "✅ Demo app gradle.properties files updated"
+
+      - name: Show changes
+        run: |
+          echo "Files modified:"
+          git status --short
+          echo ""
+          echo "Version changes:"
+          git diff VERSION demoapps/*/gradle.properties
+
+      - name: Commit changes
+        run: |
+          RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
+          git add VERSION demoapps/*/gradle.properties
+          git commit -m "Prepare release v$RELEASE_VERSION
+
+          Remove -SNAPSHOT suffix from version files in preparation for release.
+
+          Updates:
+          - VERSION file: $RELEASE_VERSION
+          - gradle.properties files updated across all demo apps
+
+          Source: ${{ steps.version.outputs.candidate_branch }}
+
+          Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+          echo "✅ Committed version updates"
+
+      - name: Push release branch
+        run: |
+          RELEASE_BRANCH="${{ steps.version.outputs.release_branch }}"
+          git push origin "$RELEASE_BRANCH"
+          echo "✅ Pushed release branch: $RELEASE_BRANCH"
+
+      - name: Output summary
+        run: |
+          RELEASE_BRANCH="${{ steps.version.outputs.release_branch }}"
+          RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
+
+          cat << EOF
+
+          ====================================
+          🎉 Release Prepared Successfully!
+          ====================================
+
+          Release Version: $RELEASE_VERSION
+          Release Branch:  $RELEASE_BRANCH
+          Source Branch:   ${{ steps.version.outputs.candidate_branch }}
+
+          Next Steps:
+          -----------
+          1. Verify the release branch has the correct version updates:
+             git checkout $RELEASE_BRANCH
+             cat VERSION
+             grep viaductVersion demoapps/*/gradle.properties
+
+          2. Run the "Release" workflow with the following command:
+
+             gh workflow run ".github/workflows/release.yml" \\
+               --ref $RELEASE_BRANCH \\
+               -f release_version=$RELEASE_VERSION \\
+               -f previous_release_version=<previous_version> \\
+               -f publish_snapshot=false
+
+          3. The Release workflow will:
+             - Build and test the project
+             - Publish artifacts to Gradle Plugin Portal and Maven Central
+             - Create a git tag v$RELEASE_VERSION
+             - Generate a draft GitHub release with changelog
+
+          ====================================
+          EOF
