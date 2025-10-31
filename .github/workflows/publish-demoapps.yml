@@ -60,7 +60,7 @@ jobs:
           fetch-tags: false
 
       - name: Run Copybara for ${{ matrix.name }}
-        uses: fireboy1919/copybara-action@v1.0.1
+        uses: fireboy1919/copybara-action@v1.2.5
         with:
           ssh_key: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
           access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
