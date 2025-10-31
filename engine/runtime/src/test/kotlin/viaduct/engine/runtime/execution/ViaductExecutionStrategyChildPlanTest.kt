@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.execution
 
+import graphql.execution.ExecutionStepInfo
 import graphql.schema.DataFetcher
 import graphql.schema.TypeResolver
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -47,7 +48,7 @@ class ViaductExecutionStrategyChildPlanTest {
     fun `child plans execute with fresh root path and correct object type`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
-                val childPlanExecutionStepInfos = ConcurrentLinkedQueue<graphql.execution.ExecutionStepInfo>()
+                val childPlanExecutionStepInfos = ConcurrentLinkedQueue<ExecutionStepInfo>()
 
                 val sdl = """
                     type Query {
@@ -122,6 +123,11 @@ class ViaductExecutionStrategyChildPlanTest {
                 assertTrue(childPlanExecutionStepInfos.isNotEmpty(), "Expected child plan to be executed")
                 val childStepInfo = childPlanExecutionStepInfos.first()
                 assertEquals(listOf("testEntity", "childPlanField"), childStepInfo.path.toList())
+                assertEquals("/testEntity/childPlanField", childStepInfo.path.toString(), "Child plan should execute with fresh root path")
+                assertEquals("TestEntity", childStepInfo.objectType?.name, "Child plan should execute with TestEntity object type")
+                assertNotNull(childStepInfo.field, "MergedField should be present")
+                assertEquals("childPlanField", childStepInfo.field.singleField.name, "Child plan should execute for 'childPlanField' field")
+                assertNotNull(childStepInfo.fieldDefinition, "Field definition should be present")
             }
         }
     }
@@ -179,7 +185,7 @@ class ViaductExecutionStrategyChildPlanTest {
     fun `child plans for object field checkers use fresh root path - reproduces original bug`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
-                val capturedPaths = ConcurrentLinkedQueue<String>()
+                val capturedStepInfos = ConcurrentLinkedQueue<ExecutionStepInfo>()
 
                 val sdl = """
                     type Query {
@@ -214,8 +220,7 @@ class ViaductExecutionStrategyChildPlanTest {
                     ),
                     "TestNode" to mapOf(
                         "id" to DataFetcher { env ->
-                            val path = env.executionStepInfo.path.toString()
-                            capturedPaths.add(path)
+                            capturedStepInfos.add(env.executionStepInfo)
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "restrictedField" to DataFetcher { _ ->
@@ -246,8 +251,9 @@ class ViaductExecutionStrategyChildPlanTest {
                 val restrictedField = node["restrictedField"] as Map<String, Any?>
                 assertEquals("Protected content", restrictedField["content"])
 
-                assertTrue(capturedPaths.isNotEmpty(), "Expected id to be fetched for checker RSS")
-                val idPath = capturedPaths.first()
+                assertTrue(capturedStepInfos.isNotEmpty(), "Expected id to be fetched for checker RSS")
+                val stepInfo = capturedStepInfos.first()
+                val idPath = stepInfo.path.toString()
                 assertEquals(
                     "/node/id",
                     idPath,
@@ -255,6 +261,9 @@ class ViaductExecutionStrategyChildPlanTest {
                         "Got '$idPath' but expected '/node/id'. " +
                         "This indicates the child plan incorrectly inherited the field's path."
                 )
+                assertEquals("TestNode", stepInfo.objectType?.name, "Child plan should execute with TestNode object type")
+                assertEquals("id", stepInfo.field.singleField.name, "Child plan should execute for 'id' field")
+                assertNotNull(stepInfo.fieldDefinition, "Field definition should be present")
             }
         }
     }
@@ -264,7 +273,7 @@ class ViaductExecutionStrategyChildPlanTest {
     fun `mixed child plans - Query and Object types in same execution`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
-                val capturedPaths = ConcurrentLinkedQueue<Pair<String, String>>()
+                val capturedStepInfos = ConcurrentLinkedQueue<Pair<String, ExecutionStepInfo>>()
 
                 val sdl = """
                     type Query {
@@ -296,13 +305,13 @@ class ViaductExecutionStrategyChildPlanTest {
                             mapOf("id" to "item-123")
                         },
                         "globalConfig" to DataFetcher { env ->
-                            capturedPaths.add("globalConfig" to env.executionStepInfo.path.toString())
+                            capturedStepInfos.add("globalConfig" to env.executionStepInfo)
                             mapOf("value" to "config-value")
                         }
                     ),
                     "Item" to mapOf(
                         "id" to DataFetcher { env ->
-                            capturedPaths.add("item.id" to env.executionStepInfo.path.toString())
+                            capturedStepInfos.add("item.id" to env.executionStepInfo)
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "restricted" to DataFetcher { _ ->
@@ -333,13 +342,19 @@ class ViaductExecutionStrategyChildPlanTest {
                 val item = data["item"] as Map<String, Any?>
                 assertEquals("restricted-value", item["restricted"])
 
-                assertTrue(capturedPaths.size >= 2, "Expected both Object and Query child plans to execute")
+                assertTrue(capturedStepInfos.size >= 2, "Expected both Object and Query child plans to execute")
 
-                val itemPath = capturedPaths.find { it.first == "item.id" }?.second
-                assertEquals("/item/id", itemPath, "Object-type child plan should use parent object path")
+                val itemStepInfo = capturedStepInfos.find { it.first == "item.id" }?.second
+                assertNotNull(itemStepInfo, "Expected Item.id child plan to execute")
+                assertEquals("/item/id", itemStepInfo!!.path.toString(), "Object-type child plan should use parent object path")
+                assertEquals("Item", itemStepInfo.objectType?.name, "Object-type child plan should have Item object type")
+                assertEquals("id", itemStepInfo.field.singleField.name, "Should be executing 'id' field")
 
-                val queryPath = capturedPaths.find { it.first == "globalConfig" }?.second
-                assertEquals("/globalConfig", queryPath, "Query-type child plan should use root path")
+                val queryStepInfo = capturedStepInfos.find { it.first == "globalConfig" }?.second
+                assertNotNull(queryStepInfo, "Expected globalConfig child plan to execute")
+                assertEquals("/globalConfig", queryStepInfo!!.path.toString(), "Query-type child plan should use root path")
+                assertEquals("Query", queryStepInfo.objectType?.name, "Query-type child plan should have Query object type")
+                assertEquals("globalConfig", queryStepInfo.field.singleField.name, "Should be executing 'globalConfig' field")
             }
         }
     }
@@ -349,7 +364,7 @@ class ViaductExecutionStrategyChildPlanTest {
     fun `nested object types with RSS at multiple levels maintain correct paths`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
-                val capturedPaths = ConcurrentLinkedQueue<Pair<String, String>>()
+                val capturedStepInfos = ConcurrentLinkedQueue<Pair<String, ExecutionStepInfo>>()
 
                 val sdl = """
                     type Query {
@@ -392,7 +407,7 @@ class ViaductExecutionStrategyChildPlanTest {
                     ),
                     "Level1" to mapOf(
                         "id" to DataFetcher { env ->
-                            capturedPaths.add("Level1.id" to env.executionStepInfo.path.toString())
+                            capturedStepInfos.add("Level1.id" to env.executionStepInfo)
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "level2" to DataFetcher { _ ->
@@ -401,7 +416,7 @@ class ViaductExecutionStrategyChildPlanTest {
                     ),
                     "Level2" to mapOf(
                         "id" to DataFetcher { env ->
-                            capturedPaths.add("Level2.id" to env.executionStepInfo.path.toString())
+                            capturedStepInfos.add("Level2.id" to env.executionStepInfo)
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "level3" to DataFetcher { _ ->
@@ -410,7 +425,7 @@ class ViaductExecutionStrategyChildPlanTest {
                     ),
                     "Level3" to mapOf(
                         "id" to DataFetcher { env ->
-                            capturedPaths.add("Level3.id" to env.executionStepInfo.path.toString())
+                            capturedStepInfos.add("Level3.id" to env.executionStepInfo)
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "data" to DataFetcher { _ ->
@@ -439,16 +454,25 @@ class ViaductExecutionStrategyChildPlanTest {
                 val level3 = level2["level3"] as Map<String, Any?>
                 assertEquals("final-data", level3["data"])
 
-                assertTrue(capturedPaths.size >= 3, "Expected RSS at all three levels")
+                assertTrue(capturedStepInfos.size >= 3, "Expected RSS at all three levels")
 
-                val l1Path = capturedPaths.find { it.first == "Level1.id" }?.second
-                assertEquals("/root/id", l1Path, "Level1 RSS should use parent object path")
+                val l1StepInfo = capturedStepInfos.find { it.first == "Level1.id" }?.second
+                assertNotNull(l1StepInfo, "Expected Level1 child plan to execute")
+                assertEquals("/root/id", l1StepInfo!!.path.toString(), "Level1 RSS should use parent object path")
+                assertEquals("Level1", l1StepInfo.objectType?.name, "Level1 should have correct object type")
+                assertEquals("id", l1StepInfo.field.singleField.name, "Should be executing 'id' field")
 
-                val l2Path = capturedPaths.find { it.first == "Level2.id" }?.second
-                assertEquals("/root/level2/id", l2Path, "Level2 RSS should use parent object path")
+                val l2StepInfo = capturedStepInfos.find { it.first == "Level2.id" }?.second
+                assertNotNull(l2StepInfo, "Expected Level2 child plan to execute")
+                assertEquals("/root/level2/id", l2StepInfo!!.path.toString(), "Level2 RSS should use parent object path")
+                assertEquals("Level2", l2StepInfo.objectType?.name, "Level2 should have correct object type")
+                assertEquals("id", l2StepInfo.field.singleField.name, "Should be executing 'id' field")
 
-                val l3Path = capturedPaths.find { it.first == "Level3.id" }?.second
-                assertEquals("/root/level2/level3/id", l3Path, "Level3 RSS should use parent object path")
+                val l3StepInfo = capturedStepInfos.find { it.first == "Level3.id" }?.second
+                assertNotNull(l3StepInfo, "Expected Level3 child plan to execute")
+                assertEquals("/root/level2/level3/id", l3StepInfo!!.path.toString(), "Level3 RSS should use parent object path")
+                assertEquals("Level3", l3StepInfo.objectType?.name, "Level3 should have correct object type")
+                assertEquals("id", l3StepInfo.field.singleField.name, "Should be executing 'id' field")
             }
         }
     }
@@ -458,7 +482,7 @@ class ViaductExecutionStrategyChildPlanTest {
     fun `list fields with RSS execute child plans with correct paths for each item`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
-                val capturedPaths = ConcurrentLinkedQueue<Pair<String, String>>()
+                val capturedStepInfos = ConcurrentLinkedQueue<Pair<String, ExecutionStepInfo>>()
 
                 val sdl = """
                     type Query {
@@ -492,8 +516,7 @@ class ViaductExecutionStrategyChildPlanTest {
                     "ListItem" to mapOf(
                         "id" to DataFetcher { env ->
                             val id = env.getSource<Map<String, Any>>()!!["id"]
-                            val path = env.executionStepInfo.path.toString()
-                            capturedPaths.add(id.toString() to path)
+                            capturedStepInfos.add(id.toString() to env.executionStepInfo)
                             id
                         },
                         "restricted" to DataFetcher { env ->
@@ -522,16 +545,25 @@ class ViaductExecutionStrategyChildPlanTest {
                 assertEquals("restricted-item-2", items[1]["restricted"])
                 assertEquals("restricted-item-3", items[2]["restricted"])
 
-                assertEquals(3, capturedPaths.size, "Expected 3 captured paths, got ${capturedPaths.size}: $capturedPaths")
+                assertEquals(3, capturedStepInfos.size, "Expected 3 captured step infos, got ${capturedStepInfos.size}")
 
-                val item1Path = capturedPaths.find { it.first == "item-1" }?.second
-                assertEquals("/items[0]/id", item1Path, "First list item RSS should have correct index path")
+                val item1StepInfo = capturedStepInfos.find { it.first == "item-1" }?.second
+                assertNotNull(item1StepInfo, "Expected item-1 child plan to execute")
+                assertEquals("/items[0]/id", item1StepInfo!!.path.toString(), "First list item RSS should have correct index path")
+                assertEquals("ListItem", item1StepInfo.objectType?.name, "First list item should have ListItem object type")
+                assertEquals("id", item1StepInfo.field.singleField.name, "Should be executing 'id' field")
 
-                val item2Path = capturedPaths.find { it.first == "item-2" }?.second
-                assertEquals("/items[1]/id", item2Path, "Second list item RSS should have correct index path")
+                val item2StepInfo = capturedStepInfos.find { it.first == "item-2" }?.second
+                assertNotNull(item2StepInfo, "Expected item-2 child plan to execute")
+                assertEquals("/items[1]/id", item2StepInfo!!.path.toString(), "Second list item RSS should have correct index path")
+                assertEquals("ListItem", item2StepInfo.objectType?.name, "Second list item should have ListItem object type")
+                assertEquals("id", item2StepInfo.field.singleField.name, "Should be executing 'id' field")
 
-                val item3Path = capturedPaths.find { it.first == "item-3" }?.second
-                assertEquals("/items[2]/id", item3Path, "Third list item RSS should have correct index path")
+                val item3StepInfo = capturedStepInfos.find { it.first == "item-3" }?.second
+                assertNotNull(item3StepInfo, "Expected item-3 child plan to execute")
+                assertEquals("/items[2]/id", item3StepInfo!!.path.toString(), "Third list item RSS should have correct index path")
+                assertEquals("ListItem", item3StepInfo.objectType?.name, "Third list item should have ListItem object type")
+                assertEquals("id", item3StepInfo.field.singleField.name, "Should be executing 'id' field")
             }
         }
     }
@@ -541,7 +573,7 @@ class ViaductExecutionStrategyChildPlanTest {
     fun `interface types with RSS use correct parent type for child plans`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
-                val capturedTypes = ConcurrentLinkedQueue<Pair<String, String?>>()
+                val capturedStepInfos = ConcurrentLinkedQueue<Pair<String, ExecutionStepInfo>>()
 
                 val sdl = """
                     type Query {
@@ -586,8 +618,7 @@ class ViaductExecutionStrategyChildPlanTest {
                     ),
                     "User" to mapOf(
                         "id" to DataFetcher { env ->
-                            val objectType = env.executionStepInfo.objectType?.name
-                            capturedTypes.add("User.id" to objectType)
+                            capturedStepInfos.add("User.id" to env.executionStepInfo)
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "name" to DataFetcher { "John" },
@@ -595,8 +626,7 @@ class ViaductExecutionStrategyChildPlanTest {
                     ),
                     "Admin" to mapOf(
                         "id" to DataFetcher { env ->
-                            val objectType = env.executionStepInfo.objectType?.name
-                            capturedTypes.add("Admin.id" to objectType)
+                            capturedStepInfos.add("Admin.id" to env.executionStepInfo)
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "role" to DataFetcher { "super" },
@@ -630,10 +660,13 @@ class ViaductExecutionStrategyChildPlanTest {
                 val entity = data["entity"] as Map<String, Any?>
                 assertEquals("user-restricted", entity["restricted"])
 
-                assertTrue(capturedTypes.isNotEmpty(), "Expected RSS to execute for concrete type")
+                assertTrue(capturedStepInfos.isNotEmpty(), "Expected RSS to execute for concrete type")
 
-                val userType = capturedTypes.find { it.first == "User.id" }?.second
-                assertEquals("User", userType, "Child plan should use concrete User type, not Entity interface")
+                val userStepInfo = capturedStepInfos.find { it.first == "User.id" }?.second
+                assertNotNull(userStepInfo, "Expected User child plan to execute")
+                assertEquals("User", userStepInfo!!.objectType?.name, "Child plan should use concrete User type, not Entity interface")
+                assertEquals("/entity/id", userStepInfo.path.toString(), "Child plan should have correct path")
+                assertEquals("id", userStepInfo.field.singleField.name, "Child plan should execute for 'id' field")
             }
         }
     }
