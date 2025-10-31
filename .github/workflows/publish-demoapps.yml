@@ -64,7 +64,7 @@ jobs:
           # Keep only the current branch, remove all other remote refs
           current_branch="${{ github.ref_name }}"
           cd ${{ github.workspace }}
-          git for-each-ref --format='%(refname)' refs/remotes/origin | grep -v "refs/remotes/origin/$current_branch$" | xargs -r git update-ref -d
+          git for-each-ref --format='%(refname)' refs/remotes/origin | grep -v "refs/remotes/origin/$current_branch$" | xargs -r -n 1 git update-ref -d
 
       - name: Run Copybara for ${{ matrix.demoapp.name }}
         uses: fireboy1919/copybara-action@v1.2.8
