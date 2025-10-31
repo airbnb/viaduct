@@ -89,7 +89,6 @@ jobs:
             -v ~/.git-credentials:/root/.git-credentials \
             -v ~/.gitconfig:/root/.gitconfig \
             olivr/copybara:latest \
-            copybara \
             migrate \
             /root/copy.bara.sky \
             airbnb-viaduct-to-${{ matrix.demoapp.name }} \
