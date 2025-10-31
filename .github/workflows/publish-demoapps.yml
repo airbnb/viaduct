@@ -83,7 +83,7 @@ jobs:
             -w /usr/src/app \
             olivr/copybara:latest \
             copybara \
-            .github/copybara/copy.bara.sky \
+            /usr/src/app/.github/copybara/copy.bara.sky \
             airbnb-viaduct-to-${{ matrix.demoapp.name }} \
             --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git \
             --git-committer-email=viabot@ductworks.io \
