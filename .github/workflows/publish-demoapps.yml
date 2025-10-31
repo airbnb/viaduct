@@ -75,22 +75,21 @@ jobs:
           # Debug: Check what's inside the container
           docker run --rm -v ${{ github.workspace }}:/usr/src/app -w /usr/src/app olivr/copybara:latest ls -la /usr/src/app/.github/copybara/
 
-          # Debug: Check if the mount to /root works
+          # Debug: Check if the mount to /usr/src/app works
           docker run --rm \
-            -v ${{ github.workspace }}/.github/copybara/copy.bara.sky:/root/copy.bara.sky \
+            -v ${{ github.workspace }}/.github/copybara/copy.bara.sky:/usr/src/app/copy.bara.sky \
             olivr/copybara:latest \
-            ls -la /root/
+            ls -la /usr/src/app/
 
           # Run copybara with explicit last-rev to limit commit range
           docker run --rm \
             -v ${{ github.workspace }}:/usr/src/app \
-            -v ${{ github.workspace }}/.github/copybara/copy.bara.sky:/root/copy.bara.sky \
+            -v ${{ github.workspace }}/.github/copybara/copy.bara.sky:/usr/src/app/copy.bara.sky \
             -v ~/.git-credentials:/root/.git-credentials \
             -v ~/.gitconfig:/root/.gitconfig \
-            -w /usr/src/app \
             olivr/copybara:latest \
             copybara \
-            /root/copy.bara.sky \
+            copy.bara.sky \
             airbnb-viaduct-to-${{ matrix.demoapp.name }} \
             --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git \
             --git-committer-email=viabot@ductworks.io \
