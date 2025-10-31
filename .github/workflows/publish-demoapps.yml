@@ -69,6 +69,9 @@ jobs:
           git config --global user.email "viabot@ductworks.io"
           git config --global user.name "ViaBot"
 
+          # Debug: Check if config file exists
+          ls -la ${{ github.workspace }}/.github/copybara/copy.bara.sky
+
           # Run copybara with explicit last-rev to limit commit range
           docker run --rm \
             -v ${{ github.workspace }}:/usr/src/app \
