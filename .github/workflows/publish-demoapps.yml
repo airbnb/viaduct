@@ -70,4 +70,5 @@ jobs:
           destination_repo: ${{ matrix.repo }}
           destination_branch: main
           workflow: push
-          copybara_options: migrate .github/copybara/copy.bara.sky airbnb-viaduct-to-${{ matrix.name }} --git-destination-url=https://github.com/${{ matrix.repo }}.git --git-committer-email=viabot@ductworks.io --git-committer-name=ViaBot --last-rev=c7791a39a9f09cc9eea299ddbd670059c034ec75 --force -v SOURCE_REF=${{ github.sha }} -v DEMOAPP_NAME=${{ matrix.name }}
+          custom_config: .github/copybara/copy.bara.sky
+          copybara_options: migrate /root/copy.bara.sky airbnb-viaduct-to-${{ matrix.name }} --git-destination-url=https://github.com/${{ matrix.repo }}.git --git-committer-email=viabot@ductworks.io --git-committer-name=ViaBot --last-rev=c7791a39a9f09cc9eea299ddbd670059c034ec75 --force -v SOURCE_REF=${{ github.sha }} -v DEMOAPP_NAME=${{ matrix.name }}
