@@ -68,5 +68,5 @@ jobs:
           destination_repo: ${{ matrix.demoapp.repo }}
           destination_branch: main
           push_include: demoapps/${{ matrix.demoapp.name }}/**
-          push_move: demoapps/${{ matrix.demoapp.name }}||||**
+          push_move: "demoapps/${{ matrix.demoapp.name }}||||**"
           committer: ViaBot <viabot@ductworks.io>
