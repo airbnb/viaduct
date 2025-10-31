@@ -16,7 +16,7 @@ interface Viaduct {
      *  @param schemaId the id of the schema for which we want to execute the operation, defaults to SchemaId.Full
      *  @return the [CompletableFuture] of [ExecutionResult] who contains the sorted results or the error which was produced
      */
-    fun executeAsync(
+    suspend fun executeAsync(
         executionInput: ExecutionInput,
         schemaId: SchemaId = SchemaId.Full
     ): CompletableFuture<ExecutionResult>

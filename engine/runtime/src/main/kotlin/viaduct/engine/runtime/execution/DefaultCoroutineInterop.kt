@@ -12,8 +12,11 @@ import viaduct.engine.api.coroutines.CoroutineInterop
 object DefaultCoroutineInterop : CoroutineInterop {
     override fun <T> scopedFuture(block: suspend CoroutineScope.() -> T): CompletableFuture<T> = viaduct.engine.runtime.execution.scopedFuture(block)
 
-    override fun <T> enterThreadLocalCoroutineContext(block: suspend CoroutineScope.() -> T): CompletableFuture<T> =
-        CoroutineScope(NextTickDispatcher()).future {
+    override fun <T> enterThreadLocalCoroutineContext(
+        callerContext: CoroutineContext,
+        block: suspend CoroutineScope.() -> T
+    ): CompletableFuture<T> =
+        CoroutineScope(callerContext + NextTickDispatcher()).future {
             withThreadLocalCoroutineContext {
                 block()
             }

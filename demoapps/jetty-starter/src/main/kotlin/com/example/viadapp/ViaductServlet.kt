@@ -1,6 +1,7 @@
 package com.example.viadapp
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.kotest.common.runBlocking
 import jakarta.servlet.http.HttpServlet
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -98,7 +99,9 @@ class ViaductServlet(
             operationName = operationName
         )
         val result = try {
-            viaduct.executeAsync(executionInput).join()
+            runBlocking {
+                viaduct.executeAsync(executionInput).join()
+            }
         } catch (e: Exception) {
             sendError(resp, 500, e.message ?: "Execution error")
             return

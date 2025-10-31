@@ -17,7 +17,11 @@ interface CoroutineInterop {
     /**
      * Enters a threadlocal coroutine context for a top-level request.
      */
-    fun <T> enterThreadLocalCoroutineContext(block: suspend CoroutineScope.() -> T): CompletableFuture<T>
+
+    fun <T> enterThreadLocalCoroutineContext(
+        callerContext: CoroutineContext = EmptyCoroutineContext,
+        block: suspend CoroutineScope.() -> T,
+    ): CompletableFuture<T>
 
     /**
      * Bridges non-suspending to suspending contexts using the threadlocal coroutine context.

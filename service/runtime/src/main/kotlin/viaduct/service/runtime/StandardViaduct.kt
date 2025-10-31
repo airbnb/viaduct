@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.service.runtime
 
 import com.google.inject.Guice
@@ -14,6 +16,8 @@ import graphql.execution.instrumentation.Instrumentation
 import graphql.schema.GraphQLSchema
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.CompletableFuture
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.runBlocking
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineGraphQLJavaCompat
 import viaduct.engine.EngineImpl
@@ -360,7 +364,7 @@ class StandardViaduct
          * @param schemaId the id of the schema for which we want to execute the operation. Defaults to the full schema.
          * @return [CompletableFuture] of sorted [ExecutionResult]
          */
-        override fun executeAsync(
+        override suspend fun executeAsync(
             executionInput: ExecutionInput,
             schemaId: SchemaId
         ): CompletableFuture<ExecutionResult> {
@@ -369,7 +373,7 @@ class StandardViaduct
             } catch (_: EngineRegistry.SchemaNotFoundException) {
                 return mkSchemaNotFoundError(schemaId)
             }
-            return coroutineInterop.enterThreadLocalCoroutineContext {
+            return coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
                 val executionResult = engine.execute(executionInput.toEngineExecutionInput()).awaitExecutionResult()
                 sortExecutionResult(executionResult)
             }
@@ -386,9 +390,10 @@ class StandardViaduct
         override fun execute(
             executionInput: ExecutionInput,
             schemaId: SchemaId
-        ): ExecutionResult {
-            return executeAsync(executionInput, schemaId).join()
-        }
+        ): ExecutionResult =
+            runBlocking {
+                executeAsync(executionInput, schemaId).join()
+            }
 
         /**
          * This function is used to get the applied scopes for a given schemaId

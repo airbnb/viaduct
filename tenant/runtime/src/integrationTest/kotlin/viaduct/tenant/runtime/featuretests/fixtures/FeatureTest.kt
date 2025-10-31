@@ -38,7 +38,7 @@ import viaduct.service.runtime.StandardViaduct
 open class FeatureTest(
     val standardViaduct: StandardViaduct,
 ) {
-    private fun executeAsync(
+    private suspend fun executeAsync(
         query: String,
         variables: Map<String, Any?> = mapOf(),
         operationName: String? = null,
