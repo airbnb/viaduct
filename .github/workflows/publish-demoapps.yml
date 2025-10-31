@@ -82,8 +82,9 @@ jobs:
             ls -la /usr/src/app/
 
           # Run copybara with explicit last-rev to limit commit range
-          # Pass everything as command-line args (no env vars) to avoid wrapper script issues
+          # Explicitly set entrypoint to ensure wrapper script is called
           docker run --rm \
+            --entrypoint /usr/local/bin/copybara \
             -v ${{ github.workspace }}:/usr/src/app \
             -v ${{ github.workspace }}/.github/copybara/copy.bara.sky:/root/copy.bara.sky \
             -v ~/.git-credentials:/root/.git-credentials \
