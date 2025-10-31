@@ -82,21 +82,15 @@ jobs:
             ls -la /usr/src/app/
 
           # Run copybara with explicit last-rev to limit commit range
+          # Use environment variables like copybara-action does
           docker run --rm \
             -v ${{ github.workspace }}:/usr/src/app \
-            -v ${{ github.workspace }}/.github/copybara/copy.bara.sky:/usr/src/app/copy.bara.sky \
+            -v ${{ github.workspace }}/.github/copybara/copy.bara.sky:/root/copy.bara.sky \
             -v ~/.git-credentials:/root/.git-credentials \
             -v ~/.gitconfig:/root/.gitconfig \
+            -e COPYBARA_CONFIG=/root/copy.bara.sky \
+            -e COPYBARA_SUBCOMMAND=migrate \
+            -e COPYBARA_WORKFLOW=airbnb-viaduct-to-${{ matrix.demoapp.name }} \
+            -e COPYBARA_OPTIONS="--git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git --git-committer-email=viabot@ductworks.io --git-committer-name=ViaBot --last-rev=c7791a39a9f09cc9eea299ddbd670059c034ec75 --force -v SOURCE_REPO=file:///usr/src/app -v SOURCE_REF=${{ github.sha }} -v DEMOAPP_NAME=${{ matrix.demoapp.name }} -v DESTINATION_REPO=https://github.com/${{ matrix.demoapp.repo }}.git" \
             olivr/copybara:latest \
-            migrate \
-            copy.bara.sky \
-            airbnb-viaduct-to-${{ matrix.demoapp.name }} \
-            --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git \
-            --git-committer-email=viabot@ductworks.io \
-            --git-committer-name=ViaBot \
-            --last-rev=c7791a39a9f09cc9eea299ddbd670059c034ec75 \
-            --force \
-            -v SOURCE_REPO=file:///usr/src/app \
-            -v SOURCE_REF=${{ github.sha }} \
-            -v DEMOAPP_NAME=${{ matrix.demoapp.name }} \
-            -v DESTINATION_REPO=https://github.com/${{ matrix.demoapp.repo }}.git
+            copybara
