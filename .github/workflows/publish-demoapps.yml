@@ -74,9 +74,10 @@ jobs:
             -v ${{ github.workspace }}:/usr/src/app \
             -v ~/.git-credentials:/root/.git-credentials \
             -v ~/.gitconfig:/root/.gitconfig \
+            -w /usr/src/app \
             olivr/copybara:latest \
             copybara \
-            /usr/src/app/.github/copybara/copy.bara.sky \
+            .github/copybara/copy.bara.sky \
             airbnb-viaduct-to-${{ matrix.demoapp.name }} \
             --git-destination-url=https://github.com/${{ matrix.demoapp.repo }}.git \
             --git-committer-email=viabot@ductworks.io \
