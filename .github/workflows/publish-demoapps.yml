@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        demoapp:
+        include:
           - name: starwars
             repo: viaduct-graphql/starwars
           - name: cli-starter
@@ -59,14 +59,14 @@ jobs:
           fetch-depth: 0
           fetch-tags: false
 
-      - name: Run Copybara for ${{ matrix.demoapp.name }}
+      - name: Run Copybara for ${{ matrix.name }}
         uses: olivr/copybara-action@v1.2.5
         with:
           access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
           sot_repo: airbnb/viaduct
           sot_branch: ${{ github.ref_name }}
-          destination_repo: ${{ matrix.demoapp.repo }}
+          destination_repo: ${{ matrix.repo }}
           destination_branch: main
-          push_include: demoapps/${{ matrix.demoapp.name }}/**
-          push_move: "demoapps/${{ matrix.demoapp.name }}||||**"
+          push_include: demoapps/${{ matrix.name }}/**
+          push_move: "demoapps/${{ matrix.name }}||||**"
           committer: ViaBot <viabot@ductworks.io>
