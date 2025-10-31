@@ -112,9 +112,16 @@ jobs:
 
       - name: Update demo app gradle.properties
         run: |
-          echo "Syncing demo app versions..."
-          ./gradlew syncDemoAppVersions --no-daemon --no-configuration-cache --quiet
-          echo "✅ Demo app gradle.properties files updated"
+          RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
+          echo "Updating demo app gradle.properties to: $RELEASE_VERSION"
+
+          # Update all demo app gradle.properties files
+          find demoapps -name "gradle.properties" -type f | while read -r file; do
+            sed -i "s/^viaductVersion=.*/viaductVersion=$RELEASE_VERSION/" "$file"
+            echo "✅ Updated $file"
+          done
+
+          echo "✅ All demo app gradle.properties files updated"
 
       - name: Show changes
         run: |
