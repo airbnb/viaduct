@@ -6,6 +6,11 @@ weight: 3
 
 This guide walks you through creating a Viaduct application from the ground up, giving you a deeper understanding of how Viaduct projects are structured.
 
+## Requirements
+
+- Java 21 must be on the path or available via JAVA_HOME
+- Gradle version 8 or higher
+
 ## Getting Started
 
 We'll build a simple CLI application that demonstrates the core concepts of Viaduct. This will be a single-module project where both the Viaduct application and schema are located inside the `src` directory.
@@ -22,16 +27,43 @@ cd viaduct-hello-world
 ### Configuring Gradle
 
 Create a `settings.gradle.kts` file with the following content:
-{{< codetag path="demoapps/cli-starter/settings.gradle.kts" tag="dependency-resolution">}}
 
-Create a `gradle.properties` file to specify the Viaduct version:
+```kotlin
+// When part of composite build, use local gradle-plugins
+// When standalone, use Maven Central (only after version is published)
+pluginManagement {
+   if (gradle.parent != null) {
+       includeBuild("../../gradle-plugins")
+   } else {
+       repositories {
+           mavenCentral()
+           gradlePluginPortal()
+       }
+   }
+}
 
-{{< codetag path="demoapps/cli-starter/gradle.properties" tag="viaduct-version">}}
+dependencyResolutionManagement {
+   repositories {
+       mavenCentral()
+       gradlePluginPortal()
+   }
+   versionCatalogs {
+       create("libs")
+   }
+}
+```
 
 
 You'll need to create a `gradle/libs.versions.toml` file:
 
-{{< codetag path="demoapps/cli-starter/gradle/libs.versions.toml" tag="viaduct-plugins">}}
+```toml
+[versions]
+viaduct = "0.7.0"
+
+[plugins]
+viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
+viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
+```
 
 Create a `build.gradle.kts` file. The key requirement is to include both Viaduct plugins:
 
@@ -72,6 +104,7 @@ Create `src/main/kotlin/com/example/viadapp/resolvers/HelloWorldResolvers.kt`:
 Build your application:
 
 ```shell
+gradle wrapper --gradle-version 8.14
 ./gradlew build
 ```
 
@@ -80,8 +113,10 @@ Run the application:
 ```shell
 ./gradlew -q run --args="'{ greeting }'"
 ```
-
-You should see the GraphQL response with your greeting!
+or
+```shell
+./gradlew -q run --args="'{ author }'"
+```
 
 ## What's Next
 
