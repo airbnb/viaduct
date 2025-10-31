@@ -59,6 +59,15 @@ jobs:
           fetch-depth: 0
           fetch-tags: false
 
-      - name: Test for ${{ matrix.name }}
-        run: |
-          echo "Would publish ${{ matrix.name }} to ${{ matrix.repo }}"
+      - name: Run Copybara for ${{ matrix.name }}
+        uses: olivr/copybara-action@v1.2.5
+        with:
+          access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+          sot_repo: airbnb/viaduct
+          sot_branch: ${{ github.ref_name }}
+          destination_repo: ${{ matrix.repo }}
+          destination_branch: main
+          custom_config: .github/copybara/copy.bara.sky
+          workflow: push
+          copybara_options: airbnb-viaduct-to-${{ matrix.name }} --force --last-rev=c7791a39a9f09cc9eea299ddbd670059c034ec75 -v SOURCE_REF=${{ github.sha }} -v DEMOAPP_NAME=${{ matrix.name }}
+          committer: ViaBot <viabot@ductworks.io>
