@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          fetch-tags: false
+          fetch-tags: true
 
       - name: Run Copybara for ${{ matrix.name }}
         uses: fireboy1919/copybara-action@main
