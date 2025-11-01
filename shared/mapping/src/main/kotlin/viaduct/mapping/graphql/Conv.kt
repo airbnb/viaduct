@@ -37,25 +37,35 @@ interface Conv<From, To> : Function1<From, To> {
 
     private data class Impl<From, To>(
         private val forward: (From) -> To,
-        private val inverse: (To) -> From
+        private val inverse: (To) -> From,
+        private val name: String?
     ) : Conv<From, To> {
         override fun invoke(from: From): To = forward(from)
 
-        override fun inverse(): Conv<To, From> = Impl(inverse, forward)
+        override fun inverse(): Conv<To, From> = Impl(inverse, forward, name)
+
+        override fun toString(): String = name ?: super.toString()
     }
 
     private object Identity : Conv<Any?, Any?> {
-        override fun invoke(value: Any?): Any? = value
+        override fun invoke(from: Any?): Any? = from
 
         override fun inverse(): Conv<Any?, Any?> = this
+
+        override fun toString(): String = "Conv.identity"
     }
 
     companion object {
-        /** create a new Conv from the provided functions */
+        /**
+         * Create a new [Conv] from the provided functions
+         *
+         * @param name an optional name that will be used in toString, useful for debugging
+         */
         operator fun <From, To> invoke(
             forward: (From) -> To,
-            inverse: (To) -> From
-        ): Conv<From, To> = Impl(forward, inverse)
+            inverse: (To) -> From,
+            name: String? = null
+        ): Conv<From, To> = Impl(forward, inverse, name)
 
         /** a Conv that always returns its input */
         @Suppress("UNCHECKED_CAST")

@@ -187,11 +187,11 @@ object JsonConv {
 
     /** A builder that can recursively build a single conv */
     private class Builder(val schema: ViaductSchema) {
-        private val cache = ConvCache()
+        private val convMemo = ConvMemo()
 
         fun build(type: GraphQLType): Conv<String, IR.Value> =
             json(mk(type)).also {
-                cache.finalize()
+                convMemo.finalize()
             }
 
         private fun mk(
@@ -205,34 +205,29 @@ object JsonConv {
                 }
                 is GraphQLList -> list(mk(type.wrappedType))
                 is GraphQLObjectType ->
-                    cache.computeIfAbsent(type.name) {
-                        val fieldConvs = type.fields
-                            .map { f -> f.name to mk(f.type) }
-                            .toMap()
+                    convMemo.buildIfAbsent(type.name) {
+                        val fieldConvs = type.fields.associate { f -> f.name to mk(f.type) }
                         obj(type.name, fieldConvs)
                     }
 
                 is GraphQLUnionType ->
-                    cache.computeIfAbsent(type.name) {
-                        val concretes = type.types.map { type ->
-                            type.name to mk(type)
-                        }.toMap()
+                    convMemo.buildIfAbsent(type.name) {
+                        val concretes = type.types.associate { type -> type.name to mk(type) }
                         abstract(type.name, concretes)
                     }
 
                 is GraphQLInterfaceType ->
-                    cache.computeIfAbsent(type.name) {
-                        val concretes = schema.schema.getImplementations(type).map { type ->
-                            type.name to mk(type)
-                        }.toMap()
+                    convMemo.buildIfAbsent(type.name) {
+                        val concretes = schema.schema.getImplementations(type)
+                            .associate { type ->
+                                type.name to mk(type)
+                            }
                         abstract(type.name, concretes)
                     }
 
                 is GraphQLInputObjectType ->
-                    cache.computeIfAbsent(type.name) {
-                        val fieldConvs = type.fields
-                            .map { f -> f.name to mk(f.type) }
-                            .toMap()
+                    convMemo.buildIfAbsent(type.name) {
+                        val fieldConvs = type.fields.associate { f -> f.name to mk(f.type) }
                         obj(type.name, fieldConvs)
                     }
 
@@ -263,68 +258,5 @@ object JsonConv {
                 conv
             }
         }
-    }
-
-    /**
-     * [Builder] eagerly builds a full Conv to map any value for a given type.
-     * This eagerness creates issues around cyclic objects -- eagerly building a conv for every field will cause
-     * an infinite loop.
-     *
-     * [ConvCache] helps with this by returning a [LateInitConv] when it detects a cycle,
-     * allowing Conv construction to happen in a finite amount of time for cyclic type graphs.
-     */
-    private class ConvCache {
-        private val building = mutableSetOf<String>()
-        private val lateinits = mutableListOf<LateInitConv>()
-        private val convs = mutableMapOf<String, Conv<Any?, IR.Value>>()
-        private var finalized = false
-
-        fun computeIfAbsent(
-            typeName: String,
-            fn: () -> Conv<Any?, IR.Value>
-        ): Conv<Any?, IR.Value> {
-            if (finalized) {
-                throw IllegalStateException("ObjectConvCache cannot be used after being finalized")
-            }
-
-            return if (typeName in building) {
-                // cycle detected!
-                // return a LateInitConv which will be completed when finalize is called
-                val conv = LateInitConv(typeName)
-                lateinits += conv
-                conv
-            } else {
-                // no cycle detected.
-                // Add the current type to the set of convs being built
-                building += typeName
-                val conv = fn()
-                building -= typeName
-                convs[typeName] = conv
-                conv
-            }
-        }
-
-        /** Initialize all [LateInitConv]s */
-        fun finalize() {
-            lateinits.forEach { lateInitConv ->
-                val conv = requireNotNull(convs[lateInitConv.name]) {
-                    "Unsatisfied Conv ref: ${lateInitConv.name}"
-                }
-                lateInitConv.inner = conv
-            }
-            finalized = true
-        }
-    }
-
-    /**
-     * A Conv that can be lazily constructed, allowing for cyclic references.
-     * @see [ConvCache]
-     */
-    private class LateInitConv(val name: String) : Conv<Any?, IR.Value> {
-        lateinit var inner: Conv<Any?, IR.Value>
-
-        override fun invoke(from: Any?): IR.Value = inner(from)
-
-        override fun inverse(): Conv<IR.Value, Any?> = inner.inverse()
     }
 }

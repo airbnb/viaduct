@@ -150,4 +150,11 @@ class ConvTest {
                 conv(it) == "${it + 1}"
             }
         }
+
+    @Test
+    fun `Impl -- toString`(): Unit =
+        runBlocking {
+            val conv = Conv<Any, Any>({ it }, { it }, "name")
+            assertEquals("name", conv.toString())
+        }
 }
