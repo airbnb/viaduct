@@ -1,5 +1,7 @@
 # Viaduct Ktor Starter App
 
+> Test change to verify copybara sync from release/v0.8.0 branch
+
 ## Requirements
 
 - Java JDK 21 is installed
