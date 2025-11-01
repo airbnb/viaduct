@@ -71,4 +71,4 @@ jobs:
           destination_branch: main
           workflow: airbnb-viaduct-to-${{ matrix.name }}
           custom_config: .github/copybara/copy.bara.sky
-          copybara_options: --git-destination-url=https://github.com/${{ matrix.repo }}.git --git-committer-email=viabot@ductworks.io --git-committer-name=ViaBot --last-rev=77e9712f97e17f6d75308e5d8b4caa89f4e26ae0 --force -v SOURCE_REF=${{ github.ref_name }} -v DEMOAPP_NAME=${{ matrix.name }}
+          copybara_options: --git-destination-url=https://github.com/${{ matrix.repo }}.git --git-committer-email=viabot@ductworks.io --git-committer-name=ViaBot --force -v SOURCE_REF=${{ github.ref_name }} -v DEMOAPP_NAME=${{ matrix.name }}
