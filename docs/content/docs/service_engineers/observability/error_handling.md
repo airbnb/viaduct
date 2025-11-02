@@ -1,7 +1,7 @@
 ---
 title: Error Handling
-description: Monitoring and returning errors in Viaduct.
-weight: 2
+description: Customizing error reporting and handling in Viaduct.
+weight: 20
 ---
 
 {{% alert color="info" title="Preview Feature" %}}
@@ -53,7 +53,7 @@ class MyResolverErrorBuilder : ResolverErrorBuilder {
 
 ### ResolverErrorReporter
 
-In addition to returning errors in `ExecutionResult`, Viaduct also provides
+In addition to returning errors in `ExecutionResult`, Viaduct also
 allows you to configure an error reporter called from within the engine.
 
 {{< kdoc viaduct.service.api.spi.ResolverErrorReporter >}} is an interface with a single method, `reportError`.
@@ -62,7 +62,7 @@ to log the error or send it to an external monitoring system. This interface
 does not affect error reporting to clients or handling within the Viaduct
 engine.
 
-For instance, if you wanted to emit exceptions to [Sentry](https://sentry.io/welcome/), you could implement the interface like this:
+For instance, if you wanted to emit exceptions to <a href="https://sentry.io/welcome/" target="_blank" rel="noopener noreferrer">Sentry</a>, you could implement the interface like this:
 
 ```kotlin
 import graphql.schema.DataFetchingEnvironment
@@ -91,3 +91,16 @@ class MyResolverErrorReporter : ResolverErrorReporter {
 you to include additional context about the error in your monitoring system.
 The example above includes the field name, parent type, execution path and
 error metadata.
+
+## Configuring Error Handlers
+
+To use custom error handlers, provide them when building your Viaduct instance:
+
+```kotlin
+val viaduct = ViaductBuilder()
+    .withMeterRegistry(meterRegistry)
+    .withResolverErrorBuilder(MyResolverErrorBuilder())
+    .withResolverErrorReporter(MyResolverErrorReporter())
+    .withTenantAPIBootstrapperBuilder(myBootstrapper)
+    .build()
+```

@@ -25,9 +25,9 @@ class TaggedMetricInstrumentation(
 ) : ViaductInstrumentationBase(),
     IViaductInstrumentation.WithBeginFieldFetch {
     companion object {
-        val VIADUCT_EXECUTION_METER_NAME = "viaduct.execution"
-        val VIADUCT_OPERATION_METER_NAME = "viaduct.operation"
-        val VIADUCT_FIELD_METER_NAME = "viaduct.field"
+        const val VIADUCT_EXECUTION_METER_NAME = "viaduct.execution"
+        const val VIADUCT_OPERATION_METER_NAME = "viaduct.operation"
+        const val VIADUCT_FIELD_METER_NAME = "viaduct.field"
 
         val log by logger()
     }

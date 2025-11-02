@@ -46,7 +46,7 @@ class TaggedMetricInstrumentationTest {
             ctx.onCompleted(ExecutionResultImpl.newExecutionResult().data(123).build(), null)
             val meter = simpleMeterRegistry.meters.find { it.id.name == TaggedMetricInstrumentation.VIADUCT_EXECUTION_METER_NAME }
             assertNotNull(meter)
-            val tagsMap = meter?.id?.tags?.map { it.key to it.value }?.toMap() ?: emptyMap()
+            val tagsMap = meter?.id?.tags?.associate { it.key to it.value } ?: emptyMap()
             assertEquals("testOperation", tagsMap["operation_name"])
             assertEquals("true", tagsMap["success"])
         }
@@ -60,7 +60,7 @@ class TaggedMetricInstrumentationTest {
             ctx.onCompleted(null, RuntimeException("test exception"))
             val meter = simpleMeterRegistry.meters.find { it.id.name == TaggedMetricInstrumentation.VIADUCT_EXECUTION_METER_NAME }
             assertNotNull(meter)
-            val tagsMap = meter?.id?.tags?.map { it.key to it.value }?.toMap() ?: emptyMap()
+            val tagsMap = meter?.id?.tags?.associate { it.key to it.value } ?: emptyMap()
             assertEquals("testOperation", tagsMap["operation_name"])
             assertEquals("false", tagsMap["success"])
         }
@@ -82,7 +82,7 @@ class TaggedMetricInstrumentationTest {
             )
             val meter = simpleMeterRegistry.meters.find { it.id.name == TaggedMetricInstrumentation.VIADUCT_EXECUTION_METER_NAME }
             assertNotNull(meter)
-            val tagsMap = meter?.id?.tags?.map { it.key to it.value }?.toMap() ?: emptyMap()
+            val tagsMap = meter?.id?.tags?.associate { it.key to it.value } ?: emptyMap()
             assertEquals("testOperation", tagsMap["operation_name"])
             assertEquals("false", tagsMap["success"])
         }
@@ -118,7 +118,7 @@ class TaggedMetricInstrumentationTest {
         val meter = simpleMeterRegistry.meters.find { it.id.name == TaggedMetricInstrumentation.VIADUCT_FIELD_METER_NAME }
         assertNotNull(meter)
 
-        val tagsMap = meter?.id?.tags?.map { it.key to it.value }?.toMap() ?: emptyMap()
+        val tagsMap = meter?.id?.tags?.associate { it.key to it.value } ?: emptyMap()
         assertEquals("testOperation", tagsMap["operation_name"])
         assertEquals("true", tagsMap["success"])
         assertEquals("foo.bar", tagsMap["field"])
