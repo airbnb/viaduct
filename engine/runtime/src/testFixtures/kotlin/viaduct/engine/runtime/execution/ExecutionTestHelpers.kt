@@ -41,7 +41,6 @@ import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.graphQLExecutionInput
 import viaduct.engine.api.FieldCheckerDispatcherRegistry
 import viaduct.engine.api.RequiredSelectionSetRegistry
-import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
@@ -134,12 +133,13 @@ object ExecutionTestHelpers {
             flagManager
         )
         val accessCheckRunner = AccessCheckRunner(coroutineInterop)
+        @Suppress("DEPRECATION")
         val executionStrategyFactory = ViaductExecutionStrategy.Factory.Impl(
             dataFetcherExceptionHandler = ExceptionHandlerWithFuture(),
             executionParametersFactory = execParamFactory,
             accessCheckRunner = accessCheckRunner,
             coroutineInterop = coroutineInterop,
-            temporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default
+            temporaryBypassAccessCheck = viaduct.engine.api.TemporaryBypassAccessCheck.Default
         )
         return GraphQL.newGraphQL(schema.schema)
             .preparsedDocumentProvider(preparsedDocumentProvider)

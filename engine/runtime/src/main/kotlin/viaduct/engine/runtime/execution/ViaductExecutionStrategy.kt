@@ -14,7 +14,6 @@ import graphql.schema.GraphQLObjectType
 import java.util.concurrent.CompletableFuture
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
-import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.execution.CompletionErrors.FieldCompletionException
@@ -58,7 +57,8 @@ class ViaductExecutionStrategy internal constructor(
     private val accessCheckRunner: AccessCheckRunner,
     private val isSerial: Boolean,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
-    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default,
+    @Suppress("DEPRECATION")
+    private val temporaryBypassAccessCheck: viaduct.engine.api.TemporaryBypassAccessCheck = viaduct.engine.api.TemporaryBypassAccessCheck.Default,
 ) : ExecutionStrategy(dataFetcherExceptionHandler) {
     /**
      * Factory interface for creating instances of [ViaductExecutionStrategy].
@@ -81,7 +81,8 @@ class ViaductExecutionStrategy internal constructor(
             private val executionParametersFactory: ExecutionParameters.Factory,
             private val accessCheckRunner: AccessCheckRunner,
             private val coroutineInterop: CoroutineInterop,
-            private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck,
+            @Suppress("DEPRECATION")
+            private val temporaryBypassAccessCheck: viaduct.engine.api.TemporaryBypassAccessCheck,
         ) : Factory {
             override fun create(isSerial: Boolean): ViaductExecutionStrategy =
                 ViaductExecutionStrategy(

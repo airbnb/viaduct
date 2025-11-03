@@ -19,13 +19,11 @@ import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.EngineConfiguration
-import viaduct.engine.EngineGraphQLJavaCompat
 import viaduct.engine.EngineImpl
 import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.TenantAPIBootstrapper.Companion.flatten
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
@@ -89,7 +87,8 @@ class StandardViaduct
             private var flagManager: FlagManager? = null
             private var checkerExecutorFactory: CheckerExecutorFactory? = null
             private var checkerExecutorFactoryCreator: ((ViaductSchema) -> CheckerExecutorFactory)? = null
-            private var temporaryBypassAccessCheck: TemporaryBypassAccessCheck? = null
+            @Suppress("DEPRECATION")
+            private var temporaryBypassAccessCheck: viaduct.engine.api.TemporaryBypassAccessCheck? = null
             private var dataFetcherExceptionHandler: DataFetcherExceptionHandler? = null
             private var resolverErrorReporter: ResolverErrorReporter? = null
             private var resolverErrorBuilder: ResolverErrorBuilder? = null
@@ -159,7 +158,8 @@ class StandardViaduct
                     this.checkerExecutorFactoryCreator = factoryCreator
                 }
 
-            fun withTemporaryBypassChecker(temporaryBypassAccessCheck: TemporaryBypassAccessCheck): Builder =
+            @Suppress("DEPRECATION")
+            fun withTemporaryBypassChecker(temporaryBypassAccessCheck: viaduct.engine.api.TemporaryBypassAccessCheck): Builder =
                 apply {
                     this.temporaryBypassAccessCheck = temporaryBypassAccessCheck
                 }
@@ -450,7 +450,12 @@ class StandardViaduct
          *
          * @return GraphQL instance of the engine
          */
-        fun getEngine(schemaId: SchemaId): GraphQL = (engineRegistry.getEngine(schemaId) as? EngineGraphQLJavaCompat ?: throw IllegalStateException("Engine is not GraphQL compatible")).getGraphQL()
+        @Suppress("DEPRECATION")
+        fun getEngine(schemaId: SchemaId): GraphQL =
+            (
+                engineRegistry.getEngine(schemaId) as? viaduct.engine.EngineGraphQLJavaCompat
+                    ?: throw IllegalStateException("Engine is not GraphQL compatible")
+            ).getGraphQL()
 
         /**
          * Creates an instance of EngineExecutionContext. This should be called exactly once

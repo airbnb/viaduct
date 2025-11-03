@@ -3,6 +3,7 @@ package viaduct.tenant.runtime.featuretests
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
@@ -14,6 +15,7 @@ import viaduct.tenant.runtime.featuretests.fixtures.UntypedFieldContext
 import viaduct.tenant.runtime.featuretests.fixtures.assertJson
 import viaduct.tenant.runtime.featuretests.fixtures.get
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ResolverInstrumentationTest {
     @Test
     fun `test field resolver should invoke instrumentation`() {

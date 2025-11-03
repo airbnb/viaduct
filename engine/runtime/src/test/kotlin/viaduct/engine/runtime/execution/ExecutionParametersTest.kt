@@ -97,7 +97,7 @@ class ExecutionParametersTest {
     @Test
     fun `forChildPlan reuses field context for object plans`() {
         val parentSource = mapOf("viewer" to "parent")
-        val childAst = selectionSet("name")
+        selectionSet("name")
         val childPlan = queryPlanFor(
             type = fooType,
             attribution = ExecutionAttribution.fromResolver("FooResolver")

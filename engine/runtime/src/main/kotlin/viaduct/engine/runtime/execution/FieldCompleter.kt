@@ -18,7 +18,6 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.asDeferred
 import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.CompositeLocalContext
 import viaduct.engine.runtime.FieldResolutionResult
@@ -76,7 +75,8 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoF
  */
 class FieldCompleter(
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler,
-    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck,
+    @Suppress("DEPRECATION")
+    private val temporaryBypassAccessCheck: viaduct.engine.api.TemporaryBypassAccessCheck,
 ) {
     /**
      * Completes the selection set by completing each field.

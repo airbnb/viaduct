@@ -431,7 +431,7 @@ class JsonConvTest : KotestPropertyBase() {
 
             // Arb<Triple(schema, type, ir)>
             val arb = Arb.graphQLSchema(cfg).map { schema ->
-                val vschema = ViaductSchema(schema)
+                ViaductSchema(schema)
                 Arb.of(schema.allTypesAsList)
                     .flatMap { type ->
                         Arb.ir(schema, type).map { ir ->

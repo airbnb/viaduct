@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
+@Suppress("DEPRECATION")
 class TemporaryBypassAccessCheckTest {
     private val mockField = mockk<Field> {
         every { hasDirective(any()) } returns false

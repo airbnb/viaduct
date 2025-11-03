@@ -82,6 +82,7 @@ class ConvMemoTest {
                         if (it == null) {
                             IR.Value.Null
                         } else {
+                            @Suppress("UNCHECKED_CAST")
                             it as Map<String, Any?>
                             IR.Value.Object(
                                 "Obj",

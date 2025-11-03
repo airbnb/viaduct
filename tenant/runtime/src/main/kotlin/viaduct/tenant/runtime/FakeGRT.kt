@@ -63,6 +63,7 @@ class FakeMutation(ctx: InternalContext, data: EngineObjectData) : FakeObject(ct
  * directly independent of the constructor-protocol of "real" GRTs.
  */
 @FakeGRT
+@Suppress("UNUSED_PARAMETER")
 class FakeArguments(
     context: InternalContext? = null,
     val inputData: Map<String, Any?>,

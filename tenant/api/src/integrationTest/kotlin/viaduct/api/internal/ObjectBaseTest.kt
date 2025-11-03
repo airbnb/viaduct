@@ -615,7 +615,7 @@ class ObjectBaseTest {
             val o12 = O1(
                 internalContext,
                 object : NR() {
-                    override val id get() = throw ExceptionsForTesting.throwViaductFrameworkException("foo")
+                    override val id get() = ExceptionsForTesting.throwViaductFrameworkException("foo")
                 }
             )
             assertEquals(

@@ -824,7 +824,7 @@ class ViaductExecutionStrategyChildPlanTest {
                 val resolvers = mapOf(
                     "Query" to mapOf(
                         "entity" to DataFetcher { env ->
-                            val asUser = env.getArgument<Boolean>("asUser")
+                            val asUser = env.getArgument<Boolean>("asUser") ?: false
                             if (asUser) {
                                 mapOf("__typename" to "User", "id" to "user-1", "name" to "Usery", "restricted" to "secret")
                             } else {
@@ -955,7 +955,7 @@ class ViaductExecutionStrategyChildPlanTest {
                 val resolvers = mapOf(
                     "Query" to mapOf(
                         "entity" to DataFetcher { env ->
-                            val asUser = env.getArgument<Boolean>("asUser")
+                            val asUser = env.getArgument<Boolean>("asUser") ?: false
                             if (asUser) {
                                 mapOf("__typename" to "User", "id" to "user-1", "name" to "Usery", "restricted" to "secret")
                             } else {

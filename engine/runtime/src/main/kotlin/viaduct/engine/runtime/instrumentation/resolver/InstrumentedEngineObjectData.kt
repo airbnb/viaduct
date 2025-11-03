@@ -22,7 +22,7 @@ class InstrumentedEngineObjectData(
 
     override suspend fun fetchSelections(): Iterable<String> = engineObjectData.fetchSelections()
 
-    private suspend inline fun instrumentedFetch(
+    private suspend fun instrumentedFetch(
         selection: String,
         fetchBlock: suspend () -> Any?
     ): Any? {

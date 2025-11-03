@@ -13,7 +13,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.EngineFactory
-import viaduct.engine.EngineGraphQLJavaCompat
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.ViaductSchema
@@ -199,7 +198,9 @@ class EngineRegistry private constructor(
     @Suppress("FunctionName")
     fun getGraphQLEngine_DONOTUSE(schemaId: SchemaId): GraphQL {
         val engine = getEngine(schemaId)
-        return (engine as? EngineGraphQLJavaCompat)?.getGraphQL() ?: throw IllegalStateException("Engine for schema ID $schemaId does not directly expose the GraphQL object.")
+        @Suppress("DEPRECATION")
+        return (engine as? viaduct.engine.EngineGraphQLJavaCompat)?.getGraphQL()
+            ?: throw IllegalStateException("Engine for schema ID $schemaId does not directly expose the GraphQL object.")
     }
 
     private fun createEngine(schemaId: SchemaId): Engine {
