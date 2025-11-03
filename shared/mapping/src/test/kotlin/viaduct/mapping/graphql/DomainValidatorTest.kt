@@ -117,7 +117,7 @@ class DomainValidatorTest : KotestPropertyBase() {
         val schema = mkSchema(
             """
                 input Inp { x:Int }
-                type Query { x:Int }
+                extend type Query { x:Int }
             """.trimIndent()
         )
         val mappedForward = mutableSetOf<String>()

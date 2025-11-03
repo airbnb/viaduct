@@ -37,6 +37,7 @@ import viaduct.arbitrary.graphql.ExplicitNullValueWeight
 import viaduct.arbitrary.graphql.ImplicitNullValueWeight
 import viaduct.arbitrary.graphql.ListValueSize
 import viaduct.arbitrary.graphql.MaxValueDepth
+import viaduct.arbitrary.graphql.TypenameValueWeight
 import viaduct.arbitrary.graphql.sampleWeight
 import viaduct.arbitrary.graphql.weightedChoose
 import viaduct.mapping.graphql.IR
@@ -54,6 +55,7 @@ import viaduct.mapping.graphql.IR
  *   - [ImplicitNullValueWeight]
  *   - [ExplicitNullValueWeight]
  *   - [MaxValueDepth]
+ *   - [TypenameValueWeight]
  */
 fun Arb.Companion.objectIR(
     schema: GraphQLSchema,
@@ -123,7 +125,6 @@ private class IRGen(
         val nonIntrospectionObjectTypes = mutableListOf<GraphQLObjectType>()
         val introspectionObjectTypes = mutableListOf<GraphQLObjectType>()
         val nonIntrospectionInputObjectTypes = mutableListOf<GraphQLInputObjectType>()
-        val introspectionInputObjectTypes = mutableListOf<GraphQLInputObjectType>()
 
         schema.allTypesAsList.forEach { t ->
             when (t) {
@@ -135,11 +136,7 @@ private class IRGen(
                     }
                 }
                 is GraphQLInputObjectType -> {
-                    if (Introspection.isIntrospectionTypes(t)) {
-                        introspectionInputObjectTypes += t
-                    } else {
-                        nonIntrospectionInputObjectTypes += t
-                    }
+                    nonIntrospectionInputObjectTypes += t
                 }
                 else -> {}
             }
@@ -149,7 +146,6 @@ private class IRGen(
             cfg[OutputObjectValueWeight] to nonIntrospectionObjectTypes,
             (cfg[OutputObjectValueWeight] * cfg[IntrospectionObjectValueWeight]) to introspectionObjectTypes,
             cfg[InputObjectValueWeight] to nonIntrospectionInputObjectTypes,
-            (cfg[InputObjectValueWeight] * cfg[IntrospectionObjectValueWeight]) to introspectionObjectTypes
         )
         val weightedArbs = weightedPools
             .filter { it.second.isNotEmpty() }
@@ -204,10 +200,17 @@ private class IRGen(
                 }
 
                 type is GraphQLObjectType -> {
-                    val nameValuePairs = type.fields
+                    val fieldValues = type.fields
                         .filterNot { overBudget || rs.sampleWeight(cfg[ImplicitNullValueWeight]) }
-                        .map { f -> f.name to genValue(push(f.type)) }
-                    IR.Value.Object(type.name, nameValuePairs.toMap())
+                        .associate { f -> f.name to genValue(push(f.type)) }
+
+                    val typenameValue = if (rs.sampleWeight(cfg[TypenameValueWeight])) {
+                        mapOf("__typename" to IR.Value.String(type.name))
+                    } else {
+                        emptyMap()
+                    }
+
+                    IR.Value.Object(type.name, fieldValues + typenameValue)
                 }
 
                 type is GraphQLUnionType -> {

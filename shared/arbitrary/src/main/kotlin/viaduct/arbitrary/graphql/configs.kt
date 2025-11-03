@@ -142,6 +142,15 @@ object EnumTypeSize : ConfigKey<IntRange>(1..3, IntRangeValidator(1..Int.MAX_VAL
 object ImplicitNullValueWeight : ConfigKey<Double>(.1, WeightValidator)
 
 /**
+ * The probability that a `__typename` field value will be generated for values of [IR.Value.Object]
+ * This weight is sampled independently of [ImplicitNullValueWeight].
+ *
+ * For example, configuring [TypenameValueWeight]=1.0, [ImplicitNullValueWeight]=1.0 will cause a
+ * __typename field to be generated for every object value.
+ */
+object TypenameValueWeight : ConfigKey<Double>(.2, WeightValidator)
+
+/**
  * For types that support it, the probability that a generated GraphQL value will
  * be explicitly null (ie value == `null`).
  *

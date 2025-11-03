@@ -26,6 +26,7 @@ import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.flatten
 import viaduct.arbitrary.graphql.GenInterfaceStubsIfNeeded
+import viaduct.arbitrary.graphql.TypenameValueWeight
 import viaduct.arbitrary.graphql.graphQLSchema
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.mkSchema
@@ -352,7 +353,10 @@ class JsonConvTest : KotestPropertyBase() {
         val str = """{"x":1,"__typename":"A"}"""
         val ir = conv(str)
         assertEquals(
-            IR.Value.Object("A", mapOf("x" to IR.Value.Number(1))),
+            IR.Value.Object(
+                "A",
+                mapOf("x" to IR.Value.Number(1), "__typename" to IR.Value.String("A"))
+            ),
             ir
         )
         val str2 = conv.invert(ir)
@@ -387,7 +391,10 @@ class JsonConvTest : KotestPropertyBase() {
         val str = """{"x":1,"__typename":"A"}"""
         val ir = conv(str)
         assertEquals(
-            IR.Value.Object("A", mapOf("x" to IR.Value.Number(1))),
+            IR.Value.Object(
+                "A",
+                mapOf("x" to IR.Value.Number(1), "__typename" to IR.Value.String("A"))
+            ),
             ir
         )
         val str2 = conv.invert(ir)
@@ -427,14 +434,15 @@ class JsonConvTest : KotestPropertyBase() {
     @Test
     fun `roundtrips arb ir for arb objects`(): Unit =
         runBlocking {
-            val cfg = Config.default + (GenInterfaceStubsIfNeeded to true)
+            val cfg = Config.default +
+                (GenInterfaceStubsIfNeeded to true) +
+                (TypenameValueWeight to 1.0)
 
             // Arb<Triple(schema, type, ir)>
             val arb = Arb.graphQLSchema(cfg).map { schema ->
-                ViaductSchema(schema)
                 Arb.of(schema.allTypesAsList)
                     .flatMap { type ->
-                        Arb.ir(schema, type).map { ir ->
+                        Arb.ir(schema, type, cfg).map { ir ->
                             Triple(schema, type, ir)
                         }
                     }
@@ -442,7 +450,7 @@ class JsonConvTest : KotestPropertyBase() {
                     .toList()
             }.flatten()
 
-            arb.forAll(1_000) { (schema, type, ir) ->
+            arb.forAll { (schema, type, ir) ->
                 val roundtripper = JsonConv(ViaductSchema(schema), type)
                     .let { conv -> conv.inverse() andThen conv }
 

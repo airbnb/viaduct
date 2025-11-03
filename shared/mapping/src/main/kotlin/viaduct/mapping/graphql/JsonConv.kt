@@ -231,7 +231,8 @@ object JsonConv {
                 is GraphQLList -> list(mk(type.wrappedType))
                 is GraphQLObjectType ->
                     convMemo.buildIfAbsent(type.name) {
-                        val fieldConvs = type.fields.associate { f -> f.name to mk(f.type) }
+                        val fieldConvs = type.fields.associate { f -> f.name to mk(f.type) } +
+                            (__typename to string)
                         obj(type.name, fieldConvs)
                     }
 

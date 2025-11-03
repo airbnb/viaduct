@@ -14,6 +14,8 @@ import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
+import io.kotest.property.arbitrary.boolean
+import io.kotest.property.arbitrary.double
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.map
@@ -33,7 +35,9 @@ import viaduct.arbitrary.graphql.ExplicitNullValueWeight
 import viaduct.arbitrary.graphql.ImplicitNullValueWeight
 import viaduct.arbitrary.graphql.ListValueSize
 import viaduct.arbitrary.graphql.MaxValueDepth
+import viaduct.arbitrary.graphql.TypenameValueWeight
 import viaduct.arbitrary.graphql.asIntRange
+import viaduct.graphql.utils.DefaultSchemaProvider
 import viaduct.mapping.test.IntrospectionObjectValueWeight
 import viaduct.mapping.test.OutputObjectValueWeight
 import viaduct.mapping.test.inputObjectIR
@@ -131,12 +135,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `does not generate unsupported scalar values`(): Unit =
         runBlocking {
-            val schema = mkSchema(
-                """
-                scalar UnsupportedScalar
-                type Query { placeholder:Int }
-                """.trimIndent()
-            )
+            val schema = mkSchema("scalar UnsupportedScalar")
             val arb = arbitrary { rs ->
                 runCatching {
                     Arb.ir(schema, schema.scalar("UnsupportedScalar").nonNullable)
@@ -222,7 +221,6 @@ class ArbIRTest : KotestPropertyBase() {
                 """
                 interface I {x:Int}
                 type A implements I {x:Int}
-                type Query { empty:Int }
                 """.trimIndent()
             )
             Arb.ir(schema, schema.getType("I").nonNullable).forAll {
@@ -237,7 +235,6 @@ class ArbIRTest : KotestPropertyBase() {
                 """
                 type A { x:Int }
                 union U = A
-                type Query { empty:Int }
                 """.trimIndent()
             )
             Arb.ir(schema, schema.getType("U").nonNullable).forAll {
@@ -248,12 +245,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `generates enum values`(): Unit =
         runBlocking {
-            val schema = mkSchema(
-                """
-                enum E { A, B, C }
-                type Query { placeholder: Int }
-                """.trimIndent()
-            )
+            val schema = mkSchema("enum E { A, B, C }")
             Arb.ir(schema, schema.getType("E").nonNullable)
                 .forAll { it is IR.Value.String && it.value in setOf("A", "B", "C") }
         }
@@ -261,13 +253,38 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `generates object values`(): Unit =
         runBlocking {
-            val schema = mkSchema("type Query {x:Int, y:Int}")
+            val schema = mkSchema("extend type Query {x:Int, y:Int}")
             Arb.ir(schema, schema.queryType.nonNullable)
                 .forAll {
                     it is IR.Value.Object &&
                         it.name == "Query" &&
-                        setOf("x", "y").containsAll(it.fields.keys)
+                        setOf("x", "y", "__typename").containsAll(it.fields.keys)
                 }
+        }
+
+    @Test
+    fun `generates object values -- TypenameValueWeight`(): Unit =
+        runBlocking {
+            val schema = mkSchema("extend type Query {x:Int}")
+            val arb = arbitrary {
+                val genTypename = Arb.boolean().bind()
+                val implicitNullValueWeight = Arb.double(0.0, 1.0, includeNonFiniteEdgeCases = false).bind()
+                val cfg = Config.default +
+                    (ImplicitNullValueWeight to implicitNullValueWeight) +
+                    (TypenameValueWeight to (if (genTypename) 1.0 else 0.0))
+
+                val ir = Arb.ir(schema, schema.queryType.nonNullable, cfg).bind()
+                ir to genTypename
+            }
+
+            arb.forAll { (ir, genTypename) ->
+                ir as IR.Value.Object
+                if (genTypename) {
+                    ir.fields["__typename"] == IR.Value.String("Query")
+                } else {
+                    "__typename" !in ir.fields
+                }
+            }
         }
 
     @Test
@@ -276,7 +293,7 @@ class ArbIRTest : KotestPropertyBase() {
             val schema = mkSchema(
                 """
                 type O { x:Int! }
-                type Query { o:O! }
+                extend type Query { o:O! }
                 """.trimIndent()
             )
             val cfg = Config.default + (ImplicitNullValueWeight to 0.0)
@@ -290,7 +307,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `generates object values -- non-nullable object cycles can be generated without ImplicitNullValueWeight`(): Unit =
         runBlocking {
-            val schema = mkSchema("type Query { q:Query! }")
+            val schema = mkSchema("extend type Query { q:Query! }")
 
             // even with ImplicitNullValueWeight set to 0, MaxValueDepth should prevent infinite objects
             // It is sufficient to check that this function returns at all.
@@ -302,7 +319,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `generates object values -- non-nullable object cycles can be generated with ImplicitNullValueWeight`(): Unit =
         runBlocking {
-            val schema = mkSchema("type Query { q:Query! }")
+            val schema = mkSchema("extend type Query { q:Query! }")
 
             // Even with a high MaxValueDepth, a high ImplicitNullValueWeight should allow
             // non-nullable object cycles to be generated in a reasonable amount of time
@@ -314,30 +331,34 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `generates introspection objects`(): Unit =
         runBlocking {
+            val introspectionTypes = emptySchema.allTypesAsList
+                .mapNotNull {
+                    when {
+                        it is GraphQLObjectType && it.name.startsWith("__") -> it.name
+                        else -> null
+                    }
+                }.toSet()
+
             // introspection value generation enabled
             Arb.objectIR(emptySchema, cfg = Config.default + (IntrospectionObjectValueWeight to 1.0))
                 .asSequence(randomSource)
-                .take(10_000)
-                .any { it.name.startsWith("__") }
-                .let(::assertTrue)
+                .take(1_000)
+                .toList()
+                .mapNotNull { it.name.takeIf { it.startsWith("__") } }
+                .let { names ->
+                    assertTrue(names.size > 0)
+                    assertTrue(names.all { it in introspectionTypes })
+                }
 
             // introspection value generation disabled
             Arb.objectIR(emptySchema, cfg = Config.default + (IntrospectionObjectValueWeight to 0.0))
-                .asSequence(randomSource)
-                .take(10_000)
-                .all { !it.name.startsWith("__") }
-                .let(::assertTrue)
+                .forAll { it.name !in introspectionTypes }
         }
 
     @Test
     fun `generates input object values`(): Unit =
         runBlocking {
-            val schema = mkSchema(
-                """
-                input Inp { x:Int }
-                type Query { x:Int }
-                """.trimIndent()
-            )
+            val schema = mkSchema("input Inp { x:Int }")
             val cfg = Config.default + (OutputObjectValueWeight to 0.0)
             Arb.ir(schema, schema.getType("Inp").nonNullable, cfg)
                 .forAll { it is IR.Value.Object && it.name == "Inp" }
@@ -350,7 +371,6 @@ class ArbIRTest : KotestPropertyBase() {
                 """
                 input Inner { x:Int }
                 input Inp { inner:Inner! }
-                type Query { x:Int }
                 """.trimIndent()
             )
             Arb.ir(schema, schema.getType("Inp").nonNullable).forAll {
@@ -362,13 +382,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `generates input object values -- cyclic input objects`(): Unit =
         runBlocking {
-            val schema = mkSchema(
-                """
-                input Inp { inp:Inp }
-                type Query { x:Int }
-                """.trimIndent()
-            )
-
+            val schema = mkSchema("input Inp { inp:Inp }")
             // ensure that the default configuration can generate an input object in a
             // reasonable amount of time
             Arb.ir(schema, schema.getType("Inp").nonNullable, Config.default)
@@ -378,12 +392,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `generates input object values -- unset fields when field has default value`(): Unit =
         runBlocking {
-            val schema = mkSchema(
-                """
-                input Inp { x:Int! = 0 }
-                type Query { x:Int }
-                """.trimIndent()
-            )
+            val schema = mkSchema("input Inp { x:Int! = 0 }")
 
             // When ImplicitNullValueWeight is 0.0, expect that a field value will always be set
             Arb.inputObjectIR(schema, Config.default + (ImplicitNullValueWeight to 0.0))
@@ -397,12 +406,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `Arb_objectIR -- returns a mix of input and output objects`(): Unit =
         runBlocking {
-            val schema = mkSchema(
-                """
-                input Inp {x:Int}
-                type Query {x:Int}
-                """.trimIndent()
-            )
+            val schema = mkSchema("input Inp {x:Int}")
             val seq = Arb.objectIR(schema)
                 .asSequence(randomSource)
                 .take(1_000)
@@ -416,13 +420,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `Arb_outputObjectIR -- returns output object values`(): Unit =
         runBlocking {
-            val schema = mkSchema(
-                """
-                input Inp {x:Int}
-                type Query {x:Int}
-                """.trimIndent()
-            )
-
+            val schema = mkSchema("input Inp {x:Int}")
             Arb.outputObjectIR(schema)
                 .forAll { schema.getType(it.name) is GraphQLObjectType }
         }
@@ -430,13 +428,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `Arb_inputObjectIR -- returns input object values`(): Unit =
         runBlocking {
-            val schema = mkSchema(
-                """
-                input Inp {x:Int}
-                type Query {x:Int}
-                """.trimIndent()
-            )
-
+            val schema = mkSchema("input Inp {x:Int}")
             Arb.inputObjectIR(schema)
                 .forAll { schema.getType(it.name) is GraphQLInputObjectType }
         }
@@ -451,21 +443,10 @@ internal val GraphQLType.nonNullable: GraphQLType get() =
 
 internal fun GraphQLSchema.scalar(name: String): GraphQLScalarType = getTypeAs(name)
 
-internal fun mkSchema(sdl: String): GraphQLSchema =
-    UnExecutableSchemaGenerator.makeUnExecutableSchema(
-        SchemaParser().parse(sdl)
-    )
+internal fun mkSchema(sdl: String): GraphQLSchema {
+    val tdr = SchemaParser().parse(sdl)
+        .also(DefaultSchemaProvider::addDefaults)
+    return UnExecutableSchemaGenerator.makeUnExecutableSchema(tdr)
+}
 
-internal val emptySchema = mkSchema(
-    """
-            scalar BackingData
-            scalar Byte
-            scalar Date
-            scalar DateTime
-            scalar JSON
-            scalar Long
-            scalar Short
-            scalar Time
-            type Query { placeholder:Int }
-    """.trimIndent()
-)
+internal val emptySchema = mkSchema("extend type Query { placeholder:Int }")
