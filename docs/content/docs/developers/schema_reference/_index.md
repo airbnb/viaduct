@@ -1,7 +1,7 @@
 ---
 title: Schema Reference
 description: Viaduct's built-in directives, types, scalars, and schema components
-weight: 5
+weight: 50
 ---
 
 Viaduct automatically provides a rich set of built-in schema components that are available in every application. This reference documents the directives, types, scalars, and other schema elements provided by the framework.
