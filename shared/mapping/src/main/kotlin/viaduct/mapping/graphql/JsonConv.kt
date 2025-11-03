@@ -15,12 +15,17 @@ import java.time.LocalDate
 import java.time.OffsetTime
 import viaduct.engine.api.ViaductSchema
 
+/**
+ * Factory methods for [Conv]s that map between Json and [IR] representations.
+ *
+ * @see invoke
+ */
 object JsonConv {
     private val objectMapper = ObjectMapper()
     @Suppress("ObjectPropertyNaming")
     private val __typename = "__typename"
 
-    /** create a [JsonConv] for the given [type] */
+    /** create a [Conv] for the given [type] */
     operator fun invoke(
         schema: ViaductSchema,
         type: GraphQLType
@@ -29,13 +34,15 @@ object JsonConv {
     private fun json(inner: Conv<Any?, IR.Value>): Conv<String, IR.Value> =
         Conv(
             forward = { inner(objectMapper.readValue(it, Any::class.java)) },
-            inverse = { objectMapper.writeValueAsString(inner.invert(it)) }
+            inverse = { objectMapper.writeValueAsString(inner.invert(it)) },
+            "json-$inner"
         )
 
     private fun list(inner: Conv<Any?, IR.Value>): Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.List((it as List<*>).map(inner)) },
-            inverse = { (it as IR.Value.List).value.map(inner::invert) }
+            inverse = { (it as IR.Value.List).value.map(inner::invert) },
+            "list-$inner"
         )
 
     private fun obj(
@@ -58,7 +65,8 @@ object JsonConv {
                     val fieldConv = requireNotNull(fieldConvs[k])
                     fieldConv.invert(v)
                 }
-            }
+            },
+            "obj-$name"
         )
 
     private fun abstract(
@@ -81,70 +89,84 @@ object JsonConv {
                 @Suppress("UNCHECKED_CAST")
                 val result = concrete.invert(it) as Map<String, Any?>
                 result + (__typename to it.name)
-            }
+            },
+            "abstract-$name"
         )
 
     private val boolean: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.Boolean(it as Boolean) },
-            inverse = { (it as IR.Value.Boolean).value }
+            inverse = { (it as IR.Value.Boolean).value },
+            "boolean"
         )
 
     private val int: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.Number((it as Number).toInt()) },
-            inverse = { (it as IR.Value.Number).int }
+            inverse = { (it as IR.Value.Number).int },
+            "int"
         )
 
     private val byte: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.Number((it as Number).toByte()) },
-            inverse = { (it as IR.Value.Number).byte }
+            inverse = { (it as IR.Value.Number).byte },
+            "byte"
         )
 
     private val short: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.Number((it as Number).toShort()) },
-            inverse = { (it as IR.Value.Number).short }
+            inverse = { (it as IR.Value.Number).short },
+            "short"
         )
 
     private val long: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.Number((it as Number).toLong()) },
-            inverse = { (it as IR.Value.Number).long }
+            inverse = { (it as IR.Value.Number).long },
+            "long"
         )
 
     private val float: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.Number((it as Number).toDouble()) },
-            inverse = { (it as IR.Value.Number).double }
+            inverse = { (it as IR.Value.Number).double },
+            "float"
         )
 
     private val string: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.String(it as String) },
-            inverse = { (it as IR.Value.String).value }
+            inverse = { (it as IR.Value.String).value },
+            "string"
         )
 
     private val date: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.Time(LocalDate.parse(it as String)) },
-            inverse = { (it as IR.Value.Time).localDate.toString() }
+            inverse = { (it as IR.Value.Time).localDate.toString() },
+            "date"
         )
 
     private val instant: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.Time(Instant.parse(it as String)) },
-            inverse = { (it as IR.Value.Time).instant.toString() }
+            inverse = { (it as IR.Value.Time).instant.toString() },
+            "instant"
         )
 
     private val time: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.Time(OffsetTime.parse(it as String)) },
-            inverse = { (it as IR.Value.Time).offsetTime.toString() }
+            inverse = { (it as IR.Value.Time).offsetTime.toString() },
+            "time"
         )
 
-    private fun enum(values: Set<String>): Conv<Any?, IR.Value> =
+    private fun enum(
+        name: String,
+        values: Set<String>
+    ): Conv<Any?, IR.Value> =
         Conv(
             forward = {
                 it as String
@@ -155,7 +177,8 @@ object JsonConv {
                 it as IR.Value.String
                 require(it.value in values)
                 it.value
-            }
+            },
+            "enum-$name"
         )
 
     private fun nonNullable(inner: Conv<Any?, IR.Value>): Conv<Any?, IR.Value> =
@@ -164,7 +187,8 @@ object JsonConv {
             inverse = {
                 require(it != IR.Value.Null)
                 inner.invert(it)
-            }
+            },
+            "nonNullable-$inner"
         )
 
     private fun nullable(inner: Conv<Any?, IR.Value>): Conv<Any?, IR.Value> =
@@ -182,7 +206,8 @@ object JsonConv {
                 } else {
                     inner.invert(it)
                 }
-            }
+            },
+            "nullable-$inner"
         )
 
     /** A builder that can recursively build a single conv */
@@ -231,7 +256,7 @@ object JsonConv {
                         obj(type.name, fieldConvs)
                     }
 
-                is GraphQLEnumType -> enum(type.values.map { it.name }.toSet())
+                is GraphQLEnumType -> enum(type.name, type.values.map { it.name }.toSet())
 
                 is GraphQLScalarType -> when (type.name) {
                     "Boolean" -> boolean
