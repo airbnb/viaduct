@@ -24,7 +24,7 @@ val viaductPublishing = extensions.create<ViaductPublishingExtension>("viaductPu
 
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
-    publishToMavenCentral(automaticRelease = false)
+    publishToMavenCentral(automaticRelease = true)
     if (isRelease) {
         signAllPublications()
     }
