@@ -28,6 +28,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.jdk8)
 
     testImplementation(testFixtures(libs.viaduct.engine.api))
+    testImplementation(testFixtures(libs.viaduct.service.api))
     testImplementation(testFixtures(libs.viaduct.shared.graphql))
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.io.mockk.dsl)

@@ -55,6 +55,10 @@ import viaduct.service.runtime.noderesolvers.ViaductNodeResolverAPIBootstrapper
  *
  * * this: an [Engine] (whose functions can be called unqualified)
  * * ExecutionResult.assertJson(String): compares `this` converted to JSON to an expectation
+ *
+ * Note that Viaduct turns exceptions thrown by resolvers into field errors.  Thus,
+ * assertions placed in resolvers will _not_ cause tests to fail if you don't check
+ * query results to esnure that they have no errors.
  */
 fun MockTenantModuleBootstrapper.runFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
