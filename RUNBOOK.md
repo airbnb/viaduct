@@ -83,15 +83,92 @@ Update parameters as needed. This workflow will:
     - If the release manager rejects the release, start over with an incremented patch version. Once artifacts are published, they may not be changed.
 11. If the release manager is satisfied, manually publish the Sonatype deployments. Make sure to publish all three deployments. Publishing takes 5-10 minutes.
 12. Release manager must verify standalone demo apps against the newly published versions of artifacts in Maven Central and Gradle Plugin Portal.
-      - At their discretion, the release manager uses copybara to update the standalone demo apps. From `projects/viaduct/oss` in Treehouse:
+      - Demo apps are published only on **release branches** (format: `release/v[major].[minor].[patch]`)
+      - Each demo app must build successfully and have a `viaductVersion` that matches the release version
+      - **Publishing with GitHub Actions (Recommended)**:
+        1. Ensure you're on a release branch (e.g., `release/v0.7.0`)
+        2. Go to the Actions tab in GitHub at `airbnb/viaduct`
+        3. Select "Publish Demo Apps" workflow
+        4. Click "Run workflow" and select the release branch
 
+        The workflow will:
+        - Validate each demo app in parallel (version check + build)
+        - Update each demo app's `gradle.properties` with the release version
+        - Use Copybara to sync each demo app to its external repository
+
+      - **Local validation before publishing**:
         ```shell
-        export IS_RELEASE=true
-        export PUBLISHED_VERSION=0.X.0
-        python3 _infra/scripts/publish_all_demoapps.py
+        # Validate a specific demo app
+        python3 ./.github/scripts/validate_demoapp.py starwars
         ```
 
+      - **Manual copybara execution (Advanced)**:
+        ```shell
+        # Ensure SSH keys are configured
+        ssh -T git@github.com
+
+        # Run copybara manually from projects/viaduct/oss
+        tools/copybara/run migrate \
+          .github/copybara/copy.bara.sky \
+          airbnb-viaduct-to-starwars \
+          --git-destination-url=git@github.com:viaduct-graphql/starwars.git \
+          --git-committer-email=viabot@ductworks.io \
+          --git-committer-name=ViaBot \
+          --force
+        ```
+
+      - **Demo apps published**:
+        - `starwars` → `viaduct-graphql/starwars`
+        - `cli-starter` → `viaduct-graphql/cli-starter`
+        - `ktor-starter` → `viaduct-graphql/ktor-starter`
+
+      - **Troubleshooting**:
+        - **Version mismatch**: Update `viaductVersion` in demo app's `gradle.properties` to match branch version
+        - **Build failure**: Test locally with `cd demoapps/starwars && ./gradlew clean build`
+        - **Not on release branch**: Create and switch to a release branch (format: `release/v[major].[minor].[patch]`)
+        - **Authentication errors**: Verify GitHub secrets are configured (`VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN`)
+        - **SSH authentication**: Ensure keys are in GitHub and agent is running (`ssh-add ~/.ssh/id_rsa`)
+
 13. Release manager manually publishes the Github release.
+
+### Adding a New Demo App
+
+To add a new demo app to the publishing workflow:
+
+1. **Add the demo app to the Copybara config** (`.github/copybara/copy.bara.sky`):
+   ```python
+   DEMO_APPS = [
+       "starwars",
+       "cli-starter",
+       "ktor-starter",
+       "your-new-app",  # Add here
+   ]
+   ```
+
+2. **Add the demo app to the workflow** (`.github/workflows/publish-demoapps.yml`):
+
+   In the `validate` job matrix:
+   ```yaml
+   matrix:
+     demoapp: [starwars, cli-starter, ktor-starter, your-new-app]
+   ```
+
+   In the `publish` job matrix:
+   ```yaml
+   matrix:
+     include:
+       - name: starwars
+         repo: viaduct-graphql/starwars
+       - name: your-new-app
+         repo: viaduct-graphql/your-new-app
+   ```
+
+3. **Ensure the demo app has proper structure**:
+   - Located in `demoapps/your-new-app/`
+   - Has a `gradle.properties` with `viaductVersion` property
+   - Builds independently with `./gradlew build`
+
+4. **Create the destination repository** in the `viaduct-graphql` organization on GitHub
 
 ### Inbound Pull Request Process
 
