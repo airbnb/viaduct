@@ -16,6 +16,8 @@ src/main/viaduct/schemabase/
 
 Any `.graphqls` files in this directory (including subdirectories) are automatically added to your application's schema during the build process. You do **not** need to manually configure or register these files.
 
+**Note:** Viaduct does not yet support custom scalars.
+
 ## Build integration
 
 The `assembleViaductCentralSchema` Gradle task automatically:

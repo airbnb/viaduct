@@ -166,12 +166,12 @@ Viaduct automatically provides these root query fields when your schema uses the
 
 ```graphql
 extend type Query @scope(to: ["*"]) {
-  node(id: ID!): Node @resolver
-  nodes(ids: [ID!]!): [Node]! @resolver
+  node(id: ID!): Node
+  nodes(ids: [ID!]!): [Node]!
 }
 ```
 
-These fields come with built-in resolvers that work with Viaduct's Global ID system. You don't need to implement resolvers for these fields unless you want custom behavior.
+`Query.node` and `Query.nodes` come with built-in resolvers that work with Viaduct's Global ID system: based on the type embedded in a GlobalID, they will automatically call that type's node-resolver to obtain their results.
 
 ## Built-in Scalars
 
@@ -217,19 +217,13 @@ Arbitrary precision integer.
 
 **Kotlin type mapping:** `java.math.BigInteger`
 
-### Object
+### JSON
 
 Generic JSON object type. Can represent any JSON structure.
 
 **Example value:** `{"key": "value", "nested": {"count": 42}}`
 
 **Kotlin type mapping:** `com.fasterxml.jackson.databind.JsonNode`
-
-### Upload
-
-File upload type for multipart form data.
-
-**Kotlin type mapping:** Implementation-specific
 
 ### BackingData
 
