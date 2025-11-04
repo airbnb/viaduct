@@ -8,7 +8,6 @@ import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import java.time.OffsetDateTime
 import kotlin.reflect.KClass
-import kotlin.reflect.full.declaredMemberProperties
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantUsageException
 import viaduct.api.globalid.GlobalID
@@ -36,20 +35,6 @@ abstract class InputLikeBase : InputLike {
 
     fun isPresent(fieldName: String): Boolean {
         return inputData.containsKey(fieldName)
-    }
-
-    @Suppress("unused")
-    protected fun setFieldsOnBuilder(builder: Builder) {
-        inputData.keys.forEach { fieldName ->
-            val setterFunc = builder::class.java.declaredMethods.find { it.name == fieldName } ?: throw ViaductFrameworkException(
-                "Setter function not found for field ${graphQLInputObjectType.name}.$fieldName"
-            )
-            val property = this::class.java.kotlin.declaredMemberProperties.find { it.name == fieldName } ?: throw ViaductFrameworkException(
-                "Property not found for field ${graphQLInputObjectType.name}.$fieldName"
-            )
-            val value = property.getter.call(this)
-            setterFunc.invoke(builder, value)
-        }
     }
 
     protected fun <T> get(

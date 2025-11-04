@@ -225,8 +225,9 @@ private class InputClassGen(
             kmFun,
             buildString {
                 append("{\n")
-                append("final ${builderName.asJavaName} builder = new ${builderName.asJavaName}(this.getContext(), this.getGraphQLInputObjectType());")
-                append("this.setFieldsOnBuilder(builder);")
+                append("java.util.LinkedHashMap inputDataCopy = new java.util.LinkedHashMap();\n")
+                append("inputDataCopy.putAll(this.getInputData());\n")
+                append("final ${builderName.asJavaName} builder = new ${builderName.asJavaName}(this.getContext(), this.getGraphQLInputObjectType(), inputDataCopy);\n")
                 append("return builder;\n")
                 append("}")
             }

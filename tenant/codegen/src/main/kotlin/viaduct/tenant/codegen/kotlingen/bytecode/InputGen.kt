@@ -82,23 +82,19 @@ private val inputSTGroup =
             val <f.escapedName>: <f.kotlinType> get() = TODO()
         }; separator="\n">
 
-        fun toBuilder(): Builder {
-            val builder = Builder(context, graphQLInputObjectType)
-            setFieldsOnBuilder(builder)
-            return builder
-        }
+        fun toBuilder() = Builder(context, graphQLInputObjectType, this.inputData.toMutableMap())
 
         class Builder internal constructor(
             override val context: InternalContext,
             override val graphQLInputObjectType: GraphQLInputObjectType,
+            override val inputData: MutableMap\<String, Any?> = TODO()
         ) : InputLikeBase.Builder() {
 
             constructor(context: ExecutionContext): this(
                 context.internal,
-                <mdl.taggingInterface>.inputType("<mdl.className>", context.internal.schema)
+                <mdl.taggingInterface>.inputType("<mdl.className>", context.internal.schema),
+                mutableMapOf()
             )
-
-            override val inputData: MutableMap\<String, Any?> = TODO()
 
             init {
                 TODO()

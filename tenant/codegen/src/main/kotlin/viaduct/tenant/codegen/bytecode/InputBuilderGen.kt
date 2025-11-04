@@ -9,6 +9,7 @@ import kotlinx.metadata.KmValueParameter
 import kotlinx.metadata.KmVariance
 import kotlinx.metadata.Modality
 import kotlinx.metadata.Visibility
+import kotlinx.metadata.declaresDefaultValue
 import kotlinx.metadata.hasAnnotations
 import kotlinx.metadata.isNullable
 import kotlinx.metadata.isSecondary
@@ -104,7 +105,7 @@ private class InputBuilderGenV2(
                 inputDataType,
                 inputDataType,
                 isVariable = false,
-                constructorProperty = false
+                constructorProperty = true
             ).apply {
                 getterVisibility(Visibility.PROTECTED)
                 propertyModality(Modality.OPEN)
@@ -129,6 +130,17 @@ private class InputBuilderGenV2(
         )
 
     private fun CustomClassBuilder.addInternalConstructorWithContextAndGraphqlType(): CustomClassBuilder {
+        val inputDataType = Km.MUTABLE_MAP.asType().also {
+            it.arguments += KmTypeProjection(
+                KmVariance.INVARIANT,
+                Km.STRING.asType()
+            )
+            it.arguments += KmTypeProjection(
+                KmVariance.INVARIANT,
+                Km.ANY.asNullableType()
+            )
+        }
+
         val kmConstructor = KmConstructor().apply {
             visibility = Visibility.INTERNAL
             hasAnnotations = false
@@ -140,6 +152,10 @@ private class InputBuilderGenV2(
                     },
                     KmValueParameter("graphQLInputObjectType").apply {
                         type = graphQLInputObjectType
+                    },
+                    KmValueParameter("inputData").apply {
+                        type = inputDataType
+                        declaresDefaultValue = true
                     },
                 )
             )
@@ -155,17 +171,22 @@ private class InputBuilderGenV2(
                 append("\n")
                 append(checkNotNullParameterExpression(graphQLInputObjectType, 2, "graphQLInputObjectType"))
                 append("\n")
+                append(checkNotNullParameterExpression(inputDataType, 3, "inputData"))
+                append("\n")
                 append("this.context = $1;\n")
                 append("this.graphQLInputObjectType = $2;\n")
-                append("this.inputData = new java.util.LinkedHashMap();\n")
+                append("this.inputData = $3;\n")
 
                 defaultFields.forEach { field ->
                     val defaultValue = field.defaultValue?.let { ValueConverter.standard.convert(field.type, it as Value<*>) }
-                    append("${generatePutFieldNameWithValue("this.inputData", field, defaultValue)}\n")
+                    append("if (!this.inputData.containsKey(\"${field.name}\")) {\n")
+                    append("  ${generatePutFieldNameWithValue("this.inputData", field, defaultValue)}\n")
+                    append("}\n")
                 }
 
                 append("}")
-            }
+            },
+            defaultParamValues = mapOf(JavaIdName("inputData") to "new java.util.LinkedHashMap()")
         )
 
         return this
@@ -237,7 +258,8 @@ private class InputBuilderGenV2(
                     ${inputTaggingInterface.asJavaName}.Companion.inputType(
                         "$className",
                         (${castObjectExpression(internalContextType, "$1")}).getSchema()
-                    )
+                    ),
+                    new java.util.LinkedHashMap()
                 );
             """.trimIndent(),
             body = buildString {
