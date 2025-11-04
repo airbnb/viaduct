@@ -183,14 +183,14 @@ Treehouse:
     - **Option 1: Using pull-me (recommended, requires gh CLI)**:
       - **One-time setup**:
         - Authenticate with GitHub CLI: `gh auth login` (for github.com) and `gh auth login --hostname git.musta.ch` (for internal GHE)
-        - Configure your GitHub username: `yak config githubUsername YOUR_GITHUB_USERNAME`
+        - Configure your GitHub username: `echo "githubUsername: YOUR_GITHUB_USERNAME" >> ~/.yak/config.yml`
       - Run `yak script projects/viaduct/oss:pull-me` to automatically pull your latest PR, or
       - Run `yak script projects/viaduct/oss:pull-me <PR_NUMBER>` to pull a specific PR
       - Use `--override` flag to re-run with force push: `yak script projects/viaduct/oss:pull-me --override <PR_NUMBER>`
     - **Option 2: Using manual-inbound (uses tokens)**:
       - **One-time setup**: Configure your GitHub username:
         ```shell
-        yak config githubUsername YOUR_GITHUB_USERNAME
+        echo "githubUsername: YOUR_GITHUB_USERNAME" >> ~/.yak/config.yml
         ```
       - Run `yak script projects/viaduct/oss:manual-inbound` to automatically pull your latest PR, or
       - Run `yak script projects/viaduct/oss:manual-inbound <PR_NUMBER>` to pull a specific PR
