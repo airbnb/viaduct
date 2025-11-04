@@ -1,5 +1,7 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
+import viaduct.engine.api.instrumentation.resolver.FetchFunction
+import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 
 /**
@@ -9,19 +11,9 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 class ThrowingResolverInstrumentation(
     private val exceptionMessage: String = "Instrumentation failed",
     private val throwOnCreateState: Boolean = false,
-    private val throwOnBeginExecute: Boolean = false,
-    private val throwOnBeginFetch: Boolean = false,
-    private val throwOnCompleted: Boolean = false
+    private val throwOnInstrumentExecute: Boolean = false,
+    private val throwOnInstrumentFetch: Boolean = false
 ) : ViaductResolverInstrumentation {
-    class ThrowingOnCompleted(private val exceptionMessage: String) : ViaductResolverInstrumentation.OnCompleted {
-        override fun onCompleted(
-            result: Any?,
-            error: Throwable?
-        ) {
-            throw RuntimeException(exceptionMessage)
-        }
-    }
-
     override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
         if (throwOnCreateState) {
             throw RuntimeException(exceptionMessage)
@@ -29,31 +21,25 @@ class ThrowingResolverInstrumentation(
         return RecordingResolverInstrumentation.RecordingInstrumentationState()
     }
 
-    override fun beginExecuteResolver(
+    override fun <T> instrumentResolverExecution(
+        resolver: ResolverFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentExecuteResolverParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?
-    ): ViaductResolverInstrumentation.OnCompleted {
-        if (throwOnBeginExecute) {
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): ResolverFunction<T> {
+        if (throwOnInstrumentExecute) {
             throw RuntimeException(exceptionMessage)
         }
-        return if (throwOnCompleted) {
-            ThrowingOnCompleted(exceptionMessage)
-        } else {
-            ViaductResolverInstrumentation.NOOP_ON_COMPLETED
-        }
+        return resolver
     }
 
-    override fun beginFetchSelection(
+    override fun <T> instrumentFetchSelection(
+        fetchFn: FetchFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?
-    ): ViaductResolverInstrumentation.OnCompleted {
-        if (throwOnBeginFetch) {
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): FetchFunction<T> {
+        if (throwOnInstrumentFetch) {
             throw RuntimeException(exceptionMessage)
         }
-        return if (throwOnCompleted) {
-            ThrowingOnCompleted(exceptionMessage)
-        } else {
-            ViaductResolverInstrumentation.NOOP_ON_COMPLETED
-        }
+        return fetchFn
     }
 }

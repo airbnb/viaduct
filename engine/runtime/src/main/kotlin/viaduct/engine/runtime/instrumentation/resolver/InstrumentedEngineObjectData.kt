@@ -1,12 +1,13 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 
 /**
- * Wraps [viaduct.engine.api.EngineObjectData] to add instrumentation callbacks during field selection fetches.
+ * Wraps [viaduct.engine.api.EngineObjectData] to add instrumentation around field selection fetches.
  *
- * Both [fetch] and [fetchOrNull] notify [resolverInstrumentation] before and after each fetch
+ * Both [fetch] and [fetchOrNull] wrap the actual fetch operation with [resolverInstrumentation]
  * for observability. Other methods delegate directly to [engineObjectData].
  */
 class InstrumentedEngineObjectData(
@@ -27,17 +28,10 @@ class InstrumentedEngineObjectData(
         fetchBlock: suspend () -> Any?
     ): Any? {
         val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(selection = selection)
-        val ctx = SafeInstrumentation.execute {
-            resolverInstrumentation.beginFetchSelection(parameters = params, state = instrumentationState)
-        } ?: return fetchBlock()
-
-        try {
-            val result = fetchBlock()
-            SafeInstrumentation.execute { ctx.onCompleted(result, null) }
-            return result
-        } catch (e: Exception) {
-            SafeInstrumentation.execute { ctx.onCompleted(null, e) }
-            throw e
-        }
+        return resolverInstrumentation.instrumentFetchSelection(
+            FetchFunction { fetchBlock() },
+            params,
+            instrumentationState
+        ).fetch()
     }
 }

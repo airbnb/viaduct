@@ -8,7 +8,6 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.FieldResolverDispatcher
@@ -22,7 +21,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
             val instrumentation = RecordingResolverInstrumentation()
-            val mockResolverMetadata: ResolverMetadata = mockk()
+            val mockResolverMetadata = ResolverMetadata.forMock("mock-resolver")
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
             coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
@@ -36,9 +35,9 @@ internal class InstrumentedFieldResolverDispatcherTest {
             assertEquals("result", result)
             assertEquals(1, instrumentation.executeResolverContexts.size)
             val executeContext = instrumentation.executeResolverContexts.first()
-            assertTrue(executeContext.onCompleted.onCompletedCalled.get())
-            assertEquals("result", executeContext.onCompleted.completedResult)
-            assertNull(executeContext.onCompleted.completedException)
+            assertEquals(mockResolverMetadata, executeContext.parameters.resolverMetadata)
+            assertEquals("result", executeContext.result)
+            assertNull(executeContext.error)
         }
 
     @Test
@@ -47,7 +46,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
             val instrumentation = RecordingResolverInstrumentation()
-            val mockResolverMetadata: ResolverMetadata = mockk()
+            val mockResolverMetadata = ResolverMetadata.forMock("mock-resolver")
             val exception = RuntimeException("test error")
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
@@ -61,91 +60,29 @@ internal class InstrumentedFieldResolverDispatcherTest {
             }
             assertSame(exception, thrown)
 
+            // Verify instrumentation recorded the error
             assertEquals(1, instrumentation.executeResolverContexts.size)
             val executeContext = instrumentation.executeResolverContexts.first()
-            assertTrue(executeContext.onCompleted.onCompletedCalled.get())
-            assertNull(executeContext.onCompleted.completedResult)
-            assertSame(exception, executeContext.onCompleted.completedException)
+            assertEquals(mockResolverMetadata, executeContext.parameters.resolverMetadata)
+            assertNull(executeContext.result)
+            assertSame(exception, executeContext.error)
         }
 
     @Test
-    fun `resolve succeeds even when createInstrumentationState throws`() =
+    fun `resolve propagates instrumentation exceptions during execution`() =
         runBlockingTest {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
-            val instrumentation = ThrowingResolverInstrumentation(throwOnCreateState = true)
-            val mockResolverMetadata: ResolverMetadata = mockk()
+            val instrumentation = ThrowingResolverInstrumentation(throwOnInstrumentExecute = true)
+            val mockResolverMetadata: ResolverMetadata = ResolverMetadata.forMock("mock-resolver")
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
-            // When
-            val result = testClass.resolve(emptyMap(), mockk(), mockk(), null, mockk())
-
-            // Then
-            assertEquals("result", result)
-        }
-
-    @Test
-    fun `resolve succeeds even when beginExecuteResolver throws`() =
-        runBlockingTest {
-            // Given
-            val mockDispatcher: FieldResolverDispatcher = mockk()
-            val instrumentation = ThrowingResolverInstrumentation(throwOnBeginExecute = true)
-            val mockResolverMetadata: ResolverMetadata = mockk()
-
-            every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
-
-            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
-
-            // When
-            val result = testClass.resolve(emptyMap(), mockk(), mockk(), null, mockk())
-
-            // Then
-            assertEquals("result", result)
-        }
-
-    @Test
-    fun `resolve succeeds even when onCompleted throws after successful resolve`() =
-        runBlockingTest {
-            // Given
-            val mockDispatcher: FieldResolverDispatcher = mockk()
-            val instrumentation = ThrowingResolverInstrumentation(throwOnCompleted = true)
-            val mockResolverMetadata: ResolverMetadata = mockk()
-
-            every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
-
-            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
-
-            // When
-            val result = testClass.resolve(emptyMap(), mockk(), mockk(), null, mockk())
-
-            // Then
-            assertEquals("result", result)
-        }
-
-    @Test
-    fun `resolve failure is propagated even when onCompleted throws`() =
-        runBlockingTest {
-            // Given
-            val mockDispatcher: FieldResolverDispatcher = mockk()
-            val instrumentation = ThrowingResolverInstrumentation(throwOnCompleted = true)
-            val mockResolverMetadata: ResolverMetadata = mockk()
-            val resolveException = RuntimeException("Resolve failed")
-
-            every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } throws resolveException
-
-            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
-
-            // When / Then
-            val thrown = assertThrows<RuntimeException> {
+            // Make sure the exception is propogated to the top level when the instrumentation decides to throw
+            assertThrows<RuntimeException> {
                 testClass.resolve(emptyMap(), mockk(), mockk(), null, mockk())
             }
-            assertSame(resolveException, thrown)
         }
 }

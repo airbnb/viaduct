@@ -1,12 +1,10 @@
 package viaduct.engine.api.instrumentation.resolver
 
-import kotlin.collections.forEach
-
 /**
  * Composite instrumentation that chains multiple [ViaductResolverInstrumentation] implementations.
  *
  * Invokes all instrumentations in the list sequentially for each lifecycle event. Each instrumentation
- * maintains its own state, and completion callbacks are called in order for all instrumentations.
+ * maintains its own state and wraps the execution of the next instrumentation in the chain.
  *
  * Example:
  * ```
@@ -32,35 +30,27 @@ class ChainedResolverInstrumentation(
         return ChainedInstrumentationState(states.toMap())
     }
 
-    override fun beginExecuteResolver(
+    override fun <T> instrumentResolverExecution(
+        resolver: ResolverFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentExecuteResolverParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?
-    ): ViaductResolverInstrumentation.OnCompleted {
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): ResolverFunction<T> {
         state as ChainedInstrumentationState
-        return chainBegin(state) {
-                instrumentation, instrState ->
-            instrumentation.beginExecuteResolver(parameters, instrState)
+        return instrumentations.foldRight(resolver) { instrumentation, next ->
+            val instrState = state.getState(instrumentation)
+            instrumentation.instrumentResolverExecution(next, parameters, instrState)
         }
     }
 
-    override fun beginFetchSelection(
+    override fun <T> instrumentFetchSelection(
+        fetchFn: FetchFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?
-    ): ViaductResolverInstrumentation.OnCompleted {
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): FetchFunction<T> {
         state as ChainedInstrumentationState
-        return chainBegin(state) {
-                instrumentation, instrState ->
-            instrumentation.beginFetchSelection(parameters, instrState)
-        }
-    }
-
-    private fun chainBegin(
-        state: ChainedInstrumentationState,
-        beginOperation: (ViaductResolverInstrumentation, ViaductResolverInstrumentation.InstrumentationState?) -> ViaductResolverInstrumentation.OnCompleted
-    ): ViaductResolverInstrumentation.OnCompleted {
-        val completedCtx = instrumentations.map { beginOperation(it, state.getState(it)) }
-        return ViaductResolverInstrumentation.OnCompleted { result, error ->
-            completedCtx.forEach { it.onCompleted(result, error) }
+        return instrumentations.foldRight(fetchFn) { instrumentation, next ->
+            val instrState = state.getState(instrumentation)
+            instrumentation.instrumentFetchSelection(next, parameters, instrState)
         }
     }
 }

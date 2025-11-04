@@ -1,35 +1,23 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicBoolean
+import viaduct.engine.api.instrumentation.resolver.FetchFunction
+import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 
 class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
     class RecordingInstrumentationState : ViaductResolverInstrumentation.InstrumentationState
 
-    class RecordingOnCompleted : ViaductResolverInstrumentation.OnCompleted {
-        val onCompletedCalled = AtomicBoolean(false)
-        var completedResult: Any? = null
-        var completedException: Throwable? = null
-
-        override fun onCompleted(
-            result: Any?,
-            error: Throwable?
-        ) {
-            completedResult = result
-            completedException = error
-            onCompletedCalled.set(true)
-        }
-    }
-
-    class RecordingFetchSelectionContext(
+    data class RecordingFetchSelectionContext(
         val parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-        val onCompleted: RecordingOnCompleted
+        val result: Any?,
+        val error: Throwable?
     )
 
-    class RecordingExecuteResolverContext(
+    data class RecordingExecuteResolverContext(
         val parameters: ViaductResolverInstrumentation.InstrumentExecuteResolverParameters,
-        val onCompleted: RecordingOnCompleted
+        val result: Any?,
+        val error: Throwable?
     )
 
     val fetchSelectionContexts = ConcurrentLinkedQueue<RecordingFetchSelectionContext>()
@@ -39,24 +27,40 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
         return RecordingInstrumentationState()
     }
 
-    override fun beginExecuteResolver(
+    override fun <T> instrumentResolverExecution(
+        resolver: ResolverFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentExecuteResolverParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?
-    ): ViaductResolverInstrumentation.OnCompleted {
-        val onCompleted = RecordingOnCompleted()
-        val context = RecordingExecuteResolverContext(parameters, onCompleted)
-        executeResolverContexts.add(context)
-        return onCompleted
-    }
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): ResolverFunction<T> =
+        ResolverFunction {
+            recordExecution({ resolver.resolve() }) { result, error ->
+                executeResolverContexts.add(RecordingExecuteResolverContext(parameters, result, error))
+            }
+        }
 
-    override fun beginFetchSelection(
+    override fun <T> instrumentFetchSelection(
+        fetchFn: FetchFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?
-    ): ViaductResolverInstrumentation.OnCompleted {
-        val onCompleted = RecordingOnCompleted()
-        val context = RecordingFetchSelectionContext(parameters, onCompleted)
-        fetchSelectionContexts.add(context)
-        return onCompleted
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): FetchFunction<T> =
+        FetchFunction {
+            recordExecution({ fetchFn.fetch() }) { result, error ->
+                fetchSelectionContexts.add(RecordingFetchSelectionContext(parameters, result, error))
+            }
+        }
+
+    private suspend inline fun <T> recordExecution(
+        executeFn: suspend () -> T,
+        record: (result: Any?, error: Throwable?) -> Unit
+    ): T {
+        return try {
+            val result = executeFn()
+            record(result, null)
+            result
+        } catch (e: Throwable) {
+            record(null, e)
+            throw e
+        }
     }
 
     fun reset() {

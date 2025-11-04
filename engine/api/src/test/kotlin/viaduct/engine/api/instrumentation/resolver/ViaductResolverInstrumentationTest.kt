@@ -1,5 +1,7 @@
 package viaduct.engine.api.instrumentation.resolver
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ResolverMetadata
@@ -14,20 +16,32 @@ class ViaductResolverInstrumentationTest {
     }
 
     @Test
-    fun `DEFAULT instrumentation returns NOOP_ON_COMPLETED`() {
-        val resolverMetadata = ResolverMetadata.forModern("TestResolver")
-        val onExecuteResolverCompleted = ViaductResolverInstrumentation.DEFAULT.beginExecuteResolver(
-            ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(resolverMetadata),
-            null
-        )
-        assertEquals(ViaductResolverInstrumentation.NOOP_ON_COMPLETED, onExecuteResolverCompleted)
+    @ExperimentalCoroutinesApi
+    fun `DEFAULT instrumentation executes resolver function`() =
+        runBlockingTest {
+            val expectedResult = "test result"
+            val result = ViaductResolverInstrumentation.DEFAULT.instrumentResolverExecution(
+                ResolverFunction { expectedResult },
+                ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
+                    resolverMetadata = ResolverMetadata.forModern("TestResolver")
+                ),
+                null
+            ).resolve()
+            assertEquals(expectedResult, result)
+        }
 
-        val onFetchSelectionCompleted = ViaductResolverInstrumentation.DEFAULT.beginFetchSelection(
-            ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
-                selection = "testField"
-            ),
-            null
-        )
-        assertEquals(ViaductResolverInstrumentation.NOOP_ON_COMPLETED, onFetchSelectionCompleted)
-    }
+    @Test
+    @ExperimentalCoroutinesApi
+    fun `DEFAULT instrumentation executes fetch function`() =
+        runBlockingTest {
+            val expectedResult = "test field value"
+            val result = ViaductResolverInstrumentation.DEFAULT.instrumentFetchSelection(
+                FetchFunction { expectedResult },
+                ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
+                    selection = "testField"
+                ),
+                null
+            ).fetch()
+            assertEquals(expectedResult, result)
+        }
 }

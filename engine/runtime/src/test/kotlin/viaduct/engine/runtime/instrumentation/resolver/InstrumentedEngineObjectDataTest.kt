@@ -7,7 +7,6 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
@@ -39,9 +38,8 @@ internal class InstrumentedEngineObjectDataTest {
             assertEquals(1, instrumentation.fetchSelectionContexts.size)
             val context = instrumentation.fetchSelectionContexts.first()
             assertEquals(selection, context.parameters.selection)
-            assertTrue(context.onCompleted.onCompletedCalled.get())
-            assertEquals(expectedResult, context.onCompleted.completedResult)
-            assertNull(context.onCompleted.completedException)
+            assertEquals(expectedResult, context.result)
+            assertNull(context.error)
         }
 
     @Test
@@ -69,66 +67,38 @@ internal class InstrumentedEngineObjectDataTest {
             assertEquals(1, instrumentation.fetchSelectionContexts.size)
             val context = instrumentation.fetchSelectionContexts.first()
             assertEquals(selection, context.parameters.selection)
-            assertTrue(context.onCompleted.onCompletedCalled.get())
-            assertNull(context.onCompleted.completedResult)
-            assertNull(context.onCompleted.completedException)
+            assertNull(context.result)
+            assertNull(context.error)
         }
 
     @Test
     @ExperimentalCoroutinesApi
-    fun `fetch succeeds even when beginFetchSelection throws`() =
+    fun `fetch propagates instrumentation exceptions`() =
         runBlockingTest {
             // Given
             val mockEngineObjectData: EngineObjectData = mockk()
-            val instrumentation = ThrowingResolverInstrumentation(throwOnBeginFetch = true)
+            val instrumentation = ThrowingResolverInstrumentation(throwOnInstrumentFetch = true)
             val state = instrumentation.createInstrumentationState(
                 parameters = mockk()
             )
 
-            val selection = "testField"
-            val expectedResult = "testValue"
-
-            coEvery { mockEngineObjectData.fetch(selection) } returns expectedResult
-
             val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
 
-            // When
-            val result = testClass.fetch(selection)
-
-            // Then
-            assertEquals(expectedResult, result)
+            // When / Then
+            // Instrumentation implementations are responsible for being defensive.
+            // If they throw, the exception propagates.
+            assertThrows<RuntimeException> {
+                testClass.fetch("testField")
+            }
         }
 
     @Test
     @ExperimentalCoroutinesApi
-    fun `fetch succeeds even when onCompleted throws after successful fetch`() =
+    fun `fetch propagates fetch exceptions`() =
         runBlockingTest {
             // Given
             val mockEngineObjectData: EngineObjectData = mockk()
-            val instrumentation = ThrowingResolverInstrumentation(throwOnCompleted = true)
-            val state = instrumentation.createInstrumentationState(mockk())
-
-            val selection = "testField"
-            val expectedResult = "testValue"
-
-            coEvery { mockEngineObjectData.fetch(selection) } returns expectedResult
-
-            val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
-
-            // When
-            val result = testClass.fetch(selection)
-
-            // Then
-            assertEquals(expectedResult, result)
-        }
-
-    @Test
-    @ExperimentalCoroutinesApi
-    fun `fetch failure is propagated even when onCompleted throws`() =
-        runBlockingTest {
-            // Given
-            val mockEngineObjectData: EngineObjectData = mockk()
-            val instrumentation = ThrowingResolverInstrumentation(throwOnCompleted = true)
+            val instrumentation = RecordingResolverInstrumentation()
             val state = instrumentation.createInstrumentationState(mockk())
 
             val selection = "testField"
@@ -143,5 +113,11 @@ internal class InstrumentedEngineObjectDataTest {
                 testClass.fetch(selection)
             }
             assertSame(fetchException, thrown)
+
+            // Verify instrumentation recorded the error
+            assertEquals(1, instrumentation.fetchSelectionContexts.size)
+            val context = instrumentation.fetchSelectionContexts.first()
+            assertNull(context.result)
+            assertSame(fetchException, context.error)
         }
 }

@@ -4,6 +4,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FieldResolverDispatcher
 import viaduct.engine.api.RawSelectionSet
+import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 
 /**
@@ -29,27 +30,21 @@ class InstrumentedFieldResolverDispatcher(
         context: EngineExecutionContext
     ): Any? {
         val createStateParameter = ViaductResolverInstrumentation.CreateInstrumentationStateParameters()
-        val state = SafeInstrumentation.execute {
-            instrumentation.createInstrumentationState(createStateParameter)
-        } ?: return dispatcher.resolve(arguments, objectValue, queryValue, selections, context)
+        val state = instrumentation.createInstrumentationState(createStateParameter)
 
         val resolverExecuteParam = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
             resolverMetadata = dispatcher.resolverMetadata
         )
-        val resolverExecuteCtx = SafeInstrumentation.execute {
-            instrumentation.beginExecuteResolver(parameters = resolverExecuteParam, state = state)
-        } ?: return dispatcher.resolve(arguments, objectValue, queryValue, selections, context)
 
         val instrumentedObjectValue = InstrumentedEngineObjectData(objectValue, instrumentation, state)
         val instrumentedQueryValue = InstrumentedEngineObjectData(queryValue, instrumentation, state)
 
-        try {
-            val result = dispatcher.resolve(arguments, instrumentedObjectValue, instrumentedQueryValue, selections, context)
-            SafeInstrumentation.execute { resolverExecuteCtx.onCompleted(result, null) }
-            return result
-        } catch (e: Exception) {
-            SafeInstrumentation.execute { resolverExecuteCtx.onCompleted(null, e) }
-            throw e
-        }
+        return instrumentation.instrumentResolverExecution(
+            ResolverFunction {
+                dispatcher.resolve(arguments, instrumentedObjectValue, instrumentedQueryValue, selections, context)
+            },
+            resolverExecuteParam,
+            state
+        ).resolve()
     }
 }

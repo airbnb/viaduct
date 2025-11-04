@@ -7,6 +7,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
+import viaduct.engine.api.instrumentation.resolver.FetchFunction
+import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
@@ -60,27 +62,29 @@ class ResolverInstrumentationTest {
             return State()
         }
 
-        override fun beginExecuteResolver(
+        override fun <T> instrumentResolverExecution(
+            resolver: ResolverFunction<T>,
             parameters: ViaductResolverInstrumentation.InstrumentExecuteResolverParameters,
             state: ViaductResolverInstrumentation.InstrumentationState?
-        ): ViaductResolverInstrumentation.OnCompleted {
+        ): ResolverFunction<T> {
             state as State
             state.currentResolverName = parameters.resolverMetadata.name
             resolverToFieldMap.computeIfAbsent(parameters.resolverMetadata.name) { CopyOnWriteArrayList() }
-            return ViaductResolverInstrumentation.NOOP_ON_COMPLETED
+            return resolver
         }
 
-        override fun beginFetchSelection(
+        override fun <T> instrumentFetchSelection(
+            fetchFn: FetchFunction<T>,
             parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
             state: ViaductResolverInstrumentation.InstrumentationState?
-        ): ViaductResolverInstrumentation.OnCompleted {
+        ): FetchFunction<T> {
             state as State
             val resolverName = state.currentResolverName!!
 
             assertTrue { resolverToFieldMap.containsKey(resolverName) }
 
             resolverToFieldMap.get(resolverName)?.add(parameters.selection)
-            return ViaductResolverInstrumentation.NOOP_ON_COMPLETED
+            return fetchFn
         }
     }
 }
