@@ -76,7 +76,7 @@ object cfg {
     val importedClasses = listOf(
         JavaName("java.util.Arrays"), // Used in Java expressions for default values
     )
-    val BUILD_TIME_MODULE_EXTRACTOR = Regex("modules/(.*?)/schema")
+    val BUILD_TIME_MODULE_EXTRACTOR = Regex("modules/(.*?)/schema/")
     val TEST_TIME_MODULE_EXTRACTOR = Regex("/graphql/([^/]*)")
 
     /** Used by [ViaductSchema.Field.crossModule] to extract the module name
