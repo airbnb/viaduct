@@ -7,7 +7,7 @@ Viaduct OSS project.
 
 Administration is handled by Airbnb's open source committee.
 
-## CircleCI
+### CI
 
 We use Github Actions to run Viaduct's public [CI
 jobs](https://github.com/airbnb/viaduct/actions).
