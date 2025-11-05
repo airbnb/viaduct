@@ -67,8 +67,8 @@ class FromFieldVariablesResolverTest {
     fun `from object field -- simple mutation field`() =
         FeatureTestBuilder(
             """
-                    extend type Mutation { x:Int, y(b:Int):Int, z:Int }
-                    extend type Query { empty:Int }
+                extend type Mutation { x:Int, y(b:Int):Int, z:Int }
+                extend type Query { empty:Int }
             """.trimIndent(),
             useFakeGRTs = true,
         )
@@ -515,14 +515,16 @@ class FromFieldVariablesResolverTest {
         // Mutation.x = 30
         FeatureTestBuilder(
             """
-                    extend type Mutation { x:Int, y(b:Int):Int }
-                    extend type Query { z:Int }
+                extend type Mutation { x:Int, y(b:Int):Int }
+                extend type Query { z:Int }
             """.trimIndent(),
             useFakeGRTs = true,
         )
             .resolver(
                 "Mutation" to "x",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("y") * 5 },
+                { ctx: UntypedFieldContext ->
+                    ctx.objectValue.get<Int>("y") * 5
+                },
                 objectValueFragment = "y(b:\$z)",
                 queryValueFragment = "z",
                 variables = listOf(FromQueryFieldVariable("z", "z"))

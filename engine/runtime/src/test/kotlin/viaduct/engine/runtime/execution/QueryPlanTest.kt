@@ -14,6 +14,7 @@ import graphql.language.TypeName as GJTypeName
 import graphql.language.VariableReference
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
+import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -917,6 +918,7 @@ internal fun mkQueryPlan(
     variablesResolvers,
     parentType,
     childPlans,
+    astSelectionSet = mockk(),
     attribution,
     executionCondition = ALWAYS_EXECUTE
 )

@@ -49,6 +49,7 @@ data class QueryPlan(
     val variablesResolvers: List<VariablesResolver>,
     val parentType: GraphQLOutputType,
     val childPlans: List<QueryPlan>,
+    val astSelectionSet: GJSelectionSet,
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
     val executionCondition: QueryPlanExecutionCondition,
 ) {
@@ -366,6 +367,7 @@ private class QueryPlanBuilder(
             variablesResolvers = variablesResolvers,
             parentType = parentType,
             childPlans = state.childPlans,
+            astSelectionSet = selectionSet,
             attribution = attribution,
             executionCondition = executionCondition
         )

@@ -39,13 +39,20 @@ import kotlinx.coroutines.future.future
 import kotlinx.coroutines.runBlocking
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.graphQLExecutionInput
+import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.Coordinate
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FieldCheckerDispatcherRegistry
+import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
 import viaduct.engine.runtime.CompositeLocalContext
+import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.instrumentation.ChainedViaductModernInstrumentation
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.FlagManager
@@ -58,17 +65,27 @@ object ExecutionTestHelpers {
         variables: Map<String, Any?> = emptyMap(),
         typeResolvers: Map<String, TypeResolver> = emptyMap(),
         requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
+        fieldCheckerDispatchers: Map<Coordinate, CheckerDispatcher> = emptyMap(),
+        typeCheckerDispatchers: Map<String, CheckerDispatcher> = emptyMap(),
         instrumentations: List<ViaductModernInstrumentation> = emptyList(),
         flagManager: FlagManager = FlagManager.default
     ): ExecutionResult {
         val schema = createSchema(sdl, resolvers, typeResolvers)
+        val dispatcherRegistry = DispatcherRegistry(
+            fieldResolverDispatchers = emptyMap(),
+            nodeResolverDispatchers = emptyMap(),
+            fieldCheckerDispatchers = fieldCheckerDispatchers,
+            typeCheckerDispatchers = typeCheckerDispatchers
+        )
         val modernGraphQL = createViaductGraphQL(
             schema,
             requiredSelectionSetRegistry,
+            fieldCheckerDispatcherRegistry = dispatcherRegistry,
+            typeCheckerDispatcherRegistry = dispatcherRegistry,
             instrumentations = instrumentations,
             flagManager = flagManager
         )
-        return executeQuery(schema, modernGraphQL, query, variables)
+        return executeQuery(schema, modernGraphQL, query, variables, dispatcherRegistry)
     }
 
     fun createSchema(
@@ -197,11 +214,12 @@ object ExecutionTestHelpers {
         schema: ViaductSchema,
         graphQL: GraphQL,
         query: String,
-        variables: Map<String, Any?>
+        variables: Map<String, Any?>,
+        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty
     ): ExecutionResult {
         // clear query plan cache
-        QueryPlan.Companion.resetCache()
-        val executionInput = createExecutionInput(schema, query, variables)
+        QueryPlan.resetCache()
+        val executionInput = createExecutionInput(schema, query, variables, dispatcherRegistry = dispatcherRegistry)
         return graphQL.executeAsync(executionInput).await()
     }
 
@@ -210,13 +228,14 @@ object ExecutionTestHelpers {
         query: String,
         variables: Map<String, Any?> = emptyMap(),
         operationName: String? = null,
-        context: GraphQLContext = GraphQLContext.getDefault()
+        context: GraphQLContext = GraphQLContext.getDefault(),
+        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty
     ): ExecutionInput =
         ExecutionInput.newExecutionInput()
             .query(query)
             .operationName(operationName)
             .variables(variables)
-            .localContext(createLocalContext(schema))
+            .localContext(createLocalContext(schema, dispatcherRegistry))
             .graphQLContext { b ->
                 // executing large queries can trigger GJ's ddos prevention
                 // Configure ParserOptions to use the sdl configuration, which has
@@ -228,10 +247,14 @@ object ExecutionTestHelpers {
             }
             .build()
 
-    fun createLocalContext(schema: ViaductSchema): CompositeLocalContext =
+    fun createLocalContext(
+        schema: ViaductSchema,
+        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty
+    ): CompositeLocalContext =
         ContextMocks(
             myFullSchema = schema,
             myFlagManager = FlagManager.default,
+            myDispatcherRegistry = dispatcherRegistry
         ).localContext
 
     fun <T> runExecutionTest(block: suspend CoroutineScope.() -> T): T =
@@ -313,4 +336,18 @@ class DocumentCache : PreparsedDocumentProvider {
                 parseAndValidateFunction.apply(executionInput)
             }
         )
+}
+
+object CheckerDispatchers {
+    fun success(requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()): CheckerDispatcher =
+        object : CheckerDispatcher {
+            override val requiredSelectionSets = requiredSelectionSets
+
+            override suspend fun execute(
+                arguments: Map<String, Any?>,
+                objectDataMap: Map<String, EngineObjectData>,
+                context: EngineExecutionContext,
+                checkerType: viaduct.engine.api.CheckerExecutor.CheckerType
+            ): CheckerResult = CheckerResult.Success
+        }
 }

@@ -1,6 +1,9 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.ExecutionStepInfo
+import graphql.language.Field as GJField
+import graphql.language.InlineFragment as GJInlineFragment
+import graphql.language.SelectionSet as GJSelectionSet
 import graphql.schema.DataFetcher
 import graphql.schema.TypeResolver
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -1038,6 +1041,400 @@ class ViaductExecutionStrategyChildPlanTest {
                     executionLog.toList(),
                     "No child plan should execute for Admin when narrow to VerifiedEntity fails"
                 )
+            }
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `type checker RSS executes for object type access`() {
+        runExecutionTest {
+            withContext(nextTickDispatcher) {
+                val capturedCheckerPaths = ConcurrentLinkedQueue<String>()
+
+                val sdl = """
+                    type Query {
+                        currentUser: User
+                    }
+
+                    type User {
+                        id: ID!
+                        name: String
+                        email: String
+                    }
+                """
+
+                val query = """
+                    {
+                        currentUser {
+                            name
+                            email
+                        }
+                    }
+                """
+
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "currentUser" to DataFetcher { _ ->
+                            mapOf("id" to "user-789", "name" to "Bob", "email" to "bob@example.com")
+                        }
+                    ),
+                    "User" to mapOf(
+                        "id" to DataFetcher { env ->
+                            val path = env.executionStepInfo.path.toString()
+                            capturedCheckerPaths.add(path)
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "name" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["name"]
+                        },
+                        "email" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["email"]
+                        }
+                    )
+                )
+
+                val requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                    .typeCheckerEntry("User", "id")
+                    .build()
+
+                val executionResult = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = query,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry,
+                    typeCheckerDispatchers = mapOf("User" to CheckerDispatchers.success())
+                )
+
+                val data = executionResult.getData<Map<String, Any?>>()
+                assertNotNull(data)
+                val user = data["currentUser"] as Map<String, Any?>
+                assertEquals("Bob", user["name"])
+                assertEquals("bob@example.com", user["email"])
+
+                assertTrue(
+                    capturedCheckerPaths.isNotEmpty(),
+                    "Expected type checker child plan to execute for User type access. " +
+                        "Type-level RSS (via typeCheckerEntry) should run for the return type of currentUser field."
+                )
+
+                val checkerPath = capturedCheckerPaths.first()
+                assertEquals(
+                    "/currentUser/id",
+                    checkerPath,
+                    "Type checker child plan should execute with parent object path"
+                )
+            }
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `type checker RSS on interface executes for all concrete types`() {
+        runExecutionTest {
+            withContext(nextTickDispatcher) {
+                val capturedCheckerTypes = ConcurrentLinkedQueue<Pair<String, String?>>()
+
+                val sdl = """
+                    type Query {
+                        entity: Entity
+                    }
+
+                    interface Entity {
+                        id: ID!
+                        commonField: String
+                    }
+
+                    type User implements Entity {
+                        id: ID!
+                        commonField: String
+                        name: String
+                    }
+
+                    type Admin implements Entity {
+                        id: ID!
+                        commonField: String
+                        role: String
+                    }
+                """
+
+                val query = """
+                    {
+                        entity {
+                            commonField
+                        }
+                    }
+                """
+
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "entity" to DataFetcher { _ ->
+                            mapOf("id" to "user-999", "__typename" to "User", "commonField" to "common-value")
+                        }
+                    ),
+                    "User" to mapOf(
+                        "id" to DataFetcher { env ->
+                            val objectType = env.executionStepInfo.objectType?.name
+                            capturedCheckerTypes.add("User.id" to objectType)
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "commonField" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["commonField"]
+                        },
+                        "name" to DataFetcher { "Alice" }
+                    ),
+                    "Admin" to mapOf(
+                        "id" to DataFetcher { env ->
+                            val objectType = env.executionStepInfo.objectType?.name
+                            capturedCheckerTypes.add("Admin.id" to objectType)
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "commonField" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["commonField"]
+                        },
+                        "role" to DataFetcher { "super" }
+                    )
+                )
+
+                val requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                    .typeCheckerEntry("User", "id")
+                    .typeCheckerEntry("Admin", "id")
+                    .build()
+
+                val typeResolvers = mapOf(
+                    "Entity" to TypeResolver { env ->
+                        val obj = env.getObject<Map<String, Any>>()
+                        val typename = obj["__typename"] as? String
+                        env.schema.getObjectType(typename ?: "User")
+                    }
+                )
+
+                val executionResult = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = query,
+                    typeResolvers = typeResolvers,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry,
+                    typeCheckerDispatchers = mapOf(
+                        "User" to CheckerDispatchers.success(),
+                        "Admin" to CheckerDispatchers.success()
+                    )
+                )
+
+                val data = executionResult.getData<Map<String, Any?>>()
+                assertNotNull(data)
+                val entity = data["entity"] as Map<String, Any?>
+                assertEquals("common-value", entity["commonField"])
+
+                assertTrue(
+                    capturedCheckerTypes.isNotEmpty(),
+                    "Expected type checker to execute for concrete type. " +
+                        "With the bug fix (commit 258ba8ae8eda5), buildFieldTypeChildPlans should check " +
+                        "all concrete types implementing the interface."
+                )
+
+                val userType = capturedCheckerTypes.find { it.first == "User.id" }?.second
+                assertEquals(
+                    "User",
+                    userType,
+                    "Type checker child plan should use concrete User type for interface Entity"
+                )
+            }
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `type checker and field resolver RSS execute independently`() {
+        runExecutionTest {
+            withContext(nextTickDispatcher) {
+                val capturedExecutions = ConcurrentLinkedQueue<Pair<String, String>>()
+
+                val sdl = """
+                    type Query {
+                        profile: UserProfile
+                    }
+
+                    type UserProfile {
+                        id: ID!
+                        user: User
+                    }
+
+                    type User {
+                        id: ID!
+                        name: String
+                        restrictedData: String
+                    }
+                """
+
+                val query = """
+                    {
+                        profile {
+                            user {
+                                restrictedData
+                            }
+                        }
+                    }
+                """
+
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "profile" to DataFetcher { _ ->
+                            mapOf("id" to "profile-123")
+                        }
+                    ),
+                    "UserProfile" to mapOf(
+                        "id" to DataFetcher { env ->
+                            val path = env.executionStepInfo.path.toString()
+                            capturedExecutions.add("type-checker:UserProfile.id" to path)
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "user" to DataFetcher { _ ->
+                            mapOf("id" to "user-456", "name" to "Charlie")
+                        }
+                    ),
+                    "User" to mapOf(
+                        "id" to DataFetcher { env ->
+                            val path = env.executionStepInfo.path.toString()
+                            capturedExecutions.add("type-checker:User.id" to path)
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "name" to DataFetcher { env ->
+                            val path = env.executionStepInfo.path.toString()
+                            capturedExecutions.add("field-resolver:User.name" to path)
+                            env.getSource<Map<String, Any>>()!!["name"]
+                        },
+                        "restrictedData" to DataFetcher { "sensitive-data" }
+                    )
+                )
+
+                val requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                    .typeCheckerEntry("UserProfile", "id")
+                    .typeCheckerEntry("User", "id")
+                    .fieldResolverEntry("User" to "restrictedData", "name")
+                    .build()
+
+                val executionResult = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = query,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry,
+                    typeCheckerDispatchers = mapOf(
+                        "UserProfile" to CheckerDispatchers.success(),
+                        "User" to CheckerDispatchers.success()
+                    )
+                )
+
+                val data = executionResult.getData<Map<String, Any?>>()
+                assertNotNull(data)
+                val profile = data["profile"] as Map<String, Any?>
+                val user = profile["user"] as Map<String, Any?>
+                assertEquals("sensitive-data", user["restrictedData"])
+
+                assertTrue(capturedExecutions.size >= 3, "Expected type checkers and field resolver to execute")
+
+                val profileTypeChecker = capturedExecutions.find { it.first == "type-checker:UserProfile.id" }
+                assertNotNull(profileTypeChecker, "UserProfile type checker should execute")
+                assertEquals("/profile/id", profileTypeChecker!!.second)
+
+                val userTypeChecker = capturedExecutions.find { it.first == "type-checker:User.id" }
+                assertNotNull(userTypeChecker, "User type checker should execute")
+                assertEquals("/profile/user/id", userTypeChecker!!.second)
+
+                val fieldResolver = capturedExecutions.find { it.first == "field-resolver:User.name" }
+                assertNotNull(fieldResolver, "User.restrictedData field resolver should execute")
+                assertEquals("/profile/user/name", fieldResolver!!.second)
+            }
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `child plans for interface fields wrap selection set in inline fragment`() {
+        runExecutionTest {
+            withContext(nextTickDispatcher) {
+                val capturedSelectionSets = ConcurrentLinkedQueue<GJSelectionSet>()
+
+                val sdl = """
+                    interface Node {
+                        id: ID!
+                    }
+
+                    type Query {
+                        node: Node
+                    }
+
+                    type Foo implements Node {
+                        id: ID!
+                        foo: String
+                        fooSpecific: String
+                    }
+                """
+
+                val query = """
+                    {
+                        node {
+                            id
+                            ...on Foo {
+                                foo
+                            }
+                        }
+                    }
+                """
+
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "node" to DataFetcher { _ ->
+                            mapOf(
+                                "id" to "node-1",
+                                "foo" to "foo-value",
+                                "fooSpecific" to "foo-specific-value"
+                            )
+                        }
+                    ),
+                    "Foo" to mapOf(
+                        "id" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["id"]
+                        },
+                        "foo" to DataFetcher { env ->
+                            env.getSource<Map<String, Any>>()!!["foo"]
+                        },
+                        "fooSpecific" to DataFetcher { env ->
+                            val parentStepInfo = checkNotNull(env.executionStepInfo.parent) {
+                                "Expected parent ExecutionStepInfo when executing fooSpecific"
+                            }
+                            capturedSelectionSets.add(parentStepInfo.field.singleField.selectionSet)
+                            env.getSource<Map<String, Any>>()!!["fooSpecific"]
+                        }
+                    )
+                )
+
+                val typeResolvers = mapOf(
+                    "Node" to TypeResolver { env ->
+                        env.schema.getObjectType("Foo")
+                    }
+                )
+
+                val requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                    .fieldResolverEntry("Foo" to "foo", "fooSpecific")
+                    .build()
+
+                val executionResult = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    typeResolvers = typeResolvers,
+                    query = query,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry
+                )
+
+                assertTrue(executionResult.errors.isEmpty(), "Expected no execution errors but got ${executionResult.errors}")
+                assertTrue(capturedSelectionSets.isNotEmpty(), "Expected to capture selection set for interface child plan")
+
+                val selectionSet = capturedSelectionSets.first()
+                val inlineFragment = selectionSet.selections.single() as GJInlineFragment
+                assertEquals("Foo", inlineFragment.typeCondition?.name)
+                val nestedField = inlineFragment.selectionSet.selections.single() as GJField
+                assertEquals("fooSpecific", nestedField.name)
             }
         }
     }

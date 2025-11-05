@@ -87,7 +87,7 @@ class AccessCheckRunner(
                         childPlan,
                         CoercedVariables(variables),
                         fieldResolutionResult.originalSource,
-                        fieldResolutionResult.engineResult
+                        fieldResolutionResult.engineResult,
                     )
                     fieldResolver.fetchObject(childPlan.parentType as GraphQLObjectType, planParameters)
                 }

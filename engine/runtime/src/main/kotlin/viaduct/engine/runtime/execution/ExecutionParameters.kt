@@ -4,11 +4,16 @@ import graphql.execution.CoercedVariables
 import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ExecutionStrategyParameters
+import graphql.execution.MergedField
 import graphql.execution.MergedSelectionSet
 import graphql.execution.NonNullableFieldValidator
 import graphql.execution.ResultPath
+import graphql.language.InlineFragment as GJInlineFragment
+import graphql.language.SelectionSet as GJSelectionSet
+import graphql.language.TypeName as GJTypeName
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
+import graphql.schema.GraphQLTypeUtil
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -185,7 +190,8 @@ data class ExecutionParameters(
             isRootQueryQueryPlan,
             objectType,
             newParentOER,
-            source
+            source,
+            executionStepInfo.parent, // for object plans, inherit the parent of the current field
         )
     }
 
@@ -240,7 +246,8 @@ data class ExecutionParameters(
             isRootQueryQueryPlan,
             objectType,
             newParentOER,
-            childPlanSource
+            childPlanSource,
+            executionStepInfo, // for field type object plans, we keep current execution step info as the parent
         )
     }
 
@@ -261,7 +268,8 @@ data class ExecutionParameters(
         isRootQueryQueryPlan: Boolean,
         objectType: GraphQLObjectType,
         newParentOER: ObjectEngineResultImpl,
-        source: Any?
+        source: Any?,
+        parentFieldStepInfo: ExecutionStepInfo?,
     ): ExecutionParameters {
         // Build execution step info based on plan type
         val childExecutionStepInfo = if (isRootQueryQueryPlan) {
@@ -272,13 +280,46 @@ data class ExecutionParameters(
                 .parentInfo(null)
                 .build()
         } else {
-            // Object-type child plans maintain parent object context
-            val parentObjectStepInfo = parent?.executionStepInfo ?: executionStepInfo
-            ExecutionStepInfo.newExecutionStepInfo()
-                .type(objectType)
-                .path(parentObjectStepInfo.path)
-                .parentInfo(parentObjectStepInfo.parent)
-                .build()
+            checkNotNull(parentFieldStepInfo) {
+                "Expected parent ExecutionStepInfo to be non-null for object-type child plan not on root query type"
+            }
+            // build new execution step info from the parent field step info and update type
+            val esiBuilder = ExecutionStepInfo.newExecutionStepInfo(parentFieldStepInfo).type(objectType)
+            // if the field isn't null, update it
+            if (parentFieldStepInfo.field != null) {
+                val parentMergedField = parentFieldStepInfo.field
+                val parentFieldType = parentFieldStepInfo.fieldDefinition.type?.let(GraphQLTypeUtil::unwrapAll)
+                val requiresInlineFragment = parentFieldType !is GraphQLObjectType
+                val updatedSelectionSet: GJSelectionSet =
+                    if (requiresInlineFragment) {
+                        GJSelectionSet
+                            .newSelectionSet()
+                            .selection(
+                                GJInlineFragment
+                                    .newInlineFragment()
+                                    .typeCondition(GJTypeName(objectType.name))
+                                    .selectionSet(childPlan.astSelectionSet)
+                                    .build()
+                            )
+                            .build()
+                    } else {
+                        childPlan.astSelectionSet
+                    }
+
+                // update each field in the merged field to have the child plan's selection set
+                val updatedFields = parentMergedField.fields.map { field ->
+                    field.transform { spec ->
+                        spec.selectionSet(updatedSelectionSet)
+                    }
+                }
+                // build new merged field with updated fields
+                val updatedMergedField = MergedField
+                    .newMergedField(updatedFields)
+                    .addDeferredExecutions(parentMergedField.deferredExecutions)
+                    .build()
+                esiBuilder.field(updatedMergedField)
+            }
+            esiBuilder.build()
         }
 
         val localContext = if (isRootQueryQueryPlan) {
