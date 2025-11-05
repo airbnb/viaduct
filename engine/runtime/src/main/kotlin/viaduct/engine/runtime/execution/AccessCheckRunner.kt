@@ -8,6 +8,7 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import java.util.function.Supplier
 import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.combine
 import viaduct.engine.api.coroutines.CoroutineInterop
@@ -45,7 +46,7 @@ class AccessCheckRunner(
             ?: return Value.nullValue // No access check for this field, return immediately
 
         // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
-        return executeChecker(parameters, dataFetchingEnvironmentSupplier, checkerDispatcher, parameters.parentEngineResult, parameters.executionStepInfo.arguments)
+        return executeChecker(parameters, dataFetchingEnvironmentSupplier, checkerDispatcher, parameters.parentEngineResult, parameters.executionStepInfo.arguments, CheckerExecutor.CheckerType.FIELD)
     }
 
     /**
@@ -85,13 +86,14 @@ class AccessCheckRunner(
                     val planParameters = parameters.forFieldTypeChildPlan(
                         childPlan,
                         CoercedVariables(variables),
-                        fieldResolutionResult
+                        fieldResolutionResult.originalSource,
+                        fieldResolutionResult.engineResult
                     )
                     fieldResolver.fetchObject(childPlan.parentType as GraphQLObjectType, planParameters)
                 }
             }
         }
-        return executeChecker(parameters, dataFetchingEnvironmentSupplier, checkerDispatcher, objectEngineResult, emptyMap())
+        return executeChecker(parameters, dataFetchingEnvironmentSupplier, checkerDispatcher, objectEngineResult, emptyMap(), CheckerExecutor.CheckerType.TYPE)
     }
 
     /**
@@ -151,6 +153,7 @@ class AccessCheckRunner(
         dispatcher: CheckerDispatcher,
         objectEngineResult: ObjectEngineResultImpl,
         arguments: Map<String, Any?>,
+        checkerType: CheckerExecutor.CheckerType
     ): Value<out CheckerResult?> {
         val engineExecutionContext = parameters.executionContext.findLocalContextForType<EngineExecutionContextImpl>()
         // Temporary hack to enable shimmed checkers to work on modern engine.
@@ -186,7 +189,8 @@ class AccessCheckRunner(
             instrumentedDispatcher.execute(
                 arguments,
                 proxyEODMap,
-                localExecutionContext
+                localExecutionContext,
+                checkerType
             )
         }
         return Value.fromDeferred(deferred)

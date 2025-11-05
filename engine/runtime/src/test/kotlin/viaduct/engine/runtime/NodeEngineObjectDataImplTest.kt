@@ -81,7 +81,7 @@ class NodeEngineObjectDataImplTest {
             coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
             coEvery { engineObjectData.fetch("name") }.returns("testName")
             every { dispatcherRegistry.getTypeCheckerDispatcher("TestType") }.returns(nodeChecker)
-            coEvery { nodeChecker.execute(any(), any(), any()) }.returns(CheckerResult.Success)
+            coEvery { nodeChecker.execute(any(), any(), any(), any()) }.returns(CheckerResult.Success)
 
             nodeReference.resolveData(selections, context)
 
@@ -109,7 +109,7 @@ class NodeEngineObjectDataImplTest {
             coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
             coEvery { engineObjectData.fetch("name") }.returns("testName")
             every { dispatcherRegistry.getTypeCheckerDispatcher("TestType") }.returns(nodeChecker)
-            coEvery { nodeChecker.execute(any(), any(), any()) }.returns(MockCheckerErrorResult(RuntimeException("test")))
+            coEvery { nodeChecker.execute(any(), any(), any(), any()) }.returns(MockCheckerErrorResult(RuntimeException("test")))
 
             assertThrows<RuntimeException> {
                 nodeReference.resolveData(selections, context)

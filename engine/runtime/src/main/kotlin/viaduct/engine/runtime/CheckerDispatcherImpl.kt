@@ -17,8 +17,9 @@ class CheckerDispatcherImpl(
     override suspend fun execute(
         arguments: Map<String, Any?>,
         objectDataMap: Map<String, EngineObjectData>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        checkerType: CheckerExecutor.CheckerType
     ): CheckerResult {
-        return executor.execute(arguments, objectDataMap, context)
+        return executor.execute(arguments, objectDataMap, context, checkerType)
     }
 }

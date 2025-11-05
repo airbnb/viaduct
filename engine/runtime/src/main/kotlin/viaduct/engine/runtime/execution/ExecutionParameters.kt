@@ -28,7 +28,6 @@ import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.observability.ExecutionObservabilityContext
 import viaduct.engine.runtime.CompositeLocalContext
 import viaduct.engine.runtime.EngineExecutionContextImpl
-import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.findLocalContextForType
 import viaduct.engine.runtime.updateCompositeLocalContext
@@ -201,13 +200,15 @@ data class ExecutionParameters(
      *
      * @param childPlan The child QueryPlan to execute
      * @param variables Resolved variables for the child plan
-     * @param fieldResolutionResult The FieldResolutionResult containing the field's engine result and original source
-     * @return New ExecutionParameters configured for field's type child plan execution
+     * @param inputSource The source object for the field
+     * @param engineResult The engine result for the field
+     * @return new [ExecutionParameters] configured for field's type child plan execution
      */
     fun forFieldTypeChildPlan(
         childPlan: QueryPlan,
         variables: CoercedVariables,
-        fieldResolutionResult: FieldResolutionResult
+        inputSource: Any?,
+        engineResult: Any?,
     ): ExecutionParameters {
         val objectType = childPlan.parentType as? GraphQLObjectType
             ?: throw IllegalArgumentException("Child plan must have a parent type of GraphQLObjectType")
@@ -220,17 +221,17 @@ data class ExecutionParameters(
             // For object plans, we use the field's engine result as the containing OER
             // to continue fetching field's type RSS. Hence it is expected to be a non-null
             // ObjectEngineResultImpl.
-            checkNotNull(fieldResolutionResult.engineResult as? ObjectEngineResultImpl) {
-                "Expected ObjectEngineResultImpl but got ${fieldResolutionResult.engineResult}"
+            checkNotNull(engineResult as? ObjectEngineResultImpl) {
+                "Expected ObjectEngineResultImpl but got $engineResult"
             }
         }
 
-        val source = if (isRootQueryQueryPlan) {
+        val childPlanSource = if (isRootQueryQueryPlan) {
             executionContext.getRoot()
         } else {
             // For object plans, we use field's original source to continue fetching
             // field's type RSS.
-            fieldResolutionResult.originalSource
+            inputSource
         }
 
         return forChildPlan(
@@ -239,7 +240,7 @@ data class ExecutionParameters(
             isRootQueryQueryPlan,
             objectType,
             newParentOER,
-            source
+            childPlanSource
         )
     }
 

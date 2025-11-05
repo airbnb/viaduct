@@ -242,10 +242,11 @@ fun CheckerExecutor.invoke(
     arguments: Map<String, Any?> = emptyMap(),
     objectDataMap: Map<String, Map<String, Any?>> = emptyMap(),
     context: EngineExecutionContext = ContextMocks(fullSchema).engineExecutionContext,
+    checkerType: CheckerExecutor.CheckerType = CheckerExecutor.CheckerType.FIELD
 ) = runBlocking(MockNextTickDispatcher()) {
     val objectType = fullSchema.schema.getObjectType(coord.first)!!
     val objectMap = objectDataMap.mapValues { (_, it) -> mkEngineObjectData(objectType, it) }
-    execute(arguments, objectMap, context)
+    execute(arguments, objectMap, context, checkerType)
 }
 
 class MockCheckerErrorResult(override val error: Exception) : CheckerResult.Error {
@@ -265,7 +266,8 @@ class MockCheckerExecutor(
     override suspend fun execute(
         arguments: Map<String, Any?>,
         objectDataMap: Map<String, EngineObjectData>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        checkerType: CheckerExecutor.CheckerType
     ): CheckerResult {
         try {
             executeFn(arguments, objectDataMap)

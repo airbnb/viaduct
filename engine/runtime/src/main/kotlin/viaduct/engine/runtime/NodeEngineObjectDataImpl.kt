@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
+import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
@@ -74,7 +75,8 @@ class NodeEngineObjectDataImpl(
                                         "missing from checker RSS"
                                     )
                                 ),
-                                context
+                                context,
+                                CheckerExecutor.CheckerType.TYPE
                             )
                         }
                         runCatching {

@@ -9,6 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.supervisorScope
 import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.FieldResolverDispatcher
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.coroutines.CoroutineInterop
@@ -83,7 +84,8 @@ class ResolverDataFetcher(
                         checkerDispatcher.execute(
                             environment.arguments,
                             checkerProxyEODMap,
-                            localExecutionContext
+                            localExecutionContext,
+                            CheckerExecutor.CheckerType.FIELD
                         )
                     }
                     runCatching {
@@ -99,7 +101,8 @@ class ResolverDataFetcher(
                 val checkerResult = checkerDispatcher.execute(
                     environment.arguments,
                     checkerProxyEODMap,
-                    localExecutionContext
+                    localExecutionContext,
+                    CheckerExecutor.CheckerType.FIELD
                 )
                 checkerResult.asError?.let { throw it.error }
                 resolveField(environment, objectValueEOD, queryValueEOD, localExecutionContext)

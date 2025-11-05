@@ -278,7 +278,8 @@ class AccessCheckRunnerTest {
             override suspend fun execute(
                 arguments: Map<String, Any?>,
                 objectDataMap: Map<String, EngineObjectData>,
-                context: EngineExecutionContext
+                context: EngineExecutionContext,
+                checkerType: CheckerExecutor.CheckerType
             ): CheckerResult {
                 return CheckerResult.Success
             }
@@ -290,7 +291,8 @@ class AccessCheckRunnerTest {
             override suspend fun execute(
                 arguments: Map<String, Any?>,
                 objectDataMap: Map<String, EngineObjectData>,
-                context: EngineExecutionContext
+                context: EngineExecutionContext,
+                checkerType: CheckerExecutor.CheckerType
             ): CheckerResult {
                 return object : CheckerResult.Error {
                     override val error: Exception = IllegalAccessException("denied")

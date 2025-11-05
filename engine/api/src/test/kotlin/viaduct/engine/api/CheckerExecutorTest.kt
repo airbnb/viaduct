@@ -9,6 +9,7 @@ class CheckerExecutorTest {
             arguments: Map<String, Any?>,
             objectDataMap: Map<String, EngineObjectData>,
             context: EngineExecutionContext,
+            checkerType: CheckerExecutor.CheckerType
         ): CheckerResult = CheckerResult.Success
     }
 

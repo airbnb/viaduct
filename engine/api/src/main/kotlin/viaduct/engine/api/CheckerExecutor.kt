@@ -4,6 +4,11 @@ package viaduct.engine.api
  * Executor for both tenant-written and Viaduct architect-written access checkers.
  */
 interface CheckerExecutor {
+    enum class CheckerType {
+        FIELD,
+        TYPE
+    }
+
     /**
      * The map of checker key to its required selection sets.
      */
@@ -21,6 +26,7 @@ interface CheckerExecutor {
     suspend fun execute(
         arguments: Map<String, Any?>,
         objectDataMap: Map<String, EngineObjectData>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        checkerType: CheckerType
     ): CheckerResult
 }

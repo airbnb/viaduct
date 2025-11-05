@@ -140,7 +140,7 @@ class ExecutionParametersTest {
             parentEngineResult = ObjectEngineResultImpl.newForType(fooType)
         )
 
-        val result = parameters.forFieldTypeChildPlan(childPlan, emptyVariables, fieldResolutionResult)
+        val result = parameters.forFieldTypeChildPlan(childPlan, emptyVariables, fieldResolutionResult.originalSource, fieldResolutionResult.engineResult)
 
         assertSame(fieldEngineResult, result.parentEngineResult)
         assertEquals(fieldResolutionResult.originalSource, result.source)
@@ -167,7 +167,7 @@ class ExecutionParametersTest {
             originalSource = Any()
         )
 
-        val result = parameters.forFieldTypeChildPlan(childPlan, emptyVariables, fieldResolutionResult)
+        val result = parameters.forFieldTypeChildPlan(childPlan, emptyVariables, fieldResolutionResult.originalSource, fieldResolutionResult.engineResult)
 
         assertSame(parameters.constants.queryEngineResult, result.parentEngineResult)
         assertEquals(defaultRootValue, result.source)
@@ -275,7 +275,7 @@ class ExecutionParametersTest {
         )
 
         assertThrows<IllegalStateException> {
-            parameters.forFieldTypeChildPlan(childPlan, emptyVariables, invalidFieldResult)
+            parameters.forFieldTypeChildPlan(childPlan, emptyVariables, invalidFieldResult.originalSource, invalidFieldResult.engineResult)
         }
     }
 
@@ -301,7 +301,7 @@ class ExecutionParametersTest {
         )
 
         assertThrows<IllegalArgumentException> {
-            parameters.forFieldTypeChildPlan(interfacePlan, emptyVariables, fieldResolutionResult)
+            parameters.forFieldTypeChildPlan(interfacePlan, emptyVariables, fieldResolutionResult.originalSource, fieldResolutionResult.engineResult)
         }
     }
 
