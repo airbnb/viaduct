@@ -92,6 +92,7 @@ class FieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContext<*, *, *>>(
 
 class NodeUnbatchedResolverStub(
     val resolverFactory: NodeExecutionContextFactory,
+    val resolverName: String?,
     val resolveFn: (suspend (ctx: Any) -> NodeObject),
 ) : NodeResolverBase<NodeObject> {
     @Suppress("UNUSED_PARAMETER")
@@ -106,6 +107,7 @@ class NodeUnbatchedResolverStub(
 @Suppress("UNUSED_PARAMETER")
 class NodeBatchResolverStub(
     val resolverFactory: NodeExecutionContextFactory,
+    val resolverName: String?,
     val batchResolveFn: (suspend (ctxs: List<Any>) -> List<FieldValue<NodeObject>>),
 ) : NodeResolverBase<NodeObject> {
     suspend fun batchResolve(

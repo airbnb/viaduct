@@ -2,10 +2,12 @@ package viaduct.tenant.runtime.featuretests
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.test.assertContains
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.api.context.NodeExecutionContext
 import viaduct.api.globalid.GlobalID
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
@@ -49,6 +51,38 @@ class ResolverInstrumentationTest {
 
         assertEquals(setOf("query-id-field-resolver", "query-string1-resolver"), resolverToField.keys)
         assertEquals(listOf("idField"), resolverToField.get("query-string1-resolver")?.toList())
+    }
+
+    @Test
+    fun `test node resolver should invoke instrumentation`() {
+        val invoked = CopyOnWriteArrayList<String>()
+        val instrumentation = CountingInstrumentation(invoked)
+
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, resolverInstrumentation = instrumentation)
+            .nodeResolver("Baz", resolverName = "baz-node-resolver") { ctx: NodeExecutionContext<Baz> ->
+                Baz.Builder(ctx).build()
+            }
+            .build()
+            .execute("query testQuery { node(id: \"QmF6OjE=\") { ... on Baz { id } } }")
+            .assertJson("{data: {node: {id: \"QmF6OjE=\"}}}")
+
+        assertEquals(2, invoked.size) {
+            "Resolver instrumentation should be invoked once for the query node resolver and once for the baz node resolver"
+        }
+        assertContains(invoked, "baz-node-resolver", "baz-node-resolver should exists but found $invoked")
+    }
+
+    class CountingInstrumentation(
+        val invoked: CopyOnWriteArrayList<String>
+    ) : ViaductResolverInstrumentation {
+        override fun <T> instrumentResolverExecution(
+            resolver: ResolverFunction<T>,
+            parameters: ViaductResolverInstrumentation.InstrumentExecuteResolverParameters,
+            state: ViaductResolverInstrumentation.InstrumentationState?
+        ): ResolverFunction<T> {
+            invoked.add(parameters.resolverMetadata.name)
+            return resolver
+        }
     }
 
     class TestResolverInstrumentation(

@@ -23,6 +23,7 @@ import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.NodeResolverDispatcherImpl
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher
+import viaduct.engine.runtime.instrumentation.resolver.InstrumentedNodeResolverDispatcher
 import viaduct.engine.runtime.validation.Validator
 
 class DispatcherRegistryFactory(
@@ -72,7 +73,7 @@ class DispatcherRegistryFactory(
                 tenantContributesExecutors = true
             }
             for ((typeName, executor) in tenantNodeResolverExecutors) {
-                nodeResolverDispatchers[typeName] = NodeResolverDispatcherImpl(executor)
+                nodeResolverDispatchers[typeName] = InstrumentedNodeResolverDispatcher(NodeResolverDispatcherImpl(executor), resolverInstrumentation)
                 nodeResolverExecutorsToValidate[typeName] = executor
                 tenantContributesExecutors = true
             }

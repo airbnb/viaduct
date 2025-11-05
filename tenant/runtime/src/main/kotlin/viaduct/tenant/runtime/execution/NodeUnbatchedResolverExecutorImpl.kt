@@ -14,6 +14,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.RawSelectionSet
+import viaduct.engine.api.ResolverMetadata
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 class NodeUnbatchedResolverExecutorImpl(
@@ -23,7 +24,9 @@ class NodeUnbatchedResolverExecutorImpl(
     private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     private val factory: NodeExecutionContextFactory,
+    private val resolverName: String,
 ) : NodeResolverExecutor {
+    override val metadata = ResolverMetadata.forModern(resolverName)
     override val isBatching = false
 
     override suspend fun batchResolve(

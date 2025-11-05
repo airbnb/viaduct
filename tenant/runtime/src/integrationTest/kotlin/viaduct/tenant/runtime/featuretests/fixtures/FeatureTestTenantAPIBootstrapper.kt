@@ -76,6 +76,7 @@ class FeatureTestTenantModuleBootstrapper(
                 globalIDCodec = globalIDCodec,
                 reflectionLoader = reflectionLoader,
                 factory = stub.resolverFactory,
+                resolverName = stub.resolverName ?: "test-node-unbatched-resolver",
             )
         }.toList() + nodeBatchResolverExecutorStubs.mapValues { (typeName, stub) ->
             NodeBatchResolverExecutorImpl(
@@ -85,6 +86,7 @@ class FeatureTestTenantModuleBootstrapper(
                 globalIDCodec = globalIDCodec,
                 reflectionLoader = reflectionLoader,
                 factory = stub.resolverFactory,
+                resolverName = stub.resolverName ?: "test-node-batch-resolver",
             )
         }.toList()
 }

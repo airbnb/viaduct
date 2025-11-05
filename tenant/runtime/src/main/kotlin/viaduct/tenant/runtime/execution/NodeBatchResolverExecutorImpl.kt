@@ -13,6 +13,7 @@ import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeResolverExecutor
+import viaduct.engine.api.ResolverMetadata
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 class NodeBatchResolverExecutorImpl(
@@ -22,7 +23,9 @@ class NodeBatchResolverExecutorImpl(
     private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     private val factory: NodeExecutionContextFactory,
+    private val resolverName: String,
 ) : NodeResolverExecutor {
+    override val metadata = ResolverMetadata.forModern(resolverName)
     override val isBatching = true
 
     override suspend fun batchResolve(

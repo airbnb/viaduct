@@ -9,6 +9,9 @@ interface NodeResolverExecutor {
      */
     val typeName: String
 
+    /** Tenant-digestible metadata associated with this particular resolver */
+    val metadata: ResolverMetadata
+
     /**
      * The input for a single node in the batch
      *

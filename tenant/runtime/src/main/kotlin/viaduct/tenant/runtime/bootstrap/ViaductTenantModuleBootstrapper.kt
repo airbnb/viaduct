@@ -288,6 +288,7 @@ class ViaductTenantModuleBootstrapper(
                         globalIDCodec = globalIDCodec,
                         reflectionLoader = reflectionLoader,
                         factory = resolverContextFactory,
+                        resolverName = resolverKClass.qualifiedName!!,
                     )
                 nodeResolverExecutors.put(typeName, nodeUnbatchedResolverExecutor)?.let { extant ->
                     throw TenantModuleException(
@@ -305,6 +306,7 @@ class ViaductTenantModuleBootstrapper(
                         globalIDCodec = globalIDCodec,
                         reflectionLoader = reflectionLoader,
                         factory = resolverContextFactory,
+                        resolverName = resolverKClass.qualifiedName!!,
                     )
                 nodeResolverExecutors.put(typeName, nodeResolverExecutor)?.let { extant ->
                     throw TenantModuleException(

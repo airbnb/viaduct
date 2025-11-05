@@ -280,6 +280,7 @@ class MockNodeUnbatchedResolverExecutor(
     override val typeName: String = "MockNode",
     val unbatchedResolveFn: NodeUnbatchedResolverFn = { _, _, _ -> throw NotImplementedError() }
 ) : NodeResolverExecutor {
+    override val metadata: ResolverMetadata = ResolverMetadata.forMock("Node:$typeName")
     override val isBatching: Boolean = false
 
     override suspend fun batchResolve(
@@ -300,6 +301,7 @@ class MockNodeBatchResolverExecutor(
     override val typeName: String,
     val batchResolveFn: NodeBatchResolverFn = { _, _ -> throw NotImplementedError() }
 ) : NodeResolverExecutor {
+    override val metadata: ResolverMetadata = ResolverMetadata.forMock("Node:$typeName")
     override val isBatching: Boolean = true
 
     override suspend fun batchResolve(

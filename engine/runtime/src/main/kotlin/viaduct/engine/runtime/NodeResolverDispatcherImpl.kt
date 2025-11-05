@@ -5,6 +5,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeResolverDispatcher
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.RawSelectionSet
+import viaduct.engine.api.ResolverMetadata
 
 /**
  * Initialized via DispatcherRegistry and resolves a single node for a node type whose
@@ -19,6 +20,8 @@ import viaduct.engine.api.RawSelectionSet
 class NodeResolverDispatcherImpl(
     private val resolver: NodeResolverExecutor
 ) : NodeResolverDispatcher {
+    override val resolverMetadata: ResolverMetadata = resolver.metadata
+
     override suspend fun resolve(
         id: String,
         selections: RawSelectionSet,

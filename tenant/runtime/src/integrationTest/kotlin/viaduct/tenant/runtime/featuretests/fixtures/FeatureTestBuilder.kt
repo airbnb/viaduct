@@ -202,14 +202,16 @@ class FeatureTestBuilder(
 
     inline fun <reified Ctx : NodeExecutionContext<T>, reified T : NodeObject> nodeResolver(
         typeName: String,
+        resolverName: String? = null,
         noinline resolveFn: suspend (ctx: Ctx) -> NodeObject
-    ): FeatureTestBuilder = nodeResolver(Ctx::class, T::class, typeName, resolveFn)
+    ): FeatureTestBuilder = nodeResolver(Ctx::class, T::class, typeName, resolverName, resolveFn)
 
     @Suppress("UNUSED_PARAMETER")
     fun <Ctx : NodeExecutionContext<T>, T : NodeObject> nodeResolver(
         ctxCls: KClass<Ctx>,
         nodeCls: KClass<T>,
         typeName: String,
+        resolverName: String? = null,
         resolveFn: suspend (ctx: Ctx) -> NodeObject
     ): FeatureTestBuilder {
         @Suppress("UNCHECKED_CAST")
@@ -220,8 +222,9 @@ class FeatureTestBuilder(
                 NodeExecutionContextFactory.FakeResolverBase::class.java,
                 globalIDCodec,
                 reflectionLoaderForFeatureTestBootstrapper,
-                resultType,
-            )
+                resultType
+            ),
+            resolverName,
         ) { ctx ->
             @Suppress("UNCHECKED_CAST")
             resolveFn(ctx as Ctx)
@@ -233,18 +236,21 @@ class FeatureTestBuilder(
     @JvmName("nodeResolver2")
     fun nodeResolver(
         typeName: String,
+        resolverName: String? = null,
         resolveFn: suspend (ctx: UntypedNodeContext) -> NodeObject
-    ): FeatureTestBuilder = nodeResolver<UntypedNodeContext, NodeObject>(typeName, resolveFn)
+    ): FeatureTestBuilder = nodeResolver<UntypedNodeContext, NodeObject>(typeName, resolverName, resolveFn)
 
     inline fun <reified Ctx : NodeExecutionContext<T>, reified T : NodeObject> nodeBatchResolver(
         typeName: String,
+        resolverName: String? = null,
         noinline batchResolveFn: suspend (ctxs: List<Ctx>) -> List<FieldValue<T>>
-    ): FeatureTestBuilder = nodeBatchResolver(Ctx::class, typeName, batchResolveFn)
+    ): FeatureTestBuilder = nodeBatchResolver(Ctx::class, typeName, resolverName, batchResolveFn)
 
     @Suppress("UNCHECKED_CAST")
     fun <Ctx : NodeExecutionContext<T>, T : NodeObject> nodeBatchResolver(
         @Suppress("UNUSED_PARAMETER") ctxCls: KClass<Ctx>,
         typeName: String,
+        resolverName: String? = null,
         batchResolveFn: suspend (ctxs: List<Ctx>) -> List<FieldValue<NodeObject>>
     ): FeatureTestBuilder {
         val resultType = reflectionLoaderForFeatureTestBootstrapper.reflectionFor(typeName) as Type<NodeObject>
@@ -255,7 +261,8 @@ class FeatureTestBuilder(
                 globalIDCodec,
                 reflectionLoaderForFeatureTestBootstrapper,
                 resultType,
-            )
+            ),
+            resolverName,
         ) { ctxs ->
             batchResolveFn(ctxs as List<Ctx>)
         }
@@ -266,8 +273,9 @@ class FeatureTestBuilder(
     @JvmName("nodeBatchResolver2")
     fun nodeBatchResolver(
         typeName: String,
+        resolverName: String? = null,
         resolveFn: suspend (ctxs: List<UntypedNodeContext>) -> List<FieldValue<NodeObject>>
-    ): FeatureTestBuilder = nodeBatchResolver<UntypedNodeContext, NodeObject>(typeName, resolveFn)
+    ): FeatureTestBuilder = nodeBatchResolver<UntypedNodeContext, NodeObject>(typeName, resolverName, resolveFn)
 
     /**
      * Configure a field checker for the field with the given [coordinate].
