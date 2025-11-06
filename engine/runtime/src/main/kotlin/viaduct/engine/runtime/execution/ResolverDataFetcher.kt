@@ -4,9 +4,7 @@ import graphql.language.OperationDefinition
 import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
 import java.util.concurrent.CompletableFuture
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.supervisorScope
 import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.CheckerExecutor
@@ -167,25 +165,13 @@ class ResolverDataFetcher(
         engineExecutionContext
     )
 
-    private suspend fun getEngineResults(environment: DataFetchingEnvironment): EngineResults =
-        coroutineScope {
-            val engineLoaderContext = environment.findLocalContextForType<EngineResultLocalContext>()
-
-            // Get query result - use dedicated queryEngineResult for modern strategy or when no query selections
-            val queryEngineResultDeferred = CompletableDeferred(
-                engineLoaderContext.queryEngineResult
-            )
-
-            val parentEngineResultDeferred = CompletableDeferred(
-                engineLoaderContext.parentEngineResult
-            )
-            val queryEngineResult = queryEngineResultDeferred.await()
-            val parentEngineResult = parentEngineResultDeferred.await()
-
-            assert(parentEngineResult.graphQLObjectType.name == typeName)
-
-            EngineResults(parentEngineResult, queryEngineResult)
-        }
+    private fun getEngineResults(environment: DataFetchingEnvironment): EngineResults {
+        val engineLoaderContext = environment.findLocalContextForType<EngineResultLocalContext>()
+        val queryEngineResult = engineLoaderContext.queryEngineResult
+        val parentEngineResult = engineLoaderContext.parentEngineResult
+        assert(parentEngineResult.graphQLObjectType.name == typeName)
+        return EngineResults(parentEngineResult, queryEngineResult)
+    }
 
     /**
      * Get checker proxyEOD from engine result. This supports both old and new engine.
