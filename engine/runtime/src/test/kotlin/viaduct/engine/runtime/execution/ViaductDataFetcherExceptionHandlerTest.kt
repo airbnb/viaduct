@@ -13,6 +13,7 @@ import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLType
 import io.mockk.every
 import io.mockk.mockk
+import java.util.concurrent.CompletionException
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -203,6 +204,56 @@ class ViaductDataFetcherExceptionHandlerTest {
         assertEquals("true", result.errors.first().extensions["isFrameworkError"])
         assertEquals(capturedMetadata[0].fieldName, result.errors[0].extensions["fieldName"])
         assertEquals(capturedMetadata[0].operationName, result.errors[0].extensions["operationName"])
+    }
+
+    @Test
+    fun handleArbitraryExceptionNesting() {
+        val actualException = IllegalStateException("actual error")
+
+        val tenantResolverException = mockk<ViaductTenantResolverException>(relaxed = true) {
+            every { cause } returns actualException
+            every { resolver } returns "Test.field"
+            every { message } returns "tenant resolver message"
+        }
+
+        val completionException = CompletionException(tenantResolverException)
+
+        val fieldFetchingException = FieldFetchingException.wrapWithPathAndLocation(
+            completionException,
+            ResultPath.rootPath(),
+            SourceLocation.EMPTY
+        )
+
+        val outerCompletionException = CompletionException(fieldFetchingException)
+
+        val params = mockParamsWithDirectives(outerCompletionException)
+        val result = exceptionHandler.handleException(params).join()
+
+        // The actual unwrapped error should be the IllegalStateException
+        assertEquals(actualException, capturedThrowables.first())
+        assertEquals("java.lang.IllegalStateException: actual error", result.errors.first().message)
+
+        // For metadata, only concurrency exceptions are unwrapped, so we preserve the top-most
+        // Viaduct exception (FieldFetchingException), which doesn't have a resolver chain
+        assertNull(capturedMetadata.first().resolvers)
+    }
+
+    @Test
+    fun handleFieldFetchingExceptionWrappingCompletionException() {
+        val actualException = RuntimeException("deep error")
+        val completionException = CompletionException(actualException)
+
+        val fieldFetchingException = FieldFetchingException.wrapWithPathAndLocation(
+            completionException,
+            ResultPath.rootPath(),
+            SourceLocation.EMPTY
+        )
+
+        val params = mockParamsWithDirectives(fieldFetchingException)
+        val result = exceptionHandler.handleException(params).join()
+
+        assertEquals(actualException, capturedThrowables.first())
+        assertContains(result.errors.first().message, "deep error")
     }
 
     private fun mockParamsWithDirectives(exception: Throwable): DataFetcherExceptionHandlerParameters {

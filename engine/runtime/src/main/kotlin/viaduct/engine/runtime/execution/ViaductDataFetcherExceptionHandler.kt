@@ -52,12 +52,18 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ResolverErrorReporte
 
     // A helper function that processes the exception and returns a list of GraphQLErrors
     private fun processException(params: DataFetcherExceptionHandlerParameters): List<GraphQLError> {
-        val exception = unwrapConcurrencyExceptionIfNecessary(params.exception)
-        val unwrappedException = unwrapViaductExceptionIfNecessary(exception)
+        // For metadata: unwrap ONLY concurrency wrappers, preserving the top-most Viaduct exception
+        // (whether FieldFetchingException, ViaductTenantResolverException, etc.)
+        val exceptionForMetadata = unwrapException(params.exception, ::isConcurrencyWrapper)
+
+        // For errors: unwrap ALL wrappers (concurrency + Viaduct) to get the actual underlying error
+        val unwrappedException = unwrapException(params.exception) { e ->
+            isConcurrencyWrapper(e) || isViaductWrapper(e)
+        }
 
         val env = params.dataFetchingEnvironment
         val operationName: String? = env.operationDefinition.name
-        val metadata = getMetadata(params, operationName, exception)
+        val metadata = getMetadata(params, operationName, exceptionForMetadata)
         val errors = getErrors(unwrappedException, env, metadata)
         val message: String = getErrorMessage(operationName, env, metadata)
 
@@ -144,28 +150,26 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ResolverErrorReporte
             .toList()
     }
 
-    /** Unwrap exceptions that are wrapped in Completion/Cancellation/Execution exceptions.  */
-    private fun unwrapConcurrencyExceptionIfNecessary(exception: Throwable): Throwable {
+    /**
+     * Unwraps exceptions based on a predicate, handling arbitrary nesting.
+     * Continues unwrapping while the predicate returns true.
+     */
+    private fun unwrapException(
+        exception: Throwable,
+        shouldUnwrap: (Throwable) -> Boolean
+    ): Throwable {
         var cause = exception
-        while (cause is CompletionException ||
-            cause is CancellationException ||
-            cause is ExecutionException ||
-            cause is InvocationTargetException
-        ) {
-            val maybeUnwrapped = cause.cause
-            cause = maybeUnwrapped ?: break
+        while (shouldUnwrap(cause)) {
+            cause = cause.cause ?: break
         }
         return cause
     }
 
-    /**
-     * Unwraps exceptions that the Viaduct framework wraps around exceptions from tenant code
-     */
-    private fun unwrapViaductExceptionIfNecessary(e: Throwable): Throwable {
-        return when (e) {
-            is ViaductTenantResolverException -> unwrapViaductExceptionIfNecessary(e.cause)
-            is FieldFetchingException -> e.cause?.let(::unwrapViaductExceptionIfNecessary) ?: e
-            else -> e
-        }
-    }
+    private fun isConcurrencyWrapper(e: Throwable) =
+        e is CompletionException ||
+            e is CancellationException ||
+            e is ExecutionException ||
+            e is InvocationTargetException
+
+    private fun isViaductWrapper(e: Throwable) = e is ViaductTenantResolverException || e is FieldFetchingException
 }
