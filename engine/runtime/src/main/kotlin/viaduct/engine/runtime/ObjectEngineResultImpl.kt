@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import viaduct.deferred.completedDeferred
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.RawSelectionSet
@@ -53,7 +54,7 @@ import viaduct.engine.api.gj
  */
 class ObjectEngineResultImpl private constructor(
     override val graphQLObjectType: GraphQLObjectType,
-    private val oerState: CompletableDeferred<Unit>,
+    val pending: Boolean = false,
 ) : ObjectEngineResult {
     private val storage = ConcurrentHashMap<ObjectEngineResult.Key, Cell>()
 
@@ -79,7 +80,15 @@ class ObjectEngineResultImpl private constructor(
      * state is completed either normally or exceptionally based on the success of the node resolver.
      * After that point, fetches of its values will fail if state was completed exceptionally.
      */
-    val state: Deferred<Unit> = oerState
+    val state: CompletableDeferred<Unit> = let {
+        if (pending) {
+            // create a new pending deferred
+            CompletableDeferred()
+        } else {
+            // otherwise, create a pre-completed deferred
+            completedDeferred(Unit)
+        }
+    }
 
     /**
      * Fetches the value in slot number [slotNo] for the field, suspending if not yet available.
@@ -158,8 +167,8 @@ class ObjectEngineResultImpl private constructor(
      * @throws IllegalStateException if this OER is already resolved normally or with a different exception
      */
     internal fun resolveExceptionally(exception: Throwable) {
-        if (!oerState.completeExceptionally(exception)) {
-            val completionException = oerState.getCompletionExceptionOrNull()
+        if (!state.completeExceptionally(exception)) {
+            val completionException = state.getCompletionExceptionOrNull()
             if (completionException == exception) {
                 return
             }
@@ -175,8 +184,8 @@ class ObjectEngineResultImpl private constructor(
      * @throws IllegalStateException if this OER is already resolved exceptionally
      */
     internal fun resolve() {
-        if (!oerState.complete(Unit)) {
-            oerState.getCompletionExceptionOrNull()?.let {
+        if (!state.complete(Unit)) {
+            state.getCompletionExceptionOrNull()?.let {
                 throw IllegalStateException("Invariant: already resolved exceptionally", it)
             }
         }
@@ -199,18 +208,15 @@ class ObjectEngineResultImpl private constructor(
             this.set(ACCESS_CHECK_SLOT, value)
         }
 
-        /** Constant used for the common case of OERs that start as resolved normally. */
-        private val resolvedNormally = CompletableDeferred<Unit>().also { it.complete(Unit) }
-
         /**
          * Creates a new ObjectEngineResult for the given type in the Resolved state.
          */
-        fun newForType(type: GraphQLObjectType) = ObjectEngineResultImpl(type, resolvedNormally)
+        fun newForType(type: GraphQLObjectType) = ObjectEngineResultImpl(type)
 
         /**
          * Creates a new ObjectEngineResult for the given type in the Pending state.
          */
-        fun newPendingForType(type: GraphQLObjectType) = ObjectEngineResultImpl(type, CompletableDeferred<Unit>())
+        fun newPendingForType(type: GraphQLObjectType) = ObjectEngineResultImpl(type, pending = true)
 
         /**
          * Temporary helper to convert a fully resolved response from the ViaductClassicFragmentLoader to an ObjectEngineResult.

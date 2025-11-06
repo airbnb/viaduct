@@ -22,7 +22,7 @@ import graphql.schema.LightDataFetcher
 import graphql.util.FpKit
 import java.util.concurrent.CompletionStage
 import java.util.function.Supplier
-import kotlinx.coroutines.future.asDeferred
+import viaduct.deferred.asDeferred
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.LazyEngineObjectData
 import viaduct.engine.api.ObjectEngineResult

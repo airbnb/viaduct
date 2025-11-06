@@ -125,7 +125,7 @@ class FeatureTest(
             requestContext = Any(),
         )
         return runBlocking {
-            DefaultCoroutineInterop.enterThreadLocalCoroutineContext {
+            DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
                 engine.execute(input).awaitExecutionResult()
             }.await()
         }

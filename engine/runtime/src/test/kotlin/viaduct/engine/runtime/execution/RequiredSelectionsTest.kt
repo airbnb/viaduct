@@ -276,7 +276,13 @@ class RequiredSelectionsTest {
                         }
                         """.trimIndent()
                     )
-                    fn { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 2 }
+                    fn { _, obj, _, _, _ ->
+                        // make sure we wait for aliasedBar
+                        obj.fetchAs<Int>("aliasedBar")
+
+                        // but ultimately just return 2 * "bar"
+                        obj.fetchAs<Int>("bar") * 2
+                    }
                 }
             }
         }.runFeatureTest {

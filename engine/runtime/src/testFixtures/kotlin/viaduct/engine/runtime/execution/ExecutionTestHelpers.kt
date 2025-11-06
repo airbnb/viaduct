@@ -33,9 +33,7 @@ import java.util.function.Function
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.future.future
 import kotlinx.coroutines.runBlocking
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.graphQLExecutionInput
@@ -267,7 +265,7 @@ object ExecutionTestHelpers {
     private class ExceptionHandlerWithFuture : DataFetcherExceptionHandler {
         @OptIn(DelicateCoroutinesApi::class)
         override fun handleException(handlerParameters: DataFetcherExceptionHandlerParameters?): CompletableFuture<DataFetcherExceptionHandlerResult?>? {
-            return GlobalScope.future {
+            return scopedFuture {
                 SimpleDataFetcherExceptionHandler().handleException(handlerParameters).await()
             }
         }

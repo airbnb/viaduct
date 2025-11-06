@@ -5,7 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 
 class DeferredLateResolvedVariable(
     val variableName: String
-) : CompletableDeferred<Any?> by CompletableDeferred<Any?>(), LateResolvedVariable {
+) : CompletableDeferred<Any?> by CompletableDeferred(), LateResolvedVariable {
     override suspend fun resolve(): Any? {
         return this.await()
     }

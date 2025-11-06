@@ -1,7 +1,6 @@
 package viaduct.engine.runtime.execution
 
 import java.util.concurrent.CompletableFuture
-import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
@@ -10,10 +9,11 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.ThreadContextElement
 import kotlinx.coroutines.async
 import kotlinx.coroutines.future.asCompletableFuture
 import kotlinx.coroutines.withContext
+import viaduct.deferred.ThreadLocalCoroutineContextManager
+import viaduct.deferred.threadLocalCoroutineContext
 
 // This is a temporary fork of scopedFuture to be removed in the future.
 // It is preserving the same signature without GlobalContext.
@@ -53,19 +53,6 @@ fun <T> scopedAsync(
     return deferred
 }
 
-private fun threadLocalCoroutineContext(): CoroutineContext {
-    val threadLocalContext = ThreadLocalCoroutineContextManager.INSTANCE.getCurrentCoroutineContext()
-    val currentJob = threadLocalContext[Job]
-    val contextForScope =
-        if (currentJob?.isActive == true) {
-            threadLocalContext
-        } else {
-            val rootJob = ThreadLocalCoroutineContextManager.INSTANCE.getCurrentDefaultJob()
-            threadLocalContext + rootJob
-        }
-    return contextForScope
-}
-
 /**
  * Run the specified [block] with a [CoroutineContext] that contains a
  * [ThreadLocalCoroutineContextManager.ContextElement] [ContextElement].
@@ -87,68 +74,5 @@ suspend fun <T> CoroutineScope.withThreadLocalCoroutineContext(block: suspend Co
         return withContext(contextElement) { block() }
     } finally {
         job.complete()
-    }
-}
-
-/**
- * [ThreadLocalCoroutineContextManager] manages a single [ThreadLocal] that, at any given time,
- * contains the currently active [coroutineContext]. This is used by [scopedFuture] (and its
- * helper functions) in order to allow launching [CompletableFuture]-based coroutines into a scope
- * that is properly parented by the [Job] that first launched the future.
- */
-internal class ThreadLocalCoroutineContextManager {
-    companion object {
-        val INSTANCE = ThreadLocalCoroutineContextManager()
-        private val threadLocal = ThreadLocal<CoroutineContext?>()
-    }
-
-    private var defaultCoroutineContext: CoroutineContext? = null
-
-    /**
-     * A [ThreadContextElement] that handles getting/setting the [ThreadLocal] managed by
-     * [ThreadLocalCoroutineContextManager] as threads change during normal coroutine execution.
-     */
-    class ContextElement(val defaultJob: Job) :
-        ThreadContextElement<CoroutineContext?>, AbstractCoroutineContextElement(Key) {
-        companion object Key : CoroutineContext.Key<ContextElement>
-
-        override fun updateThreadContext(context: CoroutineContext): CoroutineContext? {
-            val old = threadLocal.get() // old coroutine context
-            threadLocal.set(context)
-            return old
-        }
-
-        override fun restoreThreadContext(
-            context: CoroutineContext,
-            oldState: CoroutineContext?
-        ) {
-            threadLocal.set(oldState)
-        }
-    }
-
-    fun setDefaultCoroutineContext(coroutineContext: CoroutineContext?) {
-        if (coroutineContext == null) {
-            defaultCoroutineContext = null
-            return
-        }
-        defaultCoroutineContext =
-            // add a job if one does not exist
-            if (coroutineContext[Job] == null) {
-                coroutineContext + Job()
-            } else {
-                coroutineContext
-            }
-    }
-
-    fun getCurrentCoroutineContext(): CoroutineContext =
-        threadLocal.get() ?: defaultCoroutineContext ?: throw IllegalStateException(
-            "Can't get CoroutineContext from the context manager, as no CoroutineContext is " +
-                "active on this thread and no default CoroutineContext has been set."
-        )
-
-    fun getCurrentDefaultJob(): Job {
-        val currentContext = getCurrentCoroutineContext()
-        val contextElement = currentContext[ContextElement] as ContextElement
-        return contextElement.defaultJob
     }
 }

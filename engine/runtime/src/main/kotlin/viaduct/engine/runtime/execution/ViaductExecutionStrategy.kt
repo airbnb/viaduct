@@ -12,8 +12,21 @@ import graphql.execution.NonNullableFieldWasNullException
 import graphql.language.OperationDefinition
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
+import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.execution.CompletionErrors.FieldCompletionException
@@ -58,7 +71,7 @@ class ViaductExecutionStrategy internal constructor(
     private val isSerial: Boolean,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
     @Suppress("DEPRECATION")
-    private val temporaryBypassAccessCheck: viaduct.engine.api.TemporaryBypassAccessCheck = viaduct.engine.api.TemporaryBypassAccessCheck.Default,
+    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default,
 ) : ExecutionStrategy(dataFetcherExceptionHandler) {
     /**
      * Factory interface for creating instances of [ViaductExecutionStrategy].
@@ -82,7 +95,7 @@ class ViaductExecutionStrategy internal constructor(
             private val accessCheckRunner: AccessCheckRunner,
             private val coroutineInterop: CoroutineInterop,
             @Suppress("DEPRECATION")
-            private val temporaryBypassAccessCheck: viaduct.engine.api.TemporaryBypassAccessCheck,
+            private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck,
         ) : Factory {
             override fun create(isSerial: Boolean): ViaductExecutionStrategy =
                 ViaductExecutionStrategy(
@@ -185,52 +198,55 @@ class ViaductExecutionStrategy internal constructor(
         gjParameters: ExecutionStrategyParameters
     ): CompletableFuture<ExecutionResult> =
         coroutineInterop.scopedFuture {
-            val parameters = mkExecutionParameters(executionContext, gjParameters)
-            val objType = parameters.executionStepInfo.type as GraphQLObjectType
+            withRequestSupervisor { supervisorScopeFactory ->
+                val parameters = mkExecutionParameters(executionContext, gjParameters, supervisorScopeFactory)
+                val objType = parameters.executionStepInfo.type as GraphQLObjectType
 
-            // return early if the query accesses the introspection schema when not allowed
-            Introspection.checkIntrospection(parameters)?.let { err ->
-                return@scopedFuture ExecutionResult.newExecutionResult().addError(err).build()
-            }
+                // return early if the query accesses the introspection schema when not allowed
+                Introspection.checkIntrospection(parameters)?.let { err ->
+                    return@withRequestSupervisor ExecutionResult.newExecutionResult().addError(err).build()
+                }
 
-            // 1. Fetch the selection set
-            // 2. In parallel, complete the selection set,
-            //    relying on the query plan and the object engine result
-            parameters.launchOnRootScope {
-                val (_, duration) = measureTimedValue {
-                    if (isSerial) {
-                        fieldResolver.fetchObjectSerially(objType, parameters)
-                    } else {
-                        fieldResolver.fetchObject(objType, parameters)
+                // 1. Fetch the selection set
+                // 2. In parallel, complete the selection set,
+                //    relying on the query plan and the object engine result
+                parameters.launchOnRootScope {
+                    val (_, duration) = measureTimedValue {
+                        if (isSerial) {
+                            fieldResolver.fetchObjectSerially(objType, parameters)
+                        } else {
+                            fieldResolver.fetchObject(objType, parameters)
+                        }
+                    }
+                    log.ifDebug {
+                        debug("Took $duration to resolve query: ${executionContext.operationDefinition.operation.name}.")
+                    }
+                }
+                // Get list of completed FieldValueInfos
+                val (queryResult, duration) = measureTimedValue {
+                    runCatching {
+                        fieldCompleter.completeObject(parameters).asDeferred().await()
                     }
                 }
                 log.ifDebug {
-                    debug("Took $duration to resolve query: ${executionContext.operationDefinition.operation.name}.")
+                    debug("Took $duration to complete query: ${executionContext.operationDefinition.operation.name}.")
                 }
-            }
-            // Get list of completed FieldValueInfos
-            val (queryResult, duration) = measureTimedValue {
-                runCatching {
-                    fieldCompleter.completeObject(parameters).asDeferred().await()
+                measureTimedValue {
+                    buildExecutionResult(queryResult, parameters.errorAccumulator.toList())
+                }.let {
+                    log.ifDebug {
+                        debug("Took ${it.duration} to build execution result: ${executionContext.operationDefinition.operation.name} ${it.value}.")
+                    }
+                    it.value
                 }
-            }
-            log.ifDebug {
-                debug("Took $duration to complete query: ${executionContext.operationDefinition.operation.name}.")
-            }
-            measureTimedValue {
-                buildExecutionResult(queryResult, parameters.errorAccumulator.toList())
-            }.let {
-                log.ifDebug {
-                    debug("Took ${it.duration} to build execution result: ${executionContext.operationDefinition.operation.name} ${it.value}.")
-                }
-                it.value
             }
         }
 
     /** Creates an ExecutionParameters configured with an ObjectEngineResult */
     private suspend fun mkExecutionParameters(
         executionContext: ExecutionContext,
-        gjParameters: ExecutionStrategyParameters
+        gjParameters: ExecutionStrategyParameters,
+        supervisorScopeFactory: (CoroutineContext) -> CoroutineScope
     ): ExecutionParameters {
         val rootOER = createRootObjectEngineResult(executionContext)
         val queryOER = createQueryEngineResult(executionContext, rootOER)
@@ -239,6 +255,7 @@ class ViaductExecutionStrategy internal constructor(
             gjParameters,
             rootOER,
             queryOER,
+            supervisorScopeFactory,
         )
     }
 
@@ -284,7 +301,71 @@ class ViaductExecutionStrategy internal constructor(
             OperationDefinition.Operation.QUERY -> rootEngineResult // Reuse the same instance
             OperationDefinition.Operation.MUTATION,
             OperationDefinition.Operation.SUBSCRIPTION -> ObjectEngineResultImpl.newForType(schema.queryType)
+
             else -> throw IllegalStateException("Unsupported operation type: $operation")
+        }
+    }
+
+    /**
+     * Executes [block] inside a temporary request-scoped supervisor job.
+     *
+     * ## Purpose
+     * Each GraphQL request runs in a bounded coroutine hierarchy: all coroutines launched
+     * during execution must be children of a single "root" job that can be cancelled
+     * at the end of the request. This function installs that root, exposes a supervisor-backed
+     * scope factory to the caller, and guarantees cleanup even if the request body fails.
+     *
+     * ## Behavior
+     * 1. Captures the current coroutine context (`dispatcher`, MDC, TL context, etc.).
+     * 2. Creates a new [SupervisorJob] parented to the current job and records the first
+     *    unhandled fatal failure via a [CoroutineExceptionHandler].
+     * 3. Runs [block] inside a new [CoroutineScope] that layers the supervisor onto the captured
+     *    context and restores thread locals via `withThreadLocalCoroutineContext`. The block receives
+     *    a `supervisorFactory` lambda that produces scopes parented by the request supervisor so
+     *    downstream code (e.g. `ExecutionParameters.launchOnRootScope`) can launch children safely.
+     * 4. After the block completes or fails, cancels the supervisor, waits for all children
+     *    to finish cancelling (`cancelAndJoin`), then rethrows the first fatal failure if one was observed.
+     *
+     * ## Usage
+     * ```
+     * val result = withRequestSupervisor { supervisorFactory ->
+     *     val parameters = mkExecutionParameters(executionContext, gjParameters, supervisorFactory)
+     *     parameters.launchOnRootScope { fetchFields() }
+     *     completeResponse()
+     * }
+     * // At this point the supervisor is cancelled and joined.
+     * ```
+     */
+    internal suspend inline fun <T> withRequestSupervisor(crossinline block: suspend CoroutineScope.(supervisorFactory: (CoroutineContext) -> CoroutineScope) -> T): T {
+        val cc = currentCoroutineContext()
+        val sup = SupervisorJob(cc[Job])
+        val fatalFailure = AtomicReference<Throwable?>(null)
+        return try {
+            // Capture any errors that escape from child coroutines launched in the request scope.
+            // Ideally this doesn't happen, but if it does, we don't want to swallow them. We will
+            // log all, but only throw the first one.
+            val ctx = cc + sup + CoroutineExceptionHandler { _, t ->
+                log.error("Fatal error in request scope", t)
+                t !is CancellationException && fatalFailure.compareAndSet(null, t)
+            }
+            CoroutineScope(ctx).async {
+                // this acts as a fallback for TL context. if we try to access the TL context's job and
+                // it's already completed or cancelled, we will fall back to the job here. We want to
+                // ensure that that's parented by are supervisor so that it's cancellable and gets
+                // cleaned up at our finally block below
+                withThreadLocalCoroutineContext {
+                    // by setting the scope factory as such, we ensure that all things launched with
+                    // parameters.launchOnRootScope are children of the request supervisor
+                    val factory = { ctx: CoroutineContext -> CoroutineScope(ctx + sup) }
+                    this.block(factory)
+                }
+            }.await()
+        } finally {
+            withContext(NonCancellable) {
+                sup.cancelAndJoin()
+            }
+            // throw the first failure if there was one
+            fatalFailure.get()?.let { throw it }
         }
     }
 }

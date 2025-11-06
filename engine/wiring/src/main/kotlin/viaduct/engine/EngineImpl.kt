@@ -7,7 +7,7 @@ import graphql.execution.ExecutionId
 import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import io.micrometer.core.instrument.MeterRegistry
-import kotlinx.coroutines.future.asDeferred
+import viaduct.deferred.asDeferred
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineExecutionResult

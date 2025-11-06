@@ -16,7 +16,7 @@ import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLTypeUtil
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.future.asDeferred
+import viaduct.deferred.asDeferred
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.CompositeLocalContext

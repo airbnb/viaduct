@@ -2,7 +2,6 @@ package viaduct.engine.runtime.execution
 
 import graphql.ExceptionWhileDataFetching
 import graphql.schema.DataFetcher
-import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -32,12 +31,14 @@ class ExceptionsTest {
             mapOf(
                 "Query" to mapOf(
                     "field" to DataFetcher {
-                        CompletableFuture.supplyAsync { throw RuntimeException() }
+                        scopedFuture {
+                            throw RuntimeException()
+                        }
                     }
                 )
             )
         )
-        assertTrue(exception is FieldFetchingException)
+        assertTrue(exception is FieldFetchingException, "Expected FieldFetchingException but got ${exception?.javaClass}: $exception")
     }
 
     private val defaultSdl = "type Query { field: Int }"

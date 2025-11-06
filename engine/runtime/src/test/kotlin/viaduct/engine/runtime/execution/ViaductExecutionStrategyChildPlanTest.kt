@@ -7,6 +7,7 @@ import graphql.language.SelectionSet as GJSelectionSet
 import graphql.schema.DataFetcher
 import graphql.schema.TypeResolver
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -189,6 +190,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedStepInfos = ConcurrentLinkedQueue<ExecutionStepInfo>()
+                val childPlanLatch = CountDownLatch(1)
 
                 val sdl = """
                     type Query {
@@ -224,9 +226,12 @@ class ViaductExecutionStrategyChildPlanTest {
                     "TestNode" to mapOf(
                         "id" to DataFetcher { env ->
                             capturedStepInfos.add(env.executionStepInfo)
+                            childPlanLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "restrictedField" to DataFetcher { _ ->
+                            // Wait for child plan to complete
+                            childPlanLatch.await()
                             mapOf("content" to "Protected content")
                         }
                     ),
@@ -277,6 +282,8 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedStepInfos = ConcurrentLinkedQueue<Pair<String, ExecutionStepInfo>>()
+                // Wait for both child plans to complete before request finishes
+                val childPlansLatch = CountDownLatch(2)
 
                 val sdl = """
                     type Query {
@@ -309,15 +316,20 @@ class ViaductExecutionStrategyChildPlanTest {
                         },
                         "globalConfig" to DataFetcher { env ->
                             capturedStepInfos.add("globalConfig" to env.executionStepInfo)
+                            childPlansLatch.countDown()
                             mapOf("value" to "config-value")
                         }
                     ),
                     "Item" to mapOf(
                         "id" to DataFetcher { env ->
                             capturedStepInfos.add("item.id" to env.executionStepInfo)
+                            childPlansLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "restricted" to DataFetcher { _ ->
+                            // Wait for child plans to complete before returning
+                            // This keeps the request alive until child plans finish
+                            childPlansLatch.await()
                             "restricted-value"
                         }
                     ),
@@ -368,6 +380,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedStepInfos = ConcurrentLinkedQueue<Pair<String, ExecutionStepInfo>>()
+                val childPlansLatch = CountDownLatch(3)
 
                 val sdl = """
                     type Query {
@@ -411,6 +424,7 @@ class ViaductExecutionStrategyChildPlanTest {
                     "Level1" to mapOf(
                         "id" to DataFetcher { env ->
                             capturedStepInfos.add("Level1.id" to env.executionStepInfo)
+                            childPlansLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "level2" to DataFetcher { _ ->
@@ -420,6 +434,7 @@ class ViaductExecutionStrategyChildPlanTest {
                     "Level2" to mapOf(
                         "id" to DataFetcher { env ->
                             capturedStepInfos.add("Level2.id" to env.executionStepInfo)
+                            childPlansLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "level3" to DataFetcher { _ ->
@@ -429,9 +444,12 @@ class ViaductExecutionStrategyChildPlanTest {
                     "Level3" to mapOf(
                         "id" to DataFetcher { env ->
                             capturedStepInfos.add("Level3.id" to env.executionStepInfo)
+                            childPlansLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "data" to DataFetcher { _ ->
+                            // Wait for all child plans to complete
+                            childPlansLatch.await()
                             "final-data"
                         }
                     )
@@ -486,6 +504,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedStepInfos = ConcurrentLinkedQueue<Pair<String, ExecutionStepInfo>>()
+                val childPlansLatch = CountDownLatch(3)
 
                 val sdl = """
                     type Query {
@@ -520,10 +539,15 @@ class ViaductExecutionStrategyChildPlanTest {
                         "id" to DataFetcher { env ->
                             val id = env.getSource<Map<String, Any>>()!!["id"]
                             capturedStepInfos.add(id.toString() to env.executionStepInfo)
+                            childPlansLatch.countDown()
                             id
                         },
                         "restricted" to DataFetcher { env ->
                             val id = env.getSource<Map<String, Any>>()!!["id"]
+                            // Only wait on the last item to avoid deadlock
+                            if (id == "item-3") {
+                                childPlansLatch.await()
+                            }
                             "restricted-$id"
                         }
                     )
@@ -577,6 +601,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedStepInfos = ConcurrentLinkedQueue<Pair<String, ExecutionStepInfo>>()
+                val childPlanLatch = CountDownLatch(1)
 
                 val sdl = """
                     type Query {
@@ -622,10 +647,14 @@ class ViaductExecutionStrategyChildPlanTest {
                     "User" to mapOf(
                         "id" to DataFetcher { env ->
                             capturedStepInfos.add("User.id" to env.executionStepInfo)
+                            childPlanLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "name" to DataFetcher { "John" },
-                        "restricted" to DataFetcher { "user-restricted" }
+                        "restricted" to DataFetcher {
+                            childPlanLatch.await()
+                            "user-restricted"
+                        }
                     ),
                     "Admin" to mapOf(
                         "id" to DataFetcher { env ->
@@ -680,6 +709,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedTypes = ConcurrentLinkedQueue<Pair<String, String?>>()
+                val childPlanLatch = CountDownLatch(1)
 
                 val sdl = """
                     type Query {
@@ -722,10 +752,14 @@ class ViaductExecutionStrategyChildPlanTest {
                         "id" to DataFetcher { env ->
                             val objectType = env.executionStepInfo.objectType?.name
                             capturedTypes.add("User.id" to objectType)
+                            childPlanLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "name" to DataFetcher { "Jane" },
-                        "restricted" to DataFetcher { "user-restricted-direct" }
+                        "restricted" to DataFetcher {
+                            childPlanLatch.await()
+                            "user-restricted-direct"
+                        }
                     ),
                     "Admin" to mapOf(
                         "id" to DataFetcher { env ->
@@ -785,6 +819,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val executionLog = ConcurrentLinkedQueue<String>()
+                val userChildPlanLatch = CountDownLatch(1)
 
                 val sdl = """
                     type Query {
@@ -838,9 +873,11 @@ class ViaductExecutionStrategyChildPlanTest {
                     "User" to mapOf(
                         "id" to DataFetcher { env ->
                             executionLog.add("User:id")
+                            userChildPlanLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "restricted" to DataFetcher { env ->
+                            userChildPlanLatch.await()
                             env.getSource<Map<String, Any>>()!!["restricted"]
                         }
                     ),
@@ -913,6 +950,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val executionLog = ConcurrentLinkedQueue<String>()
+                val userChildPlanLatch = CountDownLatch(1)
 
                 val sdl = """
                     type Query {
@@ -969,12 +1007,14 @@ class ViaductExecutionStrategyChildPlanTest {
                     "User" to mapOf(
                         "id" to DataFetcher { env ->
                             executionLog.add("User:id")
+                            userChildPlanLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "name" to DataFetcher { env ->
                             env.getSource<Map<String, Any>>()!!["name"]
                         },
                         "restricted" to DataFetcher { env ->
+                            userChildPlanLatch.await()
                             env.getSource<Map<String, Any>>()!!["restricted"]
                         }
                     ),

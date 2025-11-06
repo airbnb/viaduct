@@ -1,28 +1,42 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime.execution
 
 import graphql.GraphQLError
 import graphql.execution.DataFetcherResult
+import graphql.execution.SimpleDataFetcherExceptionHandler
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationFieldCompleteParameters
 import graphql.schema.DataFetcher
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.ObsoleteCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.dataloader.BatchLoaderEnvironment
 import viaduct.dataloader.InternalDataLoader
 import viaduct.dataloader.MappedBatchLoadFn
 import viaduct.dataloader.NextTickDispatcher
+import viaduct.engine.api.FieldCheckerDispatcherRegistry
+import viaduct.engine.api.RequiredSelectionSetRegistry
+import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createViaductGraphQL
@@ -924,6 +938,73 @@ class ViaductExecutionStrategyTest {
     }
 
     @Test
+    fun `withRequestSupervisor integration - cleans up lingering child plan jobs after query execution`() =
+        runExecutionTest {
+            withContext(nextTickDispatcher) {
+                val sdl = """
+                    type Query {
+                        mainField: String
+                        hangingField: String
+                    }
+                """
+                // Query only asks for mainField, not hangingField
+                val query = """
+                    query {
+                        mainField
+                    }
+                """
+
+                val hangingJobLaunched = CompletableDeferred<Unit>()
+                val hangingJobCancelled = CompletableDeferred<Unit>()
+
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "mainField" to DataFetcher { "main" },
+                        // This field is part of the child plan (RSS) but not directly queried
+                        "hangingField" to DataFetcher {
+                            scopedFuture {
+                                launch {
+                                    hangingJobLaunched.complete(Unit)
+                                    delay(Long.MAX_VALUE)
+                                }.invokeOnCompletion { cause ->
+                                    if (cause is kotlinx.coroutines.CancellationException) {
+                                        hangingJobCancelled.complete(Unit)
+                                    }
+                                }
+                                // Return immediately - the job runs on parent scope
+                                "hanging"
+                            }
+                        }
+                    )
+                )
+
+                // Configure RSS so that mainField triggers a child plan that includes hangingField
+                val requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                    .fieldResolverEntry("Query" to "mainField", "fragment Main on Query { hangingField }")
+                    .build()
+
+                val result = executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = query,
+                    requiredSelectionSetRegistry = requiredSelectionSetRegistry
+                )
+
+                // Query should complete successfully (doesn't wait for child plan)
+                assertEquals(
+                    mapOf("mainField" to "main"),
+                    result.getData<Map<String, Any?>>()
+                )
+                assertTrue(result.errors.isEmpty())
+
+                // The hanging child plan job should be cancelled after execution completes
+                withTimeout(1000) {
+                    hangingJobCancelled.await()
+                }
+            }
+        }
+
+    @Test
     fun `mutation operation throws multiple field exceptions`() {
         runExecutionTest {
             val schema = createSchema(
@@ -951,5 +1032,147 @@ class ViaductExecutionStrategyTest {
                 assertTrue(error!!.message.contains("Exception while fetching data (/$key)"))
             }
         }
+    }
+
+    @Nested
+    inner class WithRequestSupervisorTests {
+        private fun createTestStrategy() =
+            ViaductExecutionStrategy(
+                dataFetcherExceptionHandler = SimpleDataFetcherExceptionHandler(),
+                executionParametersFactory = ExecutionParameters.Factory(
+                    requiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
+                    fieldCheckerDispatcherRegistry = FieldCheckerDispatcherRegistry.Empty,
+                    typeCheckerDispatcherRegistry = TypeCheckerDispatcherRegistry.Empty,
+                    flagManager = FlagManager.default
+                ),
+                accessCheckRunner = AccessCheckRunner(DefaultCoroutineInterop),
+                isSerial = false
+            )
+
+        @Test
+        fun `cancels child jobs after block completes`() =
+            runExecutionTest {
+                val strategy = createTestStrategy()
+                val childWasCancelled = CompletableDeferred<Unit>()
+
+                val result = strategy.withRequestSupervisor { supervisorScopeFactory ->
+                    // Launch on supervisor (sibling to async, not child)
+                    supervisorScopeFactory(coroutineContext).launch {
+                        delay(Long.MAX_VALUE)
+                    }.invokeOnCompletion { cause ->
+                        if (cause is kotlinx.coroutines.CancellationException) {
+                            childWasCancelled.complete(Unit)
+                        }
+                    }
+                    "success"
+                }
+
+                assertEquals("success", result)
+
+                // Wait for cancellation to propagate
+                withTimeout(1000) {
+                    childWasCancelled.await()
+                }
+            }
+
+        @Test
+        fun `cancels supervisor even when block throws exception`() =
+            runExecutionTest {
+                val strategy = createTestStrategy()
+                val childWasCancelled = CompletableDeferred<Unit>()
+
+                val exception = RuntimeException("test exception")
+
+                val thrown = assertThrows<RuntimeException> {
+                    runBlocking {
+                        withThreadLocalCoroutineContext {
+                            strategy.withRequestSupervisor { supervisorScopeFactory ->
+                                // Launch on supervisor (sibling to async, not child)
+                                supervisorScopeFactory(coroutineContext).launch {
+                                    delay(Long.MAX_VALUE)
+                                }.invokeOnCompletion { cause ->
+                                    if (cause is kotlinx.coroutines.CancellationException) {
+                                        childWasCancelled.complete(Unit)
+                                    }
+                                }
+                                throw exception
+                            }
+                        }
+                    }
+                }
+
+                assertEquals("test exception", thrown.message)
+
+                // Wait for cancellation to propagate
+                withTimeout(1000) {
+                    childWasCancelled.await()
+                }
+            }
+
+        @Test
+        fun `handles self-cancellation of the block`() =
+            runExecutionTest {
+                val strategy = createTestStrategy()
+                val childLaunched = CompletableDeferred<Unit>()
+                val childWasCancelled = CompletableDeferred<Unit>()
+
+                val ex = assertThrows<kotlinx.coroutines.CancellationException> {
+                    runBlocking {
+                        withThreadLocalCoroutineContext {
+                            strategy.withRequestSupervisor { supervisorScopeFactory ->
+                                // Launch on supervisor (sibling to async, not child)
+                                val job = supervisorScopeFactory(coroutineContext).launch {
+                                    childLaunched.complete(Unit)
+                                    delay(Long.MAX_VALUE)
+                                }
+                                job.invokeOnCompletion { cause ->
+                                    if (cause is kotlinx.coroutines.CancellationException) {
+                                        childWasCancelled.complete(Unit)
+                                    }
+                                }
+                                childLaunched.await()
+                                throw kotlinx.coroutines.CancellationException("self-cancel")
+                            }
+                        }
+                    }
+                }
+
+                assertEquals("self-cancel", ex.message)
+
+                // Wait for cancellation to propagate
+                withTimeout(1000) {
+                    childWasCancelled.await()
+                }
+            }
+
+        @Test
+        fun `cancellation propagates through multiple job levels`() =
+            runExecutionTest {
+                val strategy = createTestStrategy()
+                val grandchildWasCancelled = CompletableDeferred<Unit>()
+
+                val result = strategy.withRequestSupervisor { supervisorScopeFactory ->
+                    // Launch child on supervisor (sibling to async, not child)
+                    // This way it doesn't block the async from completing
+                    supervisorScopeFactory(coroutineContext).launch {
+                        // Launch grandchild that would hang without cancellation
+                        launch {
+                            delay(Long.MAX_VALUE)
+                        }.invokeOnCompletion { cause ->
+                            if (cause is kotlinx.coroutines.CancellationException) {
+                                grandchildWasCancelled.complete(Unit)
+                            }
+                        }
+                    }
+                    "done"
+                }
+
+                assertEquals("done", result)
+
+                // Wait for cancellation to propagate through all levels
+                withTimeout(1000) {
+                    grandchildWasCancelled.await()
+                }
+            }
     }
 }

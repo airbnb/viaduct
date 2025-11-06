@@ -20,7 +20,6 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FieldCheckerDispatcherRegistry
@@ -409,6 +408,7 @@ data class ExecutionParameters(
                 parameters: ExecutionStrategyParameters,
                 rootEngineResult: ObjectEngineResultImpl,
                 queryEngineResult: ObjectEngineResultImpl,
+                supervisorScopeFactory: (CoroutineContext) -> CoroutineScope,
             ): ExecutionParameters {
                 val engineExecutionContext = executionContext.findLocalContextForType<EngineExecutionContextImpl>()
                 val planAttribution = ExecutionAttribution.fromOperation(executionContext.operationDefinition.name)
@@ -445,13 +445,13 @@ data class ExecutionParameters(
                     executionContext = executionContext,
                     rootEngineResult = rootEngineResult,
                     queryEngineResult = queryEngineResult,
-                    rootExecutionJob = coroutineContext[Job.Key]!!,
-                    coroutineContext = coroutineContext,
+                    supervisorScopeFactory = supervisorScopeFactory,
+                    rootCoroutineContext = coroutineContext,
                     requiredSelectionSetRegistry = requiredSelectionSetRegistry,
                     rawSelectionSetFactory = engineExecutionContext.rawSelectionSetFactory,
                     fieldCheckerDispatcherRegistry = fieldCheckerDispatcherRegistry,
                     typeCheckerDispatcherRegistry = typeCheckerDispatcherRegistry,
-                    fieldResolverDispatcherRegistry = engineExecutionContext.dispatcherRegistry
+                    fieldResolverDispatcherRegistry = engineExecutionContext.dispatcherRegistry,
                 )
 
                 // Create and return root ExecutionParameters
@@ -484,8 +484,8 @@ data class ExecutionParameters(
      * @property executionContext Base GraphQL execution context from graphql-java
      * @property rootEngineResult Root ObjectEngineResult for the entire request
      * @property queryEngineResult Query ObjectEngineResult for query selections
-     * @property rootExecutionJob Root coroutine job for the entire execution
-     * @property coroutineContext Base coroutine context for async operations
+     * @property supervisorScopeFactory Coroutine scope factory for the entire execution. Creates a CoroutineScope supervised by the execution.
+     * @property rootCoroutineContext Root coroutine context for async operations
      * @property requiredSelectionSetRegistry Registry for loading field data dependencies
      * @property rawSelectionSetFactory Factory for creating raw selection sets
      * @property fieldCheckerDispatcherRegistry Registry for field-level access checks
@@ -496,8 +496,8 @@ data class ExecutionParameters(
         val executionContext: ExecutionContext,
         val rootEngineResult: ObjectEngineResultImpl,
         val queryEngineResult: ObjectEngineResultImpl,
-        val rootExecutionJob: Job,
-        val coroutineContext: CoroutineContext,
+        val supervisorScopeFactory: (CoroutineContext) -> CoroutineScope,
+        val rootCoroutineContext: CoroutineContext,
         val requiredSelectionSetRegistry: RequiredSelectionSetRegistry,
         val rawSelectionSetFactory: RawSelectionSet.Factory,
         val fieldCheckerDispatcherRegistry: FieldCheckerDispatcherRegistry,
@@ -511,7 +511,7 @@ data class ExecutionParameters(
          * @param block The suspend function to execute
          */
         fun launchOnRootScope(block: suspend CoroutineScope.() -> Unit) =
-            CoroutineScope(coroutineContext + rootExecutionJob).launch {
+            supervisorScopeFactory(rootCoroutineContext).launch {
                 block(this)
             }
 

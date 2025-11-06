@@ -25,9 +25,11 @@ import graphql.schema.GraphQLTypeUtil.unwrapNonNull
 import graphql.schema.TypeResolver
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import org.junit.jupiter.api.Test
@@ -392,20 +394,22 @@ class ExecutionParametersTest {
         localContext: CompositeLocalContext = defaultLocalContext,
         rootValue: Any = defaultRootValue,
         queryEngineResult: ObjectEngineResultImpl = ObjectEngineResultImpl.newForType(queryType),
-        rootEngineResult: ObjectEngineResultImpl = ObjectEngineResultImpl.newForType(queryType)
+        rootEngineResult: ObjectEngineResultImpl = ObjectEngineResultImpl.newForType(queryType),
+        rootExecutionJob: Job = Job(),
+        coroutineContext: CoroutineContext = EmptyCoroutineContext,
     ): ExecutionParameters {
         val executionContext = executionContext(rootValue, localContext)
         val constants = ExecutionParameters.Constants(
             executionContext = executionContext,
             rootEngineResult = rootEngineResult,
             queryEngineResult = queryEngineResult,
-            rootExecutionJob = Job(),
-            coroutineContext = EmptyCoroutineContext,
+            supervisorScopeFactory = { CoroutineScope(coroutineContext + rootExecutionJob) },
+            rootCoroutineContext = coroutineContext,
             requiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
             rawSelectionSetFactory = mockk(relaxed = true),
             fieldCheckerDispatcherRegistry = FieldCheckerDispatcherRegistry.Empty,
             typeCheckerDispatcherRegistry = TypeCheckerDispatcherRegistry.Empty,
-            fieldResolverDispatcherRegistry = FieldResolverDispatcherRegistry.Empty
+            fieldResolverDispatcherRegistry = FieldResolverDispatcherRegistry.Empty,
         )
         return ExecutionParameters(
             constants = constants,
