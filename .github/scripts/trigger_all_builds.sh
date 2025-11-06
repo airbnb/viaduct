@@ -29,6 +29,18 @@ echo "Total Java versions: ${#JAVA_VERSIONS[@]}"
 echo "Total combinations: $((${#OS_PLATFORMS[@]} * ${#JAVA_VERSIONS[@]}))"
 echo ""
 
+# Determine which branch/ref to use
+if [ -n "${GITHUB_REF}" ]; then
+    # Running from GitHub Actions - use the provided ref
+    BRANCH_REF="${GITHUB_REF}"
+    echo "Using branch/ref from workflow: ${BRANCH_REF}"
+else
+    # Running locally - use current branch
+    BRANCH_REF=$(git rev-parse --abbrev-ref HEAD)
+    echo "Using current branch: ${BRANCH_REF}"
+fi
+echo ""
+
 # Counter for tracking
 total_triggered=0
 failed_triggers=0
@@ -40,13 +52,14 @@ for os in "${OS_PLATFORMS[@]}"; do
 
         # Trigger the workflow using gh CLI
         if gh workflow run build-and-test.yml \
+            --ref "${BRANCH_REF}" \
             -f java_versions="[${java}]" \
             -f os="${os}"; then
             echo -e "${GREEN}✓ Successfully triggered${NC}"
-            ((total_triggered++))
+            total_triggered=$((total_triggered + 1))
         else
             echo -e "${RED}✗ Failed to trigger${NC}"
-            ((failed_triggers++))
+            failed_triggers=$((failed_triggers + 1))
         fi
 
         # Small delay to avoid rate limiting

@@ -18,9 +18,11 @@ jobs:
       - name: Trigger all build combinations
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_REF: ${{ github.ref }}
         run: |
           echo "🚀 Triggering builds on all supported OS and Java combinations..."
           echo "Reason: ${{ inputs.reason || 'Called from another workflow' }}"
+          echo "Branch: ${{ github.ref_name }}"
           chmod +x ./.github/scripts/trigger_all_builds.sh
           ./.github/scripts/trigger_all_builds.sh
         shell: bash
