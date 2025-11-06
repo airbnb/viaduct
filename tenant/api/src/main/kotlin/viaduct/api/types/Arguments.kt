@@ -1,5 +1,6 @@
 package viaduct.api.types
 
+import graphql.introspection.Introspection
 import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLObjectType
@@ -15,7 +16,7 @@ interface Arguments : InputLike {
 
     companion object {
         /**
-         * Return a syntehtic input type for an Argument GRT.  "Synthetic"
+         * Return a synthetic input type for an Argument GRT.  "Synthetic"
          * means the field names and types conform to the argument names
          * and types, but the returned input type does _not_ exist in
          * [schema].
@@ -46,6 +47,12 @@ interface Arguments : InputLike {
                 val builder = GraphQLInputObjectField.Builder()
                     .name(it.name)
                     .type(it.type)
+                    .replaceAppliedDirectives(
+                        it.appliedDirectives.filter {
+                            val def = schema.schema.getDirective(it.name)
+                            Introspection.DirectiveLocation.INPUT_FIELD_DEFINITION in def.validLocations()
+                        }
+                    )
                 if (it.hasSetDefaultValue() && it.argumentDefaultValue.isLiteral) {
                     val v = it.argumentDefaultValue.value as graphql.language.Value<*>
                     builder.defaultValueLiteral(v)

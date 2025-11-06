@@ -22,7 +22,12 @@ class ApiTestSchemaFeatureAppTest {
     |   intField: Int!
     |   objectField: O1
     |   dateTimeField: DateTime
-    |   argumentedField(stringArg: String!, intArgWithDefault: Int = 1, inputArg: Input1): String
+    |   argumentedField(
+    |     stringArg: String!,
+    |     intArgWithDefault: Int = 1,
+    |     inputArg: Input1,
+    |     idArg: ID @idOf(type: "O1")
+    |   ): String
     |   backingDataField: BackingData @backingData(class: "java.lang.String")
     |   invalidBackingData: BackingData
     | }
