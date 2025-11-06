@@ -180,8 +180,13 @@ class AccessCheckRunner(
                     )
                     localExecutionContext.rawSelectionSetFactory.rawSelectionSet(it.selections, variables)
                 }
+                val oerToWrap = if (rss != null && rss.selections.typeName == parameters.graphQLSchema.queryType.name) {
+                    parameters.queryEngineResult
+                } else {
+                    objectEngineResult
+                }
                 CheckerProxyEngineObjectData(
-                    objectEngineResult,
+                    oerToWrap,
                     "missing from checker RSS",
                     selectionSet,
                 )

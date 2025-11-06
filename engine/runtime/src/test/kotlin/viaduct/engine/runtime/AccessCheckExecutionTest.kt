@@ -1,5 +1,6 @@
 package viaduct.engine.runtime
 
+import kotlin.test.assertContains
 import kotlin.test.assertNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -25,6 +26,7 @@ class AccessCheckExecutionTest {
                 bazList: [Baz]
                 nonNullBaz: Baz!
                 plusOne(value: Int): Int
+                plusMany(value: [Int]): Int
             }
 
             extend type Mutation {
@@ -747,7 +749,7 @@ class AccessCheckExecutionTest {
     }
 
     @Test
-    fun `type checks with rss for list of polymorphism objects - fail one of them`() {
+    fun `type checks with rss for list of polymorphic objects - fail one of them`() {
         MockTenantModuleBootstrapper(schema) {
             field("Query" to "nodes") {
                 resolver {
@@ -813,6 +815,67 @@ class AccessCheckExecutionTest {
             val error = result.errors[0]
             assertEquals(listOf("nodes", 1), error.path)
             assertTrue(error.message.contains("permission denied for bar with internal ID 2"))
+        }
+    }
+
+    @Test
+    fun `field checker with query selections`() {
+        // Test that field checkers can use querySelections to access other Query fields
+        MockTenantModuleBootstrapper(schema) {
+            fieldWithValue("Query" to "string2", "test_value")
+            field("Query" to "string1") {
+                value("foo")
+                checker {
+                    querySelections("key", "fragment _ on Query { string2 }")
+                    fn { _, objectDataMap ->
+                        val string2Value = objectDataMap["key"]?.fetch("string2")
+                        if (string2Value == "test_value") {
+                            throw RuntimeException("field checker accessed query field")
+                        }
+                    }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ string1 }")
+            assertEquals(mapOf("string1" to null), result.getData())
+            assertEquals(1, result.errors.size)
+            val error = result.errors[0]
+            assertEquals(listOf("string1"), error.path)
+            assertContains(error.message, "field checker accessed query field")
+        }
+    }
+
+    @Test
+    fun `type checker with query selections`() {
+        // Test that type checkers can use querySelections to access Query fields
+        MockTenantModuleBootstrapper(schema) {
+            fieldWithValue("Query" to "string2", "query_value")
+            field("Query" to "baz") {
+                resolver {
+                    fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
+                }
+            }
+            type("Baz") {
+                nodeUnbatchedExecutor { id, _, _ ->
+                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                }
+                checker {
+                    querySelections("key", "fragment _ on Query { string2 }")
+                    fn { _, objectDataMap ->
+                        val string2Value = objectDataMap["key"]?.fetch("string2")
+                        if (string2Value == "query_value") {
+                            throw RuntimeException("type checker accessed query field")
+                        }
+                    }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ baz { id } }")
+            assertEquals(mapOf("baz" to null), result.getData())
+            assertEquals(1, result.errors.size)
+            val error = result.errors[0]
+            assertEquals(listOf("baz"), error.path)
+            assertContains(error.message, "type checker accessed query field")
         }
     }
 }

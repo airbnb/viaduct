@@ -349,6 +349,19 @@ class MockTenantModuleBootstrapperDSL<F : Any>(
                 this@FieldScope.SelectionsScope(coord.first, objectSelectionsText, forChecker = true).apply { block() }.toRSS()
             }
 
+            fun querySelections(
+                selectionsName: String,
+                querySelectionsText: String
+            ) = querySelections(selectionsName, querySelectionsText, { })
+
+            fun querySelections(
+                selectionsName: String,
+                querySelectionsText: String,
+                block: SelectionsScope.() -> Unit,
+            ) = requiredSelectionSets.putIfMissingOrFail(selectionsName) {
+                this@FieldScope.SelectionsScope(queryType.name, querySelectionsText, forChecker = true).apply { block() }.toRSS()
+            }
+
             fun fn(executeFn: CheckerFn) {
                 this.executeFn = executeFn
             }
@@ -379,14 +392,13 @@ class MockTenantModuleBootstrapperDSL<F : Any>(
             }
 
         @TenantModuleBootstrapperDsl
-        inner class SelectionsScope(val objectSelectionsText: String, val forChecker: Boolean) {
+        inner class SelectionsScope(private val typeName: String, val objectSelectionsText: String, val forChecker: Boolean) {
             private var variableProviders: MutableList<VariablesResolver> = mutableListOf()
 
             // DSL marker hides these -- reintroduce them
             val schema: ViaductSchema get() = this@MockTenantModuleBootstrapperDSL.schema
             val fac: F get() = this@MockTenantModuleBootstrapperDSL.fac
             val queryType: GraphQLObjectType get() = this@MockTenantModuleBootstrapperDSL.queryType
-            val typeName: String get() = this@TypeScope.typeName
             val objectType: GraphQLObjectType get() = this@TypeScope.objectType
 
             fun variables(
@@ -421,7 +433,20 @@ class MockTenantModuleBootstrapperDSL<F : Any>(
                 objectSelectionsText: String,
                 block: SelectionsScope.() -> Unit,
             ) = requiredSelectionSets.putIfMissingOrFail(selectionsName) {
-                this@TypeScope.SelectionsScope(objectSelectionsText, forChecker = true).apply { block() }.toRSS()
+                this@TypeScope.SelectionsScope(this@TypeScope.typeName, objectSelectionsText, forChecker = true).apply { block() }.toRSS()
+            }
+
+            fun querySelections(
+                selectionsName: String,
+                querySelectionsText: String
+            ) = querySelections(selectionsName, querySelectionsText, { })
+
+            fun querySelections(
+                selectionsName: String,
+                querySelectionsText: String,
+                block: SelectionsScope.() -> Unit,
+            ) = requiredSelectionSets.putIfMissingOrFail(selectionsName) {
+                this@TypeScope.SelectionsScope(queryType.name, querySelectionsText, forChecker = true).apply { block() }.toRSS()
             }
 
             fun fn(executeFn: CheckerFn) {
