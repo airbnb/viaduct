@@ -1,10 +1,12 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime.instrumentation.resolver
 
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -18,7 +20,7 @@ import viaduct.engine.api.ResolverMetadata
 internal class InstrumentedNodeResolverDispatcherTest {
     @Test
     fun `resolve calls instrumentation during execution`() =
-        runBlockingTest {
+        runBlocking {
             // Given
             val mockDispatcher: NodeResolverDispatcher = mockk()
             val instrumentation = RecordingResolverInstrumentation()
@@ -44,7 +46,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
 
     @Test
     fun `resolve calls instrumentation with error on exception`() =
-        runBlockingTest {
+        runBlocking {
             // Given
             val mockDispatcher: NodeResolverDispatcher = mockk()
             val instrumentation = RecordingResolverInstrumentation()
@@ -72,7 +74,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
 
     @Test
     fun `resolve propagates instrumentation exceptions during execution`() =
-        runBlockingTest {
+        runBlocking {
             // Given
             val mockDispatcher: NodeResolverDispatcher = mockk()
             val instrumentation = ThrowingResolverInstrumentation(throwOnInstrumentExecute = true)

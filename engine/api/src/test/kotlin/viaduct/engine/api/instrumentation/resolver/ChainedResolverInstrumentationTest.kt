@@ -1,9 +1,11 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.api.instrumentation.resolver
 
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ResolverMetadata
@@ -44,7 +46,7 @@ class ChainedResolverInstrumentationTest {
     @Test
     @ExperimentalCoroutinesApi
     fun `instrumentResolverExecution chains all instrumentations`() =
-        runBlockingTest {
+        runBlocking {
             val parameters = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
                 resolverMetadata = ResolverMetadata.forModern("TestResolver")
             )
@@ -90,7 +92,7 @@ class ChainedResolverInstrumentationTest {
     @Test
     @ExperimentalCoroutinesApi
     fun `instrumentFetchSelection chains all instrumentations`() =
-        runBlockingTest {
+        runBlocking {
             val parameters = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters("testSelection")
             val instr1FetchSelectionCalled = AtomicBoolean(false)
             val instr2FetchSelectionCalled = AtomicBoolean(false)
