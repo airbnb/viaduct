@@ -7,6 +7,8 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchPar
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -18,6 +20,7 @@ import viaduct.api.types.CompositeOutput
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromQueryFieldVariable
+import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.api.observability.ExecutionObservabilityContext
@@ -247,8 +250,42 @@ class FieldExecutionObservabilityTest {
     @Test
     fun `test a field is queried by multiple resolvers`() {
         val instrumentation = TestObservabilityInstrumentation()
+        val queryString1ResolverChildPlanExecuted = CountDownLatch(1)
+        val queryString2ResolverChildPlanExecuted = CountDownLatch(1)
 
-        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentation.asStandardInstrumentation())
+        // fieldExecute and fieldComplete run in parallel, which creates a race condition where fieldComplete
+        // may run before the child plan executes, potentially canceling the child plan.
+        // This instrumentation verifies that each resolver's child plan is actually executed.
+        val requiredByCountInstrumentation = object :
+            ViaductInstrumentationBase(),
+            IViaductInstrumentation.WithBeginFieldExecution {
+            override fun beginFieldExecution(
+                parameters: InstrumentationFieldParameters,
+                state: InstrumentationState?
+            ): InstrumentationContext<Any>? {
+                val typeName = parameters.executionStepInfo.objectType.name
+                val fieldName = parameters.executionStepInfo.field.name
+
+                val attribution = parameters.executionContext.getLocalContextForType<ExecutionObservabilityContext>()?.attribution?.toTagString()
+                if (typeName == "Query" && fieldName == "idField") {
+                    if (attribution == "RESOLVER:query-string1-resolver") {
+                        queryString1ResolverChildPlanExecuted.countDown()
+                    } else if (attribution == "RESOLVER:query-string2-resolver") {
+                        queryString2ResolverChildPlanExecuted.countDown()
+                    }
+                }
+                return SimpleInstrumentationContext.noOp()
+            }
+        }
+
+        val instrumentations = ChainedModernGJInstrumentation(
+            listOf(
+                instrumentation.asStandardInstrumentation,
+                requiredByCountInstrumentation.asStandardInstrumentation
+            )
+        )
+
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentations)
             .resolver("Query" to "idField", resolverName = "query-id-field-resolver") { ctx ->
                 // resolver returns a GRT value to the tenant runtime, which we expect to be unwrapped before
                 // it's handed over to the engine
@@ -259,7 +296,7 @@ class FieldExecutionObservabilityTest {
                 objectValueFragment = "idField",
                 resolveFn = { ctx: UntypedFieldContext ->
                     val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
-                    idFieldValue.internalID
+                    queryString1ResolverChildPlanExecuted.await(1, TimeUnit.SECONDS).toString()
                 },
                 resolverName = "query-string1-resolver"
             )
@@ -268,13 +305,13 @@ class FieldExecutionObservabilityTest {
                 objectValueFragment = "idField",
                 resolveFn = { ctx: UntypedFieldContext ->
                     val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
-                    idFieldValue.internalID
+                    queryString2ResolverChildPlanExecuted.await(1, TimeUnit.SECONDS).toString()
                 },
                 resolverName = "query-string2-resolver"
             )
             .build()
             .execute("query testQuery {string1, string2}")
-            .assertJson("{data: {string1: \"1\", string2: \"1\"}}")
+            .assertJson("{data: {string1: \"true\", string2: \"true\"}}")
 
         assertEquals(
             setOf(
