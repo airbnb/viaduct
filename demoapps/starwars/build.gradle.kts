@@ -56,6 +56,7 @@ dependencies {
     testImplementation(libs.kotest.assertions.json)
     testImplementation(libs.viaduct.engine.wiring)
     testImplementation(libs.micronaut.http.client)
+    testImplementation(testFixtures(libs.viaduct.tenant.api))
 }
 
 application {

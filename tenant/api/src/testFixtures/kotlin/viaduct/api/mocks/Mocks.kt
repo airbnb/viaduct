@@ -20,6 +20,7 @@ import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.GJSchema
+import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 
 fun mkSchema(sdl: String): GraphQLSchema {
     val tdr = SchemaParser().parse(sdl)
@@ -72,6 +73,34 @@ class MockType<T : GRT>(override val name: String, override val kcls: KClass<T>)
     companion object {
         fun mkNodeObject(name: String): Type<NodeObject> = MockType(name, NodeObject::class)
     }
+}
+
+class MockReflectionLoaderImpl(vararg types: Type<*>) : ReflectionLoader {
+    private val map: Map<String, Type<*>> = types.associateBy { it.name }
+
+    override fun reflectionFor(name: String): Type<*> {
+        return map[name] ?: throw UnsupportedOperationException("Deserialization not supported in tests")
+    }
+
+    override fun getGRTKClassFor(name: String): KClass<*> {
+        return reflectionFor(name).kcls
+    }
+}
+
+/**
+ * Extension function to create a serialized GlobalID string for testing.
+ *
+ * This is a convenience method that combines GlobalID creation and serialization
+ * in a single call, which is a common pattern in tests.
+ *
+ * @param internalId The internal ID string
+ * @return A Base64-encoded GlobalID string
+ */
+@Suppress("UNCHECKED_CAST")
+fun <T : NodeCompositeOutput> Type<T>.testGlobalId(internalId: String): String {
+    val globalIDCodec = GlobalIDCodecImpl(MockReflectionLoaderImpl())
+    val globalId = MockGlobalID(this as Type<NodeObject>, internalId)
+    return globalIDCodec.serialize(globalId)
 }
 
 @Suppress("UNCHECKED_CAST")

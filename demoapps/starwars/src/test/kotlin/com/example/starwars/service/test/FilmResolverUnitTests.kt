@@ -13,10 +13,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.Film
+import viaduct.api.mocks.MockGlobalID
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 /**
@@ -123,7 +123,7 @@ class FilmResolverUnitTests : DefaultAbstractResolverTestBase() {
             val result = runFieldResolver(
                 resolver = resolver,
                 objectValue = Film.Builder(context)
-                    .id(GlobalIDImpl(Film.Reflection, "1"))
+                    .id(MockGlobalID(Film.Reflection, "1"))
                     .title("A New Hope")
                     .build(),
             )
