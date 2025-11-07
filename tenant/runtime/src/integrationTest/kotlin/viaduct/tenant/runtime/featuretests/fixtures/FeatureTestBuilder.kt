@@ -17,6 +17,7 @@ import viaduct.api.types.Query
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerExecutorFactory
+import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
@@ -282,10 +283,16 @@ class FeatureTestBuilder(
      */
     fun fieldChecker(
         coordinate: Coordinate,
+        checkerName: String? = null,
         executeFn: suspend (arguments: Map<String, Any?>, objectDataMap: Map<String, EngineObjectData>) -> Unit,
         vararg requiredSelections: Triple<String, String, String>
     ): FeatureTestBuilder {
-        fieldCheckerStubs[coordinate] = checker(executeFn, *requiredSelections)
+        val checkerMetadata = CheckerMetadata(
+            checkerName = checkerName ?: "default-field-checker",
+            typeName = coordinate.first,
+            fieldName = coordinate.second,
+        )
+        fieldCheckerStubs[coordinate] = checker(executeFn, checkerMetadata, *requiredSelections)
         return this
     }
 
@@ -294,10 +301,15 @@ class FeatureTestBuilder(
      */
     fun typeChecker(
         typeName: String,
+        checkerName: String? = null,
         executeFn: suspend (arguments: Map<String, Any?>, objectDataMap: Map<String, EngineObjectData>) -> Unit,
         vararg requiredSelections: Triple<String, String, String>
     ): FeatureTestBuilder {
-        typeCheckerStubs[typeName] = checker(executeFn, *requiredSelections)
+        val checkerMetadata = CheckerMetadata(
+            checkerName = checkerName ?: "default-type-checker",
+            typeName = typeName,
+        )
+        typeCheckerStubs[typeName] = checker(executeFn, checkerMetadata, *requiredSelections)
         return this
     }
 
@@ -309,7 +321,8 @@ class FeatureTestBuilder(
      */
     private fun checker(
         executeFn: suspend (arguments: Map<String, Any?>, objectDataMap: Map<String, EngineObjectData>) -> Unit,
-        vararg requiredSelections: Triple<String, String, String>
+        checkerMetadata: CheckerMetadata,
+        vararg requiredSelections: Triple<String, String, String>,
     ): CheckerExecutorStub {
         val rssMap = requiredSelections.map { (checkerKey, typeName, selectionsString) ->
             Pair(
@@ -321,7 +334,7 @@ class FeatureTestBuilder(
                 )
             )
         }.toMap()
-        return CheckerExecutorStub(rssMap, executeFn)
+        return CheckerExecutorStub(rssMap, executeFn, checkerMetadata)
     }
 
     /**

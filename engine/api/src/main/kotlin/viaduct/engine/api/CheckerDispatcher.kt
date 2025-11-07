@@ -6,6 +6,9 @@ package viaduct.engine.api
 interface CheckerDispatcher {
     val requiredSelectionSets: Map<String, RequiredSelectionSet?>
 
+    val checkerMetadata: CheckerMetadata?
+        get() = null
+
     suspend fun execute(
         arguments: Map<String, Any?>,
         objectDataMap: Map<String, EngineObjectData>,

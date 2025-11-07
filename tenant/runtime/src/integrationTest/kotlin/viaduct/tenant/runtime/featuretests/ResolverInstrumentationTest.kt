@@ -9,12 +9,14 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.globalid.GlobalID
+import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.tenant.runtime.featuretests.fixtures.Baz
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestSchemaFixture
+import viaduct.tenant.runtime.featuretests.fixtures.Foo
 import viaduct.tenant.runtime.featuretests.fixtures.UntypedFieldContext
 import viaduct.tenant.runtime.featuretests.fixtures.assertJson
 import viaduct.tenant.runtime.featuretests.fixtures.get
@@ -24,7 +26,7 @@ class ResolverInstrumentationTest {
     @Test
     fun `test field resolver should invoke instrumentation`() {
         val resolverToField = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
-        val instrumentation = TestResolverInstrumentation(resolverToField)
+        val instrumentation = InMemoryRecordingResolverInstrumentation(resolverToField)
 
         FeatureTestBuilder(FeatureTestSchemaFixture.sdl, resolverInstrumentation = instrumentation)
             .resolver("Query" to "idField", resolverName = "query-id-field-resolver") { ctx ->
@@ -53,10 +55,9 @@ class ResolverInstrumentationTest {
         assertEquals(listOf("idField"), resolverToField.get("query-string1-resolver")?.toList())
     }
 
-    @Test
     fun `test node resolver should invoke instrumentation`() {
-        val invoked = CopyOnWriteArrayList<String>()
-        val instrumentation = CountingInstrumentation(invoked)
+        val resolverToField = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
+        val instrumentation = InMemoryRecordingResolverInstrumentation(resolverToField)
 
         FeatureTestBuilder(FeatureTestSchemaFixture.sdl, resolverInstrumentation = instrumentation)
             .nodeResolver("Baz", resolverName = "baz-node-resolver") { ctx: NodeExecutionContext<Baz> ->
@@ -66,27 +67,65 @@ class ResolverInstrumentationTest {
             .execute("query testQuery { node(id: \"QmF6OjE=\") { ... on Baz { id } } }")
             .assertJson("{data: {node: {id: \"QmF6OjE=\"}}}")
 
-        assertEquals(2, invoked.size) {
+        assertEquals(2, resolverToField.keys.size) {
             "Resolver instrumentation should be invoked once for the query node resolver and once for the baz node resolver"
         }
-        assertContains(invoked, "baz-node-resolver", "baz-node-resolver should exists but found $invoked")
+        assertContains(resolverToField.keys, "baz-node-resolver", "baz-node-resolver should exists but found ${resolverToField.keys()}")
     }
 
-    class CountingInstrumentation(
-        val invoked: CopyOnWriteArrayList<String>
-    ) : ViaductResolverInstrumentation {
-        override fun <T> instrumentResolverExecution(
-            resolver: ResolverFunction<T>,
-            parameters: ViaductResolverInstrumentation.InstrumentExecuteResolverParameters,
-            state: ViaductResolverInstrumentation.InstrumentationState?
-        ): ResolverFunction<T> {
-            invoked.add(parameters.resolverMetadata.name)
-            return resolver
-        }
+    @Test
+    fun `test field checker should invoke instrumentation`() {
+        val checkerFieldAccessMap = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
+        val instrumentation = InMemoryRecordingCheckerInstrumentation(checkerFieldAccessMap)
+
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, resolverInstrumentation = instrumentation)
+            .resolver("Query" to "string1") { "string1" }
+            .resolver("Query" to "string2") { "string2" }
+            .fieldChecker(
+                "Query" to "string1",
+                "query-string1-field-checker",
+                { _, objectDataMap ->
+                    objectDataMap["key"]?.fetch("string2")
+                },
+                Triple("key", "Query", "string2")
+            )
+            .build()
+            .execute("query { string1 }")
+            .assertJson("{data: {\"string1\": \"string1\"}}")
+
+        // Verify checker instrumentation was invoked
+        assertEquals(setOf("query-string1-field-checker:Query.string1"), checkerFieldAccessMap.keys)
+        assertEquals(setOf("string2"), checkerFieldAccessMap.get("query-string1-field-checker:Query.string1")?.toSet())
     }
 
-    class TestResolverInstrumentation(
-        val resolverToFieldMap: ConcurrentHashMap<String, CopyOnWriteArrayList<String>>,
+    @Test
+    fun `test type checker should invoke instrumentation`() {
+        val checkerFieldAccessMap = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
+        val instrumentation = InMemoryRecordingCheckerInstrumentation(checkerFieldAccessMap)
+
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, resolverInstrumentation = instrumentation)
+            .resolver("Query" to "foo") { Foo.Builder(it).valueWithoutResolver("valueWithoutResolver").build() }
+            .resolver("Foo" to "value") { "foo-value" }
+            .resolver("Query" to "string2") { "string2" }
+            .typeChecker(
+                "Foo",
+                "foo-type-checker",
+                { _, objectDataMap ->
+                    objectDataMap["key"]?.fetch("value")
+                },
+                Triple("key", "Foo", "value")
+            )
+            .build()
+            .execute("query { foo { value } }")
+            .assertJson("{data: {foo: {value: \"foo-value\"}}}")
+
+        // Verify checker instrumentation was invoked
+        assertEquals(setOf("foo-type-checker:Foo"), checkerFieldAccessMap.keys)
+        assertEquals(setOf("value"), checkerFieldAccessMap.get("foo-type-checker:Foo")?.toSet())
+    }
+
+    class InMemoryRecordingResolverInstrumentation(
+        val resolverToFieldMap: ConcurrentHashMap<String, CopyOnWriteArrayList<String>>
     ) : ViaductResolverInstrumentation {
         data class State(
             var currentResolverName: String? = null,
@@ -119,6 +158,43 @@ class ResolverInstrumentationTest {
 
             resolverToFieldMap.get(resolverName)?.add(parameters.selection)
             return fetchFn
+        }
+    }
+
+    class InMemoryRecordingCheckerInstrumentation(
+        val checkerMetadataList: ConcurrentHashMap<String, CopyOnWriteArrayList<String>>
+    ) : ViaductResolverInstrumentation {
+        data class State(
+            var currentCheckerName: String? = null
+        ) : ViaductResolverInstrumentation.InstrumentationState
+
+        override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
+            return State()
+        }
+
+        override fun <T> instrumentFetchSelection(
+            fetchFn: FetchFunction<T>,
+            parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+            state: ViaductResolverInstrumentation.InstrumentationState?
+        ): FetchFunction<T> {
+            state as State
+            val checkerName = state.currentCheckerName
+            if (checkerName != null) {
+                assertTrue { checkerMetadataList.containsKey(checkerName) }
+                checkerMetadataList.get(checkerName)?.add(parameters.selection)
+            }
+            return fetchFn
+        }
+
+        override fun <T> instrumentAccessChecker(
+            checker: CheckerFunction<T>,
+            parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
+            state: ViaductResolverInstrumentation.InstrumentationState?
+        ): CheckerFunction<T> {
+            state as State
+            state.currentCheckerName = parameters.checkerMetadata.toTagString()
+            checkerMetadataList.computeIfAbsent(parameters.checkerMetadata.toTagString()) { CopyOnWriteArrayList() }
+            return checker
         }
     }
 }

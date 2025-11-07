@@ -8,6 +8,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.ResolverMetadata
 
 class ChainedResolverInstrumentationTest {
@@ -131,5 +132,54 @@ class ChainedResolverInstrumentationTest {
             assertEquals(expectedResult, result)
             assertTrue(instr1FetchSelectionCalled.get())
             assertTrue(instr2FetchSelectionCalled.get())
+        }
+
+    @Test
+    @ExperimentalCoroutinesApi
+    fun `instrumentAccessChecker chains all instrumentations`() =
+        runBlocking {
+            val checkerMetadata = CheckerMetadata(
+                checkerName = "Himeji",
+                typeName = "User",
+                fieldName = "email"
+            )
+            val parameters = ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters(checkerMetadata)
+            val instr1CheckerCalled = AtomicBoolean(false)
+            val instr2CheckerCalled = AtomicBoolean(false)
+            val expectedResult = "checker passed"
+
+            val instr1 = object : ViaductResolverInstrumentation {
+                override fun <T> instrumentAccessChecker(
+                    checker: CheckerFunction<T>,
+                    parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
+                    state: ViaductResolverInstrumentation.InstrumentationState?,
+                ): CheckerFunction<T> {
+                    instr1CheckerCalled.set(true)
+                    return super.instrumentAccessChecker(checker, parameters, state)
+                }
+            }
+
+            val instr2 = object : ViaductResolverInstrumentation {
+                override fun <T> instrumentAccessChecker(
+                    checker: CheckerFunction<T>,
+                    parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
+                    state: ViaductResolverInstrumentation.InstrumentationState?,
+                ): CheckerFunction<T> {
+                    instr2CheckerCalled.set(true)
+                    return super.instrumentAccessChecker(checker, parameters, state)
+                }
+            }
+
+            val chained = ChainedResolverInstrumentation(listOf(instr1, instr2))
+            val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
+            val result = chained.instrumentAccessChecker(
+                CheckerFunction { expectedResult },
+                parameters,
+                state
+            ).check()
+
+            assertEquals(expectedResult, result)
+            assertTrue(instr1CheckerCalled.get())
+            assertTrue(instr2CheckerCalled.get())
         }
 }

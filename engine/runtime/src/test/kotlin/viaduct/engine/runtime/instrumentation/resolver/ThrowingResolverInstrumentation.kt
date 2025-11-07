@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
+import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -9,10 +10,11 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
  * Used to verify that instrumentation failures don't break core operations.
  */
 class ThrowingResolverInstrumentation(
-    private val exceptionMessage: String = "Instrumentation failed",
+    private val exceptionMessage: String = "Failed exception message",
     private val throwOnCreateState: Boolean = false,
     private val throwOnInstrumentExecute: Boolean = false,
-    private val throwOnInstrumentFetch: Boolean = false
+    private val throwOnInstrumentFetch: Boolean = false,
+    private val throwOnInstrumentChecker: Boolean = false
 ) : ViaductResolverInstrumentation {
     override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
         if (throwOnCreateState) {
@@ -41,5 +43,16 @@ class ThrowingResolverInstrumentation(
             throw RuntimeException(exceptionMessage)
         }
         return fetchFn
+    }
+
+    override fun <T> instrumentAccessChecker(
+        checker: CheckerFunction<T>,
+        parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): CheckerFunction<T> {
+        if (throwOnInstrumentChecker) {
+            throw RuntimeException(exceptionMessage)
+        }
+        return checker
     }
 }

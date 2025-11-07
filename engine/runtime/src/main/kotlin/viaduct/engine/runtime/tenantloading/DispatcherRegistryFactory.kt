@@ -22,6 +22,7 @@ import viaduct.engine.runtime.CheckerDispatcherImpl
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.NodeResolverDispatcherImpl
+import viaduct.engine.runtime.instrumentation.resolver.InstrumentedCheckerDispatcher
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedNodeResolverDispatcher
 import viaduct.engine.runtime.validation.Validator
@@ -97,12 +98,12 @@ class DispatcherRegistryFactory(
                     }
                     checkerExecutorFactory.checkerExecutorForField(schema, typeName, field.name)?.let {
                         val fieldCoord = typeName to field.name
-                        fieldCheckerDispatchers[fieldCoord] = CheckerDispatcherImpl(it)
+                        fieldCheckerDispatchers[fieldCoord] = InstrumentedCheckerDispatcher(CheckerDispatcherImpl(it), resolverInstrumentation)
                         fieldCheckerExecutorsToValidate[fieldCoord] = it
                     }
                 }
                 checkerExecutorFactory.checkerExecutorForType(schema, typeName)?.let {
-                    typeCheckerDispatchers[typeName] = CheckerDispatcherImpl(it)
+                    typeCheckerDispatchers[typeName] = InstrumentedCheckerDispatcher(CheckerDispatcherImpl(it), resolverInstrumentation)
                     typeCheckerExecutorsToValidate[typeName] = it
                 }
             }

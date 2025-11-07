@@ -16,6 +16,12 @@ interface CheckerExecutor {
         get() = emptyMap()
 
     /**
+     * Metadata about this checker for instrumentation and observability.
+     */
+    val checkerMetadata: CheckerMetadata?
+        get() = null
+
+    /**
      * Core execution of the access check. If the check passes, it will proceed.
      * If the check fails, we suggest to differentiate the causes in two categories:
      * - if the check fails to perform, throw failed to perform,

@@ -1,6 +1,7 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
 import java.util.concurrent.ConcurrentLinkedQueue
+import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -20,8 +21,15 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
         val error: Throwable?
     )
 
+    data class RecordingExecuteCheckerContext(
+        val parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
+        val result: Any?,
+        val error: Throwable?
+    )
+
     val fetchSelectionContexts = ConcurrentLinkedQueue<RecordingFetchSelectionContext>()
     val executeResolverContexts = ConcurrentLinkedQueue<RecordingExecuteResolverContext>()
+    val executeCheckerContexts = ConcurrentLinkedQueue<RecordingExecuteCheckerContext>()
 
     override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
         return RecordingInstrumentationState()
@@ -63,8 +71,20 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
         }
     }
 
+    override fun <T> instrumentAccessChecker(
+        checker: CheckerFunction<T>,
+        parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): CheckerFunction<T> =
+        CheckerFunction {
+            recordExecution({ checker.check() }) { result, error ->
+                executeCheckerContexts.add(RecordingExecuteCheckerContext(parameters, result, error))
+            }
+        }
+
     fun reset() {
         fetchSelectionContexts.clear()
         executeResolverContexts.clear()
+        executeCheckerContexts.clear()
     }
 }

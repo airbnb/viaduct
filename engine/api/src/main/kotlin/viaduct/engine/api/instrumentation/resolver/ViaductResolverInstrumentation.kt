@@ -1,5 +1,6 @@
 package viaduct.engine.api.instrumentation.resolver
 
+import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.ResolverMetadata
 
 /**
@@ -14,6 +15,13 @@ fun interface ResolverFunction<T> {
  */
 fun interface FetchFunction<T> {
     suspend fun fetch(): T
+}
+
+/**
+ * A function interface for access checker execution.
+ */
+fun interface CheckerFunction<T> {
+    suspend fun check(): T
 }
 
 /**
@@ -79,4 +87,21 @@ interface ViaductResolverInstrumentation {
         parameters: InstrumentFetchSelectionParameters,
         state: InstrumentationState?,
     ): FetchFunction<T> = fetchFn
+
+    data class InstrumentExecuteCheckerParameters(
+        val checkerMetadata: CheckerMetadata
+    )
+
+    /**
+     * Wraps access checker execution with instrumentation.
+     * @param checker The checker function to instrument
+     * @param parameters Parameters for the checker execution
+     * @param state The instrumentation state
+     * @return The instrumented checker function
+     */
+    fun <T> instrumentAccessChecker(
+        checker: CheckerFunction<T>,
+        parameters: InstrumentExecuteCheckerParameters,
+        state: InstrumentationState?,
+    ): CheckerFunction<T> = checker
 }
