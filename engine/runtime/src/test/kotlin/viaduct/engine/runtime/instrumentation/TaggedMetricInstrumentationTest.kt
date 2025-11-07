@@ -6,6 +6,7 @@ import graphql.GraphqlErrorBuilder
 import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.parameters.InstrumentationExecuteOperationParameters
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.language.OperationDefinition
@@ -81,6 +82,75 @@ class TaggedMetricInstrumentationTest {
                 null
             )
             val meter = simpleMeterRegistry.meters.find { it.id.name == TaggedMetricInstrumentation.VIADUCT_EXECUTION_METER_NAME }
+            assertNotNull(meter)
+            val tagsMap = meter?.id?.tags?.associate { it.key to it.value } ?: emptyMap()
+            assertEquals("testOperation", tagsMap["operation_name"])
+            assertEquals("false", tagsMap["success"])
+        }
+    }
+
+    @Nested
+    inner class OperationTest {
+        val simpleMeterRegistry = SimpleMeterRegistry()
+        val subject = TaggedMetricInstrumentation(
+            meterRegistry = simpleMeterRegistry
+        )
+        val state = mockk<InstrumentationState>()
+        val params = mockk<InstrumentationExecuteOperationParameters>()
+        val executionContext = mockk<ExecutionContext>()
+        val operationDefinition = mockk<OperationDefinition>()
+
+        @BeforeEach
+        fun setup() {
+            every { params.executionContext } returns executionContext
+            every { executionContext.operationDefinition } returns operationDefinition
+            every { operationDefinition.name } returns "testOperation"
+        }
+
+        @Test
+        fun `test beginExecuteOperation should emit metric with success tag`() {
+            val ctx = subject.beginExecuteOperation(params, state)
+            checkNotNull(ctx) { "context should not be null" }
+
+            ctx.onDispatched()
+            ctx.onCompleted(ExecutionResultImpl.newExecutionResult().data(123).build(), null)
+            val meter = simpleMeterRegistry.meters.find { it.id.name == TaggedMetricInstrumentation.VIADUCT_OPERATION_METER_NAME }
+            assertNotNull(meter)
+            val tagsMap = meter?.id?.tags?.associate { it.key to it.value } ?: emptyMap()
+            assertEquals("testOperation", tagsMap["operation_name"])
+            assertEquals("true", tagsMap["success"])
+        }
+
+        @Test
+        fun `test executeOperation with exception should emit metric with success = false tag`() {
+            val ctx = subject.beginExecuteOperation(params, state)
+            checkNotNull(ctx) { "context should not be null" }
+
+            ctx.onDispatched()
+            ctx.onCompleted(null, RuntimeException("test exception"))
+            val meter = simpleMeterRegistry.meters.find { it.id.name == TaggedMetricInstrumentation.VIADUCT_OPERATION_METER_NAME }
+            assertNotNull(meter)
+            val tagsMap = meter?.id?.tags?.associate { it.key to it.value } ?: emptyMap()
+            assertEquals("testOperation", tagsMap["operation_name"])
+            assertEquals("false", tagsMap["success"])
+        }
+
+        @Test
+        fun `test executeOperation without data should emit metric with success = false tag`() {
+            val ctx = subject.beginExecuteOperation(params, state)
+            checkNotNull(ctx) { "context should not be null" }
+
+            ctx.onDispatched()
+            ctx.onCompleted(
+                ExecutionResultImpl.newExecutionResult()
+                    .addError(
+                        GraphqlErrorBuilder.newError()
+                            .message("some error").build()
+                    )
+                    .build(),
+                null
+            )
+            val meter = simpleMeterRegistry.meters.find { it.id.name == TaggedMetricInstrumentation.VIADUCT_OPERATION_METER_NAME }
             assertNotNull(meter)
             val tagsMap = meter?.id?.tags?.associate { it.key to it.value } ?: emptyMap()
             assertEquals("testOperation", tagsMap["operation_name"])

@@ -74,6 +74,9 @@ Operation-level metric measuring the time to execute the specific GraphQL operat
 **Tags:**
 * `operation_name` - GraphQL operation definition name from the query document
   * Only present if the operation definition includes a name
+* `success` - Execution success indicator
+  * `"true"` - No exceptions thrown AND data is present in the response
+  * `"false"` - Exception occurred OR no data in response
 
 **Use cases:**
 * Measure execution performance excluding parsing/validation overhead
