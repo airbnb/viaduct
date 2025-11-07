@@ -136,7 +136,7 @@ interface ResolverTestBase {
         objectValue: Object = NullObject,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
-        requestContext: ExecutionContext? = null,
+        requestContext: Any? = null,
         selections: SelectionSet<*> = SelectionSet.NoSelections,
         contextQueryValues: List<Query> = emptyList()
     ): T {
@@ -318,6 +318,7 @@ interface ResolverTestBase {
             mkMutationFieldExecutionContext(
                 queryValue,
                 arguments,
+                requestContext,
                 selections,
                 contextQueries
             )
@@ -326,6 +327,7 @@ interface ResolverTestBase {
                 objectValue,
                 queryValue,
                 arguments,
+                requestContext,
                 selections,
                 contextQueries
             )
@@ -373,6 +375,7 @@ private fun <T : NodeObject> getNodeResolverContextKClass(resolver: NodeResolver
 private fun <T : NodeObject> ResolverTestBase.mkNodeExecutionContext(
     id: GlobalID<T>,
     selections: SelectionSet<T>,
+    requestContext: Any? = null,
     contextQueryValues: List<Query> = emptyList()
 ): NodeExecutionContext<T> {
     val internalContext = context.internal
@@ -439,6 +442,7 @@ private fun ResolverTestBase.mkFieldExecutionContext(
     objectValue: Object,
     queryValue: Query,
     arguments: Arguments,
+    requestContext: Any?,
     selections: SelectionSet<*>,
     contextQueryValues: List<Query> = emptyList()
 ): FieldExecutionContext<*, *, *, *> {
@@ -449,6 +453,7 @@ private fun ResolverTestBase.mkFieldExecutionContext(
         objectValue = objectValue,
         queryValue = queryValue,
         arguments = arguments,
+        requestContext = requestContext,
         selectionsValue = selections,
         internalContext = internalContext,
         queryResults = queryResultsMap,
@@ -459,6 +464,7 @@ private fun ResolverTestBase.mkFieldExecutionContext(
 private fun ResolverTestBase.mkMutationFieldExecutionContext(
     queryValue: Query,
     arguments: Arguments,
+    requestContext: Any?,
     selections: SelectionSet<*>,
     contextQueryValues: List<Query> = emptyList()
 ): MutationFieldExecutionContext<*, *, *> {
@@ -468,6 +474,7 @@ private fun ResolverTestBase.mkMutationFieldExecutionContext(
     return MockMutationFieldExecutionContext(
         queryValue = queryValue,
         arguments = arguments,
+        requestContext = requestContext,
         selectionsValue = selections,
         internalContext = internalContext,
         queryResults = queryResultsMap,
