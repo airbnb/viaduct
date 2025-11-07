@@ -229,7 +229,11 @@ private class IRGen(
 
     private fun genScalar(type: GraphQLScalarType): IR.Value =
         when (type.name) {
-            "BackingData" -> TODO("https://app.asana.com/1/150975571430/project/1211295233988904/task/1211525978501301")
+            "BackingData" -> {
+                // TODO: support BackingData in object mapping
+                //  https://app.asana.com/1/150975571430/project/1211295233988904/task/1211525978501301
+                IR.Value.Null
+            }
             "Boolean" -> IR.Value.Boolean(Arb.boolean().next(rs))
             "Byte" -> IR.Value.Number(Arb.byte().next(rs))
             "Date" -> IR.Value.Time(Arb.localDate().next(rs))

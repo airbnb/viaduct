@@ -123,11 +123,10 @@ class DomainValidatorTest : KotestPropertyBase() {
         val mappedForward = mutableSetOf<String>()
         val inverted = mutableSetOf<String>()
         val domain = object : Domain<IR.Value.Object> {
-            override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> =
-                Conv(
-                    { it.also { mappedForward += it.name } },
-                    { it.also { inverted += it.name } }
-                )
+            override val conv = Conv<IR.Value.Object, IR.Value.Object>(
+                { it.also { mappedForward += it.name } },
+                { it.also { inverted += it.name } }
+            )
         }
         val validator = DomainValidator(domain, schema)
 
@@ -172,7 +171,7 @@ class DomainValidatorTest : KotestPropertyBase() {
     fun `create with custom generator`() {
         val obj = IR.Value.Object("Query", mapOf("x" to IR.Value.Number(1)))
         val domain = object : Domain<IR.Value.Object> {
-            override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> = Conv(::checkAndPass, ::checkAndPass)
+            override val conv = Conv(::checkAndPass, ::checkAndPass)
 
             fun checkAndPass(inp: IR.Value.Object): IR.Value.Object =
                 inp.also {
@@ -187,17 +186,19 @@ class DomainValidatorTest : KotestPropertyBase() {
 }
 
 private object NonBijectiveTestDomain : Domain<IR.Value.Object> {
-    override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> =
-        Conv(
-            { it },
-            { it.copy(name = it.name + "_") }
-        )
+    override val conv = Conv<IR.Value.Object, IR.Value.Object>(
+        { it },
+        { it.copy(name = it.name + "_") }
+    )
 }
 
 private class ThrowingTestDomain(val cause: Throwable) : Domain<IR.Value.Object> {
-    override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> = Conv({ throw cause }, { it })
+    override val conv = Conv<IR.Value.Object, IR.Value.Object>(
+        { throw cause },
+        { it }
+    )
 }
 
 private object IdentityDomain : Domain<IR.Value.Object> {
-    override fun objectToIR(): Conv<IR.Value.Object, IR.Value.Object> = Conv.identity()
+    override val conv = Conv.identity<IR.Value.Object>()
 }

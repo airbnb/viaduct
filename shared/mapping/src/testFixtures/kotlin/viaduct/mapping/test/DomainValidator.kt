@@ -72,7 +72,7 @@ class DomainValidator<From, To> private constructor(
     }
 
     /**
-     * Try to roundtri [value]
+     * Try to roundtrip [value]
      * @return [None] if value was successfully roundtripped, or [Some] of the roundtripped value if roundtripping failed
      */
     private fun tryRoundtrip(value: From): Result<Option<From>> =
@@ -105,8 +105,8 @@ class DomainValidator<From, To> private constructor(
             equalsFn: Function2<From, From, Boolean>? = null,
         ): DomainValidator<From, IR.Value.Object> =
             DomainValidator(
-                Arb.objectIR(schema, cfg).map(domain.objectToIR().inverse()),
-                domain.objectToIR(),
+                Arb.objectIR(schema, cfg).map(domain.conv.inverse()),
+                domain.conv,
                 Equals(equalsFn),
             )
 
@@ -126,7 +126,7 @@ class DomainValidator<From, To> private constructor(
         ): DomainValidator<From, IR.Value.Object> =
             DomainValidator(
                 generator,
-                domain.objectToIR(),
+                domain.conv,
                 Equals(equalsFn),
             )
 

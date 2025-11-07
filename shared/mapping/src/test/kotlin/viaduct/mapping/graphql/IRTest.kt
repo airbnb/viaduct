@@ -38,7 +38,7 @@ import viaduct.mapping.test.DomainValidator
 class IRTest : KotestPropertyBase() {
     @Test
     fun `IR -- objectToIR`() {
-        assertEquals(Conv.identity<IR.Value.Object>(), IR.objectToIR())
+        assertEquals(Conv.identity<IR.Value.Object>(), IR.conv)
     }
 
     @Test

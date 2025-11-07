@@ -2,6 +2,7 @@
 
 package viaduct.mapping.graphql
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import graphql.Scalars
 import graphql.scalars.ExtendedScalars
 import graphql.schema.GraphQLList
@@ -9,10 +10,12 @@ import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
 import io.kotest.property.Arb
+import io.kotest.property.arbitrary.enum
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.take
+import io.kotest.property.exhaustive.enum
 import io.kotest.property.forAll
 import java.time.Instant
 import java.time.LocalDate
@@ -196,6 +199,20 @@ class JsonConvTest : KotestPropertyBase() {
     }
 
     @Test
+    fun `BackingData`() {
+        // TODO: support BackingData https://app.asana.com/1/150975571430/project/1211295233988904/task/1211525978501301
+        val type = emptySchema.schema.getType("BackingData")!!
+        val conv = JsonConv(emptySchema, type)
+
+        // all values are mapped to IR null
+        assertEquals(IR.Value.Null, conv("{}"))
+
+        // all IR values are inverted to null
+        assertEquals("null", conv.invert(IR.Value.Null))
+        assertEquals("null", conv.invert(IR.Value.String("")))
+    }
+
+    @Test
     fun `Enum -- simple`() {
         val schema = mkSchema("enum Enum { A, B }")
         val conv = JsonConv(schema, schema.schema.getType("Enum")!!)
@@ -251,7 +268,7 @@ class JsonConvTest : KotestPropertyBase() {
         val schema = mkSchema("input Input { x:Int }")
         val conv = JsonConv(schema, schema.schema.getType("Input")!!)
 
-        val str = """{"x":1}"""
+        val str = """{"x":1,"__typename":"Input"}"""
         val ir = conv(str)
         assertEquals(IR.Value.Object("Input", mapOf("x" to IR.Value.Number(1))), ir)
         val str2 = conv.invert(ir)
@@ -273,6 +290,26 @@ class JsonConvTest : KotestPropertyBase() {
     }
 
     @Test
+    fun `input objects -- AddJsonTypeNameField`(): Unit =
+        runBlocking {
+            val schema = mkSchema("input Input { x:Int }")
+            val type = schema.schema.getType("Input")!!
+
+            Arb.enum<JsonConv.AddJsonTypenameField>().forAll { addJsonTypenameField ->
+                val conv = JsonConv(schema, type, addJsonTypenameField)
+
+                val ir = IR.Value.Object("Input", emptyMap())
+                val str = conv.invert(ir)
+
+                val parsed = ObjectMapper().readValue(str, Map::class.java)
+                when (addJsonTypenameField) {
+                    JsonConv.AddJsonTypenameField.Always -> parsed["__typename"] == "Input"
+                    JsonConv.AddJsonTypenameField.Never -> "__typename" !in parsed
+                }
+            }
+        }
+
+    @Test
     fun `all schema scalars -- arb`() {
         val scalarTypes = emptySchema.schema.allTypesAsList
             .mapNotNull { it as? GraphQLScalarType }
@@ -292,10 +329,16 @@ class JsonConvTest : KotestPropertyBase() {
         val schema = mkSchema("type Obj { x:Int }")
         val conv = JsonConv(schema, schema.schema.getType("Obj")!!)
 
-        val str = """{"x":1}"""
+        val str = """{"x":1,"__typename":"Obj"}"""
         val ir = conv(str)
         assertEquals(
-            IR.Value.Object("Obj", mapOf("x" to IR.Value.Number(1))),
+            IR.Value.Object(
+                "Obj",
+                mapOf(
+                    "x" to IR.Value.Number(1),
+                    "__typename" to IR.Value.String("Obj"),
+                )
+            ),
             ir
         )
         val str2 = conv.invert(ir)
@@ -321,7 +364,7 @@ class JsonConvTest : KotestPropertyBase() {
         val schema = mkSchema("type Obj { x:Obj }")
         val conv = JsonConv(schema, schema.schema.getType("Obj")!!)
 
-        val str = """{"x":{"x":null}}"""
+        val str = """{"x":{"x":null,"__typename":"Obj"},"__typename":"Obj"}"""
         val ir = conv(str)
         assertEquals(
             IR.Value.Object(
@@ -329,8 +372,12 @@ class JsonConvTest : KotestPropertyBase() {
                 mapOf(
                     "x" to IR.Value.Object(
                         "Obj",
-                        mapOf("x" to IR.Value.Null)
-                    )
+                        mapOf(
+                            "x" to IR.Value.Null,
+                            "__typename" to IR.Value.String("Obj")
+                        )
+                    ),
+                    "__typename" to IR.Value.String("Obj")
                 )
             ),
             ir
@@ -338,6 +385,26 @@ class JsonConvTest : KotestPropertyBase() {
         val str2 = conv.invert(ir)
         assertEquals(str, str2)
     }
+
+    @Test
+    fun `output objects -- AddJsonTypeNameField`(): Unit =
+        runBlocking {
+            val schema = mkSchema("type Obj { x:Int }")
+            val type = schema.schema.getType("Obj")!!
+
+            Arb.enum<JsonConv.AddJsonTypenameField>().forAll { addJsonTypenameField ->
+                val conv = JsonConv(schema, type, addJsonTypenameField)
+
+                val ir = IR.Value.Object("Obj", emptyMap())
+                val str = conv.invert(ir)
+
+                val parsed = ObjectMapper().readValue(str, Map::class.java)
+                when (addJsonTypenameField) {
+                    JsonConv.AddJsonTypenameField.Always -> parsed["__typename"] == "Obj"
+                    JsonConv.AddJsonTypenameField.Never -> "__typename" !in parsed
+                }
+            }
+        }
 
     @Test
     fun `unions`() {
@@ -420,7 +487,8 @@ class JsonConvTest : KotestPropertyBase() {
     fun `roundtrips arb ir for simple objects`(): Unit =
         runBlocking {
             val schema = mkSchema("type Obj { x:Int }")
-            Arb.objectIR(schema.schema).forAll { ir ->
+            val cfg = Config.default + (TypenameValueWeight to 1.0)
+            Arb.objectIR(schema.schema, cfg).forAll { ir ->
                 val type = schema.schema.getObjectType(ir.name)
                 val roundtripper = JsonConv(schema, type).let { conv ->
                     conv.inverse() andThen conv

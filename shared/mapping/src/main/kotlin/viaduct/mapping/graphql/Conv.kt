@@ -4,15 +4,15 @@ package viaduct.mapping.graphql
  * A `Conv<From, To>` is a pair of functions that transform an element between types
  * From and To
  */
-interface Conv<From, To> : Function1<From, To> {
+interface Conv<From, To> : (From) -> To {
     /** convert an instance of [From] to [To] */
     override fun invoke(from: From): To
 
+    /** convert an instance of [To] to [From], the dual of [invoke] */
+    fun invert(to: To): From
+
     /** return the inverse of the current Conv */
     fun inverse(): Conv<To, From>
-
-    /** convert an instance of [To] to [From], the dual of [invoke] */
-    fun invert(to: To): From = inverse().invoke(to)
 
     /** return a new Conv that applies this object first, followed by `other` */
     infix fun <NewTo> andThen(other: Conv<To, NewTo>): Conv<From, NewTo> = AndThen(this, other)
@@ -32,6 +32,8 @@ interface Conv<From, To> : Function1<From, To> {
     ) : Conv<LFrom, RTo> {
         override fun invoke(from: LFrom): RTo = right(left(from))
 
+        override fun invert(to: RTo): LFrom = left.invert(right.invert(to))
+
         override fun inverse(): Conv<RTo, LFrom> = AndThen(right.inverse(), left.inverse())
     }
 
@@ -42,6 +44,8 @@ interface Conv<From, To> : Function1<From, To> {
     ) : Conv<From, To> {
         override fun invoke(from: From): To = forward(from)
 
+        override fun invert(to: To): From = inverse(to)
+
         override fun inverse(): Conv<To, From> = Impl(inverse, forward, name)
 
         override fun toString(): String = name ?: super.toString()
@@ -49,6 +53,8 @@ interface Conv<From, To> : Function1<From, To> {
 
     private object Identity : Conv<Any?, Any?> {
         override fun invoke(from: Any?): Any? = from
+
+        override fun invert(to: Any?): Any? = to
 
         override fun inverse(): Conv<Any?, Any?> = this
 
