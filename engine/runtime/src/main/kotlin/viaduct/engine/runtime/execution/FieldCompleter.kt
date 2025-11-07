@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalCoroutinesApi::class)
+@file:Suppress("DEPRECATION")
 
 package viaduct.engine.runtime.execution
 
@@ -18,6 +19,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.asDeferred
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.CompositeLocalContext
 import viaduct.engine.runtime.FieldResolutionResult
@@ -75,8 +77,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoF
  */
 class FieldCompleter(
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler,
-    @Suppress("DEPRECATION")
-    private val temporaryBypassAccessCheck: viaduct.engine.api.TemporaryBypassAccessCheck,
+    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck,
 ) {
     /**
      * Completes the selection set by completing each field.

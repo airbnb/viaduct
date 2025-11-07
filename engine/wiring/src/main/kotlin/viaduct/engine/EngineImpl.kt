@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine
 
 import graphql.ExecutionInput as GJExecutionInput
@@ -13,6 +15,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineExecutionResult
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.FragmentLoader
+import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
@@ -45,7 +48,7 @@ class EngineImpl(
     private val coroutineInterop: CoroutineInterop = config.coroutineInterop
     private val fragmentLoader: FragmentLoader = config.fragmentLoader
     private val flagManager: FlagManager = config.flagManager
-    private val temporaryBypassAccessCheck: viaduct.engine.api.TemporaryBypassAccessCheck = config.temporaryBypassAccessCheck
+    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = config.temporaryBypassAccessCheck
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler = config.dataFetcherExceptionHandler
     private val meterRegistry: MeterRegistry? = config.meterRegistry
     private val additionalInstrumentation: Instrumentation? = config.additionalInstrumentation

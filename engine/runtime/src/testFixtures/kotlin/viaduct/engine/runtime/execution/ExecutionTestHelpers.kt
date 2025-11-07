@@ -1,5 +1,5 @@
 @file:OptIn(ExperimentalCoroutinesApi::class)
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "DEPRECATION")
 
 package viaduct.engine.runtime.execution
 
@@ -45,6 +45,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FieldCheckerDispatcherRegistry
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSetRegistry
+import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
@@ -154,7 +155,7 @@ object ExecutionTestHelpers {
             executionParametersFactory = execParamFactory,
             accessCheckRunner = accessCheckRunner,
             coroutineInterop = coroutineInterop,
-            temporaryBypassAccessCheck = viaduct.engine.api.TemporaryBypassAccessCheck.Default
+            temporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default
         )
         return GraphQL.newGraphQL(schema.schema)
             .preparsedDocumentProvider(preparsedDocumentProvider)

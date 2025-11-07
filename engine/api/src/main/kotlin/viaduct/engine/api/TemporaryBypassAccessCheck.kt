@@ -13,6 +13,7 @@ interface TemporaryBypassAccessCheck {
      * but does not bypass individual check per field.
      * `bypassChecksDuringCompletion` is set to false by default, only overriden by shims.
      */
+    @Suppress("DEPRECATION")
     object Default : TemporaryBypassAccessCheck {
         override fun shouldBypassCheck(
             field: Field,
