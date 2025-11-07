@@ -23,9 +23,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
+import viaduct.engine.api.RequestScopeCancellationException
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -362,7 +362,8 @@ class ViaductExecutionStrategy internal constructor(
             }.await()
         } finally {
             withContext(NonCancellable) {
-                sup.cancelAndJoin()
+                sup.cancel(RequestScopeCancellationException("Request complete. Cleaning up request scope."))
+                sup.join()
             }
             // throw the first failure if there was one
             fatalFailure.get()?.let { throw it }
