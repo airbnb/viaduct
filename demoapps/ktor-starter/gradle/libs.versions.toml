@@ -1,9 +1,9 @@
 [versions]
 coroutinesReactor = "1.7.3"
 kotest = "5.8.0"
-kotlin = "1.9.24"
+kotlin = "2.2.0"
 reactor = "3.5.0"
-ktor = "2.3.7"
+ktor = "3.3.0"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
