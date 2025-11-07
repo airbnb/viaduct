@@ -78,5 +78,10 @@ interface EngineObjectData : EngineObject {
          * reading unset selections.
          */
         fun getOrNull(selection: String): Any?
+
+        /**
+         * Get the list of selections available for this object.
+         */
+        fun getSelections(): Iterable<String>
     }
 }
