@@ -4,6 +4,8 @@ import graphql.schema.GraphQLEnumType
 import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLObjectType
 import kotlin.reflect.KClass
+import viaduct.mapping.graphql.Conv
+import viaduct.mapping.graphql.IR
 
 @Suppress("UNCHECKED_CAST")
 internal fun wrapEnum(
@@ -33,3 +35,7 @@ internal fun isGlobalID(
 ): Boolean {
     return field.name == "id" && parentType.interfaces.any { it.name == "Node" } || field.appliedDirectives.any { it.name == "idOf" }
 }
+
+@Suppress("UNCHECKED_CAST")
+val Conv<*, *>.asAnyConv: Conv<Any?, IR.Value> get() =
+    this as Conv<Any?, IR.Value>
