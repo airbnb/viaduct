@@ -22,7 +22,7 @@ import viaduct.api.types.NodeObject
 abstract class InputLikeBase : InputLike {
     protected abstract val context: InternalContext
     abstract val inputData: Map<String, Any?>
-    protected abstract val graphQLInputObjectType: GraphQLInputObjectType
+    abstract val graphQLInputObjectType: GraphQLInputObjectType
 
     @Suppress("unused")
     protected fun validateInputDataAndThrowAsFrameworkError() {

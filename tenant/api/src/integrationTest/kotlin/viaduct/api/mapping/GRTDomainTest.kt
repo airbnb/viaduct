@@ -1,0 +1,101 @@
+package viaduct.api.mapping
+
+import java.time.Instant
+import java.time.LocalDate
+import java.time.OffsetTime
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
+import viaduct.api.internal.ObjectBase
+import viaduct.api.mocks.MockGlobalID
+import viaduct.api.mocks.MockInternalContext
+import viaduct.api.mocks.executionContext
+import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.E1
+import viaduct.api.testschema.Input1
+import viaduct.api.testschema.Input2
+import viaduct.api.testschema.Scalars
+import viaduct.api.testschema.TestUser
+import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.engineObjectsAreEquivalent
+import viaduct.mapping.test.DomainValidator
+
+class GRTDomainTest : KotestPropertyBase() {
+    private val schema = SchemaUtils.getSchema()
+    private val internalContext = MockInternalContext.mk(schema, "viaduct.api.testschema")
+    private val executionContext = internalContext.executionContext
+
+    private val domain = GRTDomain(executionContext)
+    private val validator = DomainValidator(domain, schema.schema, equalsFn = ::grtsEqual)
+
+    // TODO: update input grts to not materialize default values
+    @Disabled(
+        "https://app.asana.com/1/150975571430/project/1211295233988904/task/1211759765994786"
+    )
+    @Test
+    fun `GRTDomain roundtrips arbitrary IR`() {
+        validator.checkAll()
+    }
+
+    @Test
+    fun `GRTDomain -- roundtrips output objects`() {
+        validator.check(
+            Scalars.Builder(executionContext)
+                .boolean(true)
+                .byte(Byte.MAX_VALUE)
+                .short(Short.MAX_VALUE)
+                .int(Int.MAX_VALUE)
+                .float(Double.MAX_VALUE)
+                .json("{}")
+                .string("str")
+                .id("ID")
+                .date(LocalDate.MAX)
+                .dateTime(Instant.MAX)
+                .time(OffsetTime.MAX)
+                .build()
+        )
+    }
+
+    // TODO: update input grts to not materialize default values
+    @Disabled(
+        "https://app.asana.com/1/150975571430/project/1211295233988904/task/1211759765994786"
+    )
+    @Test
+    fun `GRTDomain -- roundtrips input objects`() {
+        validator.check(
+            Input1.Builder(executionContext)
+                .stringField("str")
+                .intField(Int.MAX_VALUE)
+                .nonNullStringField("str2")
+                .listField(
+                    listOf(E1.A, E1.B)
+                )
+                .nestedListField(
+                    listOf(listOf(E1.A), listOf(E1.B, E1.B))
+                )
+                .inputField(
+                    Input2.Builder(executionContext)
+                        .stringField("str")
+                        .id1("id")
+                        .id2(MockGlobalID(TestUser.Reflection, "1"))
+                        .build()
+                )
+                .build()
+        )
+    }
+}
+
+private fun grtsEqual(
+    expected: Any?,
+    actual: Any?
+): Boolean =
+    when {
+        // object grts only support referential equality
+        expected is ObjectBase && actual is ObjectBase ->
+            expected.javaClass == actual.javaClass &&
+                engineObjectsAreEquivalent(
+                    expected.engineObject as EngineObjectData.Sync,
+                    actual.engineObject as EngineObjectData.Sync
+                )
+        else -> expected == actual
+    }

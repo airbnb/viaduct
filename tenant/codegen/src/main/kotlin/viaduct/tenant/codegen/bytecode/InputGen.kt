@@ -132,7 +132,7 @@ private class InputClassGen(
                 isVariable = false,
                 constructorProperty = true
             ).apply {
-                getterVisibility(Visibility.PROTECTED)
+                getterVisibility(Visibility.PUBLIC)
                 propertyModality(Modality.OPEN)
             }
         )

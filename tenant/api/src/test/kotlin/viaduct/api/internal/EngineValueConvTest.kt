@@ -27,6 +27,7 @@ import viaduct.arbitrary.graphql.graphQLSchema
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.engineObjectsAreEquivalent
 import viaduct.engine.api.mocks.mkSchema
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.IR
@@ -347,14 +348,6 @@ internal fun valuesEqual(
     when {
         a == null || b == null -> (a == null) == (b == null)
         a is EngineObjectData.Sync && b is EngineObjectData.Sync ->
-            engineObjectsEqual(a, b)
+            engineObjectsAreEquivalent(a, b)
         else -> (a == b)
     }
-
-internal fun engineObjectsEqual(
-    a: EngineObjectData.Sync,
-    b: EngineObjectData.Sync
-): Boolean = a.graphQLObjectType === b.graphQLObjectType && a.asMap == b.asMap
-
-internal val EngineObjectData.Sync.asMap: Map<String, Any?> get() =
-    getSelections().associate { sel -> sel to get(sel) }
