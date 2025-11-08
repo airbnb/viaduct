@@ -4,8 +4,8 @@ package viaduct.tenant.runtime.execution.variables.providerexception
 
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
+import strikt.assertions.contains
 import strikt.assertions.isNotNull
-import strikt.assertions.isTrue
 import viaduct.api.Resolver
 import viaduct.api.Variables
 import viaduct.api.VariablesProvider
@@ -87,29 +87,18 @@ class VariablesProviderExceptionFeatureAppTest : FeatureAppTestBase() {
         }
 
         // Test that the field with variables provider exception throws an exception during execution
-        // Currently variables provider exceptions crash the entire execution rather than being gracefully handled
-        val exception = try {
-            execute(
-                query = """
-                    query {
-                        fromVariablesProvider
-                    }
-                """.trimIndent()
-            )
-            null // No exception was thrown
-        } catch (e: Exception) {
-            e
-        }
+        val result = execute(
+            query = """
+                query {
+                    fromVariablesProvider
+                }
+            """.trimIndent()
+        )
 
-        expectThat(exception).describedAs("Expected variables provider exception to crash execution, but query succeeded").isNotNull()
-
-        // Verify the exception contains the expected message
-        val hasVariablesProviderError = exception!!.toString().contains("Variables provider failed!") ||
-            exception.cause?.toString()?.contains("Variables provider failed!") == true ||
-            generateSequence(exception as Throwable) { it.cause }.any { it.message?.contains("Variables provider failed!") == true }
-
-        expectThat(hasVariablesProviderError)
-            .describedAs("Expected exception to contain 'Variables provider failed!' but got: $exception")
-            .isTrue()
+        // exepct that result.errors is not null and contains the expected error message
+        expectThat(result.errors).isNotNull()
+        expectThat(result.errors[0].toString())
+            .describedAs("Expected error message to contain 'Variables provider failed!'")
+            .contains("Variables provider failed!")
     }
 }

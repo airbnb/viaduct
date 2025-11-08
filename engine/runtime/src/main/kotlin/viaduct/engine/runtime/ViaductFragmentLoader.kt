@@ -246,7 +246,7 @@ class ViaductFragmentLoader
                         try {
                             log.debug("fetching field '{}' from OER: {}", oerKey, objectEngineResult)
                             objectEngineResult.fetch(oerKey, RAW_VALUE_SLOT)
-                        } catch (e: Throwable) {
+                        } catch (e: Exception) {
                             errors.add(ResolutionError(e, currentPath))
                             null
                         }

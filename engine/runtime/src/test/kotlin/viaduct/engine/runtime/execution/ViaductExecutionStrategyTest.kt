@@ -90,6 +90,29 @@ class ViaductExecutionStrategyTest {
     )
 
     @Test
+    fun `fatal error in data fetcher crashes request`() =
+        runExecutionTest {
+            val sdl = "type Query { field: String }"
+            val resolvers = mapOf(
+                "Query" to mapOf(
+                    "field" to DataFetcher<String> {
+                        // Throw Error, not Exception - represents fatal JVM error
+                        throw AssertionError("Fatal invariant violation")
+                    }
+                )
+            )
+
+            val exception = assertThrows<AssertionError> {
+                executeViaductModernGraphQL(sdl, resolvers, "{ field }")
+            }
+
+            assertTrue(
+                exception.message?.contains("Fatal invariant violation") ==
+                    true
+            )
+        }
+
+    @Test
     fun `instrumentation failure during field completion is contained at field level`() =
         runExecutionTest {
             // Define a simple schema with one field that would normally resolve to a valid value.

@@ -12,11 +12,9 @@ import graphql.execution.NonNullableFieldWasNullException
 import graphql.language.OperationDefinition
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -24,6 +22,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import viaduct.engine.api.RequestScopeCancellationException
 import viaduct.engine.api.TemporaryBypassAccessCheck
@@ -210,16 +210,18 @@ class ViaductExecutionStrategy internal constructor(
                 // 1. Fetch the selection set
                 // 2. In parallel, complete the selection set,
                 //    relying on the query plan and the object engine result
-                parameters.launchOnRootScope {
-                    val (_, duration) = measureTimedValue {
-                        if (isSerial) {
-                            fieldResolver.fetchObjectSerially(objType, parameters)
-                        } else {
-                            fieldResolver.fetchObject(objType, parameters)
+                launch {
+                    supervisorScope {
+                        val (_, duration) = measureTimedValue {
+                            if (isSerial) {
+                                fieldResolver.fetchObjectSerially(objType, parameters)
+                            } else {
+                                fieldResolver.fetchObject(objType, parameters)
+                            }
                         }
-                    }
-                    log.ifDebug {
-                        debug("Took $duration to resolve query: ${executionContext.operationDefinition.operation.name}.")
+                        log.ifDebug {
+                            debug("Took $duration to resolve query: ${executionContext.operationDefinition.operation.name}.")
+                        }
                     }
                 }
                 // Get list of completed FieldValueInfos
@@ -317,14 +319,14 @@ class ViaductExecutionStrategy internal constructor(
      *
      * ## Behavior
      * 1. Captures the current coroutine context (`dispatcher`, MDC, TL context, etc.).
-     * 2. Creates a new [SupervisorJob] parented to the current job and records the first
-     *    unhandled fatal failure via a [CoroutineExceptionHandler].
+     * 2. Creates a new [SupervisorJob] parented to the current job and logs
+     *    unhandled fatal failures via a [CoroutineExceptionHandler].
      * 3. Runs [block] inside a new [CoroutineScope] that layers the supervisor onto the captured
      *    context and restores thread locals via `withThreadLocalCoroutineContext`. The block receives
      *    a `supervisorFactory` lambda that produces scopes parented by the request supervisor so
      *    downstream code (e.g. `ExecutionParameters.launchOnRootScope`) can launch children safely.
-     * 4. After the block completes or fails, cancels the supervisor, waits for all children
-     *    to finish cancelling (`cancelAndJoin`), then rethrows the first fatal failure if one was observed.
+     * 4. After the block completes or fails, cancels the supervisor with a special error,
+     *    and then waits for all children to finish cancelling with a `join`.
      *
      * ## Usage
      * ```
@@ -339,14 +341,11 @@ class ViaductExecutionStrategy internal constructor(
     internal suspend inline fun <T> withRequestSupervisor(crossinline block: suspend CoroutineScope.(supervisorFactory: (CoroutineContext) -> CoroutineScope) -> T): T {
         val cc = currentCoroutineContext()
         val sup = SupervisorJob(cc[Job])
-        val fatalFailure = AtomicReference<Throwable?>(null)
         return try {
-            // Capture any errors that escape from child coroutines launched in the request scope.
-            // Ideally this doesn't happen, but if it does, we don't want to swallow them. We will
-            // log all, but only throw the first one.
+            // Capture any errors that don't propagate from child coroutines launched in the request scope.
+            // Ideally this doesn't happen, but if it does, we want to log them.
             val ctx = cc + sup + CoroutineExceptionHandler { _, t ->
-                log.error("Fatal error in request scope", t)
-                t !is CancellationException && fatalFailure.compareAndSet(null, t)
+                log.error("Uncaught exception in request scope", t)
             }
             CoroutineScope(ctx).async {
                 // this acts as a fallback for TL context. if we try to access the TL context's job and
@@ -365,8 +364,6 @@ class ViaductExecutionStrategy internal constructor(
                 sup.cancel(RequestScopeCancellationException("Request complete. Cleaning up request scope."))
                 sup.join()
             }
-            // throw the first failure if there was one
-            fatalFailure.get()?.let { throw it }
         }
     }
 }

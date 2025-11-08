@@ -38,7 +38,7 @@ class TempOneOfViolationFeatureAppTest : FeatureAppTestBase() {
         """
     )
     class Query_FromVariablesProviderResolver : QueryResolvers.FromVariablesProvider() {
-        override suspend fun resolve(ctx: Context): String = ctx.objectValue.get("intermediary", String::class)
+        override suspend fun resolve(ctx: Context): String? = ctx.objectValue.getIntermediary()
 
         @Variables("oneofVar: OneofInput!")
         class OneOfViolationVars : VariablesProvider<Arguments> {
@@ -64,27 +64,16 @@ class TempOneOfViolationFeatureAppTest : FeatureAppTestBase() {
 
     @Test
     fun `oneof violation fails at runtime`() {
-        // Execute query - should fail due to oneof violation (providing both stringValue and intValue)
-        // The execution will throw an exception which is caught by the test framework
-        try {
-            val result = execute("query { fromVariablesProvider }")
+        val result = execute("query { fromVariablesProvider }")
 
-            // If we get here, check for errors in the result
-            assertTrue(result.errors?.isNotEmpty() == true, "Expected errors but got: ${result.errors}")
+        // If we get here, check for errors in the result
+        assertTrue(result.errors?.isNotEmpty() == true, "Expected errors but got: ${result.errors}")
 
-            val hasOneofError = result.errors?.any { error ->
-                error.message?.contains("Exactly one key must be specified for OneOf type") == true ||
-                    error.message?.contains("OneOf") == true
-            } == true
+        val hasOneofError = result.errors?.any { error ->
+            error.message?.contains("Exactly one key must be specified for OneOf type") == true ||
+                error.message?.contains("OneOf") == true
+        } == true
 
-            assertTrue(hasOneofError, "Expected oneof violation error but got: ${result.errors?.map { it.message }}")
-        } catch (exception: Exception) {
-            // The exception should contain the oneof violation message
-            val hasOneofError = exception.message?.contains("Exactly one key must be specified for OneOf type") == true ||
-                exception.cause?.message?.contains("Exactly one key must be specified for OneOf type") == true ||
-                exception.toString().contains("OneOfTooManyKeysException") == true
-
-            assertTrue(hasOneofError, "Expected oneof violation exception but got: $exception")
-        }
+        assertTrue(hasOneofError, "Expected oneof violation error but got: ${result.errors?.map { it.message }}")
     }
 }

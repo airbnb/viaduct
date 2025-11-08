@@ -140,7 +140,7 @@ value class Cell private constructor(private val slots: AtomicReferenceArray<Any
             try {
                 block(setter)
                 setter.assertAllSlotsSet()
-            } catch (t: Throwable) {
+            } catch (t: Exception) {
                 val wrappedException = RuntimeException("Cell.compute block failed", t)
                 setter.completeExceptionally(wrappedException)
                 throw t

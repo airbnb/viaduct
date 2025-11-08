@@ -185,7 +185,7 @@ sealed interface Value<T> {
             if (deferred.isCompleted) {
                 try {
                     fromValue(deferred.getCompleted())
-                } catch (e: Throwable) {
+                } catch (e: Exception) {
                     fromThrowable(e)
                 }
             } else {
