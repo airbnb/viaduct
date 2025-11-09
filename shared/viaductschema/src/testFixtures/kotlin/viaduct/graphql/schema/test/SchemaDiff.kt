@@ -99,6 +99,10 @@ class SchemaDiff(
             if (!hasSameKind(expectedDef, actualDef, "DEF_CLASS")) {
                 return
             }
+
+            // Check sourceLocation agreement
+            checker.isEqualTo(expectedDef.sourceLocation, actualDef.sourceLocation, "SOURCE_LOCATION_AGREES")
+
             sameNames(
                 expectedDef.appliedDirectives,
                 actualDef.appliedDirectives,
@@ -239,7 +243,7 @@ class SchemaDiff(
         expectedNode: Any?,
         actualNode: Any?
     ): Boolean {
-        if (expectedNode != null && (expectedNode as Node<*>).isEqualTo(actualNode as Node<*>)) return true
+        if (expectedNode != null && actualNode != null && (expectedNode as Node<*>).isEqualTo(actualNode as Node<*>)) return true
         return actualNode == null && expectedNode == null
     }
 

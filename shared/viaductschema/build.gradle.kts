@@ -1,5 +1,6 @@
 plugins {
     id("conventions.kotlin")
+    `java-test-fixtures`
     id("conventions.kotlin-static-analysis")
 }
 
@@ -18,6 +19,14 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.reflections)
     implementation(libs.jspecify)
+
+    testFixturesApi(libs.graphql.java)
+    testFixturesApi(libs.junit)
+    testFixturesApi(libs.viaduct.shared.invariants)
+
+    testFixturesImplementation(libs.guava)
+    testFixturesImplementation(libs.kotlin.reflect)
+    testFixturesImplementation(libs.reflections)
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.io.mockk.jvm)

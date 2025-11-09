@@ -43,6 +43,7 @@ dependencies {
     testImplementation(libs.viaduct.shared.codegen)
     testImplementation(libs.viaduct.shared.graphql)
     testImplementation(libs.viaduct.shared.viaductschema)
+    testImplementation(testFixtures(libs.viaduct.shared.viaductschema))
 
     // Test dependencies from original codegen module
     testImplementation(libs.io.mockk.dsl)

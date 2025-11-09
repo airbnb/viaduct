@@ -24,4 +24,5 @@ dependencies {
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.javassist)
+    testImplementation(testFixtures(libs.viaduct.shared.viaductschema))
 }
