@@ -44,6 +44,7 @@ develocity = "3.19.2"
 foojay-resolver-convention = "1.0.0"
 spotbugs = "6.0.26"
 idea-gradle-plugin = "1.3"
+shadow = "8.1.1"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -56,6 +57,7 @@ gradle-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "gra
 develocity = { id = "com.gradle.develocity", version.ref = "develocity" }
 foojay-resolver-convention = { id = "org.gradle.toolchains.foojay-resolver-convention", version.ref = "foojay-resolver-convention" }
 spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs" }
+shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
 
 [libraries]
 # Project

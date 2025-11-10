@@ -4,7 +4,7 @@ plugins {
     `maven-publish`
     `java-test-fixtures`
     id("conventions.kotlin-static-analysis")
-    id("conventions.dokka")
+    id("conventions.viaduct-publishing")
     id("jacoco-integration-base")
 }
 

@@ -13,6 +13,7 @@ dependencies {
     implementation(plugin(libs.plugins.dokka))
     implementation(plugin(libs.plugins.dokkaJavaDoc))
     implementation(plugin(libs.plugins.spotbugs))
+    implementation(plugin(libs.plugins.shadow))
     compileOnly(libs.detekt.api)
 
     // settings dependencies
