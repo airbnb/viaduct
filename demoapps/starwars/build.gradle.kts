@@ -26,6 +26,22 @@ configurations.all {
 }
 
 dependencies {
+    // Import Viaduct BOM for version management
+    implementation(platform("com.airbnb.viaduct:viaduct-bom:${libs.versions.viaduct.get()}"))
+
+    // When part of composite build: use individual Viaduct modules from repo
+    // When standalone: use shaded jar from Maven Central
+    if (gradle.parent != null) {
+        // Use individual modules when part of composite build
+        implementation("com.airbnb.viaduct:engine-api")
+        implementation("com.airbnb.viaduct:engine-runtime")
+        implementation("com.airbnb.viaduct:tenant-api")
+        implementation("com.airbnb.viaduct:tenant-runtime")
+    } else {
+        // Use shaded jar when standalone
+        implementation("com.airbnb.viaduct:viaduct-shaded::runtime")
+    }
+
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.reactor)
@@ -54,9 +70,15 @@ dependencies {
     testImplementation(libs.kotest.runner.junit)
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.kotest.assertions.json)
-    testImplementation(libs.viaduct.engine.wiring)
     testImplementation(libs.micronaut.http.client)
-    testImplementation(testFixtures(libs.viaduct.tenant.api))
+
+    // Test fixtures: use individual modules when part of composite, shaded when standalone
+    if (gradle.parent != null) {
+        testImplementation(testFixtures("com.airbnb.viaduct:engine-api"))
+        testImplementation(testFixtures("com.airbnb.viaduct:tenant-runtime"))
+    } else {
+        testImplementation("com.airbnb.viaduct:viaduct-shaded::test-fixtures")
+    }
 }
 
 application {

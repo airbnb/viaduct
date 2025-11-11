@@ -2,7 +2,6 @@ plugins {
     `java-test-fixtures`
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("conventions.viaduct-publishing")
 }
 
 viaductPublishing {

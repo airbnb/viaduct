@@ -26,6 +26,8 @@ fun findVersionFile(start: File): File {
 
 val versionFile = findVersionFile(rootDir)
 val baseVersionRaw: String = versionFile.readText().trim().ifEmpty { "0.0.0" }
+// Strip any existing -SNAPSHOT suffix to avoid double-suffixing
+val baseVersionClean = baseVersionRaw.removeSuffix("-SNAPSHOT")
 
 // Function to get the latest published version from Gradle Plugin Portal
 fun getLatestVersionFromPortal(pluginId: String): String? {
@@ -71,7 +73,7 @@ fun parseVersion(version: String): Triple<Int, Int, Int> {
     )
 }
 
-val (repoMajor, repoMinor, _) = parseVersion(baseVersionRaw)
+val (repoMajor, repoMinor, _) = parseVersion(baseVersionClean)
 
 val env = providers
 
@@ -109,7 +111,8 @@ val isPatchRelease = try {
 }
 
 // Use VERSION file directly for local builds and CI
-val baseVersion = baseVersionRaw
+// Use the clean version (without -SNAPSHOT suffix) as the base
+val baseVersion = baseVersionClean
 
 logger.lifecycle("Using version from VERSION file: $baseVersion (weekly=$isWeeklyRelease, majorRelease=$isMajorVersionRelease, release=$releaseFlag, tag=$isReleaseTag, patch=$isPatchRelease)")
 

@@ -1,7 +1,6 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("conventions.viaduct-publishing")
     id("jacoco-integration-base")
     `java-test-fixtures`
 }

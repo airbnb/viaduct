@@ -2,7 +2,7 @@
 
 val viaductVersion: String by settings
 
-// When part of composite build, use local gradle-plugins
+// When part of composite build, use local gradle-plugins and shaded jar
 // When standalone, use Maven Central (only after version is published)
 pluginManagement {
     if (gradle.parent != null) {
@@ -15,10 +15,21 @@ pluginManagement {
     }
 }
 
+// Use local Viaduct modules and BOM when part of composite build
+if (gradle.parent != null) {
+    includeBuild("../../included-builds/core")
+    includeBuild("../..") {
+        dependencySubstitution {
+            substitute(module("com.airbnb.viaduct:viaduct-bom")).using(project(":viaduct-bom"))
+        }
+    }
+}
+
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
         gradlePluginPortal()
+        mavenLocal()  // For local development
     }
     versionCatalogs {
         create("libs") {
