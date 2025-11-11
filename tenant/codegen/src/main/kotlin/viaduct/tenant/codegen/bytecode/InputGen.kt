@@ -14,13 +14,11 @@ import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
 import viaduct.codegen.km.CustomClassBuilder
 import viaduct.codegen.km.KmPropertyBuilder
-import viaduct.codegen.km.boxedJavaName
 import viaduct.codegen.km.castObjectExpression
 import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.kmType
 
@@ -191,7 +189,6 @@ private class InputClassGen(
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
         val fieldType = field.kmType(pkg, baseTypeMapper)
-        val baseTypeName = field.baseTypeKmType(pkg, baseTypeMapper).boxedJavaName()
         val kmProperty = KmPropertyBuilder(
             JavaIdName(field.name),
             fieldType,
@@ -203,7 +200,7 @@ private class InputClassGen(
             getterBody(
                 body = buildString {
                     append("{\n")
-                    append("return ${castObjectExpression(fieldType, "this.get(\"${field.name}\", kotlin.jvm.internal.Reflection.getOrCreateKotlinClass((Class)$baseTypeName.class))")};\n")
+                    append("return ${castObjectExpression(fieldType, "this.get(\"${field.name}\")")};\n")
                     append("}")
                 }
             )

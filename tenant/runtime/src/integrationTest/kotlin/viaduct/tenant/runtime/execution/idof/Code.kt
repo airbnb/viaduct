@@ -143,7 +143,7 @@ object Code {
      * Query.userFromArgument: Tests consumption from field argument
      */
     @Resolver
-    class Query_UserFromArgumnetResolver : QueryResolvers.UserFromArgument() {
+    class Query_UserFromArgumentResolver : QueryResolvers.UserFromArgument() {
         override suspend fun resolve(ctx: Context): User {
             return User.Builder(ctx)
                 .id(ctx.arguments.id)

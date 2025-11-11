@@ -3,7 +3,6 @@ package viaduct.api.mapping
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.api.internal.ObjectBase
 import viaduct.api.mocks.MockGlobalID
@@ -28,10 +27,6 @@ class GRTDomainTest : KotestPropertyBase() {
     private val domain = GRTDomain(executionContext)
     private val validator = DomainValidator(domain, schema.schema, equalsFn = ::grtsEqual)
 
-    // TODO: update input grts to not materialize default values
-    @Disabled(
-        "https://app.asana.com/1/150975571430/project/1211295233988904/task/1211759765994786"
-    )
     @Test
     fun `GRTDomain roundtrips arbitrary IR`() {
         validator.checkAll()
@@ -56,10 +51,6 @@ class GRTDomainTest : KotestPropertyBase() {
         )
     }
 
-    // TODO: update input grts to not materialize default values
-    @Disabled(
-        "https://app.asana.com/1/150975571430/project/1211295233988904/task/1211759765994786"
-    )
     @Test
     fun `GRTDomain -- roundtrips input objects`() {
         validator.check(

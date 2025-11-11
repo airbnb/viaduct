@@ -3,13 +3,14 @@ package viaduct.api.internal
 import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
 import java.lang.reflect.InvocationTargetException
-import java.util.Locale.getDefault
+import java.time.Instant
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantUsageException
@@ -25,23 +26,34 @@ import viaduct.api.testschema.InputWithGlobalIDs
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
 import viaduct.api.testschema.O2_ArgumentedField_Arguments
+import viaduct.api.testschema.TestUser
+import viaduct.engine.api.gj
 
 class InputLikeBaseTest {
     private val gqlSchema = SchemaUtils.getSchema()
     private val internalContext = MockInternalContext.mk(gqlSchema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 
-    private val inputConstructor = Input1::class.java.declaredConstructors.first {
-        it.parameterCount == 3 &&
-            it.parameterTypes[0] == InternalContext::class.java &&
-            it.parameterTypes[1] == Map::class.java &&
-            it.parameterTypes[2] == GraphQLInputObjectType::class.java
-    }.apply {
-        isAccessible = true
+    private inline fun <reified T : InputLikeBase> mk(
+        map: Map<String, Any?>,
+        gqlType: GraphQLInputObjectType? = null
+    ): T {
+        val cls = T::class
+        val ctor = cls.java.declaredConstructors.first {
+            it.parameterCount == 3 &&
+                it.parameterTypes[0] == InternalContext::class.java &&
+                it.parameterTypes[1] == Map::class.java &&
+                it.parameterTypes[2] == GraphQLInputObjectType::class.java
+        }.apply {
+            isAccessible = true
+        }
+
+        val gqlType = gqlType ?: gqlSchema.schema.getTypeAs(cls.simpleName!!)
+        return ctor.newInstance(internalContext, map, gqlType) as T
     }
 
     @Test
-    fun `test init via Builder missing required fields throw`() {
+    fun `test init via Builder -- throws when missing non-nullable fields without default value`() {
         assertThrows<ViaductTenantUsageException> {
             Input1.Builder(executionContext).build()
         }
@@ -51,55 +63,73 @@ class InputLikeBaseTest {
     }
 
     @Test
-    fun `test init via constructor missing default value throw`() {
-        val m = mapOf(
-            "nonNullStringField" to "test",
-        )
-        val type = gqlSchema.schema.getTypeAs<GraphQLInputObjectType>("Input1")
-        assertThrows<InvocationTargetException> { inputConstructor.newInstance(internalContext, m, type) }
-        try {
-            inputConstructor.newInstance(internalContext, m, type)
-        } catch (e: InvocationTargetException) {
-            assertTrue(e.targetException is ViaductFrameworkException)
+    fun `test init via constructor -- can construct with missing non-nullable defaulted fields`() {
+        val inp = assertDoesNotThrow {
+            mk<Input1>(mapOf("nonNullStringField" to "test"))
         }
+
+        // verify that fields with default values, which were not provided at construction time, are materialized by the grt getters
+        assertFalse(inp.isPresent("enumFieldWithDefault"))
+        assertFalse(inp.isPresent("nonNullEnumFieldWithDefault"))
+        assertEquals(E1.A, inp.enumFieldWithDefault)
+        assertEquals(E1.A, inp.nonNullEnumFieldWithDefault)
     }
 
     @Test
-    fun `test init via constructor missing required fields throw`() {
-        val m = mapOf(
-            "enumFieldWithDefault" to "A",
-            "nonNullEnumFieldWithDefault" to "A",
-        )
-        val type = gqlSchema.schema.getTypeAs<GraphQLInputObjectType>("Input1")
-        assertThrows<InvocationTargetException> { inputConstructor.newInstance(internalContext, m, type) }
-        try {
-            inputConstructor.newInstance(internalContext, m, type)
-        } catch (e: InvocationTargetException) {
-            assertTrue(e.targetException is ViaductFrameworkException)
+    fun `test init via constructor -- throws when missing non-nullable fields`() {
+        val err = assertThrows<InvocationTargetException> {
+            mk<Input1>(emptyMap())
         }
+        assertTrue(err.targetException is ViaductFrameworkException)
+    }
+
+    @Test
+    fun `test init via constructor -- throws when missing non-nullable fields are set to explicit null`() {
+        val err = assertThrows<InvocationTargetException> {
+            mk<Input1>(mapOf("nonNullStringField" to null))
+        }
+        assertTrue(err.targetException is ViaductFrameworkException)
+    }
+
+    @Test
+    fun `test init via constructor -- throws when missing non-nullable defaulted fields are set to explicit null`() {
+        val err = assertThrows<InvocationTargetException> {
+            mk<Input1>(
+                mapOf(
+                    // non-null field without default
+                    "nonNullStringField" to "test",
+                    // non-null field with default, set to explicit null. This should cause an exception to be thrown.
+                    "nonNullEnumFieldWithDefault" to null,
+                )
+            )
+        }
+        assertTrue(err.targetException is ViaductFrameworkException)
+    }
+
+    @Test
+    fun `test init via constructor -- throws when a non-nullable field has a null value`() {
+        val m = mapOf("nonNullEnumFieldWithDefault" to null)
+        val err = assertThrows<InvocationTargetException> { mk<Input1>(m) }
+        assertTrue(err.targetException is ViaductFrameworkException)
     }
 
     @Test
     fun `test default values via Builder`() {
         val input = Input1.Builder(executionContext)
+            // non-nullable field must be set
             .nonNullStringField("test")
             .enumFieldWithDefault(E1.B)
-            .listField(listOf(E1.B))
-            .nestedListField(listOf(listOf(E1.B)))
-            .inputField(Input2.Builder(internalContext.executionContext).stringField("input2 test").build())
             .build()
 
+        // enumFieldWithDefault was set with a value that overrides the default
+        // `isPresent` should return true because it was set, and the getter should return the set value
         assertTrue(input.isPresent("enumFieldWithDefault"))
         assertEquals(E1.B, input.enumFieldWithDefault)
-        assertTrue(input.isPresent("nonNullEnumFieldWithDefault"))
+
+        // nonNullEnumFieldWithDefault was not set, so the default is applied
+        // `isPresent` should return false because it was not set, and the getter should return the set value
+        assertFalse(input.isPresent("nonNullEnumFieldWithDefault"))
         assertEquals(E1.A, input.nonNullEnumFieldWithDefault)
-        assertTrue(input.isPresent("listField"))
-        assertEquals(listOf(E1.B), input.listField)
-        assertTrue(input.isPresent("nestedListField"))
-        assertEquals(listOf(listOf(E1.B)), input.nestedListField)
-        assertTrue(input.isPresent("inputField"))
-        assertTrue(input.inputField is Input2)
-        assertEquals("input2 test", input.inputField!!.stringField)
     }
 
     @Test
@@ -110,6 +140,8 @@ class InputLikeBaseTest {
             .build()
 
         // verify default values
+        assertFalse(input.isPresent("enumFieldWithDefault"))
+        assertFalse(input.isPresent("nonNullEnumFieldWithDefault"))
         assertEquals(E1.A, input.enumFieldWithDefault)
         assertEquals(E1.A, input.nonNullEnumFieldWithDefault)
         // verify set values
@@ -149,17 +181,13 @@ class InputLikeBaseTest {
     @Test
     fun `test init via reflection with values`() {
         val args = mapOf(
-            "enumFieldWithDefault" to E1.B,
-            "nonNullEnumFieldWithDefault" to E1.B,
+            "enumFieldWithDefault" to E1.B.name,
+            "nonNullEnumFieldWithDefault" to E1.B.name,
             "nonNullStringField" to "test",
             "stringField" to "test",
             "intField" to 1,
         )
-        val input = inputConstructor.newInstance(
-            internalContext,
-            args,
-            gqlSchema.schema.getTypeAs<GraphQLInputObjectType>("Input1")
-        ) as Input1
+        val input = mk<Input1>(args)
 
         // verify set values via backing map
         assertEquals(E1.B, input.enumFieldWithDefault)
@@ -189,11 +217,7 @@ class InputLikeBaseTest {
             "nestedListField" to listOf(listOf("A")),
             "inputField" to mapOf("stringField" to "input2 test"),
         )
-        val input = inputConstructor.newInstance(
-            internalContext,
-            args,
-            gqlSchema.schema.getTypeAs<GraphQLInputObjectType>("Input1")
-        ) as Input1
+        val input = mk<Input1>(args)
 
         assertEquals(E1.B, input.enumFieldWithDefault)
         assertEquals(E1.B, input.nonNullEnumFieldWithDefault)
@@ -208,10 +232,9 @@ class InputLikeBaseTest {
 
     @Test
     fun `test arguments type`() {
-        val argumentName = "O2_ArgumentedField_Arguments"
-        val typeName = argumentName.split("_").first()
-        val fieldName = argumentName.split("_")[1].replaceFirstChar { it.lowercase(getDefault()) }
-        val arguments = gqlSchema.schema.getObjectType(typeName).getField(fieldName).arguments
+        val argumentName = O2_ArgumentedField_Arguments::class.simpleName!!
+        val coord = (O2.Reflection.name to O2.Reflection.Fields.argumentedField.name).gj
+        val arguments = gqlSchema.schema.getFieldDefinition(coord).arguments
         val fields = arguments.map {
             val builder = GraphQLInputObjectField.Builder()
                 .name(it.name)
@@ -229,25 +252,23 @@ class InputLikeBaseTest {
 
         val args = mapOf(
             "stringArg" to "test",
-            "intArgWithDefault" to 2,
             "inputArg" to mapOf(
                 "enumFieldWithDefault" to "A",
                 "nonNullEnumFieldWithDefault" to "A",
                 "nonNullStringField" to "a",
             ),
         )
+        val argumentsInput = mk<O2_ArgumentedField_Arguments>(args, inputObject)
 
-        val inputConstructor = O2_ArgumentedField_Arguments::class.java.declaredConstructors.first {
-            it.parameterCount == 3 &&
-                it.parameterTypes[0] == InternalContext::class.java &&
-                it.parameterTypes[1] == Map::class.java &&
-                it.parameterTypes[2] == GraphQLInputObjectType::class.java
+        // check field presence
+        inputObject.fields.forEach { f ->
+            val expectPresent = f.name in args
+            assertEquals(expectPresent, argumentsInput.isPresent(f.name), f.name)
         }
-        inputConstructor.isAccessible = true
-        val argumentsInput = inputConstructor.newInstance(internalContext, args, inputObject) as O2_ArgumentedField_Arguments
 
         assertEquals("test", argumentsInput.stringArg)
-        assertEquals(2, argumentsInput.intArgWithDefault)
+        assertEquals(1, argumentsInput.intArgWithDefault)
+
         assertTrue(argumentsInput.inputArg is Input1)
         assertEquals(E1.A, argumentsInput.inputArg!!.enumFieldWithDefault)
     }
@@ -260,11 +281,7 @@ class InputLikeBaseTest {
             "nonNullStringField" to "test",
             "listField" to 1,
         )
-        val input = inputConstructor.newInstance(
-            internalContext,
-            args,
-            gqlSchema.schema.getTypeAs<GraphQLInputObjectType>("Input1")
-        ) as Input1
+        val input = mk<Input1>(args)
 
         assertNotNull(input)
         assertThrows<ViaductFrameworkException> { input.listField }
@@ -278,7 +295,7 @@ class InputLikeBaseTest {
     }
 
     @Test
-    fun `test wrapping and unwrapping GlobalID fields`() {
+    fun `GlobalID wrapping`() {
         val id = "a"
         val id2 = MockGlobalID(O1.Reflection, "b")
         val id3 = MockGlobalID(O2.Reflection, "1")
@@ -300,5 +317,48 @@ class InputLikeBaseTest {
             ),
             input.inputData
         )
+    }
+
+    @Test
+    fun `GlobalID wrapping -- nested`() {
+        val id1 = "a"
+        val id2 = MockGlobalID(TestUser.Reflection, "b")
+
+        val inp = Input1.Builder(executionContext)
+            // non-null field
+            .nonNullStringField("")
+            .inputField(
+                Input2.Builder(executionContext)
+                    .id1(id1)
+                    .id2(id2)
+                    .build()
+            )
+            .build()
+
+        assertEquals(id1, inp.inputField?.id1)
+        assertEquals(id2, inp.inputField?.id2)
+    }
+
+    @Test
+    fun `DateTime wrapping`() {
+        val inp = Input2.Builder(executionContext)
+            .dateTimeField(Instant.MAX)
+            .build()
+        assertEquals(Instant.MAX, inp.dateTimeField)
+    }
+
+    @Test
+    fun `DateTime wrapping -- nested`() {
+        val inp = Input1.Builder(executionContext)
+            // non-null field
+            .nonNullStringField("")
+            .inputField(
+                Input2.Builder(executionContext)
+                    .dateTimeField(Instant.MAX)
+                    .build()
+            )
+            .build()
+
+        assertEquals(Instant.MAX, inp.inputField?.dateTimeField)
     }
 }

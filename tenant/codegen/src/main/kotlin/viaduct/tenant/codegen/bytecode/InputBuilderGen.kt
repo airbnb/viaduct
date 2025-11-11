@@ -1,6 +1,5 @@
 package viaduct.tenant.codegen.bytecode
 
-import graphql.language.Value
 import kotlinx.metadata.KmConstructor
 import kotlinx.metadata.KmFunction
 import kotlinx.metadata.KmType
@@ -25,7 +24,6 @@ import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.graphql.schema.graphqljava.ValueConverter
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.kmType
 
@@ -161,8 +159,6 @@ private class InputBuilderGenV2(
             )
         }
 
-        val defaultFields = fields.filter { it.hasDefault }
-
         this.addConstructor(
             kmConstructor,
             body = buildString {
@@ -176,65 +172,12 @@ private class InputBuilderGenV2(
                 append("this.context = $1;\n")
                 append("this.graphQLInputObjectType = $2;\n")
                 append("this.inputData = $3;\n")
-
-                defaultFields.forEach { field ->
-                    val defaultValue = field.defaultValue?.let { ValueConverter.standard.convert(field.type, it as Value<*>) }
-                    append("if (!this.inputData.containsKey(\"${field.name}\")) {\n")
-                    append("  ${generatePutFieldNameWithValue("this.inputData", field, defaultValue)}\n")
-                    append("}\n")
-                }
-
                 append("}")
             },
             defaultParamValues = mapOf(JavaIdName("inputData") to "new java.util.LinkedHashMap()")
         )
 
         return this
-    }
-
-    private fun generatePutFieldNameWithValue(
-        mapName: String,
-        field: ViaductSchema.HasDefaultValue,
-        value: Any?
-    ): String {
-        if (value == null) {
-            return "$mapName.put(\"${field.name}\", null);\n"
-        }
-
-        // If the field type is Input, its default value `value` is a raw value map.
-        // We'll use this map as the default value for this field.
-        if (field.type.baseTypeDef is ViaductSchema.Input) {
-            val fieldMapName = "${field.name}Map"
-            val t = field.type.baseTypeDef as ViaductSchema.Input
-            @Suppress("UNCHECKED_CAST")
-            val v = (value as Map<String, Any>).mapNotNull { e ->
-                if (e.key == "__typename") {
-                    return@mapNotNull null
-                }
-                val f = t.field(e.key)!! as ViaductSchema.HasDefaultValue
-                generatePutFieldNameWithValue(fieldMapName, f, e.value)
-            }.joinToString("\n")
-
-            return """
-                java.util.LinkedHashMap $fieldMapName = new java.util.LinkedHashMap();
-                $v
-                $mapName.put("${field.name}", $fieldMapName);
-                """.trimIndent()
-        }
-
-        val valueExp = boxedValueCtExpression(field.type, value)
-        return "$mapName.put(\"${field.name}\", $valueExp);\n"
-    }
-
-    /**
-     * Given field type and its value (which complies to its type), return the boxed value expression for Ct syntax.
-     */
-    private fun boxedValueCtExpression(
-        fieldType: ViaductSchema.TypeExpr,
-        value: Any?
-    ): String {
-        val vExp = fieldType.valueInCtSyntax(value, pkg)
-        return fieldType.ctBoxedExpr(vExp)
     }
 
     private fun CustomClassBuilder.addPublicConstructorWithContext(): CustomClassBuilder {

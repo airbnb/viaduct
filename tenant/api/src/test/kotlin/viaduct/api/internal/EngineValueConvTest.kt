@@ -245,7 +245,7 @@ class EngineValueConvTest : KotestPropertyBase() {
         assertRoundtrip(
             conv,
             ResolvedEngineObjectData(obj, mapOf("x" to 1)),
-            IR.Value.Object("Obj", mapOf("x" to IR.Value.Number(1))),
+            IR.Value.Object("Obj", mapOf("x" to IR.Value.Number(1)))
         )
     }
 

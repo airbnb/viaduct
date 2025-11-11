@@ -4,13 +4,11 @@ import com.google.common.annotations.VisibleForTesting
 import graphql.GraphQLContext
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLEnumType
-import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
-import graphql.schema.GraphQLUnionType
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -18,13 +16,13 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
-import kotlin.reflect.full.primaryConstructor
 import viaduct.api.DynamicOutputValueBuilder
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantException
 import viaduct.api.ViaductTenantUsageException
 import viaduct.api.globalid.GlobalID
 import viaduct.api.handleTenantAPIErrors
+import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.engine.api.EngineObject
@@ -181,29 +179,25 @@ abstract class ObjectBase(
             throw IllegalArgumentException("Expected value to be an instance of EngineObjectData, got $value")
         }
 
-        if (type is GraphQLObjectType && type.name != value.graphQLObjectType.name) {
-            throw IllegalArgumentException(
-                "Expected value with GraphQL type ${type.name}, got ${value.graphQLObjectType.name}"
-            )
-        }
+        val valueType = context.reflectionLoader.reflectionFor(value.graphQLObjectType.name)
 
-        val klass = context.reflectionLoader.reflectionFor(value.graphQLObjectType.name).kcls
-        if (type is GraphQLInterfaceType || type is GraphQLUnionType) {
-            val typeKlass = context.reflectionLoader.reflectionFor(type.name).kcls
-            if (!klass.isSubclassOf(typeKlass)) {
-                throw IllegalArgumentException(
-                    "Expected value to be a subtype of ${type.name}, got ${klass.simpleName}"
-                )
+        if (type is GraphQLObjectType) {
+            require(type.name == value.graphQLObjectType.name) {
+                "Expected value with GraphQL type ${type.name}, got ${value.graphQLObjectType.name}"
+            }
+        } else {
+            // type is an interface or union
+            val typeType = context.reflectionLoader.reflectionFor(type.name)
+            require(valueType.kcls.isSubclassOf(typeType.kcls)) {
+                "Expected value to be a subtype of ${type.name}, got ${valueType.name}"
             }
         }
-
-        if (!klass.isSubclassOf(ObjectBase::class)) {
-            throw IllegalArgumentException(
-                "Expected baseFieldTypeClass that's a subtype of ObjectBase, got $klass"
-            )
+        require(valueType.kcls.isSubclassOf(ObjectBase::class)) {
+            "Expected baseFieldTypeClass that's a subtype of ObjectBase, got ${valueType.kcls}"
         }
 
-        return klass.primaryConstructor!!.call(context, value) as ObjectBase
+        @Suppress("UNCHECKED_CAST")
+        return wrapOutputObject(context, valueType as Type<Object>, value) as ObjectBase
     }
 
     /**

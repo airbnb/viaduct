@@ -15,7 +15,6 @@ import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.ViaductTenantUsageException
@@ -193,10 +192,6 @@ class GRTConvTest : KotestPropertyBase() {
         )
     }
 
-    // TODO: update input grts to not materialize default values
-    @Disabled(
-        "https://app.asana.com/1/150975571430/project/1211295233988904/task/1211759765994786"
-    )
     @Test
     fun `input obj -- unset defaults are not materialized`() {
         // Input3.inputField has a default value. We should be able to roundtrip through IR
@@ -233,10 +228,6 @@ class GRTConvTest : KotestPropertyBase() {
         assertEquals("str", inp.inputField?.stringField)
     }
 
-    // TODO: update input grts to not materialize default values
-    @Disabled(
-        "https://app.asana.com/1/150975571430/project/1211295233988904/task/1211759765994786"
-    )
     @Test
     fun `input obj -- arb`(): Unit =
         runBlocking {
