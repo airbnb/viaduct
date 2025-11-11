@@ -54,4 +54,11 @@ dependencies {
         api("com.airbnb.viaduct:tenant-api:${version}:test-fixtures")
         api("com.airbnb.viaduct:tenant-runtime:${version}:test-fixtures")
     }
+
+    // Shaded/Fat JARs - 3 aggregate jars from the :shaded module
+    constraints {
+        api("com.airbnb.viaduct:viaduct-shaded:${version}:api")
+        api("com.airbnb.viaduct:viaduct-shaded:${version}:runtime")
+        api("com.airbnb.viaduct:viaduct-shaded:${version}:test-fixtures")
+    }
 }
