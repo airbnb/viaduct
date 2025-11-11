@@ -27,4 +27,5 @@ dependencyResolutionManagement {
 }
 
 include(":modules:filmography")
+include(":common")
 include(":modules:universe")

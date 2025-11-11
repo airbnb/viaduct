@@ -1,5 +1,6 @@
 package com.example.starwars.service.viaduct
 
+import com.example.starwars.common.SecurityAccessContext
 import graphql.ExecutionResult
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.HttpStatus
@@ -36,13 +37,16 @@ private const val SCOPES_HEADER = "X-Viaduct-Scopes"
 // tag::viaduct_graphql_controller[18] Viaduct GraphQL Controller
 @Controller
 class ViaductRestController(
-    private val viaduct: Viaduct
+    private val viaduct: Viaduct,
+    private val securityAccessService: SecurityAccessContext
 ) {
     @Post("/graphql")
     suspend fun graphql(
         @Body request: Map<String, Any>,
-        @Header(SCOPES_HEADER) scopesHeader: String?
+        @Header(SCOPES_HEADER) scopesHeader: String?,
+        @Header("security-access") securityAccess: String?
     ): HttpResponse<Map<String, Any>> {
+        securityAccessService.setSecurityAccess(securityAccess)
         val executionInput = createExecutionInput(request)
         // tag::run_query[7] Runs the query example
         val scopes = parseScopes(scopesHeader)

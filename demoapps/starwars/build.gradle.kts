@@ -39,7 +39,7 @@ dependencies {
     kapt(libs.micronaut.inject.kotlin)
 
     runtimeOnly(libs.logback.classic)
-
+    implementation(project(":common"))
     runtimeOnly(project(":modules:filmography"))
     runtimeOnly(project(":modules:universe"))
 

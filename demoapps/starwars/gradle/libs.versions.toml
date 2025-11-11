@@ -31,6 +31,7 @@ kotlinx-coroutines-reactor = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 micronaut-graphql = { group = "io.micronaut.graphql", name = "micronaut-graphql", version.ref = "micronautGraphql" }
 micronaut-http-server-netty = { group = "io.micronaut", name = "micronaut-http-server-netty", version.ref = "micronaut" }
 micronaut-http-client = { group = "io.micronaut", name = "micronaut-http-client", version.ref = "micronaut" }
+micronaut-http = { group = "io.micronaut", name = "micronaut-http", version.ref = "micronaut" }
 micronaut-inject-kotlin = { group = "io.micronaut.kotlin", name = "micronaut-kotlin-runtime", version.ref = "micronautKotlin" }
 micronaut-jackson-databind = { group = "io.micronaut", name = "micronaut-jackson-databind", version.ref = "micronaut" }
 micronaut-test-kotest5 = { group = "io.micronaut.test", name = "micronaut-test-kotest5", version.ref = "micronaut" }

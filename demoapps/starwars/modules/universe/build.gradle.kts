@@ -10,6 +10,7 @@ viaductModule {
 }
 
 dependencies {
+    implementation(project(":common"))
     implementation(libs.micronaut.inject)
     kapt(libs.micronaut.inject.java)
     kapt(libs.micronaut.inject.kotlin)

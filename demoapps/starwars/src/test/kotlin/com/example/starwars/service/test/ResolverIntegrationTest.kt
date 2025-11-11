@@ -305,7 +305,7 @@ class ResolverIntegrationTest {
     @Nested
     inner class MutationResolvers {
         @Test
-        fun `should resolve createCharacter mutation`() {
+        fun `should resolve createCharacter mutation with admin access`() {
             val query = """
                 mutation {
                     createCharacter(input: {
@@ -341,7 +341,7 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = client.executeGraphQLQuery(query)
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
             val createdCharacter = response.path("data").path("createCharacter")
 
             createdCharacter shouldNotBe null
@@ -359,6 +359,70 @@ class ResolverIntegrationTest {
             createdCharacter.path("species").path("name").asText() shouldBe "Wookiee"
             createdCharacter.path("displayName").asText() shouldBe "Chewbacca"
             createdCharacter.path("displaySummary").asText() shouldBe "Chewbacca (200BBY)"
+        }
+
+        @Test
+        fun `should fail to resolve createCharacter mutation without admin access`() {
+            val query = """
+                mutation {
+                    createCharacter(input: {
+                        name: "Chewbacca"
+                        birthYear: "200BBY"
+                        eyeColor: "blue"
+                        gender: "male"
+                        hairColor: "brown"
+                        height: 228
+                        mass: 112
+                        homeworldId: "${Character.Reflection.globalId("6")}"
+                        speciesId: "${Species.Reflection.globalId("2")}"
+                    }) {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+
+            val createdCharacter = response.path("data").path("createCharacter")
+            createdCharacter.isMissingNode shouldBe true
+            val errors = response.path("errors")
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
+            val errorMessage = errors[0].path("message").asText()
+            errorMessage shouldContain "SecurityException: Insufficient permissions!"
+        }
+
+        @Test
+        fun `should fail to resolve createCharacter mutation with invalid security header`() {
+            val query = """
+                mutation {
+                    createCharacter(input: {
+                        name: "Chewbacca"
+                        birthYear: "200BBY"
+                        eyeColor: "blue"
+                        gender: "male"
+                        hairColor: "brown"
+                        height: 228
+                        mass: 112
+                        homeworldId: "${Character.Reflection.globalId("6")}"
+                        speciesId: "${Species.Reflection.globalId("2")}"
+                    }) {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQueryWithCustomAccess(query, "user")
+
+            val createdCharacter = response.path("data").path("createCharacter")
+            createdCharacter.isMissingNode shouldBe true
+            val errors = response.path("errors")
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
+            val errorMessage = errors[0].path("message").asText()
+            errorMessage shouldContain "SecurityException: Insufficient permissions!"
         }
 
         @Test
@@ -382,7 +446,7 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = client.executeGraphQLQuery(query)
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
 
             val errors = response.path("errors")
             errors shouldNotBe null
@@ -412,7 +476,7 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = client.executeGraphQLQuery(query)
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
 
             val errors = response.path("errors")
             errors shouldNotBe null
@@ -422,8 +486,8 @@ class ResolverIntegrationTest {
         }
 
         @Test
-        fun `should resolve updateCharacterName mutation`() {
-            // First, create a new character to delete
+        fun `should resolve updateCharacterName mutation with admin access`() {
+            // First, create a new character to update
             val createCharacterQuery = """
                 mutation {
                     createCharacter(input: {
@@ -442,7 +506,7 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val createResult = client.executeGraphQLQuery(createCharacterQuery)
+            val createResult = client.executeGraphQLQueryWithAdminAccess(createCharacterQuery)
 
             val query = """
                 mutation {
@@ -453,7 +517,7 @@ class ResolverIntegrationTest {
                 }
             """.trimIndent()
 
-            val response = client.executeGraphQLQuery(query)
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
 
             val updatedCharacter = response.path("data").path("updateCharacterName")
             updatedCharacter shouldNotBe null
@@ -461,10 +525,10 @@ class ResolverIntegrationTest {
         }
 
         @Test
-        fun `should fail to resolve updateCharacterName if id is invalid`() {
+        fun `should fail to resolve updateCharacterName mutation without admin access`() {
             val query = """
                 mutation {
-                    updateCharacterName(id: "${Character.Reflection.globalId("9999")}", name: "Nonexistent Character") {
+                    updateCharacterName(id: "${Character.Reflection.globalId("1")}", name: "Updated Name") {
                         id
                         name
                     }
@@ -479,19 +543,61 @@ class ResolverIntegrationTest {
             errors shouldNotBe null
             (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
+            errorMessage shouldContain "SecurityException: Insufficient permissions!"
+        }
+
+        @Test
+        fun `should fail to resolve updateCharacterName if id is invalid`() {
+            val query = """
+                mutation {
+                    updateCharacterName(id: "${Character.Reflection.globalId("9999")}", name: "Nonexistent Character") {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
+
+            val updatedCharacter = response.path("data").path("updateCharacterName")
+            updatedCharacter.isMissingNode shouldBe true
+            val errors = response.path("errors")
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
+            val errorMessage = errors[0].path("message").asText()
             errorMessage shouldContain "Character with ID 9999 not found"
         }
 
         @Test
-        fun `should resolve addCharacterToFilm mutation`() {
+        fun `should resolve addCharacterToFilm mutation with admin access`() {
             // First, create a new character to add to the film
-            `should resolve createCharacter mutation`()
+            val createCharacterQuery = """
+                mutation {
+                    createCharacter(input: {
+                        name: "Test Character for Film"
+                        birthYear: "200BBY"
+                        eyeColor: "blue"
+                        gender: "male"
+                        hairColor: "brown"
+                        height: 228
+                        mass: 112
+                        homeworldId: "${Character.Reflection.globalId("6")}"
+                        speciesId: "${Species.Reflection.globalId("2")}"
+                    }) {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent()
+
+            val createResult = client.executeGraphQLQueryWithAdminAccess(createCharacterQuery)
+            val characterId = createResult.path("data").path("createCharacter").path("id").asText()
 
             val query = """
                 mutation {
                     addCharacterToFilm(input: {
                         filmId: "${Film.Reflection.globalId("1")}"
-                        characterId: "${Character.Reflection.globalId("6")}"
+                        characterId: "$characterId"
                     }) {
                         film {
                             id
@@ -501,17 +607,47 @@ class ResolverIntegrationTest {
                             id
                             name
                         }
+                    }
+                }
+            """.trimIndent()
 
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
+
+            val result = response.path("data").path("addCharacterToFilm")
+            result shouldNotBe null
+            result.path("film").path("title").asText() shouldBe "A New Hope"
+            result.path("character").path("name").asText() shouldBe "Test Character for Film"
+        }
+
+        @Test
+        fun `should fail to resolve addCharacterToFilm mutation without admin access`() {
+            val query = """
+                mutation {
+                    addCharacterToFilm(input: {
+                        filmId: "${Film.Reflection.globalId("1")}"
+                        characterId: "${Character.Reflection.globalId("1")}"
+                    }) {
+                        film {
+                            id
+                            title
+                        }
+                        character {
+                            id
+                            name
+                        }
                     }
                 }
             """.trimIndent()
 
             val response = client.executeGraphQLQuery(query)
 
-            val updatedFilm = response.path("data").path("addCharacterToFilm")
-            updatedFilm shouldNotBe null
-            updatedFilm.path("film").path("title").asText() shouldBe "A New Hope"
-            updatedFilm.path("character").path("name").asText() shouldBe "Chewbacca"
+            val result = response.path("data").path("addCharacterToFilm")
+            result.isMissingNode shouldBe true
+            val errors = response.path("errors")
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
+            val errorMessage = errors[0].path("message").asText()
+            errorMessage shouldContain "SecurityException: Insufficient permissions!"
         }
 
         @Test
@@ -525,16 +661,16 @@ class ResolverIntegrationTest {
                         film {
                             id
                             title
-                            }
+                        }
                         character {
                             id
                             name
-                            }
+                        }
                     }
                 }
             """.trimIndent()
 
-            val response = client.executeGraphQLQuery(query)
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
 
             val updatedFilm = response.path("data").path("addCharacterToFilm")
             updatedFilm.isMissingNode shouldBe true
@@ -564,7 +700,8 @@ class ResolverIntegrationTest {
                     }
                 }
             """.trimIndent()
-            val response = client.executeGraphQLQuery(query)
+
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
 
             val updatedFilm = response.path("data").path("addCharacterToFilm")
             updatedFilm.isMissingNode shouldBe true
@@ -594,7 +731,8 @@ class ResolverIntegrationTest {
                     }
                 }
             """.trimIndent()
-            val response = client.executeGraphQLQuery(query)
+
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
 
             val updatedFilm = response.path("data").path("addCharacterToFilm")
             updatedFilm.isMissingNode shouldBe true
@@ -606,7 +744,7 @@ class ResolverIntegrationTest {
         }
 
         @Test
-        fun `should resolve deleteCharacter mutation`() {
+        fun `should resolve deleteCharacter mutation with admin access`() {
             // First, create a new character to delete
             val createCharacterQuery = """
                 mutation {
@@ -625,29 +763,49 @@ class ResolverIntegrationTest {
                     }
                 }
             """.trimIndent()
-            val createResult = client.executeGraphQLQuery(createCharacterQuery)
+
+            val createResult = client.executeGraphQLQueryWithAdminAccess(createCharacterQuery)
 
             val query = """
-    mutation {
-        deleteCharacter(id: "${createResult.path("data").path("createCharacter").path("id").asText()}")
-        }
+                mutation {
+                    deleteCharacter(id: "${createResult.path("data").path("createCharacter").path("id").asText()}")
+                }
             """.trimIndent()
 
-            val response = client.executeGraphQLQuery(query)
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
 
             val deleteResult = response.path("data").path("deleteCharacter").asBoolean()
             deleteResult shouldBe true
         }
 
         @Test
-        fun `should fail to resolve deleteCharacter if id is invalid`() {
+        fun `should fail to resolve deleteCharacter mutation without admin access`() {
             val query = """
-    mutation {
-        deleteCharacter(id: "${Character.Reflection.globalId("9999")}")
-    }
+                mutation {
+                    deleteCharacter(id: "${Character.Reflection.globalId("1")}")
+                }
             """.trimIndent()
 
             val response = client.executeGraphQLQuery(query)
+
+            val deleteResult = response.path("data").path("deleteCharacter")
+            deleteResult.isMissingNode shouldBe true
+            val errors = response.path("errors")
+            errors shouldNotBe null
+            (errors.isArray && errors.size() == 1) shouldBe true
+            val errorMessage = errors[0].path("message").asText()
+            errorMessage shouldContain "SecurityException: Insufficient permissions!"
+        }
+
+        @Test
+        fun `should fail to resolve deleteCharacter if id is invalid`() {
+            val query = """
+                mutation {
+                    deleteCharacter(id: "${Character.Reflection.globalId("9999")}")
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
 
             val deleteResult = response.path("data").path("deleteCharacter")
             deleteResult.isMissingNode shouldBe true

@@ -66,3 +66,32 @@ fun HttpClient.executeGraphQLQuery(
         }
     }
 }
+
+/**
+ * Execute a GraphQL query with admin access header.
+ */
+fun HttpClient.executeGraphQLQueryWithAdminAccess(
+    query: String,
+    scopes: Set<String>? = null
+): JsonNode {
+    return executeGraphQLQuery(
+        query = query,
+        headers = mapOf("security-access" to "admin"),
+        scopes = scopes
+    )
+}
+
+/**
+ * Execute a GraphQL query with a custom security access header.
+ */
+fun HttpClient.executeGraphQLQueryWithCustomAccess(
+    query: String,
+    securityAccess: String,
+    scopes: Set<String>? = null
+): JsonNode {
+    return executeGraphQLQuery(
+        query = query,
+        headers = mapOf("security-access" to securityAccess),
+        scopes = scopes
+    )
+}
