@@ -410,7 +410,7 @@ class FromArgumentVariablesHaveValidPathsTest {
     }
 
     @Test
-    fun `invalid -- non-list value used in list context`() {
+    fun `valid -- non-list value can be coerced to list context`() {
         Fixture(
             """
             type Query {
@@ -419,7 +419,7 @@ class FromArgumentVariablesHaveValidPathsTest {
             }
             """.trimIndent()
         ) {
-            assertInvalid(
+            assertValid(
                 "Query" to "foo",
                 "acceptList(items: \$item)",
                 listOf(
@@ -437,7 +437,7 @@ class FromArgumentVariablesHaveValidPathsTest {
             }
             """.trimIndent()
         ) {
-            assertInvalid(
+            assertValid(
                 "Query" to "foo",
                 "acceptNullableList(items: \$item)",
                 listOf(
@@ -455,7 +455,7 @@ class FromArgumentVariablesHaveValidPathsTest {
             }
             """.trimIndent()
         ) {
-            assertInvalid(
+            assertValid(
                 "Query" to "foo",
                 "acceptNestedList(items: \$innerList)",
                 listOf(
@@ -473,7 +473,7 @@ class FromArgumentVariablesHaveValidPathsTest {
             }
             """.trimIndent()
         ) {
-            assertInvalid(
+            assertValid(
                 "Query" to "foo",
                 "acceptNullableItems(items: \$item)",
                 listOf(

@@ -503,65 +503,61 @@ class FromFieldVariablesHaveValidPathsTest {
     }
 
     @Test
-    fun `invalid -- non-nullable non-list value cannot be used in nullable list location`() {
+    fun `valid -- non-nullable non-list value can be coerced to nullable list`() {
         Fixture("type Query { x:Int, y(a:[Int]):Int, z:Int! }") {
-            val err = assertOneInvalid<InvalidVariableException>(
+            assertAllValid(
                 mkReg(
                     "Query" to "x",
                     objectSelections = "y(a:\$var), z",
                     objectVariablePaths = mapOf("var" to "z") // z is Int!, used where [Int] expected
                 )
             )
-            assertTrue(err.reason.lowercase().contains("types not compatible"))
         }
     }
 
     @Test
-    fun `invalid -- non-nullable non-list value cannot be used in non-nullable list location`() {
+    fun `valid -- non-nullable non-list value can be coerced to non-nullable list`() {
         Fixture("type Query { x:Int, y(a:[Int]!):Int, z:Int! }") {
-            val err = assertOneInvalid<InvalidVariableException>(
+            assertAllValid(
                 mkReg(
                     "Query" to "x",
                     objectSelections = "y(a:\$var), z",
                     objectVariablePaths = mapOf("var" to "z") // z is Int!, used where [Int]! expected
                 )
             )
-            assertTrue(err.reason.lowercase().contains("types not compatible"))
         }
     }
 
     @Test
-    fun `invalid -- non-nullable non-list value cannot be used in non-nullable list location 1`() {
+    fun `valid -- non-nullable non-list value can be coerced to list with non-nullable items`() {
         Fixture("type Query { x:Int, y(a:[Int!]!):Int, z:Int! }") {
-            val err = assertOneInvalid<InvalidVariableException>(
+            assertAllValid(
                 mkReg(
                     "Query" to "x",
                     objectSelections = "y(a:\$var), z",
                     objectVariablePaths = mapOf("var" to "z") // z is Int!, used where [Int!]! expected
                 )
             )
-            assertTrue(err.reason.lowercase().contains("types not compatible"))
         }
     }
 
     @Test
-    fun `invalid -- nullable non-list value cannot be used in nullable list location`() {
+    fun `valid -- nullable non-list value can be coerced to nullable list`() {
         Fixture("type Query { x:Int, y(a:[Int]):Int, z:Int }") {
-            val err = assertOneInvalid<InvalidVariableException>(
+            assertAllValid(
                 mkReg(
                     "Query" to "x",
                     objectSelections = "y(a:\$var), z",
                     objectVariablePaths = mapOf("var" to "z") // z is Int, used where [Int] expected
                 )
             )
-            assertTrue(err.reason.lowercase().contains("types not compatible"))
         }
     }
 
     @Test
-    fun `invalid -- non-nullable list value cannot be used where list-of-list is required`() {
+    fun `valid -- non-nullable list value can be coerced to list-of-list`() {
         Fixture("type Query { x:Int, y(a:[[Int]]):Int, z:[Int]! }") {
-            assertOneInvalid<InvalidVariableException>(
+            assertAllValid(
                 mkReg(
                     "Query" to "x",
                     objectSelections = "y(a:\$var), z",
@@ -572,16 +568,15 @@ class FromFieldVariablesHaveValidPathsTest {
     }
 
     @Test
-    fun `invalid -- nullable list value cannot be used where list-of-list is required`() {
+    fun `valid -- nullable list value can be coerced to list-of-list`() {
         Fixture("type Query { x:Int, y(a:[[Int]]):Int, z:[Int] }") {
-            val err = assertOneInvalid<InvalidVariableException>(
+            assertAllValid(
                 mkReg(
                     "Query" to "x",
                     objectSelections = "y(a:\$var), z",
                     objectVariablePaths = mapOf("var" to "z") // z is [Int], used where [[Int]] expected
                 )
             )
-            assertTrue(err.reason.lowercase().contains("types not compatible"))
         }
     }
 

@@ -87,16 +87,6 @@ class UtilsTest {
     }
 
     @Test
-    fun `areTypesCompatible -- list type is not compatible with non-list types`() {
-        assertFalse(
-            areTypesCompatible(
-                locationType = Type(list(GraphQLInt)),
-                variableType = Type(GraphQLInt)
-            )
-        )
-    }
-
-    @Test
     fun `areTypesCompatible -- nullable types are compatible with fields that have a default value`() {
         assertTrue(
             areTypesCompatible(
@@ -118,6 +108,90 @@ class UtilsTest {
             areTypesCompatible(
                 locationType = Type(GraphQLInt) + Type.Property.HasDefault,
                 variableType = Type(GraphQLString),
+            )
+        )
+    }
+
+    @Test
+    fun `areTypesCompatible -- wrong type scalar is not compatible with list with default value`() {
+        // Int → [String]! (with default)
+        assertFalse(
+            areTypesCompatible(
+                locationType = Type(nonNull(list(GraphQLString))) + Type.Property.HasDefault,
+                variableType = Type(GraphQLInt)
+            )
+        )
+    }
+
+    @Test
+    fun `areTypesCompatible -- scalar type is coercible to list type`() {
+        assertTrue(
+            areTypesCompatible(
+                locationType = Type(list(GraphQLInt)),
+                variableType = Type(GraphQLInt)
+            )
+        )
+    }
+
+    @Test
+    fun `areTypesCompatible -- scalar type is not coercible to list with different base type`() {
+        assertFalse(
+            areTypesCompatible(
+                locationType = Type(list(GraphQLInt)),
+                variableType = Type(GraphQLString)
+            )
+        )
+    }
+
+    @Test
+    fun `areTypesCompatible -- non-null scalar to nested list`() {
+        // String! -> [[String!]!]!
+        assertTrue(
+            areTypesCompatible(
+                locationType = Type(nonNull(list(nonNull(list(nonNull(GraphQLString)))))),
+                variableType = Type(nonNull(GraphQLString))
+            )
+        )
+    }
+
+    @Test
+    fun `areTypesCompatible -- list is coercible to list of list`() {
+        // [String!]! -> [[String!]!]!
+        assertTrue(
+            areTypesCompatible(
+                locationType = Type(nonNull(list(nonNull(list(nonNull(GraphQLString)))))),
+                variableType = Type(nonNull(list(nonNull(GraphQLString))))
+            )
+        )
+    }
+
+    @Test
+    fun `areTypesCompatible -- nullable scalar is coercible to non-nullable list with nullable base type`() {
+        // String -> [[String]]!
+        assertTrue(
+            areTypesCompatible(
+                locationType = Type(nonNull(list(list(GraphQLString)))),
+                variableType = Type(GraphQLString)
+            )
+        )
+    }
+
+    @Test
+    fun `areTypesCompatible -- nullable list elements not coercible to non-null list elements`() {
+        assertFalse(
+            areTypesCompatible(
+                locationType = Type(list(nonNull(GraphQLString))),
+                variableType = Type(list(GraphQLString))
+            )
+        )
+    }
+
+    @Test
+    fun `areTypesCompatible -- list is not coercible to scalar`() {
+        assertFalse(
+            areTypesCompatible(
+                locationType = Type(GraphQLString),
+                variableType = Type(list(GraphQLString))
             )
         )
     }

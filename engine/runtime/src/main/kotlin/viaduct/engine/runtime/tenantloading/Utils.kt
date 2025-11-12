@@ -83,50 +83,46 @@ internal fun RawSelectionSet.relation(
 }
 
 /**
- * return true if [variableType] can be used in [locationType]
+ * Return true if [variableType] can be coerced to [locationType]
  *
- * A nuance to this method is that this validates only that [variableType] is compatible with [locationType].
- * This is subtly different from if a value that looks like [variableType] can be coerced to [locationType].
- *
- * For a motivating example, consider this schema and query:
- *
- * ```graphql
- *   # schema
- *   type Query { x(a:String):String }
- *
- *   # query
- *   query ($i:Int = 0) {
- *     x1: x(a:$i)
- *     x2: x(a:0)
- *   }
- * ```
- *
- * While both of these selections attempt to pass a literal `0` value to a location that requires a String,
- * the x2 selection is valid while the x1 selection is not.
- *
- * This is because GraphQL coercion only applies to how a value literal is coerced into a value for a given type,
- * and not how a type like Int can be coerced to a location expecting String.
- *
- * This method implements the type validation exhibited by the x1 selection.
+ * This currently may return false for situations where coercion succeeds. If these use cases surface, this function
+ * may be augmented to support them.
  */
 internal tailrec fun areTypesCompatible(
     locationType: Type,
     variableType: Type,
 ): Boolean =
-    if (Type.Property.HasDefault in locationType.properties && variableType.effectivelyNullable) {
+    when {
         // nullable values are acceptable if the location type has a default value
-        areTypesCompatible(
-            locationType.unwrapIfNonNull - Type.Property.HasDefault,
-            variableType
-        )
-    } else if (locationType.isNonNull) {
-        if (variableType.effectivelyNullable) {
-            false
-        } else {
-            areTypesCompatible(locationType.unwrapIfNonNull, variableType.unwrapIfNonNull)
+        Type.Property.HasDefault in locationType.properties && variableType.effectivelyNullable -> {
+            areTypesCompatible(
+                locationType.unwrapIfNonNull - Type.Property.HasDefault,
+                variableType
+            )
         }
-    } else if (locationType.isList && variableType.isList) {
-        areTypesCompatible(locationType.unwrapIfList, variableType.unwrapIfList)
-    } else {
-        GraphQLTypeUtil.unwrapNonNull(locationType.type) == GraphQLTypeUtil.unwrapNonNull(variableType.type)
+
+        locationType.isNonNull -> {
+            val unwrappedLocation = locationType.unwrapIfNonNull
+            val unwrappedVariable = variableType.unwrapIfNonNull
+            when {
+                unwrappedLocation.isList -> {
+                    // Avoid unwrapping non-null for variableType if it's not listish,
+                    // e.g. String! (should not unwrap non-null) is coercible to [String!]
+                    areTypesCompatible(unwrappedLocation, if (unwrappedVariable.isList) unwrappedVariable else variableType)
+                }
+                variableType.effectivelyNullable -> false
+                else -> areTypesCompatible(unwrappedLocation, unwrappedVariable)
+            }
+        }
+
+        locationType.isList -> {
+            val unwrappedVariable = if (variableType.type.isListish) {
+                variableType.unwrapIfNonNull.unwrapIfList
+            } else {
+                variableType
+            }
+            areTypesCompatible(locationType.unwrapIfList, unwrappedVariable)
+        }
+
+        else -> GraphQLTypeUtil.unwrapNonNull(locationType.type) == GraphQLTypeUtil.unwrapNonNull(variableType.type)
     }
