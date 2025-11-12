@@ -1,10 +1,13 @@
 package viaduct.graphql.utils
 
+import graphql.Scalars
 import graphql.language.ArrayValue
+import graphql.language.AstPrinter
 import graphql.language.BooleanValue
 import graphql.language.Comment
 import graphql.language.EnumValue
 import graphql.language.FloatValue
+import graphql.language.FragmentDefinition
 import graphql.language.IgnoredChars
 import graphql.language.IntValue
 import graphql.language.Node
@@ -20,6 +23,8 @@ import graphql.language.Value
 import graphql.language.VariableDefinition
 import graphql.language.VariableReference
 import graphql.parser.Parser
+import graphql.schema.GraphQLList
+import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLTypeUtil
 import graphql.util.TraversalControl
 import graphql.util.TraverserContext
@@ -164,52 +169,57 @@ class ValueExtTest {
     }
 
     @Test
-    fun `collectVariableUsages -- basic field argument`() {
+    fun `collectAllVariableUsages -- basic field argument`() {
         val schema = toSchema("type Query { field(arg: String!): String }")
         val document = Parser.parse("{ field(arg: \$var) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query")
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
 
+        assertEquals(1, allUsages.size)
+        assertTrue(allUsages.containsKey("var"))
+
+        val usages = allUsages["var"]!!
         assertEquals(1, usages.size)
         val usage = usages.first()
-        assertEquals("field", usage.fieldName)
-        assertEquals("arg", usage.argumentName)
+        assertEquals("field 'field', argument 'arg'", usage.contextString)
         assertEquals("String!", GraphQLTypeUtil.simplePrint(usage.type))
         assertEquals(false, usage.hasDefaultValue)
     }
 
     @Test
-    fun `collectVariableUsages -- field argument with default value`() {
+    fun `collectAllVariableUsages -- field argument with default value`() {
         val schema = toSchema("type Query { field(arg: String = \"default\"): String }")
         val document = Parser.parse("{ field(arg: \$var) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query")
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
 
+        assertEquals(1, allUsages.size)
+        val usages = allUsages["var"]!!
         assertEquals(1, usages.size)
         val usage = usages.first()
-        assertEquals("field", usage.fieldName)
-        assertEquals("arg", usage.argumentName)
+        assertEquals("field 'field', argument 'arg'", usage.contextString)
         assertEquals("String", GraphQLTypeUtil.simplePrint(usage.type))
         assertEquals(true, usage.hasDefaultValue)
     }
 
     @Test
-    fun `collectVariableUsages -- directive argument`() {
+    fun `collectAllVariableUsages -- directive argument`() {
         val schema = toSchema("type Query { field: String }")
         val document = Parser.parse("{ field @skip(if: \$var) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query")
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
 
+        assertEquals(1, allUsages.size)
+        val usages = allUsages["var"]!!
         assertEquals(1, usages.size)
         val usage = usages.first()
-        assertEquals("directive:skip", usage.fieldName)
-        assertEquals("if", usage.argumentName)
+        assertEquals("directive 'skip', argument 'if'", usage.contextString)
         assertEquals("Boolean!", GraphQLTypeUtil.simplePrint(usage.type))
         assertEquals(false, usage.hasDefaultValue)
     }
 
     @Test
-    fun `collectVariableUsages -- input object field`() {
+    fun `collectAllVariableUsages -- input object field`() {
         val schema = toSchema(
             """
             input UserInput { name: String!, age: Int }
@@ -218,25 +228,27 @@ class ValueExtTest {
         )
         val document = Parser.parse("{ createUser(input: { name: \$userName, age: \$userAge }) }")
 
-        val userNameUsages = document.collectVariableUsages(schema, "userName", "Query")
-        val userAgeUsages = document.collectVariableUsages(schema, "userAge", "Query")
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
 
+        assertEquals(2, allUsages.size)
+        assertTrue(allUsages.containsKey("userName"))
+        assertTrue(allUsages.containsKey("userAge"))
+
+        val userNameUsages = allUsages["userName"]!!
         assertEquals(1, userNameUsages.size)
-        assertEquals(1, userAgeUsages.size)
-
         val nameUsage = userNameUsages.first()
-        assertEquals("createUser", nameUsage.fieldName)
-        assertEquals("input", nameUsage.argumentName)
+        assertEquals("input field 'UserInput.name'", nameUsage.contextString)
         assertEquals("String!", GraphQLTypeUtil.simplePrint(nameUsage.type))
 
+        val userAgeUsages = allUsages["userAge"]!!
+        assertEquals(1, userAgeUsages.size)
         val ageUsage = userAgeUsages.first()
-        assertEquals("createUser", ageUsage.fieldName)
-        assertEquals("input", ageUsage.argumentName)
+        assertEquals("input field 'UserInput.age'", ageUsage.contextString)
         assertEquals("Int", GraphQLTypeUtil.simplePrint(ageUsage.type))
     }
 
     @Test
-    fun `collectVariableUsages -- OneOf input object field`() {
+    fun `collectAllVariableUsages -- OneOf input object field`() {
         val schema = toSchema(
             """
             input OneOfInput @oneOf { stringOption: String, intOption: Int }
@@ -245,73 +257,468 @@ class ValueExtTest {
         )
         val document = Parser.parse("{ process(input: { stringOption: \$var }) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query")
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
 
+        assertEquals(1, allUsages.size)
+        val usages = allUsages["var"]!!
         assertEquals(1, usages.size)
         val usage = usages.first()
-        assertEquals("process", usage.fieldName)
-        assertEquals("input", usage.argumentName)
+        assertEquals("input field 'OneOfInput.stringOption'", usage.contextString)
         assertEquals("String", GraphQLTypeUtil.simplePrint(usage.type))
     }
 
     @Test
-    fun `collectVariableUsages -- nested input object fields`() {
-        val schema =
-            toSchema(
-                """
+    fun `collectAllVariableUsages -- nested input object fields`() {
+        val schema = toSchema(
+            """
             input NestedInput { value: String! }
             input ContainerInput { nested: NestedInput! }
             type Query { process(input: ContainerInput!): String }
-                """.trimIndent()
-            )
+            """.trimIndent()
+        )
         val document = Parser.parse("{ process(input: { nested: { value: \$var } }) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query")
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
 
+        assertEquals(1, allUsages.size)
+        val usages = allUsages["var"]!!
         assertEquals(1, usages.size)
         val usage = usages.first()
-        assertEquals("process", usage.fieldName)
-        assertEquals("input", usage.argumentName)
+        assertEquals("input field 'NestedInput.value'", usage.contextString)
         assertEquals("String!", GraphQLTypeUtil.simplePrint(usage.type))
     }
 
     @Test
-    fun `collectVariableUsages -- mutation field`() {
+    fun `collectAllVariableUsages -- mutation field`() {
         val schema = toSchema(
             """
             type Query { foo: String }
-            type Mutation { createUser(name: String!): String }
+            type Mutation { createUser(name: String!, email: String): String }
             """.trimIndent()
         )
-        val document = Parser.parse("mutation { createUser(name: \$userName) }")
+        val document = Parser.parse("mutation { createUser(name: \$userName, email: \$userEmail) }")
 
-        val usages = document.collectVariableUsages(schema, "userName", "Mutation")
+        val allUsages = document.collectAllVariableUsages(schema, "Mutation")
 
+        assertEquals(2, allUsages.size)
+        assertTrue(allUsages.containsKey("userName"))
+        assertTrue(allUsages.containsKey("userEmail"))
+
+        val userNameUsages = allUsages["userName"]!!
+        assertEquals(1, userNameUsages.size)
+        val userNameUsage = userNameUsages.first()
+        assertEquals("field 'createUser', argument 'name'", userNameUsage.contextString)
+        assertEquals("String!", GraphQLTypeUtil.simplePrint(userNameUsage.type))
+
+        val userEmailUsages = allUsages["userEmail"]!!
+        assertEquals(1, userEmailUsages.size)
+        val userEmailUsage = userEmailUsages.first()
+        assertEquals("field 'createUser', argument 'email'", userEmailUsage.contextString)
+        assertEquals("String", GraphQLTypeUtil.simplePrint(userEmailUsage.type))
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- no variable usages`() {
+        val schema = toSchema("type Query { field(arg: String!): String }")
+        val document = Parser.parse("{ field(arg: \"literal\") }")
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
+
+        assertEquals(0, allUsages.size)
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- multiple usages of same variable`() {
+        val schema = toSchema("type Query { field1(arg: String!): String, field2(arg: String!): String }")
+        val document = Parser.parse("{ field1(arg: \$var), field2(arg: \$var) }")
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
+
+        assertEquals(1, allUsages.size)
+        val usages = allUsages["var"]!!
+        assertEquals(2, usages.size)
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- fragment not on root type`() {
+        val schema = toSchema("type Query { foo: Foo }, type Foo { field1(arg: String!): String }")
+        val document = Parser.parse("fragment _ on Foo { field1(arg: \$var) }")
+
+        val allUsages = document.collectAllVariableUsages(schema, "Foo")
+
+        assertEquals(1, allUsages.size)
+        val usages = allUsages["var"]!!
         assertEquals(1, usages.size)
         val usage = usages.first()
-        assertEquals("createUser", usage.fieldName)
-        assertEquals("name", usage.argumentName)
+        assertEquals("field 'field1', argument 'arg'", usage.contextString)
         assertEquals("String!", GraphQLTypeUtil.simplePrint(usage.type))
     }
 
     @Test
-    fun `collectVariableUsages -- no variable usages`() {
-        val schema = toSchema("type Query { field(arg: String!): String }")
-        val document = Parser.parse("{ field(arg: \"literal\") }")
+    fun `collectAllVariableUsages -- node is selection set`() {
+        val schema = toSchema("type Query { foo: Foo }, type Foo { field1(arg: String!): String }")
+        val document = Parser.parse("fragment _ on Foo { field1(arg: \$var) }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query")
+        val selectionSet = document.getFirstDefinitionOfType(FragmentDefinition::class.java).orElseThrow().selectionSet
+        val allUsages = selectionSet.collectAllVariableUsages(schema, "Foo")
 
-        assertEquals(0, usages.size)
+        assertEquals(1, allUsages.size)
+        val usages = allUsages["var"]!!
+        assertEquals(1, usages.size)
+        val usage = usages.first()
+        assertEquals("field 'field1', argument 'arg'", usage.contextString)
+        assertEquals("String!", GraphQLTypeUtil.simplePrint(usage.type))
     }
 
     @Test
-    fun `collectVariableUsages -- multiple usages of same variable`() {
-        val schema = toSchema("type Query { field1(arg: String!): String, field2(arg: String!): String }")
-        val document = Parser.parse("{ field1(arg: \$var), field2(arg: \$var) }")
+    fun `collectAllVariableUsages -- nested fields with arguments at multiple levels`() {
+        val schema = toSchema(
+            """
+            type Post { id: String }
+            type User { id: String, posts(limit: Int): [Post] }
+            type Query { user(id: String!): User }
+            """.trimIndent()
+        )
+        val document = Parser.parse("{ user(id: \$userId) { posts(limit: \$postLimit) { id } } }")
 
-        val usages = document.collectVariableUsages(schema, "var", "Query")
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
 
-        assertEquals(2, usages.size)
+        assertEquals(2, allUsages.size)
+        assertTrue(allUsages.containsKey("userId"))
+        assertTrue(allUsages.containsKey("postLimit"))
+
+        val userIdUsages = allUsages["userId"]!!
+        assertEquals(1, userIdUsages.size)
+        val userIdUsage = userIdUsages.first()
+        assertEquals("field 'user', argument 'id'", userIdUsage.contextString)
+        assertEquals("String!", GraphQLTypeUtil.simplePrint(userIdUsage.type))
+
+        val postLimitUsages = allUsages["postLimit"]!!
+        assertEquals(1, postLimitUsages.size)
+        val postLimitUsage = postLimitUsages.first()
+        assertEquals("field 'posts', argument 'limit'", postLimitUsage.contextString)
+        assertEquals("Int", GraphQLTypeUtil.simplePrint(postLimitUsage.type))
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- mixed directives and field arguments`() {
+        val schema = toSchema("type Query { field(arg: String!): String }")
+        val document = Parser.parse("{ field(arg: \$fieldVar) @skip(if: \$skipVar) }")
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
+
+        assertEquals(2, allUsages.size)
+        assertTrue(allUsages.containsKey("fieldVar"))
+        assertTrue(allUsages.containsKey("skipVar"))
+
+        val fieldVarUsages = allUsages["fieldVar"]!!
+        assertEquals(1, fieldVarUsages.size)
+        val fieldVarUsage = fieldVarUsages.first()
+        assertEquals("field 'field', argument 'arg'", fieldVarUsage.contextString)
+        assertEquals("String!", GraphQLTypeUtil.simplePrint(fieldVarUsage.type))
+
+        val skipVarUsages = allUsages["skipVar"]!!
+        assertEquals(1, skipVarUsages.size)
+        val skipVarUsage = skipVarUsages.first()
+        assertEquals("directive 'skip', argument 'if'", skipVarUsage.contextString)
+        assertEquals("Boolean!", GraphQLTypeUtil.simplePrint(skipVarUsage.type))
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- union type with inline fragments`() {
+        val schema = toSchema(
+            """
+            type User { name(filter: String): String }
+            type Post { title(filter: String): String }
+            union SearchResult = User | Post
+            type Query { search(query: String!): SearchResult }
+            """.trimIndent()
+        )
+        val document = Parser.parse(
+            """
+            {
+              search(query: ${'$'}searchQuery) {
+                ... on User {
+                  name(filter: ${'$'}nameFilter)
+                }
+                ... on Post {
+                  title(filter: ${'$'}titleFilter)
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
+
+        assertEquals(3, allUsages.size)
+        assertTrue(allUsages.containsKey("searchQuery"))
+        assertTrue(allUsages.containsKey("nameFilter"))
+        assertTrue(allUsages.containsKey("titleFilter"))
+
+        val searchQueryUsages = allUsages["searchQuery"]!!
+        assertEquals(1, searchQueryUsages.size)
+        val searchQueryUsage = searchQueryUsages.first()
+        assertEquals("field 'search', argument 'query'", searchQueryUsage.contextString)
+        assertEquals("String!", GraphQLTypeUtil.simplePrint(searchQueryUsage.type))
+
+        val nameFilterUsages = allUsages["nameFilter"]!!
+        assertEquals(1, nameFilterUsages.size)
+        val nameFilterUsage = nameFilterUsages.first()
+        assertEquals("field 'name', argument 'filter'", nameFilterUsage.contextString)
+        assertEquals("String", GraphQLTypeUtil.simplePrint(nameFilterUsage.type))
+
+        val titleFilterUsages = allUsages["titleFilter"]!!
+        assertEquals(1, titleFilterUsages.size)
+        val titleFilterUsage = titleFilterUsages.first()
+        assertEquals("field 'title', argument 'filter'", titleFilterUsage.contextString)
+        assertEquals("String", GraphQLTypeUtil.simplePrint(titleFilterUsage.type))
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- directive with nested array argument containing variables`() {
+        val schema = toSchema(
+            """
+            directive @matrix(values: [[Int!]!]!) on FIELD
+            type Query { field: String }
+            """.trimIndent()
+        )
+        val document = Parser.parse("{ field @matrix(values: [[\$var1, 5], [\$var3]]) }")
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
+
+        assertEquals(2, allUsages.size)
+        assertTrue(allUsages.containsKey("var1"))
+        assertTrue(allUsages.containsKey("var3"))
+
+        // All variables should have the same context (the directive argument)
+        // and the same inner type (Int!), even when mixed with literals
+        // Array elements never have default values, so hasDefaultValue should be false
+        allUsages.forEach { (varName, usages) ->
+            assertEquals(1, usages.size, "Variable $varName should have exactly one usage")
+            val usage = usages.first()
+            assertEquals("directive 'matrix', argument 'values'", usage.contextString)
+            assertEquals("Int!", GraphQLTypeUtil.simplePrint(usage.type))
+            assertEquals(false, usage.hasDefaultValue, "Array elements should not have default values")
+        }
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- array elements do not inherit parent hasDefaultValue`() {
+        val schema = toSchema(
+            """
+            directive @filter(values: [String!]! = ["default1", "default2"]) on FIELD
+            type Query { field: String }
+            """.trimIndent()
+        )
+        val document = Parser.parse("{ field @filter(values: [\$var1, \$var2]) }")
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
+
+        assertEquals(2, allUsages.size)
+        assertTrue(allUsages.containsKey("var1"))
+        assertTrue(allUsages.containsKey("var2"))
+
+        // The 'values' argument has a default value, but variables inside the array
+        // should NOT inherit this - array elements cannot have default values
+        allUsages.forEach { (varName, usages) ->
+            assertEquals(1, usages.size, "Variable $varName should have exactly one usage")
+            val usage = usages.first()
+            assertEquals("directive 'filter', argument 'values'", usage.contextString)
+            assertEquals("String!", GraphQLTypeUtil.simplePrint(usage.type))
+            assertEquals(
+                false,
+                usage.hasDefaultValue,
+                "Array element variables should have hasDefaultValue=false even when parent argument has a default"
+            )
+        }
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- directive with deeply nested array of input object type`() {
+        val schema = toSchema(
+            """
+            input NestedInput { value: String! }
+            input ContainerInput { nested: NestedInput! }
+            directive @complex(data: [[ContainerInput!]!]!) on FIELD
+            type Query { field: String }
+            """.trimIndent()
+        )
+        val document = Parser.parse(
+            """
+            {
+                field @complex(data: [
+                    [${'$'}var1, { nested: { value: ${'$'}var2 } }],
+                    [{ nested: { value: ${'$'}var3 } }]
+                ])
+            }
+            """.trimIndent()
+        )
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
+
+        assertEquals(3, allUsages.size)
+        assertTrue(allUsages.containsKey("var1"))
+        assertTrue(allUsages.containsKey("var2"))
+        assertTrue(allUsages.containsKey("var3"))
+
+        // var1 is passed as the whole object, so it has ContainerInput! type
+        val var1Usages = allUsages["var1"]!!
+        assertEquals(1, var1Usages.size)
+        assertEquals("directive 'complex', argument 'data'", var1Usages.first().contextString)
+        assertEquals("ContainerInput!", GraphQLTypeUtil.simplePrint(var1Usages.first().type))
+
+        // var2 and var3 are deeply nested in NestedInput.value
+        val var2Usages = allUsages["var2"]!!
+        assertEquals(1, var2Usages.size)
+        assertEquals("input field 'NestedInput.value'", var2Usages.first().contextString)
+        assertEquals("String!", GraphQLTypeUtil.simplePrint(var2Usages.first().type))
+
+        val var3Usages = allUsages["var3"]!!
+        assertEquals(1, var3Usages.size)
+        assertEquals("input field 'NestedInput.value'", var3Usages.first().contextString)
+        assertEquals("String!", GraphQLTypeUtil.simplePrint(var3Usages.first().type))
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- collects variables from fragment spread`() {
+        val schema = toSchema("type Query { foo: Foo } type Foo { bar(filter: String): String, baz: String }")
+        val document = Parser.parse(
+            """
+            {
+                foo {
+                    ...FooFragment
+                }
+            }
+            fragment FooFragment on Foo {
+                bar(filter: ${'$'}filterValue)
+                baz @include(if: ${'$'}shouldInclude)
+            }
+            """.trimIndent()
+        )
+
+        val fragmentDef = document.getDefinitionsOfType(FragmentDefinition::class.java).first()
+        val fragmentMap = mapOf(fragmentDef.name to fragmentDef)
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query", fragmentMap)
+
+        assertEquals(2, allUsages.size)
+        assertTrue(allUsages.containsKey("filterValue"))
+        assertTrue(allUsages.containsKey("shouldInclude"))
+
+        val filterUsages = allUsages["filterValue"]!!
+        assertEquals(1, filterUsages.size)
+        assertEquals("field 'bar', argument 'filter'", filterUsages.first().contextString)
+        assertEquals("String", GraphQLTypeUtil.simplePrint(filterUsages.first().type))
+
+        val includeUsages = allUsages["shouldInclude"]!!
+        assertEquals(1, includeUsages.size)
+        assertEquals("directive 'include', argument 'if'", includeUsages.first().contextString)
+        assertEquals("Boolean!", GraphQLTypeUtil.simplePrint(includeUsages.first().type))
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- collects variables from directive on fragment spread`() {
+        val schema = toSchema("type Query { foo: Foo } type Foo { bar: String }")
+        val document = Parser.parse(
+            """
+            {
+                foo {
+                    ...FooFragment @include(if: ${'$'}shouldIncludeFragment)
+                }
+            }
+            fragment FooFragment on Foo {
+                bar
+            }
+            """.trimIndent()
+        )
+
+        val fragmentDef = document.getDefinitionsOfType(FragmentDefinition::class.java).first()
+        val fragmentMap = mapOf(fragmentDef.name to fragmentDef)
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query", fragmentMap)
+
+        assertEquals(1, allUsages.size)
+        assertTrue(allUsages.containsKey("shouldIncludeFragment"))
+
+        val usages = allUsages["shouldIncludeFragment"]!!
+        assertEquals(1, usages.size)
+        assertEquals("directive 'include', argument 'if'", usages.first().contextString)
+        assertEquals("Boolean!", GraphQLTypeUtil.simplePrint(usages.first().type))
+    }
+
+    @Test
+    fun `collectVariableUsages -- gets all usages for variable`() {
+        val schema = toSchema("type Query { field1(arg: String!): String, field2(arg: Int!): String, field3(arg: String!): String }")
+        val document = Parser.parse("{ field1(arg: \$var1), field2(arg: \$var2), field3(arg: \$var1) }")
+
+        val var1Usages = document.collectVariableUsages(schema, "var1", "Query")
+
+        assertEquals(2, var1Usages.size)
+        val usageContexts = var1Usages.map { it.contextString }.toSet()
+        assertTrue(usageContexts.contains("field 'field1', argument 'arg'"))
+        assertTrue(usageContexts.contains("field 'field3', argument 'arg'"))
+        var1Usages.forEach { usage ->
+            assertEquals("String!", GraphQLTypeUtil.simplePrint(usage.type))
+        }
+    }
+
+    @Test
+    fun `collectVariableDefinitions -- transforms usages to definitions`() {
+        val schema = toSchema(
+            """
+            type Query {
+                f1(a: String): String
+                f2(a: [Int!]): String
+                f3(a: String): String
+                f4(a: String!): String
+            }
+            """.trimIndent()
+        )
+        val document = Parser.parse("{ f1(a: \$var1), f2(a: \$var2), f3(a: \$var1), f4(a: \$var1) }")
+
+        val definitions = document.collectVariableDefinitions(schema, "Query")
+
+        assertEquals(2, definitions.size)
+        val varNames = definitions.map { it.name }.toSet()
+        assertTrue(varNames.contains("var1"))
+        assertTrue(varNames.contains("var2"))
+
+        val var1Def = definitions.first { it.name == "var1" }
+        assertEquals("String!", AstPrinter.printAst(var1Def.type))
+
+        val var2Def = definitions.first { it.name == "var2" }
+        assertEquals("[Int!]", AstPrinter.printAst(var2Def.type))
+    }
+
+    @Test
+    fun `combineNullabilityRequirements -- simple case`() {
+        val result = combineNullabilityRequirements(Scalars.GraphQLString, GraphQLNonNull.nonNull(Scalars.GraphQLString))
+        assertEquals("String!", GraphQLTypeUtil.simplePrint(result))
+    }
+
+    @Test
+    fun `combineNullabilityRequirements -- list with nullable vs non-null elements`() {
+        val type1 = GraphQLList.list(Scalars.GraphQLString)
+        val type2 = GraphQLList.list(GraphQLNonNull.nonNull(Scalars.GraphQLString))
+        val result = combineNullabilityRequirements(type1, type2)
+        assertEquals("[String!]", GraphQLTypeUtil.simplePrint(result))
+    }
+
+    @Test
+    fun `combineNullabilityRequirements -- nullable vs non-null list`() {
+        val type1 = GraphQLList.list(Scalars.GraphQLString)
+        val type2 = GraphQLNonNull.nonNull(GraphQLList.list(Scalars.GraphQLString))
+        val result = combineNullabilityRequirements(type1, type2)
+        assertEquals("[String]!", GraphQLTypeUtil.simplePrint(result))
+    }
+
+    @Test
+    fun `combineNullabilityRequirements -- nested lists`() {
+        val type1 = GraphQLList.list(GraphQLNonNull.nonNull(GraphQLList.list(Scalars.GraphQLString))) // [[String]!]
+        val type2 = GraphQLNonNull.nonNull(GraphQLList.list(GraphQLList.list(GraphQLNonNull.nonNull(Scalars.GraphQLString)))) // [[String!]]!
+        val result = combineNullabilityRequirements(type1, type2)
+        assertEquals("[[String!]!]!", GraphQLTypeUtil.simplePrint(result))
     }
 
     companion object {

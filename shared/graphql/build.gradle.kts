@@ -10,6 +10,7 @@ dependencies {
     implementation(libs.viaduct.shared.utils)
     implementation(libs.graphql.java.extension)
     implementation(libs.slf4j.api)
+    implementation(libs.kotlin.reflect)
 
     testFixturesApi(libs.graphql.java)
 

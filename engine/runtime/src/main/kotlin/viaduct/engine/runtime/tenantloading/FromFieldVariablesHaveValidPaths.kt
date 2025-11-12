@@ -15,7 +15,7 @@ import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 import viaduct.engine.runtime.validation.Validator
 import viaduct.graphql.utils.GraphQLTypeRelation
 import viaduct.graphql.utils.VariableUsageInfo
-import viaduct.graphql.utils.collectVariableUsages
+import viaduct.graphql.utils.collectAllVariableUsages
 
 class FromFieldVariablesHaveValidPaths(
     private val schema: ViaductSchema
@@ -71,14 +71,25 @@ class FromFieldVariablesHaveValidPaths(
                 }
         }
 
-        val variableSinksByName: Map<String, List<VariableUsageInfo>> = allSets
-            .flatMap { rss ->
-                variableSourceByName.keys.flatMap { name ->
-                    rss.selections.selections
-                        .collectVariableUsages(schema.schema, name, ctx.typeName)
-                        .map { usage -> name to usage }
-                }
-            }.groupBy({ it.first }, { it.second })
+        val variableSinksByName: Map<String, List<VariableUsageInfo>> = allSets.flatMap { rss ->
+            try {
+                rss.selections.selections
+                    .collectAllVariableUsages(schema.schema, rss.selections.typeName, rss.selections.fragmentMap)
+                    .toList()
+                    .flatMap { (name, usages) ->
+                        if (name in variableSourceByName) {
+                            usages.map { usage -> name to usage }
+                        } else {
+                            emptyList()
+                        }
+                    }
+            } catch (e: Exception) {
+                throw IllegalStateException(
+                    "Variable usage collection failed for RSS with attribution ${rss.attribution}",
+                    e
+                )
+            }
+        }.groupBy({ it.first }, { it.second })
 
         variableSinksByName.forEach { (name, usages) ->
             val source = checkNotNull(variableSourceByName[name])

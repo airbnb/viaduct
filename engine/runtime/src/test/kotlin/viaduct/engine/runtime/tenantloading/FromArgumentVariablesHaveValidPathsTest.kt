@@ -527,6 +527,35 @@ class FromArgumentVariablesHaveValidPathsTest {
         }
     }
 
+    @Test
+    fun `invalid -- fragment spread with variable`() {
+        Fixture("type Query { foo(x: String!): Int!, bar(y: Int): Int }") {
+            val exception = assertInvalid(
+                "Query" to "foo",
+                "fragment Main on Query { ...QueryFields } fragment QueryFields on Query { bar(y: \$x) }",
+                listOf(FromArgument("x", listOf("x")))
+            )
+            assertTrue(exception.message.contains("Type mismatch"))
+        }
+    }
+
+    @Test
+    fun `invalid -- fragment spread on non-Query type`() {
+        Fixture(
+            """
+            type Query { foo: String }
+            type User { updateName(name: Int!): String!, updateProfile(data: String): String }
+            """.trimIndent()
+        ) {
+            val exception = assertInvalid(
+                "User" to "updateName",
+                "fragment Main on User { ...UserFields } fragment UserFields on User { updateProfile(data: \$userName) }",
+                listOf(FromArgument("userName", listOf("name")))
+            )
+            assertTrue(exception.message.contains("Type mismatch"))
+        }
+    }
+
     private class Fixture(
         sdl: String,
         fn: Fixture.() -> Unit = {}
