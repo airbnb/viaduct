@@ -128,10 +128,13 @@ open class ChainedInstrumentation(
             }
         )
 
-    override fun beginDeferredField(state: InstrumentationState?): InstrumentationContext<Any> =
+    override fun beginDeferredField(
+        parameters: InstrumentationFieldParameters?,
+        state: InstrumentationState?
+    ): InstrumentationContext<Any> =
         ChainedInstrumentationContext(
             instrumentations.map { instr ->
-                instr.beginDeferredField(getState(instr, state))
+                instr.beginDeferredField(parameters, getState(instr, state))
             }
         )
 

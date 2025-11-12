@@ -210,7 +210,10 @@ interface ViaductModernInstrumentation {
                     return ExecuteObjectInstrumentationContext.NOOP
                 }
 
-                override fun beginDeferredField(state: InstrumentationState?): InstrumentationContext<Any> {
+                override fun beginDeferredField(
+                    parameters: InstrumentationFieldParameters?,
+                    state: InstrumentationState?
+                ): InstrumentationContext<Any> {
                     return noOp()
                 }
 
