@@ -342,6 +342,8 @@ class FilteredSchema<T : ViaductSchema.TypeDef>(
         override val listNullable = unfilteredTypeExpr.listNullable
 
         override fun unwrapLists() = TypeExpr(unfilteredTypeExpr.unwrapLists(), defs)
+
+        override fun unwrapList() = unfilteredTypeExpr.unwrapList()?.let { TypeExpr(it, defs) }
     }
 
     companion object {

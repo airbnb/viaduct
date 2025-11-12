@@ -767,6 +767,14 @@ class GJSchemaRaw private constructor(
             typeMap[baseTypeDefName] ?: throw java.lang.IllegalStateException("Bad basetype name: $baseTypeDefName")
 
         override fun unwrapLists() = TypeExpr(typeMap, baseTypeDefName, baseTypeNullable)
+
+        override fun unwrapList(): TypeExpr? {
+            return if (listNullable.size == 0) {
+                null
+            } else {
+                TypeExpr(typeMap, baseTypeDefName, baseTypeNullable, listNullable.lsr())
+            }
+        }
     }
 }
 

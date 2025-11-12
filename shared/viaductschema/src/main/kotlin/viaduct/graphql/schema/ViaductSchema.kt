@@ -465,6 +465,13 @@ interface ViaductSchema {
          *  its nullability. */
         abstract fun unwrapLists(): TypeExpr
 
+        /**
+         * Unwrap one level of list depth.
+         *
+         * @returns null if [this] is not a list, the unwrapped list otherwise
+         */
+        abstract fun unwrapList(): TypeExpr?
+
         fun nullableAtDepth(depth: Int): Boolean {
             require(depth in 0..listDepth)
             return if (isList && depth < listDepth) listNullable.get(depth) else baseTypeNullable

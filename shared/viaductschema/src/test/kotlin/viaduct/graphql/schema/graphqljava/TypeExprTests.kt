@@ -195,4 +195,46 @@ class TypeExprTests {
         assertThrows(IllegalArgumentException::class.java) { parseWrappers("*!") }
         assertThrows(IllegalArgumentException::class.java) { parseWrappers("?!*?") }
     }
+
+    @Test
+    fun unwrapList() {
+        // Non-list types should return null
+        type("T2").unwrapList() shouldBe null
+        field("T2.a0").unwrapList() shouldBe null
+        field("T2.a1").unwrapList() shouldBe null
+
+        // Single list unwrapped to base type
+        field("T2.b0").unwrapList()?.unparseWrappers() shouldBe "?"
+        field("T2.b1").unwrapList()?.unparseWrappers() shouldBe "?"
+        field("T2.b2").unwrapList()?.unparseWrappers() shouldBe "!"
+        field("T2.b3").unwrapList()?.unparseWrappers() shouldBe "!"
+
+        // Double list unwrapped to single list
+        field("T2.c0").unwrapList()?.unparseWrappers() shouldBe "??"
+        field("T2.c1").unwrapList()?.unparseWrappers() shouldBe "??"
+        field("T2.c2").unwrapList()?.unparseWrappers() shouldBe "!?"
+        field("T2.c3").unwrapList()?.unparseWrappers() shouldBe "!?"
+        field("T2.c4").unwrapList()?.unparseWrappers() shouldBe "?!"
+        field("T2.c5").unwrapList()?.unparseWrappers() shouldBe "?!"
+        field("T2.c6").unwrapList()?.unparseWrappers() shouldBe "!!"
+        field("T2.c7").unwrapList()?.unparseWrappers() shouldBe "!!"
+
+        // Triple list unwrapped to double list
+        field("T2.d00").unwrapList()?.unparseWrappers() shouldBe "???"
+        field("T2.d01").unwrapList()?.unparseWrappers() shouldBe "???"
+        field("T2.d02").unwrapList()?.unparseWrappers() shouldBe "!??"
+        field("T2.d03").unwrapList()?.unparseWrappers() shouldBe "!??"
+        field("T2.d04").unwrapList()?.unparseWrappers() shouldBe "?!?"
+        field("T2.d05").unwrapList()?.unparseWrappers() shouldBe "?!?"
+        field("T2.d06").unwrapList()?.unparseWrappers() shouldBe "!!?"
+        field("T2.d07").unwrapList()?.unparseWrappers() shouldBe "!!?"
+        field("T2.d08").unwrapList()?.unparseWrappers() shouldBe "??!"
+        field("T2.d09").unwrapList()?.unparseWrappers() shouldBe "??!"
+        field("T2.d10").unwrapList()?.unparseWrappers() shouldBe "!?!"
+        field("T2.d11").unwrapList()?.unparseWrappers() shouldBe "!?!"
+        field("T2.d12").unwrapList()?.unparseWrappers() shouldBe "?!!"
+        field("T2.d13").unwrapList()?.unparseWrappers() shouldBe "?!!"
+        field("T2.d14").unwrapList()?.unparseWrappers() shouldBe "!!!"
+        field("T2.d15").unwrapList()?.unparseWrappers() shouldBe "!!!"
+    }
 }

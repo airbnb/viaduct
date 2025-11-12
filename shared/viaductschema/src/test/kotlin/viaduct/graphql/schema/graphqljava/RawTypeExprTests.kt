@@ -3,6 +3,7 @@ package viaduct.graphql.schema.graphqljava
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.unparseWrappers
 
 class RawTypeExprTests {
@@ -119,5 +120,55 @@ class RawTypeExprTests {
         assertThatWrapper("T2.d13", "!?!!")
         assertThatWrapper("T2.d14", "?!!!")
         assertThatWrapper("T2.d15", "!!!!")
+    }
+
+    private fun fieldType(f: String): ViaductSchema.TypeExpr {
+        val coords = f.split('.')
+        val tname: String = coords[0]
+        val fname: String = coords[1]
+        val tdef = schema.types[tname] as GJSchemaRaw.Record
+        return tdef.field(fname)!!.type
+    }
+
+    @Test
+    fun unwrapList() {
+        // Non-list types should return null
+        fieldType("T1.f1").unwrapList() shouldBe null
+        fieldType("T2.a0").unwrapList() shouldBe null
+        fieldType("T2.a1").unwrapList() shouldBe null
+
+        // Single list unwrapped to base type
+        fieldType("T2.b0").unwrapList()?.unparseWrappers() shouldBe "?"
+        fieldType("T2.b1").unwrapList()?.unparseWrappers() shouldBe "?"
+        fieldType("T2.b2").unwrapList()?.unparseWrappers() shouldBe "!"
+        fieldType("T2.b3").unwrapList()?.unparseWrappers() shouldBe "!"
+
+        // Double list unwrapped to single list
+        fieldType("T2.c0").unwrapList()?.unparseWrappers() shouldBe "??"
+        fieldType("T2.c1").unwrapList()?.unparseWrappers() shouldBe "??"
+        fieldType("T2.c2").unwrapList()?.unparseWrappers() shouldBe "!?"
+        fieldType("T2.c3").unwrapList()?.unparseWrappers() shouldBe "!?"
+        fieldType("T2.c4").unwrapList()?.unparseWrappers() shouldBe "?!"
+        fieldType("T2.c5").unwrapList()?.unparseWrappers() shouldBe "?!"
+        fieldType("T2.c6").unwrapList()?.unparseWrappers() shouldBe "!!"
+        fieldType("T2.c7").unwrapList()?.unparseWrappers() shouldBe "!!"
+
+        // Triple list unwrapped to double list
+        fieldType("T2.d00").unwrapList()?.unparseWrappers() shouldBe "???"
+        fieldType("T2.d01").unwrapList()?.unparseWrappers() shouldBe "???"
+        fieldType("T2.d02").unwrapList()?.unparseWrappers() shouldBe "!??"
+        fieldType("T2.d03").unwrapList()?.unparseWrappers() shouldBe "!??"
+        fieldType("T2.d04").unwrapList()?.unparseWrappers() shouldBe "?!?"
+        fieldType("T2.d05").unwrapList()?.unparseWrappers() shouldBe "?!?"
+        fieldType("T2.d06").unwrapList()?.unparseWrappers() shouldBe "!!?"
+        fieldType("T2.d07").unwrapList()?.unparseWrappers() shouldBe "!!?"
+        fieldType("T2.d08").unwrapList()?.unparseWrappers() shouldBe "??!"
+        fieldType("T2.d09").unwrapList()?.unparseWrappers() shouldBe "??!"
+        fieldType("T2.d10").unwrapList()?.unparseWrappers() shouldBe "!?!"
+        fieldType("T2.d11").unwrapList()?.unparseWrappers() shouldBe "!?!"
+        fieldType("T2.d12").unwrapList()?.unparseWrappers() shouldBe "?!!"
+        fieldType("T2.d13").unwrapList()?.unparseWrappers() shouldBe "?!!"
+        fieldType("T2.d14").unwrapList()?.unparseWrappers() shouldBe "!!!"
+        fieldType("T2.d15").unwrapList()?.unparseWrappers() shouldBe "!!!"
     }
 }
