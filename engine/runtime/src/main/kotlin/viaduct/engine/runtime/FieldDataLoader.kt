@@ -14,18 +14,20 @@ import viaduct.engine.api.FieldResolverExecutor
  * There should be exactly one instance of this data loader per field coordinate per request.
  */
 class FieldDataLoader(
-    private val resolver: FieldResolverExecutor,
-    private val context: EngineExecutionContext
+    private val resolver: FieldResolverExecutor
 ) : DataLoader<FieldResolverExecutor.Selector, Result<Any?>, FieldResolverExecutor.Selector>() {
-    suspend fun loadByKey(key: FieldResolverExecutor.Selector): Result<Any?> {
-        return internalDataLoader.load(key) ?: throw IllegalStateException("Received null FieldDataLoader value for field: ${resolver.resolverId}")
+    suspend fun loadByKey(
+        key: FieldResolverExecutor.Selector,
+        context: EngineExecutionContext
+    ): Result<Any?> {
+        return internalDataLoader.load(key, context) ?: throw IllegalStateException("Received null FieldDataLoader value for field: ${resolver.resolverId}")
     }
 
     override suspend fun internalLoad(
         keys: Set<FieldResolverExecutor.Selector>,
         environment: BatchLoaderEnvironment<FieldResolverExecutor.Selector>
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
-        return resolver.batchResolve(keys.toList(), context)
+        return resolver.batchResolve(keys.toList(), executionContextForBatchLoadFromKeys(keys, environment))
     }
 
     override fun shouldUseImmediateDispatch(): Boolean = !resolver.isBatching

@@ -40,6 +40,6 @@ class FieldResolverDispatcherImpl(
             "Expected EngineExecutionContextImpl, got ${context::class.qualifiedName}"
         )
         val loader = context.fieldDataLoader(resolver)
-        return loader.loadByKey(FieldResolverExecutor.Selector(arguments, objectValue, queryValue, selections)).getOrThrow()
+        return loader.loadByKey(FieldResolverExecutor.Selector(arguments, objectValue, queryValue, selections), context).getOrThrow()
     }
 }

@@ -14,18 +14,20 @@ import viaduct.engine.api.NodeResolverExecutor
  * There should be exactly one instance of this data loader per node type per request.
  */
 class NodeDataLoader(
-    private val resolver: NodeResolverExecutor,
-    private val context: EngineExecutionContext
+    private val resolver: NodeResolverExecutor
 ) : DataLoader<NodeResolverExecutor.Selector, Result<EngineObjectData>, NodeResolverExecutor.Selector>() {
-    suspend fun loadByKey(key: NodeResolverExecutor.Selector): Result<EngineObjectData> {
-        return internalDataLoader.load(key) ?: throw IllegalStateException("Received null NodeDataLoader value for node ID: ${key.id}")
+    suspend fun loadByKey(
+        key: NodeResolverExecutor.Selector,
+        context: EngineExecutionContext
+    ): Result<EngineObjectData> {
+        return internalDataLoader.load(key, context) ?: throw IllegalStateException("Received null NodeDataLoader value for node ID: ${key.id}")
     }
 
     override suspend fun internalLoad(
         keys: Set<NodeResolverExecutor.Selector>,
         environment: BatchLoaderEnvironment<NodeResolverExecutor.Selector>
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>?> {
-        return resolver.batchResolve(keys.toList(), context)
+        return resolver.batchResolve(keys.toList(), executionContextForBatchLoadFromKeys(keys, environment))
     }
 
     override fun shouldUseImmediateDispatch(): Boolean = !resolver.isBatching

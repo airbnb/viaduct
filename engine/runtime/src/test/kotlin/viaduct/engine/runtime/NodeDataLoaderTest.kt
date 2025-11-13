@@ -1,10 +1,15 @@
 package viaduct.engine.runtime
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.NodeResolverExecutor
+import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
+import viaduct.graphql.test.assertJson
 
 class NodeDataLoaderTest {
     private val id1 = "1"
@@ -60,5 +65,97 @@ class NodeDataLoaderTest {
             selections = selectionSetFactory.rawSelectionSet("Test", "id foo { a } bar", emptyMap())
         )
         assertFalse(selector.covers(other))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `batch node resolution clears field scope to prevent cross-field contamination`() {
+        // Track field scope fragments and variables in the batch node resolver
+        var fragmentsInBatchResolver: Map<String, *>? = null
+        var variablesInBatchResolver: Map<String, *>? = null
+
+        val nodeSchema = """
+            extend type Query {
+                userList: [User!]!
+            }
+            type User implements Node {
+                id: ID!
+                name: String
+            }
+        """.trimIndent()
+
+        MockTenantModuleBootstrapper(nodeSchema) {
+            field("Query" to "userList") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        // Return three user node references to ensure batching
+                        (1..3).map { i ->
+                            ctx.createNodeReference(i.toString(), schema.schema.getObjectType("User"))
+                        }
+                    }
+                }
+            }
+            type("User") {
+                nodeBatchedExecutor { selectors, context ->
+                    // Capture the field scope from the context during batch resolution
+                    // Only capture on first call to avoid overwriting
+                    if (fragmentsInBatchResolver == null) {
+                        fragmentsInBatchResolver = context.fieldScope.fragments
+                        variablesInBatchResolver = context.fieldScope.variables
+                    }
+                    selectors.associateWith { selector ->
+                        Result.success(
+                            mkEngineObjectData(
+                                objectType,
+                                mapOf(
+                                    "id" to selector.id,
+                                    // Include batch size to prove batching happened
+                                    "name" to "User-${selector.id}-batch:${selectors.size}"
+                                )
+                            )
+                        )
+                    }
+                }
+            }
+        }.runFeatureTest {
+            // Run a query - field scope clearing happens in internalLoad during batch resolution
+            val result = runQuery(
+                """
+                {
+                    userList {
+                        id
+                        name
+                    }
+                }
+                """.trimIndent()
+            )
+
+            // Verify batching happened (all users should show batch:3)
+            result.assertJson(
+                """
+                {
+                  "data": {
+                    "userList": [
+                      {"id": "1", "name": "User-1-batch:3"},
+                      {"id": "2", "name": "User-2-batch:3"},
+                      {"id": "3", "name": "User-3-batch:3"}
+                    ]
+                  }
+                }
+                """.trimIndent()
+            )
+
+            // Assert: The batch resolver should have received a context with CLEARED field scope
+            assertTrue(fragmentsInBatchResolver != null, "Fragments map should have been captured")
+            assertTrue(variablesInBatchResolver != null, "Variables map should have been captured")
+            assertTrue(
+                fragmentsInBatchResolver!!.isEmpty(),
+                "Field scope fragments should be cleared for batch resolution to prevent contamination"
+            )
+            assertTrue(
+                variablesInBatchResolver!!.isEmpty(),
+                "Field scope variables should be cleared for batch resolution to prevent contamination"
+            )
+        }
     }
 }

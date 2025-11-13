@@ -105,7 +105,7 @@ class EngineExecutionContextImpl(
      */
     internal fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader =
         fieldDataLoaders.computeIfAbsent(resolver.resolverId) {
-            FieldDataLoader(resolver, this)
+            FieldDataLoader(resolver)
         }
 
     /**
@@ -115,7 +115,7 @@ class EngineExecutionContextImpl(
      */
     internal fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader =
         nodeDataLoaders.computeIfAbsent(resolver.typeName) {
-            NodeDataLoader(resolver, this)
+            NodeDataLoader(resolver)
         }
 
     /**

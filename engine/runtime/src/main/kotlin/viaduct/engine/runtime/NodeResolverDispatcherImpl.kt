@@ -31,6 +31,6 @@ class NodeResolverDispatcherImpl(
             "Expected EngineExecutionContextImpl, got ${context::class.qualifiedName}"
         )
         val loader = context.nodeDataLoader(resolver)
-        return loader.loadByKey(NodeResolverExecutor.Selector(id, selections)).getOrThrow()
+        return loader.loadByKey(NodeResolverExecutor.Selector(id, selections), context).getOrThrow()
     }
 }
