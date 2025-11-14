@@ -15,21 +15,18 @@ viaductPublishing {
 }
 
 dependencies {
+    /** External dependencies **/
     implementation(libs.guice)
     implementation(libs.graphql.java)
 
+    /** Viaduct dependencies **/
     implementation(libs.viaduct.engine.api)
 
-    testImplementation(libs.io.mockk.dsl)
+    /** Test dependencies - External **/
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.kotest.property.jvm)
-    testImplementation(libs.kotlin.reflect)
-    testImplementation(libs.kotlin.test)
-    testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.strikt.core)
-
-    testFixturesApi(libs.viaduct.engine.api)
 }
 
 dokka {

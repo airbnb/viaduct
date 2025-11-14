@@ -1,6 +1,5 @@
 package viaduct.api.internal
 
-import com.google.common.annotations.VisibleForTesting
 import graphql.GraphQLContext
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLEnumType
@@ -266,7 +265,7 @@ abstract class ObjectBase(
          * Dynamic builder function with type check and alias support.
          * Only used for unit tests, where we need to associate data with an alias.
          */
-        @VisibleForTesting
+        // Internal for testing
         internal fun put(
             name: String,
             value: Any?,

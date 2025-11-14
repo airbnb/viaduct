@@ -1,7 +1,7 @@
 package viaduct.engine.api.mocks
 
-import io.kotest.matchers.collections.shouldContainAll
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.ParsedSelections
@@ -176,25 +176,27 @@ class MockRequiredSelectionSetRegistryTest {
             ),
             result.getRequiredSelectionSetsForField("Foo", "a")
         )
-        result.getRequiredSelectionSetsForField("Foo", "b").shouldContainAll(
-            listOf(
-                RequiredSelectionSet(
-                    SelectionsParser.parse("Foo", "y"),
-                    emptyList(),
-                    forChecker = true
-                ),
-                RequiredSelectionSet(
-                    SelectionsParser.parse("Query", "y"),
-                    emptyList(),
-                    forChecker = false
-                ),
-                RequiredSelectionSet(
-                    SelectionsParser.parse("Foo", "y2"),
-                    emptyList(),
-                    forChecker = false
-                )
+
+        val resultForB = result.getRequiredSelectionSetsForField("Foo", "b")
+        val expectedForB = listOf(
+            RequiredSelectionSet(
+                SelectionsParser.parse("Foo", "y"),
+                emptyList(),
+                forChecker = true
+            ),
+            RequiredSelectionSet(
+                SelectionsParser.parse("Query", "y"),
+                emptyList(),
+                forChecker = false
+            ),
+            RequiredSelectionSet(
+                SelectionsParser.parse("Foo", "y2"),
+                emptyList(),
+                forChecker = false
             )
         )
+        assertTrue(resultForB.containsAll(expectedForB), "Result should contain all expected selection sets for field b")
+
         assertEquals(
             listOf(
                 RequiredSelectionSet(
@@ -205,20 +207,22 @@ class MockRequiredSelectionSetRegistryTest {
             ),
             result.getRequiredSelectionSetsForField("Foo", "c")
         )
-        result.getRequiredSelectionSetsForType("Foo").shouldContainAll(
-            listOf(
-                RequiredSelectionSet(
-                    SelectionsParser.parse("Foo", "x"),
-                    emptyList(),
-                    forChecker = true
-                ),
-                RequiredSelectionSet(
-                    SelectionsParser.parse("Foo", "z"),
-                    emptyList(),
-                    forChecker = true
-                )
+
+        val resultForType = result.getRequiredSelectionSetsForType("Foo")
+        val expectedForType = listOf(
+            RequiredSelectionSet(
+                SelectionsParser.parse("Foo", "x"),
+                emptyList(),
+                forChecker = true
+            ),
+            RequiredSelectionSet(
+                SelectionsParser.parse("Foo", "z"),
+                emptyList(),
+                forChecker = true
             )
         )
+        assertTrue(resultForType.containsAll(expectedForType), "Result should contain all expected selection sets for type Foo")
+
         assertEquals(
             listOf<RequiredSelectionSet>(),
             result.getRequiredSelectionSetsForField("Missing", "a")

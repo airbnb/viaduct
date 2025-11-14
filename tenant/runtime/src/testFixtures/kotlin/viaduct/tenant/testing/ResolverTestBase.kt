@@ -266,6 +266,7 @@ interface ResolverTestBase {
         }
 
         val rl = context.internal.reflectionLoader
+
         @Suppress("UNCHECKED_CAST")
         val rootQueryType = rl.reflectionFor(getSchema().schema.queryType.name) as Type<Query>
         val resultMap = mutableMapOf<String, Query>()

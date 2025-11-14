@@ -14,36 +14,27 @@ viaductPublishing {
 }
 
 dependencies {
-    implementation(libs.graphql.java)
-    implementation(libs.javax.inject)
+    /** Viaduct dependencies **/
     implementation(libs.viaduct.engine.api)
-
-    implementation(libs.guava)
-
-    implementation(libs.viaduct.shared.utils)
-    implementation(libs.viaduct.shared.viaductschema)
     implementation(libs.viaduct.shared.mapping)
+
+    /** External dependencies **/
+    implementation(libs.graphql.java)
     implementation(libs.kotlin.reflect)
-    implementation(libs.jackson.core)
     implementation(libs.jackson.databind)
 
-    testFixturesApi(libs.viaduct.engine.api)
-    testFixturesApi(libs.graphql.java)
-    testFixturesApi(libs.viaduct.shared.viaductschema)
-
+    /** Test fixtures - Viaduct dependencies **/
     testFixturesImplementation(testFixtures(libs.viaduct.engine.api))
     testFixturesImplementation(libs.viaduct.tenant.runtime)
 
-    testImplementation(libs.graphql.java.extension)
-    testImplementation(libs.io.mockk.dsl)
-    testImplementation(libs.io.mockk.jvm)
-    testImplementation(libs.kotest.property.jvm)
-    testImplementation(libs.kotlinx.coroutines.core)
-    testImplementation(libs.kotlinx.coroutines.test)
+    /** Test fixtures - External dependencies **/
+    testFixturesApi(libs.junit)
 
-    testImplementation(libs.strikt.core)
-    testImplementation(libs.viaduct.shared.arbitrary)
-    testImplementation(libs.viaduct.tenant.runtime)
-    testImplementation(testFixtures(libs.viaduct.engine.api))
+    /** Test dependencies - Viaduct **/
     testImplementation(testFixtures(libs.viaduct.shared.mapping))
+
+    /** Test dependencies - External **/
+    testImplementation(libs.graphql.java.extension)
+    testImplementation(libs.io.mockk.jvm)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
