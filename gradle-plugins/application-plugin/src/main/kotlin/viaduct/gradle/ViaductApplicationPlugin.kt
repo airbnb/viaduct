@@ -157,16 +157,21 @@ class ViaductApplicationPlugin : Plugin<Project> {
             dependsOn(generateGRTsTask)
 
             doLast {
-                // Get the runtime classpath
-                val runtimeClasspath = configurations.getByName("runtimeClasspath")
-
-                // Add devserve runtime dependency
+                // Create configuration at execution time for devserve dependencies
                 val devserveConfig = configurations.create("devserveRuntime") {
                     isCanBeConsumed = false
                     isCanBeResolved = true
+                    isVisible = false
                 }
 
-                dependencies.add("devserveRuntime", "com.airbnb.viaduct:devserve-runtime:${project.version}")
+                // Add devserve-runtime dependency
+                // Use Maven coordinates - dependency substitution in settings.gradle.kts
+                // will resolve this to the project dependency when in the Viaduct build
+                val version = ViaductPluginCommon.BOM.getDefaultVersion()
+                dependencies.add(devserveConfig.name, "com.airbnb.viaduct:devserve-runtime:$version")
+
+                // Get the runtime classpath
+                val runtimeClasspath = configurations.getByName("runtimeClasspath")
 
                 javaexec {
                     mainClass.set("viaduct.devserve.DevServeServerKt")
@@ -174,8 +179,8 @@ class ViaductApplicationPlugin : Plugin<Project> {
                     standardInput = System.`in`
 
                     // Pass system properties for configuration
-                    systemProperty("devserve.port", findProperty("devserve.port") ?: "8080")
-                    systemProperty("devserve.host", findProperty("devserve.host") ?: "0.0.0.0")
+                    systemProperty("devserve.port", project.findProperty("devserve.port") ?: "8080")
+                    systemProperty("devserve.host", project.findProperty("devserve.host") ?: "0.0.0.0")
                 }
             }
         }
