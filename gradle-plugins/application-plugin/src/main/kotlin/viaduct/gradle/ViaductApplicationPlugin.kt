@@ -49,6 +49,9 @@ class ViaductApplicationPlugin : Plugin<Project> {
             setupConsumableConfigurationForGRT(generateGRTsTask.flatMap { it.archiveFile })
 
             this.dependencies.add("api", files(generateGRTsTask.flatMap { it.archiveFile }))
+
+            // Setup devserve task
+            setupDevServeTask(generateGRTsTask)
         }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
@@ -142,6 +145,39 @@ class ViaductApplicationPlugin : Plugin<Project> {
                 )
             }
             outgoing.artifact(artifact)
+        }
+    }
+
+    private fun Project.setupDevServeTask(generateGRTsTask: TaskProvider<Jar>) {
+        tasks.register("devserve") {
+            group = "viaduct"
+            description = "Start the Viaduct development server with GraphiQL IDE"
+
+            // Ensure GRTs are generated before starting
+            dependsOn(generateGRTsTask)
+
+            doLast {
+                // Get the runtime classpath
+                val runtimeClasspath = configurations.getByName("runtimeClasspath")
+
+                // Add devserve runtime dependency
+                val devserveConfig = configurations.create("devserveRuntime") {
+                    isCanBeConsumed = false
+                    isCanBeResolved = true
+                }
+
+                dependencies.add("devserveRuntime", "com.airbnb.viaduct:devserve-runtime:${project.version}")
+
+                javaexec {
+                    mainClass.set("viaduct.devserve.DevServeServerKt")
+                    classpath = devserveConfig + runtimeClasspath
+                    standardInput = System.`in`
+
+                    // Pass system properties for configuration
+                    systemProperty("devserve.port", findProperty("devserve.port") ?: "8080")
+                    systemProperty("devserve.host", findProperty("devserve.host") ?: "0.0.0.0")
+                }
+            }
         }
     }
 

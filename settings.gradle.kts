@@ -35,6 +35,9 @@ include(":tenant:api-integration-tests")
 include(":tenant:runtime-integration-tests")
 include(":tenant:tutorials")
 
+// devserve
+include(":devserve:runtime")
+
 // misc
 include(":docs")
 includeNamed(":viaduct-bom", projectName = "bom")
