@@ -13,7 +13,11 @@ plugins {
 
 rootProject.name = "viaduct"
 
-includeBuild(".")
+includeBuild(".") {
+    dependencySubstitution {
+        substitute(module("com.airbnb.viaduct:devserve-runtime")).using(project(":devserve:runtime"))
+    }
+}
 includeBuild("included-builds/core")
 includeBuild("gradle-plugins") {
     dependencySubstitution {
@@ -34,6 +38,9 @@ include(":tenant:codegen-integration-tests")
 include(":tenant:api-integration-tests")
 include(":tenant:runtime-integration-tests")
 include(":tenant:tutorials")
+
+// devserve
+include(":devserve:runtime")
 
 // misc
 include(":docs")

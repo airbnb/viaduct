@@ -49,6 +49,9 @@ class ViaductApplicationPlugin : Plugin<Project> {
             setupConsumableConfigurationForGRT(generateGRTsTask.flatMap { it.archiveFile })
 
             this.dependencies.add("api", files(generateGRTsTask.flatMap { it.archiveFile }))
+
+            // Setup devserve task
+            setupDevServeTask(generateGRTsTask)
         }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
@@ -142,6 +145,44 @@ class ViaductApplicationPlugin : Plugin<Project> {
                 )
             }
             outgoing.artifact(artifact)
+        }
+    }
+
+    private fun Project.setupDevServeTask(generateGRTsTask: TaskProvider<Jar>) {
+        tasks.register("devserve") {
+            group = "viaduct"
+            description = "Start the Viaduct development server with GraphiQL IDE"
+
+            // Ensure GRTs are generated before starting
+            dependsOn(generateGRTsTask)
+
+            doLast {
+                // Create configuration at execution time for devserve dependencies
+                val devserveConfig = configurations.create("devserveRuntime") {
+                    isCanBeConsumed = false
+                    isCanBeResolved = true
+                    isVisible = false
+                }
+
+                // Add devserve-runtime dependency
+                // Use Maven coordinates - dependency substitution in settings.gradle.kts
+                // will resolve this to the project dependency when in the Viaduct build
+                val version = ViaductPluginCommon.BOM.getDefaultVersion()
+                dependencies.add(devserveConfig.name, "com.airbnb.viaduct:devserve-runtime:$version")
+
+                // Get the runtime classpath
+                val runtimeClasspath = configurations.getByName("runtimeClasspath")
+
+                javaexec {
+                    mainClass.set("viaduct.devserve.DevServeServerKt")
+                    classpath = devserveConfig + runtimeClasspath
+                    standardInput = System.`in`
+
+                    // Pass system properties for configuration
+                    systemProperty("devserve.port", project.findProperty("devserve.port") ?: "8080")
+                    systemProperty("devserve.host", project.findProperty("devserve.host") ?: "0.0.0.0")
+                }
+            }
         }
     }
 
