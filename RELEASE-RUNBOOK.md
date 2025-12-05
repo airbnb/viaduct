@@ -310,7 +310,7 @@ This workflow will:
   - Publish plugin artifacts to the Gradle Plugin Portal.
   - Stage a deployment to Sonatype.
   - Pushes a `v0.X.0` tag to Github.
-  - Create a draft Github release with changelog.
+  - Create a draft Github release.
 
 ### 9) Verify publications
 
