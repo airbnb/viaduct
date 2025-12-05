@@ -324,6 +324,8 @@ Once the artifacts are published, we need to update the standalone copies of the
   - `cli-starter` → `viaduct-graphql/cli-starter`
   - `ktor-starter` → `viaduct-graphql/ktor-starter`
 
+**It's important to do this on the release branch!**
+
 We do this with a copybara script. For each demoapp run:
 
 ```bash
