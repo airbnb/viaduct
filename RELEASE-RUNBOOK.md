@@ -181,7 +181,7 @@ Trigger comprehensive testing across all supported environments by running:
 
 ```shell
 gh workflow run ".github/workflows/trigger-all-builds.yml" \
---ref release/vX.Y.Z \
+--ref release/v0.X.0 \
 -f reason="Testing release candidate v0.X.0"
 ```
 
@@ -297,25 +297,24 @@ The release manager manually invokes a Github Action that uses `HEAD` of the rel
 
 ```
 gh workflow run ".github/workflows/release.yml" \
---ref main \
--f release_version=0.7.0 \
+-f publish_snapshot=false \
 -f previous_release_version=0.6.0 \
--f publish_snapshot=false
+-f release_version=0.7.0
 ```
+
+**Don't mix up `previous_release_version` and `release_version`**
 
 This workflow will:
 
   - Package release artifacts using Gradle.
   - Publish plugin artifacts to the Gradle Plugin Portal.
   - Stage a deployment to Sonatype.
-  - Pushes a `vX.Y.Z` tag to Github.
+  - Pushes a `v0.X.0` tag to Github.
   - Create a draft Github release with changelog.
 
 ### 9) Verify publications
 
-Log in to Sonatype and the Gradle Plugin Portal to verify the artifacts are live (credentials in shared 1Password vault).
-
-TODO: A bit more detail on this step...
+Log in to [Sonatype Maven Central](https://plugins.gradle.org/u/viaduct-maintainers) and the [Gradle Plugin Portal](https://plugins.gradle.org/u/viaduct-maintainers) to verify the artifacts are live (credentials in shared 1Password vault).
 
 ### 10) Publish and verify standalone apps
 
@@ -328,13 +327,16 @@ Once the artifacts are published, we need to update the standalone copies of the
 We do this with a copybara script. For each demoapp run:
 
 ```bash
-tools/copybara/run migrate \
-  .github/copybara/copy.bara.sky \
-  airbnb-viaduct-to-starwars \
-  --git-destination-url=git@github.com:viaduct-graphql/starwars.git \
-  --git-committer-email=viabot@ductworks.io \
-  --git-committer-name=viabot \
-  --force
+for i in cli-starter ktor-starter starwars; do
+  tools/copybara/run migrate \
+    .github/copybara/copy.bara.sky \
+    airbnb-viaduct-to-$i \
+    release/v0.X.0 \
+    --git-destination-url=git@github.com:viaduct-graphql/$i.git \
+    --git-committer-email=viabot@ductworks.io \
+    --git-committer-name=viabot \
+    --force
+  done
 ```
 
 You should have a local clone of each of these demoapp repository. After running updating their repos, pull the update to your local clone and verify that they pass their tests. For each demoapp:
@@ -383,7 +385,7 @@ Review one final time:
   - Version tag is correct (e.g., `v0.7.0`)
   - Target is the correct release branch
   - Changelog is complete and well-formatted
-  - ✅ **Check the "Set as the latest release" box** (very important!)
+  - ✅ **Ensure that "Set as the latest release" is checked** (very important!)
   - Click **"Publish release"**
 
 #### 11e) Verify publication
