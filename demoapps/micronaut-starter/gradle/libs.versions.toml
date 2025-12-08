@@ -1,13 +1,11 @@
 [versions]
-kotlin = "2.1.0"
-ksp = "2.1.0-1.0.29"
+kotlin = "2.2.0"
 micronaut = "4.7.4"
 micronautCore = "4.7.4"
 kotest = "5.8.0"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 micronaut = { id = "io.micronaut.application", version.ref = "micronaut" }
 viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
@@ -15,11 +13,9 @@ viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref =
 [libraries]
 # Common libraries
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
-viaduct-serve = { group = "com.airbnb.viaduct", name = "serve", version.ref = "viaduct" }
 
 # Micronaut
 micronaut-inject = { module = "io.micronaut:micronaut-inject", version.ref = "micronautCore" }
-micronaut-inject-kotlin = { module = "io.micronaut:micronaut-inject-kotlin", version.ref = "micronautCore" }
 micronaut-context = { module = "io.micronaut:micronaut-context", version.ref = "micronautCore" }
 
 # Testing
