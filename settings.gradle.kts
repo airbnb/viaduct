@@ -27,6 +27,7 @@ includeBuild("gradle-plugins") {
 includeBuild("demoapps/cli-starter")
 includeBuild("demoapps/jetty-starter")
 includeBuild("demoapps/ktor-starter")
+includeBuild("demoapps/micronaut-starter")
 includeBuild("demoapps/starwars")
 
 // integration tests
