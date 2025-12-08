@@ -8,14 +8,14 @@ import viaduct.service.api.Viaduct
 /**
  * Viaduct Server provider for Micronaut applications.
  *
- * This provider starts ONLY the Micronaut DI container (ApplicationContext),
- * NOT the full HTTP server. This provides fast startup for development while
- * still enabling dependency injection for resolvers.
+ * This provider starts a MINIMAL Micronaut DI container with limited package
+ * scanning - only loading the injector and resolver packages. This provides
+ * the fastest possible startup while still enabling dependency injection.
  *
  * Key benefits:
- * - Fast startup: No HTTP server initialization
- * - Full DI support: All @Singleton, @Factory beans are available
- * - Same resolver instances: Resolvers use the same DI as production
+ * - Minimal startup: Only scans specified packages, not the entire classpath
+ * - No HTTP server: Doesn't load controllers, filters, or server components
+ * - DI support: Resolvers can still have dependencies injected
  */
 @ViaductServerConfiguration
 class MicronautServerProvider : ViaductServerProvider {
@@ -23,9 +23,16 @@ class MicronautServerProvider : ViaductServerProvider {
     private var applicationContext: ApplicationContext? = null
 
     override fun getViaduct(): Viaduct {
-        // Start only the Micronaut DI container, NOT the HTTP server
-        // ApplicationContext.run() does not start the embedded server
-        val context = ApplicationContext.run()
+        // Start a minimal ApplicationContext with limited package scanning
+        // Only scan the packages needed for Viaduct:
+        // - injector: ViaductConfiguration, MicronautTenantCodeInjector
+        // - resolvers: Resolver implementations
+        val context = ApplicationContext.builder()
+            .packages(
+                "com.example.viadapp.injector",
+                "com.example.viadapp.resolvers"
+            )
+            .start()
         applicationContext = context
 
         // Get the Viaduct bean from the DI container
@@ -34,7 +41,6 @@ class MicronautServerProvider : ViaductServerProvider {
 
     /**
      * Clean up the application context when the server stops.
-     * This is called automatically by ViaductServer.
      */
     fun close() {
         applicationContext?.close()
