@@ -11,10 +11,6 @@ class StaticJsController {
     @Produces("application/javascript")
     fun jsxLoader(): HttpResponse<String> = serveJs("jsx-loader.js")
 
-    @Get("/introspection-patch.js")
-    @Produces("application/javascript")
-    fun introspectionPatch(): HttpResponse<String> = serveJs("introspection-patch.js")
-
     @Get("/global-id-plugin.jsx")
     @Produces("application/javascript")
     fun globalIdPlugin(): HttpResponse<String> = serveJs("global-id-plugin.jsx")

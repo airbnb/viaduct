@@ -13,8 +13,6 @@
  *  Customizations applied:
  *  - Changed title to "GraphiQL - Viaduct"
  *  - Changed endpoint from demo URL to "/graphql"
- *  - Added introspection-patch.js to fix GraphQL Java compatibility with GraphiQL 5
- *    (GraphQL Java omits empty arrays that GraphiQL 5 strictly requires)
  *  - Added global-id-plugin.jsx for encoding/decoding Viaduct Global IDs
  *  - Modified initialization to load plugins asynchronously
  *  - Added custom default query with usage instructions
@@ -74,7 +72,6 @@
     </script>
     <script type="module">
       import { loadJSX } from '/js/jsx-loader.js';
-      import { createPatchedFetcher } from '/js/introspection-patch.js';
 
       import React from 'react';
       import ReactDOM from 'react-dom/client';
@@ -83,10 +80,9 @@
       import { explorerPlugin } from '@graphiql/plugin-explorer';
       import 'graphiql/setup-workers/esm.sh';
 
-      const baseFetcher = createGraphiQLFetcher({
+      const fetcher = createGraphiQLFetcher({
         url: '/graphql',
       });
-      const fetcher = createPatchedFetcher(baseFetcher);
       // Load Viaduct plugins asynchronously
       async function loadPlugins() {
         try {

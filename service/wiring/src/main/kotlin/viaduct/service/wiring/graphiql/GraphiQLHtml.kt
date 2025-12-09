@@ -6,14 +6,13 @@ package viaduct.service.wiring.graphiql
  * The GraphiQL HTML is loaded from src/main/resources/graphiql/index.html and packaged
  * into the JAR at build time. The HTML uses CDN-hosted GraphiQL libraries and loads
  * custom plugins from separate JavaScript files:
- * - introspection-patch.js: Patches GraphQL Java introspection responses for GraphiQL 5 compatibility
  * - global-id-plugin.jsx: Provides Global ID encode/decode utilities
  *
  * ## Integration Example
  *
  * To integrate GraphiQL into your application, you need to:
  * 1. Serve the GraphiQL HTML at `/graphiql`
- * 2. Serve the JavaScript files at `/js/jsx-loader.js`, `/js/introspection-patch.js`, `/js/global-id-plugin.jsx`
+ * 2. Serve the JavaScript files at `/js/jsx-loader.js`, `/js/global-id-plugin.jsx`
  * 3. Have a GraphQL endpoint at `/graphql`
  *
  * ### Ktor Example
@@ -51,10 +50,6 @@ package viaduct.service.wiring.graphiql
  *     @Get("/jsx-loader.js")
  *     @Produces("application/javascript")
  *     fun jsxLoader() = serveJs("jsx-loader.js")
- *
- *     @Get("/introspection-patch.js")
- *     @Produces("application/javascript")
- *     fun introspectionPatch() = serveJs("introspection-patch.js")
  *
  *     @Get("/global-id-plugin.jsx")
  *     @Produces("application/javascript")
