@@ -9,17 +9,19 @@ import io.micronaut.http.annotation.Produces
 class StaticJsController {
     @Get("/jsx-loader.js")
     @Produces("application/javascript")
-    fun jsxLoader(): HttpResponse<String> {
-        val resource = this::class.java.classLoader.getResource("graphiql/js/jsx-loader.js")
-        val content = resource?.readText() ?: return HttpResponse.notFound()
-        return HttpResponse.ok(content).contentType("application/javascript")
-    }
+    fun jsxLoader(): HttpResponse<String> = serveJs("jsx-loader.js")
+
+    @Get("/introspection-patch.js")
+    @Produces("application/javascript")
+    fun introspectionPatch(): HttpResponse<String> = serveJs("introspection-patch.js")
 
     @Get("/global-id-plugin.jsx")
     @Produces("application/javascript")
-    fun globalIdPlugin(): HttpResponse<String> {
-        val resource = this::class.java.classLoader.getResource("graphiql/js/global-id-plugin.jsx")
-        val content = resource?.readText() ?: return HttpResponse.notFound()
-        return HttpResponse.ok(content).contentType("application/javascript")
+    fun globalIdPlugin(): HttpResponse<String> = serveJs("global-id-plugin.jsx")
+
+    private fun serveJs(filename: String): HttpResponse<String> {
+        val resource = this::class.java.classLoader.getResource("graphiql/js/$filename")
+            ?: return HttpResponse.notFound()
+        return HttpResponse.ok(resource.readText()).contentType("application/javascript")
     }
 }
