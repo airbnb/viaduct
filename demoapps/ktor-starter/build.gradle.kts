@@ -15,6 +15,24 @@ viaductApplication {
     applyBOM.set(false)
 }
 
+// Create a separate source set for development-only code
+sourceSets {
+    create("dev") {
+        kotlin.srcDir("src/dev/kotlin")
+        compileClasspath += sourceSets.main.get().output
+        runtimeClasspath += sourceSets.main.get().output
+    }
+}
+
+// Dev source set configurations extend from main
+val devImplementation by configurations.getting {
+    extendsFrom(configurations.implementation.get())
+}
+
+val devRuntimeOnly by configurations.getting {
+    extendsFrom(configurations.runtimeOnly.get())
+}
+
 dependencies {
     implementation(libs.viaduct.api)
     implementation(libs.viaduct.runtime)
@@ -38,6 +56,9 @@ dependencies {
 
     implementation(project(":resolvers"))
 
+    // Development-only: serve dependency for ViaductServer integration
+    devImplementation(libs.viaduct.serve)
+
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.junit.jupiter)
@@ -56,4 +77,10 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// The serve task (from viaduct.application plugin) should include dev classes
+tasks.named<JavaExec>("serve") {
+    classpath += sourceSets["dev"].output
+    classpath += sourceSets["dev"].runtimeClasspath
 }

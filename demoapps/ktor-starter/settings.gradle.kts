@@ -9,6 +9,7 @@ pluginManagement {
         includeBuild("../../gradle-plugins")
     } else {
         repositories {
+            mavenLocal()
             mavenCentral()
             gradlePluginPortal()
         }
@@ -17,6 +18,7 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositories {
+        mavenLocal()
         mavenCentral()
         gradlePluginPortal()
     }

@@ -1,6 +1,9 @@
 package com.example.viadapp.resolvers.di
 
 import com.example.viadapp.resolvers.AsciiArtResolver
+import com.example.viadapp.resolvers.AuthorResolver
+import com.example.viadapp.resolvers.HelloWorldResolver
+import com.example.viadapp.resolvers.ThrowExceptionResolver
 import com.example.viadapp.resolvers.service.AsciiArtService
 import org.koin.dsl.module
 
@@ -23,5 +26,9 @@ val resolversModule = module {
     single { AsciiArtService() }
 
     // Resolvers - factory creates new instance per invocation (per GraphQL field resolution)
+    // All resolvers must be registered here for Koin-based instantiation
+    factory { HelloWorldResolver() }
+    factory { AuthorResolver() }
+    factory { ThrowExceptionResolver() }
     factory { AsciiArtResolver(get()) }
 }

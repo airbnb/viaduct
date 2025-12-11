@@ -18,6 +18,7 @@ viaduct-bom = { group = "com.airbnb.viaduct", name = "bom", version.ref = "viadu
 viaduct-api = { group = "com.airbnb.viaduct", name = "api" }
 viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime" }
 viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures" }
+viaduct-serve = { group = "com.airbnb.viaduct", name = "serve", version.ref = "viaduct" }
 
 # Common libraries
 jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin" }

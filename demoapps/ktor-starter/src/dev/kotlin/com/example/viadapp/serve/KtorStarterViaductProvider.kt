@@ -6,7 +6,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
-import viaduct.serve.ViaductConfiguration
+import viaduct.serve.ViaductServerConfiguration
 import viaduct.serve.ViaductProvider
 import viaduct.service.api.Viaduct
 
@@ -24,7 +24,7 @@ import viaduct.service.api.Viaduct
  * - **Serve mode** (`./gradlew serve`): Koin is initialized here
  * - **Ktor mode** (`./gradlew run`): Koin is already initialized by Plugins.kt
  */
-@ViaductConfiguration
+@ViaductServerConfiguration
 class KtorStarterViaductProvider : ViaductProvider, KoinComponent {
 
     // Lazy inject Viaduct from Koin
