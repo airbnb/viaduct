@@ -2,8 +2,6 @@ package com.example.viadapp.di
 
 import com.example.viadapp.SCHEMA_ID
 import com.example.viadapp.injector.KoinTenantCodeInjector
-import com.example.viadapp.injector.KoinTenantResolverClassFinderFactory
-import com.example.viadapp.resolvers.di.resolverClasses
 import org.koin.dsl.module
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.service.api.Viaduct
@@ -17,10 +15,10 @@ private const val TENANT_PACKAGE_PREFIX = "com.example.viadapp"
  *
  * The Viaduct is registered as a singleton, configured to use:
  * - [KoinTenantCodeInjector] for resolver instantiation via Koin
- * - [KoinTenantResolverClassFinderFactory] for resolver discovery from [resolverClasses]
+ * - Default classpath scanning for resolver discovery
  *
- * This makes Koin the source of truth for both resolver discovery and instantiation,
- * similar to how Spring manages Viaduct in the starwars demo app.
+ * This allows resolvers to use constructor injection for dependencies while
+ * Viaduct handles discovery automatically via classpath scanning.
  */
 val viaductModule = module {
     single<Viaduct> {
@@ -29,7 +27,6 @@ val viaductModule = module {
         val tenantAPIBootstrapper = ViaductTenantAPIBootstrapper.Builder()
             .tenantPackagePrefix(TENANT_PACKAGE_PREFIX)
             .tenantCodeInjector(KoinTenantCodeInjector(koin))
-            .tenantResolverClassFinderFactory(KoinTenantResolverClassFinderFactory(resolverClasses))
             .create()
 
         val schemaConfiguration = SchemaConfiguration.fromResources(
