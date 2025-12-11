@@ -1,5 +1,6 @@
 [versions]
 coroutinesReactor = "1.10.2"
+koin = "3.5.6"
 kotest = "6.0.5"
 kotlin = "2.2.21"
 reactor = "3.8.0"
@@ -32,6 +33,13 @@ ktor-server-jetty = { group = "io.ktor", name = "ktor-server-jetty" }
 ktor-server-content-negotiation = { group = "io.ktor", name = "ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-server-config-yaml = { group = "io.ktor", name = "ktor-server-config-yaml" }
 ktor-serialization-jackson = { group = "io.ktor", name = "ktor-serialization-jackson", version.ref = "ktor" }
+
+# Koin DI
+koin-core = { group = "io.insert-koin", name = "koin-core", version.ref = "koin" }
+koin-ktor = { group = "io.insert-koin", name = "koin-ktor", version.ref = "koin" }
+koin-logger-slf4j = { group = "io.insert-koin", name = "koin-logger-slf4j", version.ref = "koin" }
+koin-test = { group = "io.insert-koin", name = "koin-test", version.ref = "koin" }
+koin-test-junit5 = { group = "io.insert-koin", name = "koin-test-junit5", version.ref = "koin" }
 
 # Testing
 ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host" }

@@ -1,6 +1,5 @@
 package com.example.viadapp
 
-import com.example.viadapp.injector.ViaductConfiguration
 import graphql.ExecutionResult
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -14,10 +13,13 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.future.await
+import org.koin.ktor.ext.inject
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.Viaduct
 
 fun Application.configureRouting() {
-    val viaduct = ViaductConfiguration.viaductService
+    // Get Viaduct from Koin - it's registered as a singleton in viaductModule
+    val viaduct by inject<Viaduct>()
 
     routing {
         get("/graphiql") {

@@ -31,11 +31,18 @@ dependencies {
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.config.yaml)
 
+    // Koin DI
+    implementation(libs.koin.core)
+    implementation(libs.koin.ktor)
+    implementation(libs.koin.logger.slf4j)
+
     implementation(project(":resolvers"))
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.koin.test)
+    testImplementation(libs.koin.test.junit5)
 
     testRuntimeOnly(libs.junit.platform.launcher)
 

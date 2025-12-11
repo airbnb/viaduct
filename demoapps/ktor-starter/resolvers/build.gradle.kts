@@ -13,4 +13,5 @@ viaductModule {
 dependencies {
     api(libs.viaduct.api)
     implementation(libs.viaduct.runtime)
+    implementation(libs.koin.core)
 }

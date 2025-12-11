@@ -215,4 +215,31 @@ class HelloWorldTest {
             }
             """.trimIndent()
         }
+
+    @Test
+    fun `Query ASCII Art via Koin DI`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                setBody(
+                    """
+                {
+                    "query":"query AsciiArt { asciiArt }"
+                }
+                    """.trimIndent()
+                )
+            }
+
+            response.status shouldBe HttpStatusCode.OK
+            // Verify we get ASCII art data (contains "Viaduct" text)
+            val body = response.bodyAsText()
+            body.contains("Viaduct") shouldBe true
+            body.contains("data") shouldBe true
+            body.contains("asciiArt") shouldBe true
+        }
 }
