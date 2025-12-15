@@ -25,3 +25,4 @@ plugins {
 includeNamed(":common")
 includeNamed(":application-plugin")
 includeNamed(":module-plugin")
+includeNamed(":serve-runtime")

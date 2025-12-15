@@ -20,7 +20,7 @@ import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 
-class ViaductApplicationPlugin : Plugin<Project> {
+abstract class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             require(this == rootProject) {
@@ -49,6 +49,9 @@ class ViaductApplicationPlugin : Plugin<Project> {
             setupConsumableConfigurationForGRT(generateGRTsTask.flatMap { it.archiveFile })
 
             this.dependencies.add("api", files(generateGRTsTask.flatMap { it.archiveFile }))
+
+            // Setup serve task
+            setupServeTask(generateGRTsTask)
         }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
@@ -142,6 +145,80 @@ class ViaductApplicationPlugin : Plugin<Project> {
                 )
             }
             outgoing.artifact(artifact)
+        }
+    }
+
+    private fun Project.setupServeTask(generateGRTsTask: TaskProvider<Jar>) {
+        // Create configuration at configuration time (not execution time) so dependency substitution works
+        val serveConfig = configurations.create("serveRuntime") {
+            isCanBeConsumed = false
+            isCanBeResolved = true
+            isVisible = false
+            // Add attributes for proper runtime classpath resolution with composite builds
+            attributes {
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+                attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
+                attribute(
+                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                    objects.named(LibraryElements::class.java, LibraryElements.JAR)
+                )
+            }
+        }
+
+        // Add serve dependency after evaluation
+        afterEvaluate {
+            // Gradle automatically substitutes with local :serve project in composite builds.
+            // External standalone projects will resolve from Maven Central.
+            val version = ViaductPluginCommon.BOM.getDefaultVersion()
+            dependencies.add(serveConfig.name, "com.airbnb.viaduct:serve:$version")
+
+            // Also add serve as compileOnly so the provider class can be compiled with the annotation
+            dependencies.add("compileOnly", "com.airbnb.viaduct:serve:$version")
+        }
+
+        // Capture configuration-time values for use in task (configuration cache safe)
+        val isContinuousMode = gradle.startParameter.isContinuous
+        val servePort = project.findProperty("serve.port")?.toString() ?: "8080"
+        val serveHost = project.findProperty("serve.host")?.toString() ?: "0.0.0.0"
+        val servePackagePrefix = project.findProperty("serve.packagePrefix")?.toString()
+
+        tasks.register<org.gradle.api.tasks.JavaExec>("serve") {
+            group = "viaduct"
+            description = "Start the Viaduct development server with GraphiQL IDE. Use: ./gradlew --continuous serve -Pserve.packagePrefix=com.example.app"
+
+            // Ensure GRTs are generated and classes are compiled before starting
+            dependsOn(generateGRTsTask)
+            dependsOn("classes")
+
+            mainClass.set("viaduct.serve.ServeServerKt")
+
+            // Configure classpath lazily to include both serve module and app classes
+            classpath = files(
+                serveConfig,
+                project.extensions.getByType(org.gradle.api.tasks.SourceSetContainer::class.java)
+                    .getByName("main").output,
+                configurations.getByName("runtimeClasspath")
+            )
+
+            // Pass system properties for port, host, and package prefix
+            systemProperty("serve.port", servePort)
+            systemProperty("serve.host", serveHost)
+            if (servePackagePrefix != null) {
+                systemProperty("serve.packagePrefix", servePackagePrefix)
+            }
+
+            // Enable standard I/O
+            standardInput = System.`in`
+
+            doFirst {
+                logger.lifecycle("Starting Viaduct Development Server...")
+                logger.lifecycle("GraphiQL IDE will be available at: http://$serveHost:$servePort/graphiql")
+                if (!isContinuousMode) {
+                    logger.lifecycle("")
+                    logger.lifecycle("TIP: Run with --continuous flag for automatic reload on code changes:")
+                    logger.lifecycle("     ./gradlew --continuous serve")
+                }
+            }
         }
     }
 
