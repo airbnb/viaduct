@@ -26,10 +26,13 @@ plugins {
 Start the development server with automatic reloading:
 
 ```shell
-./gradlew --continuous serve -Pserve.packagePrefix=com.example.app
+./gradlew --continuous serve
 ```
 
-Replace `com.example.app` with your application's package prefix (the value from `viaductApplication.modulePackagePrefix` in your `build.gradle.kts`).
+The serve task automatically uses configuration from your `viaductApplication` extension in `build.gradle.kts`:
+- **Package prefix**: Uses `viaductApplication.modulePackagePrefix` to discover your resolvers
+- **Port**: Defaults to 8080 (configurable via `viaductApplication.servePort`)
+- **Host**: Defaults to 0.0.0.0 (configurable via `viaductApplication.serveHost`)
 
 This is the recommended way to run the development server. When you change source files:
 1. Gradle detects the change
@@ -43,7 +46,7 @@ The server provides:
 
 Press `Ctrl+C` to stop.
 
-**Note**: The `serve.packagePrefix` property is only required when **not** using a custom `@ViaductServerConfiguration` provider. If you have a `@ViaductServerConfiguration` annotated class, the packagePrefix is ignored.
+**Note**: If you have a custom `@ViaductServerConfiguration` provider, the package prefix from the extension is ignored as your provider controls Viaduct instantiation.
 
 ## Configuring Dependency Injection
 
@@ -99,12 +102,12 @@ class MyServerProvider : ViaductServerProvider {
 
 ### Without @ViaductServerConfiguration (Default Mode)
 
-If no `@ViaductServerConfiguration` annotated class is found, the serve server falls back to default mode using the provided `serve.packagePrefix`. In this mode:
+If no `@ViaductServerConfiguration` annotated class is found, the serve server falls back to default mode using `viaductApplication.modulePackagePrefix` from your build configuration. In this mode:
 
 - **Dependency injection is NOT available**
 - Only `@Resolver` classes with zero-argument constructors work
 - Resolvers requiring injected dependencies will fail
-- **You must specify the package prefix**: `-Pserve.packagePrefix=com.example.app`
+- **Package prefix is read from `viaductApplication.modulePackagePrefix`**
 
 You will see this warning when running in default mode:
 
@@ -122,47 +125,47 @@ You will see this warning when running in default mode:
 ╚════════════════════════════════════════════════════════════════════════════╝
 ```
 
-If you forget to specify the package prefix, you'll see an error:
+If `viaductApplication.modulePackagePrefix` is not set in your build configuration, you'll see an error:
 
 ```
-No @ViaductServerConfiguration found and no packagePrefix provided.
-Either create a @ViaductServerConfiguration provider class or specify the package prefix:
-  ./gradlew serve -Pserve.packagePrefix=com.example.app
+No @ViaductServerConfiguration found and no packagePrefix configured.
+Either:
+  1. Create a @ViaductServerConfiguration provider class, OR
+  2. Set viaductApplication.modulePackagePrefix in your build.gradle.kts
 ```
 
 **Recommendation**: If your resolvers have any dependencies, create a `@ViaductServerConfiguration` class.
 
 ## Configuration Options
 
-### Package Prefix
+### In build.gradle.kts (Recommended)
 
-The package prefix is required when using default mode (no `@ViaductServerConfiguration`):
+Configure serve settings in your `build.gradle.kts` using the `viaductApplication` extension:
 
-```shell
-./gradlew --continuous serve -Pserve.packagePrefix=com.example.app
+```kotlin
+viaductApplication {
+    modulePackagePrefix.set("com.example.app")  // Used for resolver discovery in default mode
+    servePort.set(3000)                         // Default: 8080
+    serveHost.set("127.0.0.1")                  // Default: 0.0.0.0
+}
 ```
 
-Or set it in your `gradle.properties` file:
+### Using Gradle Properties (Override)
 
-```properties
-serve.packagePrefix=com.example.app
-```
-
-### Custom Port and Host
-
-Customize the port and host using Gradle properties:
+You can override these settings at runtime using Gradle properties:
 
 ```shell
-./gradlew --continuous serve -Pserve.packagePrefix=com.example.app -Pserve.port=3000 -Pserve.host=127.0.0.1
+./gradlew --continuous serve -Pserve.port=3000 -Pserve.host=127.0.0.1
 ```
 
 Or set them in your `gradle.properties` file:
 
 ```properties
-serve.packagePrefix=com.example.app
 serve.port=3000
 serve.host=127.0.0.1
 ```
+
+**Note**: Property overrides take precedence over extension settings, allowing temporary configuration changes without modifying build files.
 
 ## Development Workflow
 
@@ -170,7 +173,7 @@ serve.host=127.0.0.1
 
 1. Start the server in continuous mode:
    ```shell
-   ./gradlew --continuous serve -Pserve.packagePrefix=com.example.app
+   ./gradlew --continuous serve
    ```
 
 2. Open GraphiQL in your browser: `http://localhost:8080/graphiql`
@@ -236,7 +239,7 @@ If port 8080 is already in use, either:
 If you need to run the server without auto-reloading:
 
 ```shell
-./gradlew serve -Pserve.packagePrefix=com.example.app
+./gradlew serve
 ```
 
 Note: In this mode, you must manually stop and restart the server after making changes.
