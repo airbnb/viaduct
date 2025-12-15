@@ -1,6 +1,10 @@
+import org.gradle.api.tasks.Copy
+
 plugins {
     id("buildroot.orchestration")
     id("buildroot.versioning")
+    id("conventions.copy-githooks")
+    id("conventions.bcv-root")
     jacoco
     `jacoco-report-aggregation`
 }

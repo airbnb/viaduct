@@ -7,6 +7,7 @@ plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     id("conventions.dokka")
+    id("conventions.bcv-api")
 }
 
 viaductPublishing {

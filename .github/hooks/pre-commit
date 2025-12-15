@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[bcv] Generating api dump files..."
+
+# 1) Regenerate API dumps
+./gradlew runApiDump
+
+# 2) Stage updated .api files (adjust glob if needed)
+api_files=$(git ls-files '**/api/*.api' 2>/dev/null || true)
+if [ -z "${api_files}" ]; then
+  echo "[bcv] No tracked .api files found after dump. Nothing to stage."
+  exit 0
+fi
+
+if git diff --quiet -- $api_files; then
+  echo "[bcv] No API changes detected."
+  exit 0
+fi
+
+git add ${api_files}
+
+echo
+echo "You are likely introducing a breaking change to the public API."
+echo "Please review your changes and the .api diffs, amend those files before push."
+echo
+
+exit 0

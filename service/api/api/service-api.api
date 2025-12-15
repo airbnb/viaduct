@@ -1,0 +1,169 @@
+public abstract interface class viaduct/service/api/ExecutionInput {
+	public static final field Companion Lviaduct/service/api/ExecutionInput$Companion;
+	public abstract fun getExecutionId ()Ljava/lang/String;
+	public abstract fun getOperationId ()Ljava/lang/String;
+	public abstract fun getOperationName ()Ljava/lang/String;
+	public abstract fun getOperationText ()Ljava/lang/String;
+	public abstract fun getRequestContext ()Ljava/lang/Object;
+	public abstract fun getVariables ()Ljava/util/Map;
+}
+
+public final class viaduct/service/api/ExecutionInput$Builder {
+	public fun <init> ()V
+	public final fun build ()Lviaduct/service/api/ExecutionInput;
+	public final fun executionId (Ljava/lang/String;)Lviaduct/service/api/ExecutionInput$Builder;
+	public final fun operationId (Ljava/lang/String;)Lviaduct/service/api/ExecutionInput$Builder;
+	public final fun operationName (Ljava/lang/String;)Lviaduct/service/api/ExecutionInput$Builder;
+	public final fun operationText (Ljava/lang/String;)Lviaduct/service/api/ExecutionInput$Builder;
+	public final fun requestContext (Ljava/lang/Object;)Lviaduct/service/api/ExecutionInput$Builder;
+	public final fun variables (Ljava/util/Map;)Lviaduct/service/api/ExecutionInput$Builder;
+}
+
+public final class viaduct/service/api/ExecutionInput$Companion {
+	public final fun builder ()Lviaduct/service/api/ExecutionInput$Builder;
+	public final fun create (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Object;)Lviaduct/service/api/ExecutionInput;
+	public static synthetic fun create$default (Lviaduct/service/api/ExecutionInput$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Object;ILjava/lang/Object;)Lviaduct/service/api/ExecutionInput;
+}
+
+public abstract class viaduct/service/api/SchemaId {
+	public fun <init> (Ljava/lang/String;)V
+	public fun getId ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class viaduct/service/api/SchemaId$Full : viaduct/service/api/SchemaId {
+	public static final field INSTANCE Lviaduct/service/api/SchemaId$Full;
+}
+
+public final class viaduct/service/api/SchemaId$None : viaduct/service/api/SchemaId {
+	public static final field INSTANCE Lviaduct/service/api/SchemaId$None;
+}
+
+public final class viaduct/service/api/SchemaId$Scoped : viaduct/service/api/SchemaId {
+	public fun <init> (Ljava/lang/String;Ljava/util/Set;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/Set;
+	public final fun copy (Ljava/lang/String;Ljava/util/Set;)Lviaduct/service/api/SchemaId$Scoped;
+	public static synthetic fun copy$default (Lviaduct/service/api/SchemaId$Scoped;Ljava/lang/String;Ljava/util/Set;ILjava/lang/Object;)Lviaduct/service/api/SchemaId$Scoped;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getId ()Ljava/lang/String;
+	public final fun getScopeIds ()Ljava/util/Set;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class viaduct/service/api/Viaduct {
+	public abstract fun execute (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;)Lgraphql/ExecutionResult;
+	public abstract fun executeAsync (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getAppliedScopes (Lviaduct/service/api/SchemaId;)Ljava/util/Set;
+	public abstract fun getSchema (Lviaduct/service/api/SchemaId;)Lviaduct/engine/api/ViaductSchema;
+}
+
+public final class viaduct/service/api/Viaduct$DefaultImpls {
+	public static synthetic fun execute$default (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;ILjava/lang/Object;)Lgraphql/ExecutionResult;
+	public static synthetic fun executeAsync$default (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public abstract interface class viaduct/service/api/spi/Flag {
+	public abstract fun getFlagName ()Ljava/lang/String;
+}
+
+public abstract interface class viaduct/service/api/spi/FlagManager {
+	public abstract fun isEnabled (Lviaduct/service/api/spi/Flag;)Z
+}
+
+public final class viaduct/service/api/spi/FlagManager$default : viaduct/service/api/spi/FlagManager {
+	public static final field INSTANCE Lviaduct/service/api/spi/FlagManager$default;
+	public fun isEnabled (Lviaduct/service/api/spi/Flag;)Z
+}
+
+public final class viaduct/service/api/spi/FlagManager$disabled : viaduct/service/api/spi/FlagManager {
+	public static final field INSTANCE Lviaduct/service/api/spi/FlagManager$disabled;
+	public fun isEnabled (Lviaduct/service/api/spi/Flag;)Z
+}
+
+public final class viaduct/service/api/spi/Flags : java/lang/Enum, viaduct/service/api/spi/Flag {
+	public static final field DISABLE_QUERY_PLAN_CACHE Lviaduct/service/api/spi/Flags;
+	public static final field EXECUTE_ACCESS_CHECKS_IN_MODERN_EXECUTION_STRATEGY Lviaduct/service/api/spi/Flags;
+	public fun getFlagName ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lviaduct/service/api/spi/Flags;
+	public static fun values ()[Lviaduct/service/api/spi/Flags;
+}
+
+public abstract interface class viaduct/service/api/spi/GlobalIDCodec {
+	public abstract fun deserialize (Ljava/lang/String;)Lkotlin/Pair;
+	public abstract fun serialize (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class viaduct/service/api/spi/NaiveTenantCodeInjector : viaduct/service/api/spi/TenantCodeInjector {
+	public fun <init> ()V
+	public final fun getConstructorCache ()Ljava/util/concurrent/ConcurrentHashMap;
+	public fun getProvider (Ljava/lang/Class;)Ljavax/inject/Provider;
+}
+
+public abstract interface class viaduct/service/api/spi/ResolverErrorBuilder {
+	public static final field Companion Lviaduct/service/api/spi/ResolverErrorBuilder$Companion;
+	public abstract fun exceptionToGraphQLError (Ljava/lang/Throwable;Lgraphql/schema/DataFetchingEnvironment;Lviaduct/service/api/spi/ResolverErrorReporter$Companion$ErrorMetadata;)Ljava/util/List;
+}
+
+public final class viaduct/service/api/spi/ResolverErrorBuilder$Companion {
+	public final fun getNoOpResolverErrorBuilder ()Lviaduct/service/api/spi/ResolverErrorBuilder;
+}
+
+public abstract interface class viaduct/service/api/spi/ResolverErrorReporter {
+	public static final field Companion Lviaduct/service/api/spi/ResolverErrorReporter$Companion;
+	public abstract fun reportError (Ljava/lang/Throwable;Lgraphql/schema/GraphQLFieldDefinition;Lgraphql/schema/DataFetchingEnvironment;Ljava/lang/String;Lviaduct/service/api/spi/ResolverErrorReporter$Companion$ErrorMetadata;)V
+}
+
+public final class viaduct/service/api/spi/ResolverErrorReporter$Companion {
+	public final fun getNoOpResolverErrorReporter ()Lviaduct/service/api/spi/ResolverErrorReporter;
+}
+
+public final class viaduct/service/api/spi/ResolverErrorReporter$Companion$ErrorMetadata {
+	public static final field Companion Lviaduct/service/api/spi/ResolverErrorReporter$Companion$ErrorMetadata$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/Boolean;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/lang/String;)Lviaduct/service/api/spi/ResolverErrorReporter$Companion$ErrorMetadata;
+	public static synthetic fun copy$default (Lviaduct/service/api/spi/ResolverErrorReporter$Companion$ErrorMetadata;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lviaduct/service/api/spi/ResolverErrorReporter$Companion$ErrorMetadata;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getErrorType ()Ljava/lang/String;
+	public final fun getFieldName ()Ljava/lang/String;
+	public final fun getOperationName ()Ljava/lang/String;
+	public final fun getParentType ()Ljava/lang/String;
+	public final fun getResolvers ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun isFrameworkError ()Ljava/lang/Boolean;
+	public final fun toMap ()Ljava/util/Map;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class viaduct/service/api/spi/ResolverErrorReporter$Companion$ErrorMetadata$Companion {
+	public final fun getEMPTY ()Lviaduct/service/api/spi/ResolverErrorReporter$Companion$ErrorMetadata;
+}
+
+public abstract interface class viaduct/service/api/spi/TenantAPIBootstrapperBuilder {
+	public abstract fun create ()Lviaduct/engine/api/TenantAPIBootstrapper;
+}
+
+public abstract interface class viaduct/service/api/spi/TenantCodeInjector {
+	public static final field Companion Lviaduct/service/api/spi/TenantCodeInjector$Companion;
+	public abstract fun getProvider (Ljava/lang/Class;)Ljavax/inject/Provider;
+}
+
+public final class viaduct/service/api/spi/TenantCodeInjector$Companion {
+	public final fun getNaive ()Lviaduct/service/api/spi/TenantCodeInjector;
+}
+
+public final class viaduct/service/api/spi/globalid/GlobalIDCodecDefault : viaduct/service/api/spi/GlobalIDCodec {
+	public static final field INSTANCE Lviaduct/service/api/spi/globalid/GlobalIDCodecDefault;
+	public fun deserialize (Ljava/lang/String;)Lkotlin/Pair;
+	public fun serialize (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+}
+

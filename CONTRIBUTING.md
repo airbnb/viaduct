@@ -90,6 +90,23 @@ To build and publish all Viaduct artifacts to your local Maven repository:
 
 This will publish all Viaduct libraries and Gradle plugins to your local Maven repository. You can then use these artifacts in your own projects by adding `mavenLocal()` to your repositories list. The version of the artifacts will be `0.0.0-SNAPSHOT`.
 
+## Binary compatibility validation (BCV)
+
+Viaduct uses the Kotlin Binary Compatibility Validator Gradle plugin
+(`org.jetbrains.kotlinx.binary-compatibility-validator`) to track and enforce
+the public binary API of selected modules.
+
+BCV works by generating and checking `.api` signature files for modules that
+apply the BCV convention plugin.
+
+Developers should amend those `.api` files when making intentional, public API changes
+
+There is an existing git hook to help with this process. If you don't have it installed, run:
+
+```bash
+./gradlew runApiDump
+```
+
 ## Tests
 
 Run tests with:

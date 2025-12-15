@@ -5,6 +5,7 @@ project = "INCLUDED"
 # Libraries
 assertj = "3.27.6"
 antlr-st4 = "4.3.1"
+binaryCompatibility = "0.18.1"
 caffeine = "2.9.3"
 classgraph = "4.8.177"
 clikt = "3.5.4"
@@ -85,6 +86,7 @@ viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version
 
 # Kotlin
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+kotlinx-binary-compatibility-validator = { module = "org.jetbrains.kotlinx:binary-compatibility-validator", version.ref = "binaryCompatibility" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx" }
 kotlinx-coroutines-core-jvm = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm", version.ref = "kotlinx" }
 kotlinx-coroutines-debug = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-debug", version.ref = "kotlinx-debug" }
