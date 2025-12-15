@@ -97,7 +97,7 @@ Viaduct uses the Kotlin Binary Compatibility Validator Gradle plugin
 the public binary API of selected modules.
 
 BCV works by generating and checking `.api` signature files for modules that
-apply the BCV convention plugin.
+apply the BCV convention plugin `id("conventions.bcv-api")`, like `:tenant:api` and `:service:api`.
 
 Developers should amend those `.api` files when making intentional executing :
 

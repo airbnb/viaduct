@@ -12,7 +12,7 @@ package conventions
 
 tasks.register("runApiDump") {
     group = "verification"
-    description = "Runs  apiDump on all modules in this build that define an apiDump task."
+    description = "Runs apiDump on all modules in this build that define an apiDump task."
 
     dependsOn(
         subprojects.mapNotNull { p ->
