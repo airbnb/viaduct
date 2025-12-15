@@ -20,6 +20,6 @@ class GraphiQLController {
     fun graphiql(): HttpResponse<String> {
         val resource = this::class.java.classLoader.getResource("graphiql/index.html")
         val content = resource?.readText() ?: return HttpResponse.notFound()
-        return HttpResponse.ok(content).contentType(MediaType.TEXT_HTML) // AND THIS
+        return HttpResponse.ok(content).contentType(MediaType.TEXT_HTML)
     }
 }

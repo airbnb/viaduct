@@ -5,12 +5,24 @@
  *  This source code is licensed under the license found in the
  *  LICENSE file in the root directory of this source tree.
 -->
+<!--
+ *  VIADUCT CUSTOMIZATIONS:
+ *  This file is generated from the official GraphiQL CDN example and customized for Viaduct.
+ *  DO NOT EDIT MANUALLY - regenerate using: ./gradlew :core:service:service-wiring:generateGraphiQLHtml
+ *
+ *  Customizations applied:
+ *  - Changed title to "GraphiQL - Viaduct"
+ *  - Changed endpoint from demo URL to "/graphql"
+ *  - Added global-id-plugin.jsx for encoding/decoding Viaduct Global IDs
+ *  - Modified initialization to load plugins asynchronously
+ *  - Added custom default query with usage instructions
+-->
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GraphiQL 5 with React 19 and GraphiQL Explorer</title>
+    <title>GraphiQL - Viaduct</title>
     <style>
       body {
         margin: 0;
@@ -61,66 +73,51 @@
       }
     </script>
     <script type="module">
+      import { loadJSX } from '/js/jsx-loader.js';
+
       import React from 'react';
       import ReactDOM from 'react-dom/client';
       import { GraphiQL, HISTORY_PLUGIN } from 'graphiql';
       import { createGraphiQLFetcher } from '@graphiql/toolkit';
       import { explorerPlugin } from '@graphiql/plugin-explorer';
-      import { loadJSX } from '/js/jsx-loader.js';
       import 'graphiql/setup-workers/esm.sh';
 
       const fetcher = createGraphiQLFetcher({
         url: '/graphql',
       });
-
-      // Load JSX plugin and initialize
-      async function initializeGraphiQL() {
+      // Load Viaduct plugins asynchronously
+      async function loadPlugins() {
         try {
           const pluginModule = await loadJSX('/js/global-id-plugin.jsx');
           const createGlobalIdPlugin = pluginModule.createGlobalIdPlugin;
-
-          // Create plugins
-          const explorer = explorerPlugin();
           const globalIdPlugin = createGlobalIdPlugin(React);
-          const plugins = [HISTORY_PLUGIN, explorer, globalIdPlugin];
-
-          // Initialize GraphiQL with plugins
-          renderGraphiQL(plugins);
+          return [HISTORY_PLUGIN, explorerPlugin(), globalIdPlugin];
         } catch (error) {
-          console.error('Failed to load JSX plugin:', error);
-          // Fallback: render GraphiQL without the global ID plugin
-          const explorer = explorerPlugin();
-          const plugins = [HISTORY_PLUGIN, explorer];
-          renderGraphiQL(plugins);
+          console.error('Failed to load Viaduct Global ID plugin:', error);
+          return [HISTORY_PLUGIN, explorerPlugin()];
         }
       }
 
-      function renderGraphiQL(plugins) {
-        const defaultQuery = `
+      async function initGraphiQL() {
+        const plugins = await loadPlugins();
+        const explorer = plugins.find(p => p.title === 'Explorer');
+        const defaultQuery = `# Welcome to Viaduct GraphiQL!
+#
+# Start typing your GraphQL query here.
+# Press Ctrl+Space for autocomplete.
+# Click the Docs button to explore the schema.
+# Use the Global ID Utils plugin (key icon) to encode/decode Viaduct Global IDs.
 
-query GetNode {
-  node(id: "Q2hhcmFjdGVyOjE=") {
-    id
-    ... on Character {
-      name
-      homeworld
-    }
-  }
+query {
+  # Your query here
 }
-
-# This query demonstrates node resolution using GlobalIDs in Viaduct.
-# The node field allows you to retrieve any entity by its GlobalID.
-# For detailed explanations of how nodes work, batch resolvers, and many more
-# example queries, see DEEPDIVE.md in this project.
-
 `;
 
         function App() {
-          const explorer = plugins.find(p => p.title === 'Explorer');
           return React.createElement(GraphiQL, {
             fetcher,
             plugins,
-            visiblePlugin: explorer, // Open explorer by default
+            visiblePlugin: explorer,
             defaultQuery,
             defaultEditorToolsVisibility: true,
           });
@@ -131,8 +128,7 @@ query GetNode {
         root.render(React.createElement(App));
       }
 
-      // Initialize the application
-      initializeGraphiQL();
+      initGraphiQL();
     </script>
   </head>
   <body>

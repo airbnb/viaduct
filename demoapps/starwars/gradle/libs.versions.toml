@@ -24,6 +24,7 @@ micronaut-inject-java = { group = "io.micronaut", name = "micronaut-inject-java"
 micronaut-validation = { group = "io.micronaut", name = "micronaut-http-validation", version.ref = "micronaut" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
 viaduct-engine-wiring = { group = "com.airbnb.viaduct", name = "engine-wiring" }
+viaduct-service-wiring = { group = "com.airbnb.viaduct", name = "service-wiring" }
 viaduct-tenant-api = { group = "com.airbnb.viaduct", name = "tenant-api" }
 guice = { group = "com.google.inject", name = "guice", version.ref = "guice" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
