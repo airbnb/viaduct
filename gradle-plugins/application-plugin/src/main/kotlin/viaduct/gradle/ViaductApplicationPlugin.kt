@@ -51,7 +51,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             this.dependencies.add("api", files(generateGRTsTask.flatMap { it.archiveFile }))
 
             // Setup serve task
-            setupServeTask(generateGRTsTask)
+            setupServeTask(appExt, generateGRTsTask)
         }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
@@ -148,7 +148,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
     }
 
-    private fun Project.setupServeTask(generateGRTsTask: TaskProvider<Jar>) {
+    private fun Project.setupServeTask(appExt: ViaductApplicationExtension, generateGRTsTask: TaskProvider<Jar>) {
         // Create configuration at configuration time (not execution time) so dependency substitution works
         val serveConfig = configurations.create("serveRuntime") {
             isCanBeConsumed = false
@@ -178,13 +178,13 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
         // Capture configuration-time values for use in task (configuration cache safe)
         val isContinuousMode = gradle.startParameter.isContinuous
-        val servePort = project.findProperty("serve.port")?.toString() ?: "8080"
-        val serveHost = project.findProperty("serve.host")?.toString() ?: "0.0.0.0"
-        val servePackagePrefix = project.findProperty("serve.packagePrefix")?.toString()
+        // Allow property overrides, but default to extension values
+        val servePort = project.findProperty("serve.port")?.toString()?.toIntOrNull() ?: appExt.servePort.get()
+        val serveHost = project.findProperty("serve.host")?.toString() ?: appExt.serveHost.get()
 
         tasks.register<org.gradle.api.tasks.JavaExec>("serve") {
             group = "viaduct"
-            description = "Start the Viaduct development server with GraphiQL IDE. Use: ./gradlew --continuous serve -Pserve.packagePrefix=com.example.app"
+            description = "Start the Viaduct development server with GraphiQL IDE. Use: ./gradlew --continuous serve"
 
             // Ensure GRTs are generated and classes are compiled before starting
             dependsOn(generateGRTsTask)
@@ -200,11 +200,13 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                 configurations.getByName("runtimeClasspath")
             )
 
-            // Pass system properties for port, host, and package prefix
+            // Pass system properties for port, host, and package prefix from extension
             systemProperty("serve.port", servePort)
             systemProperty("serve.host", serveHost)
-            if (servePackagePrefix != null) {
-                systemProperty("serve.packagePrefix", servePackagePrefix)
+
+            // Use modulePackagePrefix from extension if set
+            appExt.modulePackagePrefix.orNull?.let { packagePrefix ->
+                systemProperty("serve.packagePrefix", packagePrefix)
             }
 
             // Enable standard I/O
