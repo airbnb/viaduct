@@ -149,38 +149,14 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
     }
 
     private fun Project.setupServeTask(appExt: ViaductApplicationExtension, generateGRTsTask: TaskProvider<Jar>) {
-        // Create configuration at configuration time (not execution time) so dependency substitution works
-        val serveConfig = configurations.create("serveRuntime") {
-            isCanBeConsumed = false
-            isCanBeResolved = true
-            isVisible = false
-            // Add attributes for proper runtime classpath resolution with composite builds
-            attributes {
-                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
-                attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
-                attribute(
-                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
-                    objects.named(LibraryElements::class.java, LibraryElements.JAR)
-                )
-            }
-        }
-
-        // Add serve dependency after evaluation
-        afterEvaluate {
-            // Gradle automatically substitutes with local :serve project in composite builds.
-            // External standalone projects will resolve from Maven Central.
-            val version = ViaductPluginCommon.BOM.getDefaultVersion()
-            dependencies.add(serveConfig.name, "com.airbnb.viaduct:serve:$version")
-
-            // Also add serve as compileOnly so the provider class can be compiled with the annotation
-            dependencies.add("compileOnly", "com.airbnb.viaduct:serve:$version")
-        }
-
         // Capture configuration-time values for use in task (configuration cache safe)
         val isContinuousMode = gradle.startParameter.isContinuous
         // Allow property overrides, but default to extension values
         val servePort = project.findProperty("serve.port")?.toString()?.toIntOrNull() ?: appExt.servePort.get()
         val serveHost = project.findProperty("serve.host")?.toString() ?: appExt.serveHost.get()
+
+        // Get the application plugin's classpath (which now includes bundled serve classes)
+        val pluginClasspath = files(ViaductApplicationPlugin::class.java.protectionDomain.codeSource.location.toURI())
 
         tasks.register<org.gradle.api.tasks.JavaExec>("serve") {
             group = "viaduct"
@@ -192,9 +168,12 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
             mainClass.set("viaduct.serve.ServeServerKt")
 
-            // Configure classpath lazily to include both serve module and app classes
+            // Configure classpath to include:
+            // 1. Plugin classpath (contains bundled serve runtime)
+            // 2. App classes
+            // 3. Runtime classpath (app dependencies)
             classpath = files(
-                serveConfig,
+                pluginClasspath,
                 project.extensions.getByType(org.gradle.api.tasks.SourceSetContainer::class.java)
                     .getByName("main").output,
                 configurations.getByName("runtimeClasspath")

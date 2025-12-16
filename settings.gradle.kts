@@ -23,7 +23,7 @@ includeBuild("gradle-plugins") {
     }
 }
 
-// demo apps - serve-runtime automatically substituted by root build
+// demo apps
 includeBuild("demoapps/cli-starter")
 includeBuild("demoapps/jetty-starter")
 includeBuild("demoapps/ktor-starter")
