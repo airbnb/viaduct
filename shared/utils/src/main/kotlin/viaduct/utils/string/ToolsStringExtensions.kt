@@ -15,7 +15,8 @@ fun String.sha256Hash(): String = toByteArray().sha256Hash()
  * @return The SHA-256 hash of the ByteArray in hexadecimal format.
  */
 fun ByteArray.sha256Hash(): String =
-    MessageDigest.getInstance("SHA-256")
+    MessageDigest
+        .getInstance("SHA-256")
         .digest(this)
         .fold("") { str, it -> str + "%02x".format(it) }
 

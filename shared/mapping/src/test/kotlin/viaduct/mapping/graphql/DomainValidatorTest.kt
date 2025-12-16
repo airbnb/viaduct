@@ -192,7 +192,9 @@ private object NonBijectiveTestDomain : Domain<IR.Value.Object> {
     )
 }
 
-private class ThrowingTestDomain(val cause: Throwable) : Domain<IR.Value.Object> {
+private class ThrowingTestDomain(
+    val cause: Throwable
+) : Domain<IR.Value.Object> {
     override val conv = Conv<IR.Value.Object, IR.Value.Object>(
         { throw cause },
         { it }

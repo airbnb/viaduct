@@ -298,7 +298,14 @@ internal class BitVectorBasicTests : BitVectorSetup() {
         assertEquals(0, mkb().build().size)
         assertEquals(0, mkb().add(1L, 0).build().size)
         assertEquals(1, mkb().add(1L, 1).build().size)
-        assertEquals(6L, mkb().add(0L, 1).add(3L, 2).build().get(0, 3))
+        assertEquals(
+            6L,
+            mkb()
+                .add(0L, 1)
+                .add(3L, 2)
+                .build()
+                .get(0, 3)
+        )
 
         var v: BitVector = mkb().add(0L, WS - 1).add(1L, 1).build()
         v.checkInvariants()
@@ -325,7 +332,11 @@ internal class BitVectorBasicTests : BitVectorSetup() {
         assertEquals(WS + 1, v.size)
         assertEquals(3L, v.get(WS - 1, 2))
 
-        v = mkb().add(0L, WS).add(0L, WS - 2).add(121L, 4).build()
+        v = mkb()
+            .add(0L, WS)
+            .add(0L, WS - 2)
+            .add(121L, 4)
+            .build()
         v.checkInvariants()
         assertEquals(2 * WS + 2, v.size)
         assertEquals(9L, v.get(2 * WS - 2, 4))
@@ -333,8 +344,23 @@ internal class BitVectorBasicTests : BitVectorSetup() {
 
     @Test
     fun buildWithJunk() {
-        assertEquals(1L, mkb().add(3L, 1).add(0L, 2).build().get(0, 2))
-        assertEquals(3L, mkb().add(0L, WS - 1).add(15L, 2).add(0L, 2).build().get(WS - 1, 4))
+        assertEquals(
+            1L,
+            mkb()
+                .add(3L, 1)
+                .add(0L, 2)
+                .build()
+                .get(0, 2)
+        )
+        assertEquals(
+            3L,
+            mkb()
+                .add(0L, WS - 1)
+                .add(15L, 2)
+                .add(0L, 2)
+                .build()
+                .get(WS - 1, 4)
+        )
     }
 
     @Test
@@ -369,20 +395,61 @@ internal class BitVectorBasicTests : BitVectorSetup() {
         arrayOf<Any>(mk(WS).set(WS - 1), mkb().add(0L, 63).add(1L, 1).build()), // Length WS+1, 0b11...0
         arrayOf<Any>(
             mk(WS + 1).set(WS - 1).set(WS),
-            mkb().add(0L, 63).add(1L, 1).add(1L, 1).build(),
+            mkb()
+                .add(0L, 63)
+                .add(1L, 1)
+                .add(1L, 1)
+                .build(),
             mkb().add(0L, 63).add(3L, 2).build(),
             mk(WS + 1).set(WS - 1).set(WS).copy()
         ), // Length 2*WS+2, 0b11...11...0
         arrayOf<Any>(
-            mk(2 * WS + 1).set(WS - 1).set(WS).set(2 * WS - 1).set(2 * WS),
-            mkb().add(0L, WS - 1).add(3L, 2).add(0L, WS - 2).add(3L, 2).build(),
-            mkb().add(1L shl (WS - 1), WS).add(1L, 1).add(0L, WS - 2).add(3L, 2).build(),
-            mkb().add(1L shl (WS - 1), WS).add(1L, 1).add(0L, WS - 2).add(3L, 2).build().copy()
+            mk(2 * WS + 1)
+                .set(WS - 1)
+                .set(WS)
+                .set(2 * WS - 1)
+                .set(2 * WS),
+            mkb()
+                .add(0L, WS - 1)
+                .add(3L, 2)
+                .add(0L, WS - 2)
+                .add(3L, 2)
+                .build(),
+            mkb()
+                .add(1L shl (WS - 1), WS)
+                .add(1L, 1)
+                .add(0L, WS - 2)
+                .add(3L, 2)
+                .build(),
+            mkb()
+                .add(1L shl (WS - 1), WS)
+                .add(1L, 1)
+                .add(0L, WS - 2)
+                .add(3L, 2)
+                .build()
+                .copy()
         ), // Length 2*WS+2, inversion of 0b11...11...0
         arrayOf<Any>(
-            mk(2 * WS + 1).set(WS - 1).set(WS).set(2 * WS - 1).set(2 * WS).invert(),
-            mkb().add(0L, WS - 1).add(3L, 2).add(0L, WS - 2).add(3L, 2).build().invert(),
-            mkb().add(1L shl (WS - 1), WS).add(1L, 1).add(0L, WS - 2).add(3L, 2).build().invert()
+            mk(2 * WS + 1)
+                .set(WS - 1)
+                .set(WS)
+                .set(2 * WS - 1)
+                .set(2 * WS)
+                .invert(),
+            mkb()
+                .add(0L, WS - 1)
+                .add(3L, 2)
+                .add(0L, WS - 2)
+                .add(3L, 2)
+                .build()
+                .invert(),
+            mkb()
+                .add(1L shl (WS - 1), WS)
+                .add(1L, 1)
+                .add(0L, WS - 2)
+                .add(3L, 2)
+                .build()
+                .invert()
         ),
     )
 
@@ -449,10 +516,12 @@ internal class BitVectorBasicTests : BitVectorSetup() {
                             bits = bits shr 1
                         }
                     } else {
-                        for (idx in n until n + count) if (v.get(idx)) {
-                            v.clear(idx)
-                        } else {
-                            v.set(idx)
+                        for (idx in n until n + count) {
+                            if (v.get(idx)) {
+                                v.clear(idx)
+                            } else {
+                                v.set(idx)
+                            }
                         }
                     }
                     n += count
@@ -482,24 +551,18 @@ internal class BitVectorBasicTests : BitVectorSetup() {
             return -1
         }
 
-        private fun msg(i: Int): String {
-            return "i=$i"
-        }
+        private fun msg(i: Int): String = "i=$i"
 
         private fun msg(
             i: Int,
             j: Int
-        ): String {
-            return "i=$i, j=$j"
-        }
+        ): String = "i=$i, j=$j"
 
         private fun msg(
             i: Int,
             j: Int,
             k: Int
-        ): String {
-            return "i=$i, j=$j, k=$k"
-        }
+        ): String = "i=$i, j=$j, k=$k"
 
         private const val TO_STRING_BITSTOTAKE = 23
     }

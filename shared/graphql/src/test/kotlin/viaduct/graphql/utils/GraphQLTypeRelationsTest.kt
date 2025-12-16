@@ -11,7 +11,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class GraphQLTypeRelationsTest : Assertions() {
-    private class Fixture(sdl: String) {
+    private class Fixture(
+        sdl: String
+    ) {
         var schema: GraphQLSchema
         var rels: GraphQLTypeRelations
 

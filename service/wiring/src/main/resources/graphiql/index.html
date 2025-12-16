@@ -1,0 +1,139 @@
+<!--
+ *  Copyright (c) 2025 GraphQL Contributors
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the license found in the
+ *  LICENSE file in the root directory of this source tree.
+-->
+<!--
+ *  VIADUCT CUSTOMIZATIONS:
+ *  This file is generated from the official GraphiQL CDN example and customized for Viaduct.
+ *  DO NOT EDIT MANUALLY - regenerate using: ./gradlew :core:service:service-wiring:generateGraphiQLHtml
+ *
+ *  Customizations applied:
+ *  - Changed title to "GraphiQL - Viaduct"
+ *  - Changed endpoint from demo URL to "/graphql"
+ *  - Added global-id-plugin.jsx for encoding/decoding Viaduct Global IDs
+ *  - Modified initialization to load plugins asynchronously
+ *  - Added custom default query with usage instructions
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GraphiQL - Viaduct</title>
+    <style>
+      body {
+        margin: 0;
+      }
+
+      #graphiql {
+        height: 100dvh;
+      }
+
+      .loading {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 4rem;
+      }
+    </style>
+    <link rel="stylesheet" href="https://esm.sh/graphiql/dist/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://esm.sh/@graphiql/plugin-explorer/dist/style.css"
+    />
+    <!-- Babel standalone for JSX transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!--
+     * Note:
+     * The ?standalone flag bundles the module along with all of its `dependencies`, excluding `peerDependencies`, into a single JavaScript file.
+     * `@emotion/is-prop-valid` is a shim to remove the console error ` module "@emotion /is-prop-valid" not found`. Upstream issue: https://github.com/motiondivision/motion/issues/3126
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@19.1.0",
+          "react/": "https://esm.sh/react@19.1.0/",
+
+          "react-dom": "https://esm.sh/react-dom@19.1.0",
+          "react-dom/": "https://esm.sh/react-dom@19.1.0/",
+
+          "graphiql": "https://esm.sh/graphiql?standalone&external=react,react-dom,@graphiql/react,graphql",
+          "graphiql/": "https://esm.sh/graphiql/",
+          "@graphiql/plugin-explorer": "https://esm.sh/@graphiql/plugin-explorer?standalone&external=react,@graphiql/react,graphql",
+          "@graphiql/react": "https://esm.sh/@graphiql/react?standalone&external=react,react-dom,graphql,@graphiql/toolkit,@emotion/is-prop-valid",
+
+          "@graphiql/toolkit": "https://esm.sh/@graphiql/toolkit?standalone&external=graphql",
+          "graphql": "https://esm.sh/graphql@16.11.0",
+          "@emotion/is-prop-valid": "data:text/javascript,"
+        }
+      }
+    </script>
+    <script type="module">
+      import { loadJSX } from '/js/jsx-loader.js';
+
+      import React from 'react';
+      import ReactDOM from 'react-dom/client';
+      import { GraphiQL, HISTORY_PLUGIN } from 'graphiql';
+      import { createGraphiQLFetcher } from '@graphiql/toolkit';
+      import { explorerPlugin } from '@graphiql/plugin-explorer';
+      import 'graphiql/setup-workers/esm.sh';
+
+      const fetcher = createGraphiQLFetcher({
+        url: '/graphql',
+      });
+      // Load Viaduct plugins asynchronously
+      async function loadPlugins() {
+        try {
+          const pluginModule = await loadJSX('/js/global-id-plugin.jsx');
+          const createGlobalIdPlugin = pluginModule.createGlobalIdPlugin;
+          const globalIdPlugin = createGlobalIdPlugin(React);
+          return [HISTORY_PLUGIN, explorerPlugin(), globalIdPlugin];
+        } catch (error) {
+          console.error('Failed to load Viaduct Global ID plugin:', error);
+          return [HISTORY_PLUGIN, explorerPlugin()];
+        }
+      }
+
+      async function initGraphiQL() {
+        const plugins = await loadPlugins();
+        const explorer = plugins.find(p => p.title === 'Explorer');
+        const defaultQuery = `# Welcome to Viaduct GraphiQL!
+#
+# Start typing your GraphQL query here.
+# Press Ctrl+Space for autocomplete.
+# Click the Docs button to explore the schema.
+# Use the Global ID Utils plugin (key icon) to encode/decode Viaduct Global IDs.
+
+query {
+  # Your query here
+}
+`;
+
+        function App() {
+          return React.createElement(GraphiQL, {
+            fetcher,
+            plugins,
+            visiblePlugin: explorer,
+            defaultQuery,
+            defaultEditorToolsVisibility: true,
+          });
+        }
+
+        const container = document.getElementById('graphiql');
+        const root = ReactDOM.createRoot(container);
+        root.render(React.createElement(App));
+      }
+
+      initGraphiQL();
+    </script>
+  </head>
+  <body>
+    <div id="graphiql">
+      <div class="loading">Loading…</div>
+    </div>
+  </body>
+</html>

@@ -30,9 +30,7 @@ fun threadLocalCoroutineContext(): CoroutineContext {
  * is no current [Job]. Avoids overhead of actually accessing the full [CoroutineContext] and
  * folding over it to find the [Job].
  */
-fun threadLocalCurrentJobOrNull(): Job? {
-    return ThreadLocalCoroutineContextManager.INSTANCE.getCurrentJobOrNull()
-}
+fun threadLocalCurrentJobOrNull(): Job? = ThreadLocalCoroutineContextManager.INSTANCE.getCurrentJobOrNull()
 
 /**
  * [ThreadLocalCoroutineContextManager] manages a single [ThreadLocal] that, at any given time,
@@ -53,8 +51,10 @@ class ThreadLocalCoroutineContextManager {
      * A [ThreadContextElement] that handles getting/setting the [ThreadLocal] managed by
      * [ThreadLocalCoroutineContextManager] as threads change during normal coroutine execution.
      */
-    class ContextElement(val defaultJob: Job) :
-        ThreadContextElement<Pair<CoroutineContext?, Job?>>, AbstractCoroutineContextElement(Key) {
+    class ContextElement(
+        val defaultJob: Job
+    ) : AbstractCoroutineContextElement(Key),
+        ThreadContextElement<Pair<CoroutineContext?, Job?>> {
         companion object Key : CoroutineContext.Key<ContextElement>
 
         override fun updateThreadContext(context: CoroutineContext): Pair<CoroutineContext?, Job?> {
@@ -80,7 +80,7 @@ class ThreadLocalCoroutineContextManager {
         if (defaultCtx != null) {
             val dc = requireNotNull(defaultCtx)
             tlCtx.set(dc)
-            val ce = dc[ContextElement] as? ContextElement
+            val ce = dc[ContextElement]
             tlJob.set(dc[Job] ?: ce?.defaultJob)
         } else {
             tlCtx.set(null)

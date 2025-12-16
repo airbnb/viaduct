@@ -37,15 +37,15 @@ abstract class SchemaScopeTestBase {
         includeAstDefinitions: Boolean = false
     ): String =
         SchemaPrinter(
-            SchemaPrinter.Options.defaultOptions()
+            SchemaPrinter.Options
+                .defaultOptions()
                 .includeDirectives {
                     if (it.startsWith("scope")) {
                         includeScopeDirectives
                     } else {
                         true
                     }
-                }
-                .includeDirectiveDefinitions(includeDirectiveDefinitions)
+                }.includeDirectiveDefinitions(includeDirectiveDefinitions)
                 .includeScalarTypes(false)
                 .includeSchemaDefinition(true)
                 .includeIntrospectionTypes(false)
@@ -63,11 +63,12 @@ abstract class SchemaScopeTestBase {
 
     private fun toSchema(resources: List<URL>) =
         UnExecutableSchemaGenerator.makeUnExecutableSchema(
-            SchemaParser().parse(
-                readerForResources(resources)
-            ).apply {
-                DefaultSchemaProvider.addDefaults(this, allowExisting = true)
-            }
+            SchemaParser()
+                .parse(
+                    readerForResources(resources)
+                ).apply {
+                    DefaultSchemaProvider.addDefaults(this, allowExisting = true)
+                }
         )
 
     private fun readerForResources(files: List<URL>): MultiSourceReader {

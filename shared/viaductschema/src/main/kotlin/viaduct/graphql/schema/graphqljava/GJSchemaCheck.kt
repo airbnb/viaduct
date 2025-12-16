@@ -104,23 +104,25 @@ class GJSchemaCheck(
                     "FIELDS_AGREE"
                 )
                 fields.checkAgreement()
-                for (union in schema.types.values) if (union is GJSchema.Union) {
-                    if (gjSchema.isPossibleType(
-                            gjSchema.getType(union.name) as GraphQLNamedType,
-                            gjSchema.getObjectType(def.name)!!
-                        )
-                    ) {
-                        check.isTrue(
-                            unions.contains(union),
-                            "HAS_ALL_NEEDED_UNIONS: {0} is missing.",
-                            arrayOf(union.name)
-                        )
-                    } else {
-                        check.isFalse(
-                            unions.contains(union),
-                            "HAS_ONLY_NEEDED_UNIONS: {0} is extra.",
-                            arrayOf(union.name)
-                        )
+                for (union in schema.types.values) {
+                    if (union is GJSchema.Union) {
+                        if (gjSchema.isPossibleType(
+                                gjSchema.getType(union.name) as GraphQLNamedType,
+                                gjSchema.getObjectType(def.name)!!
+                            )
+                        ) {
+                            check.isTrue(
+                                unions.contains(union),
+                                "HAS_ALL_NEEDED_UNIONS: {0} is missing.",
+                                arrayOf(union.name)
+                            )
+                        } else {
+                            check.isFalse(
+                                unions.contains(union),
+                                "HAS_ONLY_NEEDED_UNIONS: {0} is extra.",
+                                arrayOf(union.name)
+                            )
+                        }
                     }
                 }
             }
@@ -146,16 +148,17 @@ class GJSchemaCheck(
                 actual.defaultValue
             }
         } else {
-            check.doesNotThrow("HAS_DEFAULT") {
-                actual.defaultValue
-            }.ifNoThrow { default ->
-                if (default == null) {
-                    check.isTrue(actual.type.isNullable, "DEFAULT_NULLABLE")
+            check
+                .doesNotThrow("HAS_DEFAULT") {
+                    actual.defaultValue
+                }.ifNoThrow { default ->
+                    if (default == null) {
+                        check.isTrue(actual.type.isNullable, "DEFAULT_NULLABLE")
+                    }
+                    valueConverter.javaClassFor(actual.type)?.let {
+                        check.isInstanceOf(it.kotlin, default, "DEFAULT_CORRECT_TYPE")
+                    }
                 }
-                valueConverter.javaClassFor(actual.type)?.let {
-                    check.isInstanceOf(it.kotlin, default, "DEFAULT_CORRECT_TYPE")
-                }
-            }
         }
     }
 

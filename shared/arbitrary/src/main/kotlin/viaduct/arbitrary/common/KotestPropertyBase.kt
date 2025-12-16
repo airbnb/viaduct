@@ -11,7 +11,9 @@ import kotlin.random.Random
  * To preserve the randomness of property testing, subclasses should not permanently override
  * the seed value.
  */
-abstract class KotestPropertyBase(private val seed: Long = Random.nextLong()) {
+abstract class KotestPropertyBase(
+    private val seed: Long = Random.nextLong()
+) {
     init {
         // NB: values set on PropertyTesting are global and apply to all test suites run in the
         // current process. Be careful about setting properties that could influence test outcomes,

@@ -24,7 +24,9 @@ import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.refs
 
-sealed class KmWrapper(val annotations: Set<Pair<KmAnnotation, Boolean>>) {
+sealed class KmWrapper(
+    val annotations: Set<Pair<KmAnnotation, Boolean>>
+) {
     fun annotationsAttribute(
         cp: ConstPool,
         visible: Boolean,
@@ -97,8 +99,10 @@ class KmClassWrapper(
         if (tier != 0 && tier != 1) {
             throw IllegalArgumentException("Tier must be 0 or 1 {$tier)")
         }
-        if (kmClass.kind != ClassKind.CLASS && kmClass.kind != ClassKind.INTERFACE &&
-            kmClass.kind != ClassKind.ENUM_CLASS && kmClass.kind != ClassKind.OBJECT
+        if (kmClass.kind != ClassKind.CLASS &&
+            kmClass.kind != ClassKind.INTERFACE &&
+            kmClass.kind != ClassKind.ENUM_CLASS &&
+            kmClass.kind != ClassKind.OBJECT
         ) {
             throw IllegalArgumentException("Can only wrap classes, interfaces, enums, and objects (${kmClass.name}: ${kmClass.kind})")
         }
@@ -161,11 +165,12 @@ class KmConstructorWrapper(
 
     fun visibleParameterAnnotationsAttribute(cp: ConstPool): ParameterAnnotationsAttribute? {
         val annotations =
-            constructor.valueParameters.map {
-                visibleParameterAnnotations[JavaIdName(it.name)]?.let { annotations ->
-                    annotations.map { annotation -> cp.asCtAnnotation(annotation) }.toTypedArray()
-                } ?: emptyArray()
-            }.toTypedArray()
+            constructor.valueParameters
+                .map {
+                    visibleParameterAnnotations[JavaIdName(it.name)]?.let { annotations ->
+                        annotations.map { annotation -> cp.asCtAnnotation(annotation) }.toTypedArray()
+                    } ?: emptyArray()
+                }.toTypedArray()
         if (annotations.any { it.isNotEmpty() }) {
             return ParameterAnnotationsAttribute(cp, ParameterAnnotationsAttribute.visibleTag).also {
                 it.annotations = annotations
@@ -280,5 +285,9 @@ class ExternalClassWrapper(
     val isInterface: Boolean = false,
     val nested: List<Nested> = emptyList()
 ) {
-    class Nested(val nestedName: JavaIdName, val flags: Int = Ct.STATIC_PUBLIC_FINAL, val nested: List<Nested> = emptyList())
+    class Nested(
+        val nestedName: JavaIdName,
+        val flags: Int = Ct.STATIC_PUBLIC_FINAL,
+        val nested: List<Nested> = emptyList()
+    )
 }

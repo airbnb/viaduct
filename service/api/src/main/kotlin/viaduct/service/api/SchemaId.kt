@@ -1,8 +1,11 @@
 package viaduct.service.api
 
+import viaduct.apiannotations.StableApi
+
 /**
  * Represents a unique identifier for a schema.
  */
+@StableApi
 abstract class SchemaId(
     open val id: String
 ) {

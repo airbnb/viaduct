@@ -42,8 +42,7 @@ fun Arb.Companion.graphQLName(length: IntRange = 1..10): Arb<String> {
                 append(ns.toString())
                 append(nc)
             }
-        }
-        .filter {
+        }.filter {
             // filter out introspection schema names which are reserved for spec use
             !it.startsWith("__") &&
                 // filter out names of built-in types

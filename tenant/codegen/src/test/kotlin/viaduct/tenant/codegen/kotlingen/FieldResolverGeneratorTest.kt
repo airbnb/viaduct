@@ -3,6 +3,7 @@ package viaduct.tenant.codegen.kotlingen
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.io.File
+import kotlin.test.assertContains
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -71,8 +72,9 @@ class FieldResolverGeneratorTest {
 
         assertTrue(contents.startsWith("package pkg.tenant.resolverbases\n"))
         assertFalse(contents.contains("MutationExecutionContext"))
-        assertTrue(contents.contains("object SubjectResolvers "))
-        assertTrue(contents.contains("class Field "))
+        assertContains(contents, "object SubjectResolvers ")
+        assertContains(contents, "class Field ")
+        assertContains(contents, "batchResolve")
     }
 
     @Test
@@ -85,6 +87,7 @@ class FieldResolverGeneratorTest {
             "Mutation"
         )
         assertTrue(contents.contains("MutationFieldExecutionContext"))
+        assertFalse(contents.contains("batchResolve"))
     }
 
     @Test

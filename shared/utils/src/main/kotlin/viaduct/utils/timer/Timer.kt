@@ -17,7 +17,5 @@ class Timer {
         return result
     }
 
-    fun reportViaException() {
-        throw RuntimeException("Timings (ms):\n${timings.joinToString("\n")}")
-    }
+    fun reportViaException(): Unit = throw RuntimeException("Timings (ms):\n${timings.joinToString("\n")}")
 }

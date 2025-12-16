@@ -72,7 +72,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
         weights: List<Double> = listOf(0.0, 1.0),
         max: IntRange = 0..10
     ): Arb<CompoundingWeight> =
-        Arb.pair(Arb.of(weights), Arb.int(max))
+        Arb
+            .pair(Arb.of(weights), Arb.int(max))
             .map { (weight, max) -> CompoundingWeight(weight, max) }
 
     @Test
@@ -87,13 +88,13 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypesGen -- genDirectives`(): Unit =
         runBlocking {
-            Arb.set(Arb.graphQLName())
+            Arb
+                .set(Arb.graphQLName())
                 .flatMap { dirNames ->
                     val names = GraphQLNames(mapOf(TypeType.Directive to dirNames))
                     val cfg = minimalConfig + (DirectiveHasArgs to CompoundingWeight.Never)
                     Arb.graphQLTypes(names, cfg).map { dirNames to it }
-                }
-                .checkInvariants(iterCount) { (dirNames, types), check ->
+                }.checkInvariants(iterCount) { (dirNames, types), check ->
                     check.containsAtLeastElementsIn(
                         types.directives.keys,
                         dirNames,
@@ -105,12 +106,12 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypesGen -- DirectiveIsRepeatable`(): Unit =
         runBlocking {
-            Arb.of(0.0, 1.0)
+            Arb
+                .of(0.0, 1.0)
                 .flatMap { weight ->
                     val cfg = minimalConfig + (DirectiveIsRepeatable to weight)
                     Arb.graphQLTypes(cfg).map { weight to it }
-                }
-                .forAll(iterCount) { (weight, types) ->
+                }.forAll(iterCount) { (weight, types) ->
                     types.directives.values
                         .filterNot { builtinDirectives.containsKey(it.name) }
                         .all { it.isRepeatable == (weight == 1.0) }
@@ -137,36 +138,38 @@ class GraphQLTypesTest : KotestPropertyBase() {
             }
 
             val names = GraphQLNames(mapOf(TypeType.Scalar to setOf("A")))
-            Arb.pair(
-                Arb.compoundingWeight(),
-                Arb.element(0.0, 1.0),
-            ).checkAll(iterCount) { (listiness, nonNullableness) ->
-                val cfg = minimalConfig +
-                    (Listiness to listiness) +
-                    (NonNullableness to nonNullableness)
+            Arb
+                .pair(
+                    Arb.compoundingWeight(),
+                    Arb.element(0.0, 1.0),
+                ).checkAll(iterCount) { (listiness, nonNullableness) ->
+                    val cfg = minimalConfig +
+                        (Listiness to listiness) +
+                        (NonNullableness to nonNullableness)
 
-                val (lists, nonNulls) = mkGen(cfg, names)
-                    .decorate(Scalars.GraphQLInt)
-                    .countDecorations()
+                    val (lists, nonNulls) = mkGen(cfg, names)
+                        .decorate(Scalars.GraphQLInt)
+                        .countDecorations()
 
-                if (listiness.weight == 1.0 && lists < listiness.max) {
-                    markFailure()
-                } else if (nonNullableness == 1.0 && nonNulls != (lists + 1)) {
-                    markFailure()
-                } else if (listiness.weight == 0.0 && lists != 0) {
-                    markFailure()
-                } else if (nonNullableness == 0.0 && nonNulls != 0) {
-                    markFailure()
-                } else {
-                    markSuccess()
+                    if (listiness.weight == 1.0 && lists < listiness.max) {
+                        markFailure()
+                    } else if (nonNullableness == 1.0 && nonNulls != (lists + 1)) {
+                        markFailure()
+                    } else if (listiness.weight == 0.0 && lists != 0) {
+                        markFailure()
+                    } else if (nonNullableness == 0.0 && nonNulls != 0) {
+                        markFailure()
+                    } else {
+                        markSuccess()
+                    }
                 }
-            }
         }
 
     @Test
     fun `GraphQLTypesGen - genDescription`(): Unit =
         runBlocking {
-            Arb.intRange(0..100)
+            Arb
+                .intRange(0..100)
                 .nonEmpty()
                 .checkAll(iterCount) { range ->
                     val desc = mkGen(cfg = minimalConfig + (DescriptionLength to range)).genDescription()
@@ -181,12 +184,12 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - FieldHasArgs`(): Unit =
         runBlocking {
-            Arb.compoundingWeight()
+            Arb
+                .compoundingWeight()
                 .flatMap { cw ->
                     val cfg = minimalConfig + (FieldHasArgs to cw)
                     Arb.graphQLTypes(cfg).map { cw to it }
-                }
-                .checkInvariants(iterCount) { (cw, types), check ->
+                }.checkInvariants(iterCount) { (cw, types), check ->
                     val fields = (types.objects.values + types.interfaces.values)
                         .flatMap { it.fields }
 
@@ -209,12 +212,12 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - DefaultValueWeight`(): Unit =
         runBlocking {
-            Arb.of(0.0, 1.0)
+            Arb
+                .of(0.0, 1.0)
                 .flatMap { weight ->
                     val cfg = minimalConfig + (DefaultValueWeight to weight)
                     Arb.graphQLTypes(cfg).map { weight to it }
-                }
-                .checkInvariants(iterCount) { (weight, types), check ->
+                }.checkInvariants(iterCount) { (weight, types), check ->
                     (types.objects.values + types.interfaces.values)
                         .flatMap { it.fields }
                         .flatMap { it.arguments }
@@ -252,12 +255,12 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - IncludeBuiltinScalars`(): Unit =
         runBlocking {
-            Arb.of(true, false)
+            Arb
+                .of(true, false)
                 .flatMap { incl ->
                     val cfg = minimalConfig + (IncludeBuiltinScalars to incl)
                     Arb.graphQLTypes(cfg).map { incl to it }
-                }
-                .checkInvariants(iterCount) { (incl, types), check ->
+                }.checkInvariants(iterCount) { (incl, types), check ->
                     if (incl) {
                         builtinScalars.keys.subtract(types.scalars.keys).let { missing ->
                             check.isEmpty(missing, "Missing scalars: $missing")
@@ -276,12 +279,12 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - IncludeBuiltinDirectives`(): Unit =
         runBlocking {
-            Arb.of(true, false)
+            Arb
+                .of(true, false)
                 .flatMap { incl ->
                     val cfg = minimalConfig + (IncludeBuiltinDirectives to incl)
                     Arb.graphQLTypes(cfg).map { incl to it }
-                }
-                .checkInvariants(iterCount) { (incl, types), check ->
+                }.checkInvariants(iterCount) { (incl, types), check ->
                     if (incl) {
                         check.isTrue(
                             types.directives.keys.containsAll(builtinDirectives.keys),
@@ -301,7 +304,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - DirectiveHasArgs`(): Unit =
         runBlocking {
-            Arb.compoundingWeight()
+            Arb
+                .compoundingWeight()
                 .flatMap { cw ->
                     val cfg = minimalConfig +
                         (DirectiveHasArgs to cw) +
@@ -331,12 +335,14 @@ class GraphQLTypesTest : KotestPropertyBase() {
         runBlocking {
             // for this test it is helpful to guarantee that the schema contains a directive that can be applied
             // in any location
-            val testDirective = GraphQLDirective.newDirective()
+            val testDirective = GraphQLDirective
+                .newDirective()
                 .name("testDirective")
                 .validLocations(*Introspection.DirectiveLocation.values())
                 .build()
 
-            Arb.compoundingWeight()
+            Arb
+                .compoundingWeight()
                 .flatMap { cw ->
                     val cfg = minimalConfig +
                         (DirectiveWeight to cw) +
@@ -344,8 +350,7 @@ class GraphQLTypesTest : KotestPropertyBase() {
                         (IncludeBuiltinDirectives to false) +
                         (IncludeTypes to GraphQLTypes.empty + testDirective)
                     Arb.graphQLTypes(cfg).map { cw to it }
-                }
-                .checkInvariants(iterCount) { (cw, types), check ->
+                }.checkInvariants(iterCount) { (cw, types), check ->
                     val elements: List<GraphQLDirectiveContainer> = types.interfaces.values +
                         types.interfaces.values.flatMap { it.fields } +
                         types.inputs.values +
@@ -377,15 +382,22 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - FieldNameLength`(): Unit =
         runBlocking {
-            Arb.intRange(2..100)
+            Arb
+                .intRange(2..100)
                 .nonEmpty()
                 .flatMap { range ->
                     val cfg = minimalConfig + (FieldNameLength to range)
                     Arb.graphQLTypes(cfg).map { range to it }
                 }.checkInvariants(iterCount) { (range, types), check ->
-                    val names = types.objects.values.flatMap { it.fields }.map { it.name } +
-                        types.inputs.values.flatMap { it.fields }.map { it.name } +
-                        types.enums.values.flatMap { it.values }.map { it.name }
+                    val names = types.objects.values
+                        .flatMap { it.fields }
+                        .map { it.name } +
+                        types.inputs.values
+                            .flatMap { it.fields }
+                            .map { it.name } +
+                        types.enums.values
+                            .flatMap { it.values }
+                            .map { it.name }
 
                     names.forEach { name ->
                         check.isTrue(
@@ -400,7 +412,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - InputObjectTypeSize`(): Unit =
         runBlocking {
-            Arb.intRange(1..100)
+            Arb
+                .intRange(1..100)
                 .nonEmpty()
                 .flatMap { range ->
                     val cfg = minimalConfig + (InputObjectTypeSize to range)
@@ -419,7 +432,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - InterfaceTypeSize`(): Unit =
         runBlocking {
-            Arb.intRange(1..100)
+            Arb
+                .intRange(1..100)
                 .nonEmpty()
                 .flatMap { range ->
                     val cfg = minimalConfig + (InterfaceTypeSize to range)
@@ -438,7 +452,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - ObjectTypeSize`(): Unit =
         runBlocking {
-            Arb.intRange(1..100)
+            Arb
+                .intRange(1..100)
                 .nonEmpty()
                 .flatMap { range ->
                     val cfg = minimalConfig + (ObjectTypeSize to range)
@@ -458,17 +473,19 @@ class GraphQLTypesTest : KotestPropertyBase() {
     fun `GraphQLTypes - ObjectImplementsInterface`(): Unit =
         runBlocking {
             // ensure that types includes at least 1 interface
-            val baseTypes = GraphQLTypes.empty + GraphQLInterfaceType.newInterface()
+            val baseTypes = GraphQLTypes.empty + GraphQLInterfaceType
+                .newInterface()
                 .name("I")
                 .field(
-                    GraphQLFieldDefinition.newFieldDefinition()
+                    GraphQLFieldDefinition
+                        .newFieldDefinition()
                         .name("f")
                         .type(Scalars.GraphQLInt)
                         .build()
-                )
-                .build()
+                ).build()
 
-            Arb.compoundingWeight()
+            Arb
+                .compoundingWeight()
                 .flatMap { cw ->
                     val cfg = minimalConfig +
                         (ObjectImplementsInterface to cw)
@@ -490,7 +507,8 @@ class GraphQLTypesTest : KotestPropertyBase() {
     @Test
     fun `GraphQLTypes - UnionTypeSize`(): Unit =
         runBlocking {
-            Arb.intRange(1..100)
+            Arb
+                .intRange(1..100)
                 .nonEmpty()
                 .flatMap { range ->
                     val cfg = minimalConfig + (UnionTypeSize to range)
@@ -512,51 +530,57 @@ class GraphQLTypesTest : KotestPropertyBase() {
     fun `GraphQLTypes - resolve present references`(): Unit =
         runBlocking {
             // resolve present types
-            Arb.graphQLNames().map { names ->
-                val types = mkGen(names = names).gen()
-                names to types
-            }.forAll(iterCount) { (names, types) ->
-                val refs = names.names
-                    .filter {
-                        it.key != TypeType.Directive
-                    }
-                    .flatMap { it.value }
-                    .map(GraphQLTypeReference::typeRef)
+            Arb
+                .graphQLNames()
+                .map { names ->
+                    val types = mkGen(names = names).gen()
+                    names to types
+                }.forAll(iterCount) { (names, types) ->
+                    val refs = names.names
+                        .filter {
+                            it.key != TypeType.Directive
+                        }.flatMap { it.value }
+                        .map(GraphQLTypeReference::typeRef)
 
-                refs.all { ref ->
-                    types.resolve(ref) != null
+                    refs.all { ref ->
+                        types.resolve(ref) != null
+                    }
                 }
-            }
         }
 
     @Test
     fun `GraphQLTypes - resolve missing references`(): Unit =
         runBlocking {
             // resolve present types
-            Arb.graphQLNames().map { names ->
-                val types = mkGen(names = names).gen()
-                names to types
-            }.forAll(iterCount) { (names, types) ->
-                val otherRefs = Arb.set(Arb.graphQLName(), 1..100)
-                    .map { otherNames ->
-                        otherNames.filterNot(names.allNames::contains)
-                            .map(GraphQLTypeReference::typeRef)
-                    }
-                    .bind()
+            Arb
+                .graphQLNames()
+                .map { names ->
+                    val types = mkGen(names = names).gen()
+                    names to types
+                }.forAll(iterCount) { (names, types) ->
+                    val otherRefs = Arb
+                        .set(Arb.graphQLName(), 1..100)
+                        .map { otherNames ->
+                            otherNames
+                                .filterNot(names.allNames::contains)
+                                .map(GraphQLTypeReference::typeRef)
+                        }.bind()
 
-                otherRefs.all { types.resolve(it) == null }
-            }
+                    otherRefs.all { types.resolve(it) == null }
+                }
         }
 
     @Test
     fun `GraphQLTypes -- IncludeTypes`(): Unit =
         runBlocking {
-            Arb.graphQLTypes(minimalConfig).flatMap { a ->
-                val cfg = minimalConfig + (IncludeTypes to a)
-                Arb.graphQLTypes(cfg).map { b -> a to b }
-            }.forAll(iterCount) { (a, b) ->
-                b.names.containsAll(a.names)
-            }
+            Arb
+                .graphQLTypes(minimalConfig)
+                .flatMap { a ->
+                    val cfg = minimalConfig + (IncludeTypes to a)
+                    Arb.graphQLTypes(cfg).map { b -> a to b }
+                }.forAll(iterCount) { (a, b) ->
+                    b.names.containsAll(a.names)
+                }
         }
 
     @Test

@@ -8,13 +8,15 @@ import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.fragment.ViaductExecutableFragmentParser
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ViaductFragmentLoader
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.fragment.ViaductExecutableFragmentParser
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.mocks.MockFlagManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -25,6 +27,7 @@ class ContextMocks(
     myResolverInstrumentation: Instrumentation? = null,
     myFlagManager: FlagManager? = null,
     myEngine: Engine? = null,
+    myGlobalIDCodec: GlobalIDCodec? = null,
     myEngineExecutionContextFactory: EngineExecutionContextFactory? = null,
     private val myEngineExecutionContext: EngineExecutionContext? = null,
     myBaseLocalContext: CompositeLocalContext? = null,
@@ -40,6 +43,7 @@ class ContextMocks(
     val resolverInstrumentation: Instrumentation = myResolverInstrumentation ?: SimplePerformantInstrumentation()
     val flagManager: FlagManager = myFlagManager ?: MockFlagManager.Enabled
     val engine: Engine = myEngine ?: mockk(relaxed = true)
+    val globalIDCodec: GlobalIDCodec = myGlobalIDCodec ?: GlobalIDCodecDefault
 
     val engineExecutionContext: EngineExecutionContext get() =
         when {
@@ -58,6 +62,7 @@ class ContextMocks(
             resolverInstrumentation,
             flagManager,
             engine,
+            globalIDCodec,
         )
 
     val localContext: CompositeLocalContext by lazy {

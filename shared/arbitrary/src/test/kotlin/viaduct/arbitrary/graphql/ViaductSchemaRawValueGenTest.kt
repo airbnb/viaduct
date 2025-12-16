@@ -21,7 +21,8 @@ class ViaductSchemaRawValueGenTest : KotestPropertyBase() {
             val type = schema.types["Type"]!!.asTypeExpr()
 
             // expect that even with implicit null weight of 0, values will still be finite
-            Arb.rawValueFor(type, cfg = mkConfig(inull = 0.0, maxValueDepth = 1))
+            Arb
+                .rawValueFor(type, cfg = mkConfig(inull = 0.0, maxValueDepth = 1))
                 .forAll { v ->
                     v == obj("Type", "type" to obj("Type", "type" to inull))
                 }
@@ -71,7 +72,8 @@ class ViaductSchemaRawValueGenTest : KotestPropertyBase() {
                 genInterfaceStubs = true,
                 listValueSize = 3
             )
-            Arb.viaductExtendedSchema(cfg)
+            Arb
+                .viaductExtendedSchema(cfg)
                 .map { it.types.values }
                 .checkAll(1000) { defs ->
                     defs.forEach {

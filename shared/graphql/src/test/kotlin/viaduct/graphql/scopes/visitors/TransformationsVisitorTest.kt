@@ -53,11 +53,17 @@ class TransformationsVisitorTest {
         val transformedSchema = transformSchema(schema) { element, currentChildren ->
             val newChildren = mutableListOf<GraphQLNamedSchemaElement>()
             if (element.name == "AddObjectType") {
-                val newField = GraphQLFieldDefinition.newFieldDefinition()
+                val newField = GraphQLFieldDefinition
+                    .newFieldDefinition()
                     .name("two")
                     .type(Scalars.GraphQLString)
-                    .definition(FieldDefinition.newFieldDefinition().name("two").type(TypeName.newTypeName("String").build()).build())
-                    .build()
+                    .definition(
+                        FieldDefinition
+                            .newFieldDefinition()
+                            .name("two")
+                            .type(TypeName.newTypeName("String").build())
+                            .build()
+                    ).build()
                 newChildren.addAll(currentChildren)
                 newChildren.add(newField)
                 newChildren
@@ -69,20 +75,30 @@ class TransformationsVisitorTest {
             }
         }
 
-        transformedSchema.getObjectType("AddObjectType")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getObjectType("AddObjectType")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one", "two")
 
-        transformedSchema.getObjectType("AddObjectType")?.definition
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getObjectType("AddObjectType")
+            ?.definition
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one", "two")
 
-        transformedSchema.getObjectType("RemoveObjectType")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getObjectType("RemoveObjectType")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one")
 
-        transformedSchema.getObjectType("RemoveObjectType")?.definition
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getObjectType("RemoveObjectType")
+            ?.definition
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one")
     }
 
@@ -112,11 +128,17 @@ class TransformationsVisitorTest {
         val transformedSchema = transformSchema(schema) { element, currentChildren ->
             val newChildren = mutableListOf<GraphQLNamedSchemaElement>()
             if (element.name == "AddInterfaceType") {
-                val newField = GraphQLFieldDefinition.newFieldDefinition()
+                val newField = GraphQLFieldDefinition
+                    .newFieldDefinition()
                     .name("two")
                     .type(Scalars.GraphQLString)
-                    .definition(FieldDefinition.newFieldDefinition().name("two").type(TypeName.newTypeName("String").build()).build())
-                    .build()
+                    .definition(
+                        FieldDefinition
+                            .newFieldDefinition()
+                            .name("two")
+                            .type(TypeName.newTypeName("String").build())
+                            .build()
+                    ).build()
                 newChildren.addAll(currentChildren)
                 newChildren.add(newField)
                 newChildren
@@ -128,20 +150,30 @@ class TransformationsVisitorTest {
             }
         }
 
-        transformedSchema.getTypeAs<GraphQLInterfaceType>("AddInterfaceType")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLInterfaceType>("AddInterfaceType")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one", "two")
 
-        transformedSchema.getTypeAs<GraphQLInterfaceType>("AddInterfaceType")?.definition
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLInterfaceType>("AddInterfaceType")
+            ?.definition
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one", "two")
 
-        transformedSchema.getTypeAs<GraphQLInterfaceType>("RemoveInterfaceType")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLInterfaceType>("RemoveInterfaceType")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one")
 
-        transformedSchema.getTypeAs<GraphQLInterfaceType>("RemoveInterfaceType")?.definition
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLInterfaceType>("RemoveInterfaceType")
+            ?.definition
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one")
     }
 
@@ -171,11 +203,17 @@ class TransformationsVisitorTest {
         val transformedSchema = transformSchema(schema) { element, currentChildren ->
             val newChildren = mutableListOf<GraphQLNamedSchemaElement>()
             if (element.name == "AddInputType") {
-                val newField = GraphQLInputObjectField.newInputObjectField()
+                val newField = GraphQLInputObjectField
+                    .newInputObjectField()
                     .name("two")
                     .type(Scalars.GraphQLString)
-                    .definition(InputValueDefinition.newInputValueDefinition().name("two").type(TypeName.newTypeName("String").build()).build())
-                    .build()
+                    .definition(
+                        InputValueDefinition
+                            .newInputValueDefinition()
+                            .name("two")
+                            .type(TypeName.newTypeName("String").build())
+                            .build()
+                    ).build()
                 newChildren.addAll(currentChildren)
                 newChildren.add(newField)
                 newChildren
@@ -187,20 +225,30 @@ class TransformationsVisitorTest {
             }
         }
 
-        transformedSchema.getTypeAs<GraphQLInputObjectType>("AddInputType")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLInputObjectType>("AddInputType")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one", "two")
 
-        transformedSchema.getTypeAs<GraphQLInputObjectType>("AddInputType")?.definition
-            ?.inputValueDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLInputObjectType>("AddInputType")
+            ?.definition
+            ?.inputValueDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one", "two")
 
-        transformedSchema.getTypeAs<GraphQLInputObjectType>("RemoveInputType")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLInputObjectType>("RemoveInputType")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one")
 
-        transformedSchema.getTypeAs<GraphQLInputObjectType>("RemoveInputType")?.definition
-            ?.inputValueDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLInputObjectType>("RemoveInputType")
+            ?.definition
+            ?.inputValueDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one")
     }
 
@@ -230,7 +278,8 @@ class TransformationsVisitorTest {
         val transformedSchema = transformSchema(schema) { element, currentChildren ->
             val newChildren = mutableListOf<GraphQLNamedSchemaElement>()
             if (element.name == "AddEnum") {
-                val newField = GraphQLEnumValueDefinition.newEnumValueDefinition()
+                val newField = GraphQLEnumValueDefinition
+                    .newEnumValueDefinition()
                     .name("TWO")
                     .definition(EnumValueDefinition.newEnumValueDefinition().name("TWO").build())
                     .build()
@@ -245,20 +294,30 @@ class TransformationsVisitorTest {
             }
         }
 
-        transformedSchema.getTypeAs<GraphQLEnumType>("AddEnum")
-            ?.values?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLEnumType>("AddEnum")
+            ?.values
+            ?.map { it.name }
             .shouldContainExactly("ONE", "TWO")
 
-        transformedSchema.getTypeAs<GraphQLEnumType>("AddEnum")?.definition
-            ?.enumValueDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLEnumType>("AddEnum")
+            ?.definition
+            ?.enumValueDefinitions
+            ?.map { it.name }
             .shouldContainExactly("ONE", "TWO")
 
-        transformedSchema.getTypeAs<GraphQLEnumType>("RemoveEnum")
-            ?.values?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLEnumType>("RemoveEnum")
+            ?.values
+            ?.map { it.name }
             .shouldContainExactly("ONE")
 
-        transformedSchema.getTypeAs<GraphQLEnumType>("RemoveEnum")?.definition
-            ?.enumValueDefinitions?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLEnumType>("RemoveEnum")
+            ?.definition
+            ?.enumValueDefinitions
+            ?.map { it.name }
             .shouldContainExactly("ONE")
     }
 
@@ -303,20 +362,32 @@ class TransformationsVisitorTest {
             }
         }
 
-        transformedSchema.getTypeAs<GraphQLUnionType>("AddUnionType")
-            ?.types?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLUnionType>("AddUnionType")
+            ?.types
+            ?.map { it.name }
             .shouldContainExactly("ONE", "TWO")
 
-        transformedSchema.getTypeAs<GraphQLUnionType>("AddUnionType")?.definition
-            ?.memberTypes?.map { it as TypeName }?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLUnionType>("AddUnionType")
+            ?.definition
+            ?.memberTypes
+            ?.map { it as TypeName }
+            ?.map { it.name }
             .shouldContainExactly("ONE", "TWO")
 
-        transformedSchema.getTypeAs<GraphQLUnionType>("RemoveUnionType")
-            ?.types?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLUnionType>("RemoveUnionType")
+            ?.types
+            ?.map { it.name }
             .shouldContainExactly("ONE")
 
-        transformedSchema.getTypeAs<GraphQLUnionType>("RemoveUnionType")?.definition
-            ?.memberTypes?.map { it as TypeName }?.map { it.name }
+        transformedSchema
+            .getTypeAs<GraphQLUnionType>("RemoveUnionType")
+            ?.definition
+            ?.memberTypes
+            ?.map { it as TypeName }
+            ?.map { it.name }
             .shouldContainExactly("ONE")
     }
 
@@ -326,9 +397,11 @@ class TransformationsVisitorTest {
     ): GraphQLSchema {
         val typesToRemove = mutableSetOf<String>()
         val elementChildren =
-            schema.allTypesAsList.map {
-                Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
-            }.toMap().toMutableMap()
+            schema.allTypesAsList
+                .map {
+                    Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
+                }.toMap()
+                .toMutableMap()
         buildSchemaTraverser(schema).traverse(
             StubRoot(schema),
             CompositeVisitor(

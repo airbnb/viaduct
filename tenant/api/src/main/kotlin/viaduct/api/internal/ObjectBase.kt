@@ -18,7 +18,6 @@ import kotlin.reflect.full.isSubclassOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import viaduct.api.DynamicOutputValueBuilder
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantException
 import viaduct.api.ViaductTenantUsageException
@@ -27,6 +26,7 @@ import viaduct.api.handleTenantAPIErrors
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
@@ -35,6 +35,7 @@ import viaduct.engine.api.UnsetSelectionException
 /**
  * Base class for object type GRTs
  */
+@InternalApi
 abstract class ObjectBase(
     protected val context: InternalContext,
     val engineObject: EngineObject,

@@ -20,7 +20,8 @@ class ValueGenTest {
 
     @Test
     fun `map`() {
-        val gen = ValueGen.mk { t: Int -> t.toString() }
+        val gen = ValueGen
+            .mk { t: Int -> t.toString() }
             .map(
                 ValueMapper.mk { type: Int, from: String ->
                     type.toString() + from

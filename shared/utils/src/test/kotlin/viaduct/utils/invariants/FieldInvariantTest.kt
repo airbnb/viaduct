@@ -5,13 +5,25 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class FieldInvariantTest {
-    class User(val name: String, val age: Int)
+    class User(
+        val name: String,
+        val age: Int
+    )
 
-    class Address(val street: String, val city: String)
+    class Address(
+        val street: String,
+        val city: String
+    )
 
-    class UserWithAddress(val name: String, val age: Int, val address: Address)
+    class UserWithAddress(
+        val name: String,
+        val age: Int,
+        val address: Address
+    )
 
-    class Container<K, V>(val map: Map<K, V>)
+    class Container<K, V>(
+        val map: Map<K, V>
+    )
 
     @Test
     fun `check should pass for correct class and fields`() {
@@ -84,7 +96,10 @@ class FieldInvariantTest {
 
     @Test
     fun `check should throw null pointer exception if nullable properties are null`() {
-        class User(val name: String?, val age: Int?)
+        class User(
+            val name: String?,
+            val age: Int?
+        )
         val user = User(null, null)
         val userInvariant = FieldInvariant(
             User::class,
@@ -98,7 +113,9 @@ class FieldInvariantTest {
 
     @Test
     fun `check should throw null pointer exception for nullable recursive fields`() {
-        class Foo(val self: Foo?)
+        class Foo(
+            val self: Foo?
+        )
         val foo = Foo(null)
         val fooInvariant = FieldInvariant(
             Foo::class,
@@ -109,9 +126,13 @@ class FieldInvariantTest {
 
     @Test
     fun `check should pass for lists with invariant type`() {
-        class Item(val value: Int)
+        class Item(
+            val value: Int
+        )
 
-        class Container(val items: List<Item>)
+        class Container(
+            val items: List<Item>
+        )
         val container = Container(listOf(Item(1), Item(2), Item(3)))
         val containerInvariant = FieldInvariant(
             Container::class,
@@ -125,11 +146,17 @@ class FieldInvariantTest {
 
     @Test
     fun `check should pass for lists with abstract inner type`() {
-        abstract class Animal(val name: String)
+        abstract class Animal(
+            val name: String
+        )
 
-        class Dog(name: String) : Animal(name)
+        class Dog(
+            name: String
+        ) : Animal(name)
 
-        class Zoo(val animals: List<Animal>)
+        class Zoo(
+            val animals: List<Animal>
+        )
         val zoo = Zoo(listOf(Dog("Buddy")))
         val zooInvariant = FieldInvariant(
             Zoo::class,
@@ -138,7 +165,10 @@ class FieldInvariantTest {
         assertDoesNotThrow { zooInvariant.check(zoo) }
     }
 
-    class Product(val name: String, val price: Double) : HasInvariantAssertion {
+    class Product(
+        val name: String,
+        val price: Double
+    ) : HasInvariantAssertion {
         override fun assertInvariants() {
             require(price > 0) { "Price must be greater than zero" }
         }

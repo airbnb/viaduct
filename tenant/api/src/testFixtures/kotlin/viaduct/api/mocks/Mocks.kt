@@ -28,16 +28,18 @@ fun mkSchema(sdl: String): GraphQLSchema {
 }
 
 @Suppress("NO_REFLECTION_IN_CLASS_PATH")
-fun mockReflectionLoader(packageName: String) =
-    object : ReflectionLoader {
-        override fun reflectionFor(name: String): Type<*> {
-            return Class.forName("$packageName.$name\$Reflection").kotlin.objectInstance as Type<*>
-        }
-
-        override fun getGRTKClassFor(name: String): KClass<*> {
-            return Class.forName("$packageName.$name").kotlin
-        }
+fun mockReflectionLoader(
+    packageName: String,
+    classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
+) = object : ReflectionLoader {
+    override fun reflectionFor(name: String): Type<*> {
+        return Class.forName("$packageName.$name\$Reflection", true, classLoader).kotlin.objectInstance as Type<*>
     }
+
+    override fun getGRTKClassFor(name: String): KClass<*> {
+        return Class.forName("$packageName.$name", true, classLoader).kotlin
+    }
+}
 
 val GraphQLSchema.viaduct: ViaductSchema
     get() =

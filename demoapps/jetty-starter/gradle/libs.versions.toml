@@ -2,19 +2,26 @@
 jetty = "11.0.26"
 kotest = "5.8.1"
 kotlin = "1.9.24"
+jackson = "2.20.1"
+jakarta = "6.0.0"
+junit = "5.9.2"
+junit-platform = "1.9.2"
+logback = "1.5.21"
+httpclient = "5.5.1"
 
 [plugins]
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
 
 [libraries]
-jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version = "2.17.2" }
-jakarta-servlet-api = { group = "jakarta.servlet", name = "jakarta.servlet-api", version = "6.0.0" }
+jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version.ref = "jackson" }
+jakarta-servlet-api = { group = "jakarta.servlet", name = "jakarta.servlet-api", version.ref = "jakarta" }
 jetty-server = { group = "org.eclipse.jetty", name = "jetty-server", version.ref = "jetty" }
 jetty-servlet = { group = "org.eclipse.jetty", name = "jetty-servlet", version.ref = "jetty" }
-junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version = "5.9.2" }
-junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version = "1.9.2" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junit-platform" }
 kotest-assertions-core = { group = "io.kotest", name = "kotest-assertions-core-jvm", version.ref = "kotest" }
 kotest-assertions-json = { group = "io.kotest", name = "kotest-assertions-json-jvm", version.ref = "kotest" }
-logback-classic = { group = "ch.qos.logback", name = "logback-classic", version = "1.3.7" }
-httpclient5 = { group = "org.apache.httpcomponents.client5", name = "httpclient5", version = "5.2.1" }
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
+httpclient5 = { group = "org.apache.httpcomponents.client5", name = "httpclient5", version.ref = "httpclient" }

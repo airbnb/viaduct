@@ -8,13 +8,14 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
 import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.CheckerExecutor
-import viaduct.engine.api.FieldResolverDispatcher
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
-import viaduct.engine.runtime.EngineExecutionContextImpl
+import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineResultLocalContext
+import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
@@ -53,7 +54,7 @@ class ResolverDataFetcher(
     private suspend fun resolve(environment: DataFetchingEnvironment): Any? {
         val engineResults = getEngineResults(environment)
 
-        val engineExecutionContext = environment.engineExecutionContext as EngineExecutionContextImpl
+        val engineExecutionContext = environment.engineExecutionContext
         val localExecutionContext = engineExecutionContext.copy(
             dataFetchingEnvironment = environment
         )
@@ -111,7 +112,7 @@ class ResolverDataFetcher(
     }
 
     private suspend fun getFieldResolverDispatcherEOD(
-        localExecutionContext: EngineExecutionContextImpl,
+        localExecutionContext: EngineExecutionContext,
         environment: DataFetchingEnvironment,
         engineResults: EngineResults,
     ): EngineObjectData {
@@ -160,7 +161,7 @@ class ResolverDataFetcher(
         environment: DataFetchingEnvironment,
         fieldResolverDispatcherEOD: ProxyEngineObjectData,
         resolverQueryProxyEOD: ProxyEngineObjectData,
-        engineExecutionContext: EngineExecutionContextImpl
+        engineExecutionContext: EngineExecutionContext
     ) = fieldResolverDispatcher.resolve(
         environment.arguments,
         fieldResolverDispatcherEOD,
@@ -191,7 +192,7 @@ class ResolverDataFetcher(
         }
         val checkerSelectionSetMap = checkerDispatcher.requiredSelectionSets
 
-        val selectionSetFactory = (environment.engineExecutionContext as EngineExecutionContextImpl).rawSelectionSetFactory
+        val selectionSetFactory = environment.engineExecutionContext.rawSelectionSetFactory
         return checkerSelectionSetMap.mapValues { (_, rss) ->
             val selectionSet = rss?.let { selectionSetFactory.rawSelectionSet(rss.selections, emptyMap()) }
             CheckerProxyEngineObjectData(

@@ -28,14 +28,16 @@ class GraphQLStringsTest : KotestPropertyBase() {
     fun `Arb_graphQLName produces names that are valid GraphQL type names`(): Unit =
         runBlocking {
             val placeholder =
-                GraphQLFieldDefinition.newFieldDefinition()
+                GraphQLFieldDefinition
+                    .newFieldDefinition()
                     .name("placeholder")
                     .type(Scalars.GraphQLInt)
                     .build()
 
             Arb.graphQLName().forAll { typeName ->
                 val query =
-                    GraphQLObjectType.newObject()
+                    GraphQLObjectType
+                        .newObject()
                         .name(typeName)
                         .field(placeholder)
                         .build()
@@ -58,7 +60,8 @@ class GraphQLStringsTest : KotestPropertyBase() {
     fun `Arb_graphQLFieldName produces names that are valid GraphQL field names`(): Unit =
         runBlocking {
             val query =
-                GraphQLObjectType.newObject()
+                GraphQLObjectType
+                    .newObject()
                     .name("Query")
                     .build()
 
@@ -66,7 +69,8 @@ class GraphQLStringsTest : KotestPropertyBase() {
                 val newQuery =
                     query.transform {
                         val field =
-                            GraphQLFieldDefinition.newFieldDefinition()
+                            GraphQLFieldDefinition
+                                .newFieldDefinition()
                                 .name(fieldName)
                                 .type(Scalars.GraphQLInt)
                                 .build()

@@ -6,6 +6,7 @@ import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
 import viaduct.codegen.utils.JavaName
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.tenant.codegen.bytecode.config.InputTypeFactoryConfig
 import viaduct.tenant.codegen.bytecode.config.kmType
 
 fun KotlinGRTFilesBuilder.inputKotlinGen(
@@ -36,6 +37,9 @@ private interface InputModel {
     /** Tagging interface for this class, either Input or Arguments */
     val taggingInterface: String
 
+    /** InputTypeFactory method name (argumentsInputType or inputInputType) */
+    val inputTypeMethod: String
+
     /** A rendered template string that describes this types Reflection object */
     val reflection: String
 
@@ -64,6 +68,7 @@ private val inputSTGroup =
 
     import graphql.schema.GraphQLInputObjectType
     import viaduct.api.context.ExecutionContext
+    import viaduct.api.internal.InputTypeFactory
     import viaduct.api.internal.InternalContext
     import viaduct.api.internal.internal
     import viaduct.api.internal.InputLikeBase
@@ -92,7 +97,7 @@ private val inputSTGroup =
 
             constructor(context: ExecutionContext): this(
                 context.internal,
-                <mdl.taggingInterface>.inputType("<mdl.className>", context.internal.schema),
+                InputTypeFactory.<mdl.inputTypeMethod>("<mdl.className>", context.internal.schema),
                 mutableMapOf()
             )
 
@@ -122,4 +127,5 @@ private class InputModelImpl(
 ) : InputModel {
     override val fields: List<InputModel.FieldModel> = fieldDefs.map { InputModel.FieldModel(pkg, it, baseTypeMapper) }
     override val reflection: String = reflectedType?.toString() ?: ""
+    override val inputTypeMethod: String = InputTypeFactoryConfig.getFactoryMethodName(taggingInterface)
 }

@@ -40,6 +40,7 @@ dependencies {
 
     runtimeOnly(libs.logback.classic)
     implementation(project(":common"))
+    implementation(libs.viaduct.service.wiring)
     runtimeOnly(project(":modules:filmography"))
     runtimeOnly(project(":modules:universe"))
 

@@ -194,8 +194,7 @@ private class IRGen(
                         .filterNot { f ->
                             val canInull = f.hasSetDefaultValue() || GraphQLTypeUtil.isNullable(f.type)
                             canInull && rs.sampleWeight(cfg[ImplicitNullValueWeight])
-                        }
-                        .map { f -> f.name to genValue(push(f.type)) }
+                        }.map { f -> f.name to genValue(push(f.type)) }
                     IR.Value.Object(type.name, nameValuePairs.toMap())
                 }
 
@@ -246,7 +245,8 @@ private class IRGen(
             "Short" -> IR.Value.Number(Arb.short().next(rs))
             "String" -> IR.Value.String(Arb.string().next(rs))
             "Time" ->
-                Arb.bind(Arb.localTime(), Arb.zoneOffset(), OffsetTime::of)
+                Arb
+                    .bind(Arb.localTime(), Arb.zoneOffset(), OffsetTime::of)
                     .next(rs)
                     .let(IR.Value::Time)
             else -> throw UnsupportedOperationException("Unsupported scalar type: ${type.name}")

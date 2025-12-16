@@ -156,13 +156,21 @@ class SchemaDiff(
             }
             if (expectedDef is ViaductSchema.HasExtensions<*, *>) {
                 cvt(expectedDef, actualDef) { exp, act ->
-                    fun ViaductSchema.Extension<*, *>.memberKeys() = this.members.map { it.name }.sorted().joinToString("::")
+                    fun ViaductSchema.Extension<*, *>.memberKeys() =
+                        this.members
+                            .map { it.name }
+                            .sorted()
+                            .joinToString("::")
                     sameNames(exp.extensions, act.extensions, "EXTENSION", ViaductSchema.Extension<*, *>::memberKeys)
                 }
             }
             if (expectedDef is ViaductSchema.HasExtensionsWithSupers<*, *>) {
                 cvt(expectedDef, actualDef) { exp, act ->
-                    fun ViaductSchema.Extension<*, *>.supersKeys() = this.members.map { it.name }.sorted().joinToString("::")
+                    fun ViaductSchema.Extension<*, *>.supersKeys() =
+                        this.members
+                            .map { it.name }
+                            .sorted()
+                            .joinToString("::")
                     sameNames(exp.extensions, act.extensions, "EXTENSION", ViaductSchema.Extension<*, *>::supersKeys)
                 }
             }
@@ -276,8 +284,8 @@ class SchemaDiff(
         return (expectedNode as Node<*>).isEqualTo(actualNode as Node<*>)
     }
 
-    private fun extractIntegralValue(node: Any?): Any? {
-        return when (node) {
+    private fun extractIntegralValue(node: Any?): Any? =
+        when (node) {
             is IntValue -> {
                 try {
                     node.value.toLong()
@@ -288,14 +296,13 @@ class SchemaDiff(
             is StringValue -> node.value?.toLongOrNull()
             else -> node
         }
-    }
 
     private fun hasSameKind(
         expectedDef: ViaductSchema.Def,
         actualDef: ViaductSchema.Def,
         msg: String
-    ): Boolean {
-        return when (actualDef) {
+    ): Boolean =
+        when (actualDef) {
             is ViaductSchema.Directive -> {
                 checker.isInstanceOf<ViaductSchema.Directive>(expectedDef, "${msg}_AGREE")
             }
@@ -331,15 +338,12 @@ class SchemaDiff(
             }
             else -> throw IllegalArgumentException("Unexpected class $actualDef")
         }
-    }
 
     companion object {
         private inline fun <reified T, R> cvt(
             exp: T,
             act: Any?,
             body: (T, T) -> R
-        ): R {
-            return body.invoke(exp, act as T)
-        }
+        ): R = body.invoke(exp, act as T)
     }
 }

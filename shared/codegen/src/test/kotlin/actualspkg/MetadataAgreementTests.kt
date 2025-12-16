@@ -5,7 +5,9 @@ package actualspkg
 class MetadataAgreementTests {
     class EmptyClass
 
-    class WithCtors(val foo: Int) {
+    class WithCtors(
+        val foo: Int
+    ) {
         internal constructor(foo: Int?, bar: Int = 1) : this(bar)
         protected constructor(bar: WithCtors? = null) : this(2)
     }

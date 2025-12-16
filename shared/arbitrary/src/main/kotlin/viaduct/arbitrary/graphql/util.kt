@@ -128,12 +128,13 @@ fun <T> Arb<Set<T>>.subset(range: IntRange? = null): Arb<Set<T>> =
         val first = min(max(range?.first ?: 0, 0), set.size)
         val last = min(max(range?.last ?: 0, 0), set.size)
 
-        Arb.pair(
-            Arb.shuffle(set.toList()),
-            Arb.int(first..last)
-        ).map { (shuffled, count) ->
-            shuffled.take(count).toSet()
-        }
+        Arb
+            .pair(
+                Arb.shuffle(set.toList()),
+                Arb.int(first..last)
+            ).map { (shuffled, count) ->
+                shuffled.take(count).toSet()
+            }
     }
 
 /**
@@ -299,7 +300,8 @@ val String.asSchema: GraphQLSchema get() = SchemaGenerator.createdMockedSchema(t
 /** Return a parsed [Document] described by this String value */
 val String.asDocument: Document get() =
     Parser.parse(
-        ParserEnvironment.newParserEnvironment()
+        ParserEnvironment
+            .newParserEnvironment()
             .document(this)
             // use the SDL parser options, which will parse an unlimited number of tokens
             .parserOptions(ParserOptions.getDefaultSdlParserOptions())

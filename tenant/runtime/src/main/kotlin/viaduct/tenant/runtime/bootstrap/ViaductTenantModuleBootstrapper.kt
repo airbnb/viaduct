@@ -38,9 +38,10 @@ import viaduct.utils.slf4j.logger
  */
 class ViaductTenantModuleBootstrapper(
     private val tenantCodeInjector: TenantCodeInjector,
-    private val tenantResolverClassFinder: TenantResolverClassFinder
+    private val tenantResolverClassFinder: TenantResolverClassFinder,
 ) : TenantModuleBootstrapper {
     private val reflectionLoader = ReflectionLoaderImpl { name -> tenantResolverClassFinder.grtClassForName(name) }
+
     private val globalIDCodec = GlobalIDCodecImpl(reflectionLoader)
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(globalIDCodec, reflectionLoader)
 

@@ -75,7 +75,8 @@ class GJRawValueGenTest : KotestPropertyBase() {
                 "input Input { int: Int! str: String! }"
             )
 
-            Arb.rawValueFor(inp.nonNull())
+            Arb
+                .rawValueFor(inp.nonNull())
                 .checkInvariants { v, check ->
                     val fieldMap = v.asInputFieldMap()
                     check.containsExactlyElementsIn(
@@ -112,7 +113,8 @@ class GJRawValueGenTest : KotestPropertyBase() {
             )
 
             // explicit null values
-            Arb.rawValueFor(inp.nonNull(), cfg = mkConfig(enull = 1.0))
+            Arb
+                .rawValueFor(inp.nonNull(), cfg = mkConfig(enull = 1.0))
                 .checkInvariants { v, check ->
                     v.asInputFieldMap().forEach { (k, v) ->
                         check.isTrue(
@@ -124,7 +126,8 @@ class GJRawValueGenTest : KotestPropertyBase() {
                 }
 
             // implicit null values
-            Arb.rawValueFor(inp.nonNull(), cfg = mkConfig(inull = 1.0))
+            Arb
+                .rawValueFor(inp.nonNull(), cfg = mkConfig(inull = 1.0))
                 .checkInvariants { v, check ->
                     v.asInputFieldMap().forEach { (k, v) ->
                         check.isTrue(
@@ -163,7 +166,8 @@ class GJRawValueGenTest : KotestPropertyBase() {
                 """.trimIndent()
             )
 
-            Arb.rawValueFor(inp, cfg = mkConfig(enull = 0.0, inull = 0.0))
+            Arb
+                .rawValueFor(inp, cfg = mkConfig(enull = 0.0, inull = 0.0))
                 .checkInvariants { v, check ->
                     val fieldMap = v.asInputFieldMap()
                     inp.fields.forEach { f ->
@@ -178,7 +182,8 @@ class GJRawValueGenTest : KotestPropertyBase() {
 
     @Test
     fun `boolean values`() {
-        Arb.rawValueFor(Scalars.GraphQLBoolean.nonNull())
+        Arb
+            .rawValueFor(Scalars.GraphQLBoolean.nonNull())
             .checkInvariants { v, check ->
                 check.isEqualTo(
                     "Boolean",
@@ -190,7 +195,8 @@ class GJRawValueGenTest : KotestPropertyBase() {
 
     @Test
     fun `int values`() {
-        Arb.rawValueFor(Scalars.GraphQLInt.nonNull())
+        Arb
+            .rawValueFor(Scalars.GraphQLInt.nonNull())
             .checkInvariants { v, check ->
                 check.isEqualTo(
                     "Int",
@@ -202,7 +208,8 @@ class GJRawValueGenTest : KotestPropertyBase() {
 
     @Test
     fun `float values`() {
-        Arb.rawValueFor(Scalars.GraphQLFloat.nonNull())
+        Arb
+            .rawValueFor(Scalars.GraphQLFloat.nonNull())
             .checkInvariants { v, check ->
                 check.isEqualTo(
                     "Float",
@@ -214,12 +221,14 @@ class GJRawValueGenTest : KotestPropertyBase() {
 
     @Test
     fun `enum values`() {
-        Arb.set(Arb.graphQLEnumValueName(), 1..10)
+        Arb
+            .set(Arb.graphQLEnumValueName(), 1..10)
             .flatMap { names ->
                 val values = names.map {
                     GraphQLEnumValueDefinition.newEnumValueDefinition().name(it).build()
                 }
-                val enum = GraphQLEnumType.newEnum()
+                val enum = GraphQLEnumType
+                    .newEnum()
                     .name("Enum")
                     .values(values)
                     .build()
@@ -243,11 +252,11 @@ class GJRawValueGenTest : KotestPropertyBase() {
     @Test
     fun `string-ish values`() {
         val types = listOf(Scalars.GraphQLString, Scalars.GraphQLID)
-        Arb.element(types)
+        Arb
+            .element(types)
             .flatMap { type ->
                 Arb.rawValueFor(type.nonNull()).map { it to type }
-            }
-            .checkInvariants { (v, type), check ->
+            }.checkInvariants { (v, type), check ->
                 check.isFalse(v is NullValue, "unexpected non-null value")
                 check.isTrue(
                     v.scalarType == type.name,
@@ -270,7 +279,8 @@ class GJRawValueGenTest : KotestPropertyBase() {
         )
         val ref = GraphQLTypeReference.typeRef("Other")
 
-        Arb.rawValueFor(ref.nonNull(), types, mkConfig(enull = 0.0))
+        Arb
+            .rawValueFor(ref.nonNull(), types, mkConfig(enull = 0.0))
             .checkInvariants { v, check ->
                 check.isTrue(v is RawInput, "expected RawInput value but got $v")
                 val fields = v.asInputFieldMap()
@@ -283,13 +293,15 @@ class GJRawValueGenTest : KotestPropertyBase() {
         val ref = GraphQLTypeReference.typeRef("Other")
 
         // nullable
-        Arb.rawValueFor(ref, cfg = mkConfig(enull = 1.0))
+        Arb
+            .rawValueFor(ref, cfg = mkConfig(enull = 1.0))
             .checkInvariants { v, check ->
                 check.isTrue(v is RawENull, "expected RawENull type but got $v")
             }
 
         // non-nullable
-        Arb.graphQLName()
+        Arb
+            .graphQLName()
             .map { GraphQLTypeReference(it).nonNull() }
             .checkInvariants { v, check ->
                 val result = Result.runCatching {

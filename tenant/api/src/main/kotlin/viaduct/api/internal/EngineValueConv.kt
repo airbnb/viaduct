@@ -11,7 +11,9 @@ import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
 import java.time.temporal.TemporalAccessor
 import viaduct.api.internal.EngineValueConv.invoke
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.ViaductSchema
 import viaduct.mapping.graphql.Conv
@@ -23,6 +25,7 @@ import viaduct.mapping.graphql.IR
  *
  * @see invoke
  */
+@InternalApi
 object EngineValueConv {
     private val objectMapper = ObjectMapper()
 
@@ -40,14 +43,17 @@ object EngineValueConv {
      *   // IR -> engine
      *   conv.invert(IR.Value.Null)   // null
      * ```
+     *
+     * @param type the GraphQL type for which a [Conv] will be created
+     * @param selectionSet a possible projection of [type].
+     * The returned [Conv] will only be able to map the selections in [selectionSet].
+     * Any aliases used in [selectionSet] will be used as object keys in both the EngineValue and IR Values
      */
     operator fun invoke(
         schema: ViaductSchema,
-        type: GraphQLType
-    ): Conv<Any?, IR.Value> = Builder(schema).build(type)
-
-    @Suppress("ObjectPropertyNaming")
-    private val __typename: String = "__typename"
+        type: GraphQLType,
+        selectionSet: RawSelectionSet?
+    ): Conv<Any?, IR.Value> = Builder(schema).build(type, selectionSet)
 
     internal fun nullable(inner: Conv<Any?, IR.Value>): Conv<Any?, IR.Value> =
         Conv(
@@ -182,58 +188,65 @@ object EngineValueConv {
         engineDataConv: Conv<Map<String, Any?>, IR.Value.Object>
     ): Conv<EngineObjectData.Sync, IR.Value.Object> =
         Conv(
-            forward = {
-                val data = it.getSelections().associate { sel -> sel to it.get(sel) }
+            forward = { eod ->
+                val data = eod.getSelections().associateWith { sel -> eod.get(sel) }
                 engineDataConv(data)
             },
-            inverse = {
-                val data = engineDataConv.invert(it)
+            inverse = { ir ->
+                val data = engineDataConv.invert(ir)
                 ResolvedEngineObjectData(gqlType, data)
             },
             "engineObjectData-${gqlType.name}"
         )
 
+    /**
+     * @param convs a map of convs, keyed by their IR name
+     * @param keyMap a map for transforming object keys:
+     *   - when converting in the forward direction, IR keys will be computed by translating
+     *     the keys of the input object through the forward key map
+     *   - when converting in the inverse direction, output keys will be computed by translating
+     *     the keys of the input IR object through the inverse key map
+     */
     internal fun obj(
         name: String,
-        fieldConvs: Map<String, Conv<Any?, IR.Value>>
-    ): Conv<Map<String, Any?>, IR.Value.Object> {
-        val allConvs = fieldConvs + (__typename to string)
-
-        return Conv(
-            forward = {
-                val fieldValues = it.mapNotNull { (k, v) ->
-                    val conv = allConvs[k] ?: return@mapNotNull null
-                    k to conv(v)
+        convs: Map<String, Conv<Any?, IR.Value>>,
+        keyMap: KeyMapping.Map = KeyMapping.Map.Identity,
+    ): Conv<Map<String, Any?>, IR.Value.Object> =
+        Conv(
+            forward = { data ->
+                // objects may have a KeyMapping applied, which can translate between field names and selection names.
+                // We consider the engine value to have unmapped keys, and we would like to convert to an IR representation
+                // with mapped keys
+                // Thus, in the forward direction, every engine value key needs to be translated through the key mapper,
+                // and we lookup the conv based on the mapped key.
+                val selectionValues = data.flatMap { (k, v) ->
+                    keyMap.forward(k).mapNotNull { mappedKey ->
+                        val conv = convs[mappedKey] ?: return@mapNotNull null
+                        mappedKey to conv(v)
+                    }
                 }.toMap()
-                IR.Value.Object(name, fieldValues)
+                IR.Value.Object(name, selectionValues)
             },
             inverse = {
-                it.fields.mapValues { (k, v) ->
-                    val conv = requireNotNull(allConvs[k]) {
-                        "Missing conv for field $name.$k"
+                // when inverting an IR object value, the keys in the IR object are assumed to have had a
+                // KeyMapping applied.
+                it.fields.toList().flatMap { (k, v) ->
+                    val conv = requireNotNull(convs[k]) {
+                        "Missing conv for key $name.$k"
                     }
-                    conv.invert(v)
-                }
+                    val value = conv.invert(v)
+                    keyMap.invert(k).map { engineKey ->
+                        engineKey to value
+                    }
+                }.toMap()
             },
             "obj-$name"
         )
-    }
 
-    internal fun enum(
-        typeName: String,
-        values: Set<String>
-    ): Conv<Any?, IR.Value> =
+    internal fun enum(typeName: String): Conv<Any?, IR.Value> =
         Conv(
-            forward = {
-                it as String
-                require(it in values)
-                IR.Value.String(it)
-            },
-            inverse = {
-                it as IR.Value.String
-                require(it.value in values)
-                it.value
-            },
+            forward = { IR.Value.String(it as String) },
+            inverse = { (it as IR.Value.String).value },
             "enum-$typeName"
         )
 
@@ -257,18 +270,22 @@ object EngineValueConv {
     private class Builder(val schema: ViaductSchema) {
         private val memo = ConvMemo()
 
-        fun build(type: GraphQLType): Conv<Any?, IR.Value> = mk(type).also { memo.finalize() }
+        fun build(
+            type: GraphQLType,
+            selectionSet: RawSelectionSet?
+        ): Conv<Any?, IR.Value> = mk(type, selectionSet).also { memo.finalize() }
 
         private fun mk(
             type: GraphQLType,
+            selectionSet: RawSelectionSet?,
             isNullable: Boolean = true
         ): Conv<Any?, IR.Value> {
             val conv = when (type) {
                 is GraphQLNonNull ->
-                    return nonNull(mk(type.wrappedType, isNullable = false))
+                    return nonNull(mk(type.wrappedType, selectionSet, isNullable = false))
 
                 is GraphQLList ->
-                    list(mk(type.wrappedType))
+                    list(mk(type.wrappedType, selectionSet))
 
                 is GraphQLScalarType -> when (type.name) {
                     "BackingData" -> backingData
@@ -288,34 +305,34 @@ object EngineValueConv {
                 }
 
                 is GraphQLObjectType ->
-                    memo.buildIfAbsent(type.name) {
-                        val fieldConvs = type.fields.associate { f -> f.name to mk(f.type) }
+                    memo.memoizeIf(type.name, selectionSet == null) {
+                        val selectionConvs = mkSelectionConvs(schema, type, selectionSet, ::mk)
                         engineObjectData(
                             type,
-                            obj(type.name, fieldConvs)
+                            obj(type.name, selectionConvs)
                         )
                     }.asAnyConv
 
                 // this handles interfaces and unions
                 is GraphQLCompositeType ->
-                    memo.buildIfAbsent(type.name) {
-                        val members = schema.rels.possibleObjectTypes(type).toList()
-                        val memberConvs = members.associate {
+                    memo.memoizeIf(type.name, selectionSet == null) {
+                        val concretes = schema.rels.possibleObjectTypes(type).associate { type ->
+                            val typedSelections = selectionSet?.selectionSetForType(type.name)
+
                             @Suppress("UNCHECKED_CAST")
-                            val memberConv = mk(it) as Conv<EngineObjectData.Sync, IR.Value.Object>
-                            it.name to memberConv
+                            val concrete = mk(type, typedSelections) as Conv<EngineObjectData.Sync, IR.Value.Object>
+                            type.name to concrete
                         }
-                        abstract(type.name, memberConvs)
+                        abstract(type.name, concretes)
                     }.asAnyConv
 
                 is GraphQLInputObjectType ->
                     memo.buildIfAbsent(type.name) {
-                        val fieldConvs = type.fields.associate { f -> f.name to mk(f.type) }
+                        val fieldConvs = type.fields.associate { f -> f.name to mk(f.type, null) }
                         obj(type.name, fieldConvs).asAnyConv
                     }
 
-                is GraphQLEnumType ->
-                    enum(type.name, type.values.map { it.name }.toSet())
+                is GraphQLEnumType -> enum(type.name)
 
                 else -> throwUnsupported(type)
             }

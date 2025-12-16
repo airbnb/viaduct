@@ -1,5 +1,5 @@
-import java.net.URL
 import java.io.InputStream
+import java.net.URL
 
 // Copybara configuration
 val copybaraJarDir = file("$projectDir/copybara")

@@ -10,9 +10,7 @@ import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.FieldResolverDispatcher
 import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.NodeResolverDispatcher
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.TenantModuleException
@@ -20,7 +18,9 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.CheckerDispatcherImpl
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
+import viaduct.engine.runtime.NodeResolverDispatcher
 import viaduct.engine.runtime.NodeResolverDispatcherImpl
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedCheckerDispatcher
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher
@@ -108,7 +108,7 @@ class DispatcherRegistryFactory(
                 }
             }
         }
-        val dispatcherRegistry = DispatcherRegistry(fieldResolverDispatchers.toMap(), nodeResolverDispatchers.toMap(), fieldCheckerDispatchers.toMap(), typeCheckerDispatchers.toMap())
+        val dispatcherRegistry = DispatcherRegistry.Impl(fieldResolverDispatchers.toMap(), nodeResolverDispatchers.toMap(), fieldCheckerDispatchers.toMap(), typeCheckerDispatchers.toMap())
         if (dispatcherRegistry.isEmpty() && nonContributingModernBootstrappersPresent) {
             log().warn("Empty executor registry for {}.", tenantModuleBootstrappers)
         }

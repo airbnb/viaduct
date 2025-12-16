@@ -59,14 +59,15 @@ class ViaductQueryTraverser private constructor(
         private val queryTraversalContextKlass = Class.forName("graphql.analysis.QueryTraversalContext")
         private val queryTraversalOptions = QueryTraversalOptions.defaultOptions()
         private val queryTraversalContextConstructor =
-            queryTraversalContextKlass.getDeclaredConstructor(
-                GraphQLOutputType::class.java,
-                QueryVisitorFieldEnvironment::class.java,
-                SelectionSetContainer::class.java,
-                GraphQLContext::class.java
-            ).also {
-                it.isAccessible = true
-            }
+            queryTraversalContextKlass
+                .getDeclaredConstructor(
+                    GraphQLOutputType::class.java,
+                    QueryVisitorFieldEnvironment::class.java,
+                    SelectionSetContainer::class.java,
+                    GraphQLContext::class.java
+                ).also {
+                    it.isAccessible = true
+                }
 
         fun fromDocumentWithRawVariables(
             schema: GraphQLSchema,
@@ -119,8 +120,8 @@ class ViaductQueryTraverser private constructor(
             fragmentsByName: Map<String, FragmentDefinition>,
             coercedVariables: CoercedVariables,
             options: QueryTraversalOptions?
-        ): ViaductQueryTraverser {
-            return ViaductQueryTraverser(
+        ): ViaductQueryTraverser =
+            ViaductQueryTraverser(
                 schema = schema,
                 roots = listOf(root),
                 rootParentType = rootParentType,
@@ -128,27 +129,21 @@ class ViaductQueryTraverser private constructor(
                 coercedVariables = coercedVariables,
                 options = options
             )
-        }
 
         private fun getRootTypeFromOperation(
             schema: GraphQLSchema,
             operationDefinition: OperationDefinition
-        ): GraphQLObjectType {
-            return when (operationDefinition.operation!!) {
+        ): GraphQLObjectType =
+            when (operationDefinition.operation!!) {
                 OperationDefinition.Operation.MUTATION -> checkNotNull(schema.mutationType)
                 OperationDefinition.Operation.QUERY -> checkNotNull(schema.queryType)
                 OperationDefinition.Operation.SUBSCRIPTION -> checkNotNull(schema.subscriptionType)
             }
-        }
 
-        fun newQueryTraverser(): Builder {
-            return Builder()
-        }
+        fun newQueryTraverser(): Builder = Builder()
     }
 
-    fun visitDepthFirst(queryVisitor: QueryVisitor?): Any? {
-        return visitImpl(queryVisitor, null)
-    }
+    fun visitDepthFirst(queryVisitor: QueryVisitor?): Any? = visitImpl(queryVisitor, null)
 
     /**
      * Visits the Document (or parts of it) in post-order.
@@ -440,9 +435,7 @@ class ViaductNodeVisitorWithTypeTracking(
                 variables: MutableMap<String, Any>?,
                 schema: GraphQLSchema?,
                 ctx: GraphQLContext?
-            ): Boolean {
-                return true
-            }
+            ): Boolean = true
         }
     }
 }

@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.graphql.utils
 
 import graphql.language.ArrayValue
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.utils.DefaultSchemaProvider.DefaultDirective
 
+@Suppress("DEPRECATION")
 class DefaultSchemaProviderTest {
     /**
      * High-level integration test for the public API. Ensures `addDefaults` adds default
@@ -79,8 +82,19 @@ class DefaultSchemaProviderTest {
         // Verify schema definition wiring has only Query
         val schemaDefs = registry.schemaDefinition().toList()
         assertEquals(1, schemaDefs.size, "Should have exactly one SchemaDefinition")
-        val ops = schemaDefs.single().operationTypeDefinitions.map { it.name }.toSet()
-        assertEquals(setOf(OperationDefinition.Operation.QUERY.name.lowercase()), ops, "Should only wire QUERY op")
+        val ops = schemaDefs
+            .single()
+            .operationTypeDefinitions
+            .map { it.name }
+            .toSet()
+        assertEquals(
+            setOf(
+                OperationDefinition.Operation.QUERY.name
+                    .lowercase()
+            ),
+            ops,
+            "Should only wire QUERY op"
+        )
     }
 
     @Test
@@ -221,7 +235,8 @@ class DefaultSchemaProviderTest {
 
     @Test
     fun `addDefaults should never add Node interface when includeNodeDefinition is Never`() {
-        val registry = SchemaParser().parse("type User implements Node { id:ID! }")
+        val registry = SchemaParser()
+            .parse("type User implements Node { id:ID! }")
             .also {
                 DefaultSchemaProvider.addDefaults(
                     it,
@@ -249,7 +264,8 @@ class DefaultSchemaProviderTest {
 
     @Test
     fun `addDefaults should add Node interface when Node implementing type exists`() {
-        val registry = SchemaParser().parse("type User implements Node { id:ID! }")
+        val registry = SchemaParser()
+            .parse("type User implements Node { id:ID! }")
             .also(DefaultSchemaProvider::addDefaults)
         assertNodeSchema(registry, expectNode = true)
     }
@@ -262,8 +278,7 @@ class DefaultSchemaProviderTest {
                     type User { empty:Int }
                     extend type User implements Node { id:ID! }
                 """.trimIndent()
-            )
-            .also(DefaultSchemaProvider::addDefaults)
+            ).also(DefaultSchemaProvider::addDefaults)
 
         // Verify Node interface is added
         assertNodeSchema(registry, expectNode = true)
@@ -271,7 +286,8 @@ class DefaultSchemaProviderTest {
 
     @Test
     fun `addDefaults should add Node interface when Node implementing interface exists`() {
-        val registry = SchemaParser().parse("interface I implements Node { empty:Int }")
+        val registry = SchemaParser()
+            .parse("interface I implements Node { empty:Int }")
             .also(DefaultSchemaProvider::addDefaults)
 
         // Verify Node interface is added
@@ -280,12 +296,13 @@ class DefaultSchemaProviderTest {
 
     @Test
     fun `addDefaults should add Node interface when Node implementing interface extension exists`() {
-        val registry = SchemaParser().parse(
-            """
+        val registry = SchemaParser()
+            .parse(
+                """
                 interface I { empty:Int }
                 extend interface I implements Node { id:ID! }
-            """.trimIndent()
-        ).also(DefaultSchemaProvider::addDefaults)
+                """.trimIndent()
+            ).also(DefaultSchemaProvider::addDefaults)
 
         // Verify Node interface is added
         assertNodeSchema(registry, expectNode = true)
@@ -293,7 +310,8 @@ class DefaultSchemaProviderTest {
 
     @Test
     fun `addDefaults should add Node interface when Object field returns Node`() {
-        val registry = SchemaParser().parse("type O { nodes:[Node!]! }")
+        val registry = SchemaParser()
+            .parse("type O { nodes:[Node!]! }")
             .also(DefaultSchemaProvider::addDefaults)
 
         // Verify Node interface is added
@@ -302,7 +320,8 @@ class DefaultSchemaProviderTest {
 
     @Test
     fun `addDefaults should add Node interface when Object extension field returns Node`() {
-        val registry = SchemaParser().parse("extend type Query { x:Node }")
+        val registry = SchemaParser()
+            .parse("extend type Query { x:Node }")
             .also(DefaultSchemaProvider::addDefaults)
 
         // Verify Node interface is added
@@ -311,12 +330,13 @@ class DefaultSchemaProviderTest {
 
     @Test
     fun `addDefaults should add Node interface when Interface extension field returns Node`() {
-        val registry = SchemaParser().parse(
-            """
+        val registry = SchemaParser()
+            .parse(
+                """
                 interface I { empty:Int }
                 extend type I { node:Node }
-            """.trimIndent()
-        ).also(DefaultSchemaProvider::addDefaults)
+                """.trimIndent()
+            ).also(DefaultSchemaProvider::addDefaults)
 
         // Verify Node interface is added
         assertNodeSchema(registry, expectNode = true)
@@ -645,7 +665,8 @@ class DefaultSchemaProviderTest {
         val extant = mkFile("extend type Query { x:Int }")
         val default = mkFile(DefaultSchemaProvider.getDefaultSDL(existingSDLFiles = listOf(extant)))
 
-        val reader = MultiSourceReader.newMultiSourceReader()
+        val reader = MultiSourceReader
+            .newMultiSourceReader()
             .reader(extant.reader(), extant.path)
             .reader(default.reader(), default.path)
             .build()
@@ -714,13 +735,35 @@ class DefaultSchemaProviderTest {
         val schemaDefs = registry.schemaDefinition().toList()
         assertEquals(1, schemaDefs.size, "Should have exactly one SchemaDefinition")
         val ops = schemaDefs.single().operationTypeDefinitions.associateBy { it.name }
-        assertTrue(ops.containsKey(OperationDefinition.Operation.QUERY.name.lowercase()), "Should wire QUERY")
-        assertEquals(expectMutation, ops.containsKey(OperationDefinition.Operation.MUTATION.name.lowercase()), "Mutation wiring presence mismatch")
-        assertEquals(expectSubscription, ops.containsKey(OperationDefinition.Operation.SUBSCRIPTION.name.lowercase()), "Subscription wiring presence mismatch")
+        assertTrue(
+            ops.containsKey(
+                OperationDefinition.Operation.QUERY.name
+                    .lowercase()
+            ),
+            "Should wire QUERY"
+        )
+        assertEquals(
+            expectMutation,
+            ops.containsKey(
+                OperationDefinition.Operation.MUTATION.name
+                    .lowercase()
+            ),
+            "Mutation wiring presence mismatch"
+        )
+        assertEquals(
+            expectSubscription,
+            ops.containsKey(
+                OperationDefinition.Operation.SUBSCRIPTION.name
+                    .lowercase()
+            ),
+            "Subscription wiring presence mismatch"
+        )
     }
 
     private fun mkFile(body: String): File =
-        kotlin.io.path.createTempFile().also {
-            it.writeText(body)
-        }.toFile()
+        kotlin.io.path
+            .createTempFile()
+            .also {
+                it.writeText(body)
+            }.toFile()
 }

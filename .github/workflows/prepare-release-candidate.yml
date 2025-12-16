@@ -23,6 +23,7 @@ permissions:
 jobs:
   prepare-release-candidate:
     runs-on: ubuntu-latest
+    if: github.repository == 'airbnb/viaduct'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

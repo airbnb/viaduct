@@ -14,14 +14,12 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.FieldCheckerDispatcherRegistry
-import viaduct.engine.api.FieldResolverDispatcherRegistry
 import viaduct.engine.api.ViaductDataFetchingEnvironment
+import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 
 internal class ResolverDataFetcherInstrumentationTest {
-    private val mockDispathcerRegistry: FieldResolverDispatcherRegistry = mockk()
-    private val mockCheckerRegistry: FieldCheckerDispatcherRegistry = mockk()
+    private val mockDispatcherRegistry: DispatcherRegistry = mockk()
     private val mockSchema: GraphQLSchema = mockk()
     private lateinit var testClass: ResolverDataFetcherInstrumentation
     private val typeName = "typeName"
@@ -29,16 +27,15 @@ internal class ResolverDataFetcherInstrumentationTest {
 
     @BeforeEach
     fun setupMocks() {
-        clearMocks(mockDispathcerRegistry, mockCheckerRegistry, mockSchema)
+        clearMocks(mockDispatcherRegistry, mockSchema)
         testClass = ResolverDataFetcherInstrumentation(
-            dispatcherRegistry = mockDispathcerRegistry,
-            checkerRegistry = mockCheckerRegistry,
+            dispatcherRegistry = mockDispatcherRegistry,
         )
     }
 
     @Test
     fun `test getting provided dataFetcher whenever resolverRegistry is null`() {
-        every { mockDispathcerRegistry.getFieldResolverDispatcher(any(), any()) } returns null
+        every { mockDispatcherRegistry.getFieldResolverDispatcher(any(), any()) } returns null
         val mockParams: InstrumentationFieldFetchParameters = mockk()
         val mockDataFetcher: DataFetcher<*> = mockk()
         mockDfEnv(mockParams)
@@ -57,8 +54,8 @@ internal class ResolverDataFetcherInstrumentationTest {
         val mockDataFetcher: DataFetcher<*> = mockk()
         mockDfEnv(mockParams)
 
-        every { mockDispathcerRegistry.getFieldResolverDispatcher(typeName, fieldName) } returns mockk()
-        every { mockCheckerRegistry.getFieldCheckerDispatcher(typeName, fieldName) } returns mockk()
+        every { mockDispatcherRegistry.getFieldResolverDispatcher(typeName, fieldName) } returns mockk()
+        every { mockDispatcherRegistry.getFieldCheckerDispatcher(typeName, fieldName) } returns mockk()
 
         val receivedFetcher = testClass.instrumentDataFetcher(
             dataFetcher = mockDataFetcher,
@@ -70,7 +67,7 @@ internal class ResolverDataFetcherInstrumentationTest {
 
     @Test
     fun `test hasResolver`() {
-        every { mockDispathcerRegistry.getFieldResolverDispatcher(typeName, fieldName) } returns mockk()
+        every { mockDispatcherRegistry.getFieldResolverDispatcher(typeName, fieldName) } returns mockk()
         assertTrue(testClass.hasResolver(typeName, fieldName))
     }
 

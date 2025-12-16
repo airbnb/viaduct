@@ -18,12 +18,14 @@ import graphql.schema.GraphQLList
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
 import graphql.util.TraversalControl
+import graphql.util.TraverserContext
 
 /**
  * Collects VariableUsageInfo for each variable reference. Variables can appear in several places:
  * 1. Output field arguments, e.g. { foo(a: $var) }
- * 2. Input object fields, e.g. { foo(a: { b: $var }) }
- * 3. Directive arguments, e.g. { foo @dir(a: $var) }
+ * 2. Directive arguments, e.g. { foo @dir(a: $var) }
+ * 3. Input object fields (can apply to 1 or 2), e.g. { foo(a: { b: $var }) }
+ * 4. Inside arrays (can apply to 1 or 2), e.g. { foo(a: [ $var ]) }
  */
 internal class VariableUsageInfoVisitor(
     private val schema: GraphQLSchema
@@ -48,10 +50,11 @@ internal class VariableUsageInfoVisitor(
         val value = env.argumentInputValue.value
         if (value is VariableReference) {
             val inputValueDefinition = env.argumentInputValue.inputValueDefinition
+            val isInsideArray = env.traverserContext.parentNode is ArrayValue
             val usageInfo = when (inputValueDefinition) {
                 is GraphQLArgument -> VariableUsageInfo(
-                    inputValueDefinition.type,
-                    inputValueDefinition.hasSetDefaultValue(),
+                    unwrapLists(inputValueDefinition.type, env.traverserContext),
+                    !isInsideArray && inputValueDefinition.hasSetDefaultValue(),
                     "field '${env.fieldDefinition.name}', argument '${env.graphQLArgument.name}'"
                 )
                 is GraphQLInputObjectField -> {
@@ -59,8 +62,8 @@ internal class VariableUsageInfoVisitor(
                     val parent = env.argumentInputValue.parent
                     val inputType = GraphQLTypeUtil.unwrapAll(parent.inputType) as GraphQLInputObjectType
                     VariableUsageInfo(
-                        inputValueDefinition.type,
-                        inputValueDefinition.hasSetDefaultValue(),
+                        unwrapLists(inputValueDefinition.type, env.traverserContext),
+                        !isInsideArray && inputValueDefinition.hasSetDefaultValue(),
                         "input field '${inputType.name}.${inputValueDefinition.name}'"
                     )
                 }
@@ -72,6 +75,26 @@ internal class VariableUsageInfoVisitor(
             usages.getOrPut(value.name) { mutableSetOf() }.add(usageInfo)
         }
         return TraversalControl.CONTINUE
+    }
+
+    /**
+     * Unwraps list types if necessary. When a variable appears inside an array, the input value
+     * definition's type is that of the nearest argument value or input field. we need to determine
+     * its actual type at the appropriate nesting level. For example, in the selection
+     * ```field(arg: [[$var1], $var2])``` against the schema `field(arg: [[Int!]!]!): String`,
+     * $var1 should have type `Int!`, and $var2 should have type `[Int!]!`
+     */
+    private fun unwrapLists(
+        type: GraphQLInputType,
+        traverserContext: TraverserContext<*>,
+    ): GraphQLInputType {
+        val withoutNonNull = GraphQLTypeUtil.unwrapNonNull(type)
+        if (withoutNonNull !is GraphQLList) return type
+        if (traverserContext.parentNode !is ArrayValue) return type
+        return unwrapLists(
+            GraphQLTypeUtil.unwrapOne(withoutNonNull) as GraphQLInputType,
+            traverserContext.parentContext,
+        )
     }
 
     /**

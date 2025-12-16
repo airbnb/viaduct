@@ -30,7 +30,8 @@ class ConvMemoTest {
                 }
             )
         }
-        val conv = memo.buildIfAbsent("str2Int", ::mkStr2Int)
+        val conv = memo
+            .buildIfAbsent("str2Int", ::mkStr2Int)
             .also { memo.finalize() }
 
         assertEquals(123, conv("123"))

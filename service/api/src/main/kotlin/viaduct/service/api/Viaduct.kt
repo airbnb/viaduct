@@ -3,11 +3,13 @@ package viaduct.service.api
 import graphql.ExecutionResult
 import graphql.schema.GraphQLSchema
 import java.util.concurrent.CompletableFuture
+import viaduct.apiannotations.StableApi
 import viaduct.engine.api.ViaductSchema
 
 /**
  * A unified interface for configuring and executing queries against the Viaduct runtime
  */
+@StableApi
 interface Viaduct {
     /**
      *  Executes an operation on this Viaduct instance asynchronously.

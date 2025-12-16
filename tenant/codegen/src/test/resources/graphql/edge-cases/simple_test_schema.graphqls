@@ -1,0 +1,22 @@
+# Simple test schema for ParameterizedSchemaDrivenTests
+# This schema tests basic types and structures
+
+type SimpleUser implements Node {
+  id: ID!
+  name: String
+  age: Int
+}
+
+type SimpleQuery {
+  user: SimpleUser
+}
+
+enum SimpleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+input SimpleInput {
+  name: String!
+  status: SimpleStatus
+}

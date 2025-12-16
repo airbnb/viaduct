@@ -8,9 +8,15 @@ import org.junit.jupiter.api.Test
  * Invariant checker that matches field types, but not field names.
  */
 class FieldTypeInvariantTest {
-    class Item(val value: Int, val name: String)
+    class Item(
+        val value: Int,
+        val name: String
+    )
 
-    class Container(val items: List<Item>, val numbers: List<Int>)
+    class Container(
+        val items: List<Item>,
+        val numbers: List<Int>
+    )
 
     @Test
     fun `check should pass for class with properties of different types`() {
@@ -27,7 +33,9 @@ class FieldTypeInvariantTest {
 
     @Test
     fun `check should throw if class has incorrect property types`() {
-        class WrongItem(val value: String)
+        class WrongItem(
+            val value: String
+        )
         val container = Container(listOf(Item(1, "one"), Item(2, "two")), listOf(1, 2, 3))
         val fieldTypeInvariant = FieldTypeInvariant(
             Container::class,

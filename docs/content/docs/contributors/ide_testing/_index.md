@@ -8,21 +8,54 @@ weight: 3
 
 This guide outlines a comprehensive testing procedure to ensure proper integration and functionality of the Viaduct Gradle plugins within various Integrated Development Environments (IDEs). These plugins perform extensive code generation, which substantially complicates IDE integration. The code generation process is triggered upon modification of files within the `src/main/viaduct/schema` directories of the modules that make up a Viaduct application that have the `.graphqls` extension (we call these files collectively the module's _schema partition_).
 
+## Automated Testing with Claude Code
+
+### Running the Test Command
+
+Execute the following command to run automated IDE compatibility testing with appropriate permissions:
+
+```bash
+claude --settings '{
+    "sandbox": {
+      "enabled": true,
+      "autoAllowBashIfSandboxed": true,
+      "allowUnsandboxedCommands": false,
+      "excludedCommands": [],
+      "network": {
+        "allowUnixSockets": [],
+        "allowLocalBinding": false
+      }
+    },
+    "permissions": {
+      "allow": [
+        "Read(./**)",
+        "Edit(./**)"
+      ],
+      "deny": [
+        "Read(../)",
+        "Edit(../)",
+        "WebFetch"
+      ]
+    }
+  }'
+```
+
+### Test Prompt
+
 Copy and paste this prompt into Claude Code to execute automated IDE testing:
 
----
-
+```text
 Execute automated IDE compatibility testing for the Viaduct GraphQL code generation plugins.
 
 **Setup:**
 
 - IntelliJ IDEA should be open with viaduct project loaded (not individual demo apps)
-- IntelliJ MCP server should be running at `http://127.0.0.1:64342/sse`
+- IntelliJ MCP server should be running at `http://localhost:64342/sse`
 - Playwright MCP should be available for browser testing
 
 **Instructions:**
 
-1. Read `Guide To Testing IDEs.md` to understand the test scenarios
+1. Read viaduct/docs/content/docs/contributors/ide_testing/_index.md to understand the test scenarios
 2. Focus on the **starwars** demo application only
 3. Create IntelliJ run configurations for:
    - QueryResolverUnitTests
@@ -45,6 +78,15 @@ Execute automated IDE compatibility testing for the Viaduct GraphQL code generat
 - Target 80-85% test coverage
 
 Generate a detailed test report showing what was tested, results achieved, and any limitations encountered.
+```
+
+### Prerequisites
+
+Before running the automated tests, ensure:
+
+- IntelliJ IDEA is open with the viaduct project loaded (not individual demo apps)
+- IntelliJ MCP server is running at `http://localhost:64342/sse`
+- Playwright MCP is available for browser testing
 
 ## Test Procedures
 

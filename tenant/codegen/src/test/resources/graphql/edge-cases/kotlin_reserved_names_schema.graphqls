@@ -1,0 +1,221 @@
+# Test schema for Kotlin reserved keywords
+# Tests that the code generator properly escapes Kotlin reserved names
+# See: https://kotlinlang.org/docs/keyword-reference.html
+
+# Type with Kotlin reserved keywords as field names
+type TypeWithReservedFieldNames {
+  as: String
+  break: Int
+  class: Boolean
+  continue: Float
+  do: String
+  else: Int
+  false: String
+  for: Boolean
+  fun: String
+  if: Int
+  in: String
+  interface: Boolean
+  is: String
+  null: Int
+  object: String
+  package: Boolean
+  return: String
+  super: Int
+  this: String
+  throw: Boolean
+  true: String
+  try: Int
+  typealias: String
+  typeof: Boolean
+  val: String
+  var: Int
+  when: String
+  while: Boolean
+}
+
+# Input with Kotlin reserved keywords as field names
+input InputWithReservedFieldNames {
+  as: String
+  class: Int!
+  fun: Boolean
+  object: String!
+  val: Float
+  var: Int
+  when: String
+}
+
+# Enum with Kotlin reserved keywords as values
+enum ReservedKeywordEnum {
+  AS
+  CLASS
+  FUN
+  OBJECT
+  VAL
+  VAR
+  WHEN
+  IN
+  IS
+  IF
+  ELSE
+  FOR
+  WHILE
+  DO
+  BREAK
+  CONTINUE
+  RETURN
+  THROW
+  TRY
+  TRUE
+  FALSE
+  NULL
+}
+
+# Kotlin-only reserved words (not reserved in Java)
+# Java reserved words excluded: class, if, else, for, while, do, break, continue, return, throw, try
+enum ReservedKeywordLowercaseEnum {
+  as
+  fun
+  object
+  val
+  var
+  when
+  in
+  is
+  typealias
+}
+
+# Type with Kotlin-only reserved words as field names (not Java reserved)
+type TypeWithKotlinOnlyReservedFieldNames {
+  as: String
+  fun: Int
+  object: Boolean
+  val: String
+  var: Int
+  when: String
+  in: Boolean
+  is: String
+  typealias: Int
+}
+
+# Input with Kotlin-only reserved words as field names (not Java reserved)
+input InputWithKotlinOnlyReservedFieldNames {
+  as: String
+  fun: Int!
+  object: Boolean
+  val: String!
+  var: Int
+  when: String
+  in: Boolean
+  is: String
+  typealias: Int
+}
+
+# Type using Kotlin-only reserved keywords as argument names (not Java reserved)
+type TypeWithKotlinOnlyReservedArgNames {
+  fieldWithKotlinOnlyReservedArgs(
+    as: String
+    fun: Int
+    object: Boolean
+    val: String
+    var: Int
+    when: String
+    in: Boolean
+    is: String
+    typealias: Int
+  ): String
+}
+
+# Type using reserved keywords in arguments
+type TypeWithReservedArgNames {
+  fieldWithReservedArgs(
+    as: String
+    class: Int
+    fun: Boolean
+    object: String
+    val: Float
+    var: Int
+    when: ReservedKeywordEnum
+    lowercase: ReservedKeywordLowercaseEnum
+  ): String
+}
+
+# Interface with reserved field names
+interface InterfaceWithReservedNames {
+  object: String
+  class: Int
+  fun: Boolean
+}
+
+# Type implementing interface with reserved names
+type ImplWithReservedNames implements InterfaceWithReservedNames {
+  object: String
+  class: Int
+  fun: Boolean
+  val: String
+}
+
+# Soft keywords that might cause issues
+type TypeWithSoftKeywords {
+  by: String
+  catch: Int
+  constructor: Boolean
+  delegate: String
+  dynamic: Int
+  field: String
+  file: Boolean
+  finally: String
+  get: Int
+  import: String
+  init: Boolean
+  param: String
+  property: Int
+  receiver: String
+  set: Boolean
+  setparam: String
+  value: Int
+  where: String
+}
+
+# Input with soft keywords
+input InputWithSoftKeywords {
+  by: String
+  catch: Int!
+  get: Boolean
+  set: String!
+  value: Float
+  where: Int
+}
+
+# Modifier keywords as field names
+type TypeWithModifierKeywords {
+  abstract: String
+  actual: Int
+  annotation: Boolean
+  companion: String
+  const: Int
+  crossinline: String
+  data: Boolean
+  enum: String
+  expect: Int
+  external: String
+  final: Boolean
+  infix: String
+  inline: Int
+  inner: String
+  internal: Boolean
+  lateinit: String
+  noinline: Int
+  open: String
+  operator: Boolean
+  out: String
+  override: Int
+  private: String
+  protected: Boolean
+  public: String
+  reified: Int
+  sealed: String
+  suspend: Boolean
+  tailrec: String
+  vararg: Int
+}

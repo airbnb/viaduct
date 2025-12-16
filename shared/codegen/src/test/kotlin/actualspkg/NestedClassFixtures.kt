@@ -28,6 +28,8 @@ interface InterfaceWithDefaults2 {
     fun g(): Int = 2
 }
 
-annotation class AOuter(val inner: AInner) {
+annotation class AOuter(
+    val inner: AInner
+) {
     annotation class AInner
 }

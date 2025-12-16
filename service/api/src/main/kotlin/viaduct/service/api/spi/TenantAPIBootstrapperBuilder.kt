@@ -1,5 +1,6 @@
 package viaduct.service.api.spi
 
+import viaduct.apiannotations.StableApi
 import viaduct.engine.api.TenantAPIBootstrapper
 
 /**
@@ -10,6 +11,7 @@ import viaduct.engine.api.TenantAPIBootstrapper
  * these instances must come from valid Tenant API implementations, which understand
  * a special protocol expected by StandardViadcut.
  */
+@StableApi
 interface TenantAPIBootstrapperBuilder {
     fun create(): TenantAPIBootstrapper
 }

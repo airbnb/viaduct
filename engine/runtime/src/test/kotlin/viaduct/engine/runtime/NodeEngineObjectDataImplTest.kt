@@ -16,7 +16,6 @@ import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.NodeResolverDispatcher
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.api.mocks.MockSchema
@@ -52,7 +51,7 @@ class NodeEngineObjectDataImplTest {
         nodeResolver = mockk<NodeResolverDispatcher>()
         nodeChecker = mockk<CheckerDispatcher>()
         engineObjectData = mockk<EngineObjectData>()
-        nodeReference = NodeEngineObjectDataImpl("testID", testType, dispatcherRegistry, dispatcherRegistry)
+        nodeReference = NodeEngineObjectDataImpl("testID", testType, dispatcherRegistry)
     }
 
     @Test

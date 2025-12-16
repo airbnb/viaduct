@@ -30,6 +30,12 @@ def get_current_branch():
     return result.stdout.strip()
 
 
+def read_version_file():
+    script_dir = Path(__file__).parent.resolve()
+    version_file = script_dir.parent.parent / "VERSION"
+    return version_file.read_text().strip()
+
+
 def extract_version_from_branch(branch_name):
     """Extract version from branch name (e.g., release/v0.7.0 -> 0.7.0)."""
     match = re.match(r"^release/v(\d+\.\d+\.\d+)$", branch_name)
@@ -51,6 +57,12 @@ def verify_release_branch():
     print(f"✅ Running on release branch: {branch_name}")
     print(f"   Release version: {version}")
     return version
+
+def is_release_branch_matches_with_version_file(version_from_file, branch_name):
+    match = re.match(r"^release/v(.+)$", branch_name)
+    if not match:
+        return False
+    return match.group(1) == version_from_file
 
 
 def verify_demoapp_version(demoapp_dir, expected_version):
@@ -75,6 +87,12 @@ def verify_demoapp_version(demoapp_dir, expected_version):
         print(f"   Expected version: {expected_version}")
         print(f"   Demo app version: {demoapp_version}")
         return False
+
+    if not is_release_branch_matches_with_version_file(read_version_file(), get_current_branch()):
+      print(f"❌ Version mismatch!")
+      print(f"   Version file content: {expected_version}")
+      print(f"   Branch name         : {demoapp_version}")
+      return False
 
     print(f"✅ Version matches: {expected_version}")
     return True

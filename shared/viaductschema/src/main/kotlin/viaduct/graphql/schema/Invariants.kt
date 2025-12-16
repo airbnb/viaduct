@@ -21,8 +21,20 @@ fun checkBridgeSchemaInvariants(
     check.isEqualTo(schema.types.values.size, schema.types.size, "TYPE_DEFS_SIZE")
     check.isEqualTo(schema.types.entries.size, schema.types.size, "ENTRIES_SIZE")
     check.isEqualTo(schema.types.keys.size, schema.types.size, "NAMES_SIZE")
-    check.isEqualTo(schema.types.values.map { it.name }.toSet(), schema.types.keys, "NAMES_SET")
-    check.isEqualTo(schema.types.entries.map { it.key }.toSet(), schema.types.keys, "ENTRIES_KEYS")
+    check.isEqualTo(
+        schema.types.values
+            .map { it.name }
+            .toSet(),
+        schema.types.keys,
+        "NAMES_SET"
+    )
+    check.isEqualTo(
+        schema.types.entries
+            .map { it.key }
+            .toSet(),
+        schema.types.keys,
+        "ENTRIES_KEYS"
+    )
     for (entry in schema.types.entries) {
         check.withContext(entry.key) {
             check.isSameInstanceAs(entry.value, schema.types[entry.key]!!, "ENTRIES_VALUES")
@@ -107,15 +119,17 @@ fun checkExtensionReferentialIntegrity(
     allExpectedSupers: Iterable<ViaductSchema.Interface>?,
     check: InvariantChecker
 ) {
-    for (ext in containingDef.extensions) check.withContext(ext.members.joinToString("::") { it.name }) {
-        check.isSameInstanceAs(schema.types[ext.def.name]!!, ext.def, "EXTENSION_DEF_INTEGRITY")
-        check.containsAtMostElementsIn(allExpectedMembers, ext.members, "EXTENSION_MEMBERS_INTEGRITY")
-        check.containsNoDuplicates(ext.members.map { it.name }, "EXTENSION_MEMBERS_NO_DUPLICATES")
-        if (allExpectedSupers != null) {
-            ext as ViaductSchema.ExtensionWithSupers<*, *>
-            check.isNotNull(ext.supers, "EXTENSION_SUPERS_NOT_NULL")
-            check.containsAtMostElementsIn(allExpectedSupers, ext.supers, "EXTENSION_SUPERS_INTEGRITY")
-            check.containsNoDuplicates(ext.supers.map { it.name }, "EXTENSION_SUPERS_NO_DUPLICATES")
+    for (ext in containingDef.extensions) {
+        check.withContext(ext.members.joinToString("::") { it.name }) {
+            check.isSameInstanceAs(schema.types[ext.def.name]!!, ext.def, "EXTENSION_DEF_INTEGRITY")
+            check.containsAtMostElementsIn(allExpectedMembers, ext.members, "EXTENSION_MEMBERS_INTEGRITY")
+            check.containsNoDuplicates(ext.members.map { it.name }, "EXTENSION_MEMBERS_NO_DUPLICATES")
+            if (allExpectedSupers != null) {
+                ext as ViaductSchema.ExtensionWithSupers<*, *>
+                check.isNotNull(ext.supers, "EXTENSION_SUPERS_NOT_NULL")
+                check.containsAtMostElementsIn(allExpectedSupers, ext.supers, "EXTENSION_SUPERS_INTEGRITY")
+                check.containsNoDuplicates(ext.supers.map { it.name }, "EXTENSION_SUPERS_NO_DUPLICATES")
+            }
         }
     }
     val allActualMembers = containingDef.extensions.flatMap { it.members }
@@ -218,8 +232,9 @@ private fun checkExtensionsInvariants(
         val exts = def.extensions.iterator()
         check.isTrue(exts.next().isBase, "FIRST_EXTENSION_IS_BASE")
         var i = 1
-        while (exts.hasNext())
+        while (exts.hasNext()) {
             check.isFalse(exts.next().isBase, "OTHER_EXTENSIONS_ARE_NOT_BASE(${i++})")
+        }
     }
 }
 

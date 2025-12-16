@@ -143,31 +143,34 @@ class FilteredSchemaTest {
 
         // Verify with an ALLOW_EMPTY_TYPES option disabled
         try {
-            InvariantChecker().also { check ->
-                checkBridgeSchemaInvariants(unfilteredTestSchema.filter(EmptyTypesSchemaFilter()), check)
-            }.assertEmpty("\n")
+            InvariantChecker()
+                .also { check ->
+                    checkBridgeSchemaInvariants(unfilteredTestSchema.filter(EmptyTypesSchemaFilter()), check)
+                }.assertEmpty("\n")
         } catch (_: AssertionError) {
             // Assertion error is expected here as the filtered schema has empty types
         }
 
         // Verify with an ALLOW_EMPTY_TYPES option enabled
-        InvariantChecker().also { check ->
-            checkBridgeSchemaInvariants(
-                unfilteredTestSchema.filter(
-                    schemaFilterProducingEmptyTypes,
+        InvariantChecker()
+            .also { check ->
+                checkBridgeSchemaInvariants(
+                    unfilteredTestSchema.filter(
+                        schemaFilterProducingEmptyTypes,
+                        SchemaInvariantOptions.ALLOW_EMPTY_TYPES
+                    ),
+                    check,
                     SchemaInvariantOptions.ALLOW_EMPTY_TYPES
-                ),
-                check,
-                SchemaInvariantOptions.ALLOW_EMPTY_TYPES
-            )
-        }.assertEmpty("\n")
+                )
+            }.assertEmpty("\n")
     }
 
     @Test
     fun `invariant checks on filtered test schema`() {
-        InvariantChecker().also { check ->
-            checkBridgeSchemaInvariants(unfilteredTestSchema.filter(SuffixSchemaFilter("Remove", "Keep")), check)
-        }.assertEmpty("\n")
+        InvariantChecker()
+            .also { check ->
+                checkBridgeSchemaInvariants(unfilteredTestSchema.filter(SuffixSchemaFilter("Remove", "Keep")), check)
+            }.assertEmpty("\n")
     }
 
     @Test
@@ -215,12 +218,18 @@ class FilteredSchemaTest {
     fun `test Interface_possibleObjectTypes for two-level inheritance`() {
         assertEquals( // test assumptions
             setOf("OA", "OB"),
-            unfilteredTestSchema.types["AKeep"]!!.possibleObjectTypes.map { it.name }.toSet()
+            unfilteredTestSchema.types["AKeep"]!!
+                .possibleObjectTypes
+                .map { it.name }
+                .toSet()
         )
         val filteredSchema = unfilteredTestSchema.filter(SuffixSchemaFilter("Remove", "Keep"))
         assertEquals(
             setOf("OA", "OB"),
-            filteredSchema.types["AKeep"]!!.possibleObjectTypes.map { it.name }.toSet()
+            filteredSchema.types["AKeep"]!!
+                .possibleObjectTypes
+                .map { it.name }
+                .toSet()
         )
         assertEquals(
             emptyList<String>(),

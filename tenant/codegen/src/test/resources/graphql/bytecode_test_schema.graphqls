@@ -1,0 +1,372 @@
+scalar TestSchemaMarkerScalarType
+
+directive @component(classPath: String!) on FIELD_DEFINITION
+directive @hasClearableFields on INPUT_OBJECT
+
+interface PagedConnection {
+  pageInfo: IPageInfo!
+  edges: [ConnectionEdge]
+}
+
+interface IPageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+interface ConnectionEdge {
+  cursor: String
+}
+
+type PageInfo implements IPageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type User implements Node {
+  id: ID!
+  name: String
+  role: UserRole
+  componentField(arg: String): String @component(classPath: "classpath")
+}
+
+enum UserRole {
+  GUEST
+  HOST
+  UNCLEAR
+}
+
+input AcceptReservationAlterationInput { # regression test
+  alterationId: Long! # Failed because this is a two-word value in the VM
+}
+
+enum StaySupplyListingCategoryType {
+  DESIGN
+}
+type StaySupplyListingCategoryStatus {
+  isMember: Boolean
+}
+type StaySupplyListingCategories { # regression test
+  categoryStatus(categoryType: StaySupplyListingCategoryType!): StaySupplyListingCategoryStatus
+  # ^ Failed because it's not possibly to create two distinct values for categoryType_Arguments
+  # Fixed by skipping tests that assume two distinct values when they don't exist
+}
+
+input AnotherTwoWordInput {
+  twoWord: Float!
+}
+
+input InputWithClearableFields @hasClearableFields {
+  a: String
+  b: Int!
+  c: Float
+  d: AnotherTwoWordInput!
+}
+
+input KeywordInput { # regression test
+  private: String
+}
+
+input UserInput {
+  name: String = "hi"
+  i: Int! = 1
+  f: Float = 1.1
+  b: Boolean = true
+  id: ID = "fasdf"
+  l: [String] = ["hi", "there"]
+  n: [Int] = null
+  o: Int = null
+  p: [Int] = [null, 1, null]
+  q: [Int!] = []
+  role: UserRole = UNCLEAR
+  roles: [UserRole] = [UNCLEAR, GUEST]
+}
+
+input PrimitiveDefaultValues {
+  a: Boolean! = true
+  b: Float! = 3.0
+  c: Int! = 4
+  d: Long! = 2
+  e: Short! = 5
+  f: String = "b"
+  g: Float = 3
+}
+
+interface Test implements Node {
+  name: String
+  i: Int!
+  f: Float
+  b: Boolean
+  id: ID!
+  l: [String]
+  n: [Int]
+  o: Int
+  p: [Int]
+  q: [Int!]
+  role: UserRole
+  listOfObject: [Object1]
+}
+
+type Object1 {
+  _: String
+}
+
+type Object2 implements Node {
+  id: ID!
+}
+
+union Union1 = Object1 | Object2
+
+type Object3 implements Node & Test {
+  name: String
+  i: Int!
+  f: Float
+  b: Boolean
+  id: ID!
+  l: [String]
+  n: [Int]
+  o: Int
+  p: [Int]
+  q: [Int!]
+  role: UserRole
+  u: Union1
+  listOfObject: [Object1]
+}
+
+type UserConnection implements PagedConnection { # tests connectionKotlinGen [classic]
+  pageInfo: PageInfo!
+  edges: [UserEdge]
+}
+
+type UserEdge implements ConnectionEdge {
+  cursor: String!
+  node: User
+}
+
+# Tests the .Value type logic for Value class constructors params
+type ValueTypes {
+  object1: Object1
+  objectInList: [Object1]
+  userConnection: UserConnection
+  node: Object2
+}
+
+# One of the allowlisted types to generate a resolveFieldInternalOnlyDoNotUse function for
+type ExperienceCategory {
+  isOlympian: Boolean!
+  is2020TokyoParaAthlete(withArg: String): Boolean
+}
+
+# Regression test
+enum CanvasEntityType {
+  CONTENT
+  PLACEMENT
+  AUDIENCE
+  ANALYTICS_REPORT
+  WORKFLOW
+  REDIRECT
+}
+
+input CanvasEntity {
+  entityId: Long
+  entityType: CanvasEntityType!
+}
+
+input EntityLabels {
+  canvasEntity: CanvasEntity!
+  labelNames: [String]!
+}
+
+input ApplyLabelsInput {
+  entityLabelsList: [EntityLabels]!
+}
+
+# Regression test for distinct hashcode test
+input LatLngBoundsInput {
+  southwest: LatLngInput
+  northeast: LatLngInput
+}
+
+input LatLngInput {
+  lat: Float
+  lng: Float
+}
+
+# Tests of default values fo input-typed values
+input InputWithInputWithDefaultValues {
+  loc: LatLngInput = { lat: 3.1, lng: 5.8 }
+}
+
+# type FieldWithInputWithDefaultValues {
+#  f(loc: LatLngInput = { lat: 3.1 lng: 5.8}): Int
+# }
+
+# Regression test for `viaductDefaultValue` changeover
+type CityPortalPresentationContainer {
+  dashboardPage(regulatoryBody: String! = "", preview: Boolean! = false, omniPlacementId: String = null): String
+}
+
+type ObjectWithLongId {
+  id: Long!
+}
+
+# Adding test-case for construction of interfaces
+interface I1 {
+  e: OneValue!
+}
+
+interface I2 implements I1 {
+  i2Field: String
+  e: OneValue!
+}
+
+interface I3 implements Node {
+  i3Field: String
+  id: ID!
+}
+
+interface Iall implements I1 & I2 & I3 & Node {
+  id: ID!
+  e: OneValue!
+  i2Field: String
+  i3Field: String
+}
+
+type I1impl1 implements I1 {
+  e: OneValue!
+  i: Int
+}
+
+type I1impl2 implements I1 {
+  e: OneValue!
+  b: Boolean
+}
+
+type I1Container {
+  f: I1
+}
+
+# Regression
+
+type MCPShapeMaskStyle {
+  shapeMask: MCPShapeMask
+}
+
+union MCPShapeMask = MCPCircleMask | MCPRoundedRectangleMask
+
+type MCPCircleMask {
+  _unused: Boolean
+}
+
+type MCPRoundedRectangleMask {
+  cornerRadius: Int!
+}
+
+type TypeWithNonNullableListField {
+  listField: [String!]!
+}
+
+type TypeWithJSONListField {
+  jsonListField: [JSON]
+}
+
+type StrangeError0 {
+  i: Int
+}
+type StrangeError1 {
+  f: StrangeError0
+}
+
+type StrangeError2 {
+  l: [StrangeError1]
+}
+
+type StrangeError3 {
+  s: StrangeError2
+}
+
+# Another regression case (for createValue with GJSchemaRaw)
+
+type GeofencingMarketplaceCohostsSearchResult {
+  cohosts: [GeofencingMarketplaceCohost!]!
+  paginationContinuationToken: String
+}
+
+type GeofencingMarketplaceCohost {
+  searchHits: [GeofencingArea!]!
+}
+
+type GeofencingArea implements Node {
+  id: ID!
+  name: String!
+  geometry: GeofencingAreaGeometry
+}
+
+type GeofencingAreaGeometry implements Node {
+  id: ID!
+  acpId: String
+  geoJson: String
+  geometry: GeofencingGeometry
+  isApproximation: Boolean!
+}
+
+union GeofencingGeometry = GeofencingPoint | GeofencingMultiPoint | GeofencingGeometryCollection
+
+type GeofencingPoint {
+  latitude: Float!
+  longitude: Float!
+}
+
+type GeofencingMultiPoint {
+  points: [GeofencingPoint!]!
+}
+
+type GeofencingGeometryCollection {
+  geometries: [GeofencingGeometry!]!
+}
+
+type HasBuildField {
+  build: Int
+}
+
+extend type User {
+  userExtensionField1: Int
+  userExtensionField2: Int!
+}
+
+extend type HasBuildField {
+  hasBuildExtensionField1: Int
+  hasBuildExtensionField2: Int!
+}
+
+# Regression test for interface field with arguments
+interface InterfaceHasNoObjectImplementers {
+  fieldWithArgs(arg1: String, arg2: Int): String
+}
+
+type HasEnum {
+  anEnum: AnEnum
+}
+enum AnEnum {
+  A
+}
+
+type InputWithID {
+  id: ID @idOf(type: "User")
+}
+type TypeWithIdArg {
+  field(id: ID @idOf(type: "User")): User
+}
+
+interface IProduct implements Node {
+  id: ID!
+  productId: ID! @idOf(type: "IProduct")
+}
+
+type MyProduct implements IProduct & Node {
+  id: ID!
+  productId: ID! @idOf(type: "MyProduct")
+}

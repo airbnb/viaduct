@@ -107,12 +107,13 @@ class KmClassFilesBuilder(
 
     fun buildClassfiles(outputRoot: File) {
         classPool = ClassPool(true)
-        for (ctClass in buildBytecode(classPool))
+        for (ctClass in buildBytecode(classPool)) {
             try {
                 ctClass.writeFile(outputRoot.toString())
             } catch (e: Exception) {
                 throw RuntimeException("Error writing class file for ${ctClass.name}", e)
             }
+        }
     }
 
     fun buildClassLoader(): ClassLoader {
@@ -132,7 +133,8 @@ class KmClassFilesBuilder(
         allowedSuperTypes: Set<KmName> = setOf(Km.ANY)
     ): InvariantChecker {
         val kmClassMap =
-            classTrees.flatten()
+            classTrees
+                .flatten()
                 .associate { it.kmClass.name to it.kmClass }
 
         classTrees.mapWithOuter { tree, outer ->

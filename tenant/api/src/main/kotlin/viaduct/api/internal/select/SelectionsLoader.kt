@@ -6,7 +6,9 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.InternalApi
 
+@InternalApi
 interface SelectionsLoader<T : CompositeOutput> {
     /**
      * Load the provided [SelectionSet] and return an instance of the

@@ -48,11 +48,10 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
 class ViaductQueryTraverserTest {
-    private fun createSchema(schemaString: String): GraphQLSchema {
-        return UnExecutableSchemaGenerator.makeUnExecutableSchema(
+    private fun createSchema(schemaString: String): GraphQLSchema =
+        UnExecutableSchemaGenerator.makeUnExecutableSchema(
             SchemaParser().parse(schemaString)
         )
-    }
 
     private fun createQuery(query: String): Document {
         val parser = Parser()
@@ -63,13 +62,13 @@ class ViaductQueryTraverserTest {
         document: Document,
         schema: GraphQLSchema,
         variables: Map<String, Any> = emptyMap()
-    ): ViaductQueryTraverser {
-        return ViaductQueryTraverser.newQueryTraverser()
+    ): ViaductQueryTraverser =
+        ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .document(document)
             .variables(variables)
             .build()
-    }
 
     private fun mockQueryVisitor(): QueryVisitor {
         val mock = mockk<QueryVisitor>(relaxed = true)
@@ -636,7 +635,8 @@ class ViaductQueryTraverserTest {
         val fragmentF1 = fragments["F1"]
         requireNotNull(fragmentF1) { "Fragment F1 not found" }
 
-        val queryTraversal = ViaductQueryTraverser.newQueryTraverser()
+        val queryTraversal = ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .root(fragmentF1)
             .rootParentType(schema.queryType)
@@ -696,7 +696,8 @@ class ViaductQueryTraverserTest {
         val fragmentF1 = fragments["F1"]
         requireNotNull(fragmentF1) { "Fragment F1 not found" }
 
-        val queryTraversal = ViaductQueryTraverser.newQueryTraverser()
+        val queryTraversal = ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .root(fragmentF1)
             .rootParentType(schema.queryType)
@@ -1951,7 +1952,8 @@ class ViaductQueryTraverserTest {
                 match {
                     it.field.name == "id" &&
                         (it.fieldDefinition.type as GraphQLScalarType).name == "String" &&
-                        it.parentType.toString().contains("[Bar!]!") && // Non-null List of non-null Bar
+                        it.parentType.toString().contains("[Bar!]!") &&
+                        // Non-null List of non-null Bar
                         it.fieldsContainer.name == "Bar"
                 }
             )
@@ -2145,11 +2147,16 @@ class ViaductQueryTraverserTest {
         )
 
         // Extract subFoo field to use as root
-        val subFooField = query.children[0].children[0].children[0].children[0].children[0]
+        val subFooField = query.children[0]
+            .children[0]
+            .children[0]
+            .children[0]
+            .children[0]
         assert(subFooField.toString().contains("subFoo")) { "Expected field to contain 'subFoo' but was '$subFooField'" }
 
         val rootParentType = schema.getType("Foo") as GraphQLCompositeType
-        val queryTraversal = ViaductQueryTraverser.newQueryTraverser()
+        val queryTraversal = ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .root(subFooField)
             .rootParentType(rootParentType)
@@ -2201,11 +2208,16 @@ class ViaductQueryTraverserTest {
         )
 
         // Extract subFoo field to use as root
-        val subFooField = query.children[0].children[0].children[0].children[0].children[0]
+        val subFooField = query.children[0]
+            .children[0]
+            .children[0]
+            .children[0]
+            .children[0]
         assert(subFooField.toString().contains("subFoo")) { "Expected field to contain 'subFoo' but was '$subFooField'" }
 
         val rootParentType = schema.getType("Foo") as GraphQLCompositeType
-        val queryTraversal = ViaductQueryTraverser.newQueryTraverser()
+        val queryTraversal = ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .root(subFooField)
             .rootParentType(rootParentType)
@@ -2255,21 +2267,24 @@ class ViaductQueryTraverserTest {
 
         // Test with null schema
         assertThrows(UninitializedPropertyAccessException::class.java) {
-            ViaductQueryTraverser.newQueryTraverser()
+            ViaductQueryTraverser
+                .newQueryTraverser()
                 .document(query)
                 .build()
         }
 
         // Test with null document and no root
         assertThrows(NullPointerException::class.java) {
-            ViaductQueryTraverser.newQueryTraverser()
+            ViaductQueryTraverser
+                .newQueryTraverser()
                 .schema(schema)
                 .build()
         }
 
         // Test with root but null rootParentType
         assertThrows(NullPointerException::class.java) {
-            ViaductQueryTraverser.newQueryTraverser()
+            ViaductQueryTraverser
+                .newQueryTraverser()
                 .schema(schema)
                 .root(query.children[0])
                 .build()
@@ -2279,7 +2294,8 @@ class ViaductQueryTraverserTest {
     @Test
     fun `builder doesn't allow ambiguous arguments`() {
         assertThrows(IllegalArgumentException::class.java) {
-            ViaductQueryTraverser.newQueryTraverser()
+            ViaductQueryTraverser
+                .newQueryTraverser()
                 .document(createQuery("{foo}"))
                 .operationName("foo")
                 .root(Field.newField().build())
@@ -2463,7 +2479,8 @@ class ViaductQueryTraverserTest {
         assertEquals("hello", hello.name)
 
         val rootParentType = schema.getType("SomeInterface") as GraphQLInterfaceType
-        val queryTraversal = ViaductQueryTraverser.newQueryTraverser()
+        val queryTraversal = ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .root(hello)
             .rootParentType(rootParentType)
@@ -2504,7 +2521,8 @@ class ViaductQueryTraverserTest {
         val typeNameField = rootField.selectionSet.selections[0] as Field
         val rootParentType = schema.getType("SomeUnion") as GraphQLUnionType
 
-        val queryTraversal = ViaductQueryTraverser.newQueryTraverser()
+        val queryTraversal = ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .root(typeNameField)
             .rootParentType(rootParentType)
@@ -2537,7 +2555,8 @@ class ViaductQueryTraverserTest {
             """
         )
 
-        val queryTraversal = ViaductQueryTraverser.newQueryTraverser()
+        val queryTraversal = ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .document(query)
             .variables(emptyMap())
@@ -2682,7 +2701,8 @@ class ViaductQueryTraverserTest {
         }
 
         val options = QueryTraversalOptions.defaultOptions().coerceFieldArguments(true)
-        ViaductQueryTraverser.newQueryTraverser()
+        ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .document(query)
             .coercedVariables(CoercedVariables.of(mapOf("test" to mapOf("x" to "X"))))
@@ -2725,7 +2745,8 @@ class ViaductQueryTraverserTest {
         }
 
         val options = QueryTraversalOptions.defaultOptions().coerceFieldArguments(false)
-        ViaductQueryTraverser.newQueryTraverser()
+        ViaductQueryTraverser
+            .newQueryTraverser()
             .schema(schema)
             .document(query)
             .coercedVariables(CoercedVariables.of(mapOf("test" to mapOf("x" to "X"))))

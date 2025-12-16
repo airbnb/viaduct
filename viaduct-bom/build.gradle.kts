@@ -26,6 +26,7 @@ dependencies {
         api("com.airbnb.viaduct:tenant-runtime:${version}")
 
         // Shared modules
+        api("com.airbnb.viaduct:shared-apiannotations:${version}")
         api("com.airbnb.viaduct:shared-arbitrary:${version}")
         api("com.airbnb.viaduct:shared-dataloader:${version}")
         api("com.airbnb.viaduct:shared-utils:${version}")

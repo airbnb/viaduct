@@ -7,8 +7,10 @@ import viaduct.api.select.Selections
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Query as QueryType
+import viaduct.apiannotations.StableApi
 
 /** A generic context for resolving fields or types */
+@StableApi
 interface ResolverExecutionContext : ExecutionContext {
     /**
      * Loads the provided [SelectionSet] on the root Query type, and return the response

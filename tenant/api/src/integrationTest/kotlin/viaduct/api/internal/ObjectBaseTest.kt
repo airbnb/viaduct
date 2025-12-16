@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.ExceptionsForTesting
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantException
 import viaduct.api.ViaductTenantUsageException
@@ -22,13 +21,14 @@ import viaduct.api.testschema.E1
 import viaduct.api.testschema.I1
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
+import viaduct.apiannotations.TestingApi
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.UnsetSelectionException
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, TestingApi::class)
 class ObjectBaseTest {
     private val gqlSchema = SchemaUtils.getSchema()
     private val internalContext = MockInternalContext.mk(gqlSchema, "viaduct.api.testschema")

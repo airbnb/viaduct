@@ -38,7 +38,10 @@ open class MaskedSetBenchmark {
             Type.maskedSet -> left.maskedSet.intersect(right.maskedSet)
         }
 
-    private class Data(val set: Set<Int>, val maskedSet: MaskedSet<Int>) {
+    private class Data(
+        val set: Set<Int>,
+        val maskedSet: MaskedSet<Int>
+    ) {
         constructor(range: IntRange) : this(range.toSet(), MaskedSet(range.toSet()))
     }
 

@@ -22,6 +22,7 @@ import graphql.language.SchemaDefinition
 import graphql.language.SourceLocation
 import graphql.language.StringValue
 import graphql.language.Type
+import graphql.language.TypeDefinition
 import graphql.language.TypeName
 import graphql.parser.MultiSourceReader
 import graphql.schema.GraphQLScalarType
@@ -29,6 +30,7 @@ import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.TypeDefinitionRegistry
 import java.io.File
 import java.io.FileReader
+import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 import viaduct.graphql.Scalars
 import viaduct.utils.slf4j.logger
@@ -47,12 +49,15 @@ object DefaultSchemaProvider {
      * Enum containing all default Viaduct directives with their complete definitions.
      * This provides a single source of truth for directive names and their creation logic.
      */
-    enum class DefaultDirective(val directiveName: String) {
+    enum class DefaultDirective(
+        val directiveName: String
+    ) {
         RESOLVER("resolver") {
             override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
                 val description = Description("@resolver directive", sourceLocation, false)
 
-                return DirectiveDefinition.newDirectiveDefinition()
+                return DirectiveDefinition
+                    .newDirectiveDefinition()
                     .name(directiveName)
                     .description(description)
                     .directiveLocation(DirectiveLocation("FIELD_DEFINITION"))
@@ -66,13 +71,15 @@ object DefaultSchemaProvider {
             override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
                 val description = Description("@backingData directive", sourceLocation, false)
 
-                val classArgument = InputValueDefinition.newInputValueDefinition()
+                val classArgument = InputValueDefinition
+                    .newInputValueDefinition()
                     .name("class")
                     .type(NonNullType(TypeName("String")))
                     .sourceLocation(sourceLocation)
                     .build()
 
-                return DirectiveDefinition.newDirectiveDefinition()
+                return DirectiveDefinition
+                    .newDirectiveDefinition()
                     .name(directiveName)
                     .description(description)
                     .directiveLocation(DirectiveLocation("FIELD_DEFINITION"))
@@ -86,13 +93,15 @@ object DefaultSchemaProvider {
             override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
                 val description = Description("@scope directive", sourceLocation, false)
 
-                val toArgument = InputValueDefinition.newInputValueDefinition()
+                val toArgument = InputValueDefinition
+                    .newInputValueDefinition()
                     .name("to")
                     .type(NonNullType(ListType(NonNullType(TypeName("String")))))
                     .sourceLocation(sourceLocation)
                     .build()
 
-                return DirectiveDefinition.newDirectiveDefinition()
+                return DirectiveDefinition
+                    .newDirectiveDefinition()
                     .name(directiveName)
                     .description(description)
                     .directiveLocation(DirectiveLocation("OBJECT"))
@@ -111,13 +120,15 @@ object DefaultSchemaProvider {
             override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
                 val description = Description("@idOf directive", sourceLocation, false)
 
-                val typeArgument = InputValueDefinition.newInputValueDefinition()
+                val typeArgument = InputValueDefinition
+                    .newInputValueDefinition()
                     .name("type")
                     .type(NonNullType(TypeName("String")))
                     .sourceLocation(sourceLocation)
                     .build()
 
-                return DirectiveDefinition.newDirectiveDefinition()
+                return DirectiveDefinition
+                    .newDirectiveDefinition()
                     .name(directiveName)
                     .description(description)
                     .directiveLocation(DirectiveLocation("FIELD_DEFINITION"))
@@ -325,7 +336,8 @@ object DefaultSchemaProvider {
             return
         }
 
-        val idField = FieldDefinition.newFieldDefinition()
+        val idField = FieldDefinition
+            .newFieldDefinition()
             .name("id")
             .type(NonNullType(TypeName("ID")))
             .sourceLocation(sourceLocation)
@@ -333,7 +345,8 @@ object DefaultSchemaProvider {
 
         val scopeDirective = createScopeDirective(listOf("*"))
 
-        val nodeInterface = InterfaceTypeDefinition.newInterfaceTypeDefinition()
+        val nodeInterface = InterfaceTypeDefinition
+            .newInterfaceTypeDefinition()
             .name("Node")
             .definition(idField)
             .directive(scopeDirective)
@@ -374,14 +387,16 @@ object DefaultSchemaProvider {
         }
 
         // Create node field: node(id: ID!): Node
-        val nodeIdArgument = InputValueDefinition.newInputValueDefinition()
+        val nodeIdArgument = InputValueDefinition
+            .newInputValueDefinition()
             .name("id")
             .description(Description("The ID of an object", sourceLocation, false))
             .type(NonNullType(TypeName("ID")))
             .sourceLocation(sourceLocation)
             .build()
 
-        val nodeField = FieldDefinition.newFieldDefinition()
+        val nodeField = FieldDefinition
+            .newFieldDefinition()
             .name("node")
             .description(Description("Fetches an object given its ID", sourceLocation, false))
             .type(TypeName("Node"))
@@ -391,14 +406,16 @@ object DefaultSchemaProvider {
             .build()
 
         // Create nodes field: nodes(ids: [ID!]!): [Node]!
-        val nodesIdsArgument = InputValueDefinition.newInputValueDefinition()
+        val nodesIdsArgument = InputValueDefinition
+            .newInputValueDefinition()
             .name("ids")
             .description(Description("The IDs of objects", sourceLocation, false))
             .type(NonNullType(ListType(NonNullType(TypeName("ID")))))
             .sourceLocation(sourceLocation)
             .build()
 
-        val nodesField = FieldDefinition.newFieldDefinition()
+        val nodesField = FieldDefinition
+            .newFieldDefinition()
             .name("nodes")
             .description(Description("Fetches objects given their IDs", sourceLocation, false))
             .type(NonNullType(ListType(TypeName("Node"))))
@@ -410,7 +427,8 @@ object DefaultSchemaProvider {
         // Create Query extension with @scope(to: ["*"])
         val scopeDirective = createScopeDirective(listOf("*"))
 
-        val queryExtension = ObjectTypeExtensionDefinition.newObjectTypeExtensionDefinition()
+        val queryExtension = ObjectTypeExtensionDefinition
+            .newObjectTypeExtensionDefinition()
             .name("Query")
             .fieldDefinition(nodeField)
             .fieldDefinition(nodesField)
@@ -445,7 +463,8 @@ object DefaultSchemaProvider {
                 return@forEach
             }
 
-            val scalarDefinition = ScalarTypeDefinition.newScalarTypeDefinition()
+            val scalarDefinition = ScalarTypeDefinition
+                .newScalarTypeDefinition()
                 .name(scalar.name)
                 .description(Description(scalar.description ?: "Standard Viaduct scalar", null, false))
                 .sourceLocation(sourceLocation)
@@ -480,28 +499,38 @@ object DefaultSchemaProvider {
         val didAddSubscription = addRootType(builder, subscriptionTypeName, objectExtensions, ifNeeded = !force, allowExisting = allowExisting)
 
         val opDefinitions = mutableListOf<OperationTypeDefinition>(
-            OperationTypeDefinition.newOperationTypeDefinition()
-                .name(OperationDefinition.Operation.QUERY.name.lowercase())
-                .typeName(TypeName.newTypeName(queryTypeName).build())
+            OperationTypeDefinition
+                .newOperationTypeDefinition()
+                .name(
+                    OperationDefinition.Operation.QUERY.name
+                        .lowercase()
+                ).typeName(TypeName.newTypeName(queryTypeName).build())
                 .build()
         )
         if (didAddMutation) {
             opDefinitions.add(
-                OperationTypeDefinition.newOperationTypeDefinition()
-                    .name(OperationDefinition.Operation.MUTATION.name.lowercase())
-                    .typeName(TypeName.newTypeName(mutationTypeName).build())
+                OperationTypeDefinition
+                    .newOperationTypeDefinition()
+                    .name(
+                        OperationDefinition.Operation.MUTATION.name
+                            .lowercase()
+                    ).typeName(TypeName.newTypeName(mutationTypeName).build())
                     .build()
             )
         }
         if (didAddSubscription) {
             opDefinitions.add(
-                OperationTypeDefinition.newOperationTypeDefinition()
-                    .name(OperationDefinition.Operation.SUBSCRIPTION.name.lowercase())
-                    .typeName(TypeName.newTypeName(subscriptionTypeName).build())
+                OperationTypeDefinition
+                    .newOperationTypeDefinition()
+                    .name(
+                        OperationDefinition.Operation.SUBSCRIPTION.name
+                            .lowercase()
+                    ).typeName(TypeName.newTypeName(subscriptionTypeName).build())
                     .build()
             )
         }
-        val schemaDef = SchemaDefinition.newSchemaDefinition()
+        val schemaDef = SchemaDefinition
+            .newSchemaDefinition()
             .operationTypeDefinitions(opDefinitions)
             .build()
         builder.add(schemaDef)
@@ -550,57 +579,63 @@ object DefaultSchemaProvider {
         // Create @scope directive with to: ["*"] to make root type accessible to all scopes
         val scopeDirective = createScopeDirective(listOf("*"))
 
-        val builder = ObjectTypeDefinition.newObjectTypeDefinition()
+        val builder = ObjectTypeDefinition
+            .newObjectTypeDefinition()
             .name(typeName)
         if (!hasExtensions) {
             // Create a deprecated dummy field to ensure the root type is valid
-            val dummyField = FieldDefinition.newFieldDefinition()
+            val dummyField = FieldDefinition
+                .newFieldDefinition()
                 .name("_")
                 .type(TypeName("String"))
                 .directive(
-                    Directive.newDirective()
+                    Directive
+                        .newDirective()
                         .name("deprecated")
                         .argument(
-                            Argument.newArgument()
+                            Argument
+                                .newArgument()
                                 .name("reason")
                                 .value(
-                                    StringValue.newStringValue("Dummy field to ensure root type is valid. Do not use.")
+                                    StringValue
+                                        .newStringValue("Dummy field to ensure root type is valid. Do not use.")
                                         .sourceLocation(sourceLocation)
                                         .build()
-                                )
-                                .sourceLocation(sourceLocation)
+                                ).sourceLocation(sourceLocation)
                                 .build()
                         ).build()
-                )
-                .sourceLocation(sourceLocation)
+                ).sourceLocation(sourceLocation)
                 .build()
 
             // only add dummy field if there are no extensions, otherwise the extensions will provide fields
             builder.fieldDefinition(dummyField)
         }
-        return builder.directive(scopeDirective)
+        return builder
+            .directive(scopeDirective)
             .sourceLocation(sourceLocation)
             .build()
     }
 
     private fun createScopeDirective(to: List<String>): Directive {
-        val toArgument = Argument.newArgument()
+        val toArgument = Argument
+            .newArgument()
             .name("to")
             .value(
-                ArrayValue.newArrayValue()
+                ArrayValue
+                    .newArrayValue()
                     .values(
                         to.map {
-                            StringValue.newStringValue(it)
+                            StringValue
+                                .newStringValue(it)
                                 .sourceLocation(sourceLocation)
                                 .build()
                         }
-                    )
-                    .build()
-            )
-            .sourceLocation(sourceLocation)
+                    ).build()
+            ).sourceLocation(sourceLocation)
             .build()
 
-        return Directive.newDirective()
+        return Directive
+            .newDirective()
             .name("scope")
             .argument(toArgument)
             .sourceLocation(sourceLocation)
@@ -652,7 +687,8 @@ object DefaultSchemaProvider {
         }
 
     private fun createResolverDirective(): Directive =
-        Directive.newDirective()
+        Directive
+            .newDirective()
             .name("resolver")
             .sourceLocation(sourceLocation)
             .build()
@@ -672,13 +708,12 @@ object DefaultSchemaProvider {
     }
 
     @Suppress("EXTENSION_SHADOWED_BY_MEMBER")
-    private fun SourceLocation.toString(): String {
-        return if (this.line == -1 && this.column == -1) {
+    private fun SourceLocation.toString(): String =
+        if (this.line == -1 && this.column == -1) {
             this.sourceName ?: "unknown location"
         } else {
             "${this.sourceName ?: "unknown source"}:${this.line}:${this.column}"
         }
-    }
 
     private class RegistryBuilder(
         val building: TypeDefinitionRegistry,
@@ -688,11 +723,13 @@ object DefaultSchemaProvider {
             building.objectTypeExtensions() + extant.objectTypeExtensions()
 
         fun getDirectiveDefinition(name: String): DirectiveDefinition? =
-            building.getDirectiveDefinition(name)
+            building
+                .getDirectiveDefinition(name)
                 .or { extant.getDirectiveDefinition(name) }
                 .getOrNull()
 
-        fun getType(name: String) = building.getType(name).or { extant.getType(name) }
+        @Suppress("DEPRECATION")
+        fun getType(name: String): Optional<TypeDefinition<*>> = building.getType(name).or { extant.getType(name) }
 
         fun add(def: SDLDefinition<*>): RegistryBuilder {
             building.add(def)

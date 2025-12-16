@@ -20,6 +20,7 @@ jacoco {
 // Dependencies for jacoco aggregation - all Java subprojects with jacoco
 dependencies {
     jacocoAggregation(libs.viaduct.engine.api)
+    jacocoAggregation(libs.viaduct.shared.apiannotations)
     jacocoAggregation(libs.viaduct.engine.runtime)
     jacocoAggregation(libs.viaduct.service.api)
     jacocoAggregation(libs.viaduct.service.runtime)
@@ -48,60 +49,6 @@ reporting {
     }
 }
 
-// Task to collect JUnit XML test results for CircleCI
-tasks.register<Copy>("collectTestResults") {
-    description = "Collects JUnit XML test results from all modules for CircleCI"
-    group = "verification"
-
-    // Make sure tests have run first
-    mustRunAfter("test")
-
-    from(fileTree(".") {
-        include("**/build/test-results/test/*.xml")
-    })
-    into("build/test-results-for-circleci")
-
-    // Rename files to avoid conflicts
-    rename { filename ->
-        val sourceFile = source.find { it.name == filename }
-        if (sourceFile != null) {
-            val relativePath = rootDir.toPath().relativize(sourceFile.toPath())
-            relativePath.toString()
-                .replace("/build/test-results/test/", "_")
-                .replace("/", "_")
-                .replace("\\", "_")
-        } else {
-            filename
-        }
-    }
-
-    doLast {
-        val outputDir = File(rootDir, "build/test-results-for-circleci")
-        var totalTests = 0
-        var totalFiles = 0
-
-        outputDir.listFiles { file -> file.name.endsWith(".xml") }?.forEach { xmlFile ->
-            totalFiles++
-
-            // Count tests in this file
-            val content = xmlFile.readText()
-            val testsMatch = Regex("""tests="(\d+)"""").find(content)
-            if (testsMatch != null) {
-                totalTests += testsMatch.groupValues[1].toInt()
-            }
-        }
-
-        println("✅ Test results collected for CircleCI:")
-        println("   - Total XML files: $totalFiles")
-        println("   - Total tests: $totalTests")
-        println("   - Output directory: ${outputDir.absolutePath}")
-
-        if (totalFiles == 0) {
-            println("⚠️  Warning: No test result files found. Make sure tests have been run first.")
-        }
-    }
-}
-
 // Coverage verification with reasonable thresholds
 tasks.register<JacocoCoverageVerification>("testCodeCoverageVerification") {
     dependsOn("testCodeCoverageReport")
@@ -124,20 +71,35 @@ tasks.register<JacocoCoverageVerification>("testCodeCoverageVerification") {
     }
 }
 
-// CircleCI-friendly task to run tests and generate coverage
+// GitHub Actions-friendly task to run tests and generate coverage
 tasks.register("testAndCoverage") {
-    description = "Runs tests and generates coverage reports and collects test results for CircleCI"
+    description = "Runs tests and generates coverage reports"
     group = "verification"
 
-    dependsOn("testCodeCoverageReport", "collectTestResults")
+    dependsOn("testCodeCoverageReport")
+
+    // Capture values at configuration time
+    val isGitHubActions = providers.environmentVariable("GITHUB_ACTIONS")
+        .map { it.toBoolean() }
+        .orElse(false)
+    val runnerOs = providers.environmentVariable("RUNNER_OS")
+        .orElse("unknown")
+    val javaVersion = providers.systemProperty("java.version")
+        .orElse("unknown")
 
     doLast {
-        println("Coverage reports generated:")
-        println("- Individual module XML reports: */build/reports/jacoco/test/jacocoTestReport.xml")
-        println("- Aggregated XML report: build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml")
-        println("- Aggregated HTML report: build/reports/jacoco/testCodeCoverageReport/html/index.html")
-        println()
-        println("Test results collected:")
-        println("- CircleCI JUnit XML files: build/test-results-for-circleci/")
+        logger.lifecycle("=" .repeat(80))
+        logger.lifecycle("Coverage Reports Generated:")
+        logger.lifecycle("=" .repeat(80))
+        logger.lifecycle("📊 Individual module XML: */build/reports/jacoco/test/jacocoTestReport.xml")
+        logger.lifecycle("📊 Aggregated XML:        build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml")
+        logger.lifecycle("📊 Aggregated HTML:       build/reports/jacoco/testCodeCoverageReport/html/index.html")
+        logger.lifecycle("=" .repeat(80))
+
+        if (isGitHubActions.get()) {
+            logger.lifecycle("🚀 Running in GitHub Actions")
+            logger.lifecycle("   OS: ${runnerOs.get()} | Java: ${javaVersion.get()}")
+            logger.lifecycle("::notice title=Coverage Reports::Generated at build/reports/jacoco/testCodeCoverageReport/html/index.html")
+        }
     }
 }

@@ -26,11 +26,13 @@ class DomainTest : KotestPropertyBase() {
     fun `map -- identity`(): Unit =
         runBlocking {
             val mapper = IR map IR
-            val objects = arbSchema.map { schema ->
-                Arb.objectIR(schema, cfg)
-                    .take(100, randomSource())
-                    .toList()
-            }.flatten()
+            val objects = arbSchema
+                .map { schema ->
+                    Arb
+                        .objectIR(schema, cfg)
+                        .take(100, randomSource())
+                        .toList()
+                }.flatten()
 
             objects.forAll { obj ->
                 mapper(obj) == obj
@@ -87,13 +89,22 @@ class DomainTest : KotestPropertyBase() {
  */
 object TestDomain1 : Domain<TestDomain1.Value.Object> {
     sealed interface Value {
-        @JvmInline value class Char(val value: kotlin.Char) : Value
+        @JvmInline value class Char(
+            val value: kotlin.Char
+        ) : Value
 
-        @JvmInline value class Int(val value: kotlin.Int) : Value
+        @JvmInline value class Int(
+            val value: kotlin.Int
+        ) : Value
 
-        @JvmInline value class Str(val value: String) : Value
+        @JvmInline value class Str(
+            val value: String
+        ) : Value
 
-        data class Object(val name: String, val fields: Map<String, Value>) : Value
+        data class Object(
+            val name: String,
+            val fields: Map<String, Value>
+        ) : Value
     }
 
     override val conv: Conv<Value.Object, IR.Value.Object> =
@@ -142,9 +153,14 @@ object TestDomain1 : Domain<TestDomain1.Value.Object> {
 
 object TestDomain2 : Domain<TestDomain2.Value.Object> {
     sealed interface Value {
-        @JvmInline value class Int(val value: kotlin.Int) : Value
+        @JvmInline value class Int(
+            val value: kotlin.Int
+        ) : Value
 
-        data class Object(val name: String, val fields: Map<String, Value>) : Value
+        data class Object(
+            val name: String,
+            val fields: Map<String, Value>
+        ) : Value
     }
 
     private val valueConv = Conv<Value, IR.Value>(

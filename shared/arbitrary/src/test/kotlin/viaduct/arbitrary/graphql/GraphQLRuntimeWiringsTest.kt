@@ -60,12 +60,14 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
             // interesting fields. Disable directives in generated docs
             val cfg = Config.default + (DirectiveWeight to CompoundingWeight.Never)
 
-            Arb.graphQLDocument(schema, cfg)
+            Arb
+                .graphQLDocument(schema, cfg)
                 // require that queries select an interesting field
                 .filter { it.allChildrenOfType<Field>().any { child -> child.name == "x" } }
                 .flatMap { doc ->
                     arbitrary { rs ->
-                        Arb.long()
+                        Arb
+                            .long()
                             .take(100, rs)
                             .toList()
                             .map { seed ->
@@ -89,7 +91,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
             Arb.long().forAll(100) { seed ->
                 val gql = mkGraphQL(sdl, arbRuntimeWiring(sdl, seed))
                 val inp = Arb.graphQLExecutionInput(sdl.asSchema, doc).bind()
-                val results = Arb.constant(inp)
+                val results = Arb
+                    .constant(inp)
                     .map(gql::execute)
                     .take(10, randomSource())
 
@@ -119,7 +122,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
             Arb.long().forAll(100) { seed ->
                 val gql = mkGraphQL(sdl, arbRuntimeWiring(sdl, seed))
                 val inp = Arb.graphQLExecutionInput(sdl.asSchema, doc).bind()
-                val results = Arb.constant(inp)
+                val results = Arb
+                    .constant(inp)
                     .map(gql::execute)
                     .take(10, randomSource())
 
@@ -151,7 +155,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
             Arb.long().forAll(100) { seed ->
                 val gql = mkGraphQL(sdl, arbRuntimeWiring(sdl, seed))
                 val inp = Arb.graphQLExecutionInput(sdl.asSchema, doc).bind()
-                val results = Arb.constant(inp)
+                val results = Arb
+                    .constant(inp)
                     .map(gql::execute)
                     .take(10, randomSource())
 
@@ -194,7 +199,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
                 val gql = mkGraphQL(sdl, wiring)
                 val inp = Arb.graphQLExecutionInput(sdl.asSchema, doc).bind()
-                val results = Arb.constant(inp)
+                val results = Arb
+                    .constant(inp)
                     .map(gql::execute)
                     .take(10, randomSource())
 
@@ -209,7 +215,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
             val doc = "{x}".asDocument
 
             val cfg = Config.default
-            Arb.long()
+            Arb
+                .long()
                 .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                 .flatMap { gql ->
                     val input = Arb.graphQLExecutionInput(sdl.asSchema, doc, cfg)
@@ -228,7 +235,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             // disabled
             (Config.default + (NullNonNullableWeight to 0.0)).let { cfg ->
-                Arb.long()
+                Arb
+                    .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
                         val input = Arb.graphQLExecutionInput(sdl.asSchema, doc, cfg)
@@ -240,7 +248,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             // enabled
             (Config.default + (NullNonNullableWeight to 1.0)).let { cfg ->
-                Arb.long()
+                Arb
+                    .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
                         val input = Arb.graphQLExecutionInput(sdl.asSchema, doc, cfg)
@@ -260,7 +269,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             // disabled
             (Config.default + (ExplicitNullValueWeight to 0.0)).let { cfg ->
-                Arb.long()
+                Arb
+                    .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
                         val input = Arb.graphQLExecutionInput(sdl.asSchema, doc, cfg)
@@ -273,7 +283,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             // enabled
             (Config.default + (ExplicitNullValueWeight to 1.0)).let { cfg ->
-                Arb.long()
+                Arb
+                    .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
                         val input = Arb.graphQLExecutionInput(sdl.asSchema, doc, cfg)
@@ -294,7 +305,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             arbitrary { _ ->
                 val seed = Arb.long().bind()
-                val listSize = Arb.intRange(0..100)
+                val listSize = Arb
+                    .intRange(0..100)
                     .filter { !it.isEmpty() }
                     .bind()
                 val cfg = Config.default + (ListValueSize to listSize) + (ExplicitNullValueWeight to 0.0)
@@ -316,7 +328,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             // disabled
             (Config.default + (ResolverExceptionWeight to 0.0)).let { cfg ->
-                Arb.long()
+                Arb
+                    .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
                         val input = Arb.graphQLExecutionInput(sdl.asSchema, doc, cfg)
@@ -328,7 +341,8 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             // enabled
             (Config.default + (ResolverExceptionWeight to 1.0)).let { cfg ->
-                Arb.long()
+                Arb
+                    .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
                         val input = Arb.graphQLExecutionInput(sdl.asSchema, doc, cfg)

@@ -66,9 +66,10 @@ fun ConstPool.annotations(
 ): ParameterAnnotationsAttribute {
     val tag = if (viz) ParameterAnnotationsAttribute.visibleTag else ParameterAnnotationsAttribute.invisibleTag
     val paramAnnotations =
-        parameterAnnotations.map { annotationsOfAParameter ->
-            annotationsOfAParameter.map { this.annotation(it) }.toTypedArray()
-        }.toTypedArray()
+        parameterAnnotations
+            .map { annotationsOfAParameter ->
+                annotationsOfAParameter.map { this.annotation(it) }.toTypedArray()
+            }.toTypedArray()
     return ParameterAnnotationsAttribute(this, tag).apply {
         annotations = paramAnnotations
     }
@@ -218,29 +219,31 @@ private val KmType.javaReturnTypeName: CtName get() =
 // Helpers for creating JVM signatures
 
 internal val KmFunctionWrapper.jvmSignature: String get() =
-    SignatureAttribute.MethodSignature(
-        null,
-        jvmValueParameters.map { it.type.jvmSignature }.toTypedArray(),
-        function.jvmReturnType.jvmReturnSignature,
-        null
-    ).encode()
+    SignatureAttribute
+        .MethodSignature(
+            null,
+            jvmValueParameters.map { it.type.jvmSignature }.toTypedArray(),
+            function.jvmReturnType.jvmReturnSignature,
+            null
+        ).encode()
 
-internal fun KmFunctionWrapper.defaultImplsJvmSignature(defaultImplsClass: CtClass): String {
-    return SignatureAttribute.MethodSignature(
-        null,
-        defaultImplsJvmValueParameters(defaultImplsClass).map { it.type.jvmSignature }.toTypedArray(),
-        function.jvmReturnType.jvmReturnSignature,
-        null
-    ).encode()
-}
+internal fun KmFunctionWrapper.defaultImplsJvmSignature(defaultImplsClass: CtClass): String =
+    SignatureAttribute
+        .MethodSignature(
+            null,
+            defaultImplsJvmValueParameters(defaultImplsClass).map { it.type.jvmSignature }.toTypedArray(),
+            function.jvmReturnType.jvmReturnSignature,
+            null
+        ).encode()
 
 internal val KmConstructor.jvmSignature: String get() =
-    SignatureAttribute.MethodSignature(
-        null,
-        valueParameters.map { it.type.jvmSignature }.toTypedArray(),
-        SignatureAttribute.BaseType("void"),
-        null
-    ).encode()
+    SignatureAttribute
+        .MethodSignature(
+            null,
+            valueParameters.map { it.type.jvmSignature }.toTypedArray(),
+            SignatureAttribute.BaseType("void"),
+            null
+        ).encode()
 
 internal val KmPropertyWrapper.fieldJvmSignature: String get() {
     val signatureType = this.inputType.jvmSignature

@@ -21,7 +21,10 @@ import viaduct.api.types.Enum
 import viaduct.api.types.Input
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.Object
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.RawSelectionSet
+import viaduct.engine.api.gj
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.ConvMemo
 import viaduct.mapping.graphql.IR
@@ -32,20 +35,34 @@ import viaduct.mapping.graphql.IR
  *
  * @see invoke
  */
+@InternalApi
 object GRTConv {
     /**
-     * Create a [Conv] for [viaduct.api.types.GRT] values backed by [graphQLType].
+     * Create a [Conv] for [viaduct.api.types.GRT] values backed by [type].
      *
-     * Some GRT conversions require more context than just a [graphQLType] --
+     * Some GRT conversions require more context than just a [type] --
      * prefer using the overloads of [invoke] that operate on fields.
+     *
+     * @param type the GraphQL type for which a [Conv] will be created.
+     * @param selectionSet A [RawSelectionSet] possible projection of [type].
+     *   [selectionSet] may not be null if any type in [keyMapping] is [KeyMapping.KeyType.Selection].
+     *   The returned [Conv] will only be able to map the selections in [selectionSet].
+     *   Any aliases used in [selectionSet] will be used as object keys in both the JSON and IR Values
+     * @param keyMapping A [KeyMapping] that describes how object keys should be mapped.
+     *   If null, a default [KeyMapping] will be chosen based on the value of [selectionSet]
      */
     operator fun invoke(
         internalCtx: InternalContext,
-        graphQLType: GraphQLType
-    ): Conv<Any?, IR.Value> {
-        val builder = Builder(internalCtx)
-        return builder.build(graphQLType, None)
-    }
+        type: GraphQLType,
+        selectionSet: RawSelectionSet? = null,
+        keyMapping: KeyMapping? = null
+    ): Conv<Any?, IR.Value> =
+        Builder(internalCtx, keyMapping ?: KeyMapping.defaultKeyMapping(selectionSet))
+            .build(
+                type = type,
+                parentContext = None,
+                selectionSet = selectionSet
+            )
 
     /**
      * Create a [Conv] that maps between [viaduct.api.types.GRT] and [IR] representations
@@ -54,10 +71,13 @@ object GRTConv {
     operator fun invoke(
         internalCtx: InternalContext,
         field: GraphQLInputObjectField
-    ): Conv<Any?, IR.Value> {
-        val builder = Builder(internalCtx)
-        return builder.build(field.type, InputParentContext(field))
-    }
+    ): Conv<Any?, IR.Value> =
+        Builder(internalCtx, KeyMapping.FieldNameToFieldName)
+            .build(
+                type = field.type,
+                parentContext = InputParentContext(field),
+                selectionSet = null
+            )
 
     /**
      * Create a [Conv] that maps between [viaduct.api.types.GRT] and [IR] representations
@@ -66,11 +86,16 @@ object GRTConv {
     operator fun invoke(
         internalCtx: InternalContext,
         field: GraphQLFieldDefinition,
-        parentType: GraphQLCompositeType
-    ): Conv<Any?, IR.Value> {
-        val builder = Builder(internalCtx)
-        return builder.build(field.type, OutputParentContext(parentType, field))
-    }
+        parentType: GraphQLCompositeType,
+        selectionSet: RawSelectionSet?,
+        keyMapping: KeyMapping? = null
+    ): Conv<Any?, IR.Value> =
+        Builder(internalCtx, keyMapping ?: KeyMapping.defaultKeyMapping(selectionSet))
+            .build(
+                type = field.type,
+                parentContext = OutputParentContext(parentType, field),
+                selectionSet = selectionSet
+            )
 
     internal fun abstractGRT(
         typeName: String,
@@ -166,12 +191,15 @@ object GRTConv {
      * @param parentField the nearest ancestor object field from which the current context is derived
      * @param parentType the type that [parentField] is defined on
      */
-    private data class OutputParentContext(val parentType: GraphQLCompositeType, val parentField: GraphQLFieldDefinition) : ParentContext
+    private data class OutputParentContext(
+        val parentType: GraphQLCompositeType,
+        val parentField: GraphQLFieldDefinition,
+    ) : ParentContext
 
     /**
      * A [ParentContext] indicating that the current context was derived from an input object field
      *
-     * @param parentField the enarest ancestor input object field from which the current context is derived
+     * @param parentField the nearest ancestor input object field from which the current context is derived
      */
     private data class InputParentContext(val parentField: GraphQLInputObjectField) : ParentContext
 
@@ -184,13 +212,17 @@ object GRTConv {
      */
     private object None : ParentContext
 
-    private class Builder(val internalContext: InternalContext) {
+    private class Builder(
+        val internalContext: InternalContext,
+        val keyMapping: KeyMapping
+    ) {
         private val memo = ConvMemo()
 
         private data class Ctx(
             val type: GraphQLType,
             val isNullable: Boolean = true,
             val parentContext: ParentContext = None,
+            val selectionSet: RawSelectionSet?,
             val wrapGRTs: Boolean = true
         ) {
             fun push(
@@ -201,9 +233,10 @@ object GRTConv {
 
         fun build(
             type: GraphQLType,
-            parentContext: ParentContext
+            parentContext: ParentContext,
+            selectionSet: RawSelectionSet?,
         ): Conv<Any?, IR.Value> =
-            mk(Ctx(type, parentContext = parentContext)).also {
+            mk(Ctx(type, parentContext = parentContext, selectionSet = selectionSet)).also {
                 memo.finalize()
             }
 
@@ -220,10 +253,15 @@ object GRTConv {
 
                 ctx.type is GraphQLInputObjectType -> {
                     // At minimum, all input objects require extracting values from a Map<String, Any?>
-                    val inputDataConv = memo.buildIfAbsent("${ctx.type.name}-engineValue") {
+                    val inputDataConv = memo.memoizeIf("${ctx.type.name}-engineValue", ctx.selectionSet == null) {
                         val fieldConvs = ctx.type.fields.associate { f ->
                             // values for inner objects should not be wrapped as GRTs
-                            val fieldCtx = Ctx(f.type, parentContext = InputParentContext(f), wrapGRTs = false)
+                            val fieldCtx = Ctx(
+                                f.type,
+                                parentContext = InputParentContext(f),
+                                wrapGRTs = false,
+                                selectionSet = null
+                            )
                             f.name to mk(fieldCtx)
                         }
                         EngineValueConv.obj(ctx.type.name, fieldConvs)
@@ -244,17 +282,68 @@ object GRTConv {
 
                 ctx.type is GraphQLObjectType -> {
                     // At minimum, all objects require extracting values from an EngineObjectData
-                    val engineDataConv = memo.buildIfAbsent("${ctx.type.name}-engineData") {
-                        val fieldConvs = ctx.type.fields.associate { f ->
-                            // values for inner objects should not be wrapped as GRTs
-                            // Set wrapGRTs to false for the convs in this types subtree
-                            val fieldCtx = Ctx(f.type, parentContext = OutputParentContext(ctx.type, f), wrapGRTs = false)
-                            f.name to mk(fieldCtx)
+                    val engineDataConv = memo.memoizeIf(
+                        "${ctx.type.name}-engineData",
+                        keyMapping == KeyMapping.FieldNameToFieldName
+                    ) {
+                        val convs = if (keyMapping == KeyMapping.FieldNameToFieldName) {
+                            // when neither side of a KeyMapping is selection-based, then generate a conv for each schema field
+                            ctx.type.mappableFields.associate { f ->
+                                // When KeyMapping is FieldnameToFieldname, we're mapping purely based on types. Since
+                                // GraphQL objects may be recursive, this traversal through types may cause an infinite loop.
+                                // We use ConvMemo to memoize the Conv for this type, allowing it to be reused if we encounter
+                                // this type elsewhere in the traversal.
+                                val fieldConv = memo.buildIfAbsent("${ctx.type.name}-engineData.${f.name}") {
+                                    val fieldCtx = Ctx(
+                                        f.type,
+                                        parentContext = OutputParentContext(
+                                            parentType = ctx.type,
+                                            parentField = f,
+                                        ),
+                                        // values for inner objects should not be wrapped as GRTs
+                                        // Set wrapGRTs to false for the convs in this types subtree
+                                        wrapGRTs = false,
+                                        selectionSet = null
+                                    )
+                                    mk(fieldCtx)
+                                }
+                                f.name to fieldConv
+                            }
+                        } else {
+                            // Getting into this else block means that at least one side of the KeyMapping is selection-based.
+                            // Generate a conv for each selection
+                            requireNotNull(ctx.selectionSet)
+                                .selections()
+                                .associate { sel ->
+                                    val coord = (sel.typeCondition to sel.fieldName).gj
+                                    val fieldDef = internalContext.schema.schema.getFieldDefinition(coord)
+
+                                    val subselections = ctx.selectionSet
+                                        .takeIf { fieldDef.type.supportsSelections }
+                                        ?.selectionSetForSelection(sel.typeCondition, sel.selectionName)
+
+                                    // values for inner objects should not be wrapped as GRTs
+                                    // Set wrapGRTs to false for the convs in this types subtree
+                                    val fieldCtx = Ctx(
+                                        fieldDef.type,
+                                        parentContext = OutputParentContext(
+                                            parentType = ctx.type,
+                                            parentField = fieldDef,
+                                        ),
+                                        wrapGRTs = false,
+                                        selectionSet = subselections
+                                    )
+                                    sel.selectionName to mk(fieldCtx)
+                                }
                         }
 
                         EngineValueConv.engineObjectData(
                             ctx.type,
-                            EngineValueConv.obj(ctx.type.name, fieldConvs)
+                            EngineValueConv.obj(
+                                ctx.type.name,
+                                convs,
+                                KeyMapping.map(keyMapping, ctx.selectionSet)
+                            )
                         )
                     }
 
@@ -273,7 +362,7 @@ object GRTConv {
                 }
 
                 ctx.type is GraphQLCompositeType && ctx.wrapGRTs -> {
-                    memo.buildIfAbsent("${ctx.type.name}-grt") {
+                    memo.memoizeIf("${ctx.type.name}-grt", ctx.selectionSet == null) {
                         val impls = internalContext.schema.rels.possibleObjectTypes(ctx.type)
                             .toList()
                             .associate { obj ->
@@ -286,7 +375,7 @@ object GRTConv {
                 }
 
                 ctx.type is GraphQLEnumType && ctx.wrapGRTs -> {
-                    memo.buildIfAbsent("${ctx.type.name}-grt") {
+                    memo.memoizeIf("${ctx.type.name}-grt", ctx.selectionSet == null) {
                         val reflectedType = internalContext.reflectionLoader.reflectionFor(ctx.type.name)
                         enumGRT(reflectedType as Type<Enum>)
                     }
@@ -320,14 +409,14 @@ object GRTConv {
                      * We didn't match any of the GlobalID wrapping cases.
                      * Default to using the engine representation for this type.
                      */
-                    else -> EngineValueConv(internalContext.schema, ctx.type)
+                    else -> EngineValueConv(internalContext.schema, ctx.type, ctx.selectionSet)
                 }
 
                 /**
                  * We didn't match any of the tenant-facing wrapper cases.
                  * Default to using the engine representation for this type.
                  */
-                else -> EngineValueConv(internalContext.schema, ctx.type).asAnyConv
+                else -> EngineValueConv(internalContext.schema, ctx.type, ctx.selectionSet).asAnyConv
             }
             return if (ctx.isNullable) {
                 EngineValueConv.nullable(conv.asAnyConv)

@@ -27,10 +27,10 @@ class SchemaFactory(
     }
 
     fun fromResources(
-        packagePrefix: String? = null,
+        grtPackagePrefix: String? = null,
         filesIncluded: Regex? = null,
     ): ViaductSchema {
-        return schemaFromRuntimeSchemaFiles(packagePrefix, filesIncluded ?: Regex(".*graphqls"))
+        return schemaFromRuntimeSchemaFiles(grtPackagePrefix, filesIncluded ?: Regex(".*graphqls"))
     }
 
     /**
@@ -38,13 +38,19 @@ class SchemaFactory(
      */
     @OptIn(ExperimentalTime::class)
     private fun schemaFromRuntimeSchemaFiles(
-        packagePrefix: String?,
+        grtPackagePrefix: String?,
         filesIncluded: Regex = Regex(".*graphqls"),
     ): ViaductSchema {
         val resourceContents = mutableMapOf<String, String>()
 
         val (resources, elapsedTime) = measureTimedValue {
-            ClassGraph().scan().use {
+            val classGraph = ClassGraph()
+            if (grtPackagePrefix != null) {
+                // Convert package notation (com.example.foo) to path notation (com/example/foo)
+                // and accept only that path subtree for resource scanning
+                classGraph.acceptPaths(grtPackagePrefix.replace('.', '/'))
+            }
+            classGraph.scan().use {
                 it.getResourcesMatchingPattern(filesIncluded.toPattern()).map { res ->
                     val origin =
                         res.classpathElementURI?.toString() ?: res.classpathElementURL?.toString() ?: "unknown"
@@ -70,7 +76,7 @@ class SchemaFactory(
 
         if (resources.isEmpty()) {
             throw ViaductSchemaLoadException(
-                "No GraphQL schema files found matching pattern '$filesIncluded' in package prefix '$packagePrefix'. " +
+                "No GraphQL schema files found matching pattern '$filesIncluded' in package prefix '$grtPackagePrefix'. " +
                     "Please ensure your .graphqls files are available in the classpath."
             )
         }

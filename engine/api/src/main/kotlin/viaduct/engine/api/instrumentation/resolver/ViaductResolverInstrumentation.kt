@@ -28,7 +28,7 @@ fun interface CheckerFunction<T> {
  * Instrumentation interface for observing Viaduct Modern resolver execution lifecycle.
  *
  * Implementations can track metrics, tracing, logging, or other observability concerns
- * for resolver execution. Use [ChainedResolverInstrumentation] to compose multiple instrumentations.
+ * for resolver execution. Use [viaduct.engine.runtime.instrumentation.resolver.ChainedResolverInstrumentation] to compose multiple instrumentations.
  */
 interface ViaductResolverInstrumentation {
     /**

@@ -98,9 +98,7 @@ typealias QueryResultBuilderFn = QueryResultMapBuilder.() -> Unit
  * @return The built map.
  */
 // TODO - Why is this inline?
-inline fun queryResultMap(buildAction: QueryResultMapBuilder.() -> Unit): Map<String, Any?> {
-    return QueryResultMapBuilder().apply(buildAction).build()
-}
+inline fun queryResultMap(buildAction: QueryResultMapBuilder.() -> Unit): Map<String, Any?> = QueryResultMapBuilder().apply(buildAction).build()
 
 /**
  * A builder class for creating maps using a DSL.

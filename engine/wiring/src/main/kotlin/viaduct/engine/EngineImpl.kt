@@ -3,16 +3,16 @@
 package viaduct.engine
 
 import graphql.ExecutionInput as GJExecutionInput
+import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.ExecutionId
 import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import io.micrometer.core.instrument.MeterRegistry
-import viaduct.deferred.asDeferred
+import kotlinx.coroutines.future.await
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.EngineExecutionResult
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.TemporaryBypassAccessCheck
@@ -56,7 +56,6 @@ class EngineImpl(
 
     private val resolverDataFetcherInstrumentation = ResolverDataFetcherInstrumentation(
         dispatcherRegistry,
-        dispatcherRegistry,
         coroutineInterop
     )
 
@@ -86,9 +85,6 @@ class EngineImpl(
         ViaductExecutionStrategy.Factory.Impl(
             dataFetcherExceptionHandler,
             ExecutionParameters.Factory(
-                dispatcherRegistry,
-                dispatcherRegistry,
-                dispatcherRegistry,
                 flagManager
             ),
             AccessCheckRunner(coroutineInterop),
@@ -129,6 +125,7 @@ class EngineImpl(
         resolverDataFetcherInstrumentation,
         flagManager,
         this,
+        config.globalIDCodec,
     )
 
     @Deprecated("Airbnb use only")
@@ -136,11 +133,9 @@ class EngineImpl(
         return graphql
     }
 
-    override fun execute(executionInput: ExecutionInput): EngineExecutionResult {
+    override suspend fun execute(executionInput: ExecutionInput): ExecutionResult {
         val gjExecutionInput = mkGJExecutionInput(executionInput)
-        return EngineExecutionResult(
-            deferredExecutionResult = graphql.executeAsync(gjExecutionInput).asDeferred()
-        )
+        return graphql.executeAsync(gjExecutionInput).await()
     }
 
     /**

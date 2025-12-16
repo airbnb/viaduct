@@ -2,6 +2,7 @@
 
 package viaduct.engine.runtime.execution
 
+import graphql.execution.ExecutionContext
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
@@ -126,7 +127,7 @@ class AccessCheckRunnerTest {
     @Test
     fun `combineWithTypeCheck - no type check`() {
         val engineExecutionContext = ContextMocks(
-            myDispatcherRegistry = DispatcherRegistry(emptyMap(), emptyMap(), emptyMap(), emptyMap())
+            myDispatcherRegistry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), emptyMap())
         ).engineExecutionContext as EngineExecutionContextImpl
         val result = runner.combineWithTypeCheck(
             createMockExecutionParameters(engineExecutionContext),
@@ -155,7 +156,7 @@ class AccessCheckRunnerTest {
                 )
                 val typeChecks = mapOf("Foo" to CheckerDispatcherImpl(errorCheckerExecutor))
                 val engineExecutionContext = ContextMocks(
-                    myDispatcherRegistry = DispatcherRegistry(emptyMap(), emptyMap(), emptyMap(), typeChecks)
+                    myDispatcherRegistry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), typeChecks)
                 ).engineExecutionContext as EngineExecutionContextImpl
                 val result = runner.combineWithTypeCheck(
                     createMockExecutionParameters(engineExecutionContext),
@@ -184,7 +185,7 @@ class AccessCheckRunnerTest {
                 )
                 val typeChecks = mapOf("Foo" to CheckerDispatcherImpl(errorCheckerExecutor))
                 val engineExecutionContext = ContextMocks(
-                    myDispatcherRegistry = DispatcherRegistry(emptyMap(), emptyMap(), emptyMap(), typeChecks)
+                    myDispatcherRegistry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), typeChecks)
                 ).engineExecutionContext as EngineExecutionContextImpl
                 val result = runner.combineWithTypeCheck(
                     createMockExecutionParameters(engineExecutionContext),
@@ -203,11 +204,14 @@ class AccessCheckRunnerTest {
         checker: CheckerExecutor? = null
     ): Value<out CheckerResult?> {
         val checkerDispatchers = if (checker != null) mapOf("Foo" to CheckerDispatcherImpl(checker)) else emptyMap()
-        val registry = DispatcherRegistry(emptyMap(), emptyMap(), emptyMap(), checkerDispatchers)
+        val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), checkerDispatchers)
         val engineExecutionContext = mockk<EngineExecutionContextImpl> {
             every { dispatcherRegistry } returns registry
             every { rawSelectionSetFactory.rawSelectionSet(any(), any()) } returns RawSelectionSet.empty("Foo")
-            every { copy(any(), any()) } returns this
+            every { activeSchema } returns mockk()
+            every { fieldScopeSupplier } returns mockk()
+            every { dataFetchingEnvironment } returns null
+            every { copy(any(), any(), any(), any()) } returns this
             every { executeAccessChecksInModstrat } returns isEnabled
         }
         val oer = objectEngineResult {
@@ -230,21 +234,24 @@ class AccessCheckRunnerTest {
     ): Value<out CheckerResult?> {
         val exec = AccessCheckRunner(DefaultCoroutineInterop)
         val checkerDispatchers = if (checker != null) mapOf("Foo" to "bar" to CheckerDispatcherImpl(checker)) else emptyMap()
-        val registry = DispatcherRegistry(emptyMap(), emptyMap(), checkerDispatchers, emptyMap())
+        val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), checkerDispatchers, emptyMap())
         val context = ContextMocks(
             myEngineExecutionContext = mockk<EngineExecutionContextImpl> {
                 every { dispatcherRegistry } returns registry
                 every { rawSelectionSetFactory.rawSelectionSet(any(), any()) } returns RawSelectionSet.empty("Foo")
-                every { copy(any(), any()) } returns this
+                every { activeSchema } returns mockk()
+                every { fieldScopeSupplier } returns mockk()
+                every { dataFetchingEnvironment } returns null
+                every { copy(any(), any(), any(), any()) } returns this
                 every { executeAccessChecksInModstrat } returns isEnabled
             }
         ).engineExecutionContext as? EngineExecutionContextImpl
         val params = createMockExecutionParameters(context)
 
         // Override field-check specific properties
-        every { params.executionStepInfo } returns mockk {
+        every { params.executionStepInfo } returns mockk(relaxed = true) {
             every { objectType.name } returns "Foo"
-            every { arguments } returns mapOf()
+            every { arguments } returns emptyMap()
         }
         every { params.field?.fieldName } returns "bar"
         every { params.parentEngineResult } returns mockk<ObjectEngineResultImpl>()
@@ -256,12 +263,19 @@ class AccessCheckRunnerTest {
 
     private fun createMockExecutionParameters(engineExecutionContext: EngineExecutionContextImpl?): ExecutionParameters {
         return mockk<ExecutionParameters> {
+            engineExecutionContext?.let { every { this@mockk.engineExecutionContext } returns it }
             every { instrumentation } returns mockk {
                 every { instrumentAccessCheck(any(), any(), any()) } answers { firstArg() }
             }
-            every { executionContext } returns mockk {
+            every { executionContext } returns mockk<ExecutionContext> {
+                every { instrumentationState } returns mockk()
+            }
+            every { executionContextWithLocalContext } returns mockk {
                 every { instrumentationState } returns mockk()
                 engineExecutionContext?.let { every { getLocalContextForType<EngineExecutionContextImpl>() } returns it }
+            }
+            every { localContext } returns mockk {
+                engineExecutionContext?.let { every { get<EngineExecutionContextImpl>() } returns it }
             }
             every { gjParameters } returns mockk()
             every { field } returns mockk {

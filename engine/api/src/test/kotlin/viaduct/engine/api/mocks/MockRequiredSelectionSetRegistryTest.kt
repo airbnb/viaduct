@@ -27,7 +27,7 @@ class MockRequiredSelectionSetRegistryTest {
             .fieldResolverEntry("Bar" to "b1", "x")
             .build()
 
-        assertEquals(
+        assertRequiredSelectionSetListEquals(
             listOf(
                 RequiredSelectionSet(
                     SelectionsParser.parse("Foo", "x"),
@@ -38,7 +38,7 @@ class MockRequiredSelectionSetRegistryTest {
             reg.getRequiredSelectionSetsForField("Foo", "f1")
         )
 
-        assertEquals(
+        assertRequiredSelectionSetListEquals(
             listOf(
                 RequiredSelectionSet(
                     SelectionsParser.parse("Foo", "x y"),
@@ -48,7 +48,7 @@ class MockRequiredSelectionSetRegistryTest {
             ),
             reg.getRequiredSelectionSetsForField("Foo", "f2")
         )
-        assertEquals(
+        assertRequiredSelectionSetListEquals(
             listOf(
                 RequiredSelectionSet(
                     SelectionsParser.parse("Bar", "x"),
@@ -81,10 +81,8 @@ class MockRequiredSelectionSetRegistryTest {
             variableResolver,
             forChecker = false
         )
-        assertEquals(
-            listOf(
-                rssWithVariable
-            ),
+        assertRequiredSelectionSetListEquals(
+            listOf(rssWithVariable),
             reg.getRequiredSelectionSetsForField("Foo", "f2")
         )
     }
@@ -95,7 +93,7 @@ class MockRequiredSelectionSetRegistryTest {
             .typeCheckerEntry("Bar", "x")
             .build()
 
-        assertEquals(
+        assertRequiredSelectionSetListEquals(
             listOf(
                 RequiredSelectionSet(
                     SelectionsParser.parse("Bar", "x"),
@@ -123,7 +121,7 @@ class MockRequiredSelectionSetRegistryTest {
             )
             .build()
 
-        assertEquals(
+        assertRequiredSelectionSetListEquals(
             listOf(
                 RequiredSelectionSet(
                     SelectionsParser.parse("Foo", "x(arg:\$a), b"),
@@ -166,7 +164,7 @@ class MockRequiredSelectionSetRegistryTest {
             .build()
 
         val result = a + b
-        assertEquals(
+        assertRequiredSelectionSetListEquals(
             listOf(
                 RequiredSelectionSet(
                     SelectionsParser.parse("Foo", "x"),
@@ -195,9 +193,9 @@ class MockRequiredSelectionSetRegistryTest {
                 forChecker = false
             )
         )
-        assertTrue(resultForB.containsAll(expectedForB), "Result should contain all expected selection sets for field b")
+        assertTrue(containsAllRss(expectedForB, resultForB), "Result should contain all expected selection sets for field b")
 
-        assertEquals(
+        assertRequiredSelectionSetListEquals(
             listOf(
                 RequiredSelectionSet(
                     SelectionsParser.parse("Foo", "z"),
@@ -221,11 +219,20 @@ class MockRequiredSelectionSetRegistryTest {
                 forChecker = true
             )
         )
-        assertTrue(resultForType.containsAll(expectedForType), "Result should contain all expected selection sets for type Foo")
+        assertTrue(containsAllRss(expectedForType, resultForType), "Result should contain all expected selection sets for type Foo")
 
         assertEquals(
             listOf<RequiredSelectionSet>(),
             result.getRequiredSelectionSetsForField("Missing", "a")
         )
+    }
+
+    private fun containsAllRss(
+        expected: List<RequiredSelectionSet>,
+        actual: List<RequiredSelectionSet>
+    ): Boolean {
+        return expected.all { expectedRss ->
+            actual.any { actualRss -> actualRss.isEqualTo(expectedRss) }
+        }
     }
 }

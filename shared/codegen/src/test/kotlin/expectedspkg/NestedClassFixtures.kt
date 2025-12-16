@@ -33,8 +33,12 @@ interface IB_1 {
 }
 
 class MultipleNestedInheritance {
-    class N1 : IA_1, IB_1 {
-        class N2 : IA_1.IA_2, IB_1.IB_2
+    class N1 :
+        IA_1,
+        IB_1 {
+        class N2 :
+            IA_1.IA_2,
+            IB_1.IB_2
     }
 }
 
@@ -72,7 +76,9 @@ class HasNestedProp {
 
 class HasNestedTypeParam<T : Outer.Inner>
 
-class HasNestedCtorParam(x: Outer.Inner)
+class HasNestedCtorParam(
+    x: Outer.Inner
+)
 
 class HasNestedMethodParam {
     fun f(x: Outer.Inner) = Unit
@@ -108,7 +114,9 @@ interface InterfaceWithDefaults2 {
 
 class ClassExtendsInterfaceWithDefaults : InterfaceWithDefaults1
 
-class ClassExtendsInterfaceWithDefaults2 : InterfaceWithDefaults1, InterfaceWithDefaults2
+class ClassExtendsInterfaceWithDefaults2 :
+    InterfaceWithDefaults1,
+    InterfaceWithDefaults2
 
 interface InterfaceExtendsInterfaceWithDefaults : InterfaceWithDefaults1
 
@@ -136,7 +144,9 @@ interface InterfaceExtendsInterfaceWithDefaults3 : InterfaceWithDefaults1 {
     AnnotationTarget.TYPE_PARAMETER,
     AnnotationTarget.VALUE_PARAMETER,
 )
-annotation class AOuter(val inner: AInner) {
+annotation class AOuter(
+    val inner: AInner
+) {
     annotation class AInner
 }
 

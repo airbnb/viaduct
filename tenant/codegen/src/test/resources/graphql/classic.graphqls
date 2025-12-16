@@ -1,0 +1,348 @@
+# This file contains systematic, glass-box tests for
+# classic kotlin codegen.  "Glass box" means we looked
+# at the actual code to ensure we're checking "all"
+# non-error code paths, except for empty types, which
+# are tested by the empty-type schema.
+#
+# Test cases are organized alphabetically by codegen
+# filename
+
+### ConnectionGen.kt
+
+# Glass-box analysis: this code does a bunch of precondition checking,
+# which is tested elsewhere.  Otherwise, this is a tricky one to test,
+# because they become type aliases, so we can't actually "diff" them.
+# So instead we define a type with fields of PagedConnection types
+# to ensure the types of those fields agree.
+
+type EdgeNode {
+  foo: String
+}
+
+type TestConnection implements PagedConnection {
+  pageInfo: PageInfo!
+  edges: [TestEdge]
+}
+
+type TestEdge implements ConnectionEdge {
+  cursor: String!
+  node: EdgeNode
+}
+
+type TestConnectionWithExtension implements PagedConnection
+extend type TestConnectionWithExtension {
+  pageInfo: PageInfo!
+}
+extend type TestConnectionWithExtension {
+  edges: [TestEdge]
+}
+
+type ActuallyTestConnections {
+  testConnection: TestConnection
+  testConnectionWithExtensions: TestConnectionWithExtension
+}
+
+### EnumGen.kt (shared with "modern")
+
+# Glass-box analysis: there are no branches in the code for enums
+# and thus there aren't many paths to check.
+
+enum OneValue {
+  ONE
+}
+
+enum TwoValues {
+  ONE
+  TWO
+}
+
+enum ThreeValues {
+  ONE
+  TWO
+  THREE
+}
+
+enum TwoValuesWithExtensions
+extend enum TwoValuesWithExtensions {
+  ONE
+}
+extend enum TwoValuesWithExtensions {
+  TWO
+}
+
+### InputGen.kt
+
+# Glass-box analysis:
+#  * Three top-level cases to check: regular inputs, clearable inputs, and field-arguments
+#  ** That said, regular and field-argument inputs use the same code and so we'll focus on the former
+#  * For both regular and clearable, we need to check that keyword-named fields get properly quoted
+#  * For field-argument case, need to check for `isArgForComponentField` case
+#  * For regular case, need to check 0, 1, 2, and 3 fields
+#  * For clearable case, need to check for 0-3 _each_ of required and nullable fields
+
+## Regular inputs
+
+input SimpleInput1 {
+  foo: Int
+}
+
+input SimpleInput2 {
+  for: Int
+  bar: String!
+}
+
+input SimpleInput3 {
+  foo: Int!
+  private: SimpleInput1
+  baz: SimpleInput2!
+}
+
+input SimpleInput2WithExtensions
+extend input SimpleInput2WithExtensions {
+  fun: Int!
+}
+extend input SimpleInput2WithExtensions {
+  as: Float
+}
+
+## _Argument cases
+
+type FieldArgs {
+  foo(fun: Int): Float
+  bar(foo: Int!, baz: SimpleInput2WithExtensions): String @component(classPath: "blah")
+}
+
+## Clearable cases (00 case in empty-types-schema)
+
+input ClearableInput01 @hasClearableFields {
+  r1: Int!
+}
+
+input ClearableInput02 @hasClearableFields {
+  r1: Int!
+  r2: String!
+}
+
+input ClearableInput03 @hasClearableFields {
+  r1: OneValue!
+  r2: OneValue!
+  r3: OneValue!
+}
+
+input ClearableInput10 @hasClearableFields {
+  n1: Int
+}
+
+input ClearableInput11 @hasClearableFields {
+  n1: String
+  r1: Int!
+}
+
+input ClearableInput12 @hasClearableFields {
+  n1: SimpleInput2
+  r1: Int!
+  r2: String!
+}
+
+"Attempt to mess with CreateValue."
+input ClearableInput13 @hasClearableFields {
+  n1: ClearableInput13
+  r1: OneValue!
+  r2: OneValue!
+  r3: OneValue!
+}
+
+input ClearableInput20 @hasClearableFields {
+  n1: Int
+  n2: Float
+}
+
+input ClearableInput21 @hasClearableFields {
+  n1: String
+  n2: ID
+  r1: Int!
+}
+
+input ClearableInput22 @hasClearableFields {
+  n1: SimpleInput2
+  n2: TwoValues
+  r1: Int!
+  r2: String!
+}
+
+input ClearableInput23 @hasClearableFields {
+  n1: ClearableInput11
+  n2: SimpleInput2WithExtensions
+  r1: Int!
+  r2: SimpleInput1!
+  r3: ClearableInput02!
+}
+
+input ClearableInput30 @hasClearableFields {
+  n1: Int
+  n2: Float
+  n3: OneValue
+}
+
+input ClearableInput31 @hasClearableFields {
+  n1: String
+  n2: ID
+  n3: OneValue
+  r1: Int!
+}
+
+input ClearableInput32 @hasClearableFields {
+  n1: SimpleInput2
+  n2: TwoValues
+  n3: ClearableInput03
+  r1: Int!
+  r2: String!
+}
+
+input ClearableInput33 @hasClearableFields {
+  n1: ClearableInput11
+  n2: SimpleInput2WithExtensions
+  n3: String
+  r1: Int!
+  r2: SimpleInput1!
+  r3: ClearableInput02!
+}
+
+input ClearableInputWithExtensions {
+  r1: Int!
+}
+
+extend input ClearableInputWithExtensions @hasClearableFields {
+  n1: String
+}
+
+### InterfaceGen.kt
+
+# Glass-box analysis:
+#  * superTypes: Node-or-not + 0, 1, 2, supertypes
+#  * needsGetGraphQLNameFun - same cases as superTypes
+#  * fieldsNeedingGetters:
+#      Logic is: ! f.isOverride && typeDef.noArgsAnywhere(f.name) && ! (typeDef.isNode && f.name == "id")
+#      Want fields that fail all of these tests, including implementing objects that introduce args
+
+## superTypes & needsGetGraphQLNameFun
+
+interface Extra {
+  e: TwoValues
+}
+
+interface ST0 {
+  foo: String
+}
+
+interface NST0 implements Node {
+  id: ID!
+}
+
+interface ST1 implements ST0 {
+  foo: String
+  bar: Int
+}
+
+interface NST1 implements Node & NST0 {
+  id: ID!
+  foo: ST0
+}
+
+interface ST2 implements ST0 & Extra {
+  foo: String
+  e: TwoValues
+  bar: Int
+}
+
+interface NST2 implements Node & NST0 & Extra {
+  id: ID!
+  e: TwoValues
+  foo: ST0
+}
+
+interface STWithExtensions implements ST0 {
+  foo: String
+}
+extend interface STWithExtensions implements ST2 & Extra {
+  e: TwoValues
+  bar: Int
+}
+
+interface NSTWithExtensions implements ST0 {
+  foo: String
+}
+extend interface NSTWithExtensions implements Node & NST0 {
+  id: ID!
+}
+
+## fieldsNeedingGetters
+
+interface GetterForDotId {
+  id: ID!
+}
+
+interface NoGetterForNodeDotId implements Node {
+  id: ID!
+}
+
+interface NoGetterForArgsSomewhere {
+  foo: Int
+}
+
+type NoGetterForArgsSomewhereImpl implements NoGetterForArgsSomewhere {
+  foo(a: String): Int
+}
+
+interface NoGetterForInheritedFieldSuper1 {
+  foo: String
+}
+
+interface NoGetterForInheritedFieldSuper2 {
+  foo: String
+}
+
+interface NoGetterForInheritedField implements NoGetterForInheritedFieldSuper1 & NoGetterForInheritedFieldSuper2 {
+  foo: String!
+}
+
+### ObjectGen.kt
+
+# Glass-box analysis:
+# * superTypes
+#    IQUERY and IMUTATION -- ??? Used ???
+#    interfaces and unions
+# * fields: suspendingGetterOverrride, suspendingGetterArgWithInit, escapes-needed
+# * needsIdForHimejiCheckFun: when there's any field with the name "id"
+# * needsResolveFieldFun: for all types in cfg.typesThatNeedDefaultResolveFieldMethod
+# * JsonIncludeAnnotation for non-nullable fields
+# * Suspending getter arg: no args vs some args scenarios
+
+interface S1 {
+  s1: Int
+}
+
+interface S2 {
+  s2: Int
+}
+
+union U1 = O1 | O2
+
+type O1 {
+  o1: String
+}
+
+type O2 implements S1 {
+  s1: Int
+}
+
+# A corner case that should work in API 2.0 (challenge: how to exclude from 0.9 testing?)
+# type test {
+#   foo: String
+# }
+#
+# extend type test {
+#   foo: String
+# }
+
+### UnionGen.kt

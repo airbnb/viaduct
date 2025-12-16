@@ -27,13 +27,15 @@ class ArbExtTest : KotestPropertyBase() {
     @OptIn(ExperimentalCoroutinesApi::class)
     fun `Gen_asSequence`(): Unit =
         runBlocking {
-            Arb.list(Arb.int(), 0..10).map { list ->
-                val arb = Arb.constant(list)
-                val seq = arb.asSequence(RandomSource.default())
-                arb to seq
-            }.forAll { (arb, seq) ->
-                seq.first() == arb.next(randomSource())
-            }
+            Arb
+                .list(Arb.int(), 0..10)
+                .map { list ->
+                    val arb = Arb.constant(list)
+                    val seq = arb.asSequence(RandomSource.default())
+                    arb to seq
+                }.forAll { (arb, seq) ->
+                    seq.first() == arb.next(randomSource())
+                }
         }
 
     @Test
@@ -62,14 +64,18 @@ class ArbExtTest : KotestPropertyBase() {
     fun `Arb_flatten`(): Unit =
         runBlocking {
             val chunkSize = 10
-            val arb = Arb.int(0..10).map { i ->
-                Arb.char('a'..'z')
-                    .map { c -> i to c }
-                    .take(chunkSize, randomSource())
-                    .toList()
-            }.flatten()
+            val arb = Arb
+                .int(0..10)
+                .map { i ->
+                    Arb
+                        .char('a'..'z')
+                        .map { c -> i to c }
+                        .take(chunkSize, randomSource())
+                        .toList()
+                }.flatten()
 
-            arb.take(chunkSize * 1_000, randomSource())
+            arb
+                .take(chunkSize * 1_000, randomSource())
                 .chunked(chunkSize)
                 .forEach { chunk ->
                     val firsts = chunk.map { it.first }

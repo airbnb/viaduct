@@ -3,6 +3,7 @@ package viaduct.api.internal
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.context.ExecutionContext
 import viaduct.api.globalid.GlobalIDCodec
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.ViaductSchema
 
 /**
@@ -13,6 +14,7 @@ import viaduct.engine.api.ViaductSchema
  * and InternalContext, which allows tenant-provided contexts to be safely casted back
  * to an InternalContext.
  */
+@InternalApi
 interface InternalContext {
     /** the Viaduct schema that underpins GRTs */
     val schema: ViaductSchema
@@ -28,6 +30,7 @@ interface InternalContext {
 }
 
 /** project this [ExecutionContext] as an [InternalContext] */
+@InternalApi
 val ExecutionContext.internal: InternalContext
     get() = this as? InternalContext
         ?: throw ViaductFrameworkException("ExecutionContext does not implement InternalContext: $this")

@@ -9,7 +9,7 @@ import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 
 /**
- * Wraps [viaduct.engine.api.CheckerDispatcher] to add instrumentation callbacks during checker execution.
+ * Wraps [CheckerDispatcher] to add instrumentation callbacks during checker execution.
  *
  * Delegates all operations to [dispatcher] except [execute], which creates instrumentation state
  * and tracks checker execution lifecycle for observability.

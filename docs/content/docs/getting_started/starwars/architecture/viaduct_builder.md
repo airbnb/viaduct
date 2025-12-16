@@ -27,7 +27,8 @@ This excerpt mirrors what happens in configuration (names and constants from the
 {{< codetag path="demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt" tag="viaduct_configuration" >}}
 
 - `PUBLIC_SCHEMA` and `PUBLIC_SCHEMA_WITH_EXTRAS` are **schema IDs** used by the demo.
-- `packagePrefix` and `resourcesIncluded` tells Viaduct **where** to discover SDL and generated types.
+- `grtPackagePrefix` and `grtResourcesIncluded` are optional test-only overrides for GRT schema file discovery (production uses defaults).
+- `tenantPackagePrefix` tells Viaduct **where** to discover generated resolver classes.
 - The builder creates an **immutable runtime** that the controller will use to execute requests.
 
 ## Example: executing requests through the controller
@@ -42,7 +43,8 @@ The controller **resolves scopes → chooses a schema → builds `ExecutionInput
 ## Builder best practices
 
 - **Declare schema IDs** and their scope sets explicitly.
-- Keep `packagePrefix` aligned with generated code (`com.example.starwars...`).
+- Keep `tenantPackagePrefix` aligned with generated resolver code (`com.example.starwars...`).
+- Use default GRT schema discovery in production (don't set `grtPackagePrefix` or `grtResourcesIncluded`).
 - Configure **directives** and **modules** in the builder when applicable.
 - Avoid conditional logic in the builder; route by scope in the controller instead.
 

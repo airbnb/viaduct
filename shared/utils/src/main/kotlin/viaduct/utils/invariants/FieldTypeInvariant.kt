@@ -23,7 +23,8 @@ class FieldTypeInvariant : ClassTypeInvariant {
         for (invariant in subinvariants) {
             val passed = when (instance) {
                 is Collection<*> -> instance.any {
-                    it != null && isType(invariant.klass, invariant.typeInfo, it) &&
+                    it != null &&
+                        isType(invariant.klass, invariant.typeInfo, it) &&
                         runCatching { invariant.check(it) }.isSuccess
                 }
                 else -> {

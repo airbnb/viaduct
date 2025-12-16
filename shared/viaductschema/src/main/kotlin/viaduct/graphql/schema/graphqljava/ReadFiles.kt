@@ -13,21 +13,19 @@ import java.net.URL
  * TypeDefinitionRegistry.  Intended to be used on a set of files that
  * is known to be parse-able - will fail with a random exception upon
  * first encountering a parsing error. */
-fun readTypesFromURLs(inputFiles: List<URL>): TypeDefinitionRegistry {
-    return readTypes(
+fun readTypesFromURLs(inputFiles: List<URL>): TypeDefinitionRegistry =
+    readTypes(
         inputFiles,
         { url -> url.openStream().reader(Charsets.UTF_8) },
         { url -> url.path }
     )
-}
 
-fun readTypesFromFiles(inputFiles: List<File>): TypeDefinitionRegistry {
-    return readTypes(
+fun readTypesFromFiles(inputFiles: List<File>): TypeDefinitionRegistry =
+    readTypes(
         inputFiles,
         { file -> InputStreamReader(file.inputStream()) },
         { file -> file.path }
     )
-}
 
 private fun <T> readTypes(
     inputFiles: List<T>,
@@ -35,15 +33,17 @@ private fun <T> readTypes(
     toPath: (T) -> String
 ): TypeDefinitionRegistry {
     val reader =
-        MultiSourceReader.newMultiSourceReader().apply {
-            inputFiles.forEach {
-                this.reader(toReader(it), toPath(it))
-            }
-        }.trackData(true).build()
+        MultiSourceReader
+            .newMultiSourceReader()
+            .apply {
+                inputFiles.forEach {
+                    this.reader(toReader(it), toPath(it))
+                }
+            }.trackData(true)
+            .build()
     return SchemaParser().parse(reader)
 }
 
-/** For testing. */
 fun readTypes(input: String): TypeDefinitionRegistry {
     val result = TypeDefinitionRegistry()
     val doc = Parser.parse(input)

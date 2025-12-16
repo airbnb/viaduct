@@ -32,8 +32,7 @@ class DependencyCycleTest {
                     // Use Konsist's import analysis instead of string manipulation
                     val importPackageName = import.name.substringBeforeLast('.')
                     if (importPackageName != packageName) importPackageName else null
-                }
-                .distinct()
+                }.distinct()
 
             // Check if any imported package also imports back to this package (circular dependency)
             val hasCircularDependency = importedPackageNames.any { importedPackageName ->
@@ -53,8 +52,7 @@ class DependencyCycleTest {
                             .filter { it.packagee?.name == importedPackageName }
                             .flatMap { it.imports }
                             .any { it.name.substringBeforeLast('.') == packageName }
-                    }
-                    .forEach { cyclicPackage ->
+                    }.forEach { cyclicPackage ->
                         println("  - $packageName ↔ $cyclicPackage")
                     }
             }

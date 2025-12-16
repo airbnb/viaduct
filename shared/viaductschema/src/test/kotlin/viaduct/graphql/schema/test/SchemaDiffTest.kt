@@ -17,7 +17,8 @@ class SchemaDiffTest {
     fun `should detect sourceLocation disagreement`() {
         val expectedSchema = GJSchemaRaw.fromRegistry(
             SchemaParser().parse(
-                MultiSourceReader.newMultiSourceReader()
+                MultiSourceReader
+                    .newMultiSourceReader()
                     .string("scalar Foo", "file1.graphql")
                     .build()
             )
@@ -25,7 +26,8 @@ class SchemaDiffTest {
 
         val actualSchema = GJSchemaRaw.fromRegistry(
             SchemaParser().parse(
-                MultiSourceReader.newMultiSourceReader()
+                MultiSourceReader
+                    .newMultiSourceReader()
                     .string("scalar Foo", "file2.graphql")
                     .build()
             )

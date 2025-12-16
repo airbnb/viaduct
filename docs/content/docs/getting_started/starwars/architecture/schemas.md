@@ -11,7 +11,7 @@ two schema IDs — one public and one with extra fields — and select between t
 
 ## What a schema is
 
-- A **set of SDL files** (`*.graphqls`) discovered by Viaduct under a package prefix.
+- A **set of SDL files** (`*.graphqls`) under src/main/viaduct/schema.
 - A **schema ID** that names a concrete slice of the overall SDL (for example, public vs. public-with-extras).
 - A **scope configuration** that controls which requests can see each slice.
 
@@ -27,8 +27,9 @@ and resource regex). Example (excerpt adapted from `ViaductConfiguration.kt`):
 
 {{< codetag path="demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt" tag="schema_registration" >}}
 
-- `packagePrefix`: where Viaduct scans for generated types/resolvers.
-- `resourcesIncluded`: which SDL files to include.
+- `grtPackagePrefix`: optional package prefix for GRT schema file discovery (test-only override, production uses defaults).
+- `grtResourcesIncluded`: optional regex pattern for which SDL files to include (test-only override, production uses defaults).
+- `tenantPackagePrefix`: where Viaduct scans for generated resolver classes.
 - `scopes`: which runtime scopes activate each schema ID.
 
 ## Organizing SDL files
@@ -40,7 +41,6 @@ entities modular (for example, `character.graphqls`, `film.graphqls`, `species.g
 ### Example (fragment)
 
 {{< codetag path="demoapps/starwars/modules/universe/src/main/viaduct/schema/Planet.graphqls" tag="schemas_example" land="graphql" >}}
-
 
 > Fields like `film` are typically resolved by **field/batch resolvers**, not embedded in SDL logic.
 
@@ -56,6 +56,7 @@ To add a field that should exist **only** in the extras slice:
 3. The controller will route requests that include the extras scope to that schema ID.
 
 To add a new entity:
+
 - Define the type and relationships in SDL.
 - Implement node/field (and batch if needed) resolvers.
 - Emit typed IDs with `ctx.globalIDFor(Type.Reflection, internalId)`.

@@ -30,7 +30,8 @@ object Scalars {
      * for date/time values.
      */
     val DateTimeScalar: GraphQLScalarType =
-        GraphQLScalarType.newScalar()
+        GraphQLScalarType
+            .newScalar()
             .name(ExtendedScalars.DateTime.name)
             .description(ExtendedScalars.DateTime.description)
             .coercing(
@@ -39,8 +40,8 @@ object Scalars {
                         input: Any,
                         ctx: GraphQLContext,
                         locale: Locale
-                    ): Any? {
-                        return if (input is Instant) {
+                    ): Any? =
+                        if (input is Instant) {
                             ExtendedScalars.DateTime.coercing
                                 .serialize(
                                     convertToOffsetDateTime(input),
@@ -50,14 +51,13 @@ object Scalars {
                         } else {
                             ExtendedScalars.DateTime.coercing.serialize(input, ctx, locale)
                         }
-                    }
 
                     override fun parseValue(
                         input: Any,
                         ctx: GraphQLContext,
                         locale: Locale
-                    ): Any? {
-                        return if (input is Instant) {
+                    ): Any? =
+                        if (input is Instant) {
                             ExtendedScalars.DateTime.coercing
                                 .parseValue(
                                     convertToOffsetDateTime(input),
@@ -67,28 +67,23 @@ object Scalars {
                         } else {
                             ExtendedScalars.DateTime.coercing.parseValue(input, ctx, locale)
                         }
-                    }
 
                     override fun parseLiteral(
                         input: Value<*>,
                         coercedVariables: CoercedVariables,
                         ctx: GraphQLContext,
                         locale: Locale
-                    ): Any? {
-                        return ExtendedScalars.DateTime.coercing.parseLiteral(
+                    ): Any? =
+                        ExtendedScalars.DateTime.coercing.parseLiteral(
                             input,
                             coercedVariables,
                             ctx,
                             locale
                         )
-                    }
 
-                    private fun convertToOffsetDateTime(value: Any): OffsetDateTime {
-                        return OffsetDateTime.ofInstant(value as Instant?, ZoneOffset.UTC)
-                    }
+                    private fun convertToOffsetDateTime(value: Any): OffsetDateTime = OffsetDateTime.ofInstant(value as Instant?, ZoneOffset.UTC)
                 }
-            )
-            .build()
+            ).build()
 
     private val LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE)
     private val LONG_MIN = BigInteger.valueOf(Long.MIN_VALUE)
@@ -105,7 +100,8 @@ object Scalars {
      * strings instead.
      */
     val GraphQLLong: GraphQLScalarType =
-        GraphQLScalarType.newScalar()
+        GraphQLScalarType
+            .newScalar()
             .name("Long")
             .description("Long type that serializes/deserializes to/from a string.")
             .coercing(
@@ -119,12 +115,12 @@ object Scalars {
                                 val value =
                                     try {
                                         BigDecimal(input.toString())
-                                    } catch (e: NumberFormatException) {
+                                    } catch (_: NumberFormatException) {
                                         return null
                                     }
                                 try {
                                     value.longValueExact()
-                                } catch (e: ArithmeticException) {
+                                } catch (_: ArithmeticException) {
                                     null
                                 }
                             }
@@ -163,34 +159,26 @@ object Scalars {
                         ctx: GraphQLContext,
                         locale: Locale
                     ): Long {
-                        if (input is StringValue) {
-                            return try {
-                                input.value.toLong()
-                            } catch (e: NumberFormatException) {
-                                throw CoercingParseLiteralException(
-                                    "Expected value to be a Long but it was '$input'"
-                                )
+                        fun fail(message: String): Nothing = throw CoercingParseLiteralException(message)
+
+                        return when (input) {
+                            is StringValue ->
+                                input.value?.toLongOrNull()
+                                    ?: fail("Expected value to be a Long but it was '${input.value}'")
+
+                            is IntValue -> {
+                                val big = input.value
+                                if (big !in LONG_MIN..LONG_MAX) {
+                                    fail("Expected value to be in the Long range but it was '$big'")
+                                }
+                                big.toLong()
                             }
-                        } else if (input is IntValue) {
-                            val value = input.value
-                            if (value.compareTo(LONG_MIN) < 0 || value.compareTo(LONG_MAX) > 0) {
-                                throw CoercingParseLiteralException(
-                                    "Expected value to be in the Long range but it was '" +
-                                        value.toString() +
-                                        "'"
-                                )
-                            }
-                            return value.toLong()
+
+                            else -> fail("Expected AST type 'IntValue' or 'StringValue' but was '${typeName(input)}'.")
                         }
-                        throw CoercingParseLiteralException(
-                            "Expected AST type 'IntValue' or 'StringValue' but was '" +
-                                typeName(input) +
-                                "'."
-                        )
                     }
                 }
-            )
-            .build()
+            ).build()
 
     /**
      * Custom scalar type for private fields in Viaduct Modern.
@@ -200,7 +188,8 @@ object Scalars {
      */
     @Suppress("TooGenericExceptionThrown")
     val BackingData: GraphQLScalarType =
-        GraphQLScalarType.newScalar()
+        GraphQLScalarType
+            .newScalar()
             .name("BackingData")
             .description("Custom scalar type for private fields")
             .coercing(
@@ -209,29 +198,22 @@ object Scalars {
                         input: Any,
                         ctx: GraphQLContext,
                         locale: Locale
-                    ): Any? {
-                        throw Exception("serialize should not be called for BackingData scalar type. This is a no-op.")
-                    }
+                    ): Any = throw Exception("serialize should not be called for BackingData scalar type. This is a no-op.")
 
                     override fun parseValue(
                         input: Any,
                         ctx: GraphQLContext,
                         locale: Locale
-                    ): Any? {
-                        throw Exception("parseValue should not be called for BackingData scalar type. This is a no-op.")
-                    }
+                    ): Any = throw Exception("parseValue should not be called for BackingData scalar type. This is a no-op.")
 
                     override fun parseLiteral(
                         input: Value<*>,
                         coercedVariables: CoercedVariables,
                         ctx: GraphQLContext,
                         locale: Locale
-                    ): Any? {
-                        throw Exception("parseLiteral should not be called for BackingData scalar type. This is a no-op.")
-                    }
+                    ): Any = throw Exception("parseLiteral should not be called for BackingData scalar type. This is a no-op.")
                 }
-            )
-            .build()
+            ).build()
 
     /**
      * The list of scalars supported by Viaduct (not including built-in scalars).
@@ -242,20 +224,17 @@ object Scalars {
         ExtendedScalars.GraphQLShort,
         ExtendedScalars.Json,
         ExtendedScalars.Time,
-        Scalars.BackingData,
-        Scalars.DateTimeScalar,
-        Scalars.GraphQLLong,
+        BackingData,
+        DateTimeScalar,
+        GraphQLLong,
     )
 
-    private fun isNumberIsh(input: Any): Boolean {
-        return input is Number || input is String
-    }
+    private fun isNumberIsh(input: Any): Boolean = input is Number || input is String
 
-    private fun typeName(input: Any?): String {
-        return if (input == null) {
+    private fun typeName(input: Any?): String =
+        if (input == null) {
             "null"
         } else {
             input.javaClass.simpleName
         }
-    }
 }

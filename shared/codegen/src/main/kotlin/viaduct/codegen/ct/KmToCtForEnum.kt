@@ -151,9 +151,10 @@ internal fun CtGenContext.kmToCtEnum(
     withContext("clinit") {
         val staticInit = result.makeClassInitializer()
         val initValues =
-            kmClassWrapper.kmClass.enumEntries.mapIndexed { index, enumValue ->
-                "$enumValue = new $javaName(\"${enumValue}\", $index);"
-            }.joinToString(" ")
+            kmClassWrapper.kmClass.enumEntries
+                .mapIndexed { index, enumValue ->
+                    "$enumValue = new $javaName(\"${enumValue}\", $index);"
+                }.joinToString(" ")
         staticInit.setBody(
             "{ $initValues \$VALUES = \$values(); }"
         )

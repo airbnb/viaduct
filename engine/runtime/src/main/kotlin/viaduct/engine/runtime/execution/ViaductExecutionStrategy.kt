@@ -25,10 +25,12 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
-import viaduct.engine.api.RequestScopeCancellationException
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.RequestScopeCancellationException
+import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.execution.CompletionErrors.FieldCompletionException
 import viaduct.engine.runtime.execution.CompletionErrors.NonNullableFieldWithErrorException
 import viaduct.logging.ifDebug
@@ -217,10 +219,9 @@ class ViaductExecutionStrategy internal constructor(
                                 fieldResolver.fetchObjectSerially(objType, parameters)
                             } else {
                                 fieldResolver.fetchObject(objType, parameters)
-                            }
+                            }.await()
                         }
                         // ensure we bubble any fatal errors and thus cause this job to fail
-                        value.await()
                         log.ifDebug {
                             debug("Took $duration to resolve query: ${executionContext.operationDefinition.name}.")
                         }
@@ -229,7 +230,7 @@ class ViaductExecutionStrategy internal constructor(
                 // Get list of completed FieldValueInfos
                 val (queryResult, duration) = measureTimedValue {
                     runCatching {
-                        fieldCompleter.completeObject(parameters).asDeferred().await()
+                        fieldCompleter.completeObject(parameters).await()
                     }
                 }
                 log.ifDebug {
@@ -254,7 +255,9 @@ class ViaductExecutionStrategy internal constructor(
     ): ExecutionParameters {
         val rootOER = createRootObjectEngineResult(executionContext)
         val queryOER = createQueryEngineResult(executionContext, rootOER)
+        val engineExecutionContext = executionContext.findLocalContextForType<EngineExecutionContextImpl>()
         return executionParametersFactory.fromExecutionStrategyContextAndParameters(
+            engineExecutionContext,
             executionContext,
             gjParameters,
             rootOER,

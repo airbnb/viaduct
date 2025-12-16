@@ -52,7 +52,8 @@ class GraphQLOssExtensionsTest {
 
     @Test
     fun `asNamedElement returns named element for object types`() {
-        val objectType = GraphQLObjectType.newObject()
+        val objectType = GraphQLObjectType
+            .newObject()
             .name("TestObject")
             .field { it.name("testField").type(Scalars.GraphQLString) }
             .build()
@@ -109,7 +110,8 @@ class GraphQLOssExtensionsTest {
 
     @Test
     fun `asMaybeNamedElement returns named element for object types`() {
-        val objectType = GraphQLObjectType.newObject()
+        val objectType = GraphQLObjectType
+            .newObject()
             .name("TestObject")
             .field { it.name("testField").type(Scalars.GraphQLString) }
             .build()

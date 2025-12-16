@@ -22,7 +22,8 @@ class InterdependentCompilationTest {
         //   class Foo { fun bar(): Bar = new Bar() }
         //   class Bar { fun foo(): Foo = new Foo() }
         val kmCtx = KmClassFilesBuilder()
-        kmCtx.customClassBuilder(ClassKind.CLASS, KmName("pkg/Foo"))
+        kmCtx
+            .customClassBuilder(ClassKind.CLASS, KmName("pkg/Foo"))
             .apply {
                 addEmptyCtor()
                 addFunction(
@@ -33,7 +34,8 @@ class InterdependentCompilationTest {
                     "{ return new pkg.Bar(); }"
                 )
             }
-        kmCtx.customClassBuilder(ClassKind.CLASS, KmName("pkg/Bar"))
+        kmCtx
+            .customClassBuilder(ClassKind.CLASS, KmName("pkg/Bar"))
             .apply {
                 addEmptyCtor()
                 addFunction(
@@ -64,7 +66,8 @@ class InterdependentCompilationTest {
         //   class Foo { val bar: Bar get() = new Bar() }
         //   class Bar { val foo: Foo get() = new Foo() }
         val kmCtx = KmClassFilesBuilder()
-        kmCtx.customClassBuilder(ClassKind.CLASS, KmName("Foo"))
+        kmCtx
+            .customClassBuilder(ClassKind.CLASS, KmName("Foo"))
             .apply {
                 addEmptyCtor()
                 addProperty(
@@ -80,7 +83,8 @@ class InterdependentCompilationTest {
                     }
                 )
             }
-        kmCtx.customClassBuilder(ClassKind.CLASS, KmName("Bar"))
+        kmCtx
+            .customClassBuilder(ClassKind.CLASS, KmName("Bar"))
             .apply {
                 addEmptyCtor()
                 addProperty(
@@ -116,7 +120,8 @@ class InterdependentCompilationTest {
         //   class Foo { init { Bar(1) } }
         //   class Bar(val x: Int)
         val kmCtx = KmClassFilesBuilder()
-        kmCtx.customClassBuilder(ClassKind.CLASS, KmName("Foo"))
+        kmCtx
+            .customClassBuilder(ClassKind.CLASS, KmName("Foo"))
             .apply {
                 addConstructor(
                     KmConstructor()
@@ -126,7 +131,8 @@ class InterdependentCompilationTest {
                     body = "{ new Bar(1); }"
                 )
             }
-        kmCtx.customClassBuilder(ClassKind.CLASS, KmName("Bar"))
+        kmCtx
+            .customClassBuilder(ClassKind.CLASS, KmName("Bar"))
             .apply {
                 addConstructor(
                     KmConstructor().apply {

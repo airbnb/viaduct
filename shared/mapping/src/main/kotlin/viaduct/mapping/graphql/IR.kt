@@ -67,7 +67,9 @@ object IR : Domain<IR.Value.Object> {
         @JvmInline value class String(val value: kotlin.String) : Value
 
         /** A representation of a GraphQL list value */
-        @JvmInline value class List(val value: kotlin.collections.List<Value>) : Value
+        @JvmInline value class List(val value: kotlin.collections.List<Value>) : Value {
+            constructor(vararg values: Value) : this(values.toList())
+        }
 
         /**
          * A representation of a GraphQL temporal value.
@@ -103,6 +105,8 @@ object IR : Domain<IR.Value.Object> {
          *   will be interpreted as unset in the case of an input field, or unselected in
          *   the case of an output field.
          */
-        data class Object(val name: kotlin.String, val fields: Map<kotlin.String, Value>) : Value
+        data class Object(val name: kotlin.String, val fields: Map<kotlin.String, Value>) : Value {
+            constructor(name: kotlin.String, vararg fields: Pair<kotlin.String, Value>) : this(name, fields.toMap())
+        }
     }
 }

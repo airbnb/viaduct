@@ -21,6 +21,16 @@ interface EngineExecutionContext {
     val rawSelectionSetFactory: RawSelectionSet.Factory
     val rawSelectionsLoaderFactory: RawSelectionsLoader.Factory
 
+    /**
+     * The GlobalIDCodec shared across all tenant-API implementations in this Viaduct instance.
+     * This ensures that GlobalIDs serialized by one tenant module can be correctly deserialized
+     * by another tenant module.
+     *
+     * Type: viaduct.service.api.spi.GlobalIDCodec
+     * (Untyped here to avoid circular dependency between engine.api and service.api)
+     */
+    val globalIDCodec: Any
+
     // Request-scoped: Per-request context set by Viaduct Service Engineers
     val requestContext: Any?
 
@@ -28,6 +38,25 @@ interface EngineExecutionContext {
      * The engine that is currently executing this request, enabling follow-up executions within the same lifecycle.
      */
     val engine: Engine
+
+    /**
+     * An opaque handle to the ongoing execution that enables subquery execution.
+     *
+     * This handle is set automatically by the engine when execution begins. It allows
+     * the engine to associate this context with the correct execution state when
+     * [query] or [mutation] is called.
+     *
+     * ## Lifecycle
+     *
+     * - **Before execution**: `null` ([EngineExecutionContext] exists but execution hasn't started)
+     * - **During execution**: Set to an opaque handle representing the current execution
+     * - **Propagated on copy**: Derived [EngineExecutionContext]s maintain the handle to their owning execution
+     *
+     * Tenant runtime code should treat this as read-only; the setter is internal to the runtime module.
+     *
+     * @see ExecutionHandle
+     */
+    val executionHandle: ExecutionHandle?
 
     // Field-scoped: Changes during execution tree traversal
     /**
@@ -95,6 +124,19 @@ interface EngineExecutionContext {
          */
         val resolutionPolicy: ResolutionPolicy
     }
+
+    /**
+     * Interface representing an opaque handle representing an ongoing execution.
+     *
+     * This handle enables subquery execution (e.g., [query], [mutation]) without tenant runtime
+     * code needing to understand execution internals. The engine uses this handle to:
+     * - Access the current execution's coroutine scope and error accumulator
+     * - Maintain parent-child relationships for error attribution
+     * - Continue execution within the same request lifecycle
+     *
+     * @see executionHandle
+     */
+    interface ExecutionHandle
 
     /**
      * For now, a wrapper around [rawSelectionsLoaderFactory].  Eventually will

@@ -2,10 +2,10 @@ package viaduct.engine.runtime.instrumentation.resolver
 
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.NodeResolverDispatcher
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.runtime.NodeResolverDispatcher
 
 /**
  * Wraps [NodeResolverDispatcher] to add instrumentation callbacks during resolver execution.

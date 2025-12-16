@@ -29,8 +29,6 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.FieldResolverDispatcher
-import viaduct.engine.api.FieldResolverDispatcherRegistry
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.ParsedSelections
@@ -44,12 +42,10 @@ import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.select.SelectionsParser
-import viaduct.engine.runtime.CheckerDispatcherImpl
 import viaduct.engine.runtime.DispatcherRegistry
-import viaduct.engine.runtime.FieldResolverDispatcherImpl
-import viaduct.engine.runtime.NodeResolverDispatcherImpl
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime.mocks.mkDispatcherRegistry
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.RawSelectionSetImpl
 import viaduct.graphql.utils.DefaultSchemaProvider
@@ -150,29 +146,6 @@ object MockSchema {
     val minimal: ViaductSchema = mkSchema("extend type Query { empty: Int }")
 
     fun mk(sdl: String) = mkSchema(sdl)
-}
-
-fun mkDispatcherRegistry(
-    fieldResolverExecutors: Map<Coordinate, FieldResolverExecutor> = emptyMap(),
-    nodeResolverExecutors: Map<String, NodeResolverExecutor> = emptyMap(),
-    fieldCheckerExecutors: Map<Coordinate, CheckerExecutor> = emptyMap(),
-    typeCheckerExecutors: Map<String, CheckerExecutor> = emptyMap(),
-): DispatcherRegistry {
-    return DispatcherRegistry(
-        fieldResolverDispatchers = fieldResolverExecutors.map { (k, v) -> k to FieldResolverDispatcherImpl(v) }.toMap(),
-        nodeResolverDispatchers = nodeResolverExecutors.map { (k, v) -> k to NodeResolverDispatcherImpl(v) }.toMap(),
-        fieldCheckerDispatchers = fieldCheckerExecutors.map { (k, v) -> k to CheckerDispatcherImpl(v) }.toMap(),
-        typeCheckerDispatchers = typeCheckerExecutors.map { (k, v) -> k to CheckerDispatcherImpl(v) }.toMap(),
-    )
-}
-
-class MockFieldResolverDispatcherRegistry(vararg bindings: Pair<Coordinate, FieldResolverDispatcher>) : FieldResolverDispatcherRegistry {
-    private val bindingsMap = bindings.toMap()
-
-    override fun getFieldResolverDispatcher(
-        typeName: String,
-        fieldName: String
-    ): FieldResolverDispatcher? = bindingsMap[typeName to fieldName]
 }
 
 open class MockFieldUnbatchedResolverExecutor(

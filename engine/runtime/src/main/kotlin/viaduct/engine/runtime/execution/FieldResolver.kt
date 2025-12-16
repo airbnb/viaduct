@@ -32,7 +32,6 @@ import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.runtime.Cell
-import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -40,7 +39,6 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setRawValue
 import viaduct.engine.runtime.Value
-import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.exceptions.FieldFetchingException
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingEnvironment
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField
@@ -108,7 +106,7 @@ class FieldResolver(
         parameters: ExecutionParameters
     ): Value<Unit> {
         val instrumentationParameters =
-            InstrumentationExecutionStrategyParameters(parameters.executionContext, parameters.gjParameters)
+            InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters)
         val resolveObjectCtx = nonNullCtx(
             parameters.instrumentation.beginFetchObject(
                 instrumentationParameters,
@@ -125,8 +123,18 @@ class FieldResolver(
                     resolveField(newParams, field)
                 }
 
+            val immediate = Value.waitAll(results.map { it.immediate })
+            val overall = Value.waitAll(results.map { it.overall })
+
+            val parentOER = parameters.parentEngineResult
+            // We don't use the result of this operation, but we need to ensure it's scheduled
+            // so that the resolution state is updated when the immediate values are ready.
+            immediate.thenApply { _, throwable ->
+                parentOER.fieldResolutionState.complete(Unit)
+            }
+
             // Wait for all values to be completed.
-            return Value.waitAll(results)
+            return overall
                 .map {
                     resolveObjectCtx.onCompleted(Unit, null)
                     it
@@ -166,7 +174,7 @@ class FieldResolver(
         parameters: ExecutionParameters
     ): Value<Unit> {
         val instrumentationParameters =
-            InstrumentationExecutionStrategyParameters(parameters.executionContext, parameters.gjParameters)
+            InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters)
         val resolveObjectCtx = nonNullCtx(
             parameters.instrumentation.beginFetchObject(
                 instrumentationParameters,
@@ -177,14 +185,17 @@ class FieldResolver(
         try {
             val fields = collectFields(objectType, parameters).selections
             val initial: Value<Unit> = Value.fromValue(Unit)
+            val immediateResults = mutableListOf<Value<FieldResolutionResult>>()
 
             // iterate over each field to build a chained execution
             // Each field will kick off only after the previous one completes
-            return fields.fold(initial) { acc, field ->
+            val overall = fields.fold(initial) { acc, field ->
                 field as QueryPlan.CollectedField
                 acc.flatMap { _ ->
                     val fieldParameters = parameters.forField(objectType, field)
-                    resolveField(fieldParameters, field)
+                    val fd = resolveField(fieldParameters, field)
+                    immediateResults.add(fd.immediate)
+                    fd.overall
                 }
             }.map {
                 resolveObjectCtx.onCompleted(Unit, null)
@@ -193,6 +204,10 @@ class FieldResolver(
                 resolveObjectCtx.onCompleted(null, t)
                 Value.fromThrowable(t)
             }
+            Value.waitAll(immediateResults).thenApply { _, _ ->
+                parameters.parentEngineResult.fieldResolutionState.complete(Unit)
+            }
+            return overall
         } catch (e: Exception) {
             resolveObjectCtx.onCompleted(null, e)
             throw e
@@ -211,13 +226,33 @@ class FieldResolver(
      * @param parameters ExecutionParameters containing the context and execution state
      * @param field The field from the query plans to resolve
      */
-    fun resolveField(
+    internal fun resolveField(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField
-    ): Value<Unit> {
-        field.childPlans.forEach { launchQueryPlan(parameters, it) }
+    ): FieldDispatch {
+        field.childPlans.forEach {
+            log.ifDebug {
+                debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${it.selectionSet}")
+            }
+            launchQueryPlan(parameters, it)
+        }
         return executeField(parameters)
     }
+
+    /**
+     * Represents the result of dispatching a field for resolution.
+     *
+     * @property immediate A [Value] that completes when the field's data fetcher has finished
+     *   and the [FieldResolutionResult] is available. This signals that the field's "immediate"
+     *   value is ready, though nested objects or lazy data may still be pending.
+     * @property overall A [Value] that completes when the field and all of its nested objects
+     *   and lazy data have been fully resolved. Used to track when the entire field subtree
+     *   is complete.
+     */
+    internal data class FieldDispatch(
+        val immediate: Value<FieldResolutionResult>,
+        val overall: Value<Unit>
+    )
 
     private fun launchQueryPlan(
         parameters: ExecutionParameters,
@@ -231,18 +266,15 @@ class FieldResolver(
 
         // Produce the object data and field arguments for the current field and make them available to child
         // plan VariablesResolver.
-        val engineExecCtx =
-            parameters.executionContext.findLocalContextForType<EngineExecutionContextImpl>()
-
         parameters.launchOnRootScope {
             val variables = FieldExecutionHelpers.resolveQueryPlanVariables(
                 plan,
                 parameters.executionStepInfo.arguments,
                 parameters.parentEngineResult,
                 parameters.queryEngineResult,
-                engineExecCtx,
+                parameters.engineExecutionContext,
                 parameters.executionContext.graphQLContext,
-                parameters.executionContext.locale
+                parameters.executionContext.locale,
             )
             val planParameters = parameters.forChildPlan(plan, variables)
             fetchObject(plan.parentType as GraphQLObjectType, planParameters)
@@ -263,7 +295,7 @@ class FieldResolver(
      * @param parameters The execution parameters containing field and context information
      */
     @Suppress("UNCHECKED_CAST")
-    private fun executeField(parameters: ExecutionParameters): Value<Unit> {
+    private fun executeField(parameters: ExecutionParameters): FieldDispatch {
         val field = checkNotNull(parameters.field) { "Expected field to be non-null." }
 
         // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
@@ -272,7 +304,7 @@ class FieldResolver(
         val executionStepInfoForField = parameters.executionStepInfo
 
         val fieldInstrumentationCtx = parameters.instrumentation.beginFieldExecution(
-            InstrumentationFieldParameters(parameters.executionContext) { executionStepInfoForField },
+            InstrumentationFieldParameters(parameters.executionContextWithLocalContext) { executionStepInfoForField },
             parameters.executionContext.instrumentationState
         ) ?: FieldFetchingInstrumentationContext.NOOP
 
@@ -286,39 +318,12 @@ class FieldResolver(
             log.ifDebug {
                 debug("Field @ {} with OER key: {} is not being fetched, fetching now...", parameters.path, oerKey)
             }
-            val fieldType = executionStepInfoForField.unwrappedNonNullType
-            val (dataFetcherValue, fieldCheckerResultValue) = fetchField(field, parameters, dataFetchingEnvironmentProvider)
-            val result = dataFetcherValue
-                .map { fv ->
-                    buildFieldResolutionResult(parameters, fieldType, fv, parameters.resolutionPolicy)
-                }.recover { e ->
-                    // handle any errors that occurred during building FieldResolutionResult
-                    val wrappedException = when (e) {
-                        is FieldFetchingException -> e
-                        is InternalEngineException -> e
-                        else -> InternalEngineException.wrapWithPathAndLocation(
-                            e,
-                            parameters.path,
-                            field.sourceLocation
-                        )
-                    }
-                    Value.fromThrowable(wrappedException)
-                }
-
-            val checkerResult = accessCheckRunner.combineWithTypeCheck(
-                parameters,
-                dataFetchingEnvironmentProvider,
-                fieldCheckerResultValue,
-                fieldType,
-                result,
-                this
-            )
-
+            val (result, checkerResult) = fetchField(field, parameters, dataFetchingEnvironmentProvider)
             slotSetter.setRawValue(result)
             slotSetter.setCheckerValue(checkerResult)
         } as Value<FieldResolutionResult>
 
-        return fieldResolutionResultValue.thenCompose { v, e ->
+        val overall = fieldResolutionResultValue.thenCompose { v, e ->
             fieldInstrumentationCtx.onCompleted(v, e)
             if (e != null) {
                 // if the field resolution failed, don't attempt to fetch lazy data or nested objects
@@ -345,6 +350,8 @@ class FieldResolver(
                 )
             }
         }
+
+        return FieldDispatch(fieldResolutionResultValue, overall)
     }
 
     private val typeResolver = ResolveType()
@@ -419,7 +426,7 @@ class FieldResolver(
                         } else {
                             val newParams = updateListItemParameters(parameters, index)
                             val itemDfeSupplier: () -> DataFetchingEnvironment = { buildDataFetchingEnvironment(newParams, field, parameters.parentEngineResult) }
-                            accessCheckRunner.typeCheck(parameters, itemDfeSupplier, oer, itemFieldResolutionResult, this)
+                            accessCheckRunner.typeCheck(newParams, itemDfeSupplier, oer, itemFieldResolutionResult, this)
                         }
                         slotSetter.setCheckerValue(typeCheckerResult)
                     }
@@ -491,16 +498,11 @@ class FieldResolver(
                 parameters.launchOnRootScope {
                     try {
                         val dataFetchingEnvironment = env.get()
-                        val selections = parameters.constants.rawSelectionSetFactory.rawSelectionSet(dataFetchingEnvironment)
+                        val selections = parameters.engineExecutionContext.rawSelectionSetFactory.rawSelectionSet(dataFetchingEnvironment)
                             ?: throw IllegalStateException(
                                 "Attempting to resolve LazyEngineObjectData but no selection set found"
                             )
-                        val engineExecutionContext = dataFetchingEnvironment.engineExecutionContext as EngineExecutionContextImpl
-                        val localExecutionContext = engineExecutionContext.copy(
-                            dataFetchingEnvironment = dataFetchingEnvironment,
-                        )
-
-                        originalSource.resolveData(selections, localExecutionContext)
+                        originalSource.resolveData(selections, dataFetchingEnvironment.engineExecutionContext)
                         engineResult.resolve()
                     } catch (e: Exception) {
                         if (e is CancellationException) currentCoroutineContext().ensureActive()
@@ -606,7 +608,7 @@ class FieldResolver(
         field: QueryPlan.CollectedField,
         parameters: ExecutionParameters,
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
-    ): Pair<Value<FetchedValueWithExtensions>, Value<out CheckerResult?>> =
+    ): Pair<Value<FieldResolutionResult>, Value<out CheckerResult?>> =
         try {
             val fieldDef = parameters.executionStepInfo.fieldDefinition
             var dataFetcher = parameters.graphQLSchema.codeRegistry.getDataFetcher(
@@ -615,7 +617,7 @@ class FieldResolver(
             )
 
             val instrumentationFieldFetchParams = InstrumentationFieldFetchParameters(
-                parameters.executionContext,
+                parameters.executionContextWithLocalContext,
                 dataFetchingEnvironmentProvider,
                 parameters.gjParameters,
                 dataFetcher is TrivialDataFetcher<*>
@@ -642,39 +644,86 @@ class FieldResolver(
                 else -> false
             }
 
-            val checkerResultValue = accessCheckRunner.fieldCheck(parameters, dataFetchingEnvironmentProvider)
-            val rawValue = if (executeCheckerSequentially) {
-                checkerResultValue.thenCompose { checkerResult, checkerError ->
-                    if (checkerResult is CheckerResult.Error || checkerError != null) {
+            val fieldType = parameters.executionStepInfo.unwrappedNonNullType
+            val fieldCheckerResultValue = accessCheckRunner.fieldCheck(parameters, dataFetchingEnvironmentProvider)
+
+            val dataFetcherResult = if (executeCheckerSequentially) {
+                // In sequential mode, wait for field checker before executing data fetcher
+                fieldCheckerResultValue.thenCompose { fieldCheckerRes, fieldCheckerError ->
+                    if (fieldCheckerRes is CheckerResult.Error || fieldCheckerError != null) {
+                        // The field checker has failed. Don't execute the data fetcher.
                         Value.fromValue(maybeUnwrapDataFetcherResult(parameters, null))
                     } else {
                         executeDataFetcher(parameters, fieldDef, dataFetchingEnvironmentProvider, dataFetcher)
-                            .thenCompose { v, e ->
-                                fieldFetchingInstCtx.onCompleted(v, e)
-                                dataFetcherResultToValue(field, parameters, v, e)
-                            }
                     }
                 }
             } else {
+                // In parallel mode, execute data fetcher immediately
                 executeDataFetcher(parameters, fieldDef, dataFetchingEnvironmentProvider, dataFetcher)
-                    .thenCompose { v, e ->
-                        if (e != null) {
-                            // The DataFetcher failed. Complete beginFieldFetching without waiting for the checker to complete.
-                            fieldFetchingInstCtx.onCompleted(v, e)
-                        } else {
-                            // The DataFetcher was successful. If the field has a checker, complete beginFieldFetching once the
-                            // check also finishes executing
-                            checkerResultValue.thenApply { checkerResult, throwable ->
-                                fieldFetchingInstCtx.onCompleted(v, checkerResult?.asError?.error ?: throwable)
-                            }
-                        }
-                        dataFetcherResultToValue(field, parameters, v, e)
-                    }
             }
-            rawValue to checkerResultValue
+            val rawValue = dataFetcherResult.thenCompose { v, e -> dataFetcherResultToValue(field, parameters, v, e) }
+
+            val result: Value<FieldResolutionResult> = rawValue
+                .map { fv ->
+                    buildFieldResolutionResult(parameters, fieldType, fv, parameters.resolutionPolicy)
+                }.recover { e ->
+                    // handle any errors that occurred during building FieldResolutionResult
+                    val wrappedException = when (e) {
+                        is FieldFetchingException -> e
+                        is InternalEngineException -> e
+                        else -> InternalEngineException.wrapWithPathAndLocation(
+                            e,
+                            parameters.path,
+                            field.sourceLocation
+                        )
+                    }
+                    Value.fromThrowable(wrappedException)
+                }
+
+            val combinedCheckerResult = accessCheckRunner.combineWithTypeCheck(
+                parameters,
+                dataFetchingEnvironmentProvider,
+                fieldCheckerResultValue,
+                fieldType,
+                result,
+                this
+            )
+
+            // Complete instrumentation exactly once. Data fetcher errors take priority over checker errors.
+            // In sequential mode, field checker is checked first before executing the data fetcher.
+            val completeFieldFetching = {
+                dataFetcherResult.thenApply { dfValue, dataFetcherError ->
+                    if (dataFetcherError != null) {
+                        // Data fetcher failed - complete instrumentation immediately
+                        fieldFetchingInstCtx.onCompleted(null, dataFetcherError)
+                    } else {
+                        // Data fetcher succeeded - wait for combined checker result
+                        combinedCheckerResult.thenApply { res, throwable ->
+                            fieldFetchingInstCtx.onCompleted(dfValue, res?.asError?.error ?: throwable)
+                        }
+                    }
+                }
+            }
+
+            if (executeCheckerSequentially) {
+                fieldCheckerResultValue.thenApply { fieldCheckerRes, fieldCheckerError ->
+                    if (fieldCheckerRes is CheckerResult.Error || fieldCheckerError != null) {
+                        // Field checker failed - complete instrumentation immediately (no DF executed, no type check)
+                        fieldFetchingInstCtx.onCompleted(null, fieldCheckerRes?.asError?.error ?: fieldCheckerError)
+                    } else {
+                        // Field checker passed - now check data fetcher result
+                        completeFieldFetching()
+                    }
+                }
+            } else {
+                // Parallel mode - check data fetcher result first
+                completeFieldFetching()
+            }
+
+            result to combinedCheckerResult
         } catch (e: Exception) {
             val error = InternalEngineException.wrapWithPathAndLocation(e, parameters.path, field.sourceLocation)
-            Value.fromThrowable<FetchedValueWithExtensions>(error) to Value.fromThrowable(error)
+            Value.fromThrowable<FieldResolutionResult>(error) to Value.fromThrowable(error)
         }
 
     /**

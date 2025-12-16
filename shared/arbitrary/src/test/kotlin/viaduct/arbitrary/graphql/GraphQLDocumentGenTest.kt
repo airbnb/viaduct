@@ -148,7 +148,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         // the ballpark of `iterCount`, let's use a square root value for each M/N dimension
         val iter = sqrt(iterCount.toDouble()).toInt()
 
-        Arb.graphQLSchema(cfg)
+        Arb
+            .graphQLSchema(cfg)
             .take(iter, randomSource)
             .forEach { schema ->
                 assertAllDocumentsValid(schema, cfg, iter)
@@ -239,7 +240,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
                 // incremental directives may not appear anywhere in a subscription operation
                 Arb.graphQLDocument(schema, cfg).forAll(iterCount) { doc ->
-                    doc.getDefinitionsOfType(OperationDefinition::class.java)
+                    doc
+                        .getDefinitionsOfType(OperationDefinition::class.java)
                         .filter { it.operation == OperationDefinition.Operation.SUBSCRIPTION }
                         .all { op ->
                             op.allChildrenOfType<Directive>().none { it.name == "defer" || it.name == "stream" }
@@ -262,7 +264,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
                 // incremental directives may not be used on a mutation root selection
                 Arb.graphQLDocument(schema, cfg).forAll(iterCount) { doc ->
-                    doc.getDefinitionsOfType(OperationDefinition::class.java)
+                    doc
+                        .getDefinitionsOfType(OperationDefinition::class.java)
                         .filter { it.operation == OperationDefinition.Operation.MUTATION }
                         .flatMap { it.selectionSet.selections }
                         .mapNotNull { it as? DirectivesContainer<*> }
@@ -341,7 +344,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 val cfg = mkConfig(aliasWeight = 1.0, fieldNameLength = length)
                 length to Arb.graphQLDocument(schema, cfg).bind()
             }.forAll { (length, doc) ->
-                val fields = doc.allChildrenOfType<Field>()
+                val fields = doc
+                    .allChildrenOfType<Field>()
                     // the alias generator will try to generate some alias names that collide with field names
                     // which will ignore the FieldNameLength config. Filter these out
                     .filter { it.alias != "x" && it.alias != "__typename" }
@@ -397,7 +401,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 implicitNullValueWeight = 0.0
             ).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll { doc ->
-                    val fields = doc.allChildrenOfType<Field>()
+                    val fields = doc
+                        .allChildrenOfType<Field>()
                         .filter { it.name == "x" }
                     assume(fields.isNotEmpty())
                     fields.all { it.arguments.size == 3 }
@@ -528,9 +533,11 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 (VariableWeight to 1.0)
             val schema = "type Query { x(a:Int!):Int }".asSchema
 
-            Arb.graphQLDocument(schema, cfg)
+            Arb
+                .graphQLDocument(schema, cfg)
                 .forAll(iterCount) { doc ->
-                    val badVariableRefs = doc.allChildrenOfType<VariableDefinition>()
+                    val badVariableRefs = doc
+                        .allChildrenOfType<VariableDefinition>()
                         .flatMap { it.allChildrenOfType<Directive>() }
                         .flatMap { it.allChildrenOfType<VariableReference>() }
 
@@ -548,7 +555,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 assume(bargs.isNotEmpty())
 
                 val vdefs = doc.allChildrenOfType<VariableDefinition>().associateBy { it.name }
-                bargs.flatMap { it.allChildrenOfType<VariableReference>() }
+                bargs
+                    .flatMap { it.allChildrenOfType<VariableReference>() }
                     .map { vdefs[it.name]!!.type }
                     .all { it is NonNullType }
             }

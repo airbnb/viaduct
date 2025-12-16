@@ -1,13 +1,15 @@
 package viaduct.service.api.spi
 
-import viaduct.service.api.spi.Flags.EXECUTE_ACCESS_CHECKS_IN_MODERN_EXECUTION_STRATEGY
+import viaduct.apiannotations.InternalApi
+import viaduct.service.api.spi.Flags.EXECUTE_ACCESS_CHECKS
 
 /**
  * Interface for managing feature flags.
  */
+@InternalApi
 interface FlagManager {
     /**
-     * Returns a boolean representing whether or not [flag] is enabled. Impl should execute very quickly as it could
+     * Returns a boolean representing whether [flag] is enabled. Impl should execute very quickly as it could
      * be used in the hot path.
      */
     fun isEnabled(flag: Flag): Boolean
@@ -19,7 +21,7 @@ interface FlagManager {
     object default : FlagManager {
         override fun isEnabled(flag: Flag): Boolean =
             when (flag) {
-                EXECUTE_ACCESS_CHECKS_IN_MODERN_EXECUTION_STRATEGY -> true
+                EXECUTE_ACCESS_CHECKS -> true
 
                 else -> false
             }

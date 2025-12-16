@@ -5,7 +5,11 @@ import io.kotest.property.RandomSource
 import viaduct.arbitrary.common.Config
 
 /** A collection of high-level value generators */
-internal class ValueGens(schema: GraphQLSchema, cfg: Config, rs: RandomSource) {
+internal class ValueGens(
+    schema: GraphQLSchema,
+    cfg: Config,
+    rs: RandomSource
+) {
     private val refResolver = TypeReferenceResolver.fromSchema(schema)
 
     /** a generator for [viaduct.mapping.graphql.RawValue]'s */

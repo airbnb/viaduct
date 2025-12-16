@@ -54,6 +54,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val childPlanExecutionStepInfos = ConcurrentLinkedQueue<ExecutionStepInfo>()
+                val childPlanLatch = CountDownLatch(1)
 
                 val sdl = """
                     type Query {
@@ -96,10 +97,11 @@ class ViaductExecutionStrategyChildPlanTest {
                             env.getSource<Map<String, Any>>()!!["name"]
                         },
                         "details" to DataFetcher { _ ->
-                            // childPlanExecutionStepInfos.add(env.executionStepInfo)
+                            childPlanLatch.await()
                             "Entity details"
                         },
                         "childPlanField" to DataFetcher { env ->
+                            childPlanLatch.countDown()
                             childPlanExecutionStepInfos.add(env.executionStepInfo)
                             null
                         }

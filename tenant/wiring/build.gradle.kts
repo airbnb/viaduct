@@ -19,6 +19,7 @@ dependencies {
     implementation(libs.viaduct.tenant.runtime)
 
     testImplementation(libs.guice)
+    testImplementation(libs.viaduct.service.runtime)
     testFixturesImplementation(libs.viaduct.engine.api)
     testFixturesImplementation(testFixtures(libs.viaduct.tenant.api))
     testImplementation(testFixtures(libs.viaduct.tenant.api))

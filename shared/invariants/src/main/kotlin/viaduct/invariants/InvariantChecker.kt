@@ -43,9 +43,7 @@ class InvariantChecker : Iterable<Failure> {
     val size: Int
         get() = failures.size
 
-    override fun iterator(): Iterator<Failure> {
-        return failures.iterator()
-    }
+    override fun iterator(): Iterator<Failure> = failures.iterator()
 
     fun pushContext(moreContext: String) {
         context.add(moreContext)
@@ -90,9 +88,7 @@ class InvariantChecker : Iterable<Failure> {
     fun isTrue(
         actual: Boolean,
         messageFormat: String
-    ): Boolean {
-        return isTrue(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isTrue(actual, messageFormat, EMPTY_ARGS)
 
     fun isTrue(
         actual: Boolean,
@@ -107,9 +103,7 @@ class InvariantChecker : Iterable<Failure> {
     fun isFalse(
         actual: Boolean,
         messageFormat: String
-    ): Boolean {
-        return isFalse(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isFalse(actual, messageFormat, EMPTY_ARGS)
 
     fun isFalse(
         actual: Boolean,
@@ -124,9 +118,7 @@ class InvariantChecker : Iterable<Failure> {
     fun isNull(
         actual: Any?,
         messageFormat: String
-    ): Boolean {
-        return isNull(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isNull(actual, messageFormat, EMPTY_ARGS)
 
     fun isNull(
         actual: Any?,
@@ -142,9 +134,7 @@ class InvariantChecker : Iterable<Failure> {
     fun isNotNull(
         actual: Any?,
         messageFormat: String
-    ): Boolean {
-        return isNotNull(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isNotNull(actual, messageFormat, EMPTY_ARGS)
 
     fun isNotNull(
         actual: Any?,
@@ -161,9 +151,7 @@ class InvariantChecker : Iterable<Failure> {
         expected: Any,
         actual: Any,
         messageFormat: String
-    ): Boolean {
-        return isSameInstanceAs(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isSameInstanceAs(expected, actual, messageFormat, EMPTY_ARGS)
 
     fun isSameInstanceAs(
         expected: Any,
@@ -181,9 +169,7 @@ class InvariantChecker : Iterable<Failure> {
         expected: Any?,
         actual: Any?,
         messageFormat: String
-    ): Boolean {
-        return isNotSameInstanceAs(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isNotSameInstanceAs(expected, actual, messageFormat, EMPTY_ARGS)
 
     fun isNotSameInstanceAs(
         expected: Any?,
@@ -201,9 +187,7 @@ class InvariantChecker : Iterable<Failure> {
         expected: Int,
         actual: Int,
         messageFormat: String
-    ): Boolean {
-        return isEqualTo(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isEqualTo(expected, actual, messageFormat, EMPTY_ARGS)
 
     fun isEqualTo(
         expected: Int,
@@ -221,16 +205,12 @@ class InvariantChecker : Iterable<Failure> {
         expected: Any?,
         actual: Any?,
         messageFormat: String
-    ): Boolean {
-        return isEqualTo(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isEqualTo(expected, actual, messageFormat, EMPTY_ARGS)
 
     private fun eq(
         expected: Any?,
         actual: Any?
-    ): Boolean {
-        return if (expected != null && (expected == actual || expected == actual)) true else actual == null && expected == null
-    }
+    ): Boolean = if (expected != null && (expected == actual || expected == actual)) true else actual == null && expected == null
 
     fun isEqualTo(
         expected: Any?,
@@ -256,9 +236,7 @@ class InvariantChecker : Iterable<Failure> {
         expected: Any?,
         actual: Any?,
         messageFormat: String
-    ): Boolean {
-        return isNotEqualTo(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isNotEqualTo(expected, actual, messageFormat, EMPTY_ARGS)
 
     fun isNotEqualTo(
         expected: Any?,
@@ -279,9 +257,7 @@ class InvariantChecker : Iterable<Failure> {
     fun isEmpty(
         actual: Iterable<*>,
         messageFormat: String
-    ): Boolean {
-        return isEmpty(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isEmpty(actual, messageFormat, EMPTY_ARGS)
 
     fun isEmpty(
         actual: Iterable<*>,
@@ -297,9 +273,7 @@ class InvariantChecker : Iterable<Failure> {
     fun isNotEmpty(
         actual: Iterable<*>,
         messageFormat: String
-    ): Boolean {
-        return isNotEmpty(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isNotEmpty(actual, messageFormat, EMPTY_ARGS)
 
     fun isNotEmpty(
         actual: Iterable<*>,
@@ -315,9 +289,7 @@ class InvariantChecker : Iterable<Failure> {
     fun isEmpty(
         actual: CharSequence,
         messageFormat: String
-    ): Boolean {
-        return isEmpty(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isEmpty(actual, messageFormat, EMPTY_ARGS)
 
     fun isEmpty(
         actual: CharSequence,
@@ -333,9 +305,7 @@ class InvariantChecker : Iterable<Failure> {
     fun isNotEmpty(
         actual: CharSequence,
         messageFormat: String
-    ): Boolean {
-        return isNotEmpty(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isNotEmpty(actual, messageFormat, EMPTY_ARGS)
 
     fun isNotEmpty(
         actual: CharSequence,
@@ -352,9 +322,7 @@ class InvariantChecker : Iterable<Failure> {
         expected: T,
         actual: Iterable<T>,
         messageFormat: String
-    ): Boolean {
-        return contains(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = contains(expected, actual, messageFormat, EMPTY_ARGS)
 
     fun <T> contains(
         expected: T,
@@ -379,9 +347,7 @@ class InvariantChecker : Iterable<Failure> {
         expected: Iterable<T>,
         actual: T,
         messageFormat: String
-    ): Boolean {
-        return containedBy(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = containedBy(expected, actual, messageFormat, EMPTY_ARGS)
 
     fun <T> containedBy(
         expected: Iterable<T>,
@@ -405,9 +371,7 @@ class InvariantChecker : Iterable<Failure> {
     fun <T : Comparable<T>?> isInOrder(
         actual: Iterable<T>,
         messageFormat: String
-    ): Boolean {
-        return isInOrder(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = isInOrder(actual, messageFormat, EMPTY_ARGS)
 
     fun <T : Comparable<T>?> isInOrder(
         actual: Iterable<T>,
@@ -437,9 +401,7 @@ class InvariantChecker : Iterable<Failure> {
     fun <T> containsNoDuplicates(
         actual: Iterable<T>,
         messageFormat: String
-    ): Boolean {
-        return containsNoDuplicates(actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = containsNoDuplicates(actual, messageFormat, EMPTY_ARGS)
 
     fun <T> containsNoDuplicates(
         actual: Iterable<T>,
@@ -467,9 +429,7 @@ class InvariantChecker : Iterable<Failure> {
         expected: Iterable<T>,
         actual: Iterable<T>,
         messageFormat: String
-    ): Boolean {
-        return containsAtLeastElementsIn(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = containsAtLeastElementsIn(expected, actual, messageFormat, EMPTY_ARGS)
 
     fun <T> containsAtLeastElementsIn(
         expected: Iterable<T>,
@@ -495,9 +455,7 @@ class InvariantChecker : Iterable<Failure> {
         expected: Iterable<T>,
         actual: Iterable<T>,
         messageFormat: String
-    ): Boolean {
-        return containsAtMostElementsIn(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = containsAtMostElementsIn(expected, actual, messageFormat, EMPTY_ARGS)
 
     fun <T> containsAtMostElementsIn(
         expected: Iterable<T>,
@@ -523,9 +481,7 @@ class InvariantChecker : Iterable<Failure> {
         expected: Iterable<T>,
         actual: Iterable<T>,
         messageFormat: String
-    ): Boolean {
-        return containsExactlyElementsIn(expected, actual, messageFormat, EMPTY_ARGS)
-    }
+    ): Boolean = containsExactlyElementsIn(expected, actual, messageFormat, EMPTY_ARGS)
 
     fun <T> containsExactlyElementsIn(
         expected: Iterable<T>,
@@ -619,26 +575,22 @@ class InvariantChecker : Iterable<Failure> {
         fun ifNoThrow(body: (T) -> Unit)
 
         companion object {
-            fun <T> of(result: T): ContingentResult<T> {
-                return object : ContingentResult<T> {
+            fun <T> of(result: T): ContingentResult<T> =
+                object : ContingentResult<T> {
                     override fun ifNoThrow(body: (T) -> Unit) = body(result)
                 }
-            }
 
-            fun <T> empty(): ContingentResult<T> {
-                return object : ContingentResult<T> {
+            fun <T> empty(): ContingentResult<T> =
+                object : ContingentResult<T> {
                     override fun ifNoThrow(body: (T) -> Unit) {}
                 }
-            }
         }
     }
 
     fun <T> doesNotThrow(
         message: String,
         body: () -> T
-    ): ContingentResult<T> {
-        return doesNotThrow(message, EMPTY_ARGS, body)
-    }
+    ): ContingentResult<T> = doesNotThrow(message, EMPTY_ARGS, body)
 
     fun <T> doesNotThrow(
         messageFormat: String,
@@ -744,7 +696,11 @@ class InvariantChecker : Iterable<Failure> {
     }
 }
 
-class Failure internal constructor(val context: String, val message: String, val details: String?) {
+class Failure internal constructor(
+    val context: String,
+    val message: String,
+    val details: String?
+) {
     val label: String
         get() = message.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0]
 
@@ -758,9 +714,7 @@ class Failure internal constructor(val context: String, val message: String, val
         return if (details != null && o.details == null) false else details == null || (details == o.details)
     }
 
-    override fun hashCode(): Int {
-        return 31 * 31 * context.hashCode() + 31 * message.hashCode() + (details?.hashCode() ?: 4507321)
-    }
+    override fun hashCode(): Int = 31 * 31 * context.hashCode() + 31 * message.hashCode() + (details?.hashCode() ?: 4507321)
 
     override fun toString(): String {
         val ctx = if (!context.isEmpty()) "$context: " else ""
@@ -772,7 +726,8 @@ class Failure internal constructor(val context: String, val message: String, val
         dst.append(message)
         if (!context.isEmpty()) dst.append("\n    Context: $context")
         if (details != null) {
-            dst.append("\n    ")
+            dst
+                .append("\n    ")
                 .append(details.replace(".  Extra", "\nExtra").replace("\n", "\n    "))
         }
         dst.append("\n")

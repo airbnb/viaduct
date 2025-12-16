@@ -67,15 +67,16 @@ class ValueExtensionsTest {
     fun `rawValue -- ArrayValue`() {
         assertEquals(
             listOf(1.34f, 1234, "string_value"),
-            ArrayValue.newArrayValue()
+            ArrayValue
+                .newArrayValue()
                 .values(
                     listOf(
                         FloatValue.newFloatValue(BigDecimal.valueOf(1.34)).build(),
                         IntValue.newIntValue(BigInteger.valueOf(1234)).build(),
                         StringValue.newStringValue("string_value").build()
                     )
-                )
-                .build().rawValue()
+                ).build()
+                .rawValue()
         )
     }
 
@@ -84,22 +85,32 @@ class ValueExtensionsTest {
         val variables = mapOf("var1" to 42)
 
         val objVal =
-            ObjectValue.newObjectValue().objectFields(
-                listOf(
-                    ObjectField.newObjectField().name("floatVal")
-                        .value(FloatValue.newFloatValue(BigDecimal.valueOf(1.34)).build())
-                        .build(),
-                    ObjectField.newObjectField().name("intVal")
-                        .value(IntValue.newIntValue(BigInteger.valueOf(1234)).build())
-                        .build(),
-                    ObjectField.newObjectField().name("stringVal")
-                        .value(StringValue.newStringValue("string_value").build())
-                        .build(),
-                    ObjectField.newObjectField().name("refVal")
-                        .value(VariableReference.newVariableReference().name("var1").build())
-                        .build()
-                )
-            ).build()
+            ObjectValue
+                .newObjectValue()
+                .objectFields(
+                    listOf(
+                        ObjectField
+                            .newObjectField()
+                            .name("floatVal")
+                            .value(FloatValue.newFloatValue(BigDecimal.valueOf(1.34)).build())
+                            .build(),
+                        ObjectField
+                            .newObjectField()
+                            .name("intVal")
+                            .value(IntValue.newIntValue(BigInteger.valueOf(1234)).build())
+                            .build(),
+                        ObjectField
+                            .newObjectField()
+                            .name("stringVal")
+                            .value(StringValue.newStringValue("string_value").build())
+                            .build(),
+                        ObjectField
+                            .newObjectField()
+                            .name("refVal")
+                            .value(VariableReference.newVariableReference().name("var1").build())
+                            .build()
+                    )
+                ).build()
 
         assertEquals(
             mapOf("floatVal" to 1.34f, "intVal" to 1234, "stringVal" to "string_value", "refVal" to 42),
@@ -115,7 +126,14 @@ class ValueExtensionsTest {
     @Test
     fun `rawValue -- VariableReference`() {
         val variables = mapOf("var1" to 42)
-        assertEquals(42, VariableReference.newVariableReference().name("var1").build().rawValue(variables))
+        assertEquals(
+            42,
+            VariableReference
+                .newVariableReference()
+                .name("var1")
+                .build()
+                .rawValue(variables)
+        )
     }
 
     @Test
@@ -200,6 +218,32 @@ class ValueExtensionsTest {
         assertEquals("field 'field', argument 'arg'", usage.contextString)
         assertEquals("String", GraphQLTypeUtil.simplePrint(usage.type))
         assertEquals(true, usage.hasDefaultValue)
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- field argument with default value but variable in array`() {
+        val schema = toSchema("type Query { field(arg: [String!]! = [\"default1\", \"default2\"]): String }")
+        val document = Parser.parse("{ field(arg: [\$var1, \$var2]) }")
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
+
+        assertEquals(2, allUsages.size)
+        assertTrue(allUsages.containsKey("var1"))
+        assertTrue(allUsages.containsKey("var2"))
+
+        // The 'arg' argument has a default value, but variables inside the array
+        // should NOT inherit this - array elements cannot have default values
+        allUsages.forEach { (varName, usages) ->
+            assertEquals(1, usages.size, "Variable $varName should have exactly one usage")
+            val usage = usages.first()
+            assertEquals("field 'field', argument 'arg'", usage.contextString)
+            assertEquals("String!", GraphQLTypeUtil.simplePrint(usage.type))
+            assertEquals(
+                false,
+                usage.hasDefaultValue,
+                "Array element variables should have hasDefaultValue=false even when parent argument has a default"
+            )
+        }
     }
 
     @Test
@@ -578,6 +622,51 @@ class ValueExtensionsTest {
         assertEquals(1, var3Usages.size)
         assertEquals("input field 'NestedInput.value'", var3Usages.first().contextString)
         assertEquals("String!", GraphQLTypeUtil.simplePrint(var3Usages.first().type))
+    }
+
+    @Test
+    fun `collectAllVariableUsages -- field argument with deeply nested array of input object type`() {
+        val schema = toSchema(
+            """
+            input NestedInput { value: [String!]! }
+            input ContainerInput { nested: NestedInput! }
+            type Query { field(data: [[ContainerInput!]!]!): String }
+            """.trimIndent()
+        )
+        val document = Parser.parse(
+            """
+            {
+                field(data: [
+                    [${'$'}var1, { nested: { value: [${'$'}var2] } }],
+                    [{ nested: { value: ${'$'}var3 } }]
+                ])
+            }
+            """.trimIndent()
+        )
+
+        val allUsages = document.collectAllVariableUsages(schema, "Query")
+
+        assertEquals(3, allUsages.size)
+        assertTrue(allUsages.containsKey("var1"))
+        assertTrue(allUsages.containsKey("var2"))
+        assertTrue(allUsages.containsKey("var3"))
+
+        // var1 is passed as the whole object, so it has ContainerInput! type
+        val var1Usages = allUsages["var1"]!!
+        assertEquals(1, var1Usages.size)
+        assertEquals("field 'field', argument 'data'", var1Usages.first().contextString)
+        assertEquals("ContainerInput!", GraphQLTypeUtil.simplePrint(var1Usages.first().type))
+
+        // var2 and var3 are deeply nested in NestedInput.value
+        val var2Usages = allUsages["var2"]!!
+        assertEquals(1, var2Usages.size)
+        assertEquals("input field 'NestedInput.value'", var2Usages.first().contextString)
+        assertEquals("String!", GraphQLTypeUtil.simplePrint(var2Usages.first().type))
+
+        val var3Usages = allUsages["var3"]!!
+        assertEquals(1, var3Usages.size)
+        assertEquals("input field 'NestedInput.value'", var3Usages.first().contextString)
+        assertEquals("[String!]!", GraphQLTypeUtil.simplePrint(var3Usages.first().type))
     }
 
     @Test

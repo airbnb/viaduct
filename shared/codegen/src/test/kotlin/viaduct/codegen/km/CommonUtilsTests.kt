@@ -10,14 +10,16 @@ class CommonUtilsTests {
     @Test
     fun `Given KmType with non-class classifier then KmType_name should throw`() {
         assertThrows(IllegalArgumentException::class.java) {
-            KmType().apply {
-                classifier = KmClassifier.TypeAlias("foo")
-            }.name
+            KmType()
+                .apply {
+                    classifier = KmClassifier.TypeAlias("foo")
+                }.name
         }
         assertThrows(IllegalArgumentException::class.java) {
-            KmType().apply {
-                classifier = KmClassifier.TypeParameter(0)
-            }.name
+            KmType()
+                .apply {
+                    classifier = KmClassifier.TypeParameter(0)
+                }.name
         }
     }
 }

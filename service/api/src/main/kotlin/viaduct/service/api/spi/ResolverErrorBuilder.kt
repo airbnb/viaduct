@@ -4,8 +4,20 @@ import graphql.GraphQLError
 import graphql.schema.DataFetchingEnvironment
 
 /**
- * Interface for building GraphQL errors from exceptions that occur during data fetching.q
+ * Interface for building GraphQL errors from exceptions that occur during data fetching.
+ *
+ * @deprecated Use [ViaductResolverErrorBuilder] instead for better API stability.
+ *             This interface exposes graphql-java types and will be moved to service/runtime in a future version.
  */
+@Deprecated(
+    message = "Use ViaductResolverErrorBuilder for better API stability. " +
+        "This interface exposes graphql-java types.",
+    replaceWith = ReplaceWith(
+        "ViaductResolverErrorBuilder",
+        "viaduct.service.api.spi.ViaductResolverErrorBuilder"
+    ),
+    level = DeprecationLevel.WARNING
+)
 interface ResolverErrorBuilder {
     /**
      * Converts an exception to a list of GraphQL errors.
@@ -18,7 +30,7 @@ interface ResolverErrorBuilder {
     fun exceptionToGraphQLError(
         throwable: Throwable,
         dataFetchingEnvironment: DataFetchingEnvironment,
-        errorMetadata: ResolverErrorReporter.Companion.ErrorMetadata
+        errorMetadata: ErrorMetadata
     ): List<GraphQLError>?
 
     companion object {
@@ -29,7 +41,7 @@ interface ResolverErrorBuilder {
             override fun exceptionToGraphQLError(
                 throwable: Throwable,
                 dataFetchingEnvironment: DataFetchingEnvironment,
-                errorMetadata: ResolverErrorReporter.Companion.ErrorMetadata
+                errorMetadata: ErrorMetadata
             ): List<GraphQLError>? = null
         }
     }

@@ -27,10 +27,10 @@ import viaduct.engine.api.derived.DerivedFieldQueryMetadata
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentFieldEngineResolutionResult
 import viaduct.engine.api.fragment.FragmentVariables
-import viaduct.engine.api.fragment.ViaductExecutableFragmentParser
 import viaduct.engine.api.fragment.fragment
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.fragment.ViaductExecutableFragmentParser
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.mocks.MockFlagManager
 

@@ -8,11 +8,12 @@ import org.junit.jupiter.api.Test
 class ResolverErrorBuilderTest {
     @Test
     fun testNoOp() {
+        @Suppress("DEPRECATION")
         assertNull(
             ResolverErrorBuilder.Companion.NoOpResolverErrorBuilder.exceptionToGraphQLError(
                 Throwable("Test Exception"),
                 mockk<DataFetchingEnvironment>(),
-                ResolverErrorReporter.Companion.ErrorMetadata.EMPTY
+                ErrorMetadata.EMPTY
             )
         )
     }

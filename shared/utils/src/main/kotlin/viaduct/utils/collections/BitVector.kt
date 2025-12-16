@@ -174,9 +174,7 @@ class BitVector private constructor(
         return result.toString()
     }
 
-    fun copy(): BitVector {
-        return BitVector(size, bits, extraBits?.clone())
-    }
+    fun copy(): BitVector = BitVector(size, bits, extraBits?.clone())
 
     class Builder {
         private var inserted: LongArray? = LongArray(4) // Initial capacity

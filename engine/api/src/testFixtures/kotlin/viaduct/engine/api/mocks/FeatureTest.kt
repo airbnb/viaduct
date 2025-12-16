@@ -136,7 +136,7 @@ class FeatureTest(
         )
         return runBlocking {
             DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
-                engine.execute(input).awaitExecutionResult()
+                engine.execute(input)
             }.await()
         }
     }

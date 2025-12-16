@@ -3,6 +3,7 @@ package viaduct.service
 import graphql.execution.DataFetcherExceptionHandler
 import io.micrometer.core.instrument.MeterRegistry
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.ResolverErrorReporter
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
@@ -44,17 +45,6 @@ class ViaductBuilder {
     fun withFlagManager(flagManager: FlagManager) =
         apply {
             builder.withFlagManager(flagManager)
-        }
-
-    /**
-     * By default, Viaduct instances implement `Query.node` and `Query.nodes`
-     * resolvers automatically.  Calling this function with false turns off that default behavior.
-     * (If your schema does not have the `Query.node/s` field(s), you do
-     * _not_ have to explicitly turn off the default behavior.)
-     */
-    fun standardNodeBehavior(standardNodeBehavior: Boolean) =
-        apply {
-            builder.withoutDefaultQueryNodeResolvers(standardNodeBehavior)
         }
 
     fun withSchemaConfiguration(schemaConfiguration: SchemaConfiguration) =
@@ -109,6 +99,19 @@ class ViaductBuilder {
     fun withDataFetcherExceptionHandler(dataFetcherExceptionHandler: DataFetcherExceptionHandler) =
         apply {
             builder.withDataFetcherExceptionHandler(dataFetcherExceptionHandler)
+        }
+
+    /**
+     * Configures the GlobalIDCodec for serializing and deserializing GlobalIDs.
+     * All tenant-API implementations within this Viaduct instance will share this codec
+     * to ensure interoperability.
+     *
+     * @param globalIDCodec The GlobalIDCodec instance to use
+     * @return This Builder instance for method chaining
+     */
+    fun withGlobalIDCodec(globalIDCodec: GlobalIDCodec) =
+        apply {
+            builder.withGlobalIDCodec(globalIDCodec)
         }
 
     /**

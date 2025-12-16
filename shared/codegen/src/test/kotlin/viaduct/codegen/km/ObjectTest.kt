@@ -26,7 +26,9 @@ private const val actualPkg = "actual"
 private const val defaultClassName = "Subject"
 
 class ObjectTest {
-    private class Fixture(fn: Fixture.() -> Unit) {
+    private class Fixture(
+        fn: Fixture.() -> Unit
+    ) {
         val builders = KmClassFilesBuilder()
 
         init {

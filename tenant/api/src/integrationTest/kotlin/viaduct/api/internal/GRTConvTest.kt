@@ -30,6 +30,7 @@ import viaduct.api.testschema.Input2
 import viaduct.api.testschema.Input3
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
+import viaduct.api.testschema.RecursiveObject
 import viaduct.api.testschema.TestType
 import viaduct.api.testschema.TestUser
 import viaduct.arbitrary.common.Config
@@ -37,9 +38,12 @@ import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.graphql.TypenameValueWeight
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.engineObjectsAreEquivalent
 import viaduct.engine.api.gj
+import viaduct.engine.api.mocks.mkRawSelectionSet
+import viaduct.engine.api.select.SelectionsParser
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.InputObjectValueWeight
@@ -61,7 +65,8 @@ class GRTConvTest : KotestPropertyBase() {
             GRTConv(
                 internalContext,
                 schema.field("O1" to "id"),
-                schema.typeAs("O1")
+                schema.typeAs("O1"),
+                selectionSet = null
             ),
             MockGlobalID(O1.Reflection, "foo"),
             IR.Value.String("O1:foo")
@@ -74,7 +79,8 @@ class GRTConvTest : KotestPropertyBase() {
             GRTConv(
                 internalContext,
                 schema.field("ObjectWithGlobalIds" to "id"),
-                schema.typeAs("ObjectWithGlobalIds")
+                schema.typeAs("ObjectWithGlobalIds"),
+                selectionSet = null
             ),
             "foo",
             IR.Value.String("foo")
@@ -87,7 +93,8 @@ class GRTConvTest : KotestPropertyBase() {
             GRTConv(
                 internalContext,
                 schema.field("ObjectWithGlobalIds" to "id"),
-                schema.typeAs("ObjectWithGlobalIds")
+                schema.typeAs("ObjectWithGlobalIds"),
+                selectionSet = null
             ),
             "foo",
             IR.Value.String("foo")
@@ -100,7 +107,8 @@ class GRTConvTest : KotestPropertyBase() {
             GRTConv(
                 internalContext,
                 schema.field("ObjectWithGlobalIds" to "id8"),
-                schema.typeAs("ObjectWithGlobalIds")
+                schema.typeAs("ObjectWithGlobalIds"),
+                selectionSet = null
             ),
             listOf("foo"),
             IR.Value.List(listOf(IR.Value.String("foo")))
@@ -113,7 +121,8 @@ class GRTConvTest : KotestPropertyBase() {
             GRTConv(
                 internalContext,
                 schema.field("ObjectWithGlobalIds" to "id4"),
-                schema.typeAs("ObjectWithGlobalIds")
+                schema.typeAs("ObjectWithGlobalIds"),
+                selectionSet = null
             ),
             listOf(
                 MockGlobalID(TestUser.Reflection, "foo"),
@@ -360,6 +369,147 @@ class GRTConvTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `output obj with selections -- handles nested selections`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("O1"),
+            mkRawSelectionSet(
+                "O1",
+                """
+                    obj: objectField {
+                        y:id
+                    }
+                """.trimIndent()
+            ),
+        )
+
+        assertRoundtrip(
+            conv,
+            O1.Builder(executionContext)
+                .putWithAlias(
+                    "objectField",
+                    "obj",
+                    O2.Builder(executionContext)
+                        .putWithAlias("id", "y", MockGlobalID(O2.Reflection, "1"))
+                        .build(),
+                )
+                .build(),
+            IR.Value.Object(
+                "O1",
+                "obj" to IR.Value.Object(
+                    "O2",
+                    "y" to IR.Value.String("O2:1"),
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `output obj with selections -- the same type can be selected multiple times with different selections`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("RecursiveObject"),
+            mkRawSelectionSet(
+                "RecursiveObject",
+                "x:int, nested { y:int }"
+            ),
+            KeyMapping.FieldNameToSelection
+        )
+
+        assertRoundtrip(
+            conv,
+            RecursiveObject.Builder(executionContext)
+                .int(1)
+                .nested(
+                    RecursiveObject.Builder(executionContext).int(2).build()
+                )
+                .build(),
+            IR.Value.Object(
+                "RecursiveObject",
+                "x" to IR.Value.Number(1),
+                "nested" to IR.Value.Object(
+                    "RecursiveObject",
+                    "y" to IR.Value.Number(2)
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `output obj with selections -- a field can be selected multiple times`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("O2"),
+            mkRawSelectionSet(
+                "O2",
+                "a:intField, b:intField"
+            )
+        )
+        assertRoundtrip(
+            conv,
+            O2.Builder(executionContext)
+                .putWithAlias("intField", "a", 1)
+                .putWithAlias("intField", "b", 2)
+                .build(),
+            IR.Value.Object(
+                "O2",
+                "a" to IR.Value.Number(1),
+                "b" to IR.Value.Number(2),
+            )
+        )
+    }
+
+    @Test
+    fun `output obj key mapping -- FieldNameToFieldName`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("O2"),
+            mkRawSelectionSet(
+                "O2",
+                "x:intField"
+            ),
+            KeyMapping.FieldNameToFieldName
+        )
+        val grt = O2.Builder(executionContext).intField(1).build()
+        val ir = conv(grt) as IR.Value.Object
+        assertEquals(setOf("intField"), ir.fields.keys)
+    }
+
+    @Test
+    fun `output obj key mapping -- SelectionToSelection`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("O2"),
+            mkRawSelectionSet(
+                "O2",
+                "x:intField"
+            ),
+            KeyMapping.SelectionToSelection
+        )
+        val grt = O2.Builder(executionContext)
+            .putWithAlias("intField", "x", 1)
+            .build()
+        val ir = conv(grt) as IR.Value.Object
+        assertEquals(setOf("x"), ir.fields.keys)
+    }
+
+    @Test
+    fun `output obj key mapping -- FieldNameToSelection`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("O2"),
+            mkRawSelectionSet(
+                "O2",
+                "x:intField"
+            ),
+            KeyMapping.FieldNameToSelection
+        )
+        val grt = O2.Builder(executionContext).intField(1).build()
+        val ir = conv(grt) as IR.Value.Object
+        assertEquals(setOf("x"), ir.fields.keys)
+    }
+
+    @Test
     fun `interface -- simple`() {
         // I1 is a concrete type that implements I0
         assertRoundtrip(
@@ -373,6 +523,24 @@ class GRTConvTest : KotestPropertyBase() {
     }
 
     @Test
+    fun `interface with selections -- simple`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("I0"),
+            mkRawSelectionSet("I0", "x:commonField"),
+            KeyMapping.FieldNameToSelection
+        )
+        assertRoundtrip(
+            conv,
+            I1.Builder(executionContext).commonField("str").build(),
+            IR.Value.Object(
+                "I1",
+                "x" to IR.Value.String("str")
+            )
+        )
+    }
+
+    @Test
     fun `union -- simple`() {
         // I1 is a member of union U1
         assertRoundtrip(
@@ -381,6 +549,24 @@ class GRTConvTest : KotestPropertyBase() {
             IR.Value.Object(
                 "I1",
                 mapOf("commonField" to IR.Value.String("str"))
+            )
+        )
+    }
+
+    @Test
+    fun `union with selections -- simple`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("U1"),
+            mkRawSelectionSet("U1", "... on I1 { x:commonField }"),
+            KeyMapping.FieldNameToSelection
+        )
+        assertRoundtrip(
+            conv,
+            I1.Builder(executionContext).commonField("str").build(),
+            IR.Value.Object(
+                "I1",
+                "x" to IR.Value.String("str")
             )
         )
     }
@@ -454,4 +640,15 @@ class GRTConvTest : KotestPropertyBase() {
     private fun ViaductSchema.field(coord: Coordinate): GraphQLFieldDefinition = schema.getFieldDefinition(coord.gj)
 
     private fun ViaductSchema.inputField(coord: Coordinate): GraphQLInputObjectField = typeAs<GraphQLInputObjectType>(coord.first).getField(coord.second)
+
+    private fun mkRawSelectionSet(
+        selectionsType: String,
+        selections: String,
+        variables: Map<String, Any?> = emptyMap()
+    ): RawSelectionSet =
+        mkRawSelectionSet(
+            SelectionsParser.parse(selectionsType, selections),
+            schema,
+            variables
+        )
 }

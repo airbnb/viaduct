@@ -93,8 +93,9 @@ class MockInternalContext(
     companion object {
         fun mk(
             schema: ViaductSchema,
-            grtPackage: String = "viaduct.api.grts"
-        ): MockInternalContext = MockInternalContext(schema, MockGlobalIDCodec(), mockReflectionLoader(grtPackage))
+            grtPackage: String = "viaduct.api.grts",
+            classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
+        ): MockInternalContext = MockInternalContext(schema, MockGlobalIDCodec(), mockReflectionLoader(grtPackage, classLoader))
     }
 }
 
@@ -110,7 +111,10 @@ open class MockExecutionContext(
     }
 
     companion object {
-        fun mk(schema: ViaductSchema = MockSchema.minimal): MockResolverExecutionContext = MockResolverExecutionContext(MockInternalContext.mk(schema))
+        fun mk(
+            schema: ViaductSchema = MockSchema.minimal,
+            classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
+        ): MockResolverExecutionContext = MockResolverExecutionContext(MockInternalContext.mk(schema, classLoader = classLoader))
     }
 }
 
@@ -151,7 +155,10 @@ open class MockResolverExecutionContext(
     }
 
     companion object {
-        fun mk(schema: ViaductSchema = MockSchema.minimal): MockResolverExecutionContext = MockResolverExecutionContext(MockInternalContext.mk(schema))
+        fun mk(
+            schema: ViaductSchema = MockSchema.minimal,
+            classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
+        ): MockResolverExecutionContext = MockResolverExecutionContext(MockInternalContext.mk(schema, classLoader = classLoader))
     }
 }
 

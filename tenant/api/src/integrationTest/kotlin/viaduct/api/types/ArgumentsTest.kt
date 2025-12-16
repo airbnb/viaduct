@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.api.internal.InputTypeFactory
 import viaduct.api.schemautils.SchemaUtils
 
 class ArgumentsTest {
@@ -17,7 +18,7 @@ class ArgumentsTest {
 
     @Test
     fun testInputType() {
-        val input = Arguments.inputType(
+        val input = InputTypeFactory.argumentsInputType(
             "O2_ArgumentedField_Arguments",
             schema
         )
@@ -41,11 +42,11 @@ class ArgumentsTest {
     fun testInvalidArgumentsClassName() {
         // Incorrect format - no underscore
         assertThrows<IllegalArgumentException> {
-            Arguments.inputType("ArgumentedField", schema)
+            InputTypeFactory.argumentsInputType("ArgumentedField", schema)
         }
         // Type doesn't exist
         assertThrows<IllegalArgumentException> {
-            Arguments.inputType("SomeType_SomeField_Arguments", schema)
+            InputTypeFactory.argumentsInputType("SomeType_SomeField_Arguments", schema)
         }
     }
 
@@ -53,7 +54,7 @@ class ArgumentsTest {
     fun testInvalidArgumentsClassNameEmptyString() {
         // Edge case: empty string
         val exception = assertThrows<IllegalArgumentException> {
-            Arguments.inputType("", schema)
+            InputTypeFactory.argumentsInputType("", schema)
         }
         assertTrue(exception.message?.contains("Invalid Arguments class name") ?: false)
     }
@@ -62,7 +63,7 @@ class ArgumentsTest {
     fun testNonexistentField() {
         // Type exists but field doesn't
         val exception = assertThrows<IllegalArgumentException> {
-            Arguments.inputType("O1_nonexistentField_Arguments", schema)
+            InputTypeFactory.argumentsInputType("O1_nonexistentField_Arguments", schema)
         }
         assertTrue(exception.message?.contains("not found") ?: false)
     }
@@ -71,7 +72,7 @@ class ArgumentsTest {
     fun testFieldWithoutArguments() {
         // No arguments
         assertThrows<IllegalArgumentException> {
-            Arguments.inputType("O1_stringField", schema)
+            InputTypeFactory.argumentsInputType("O1_stringField", schema)
         }
     }
 }

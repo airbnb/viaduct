@@ -183,6 +183,7 @@ internal object ScalarRawToGJ : ValueMapper<String, RawScalar, ScalarValue<*>> {
         }
 }
 
+@Suppress("RECEIVER_NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
 internal object ScalarGJToRaw : ValueMapper<String, ScalarValue<*>, RawScalar> {
     override fun invoke(
         type: String,
@@ -234,7 +235,9 @@ object BridgeRawToGJ : ValueMapper<ViaductSchema.TypeExpr, RawValue, Value<*>> {
         }
 }
 
-class GJRawToGJ(private val resolver: TypeReferenceResolver) : ValueMapper<GraphQLInputType, RawValue, Value<*>> {
+class GJRawToGJ(
+    private val resolver: TypeReferenceResolver
+) : ValueMapper<GraphQLInputType, RawValue, Value<*>> {
     override fun invoke(
         type: GraphQLInputType,
         value: RawValue
@@ -272,7 +275,9 @@ class GJRawToGJ(private val resolver: TypeReferenceResolver) : ValueMapper<Graph
         }
 }
 
-class GJGJToRaw(private val resolver: TypeReferenceResolver) : ValueMapper<GraphQLInputType, Value<*>, RawValue> {
+class GJGJToRaw(
+    private val resolver: TypeReferenceResolver
+) : ValueMapper<GraphQLInputType, Value<*>, RawValue> {
     override fun invoke(
         type: GraphQLInputType,
         value: Value<*>
@@ -343,7 +348,9 @@ object RawToKotlin : ValueMapper<Any, RawValue, Any?> {
 }
 
 /** map a native kotlin value to a [RawValue] */
-class GJKotlinToRaw(private val resolver: TypeReferenceResolver) : ValueMapper<GraphQLInputType, Any?, RawValue> {
+class GJKotlinToRaw(
+    private val resolver: TypeReferenceResolver
+) : ValueMapper<GraphQLInputType, Any?, RawValue> {
     override fun invoke(
         type: GraphQLInputType,
         value: Any?

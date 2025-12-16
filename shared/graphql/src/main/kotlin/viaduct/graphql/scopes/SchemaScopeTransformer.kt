@@ -60,15 +60,17 @@ internal class SchemaScopeTransformer(
 
         // Build a mutable map of element -> children, where we will store filtered children
         val elementChildren =
-            schema.allTypesAsList.associate {
-                Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
-            }.toMutableMap()
+            schema.allTypesAsList
+                .associate {
+                    Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
+                }.toMutableMap()
 
         // Keep track of types we want to remove from the schema
         val typesToRemove = mutableSetOf<String>()
 
         val additionalVisitors =
-            additionalVisitorConstructors.map { it(schema, typesToRemove, elementChildren, appliedScopes) }
+            additionalVisitorConstructors
+                .map { it(schema, typesToRemove, elementChildren, appliedScopes) }
                 .toTypedArray()
         val visitor = when {
             validScopes.isEmpty() && appliedScopes.isEmpty() ->
@@ -111,7 +113,5 @@ internal class SchemaScopeTransformer(
     private fun transformSchema(
         schema: GraphQLSchema,
         transformations: SchemaTransformations
-    ): GraphQLSchema {
-        return SchemaTransformer.transformSchema(schema, TransformationsVisitor(transformations))
-    }
+    ): GraphQLSchema = SchemaTransformer.transformSchema(schema, TransformationsVisitor(transformations))
 }

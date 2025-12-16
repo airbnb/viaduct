@@ -8,10 +8,13 @@ import io.kotest.property.arbitrary.withEdgecases
 import viaduct.arbitrary.common.Config
 
 /** Bucketed sets of names that can be used in building GraphQL types */
-class GraphQLNames internal constructor(internal val names: Map<TypeType, Set<String>>) {
+class GraphQLNames internal constructor(
+    internal val names: Map<TypeType, Set<String>>
+) {
     operator fun plus(other: GraphQLNames): GraphQLNames =
         GraphQLNames(
-            TypeType.values()
+            TypeType
+                .values()
                 .associateWith { nt -> ((names[nt] ?: emptySet()) + (other.names[nt] ?: emptySet())) }
         )
 
@@ -99,16 +102,17 @@ class GraphQLNames internal constructor(internal val names: Map<TypeType, Set<St
                         }
                     }
                 }
-            val typeTypeCounts = typeTypes.associateWith { tt ->
-                cfg[TypeTypeWeights][tt] ?: 1.0
-            }.let { ttWeights ->
-                // normalize
-                val total = ttWeights.values.sum()
-                ttWeights.mapValues { (_, weight) ->
-                    val normWeight = weight / total
-                    (names.size * normWeight).toInt()
+            val typeTypeCounts = typeTypes
+                .associateWith { tt ->
+                    cfg[TypeTypeWeights][tt] ?: 1.0
+                }.let { ttWeights ->
+                    // normalize
+                    val total = ttWeights.values.sum()
+                    ttWeights.mapValues { (_, weight) ->
+                        val normWeight = weight / total
+                        (names.size * normWeight).toInt()
+                    }
                 }
-            }
             return loop(
                 acc = emptyMap(),
                 pool = names,
@@ -127,19 +131,16 @@ fun Arb.Companion.graphQLNames(cfg: Config = Config.default): Arb<GraphQLNames> 
         .set(
             Arb.graphQLName(cfg[TypeNameLength]),
             cfg[SchemaSize]
-        )
-        .map {
+        ).map {
             GraphQLNames.fromRawNames(it.toList(), cfg)
-        }
-        .withEdgecases(GraphQLNames.empty)
+        }.withEdgecases(GraphQLNames.empty)
         .map { names ->
             if (cfg[IncludeBuiltinScalars]) {
                 names + GraphQLNames(mapOf(TypeType.Scalar to builtinScalars.keys))
             } else {
                 names
             }
-        }
-        .map { names ->
+        }.map { names ->
             if (cfg[IncludeBuiltinDirectives]) {
                 names + GraphQLNames(mapOf(TypeType.Directive to builtinDirectives.keys))
             } else {

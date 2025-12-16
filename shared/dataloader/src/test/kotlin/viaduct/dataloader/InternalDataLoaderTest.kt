@@ -170,12 +170,13 @@ class InternalDataLoaderTest {
                         (1..concurrentLoaders).mapIndexed { _, _ ->
                             async {
                                 startLatch.await() // Wait for the signal to start
-                                (1..itemCount).map { _ ->
-                                    async {
-                                        loadLatch.await()
-                                        loader.load(loadCallIndex.incrementAndGet())
-                                    }
-                                }.awaitAll()
+                                (1..itemCount)
+                                    .map { _ ->
+                                        async {
+                                            loadLatch.await()
+                                            loader.load(loadCallIndex.incrementAndGet())
+                                        }
+                                    }.awaitAll()
                             }
                         }
 
@@ -399,9 +400,7 @@ class InternalDataLoaderTest {
                     loader.load("B")
                 }
 
-            suspend fun runResolverAsync(fn: suspend () -> CompletableFuture<String?>): String? {
-                return fn().await()
-            }
+            suspend fun runResolverAsync(fn: suspend () -> CompletableFuture<String?>): String? = fn().await()
         }
 
         @Test
@@ -437,9 +436,7 @@ class InternalDataLoaderTest {
             runBlocking(singleThreadedNextTickDispatcher()) {
                 val (loader, loadCalls) = trackableLoader<String>(TestDispatchStrategy.BATCH)
 
-                suspend fun loadElement(key: String): String? {
-                    return loader.load(key)
-                }
+                suspend fun loadElement(key: String): String? = loader.load(key)
 
                 listOf(
                     launch {
@@ -477,12 +474,14 @@ class InternalDataLoaderTest {
             runBlocking(realNextTickDispatcher()) {
                 val (loader, _) = trackableLoader<Int>(testDispatchStrategy)
                 val keys: List<Int> = (1..5).map { it }
-                val awaitResults: List<Deferred<Int?>> = keys.map { k ->
-                    (1..100).parallelMap(200, 200) { async { loader.load(k) } }.toList()
-                }.flatten()
-                val expected = keys.map { k ->
-                    (1..100).map { k }
-                }.flatten()
+                val awaitResults: List<Deferred<Int?>> = keys
+                    .map { k ->
+                        (1..100).parallelMap(200, 200) { async { loader.load(k) } }.toList()
+                    }.flatten()
+                val expected = keys
+                    .map { k ->
+                        (1..100).map { k }
+                    }.flatten()
                 val results = awaitResults.awaitAll()
                 assertEquals(expected, results, "No exceptions should be thrown when lots of concurrent loads take place")
             }
@@ -540,9 +539,7 @@ class InternalDataLoaderTest {
                 key: K,
                 keyContext: Any?,
                 batchState: DataLoaderInstrumentation.BatchState,
-            ): DataLoaderInstrumentation.OnCompleteLoad {
-                return onComplete
-            }
+            ): DataLoaderInstrumentation.OnCompleteLoad = onComplete
         }
 
         @BeforeEach
@@ -707,9 +704,7 @@ class InternalDataLoaderTest {
                 override suspend fun load(
                     keys: Set<K>,
                     env: BatchLoaderEnvironment<K>
-                ): Map<K, V?> {
-                    return loaderFn(keys.toList())
-                }
+                ): Map<K, V?> = loaderFn(keys.toList())
             },
             DataLoaderOptions(maxBatchSize),
             object : DataLoaderInstrumentation {}
@@ -753,9 +748,7 @@ class InternalDataLoaderTest {
                 override suspend fun load(
                     keys: Set<K>,
                     env: BatchLoaderEnvironment<K>
-                ): Map<K, V?> {
-                    return loaderFn(keys.toList())
-                }
+                ): Map<K, V?> = loaderFn(keys.toList())
             },
             DataLoaderOptions(maxBatchSize),
             batchInstrumentationProvider?.get() ?: object : DataLoaderInstrumentation {},
@@ -769,8 +762,8 @@ class InternalDataLoaderTest {
         loadFn: MappedBatchLoadFn<K, V>,
         dataLoaderOptions: DataLoaderOptions,
         instrumentation: DataLoaderInstrumentation
-    ): InternalDispatchStrategy<K, V> {
-        return when (testDispatchStrategy) {
+    ): InternalDispatchStrategy<K, V> =
+        when (testDispatchStrategy) {
             TestDispatchStrategy.BATCH -> InternalDispatchStrategy.batchDispatchStrategy(
                 loadFn.genericBatchLoadFn(),
                 NextTickScheduleFn,
@@ -783,5 +776,4 @@ class InternalDataLoaderTest {
                 instrumentation,
             )
         }
-    }
 }

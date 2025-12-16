@@ -42,20 +42,19 @@ fun mapKmTypeOf(
     valueType: KmType,
     nullable: Boolean = false
 ): KmType =
-    KmName("kotlin/collections/Map").let {
-        if (nullable) it.asNullableType() else it.asType()
-    }.also {
-        it.arguments.add(KmTypeProjection(KmVariance.INVARIANT, keyType))
-        it.arguments.add(KmTypeProjection(KmVariance.OUT, valueType))
-    }
+    KmName("kotlin/collections/Map")
+        .let {
+            if (nullable) it.asNullableType() else it.asType()
+        }.also {
+            it.arguments.add(KmTypeProjection(KmVariance.INVARIANT, keyType))
+            it.arguments.add(KmTypeProjection(KmVariance.OUT, valueType))
+        }
 
 /** Assumes exactly one class has been added to [this].
  *  Generates bytecode for that class, loads the bytecode,
  *  and returns the generated class.
  */
-internal fun KmClassFilesBuilder.loadClass(javaFQN: JavaBinaryName): Class<*> {
-    return buildClassLoader().loadClass(javaFQN.toString())
-}
+internal fun KmClassFilesBuilder.loadClass(javaFQN: JavaBinaryName): Class<*> = buildClassLoader().loadClass(javaFQN.toString())
 
 fun KmClassFilesBuilder.assertNoDiff(
     expected: KClass<*>,

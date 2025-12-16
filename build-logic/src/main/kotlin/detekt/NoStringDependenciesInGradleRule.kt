@@ -1,5 +1,6 @@
 package detekt
 
+import common.GradleConstants
 import io.gitlab.arturbosch.detekt.api.CodeSmell
 import io.gitlab.arturbosch.detekt.api.Config
 import io.gitlab.arturbosch.detekt.api.Debt
@@ -27,32 +28,6 @@ class NoStringDependenciesInGradleRule(config: Config = Config.empty) : Rule(con
         description = "Dependencies must use version catalog (libs.*), project(), or platform(libs.*). " +
             "Raw String coordinates and group/name/version named params are forbidden.",
         debt = Debt.TEN_MINS
-    )
-
-    // Common Gradle dependency configurations (add/remove as needed).
-    private val knownConfigs = setOf(
-        "api",
-        "compileOnly",
-        "debugImplementation",
-        "implementation",
-        "kapt",
-        "ksp",
-        "runtimeOnly",
-        "testFixturesApi",
-        "testFixturesCompileOnly",
-        "testFixturesImplementation",
-        "testFixturesRuntimeOnly",
-        "testImplementation",
-        "jacocoAggregation"
-    )
-
-    // Accept both exact matches above and any custom configuration ending with these suffixes
-    // (e.g., "myFlavorImplementation", "stagingApi").
-    private val configSuffixes = listOf(
-        "Implementation",
-        "Api",
-        "CompileOnly",
-        "RuntimeOnly"
     )
 
     private var isGradleScript = false
@@ -124,8 +99,8 @@ class NoStringDependenciesInGradleRule(config: Config = Config.empty) : Rule(con
     }
 
     private fun isDependencyConfigCall(name: String): Boolean {
-        if (name in knownConfigs) return true
-        return configSuffixes.any { name.endsWith(it) }
+        if (name in GradleConstants.KNOWN_CONFIGURATIONS) return true
+        return GradleConstants.CONFIGURATION_SUFFIXES.any { name.endsWith(it) }
     }
 
     private fun reportForbidden(

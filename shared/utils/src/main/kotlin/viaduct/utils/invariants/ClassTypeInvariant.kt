@@ -5,7 +5,9 @@ import kotlin.reflect.KClassifier
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
-class TypeInfo(val type: KType) {
+class TypeInfo(
+    val type: KType
+) {
     fun checkType(instance: Any) {
         try {
             val classifierKClass = type.classifier as? KClass<*>
@@ -24,7 +26,10 @@ class TypeInfo(val type: KType) {
 
             // Check if the instance is a Collection (or subclass thereof)
             if (Collection::class.java.isAssignableFrom(instance::class.java)) {
-                val elementType = type.arguments.first().type?.classifier
+                val elementType = type.arguments
+                    .first()
+                    .type
+                    ?.classifier
                 (instance as? Collection<*>)?.forEach { element ->
                     if (element != null && !checkElementAgainstTypeClassifier(element, elementType)) {
                         throw IllegalArgumentException("Collection element type does not match")
@@ -50,7 +55,10 @@ class TypeInfo(val type: KType) {
 
             // Check if the instance is a Lazy (or subclass thereof)
             if (Lazy::class.java.isAssignableFrom(instance::class.java)) {
-                val valueType = type.arguments.first().type?.classifier
+                val valueType = type.arguments
+                    .first()
+                    .type
+                    ?.classifier
                 val lazyValue = (instance as? Lazy<*>)?.value
                 if (lazyValue != null && !checkElementAgainstTypeClassifier(lazyValue, valueType)) {
                     throw IllegalArgumentException("Lazy value type does not match")
@@ -75,9 +83,7 @@ class TypeInfo(val type: KType) {
     }
 }
 
-inline fun <reified T> typeInfo(): TypeInfo {
-    return TypeInfo(typeOf<T>())
-}
+inline fun <reified T> typeInfo(): TypeInfo = TypeInfo(typeOf<T>())
 
 open class ClassTypeInvariant private constructor(
     val klass: KClass<*>? = null,

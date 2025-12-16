@@ -68,8 +68,13 @@ class FeatureTestTenantModuleBootstrapper(
         }
 
     override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> =
-        nodeUnbatchedResolverStubs.mapValues { (typeName, stub) ->
-            NodeUnbatchedResolverExecutorImpl(
+        nodeUnbatchedResolverStubs.mapNotNull { (typeName, stub) ->
+            // Skip resolvers for types that don't exist in the schema (e.g., after schema hot-swap)
+            if (schema.schema.getType(typeName) == null) {
+                return@mapNotNull null
+            }
+
+            typeName to NodeUnbatchedResolverExecutorImpl(
                 resolver = stub.resolver,
                 resolveFunction = stub::resolve,
                 typeName = typeName,
@@ -78,8 +83,13 @@ class FeatureTestTenantModuleBootstrapper(
                 factory = stub.resolverFactory,
                 resolverName = stub.resolverName ?: "test-node-unbatched-resolver",
             )
-        }.toList() + nodeBatchResolverExecutorStubs.mapValues { (typeName, stub) ->
-            NodeBatchResolverExecutorImpl(
+        } + nodeBatchResolverExecutorStubs.mapNotNull { (typeName, stub) ->
+            // Skip resolvers for types that don't exist in the schema (e.g., after schema hot-swap)
+            if (schema.schema.getType(typeName) == null) {
+                return@mapNotNull null
+            }
+
+            typeName to NodeBatchResolverExecutorImpl(
                 resolver = stub.resolver,
                 batchResolveFunction = stub::batchResolve,
                 typeName = typeName,
@@ -88,5 +98,5 @@ class FeatureTestTenantModuleBootstrapper(
                 factory = stub.resolverFactory,
                 resolverName = stub.resolverName ?: "test-node-batch-resolver",
             )
-        }.toList()
+        }
 }

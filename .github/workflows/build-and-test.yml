@@ -19,7 +19,7 @@ on:
           - ubuntu-22.04-arm
           - macos-latest
           - macos-26
-          - macos-15-intel 
+          - macos-15-intel
           - macos-15
           - macos-13
           - macos-14      
@@ -174,7 +174,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit-results-java-${{ matrix.java }}-${{ matrix.os }}
-          path: build/test-results-for-circleci
+          path: '**/build/test-results/test/*.xml'
 
       - name: Upload JaCoCo coverage reports
         if: always()

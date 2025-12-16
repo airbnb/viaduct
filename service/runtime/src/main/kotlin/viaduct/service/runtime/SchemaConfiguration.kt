@@ -56,11 +56,11 @@ class SchemaConfiguration private constructor(
         }
 
         class FromResources(
-            private val packagePrefix: String?,
+            private val grtPackagePrefix: String?,
             private val filesIncluded: Regex?,
         ) : FullSchemaConfig {
             override fun build(schemaFactory: SchemaFactory): ViaductSchema {
-                return schemaFactory.fromResources(packagePrefix, filesIncluded)
+                return schemaFactory.fromResources(grtPackagePrefix, filesIncluded)
             }
         }
 
@@ -164,11 +164,11 @@ class SchemaConfiguration private constructor(
          * Creates a [SchemaConfiguration] that registers schemas by loading them from resources.
          * Registers one schema for each provided [ScopeConfig] and one full schema.
          * The full schema includes all types and fields without any filtering.
-         * The resources are loaded from the specified [packagePrefix] and can be filtered using [resourcesIncluded].
-         * If [packagePrefix] is null, resources are loaded from the root of the classpath.
+         * The resources are loaded from the specified [grtPackagePrefix] and can be filtered using [resourcesIncluded].
+         * If [grtPackagePrefix] is null, resources are loaded from the root of the classpath.
          * If [resourcesIncluded] is null, all resources in the package are included.
          *
-         * @param packagePrefix optional package prefix to load resources from
+         * @param grtPackagePrefix optional GRT package prefix to load schema resources from (for testing only)
          * @param resourcesIncluded optional regex to filter which resources to include
          * @param scopes set of [ScopeConfig] defining scoped schemas to register
          * @param lazyScopedSchemas if true, scoped schemas are treated as lazy; otherwise,
@@ -176,13 +176,13 @@ class SchemaConfiguration private constructor(
          * @return a [SchemaConfiguration] with the registered schemas
          */
         fun fromResources(
-            packagePrefix: String? = null,
+            grtPackagePrefix: String? = null,
             resourcesIncluded: Regex? = null,
             scopes: Set<ScopeConfig> = emptySet(),
             lazyScopedSchemas: Boolean = false,
         ): SchemaConfiguration {
             return SchemaConfiguration(
-                FullSchemaConfig.FromResources(packagePrefix, resourcesIncluded),
+                FullSchemaConfig.FromResources(grtPackagePrefix, resourcesIncluded),
                 scopes.associate {
                     it.schemaId() to ScopedSchemaConfig.Derived(it.schemaId(), lazyScopedSchemas)
                 }

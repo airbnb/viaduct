@@ -59,7 +59,9 @@ fun <T> Gen<T>.checkInvariants(
  */
 fun <T> Arb<Iterable<T>>.flatten(): Arb<T> = Flatten(this)
 
-private class Flatten<T>(val underlying: Arb<Iterable<T>>) : Arb<T>() {
+private class Flatten<T>(
+    val underlying: Arb<Iterable<T>>,
+) : Arb<T>() {
     private var chunk: Iterator<T>? = null
 
     override fun edgecase(rs: RandomSource): T? = underlying.edgecase(rs)?.first()
@@ -81,7 +83,7 @@ fun failProperty(
     message: String,
     cause: Throwable? = null,
     seed: Long? = null
-) {
+): Unit =
     throw AssertionError(
         """
             |Property failed with seed ${seed ?: randomSource().seed}
@@ -89,4 +91,3 @@ fun failProperty(
         """.trimMargin(),
         cause
     )
-}

@@ -74,7 +74,11 @@ private interface Env {
     fun checkDepth(depth: Int): Boolean = depth <= cfg[MaxSelectionSetDepth]
 
     companion object {
-        private data class Impl(override val schemas: Schemas, override val cfg: Config, override val rs: RandomSource) : Env {
+        private data class Impl(
+            override val schemas: Schemas,
+            override val cfg: Config,
+            override val rs: RandomSource
+        ) : Env {
             override val documentGen = GraphQLDocumentGen(this)
             override val operationGen = GraphQLOperationGen(this)
             override val selectionSetGen = GraphQLSelectionSetGen(this)
@@ -131,7 +135,9 @@ private data class Ctx(
         )
 }
 
-private class GraphQLDocumentGen(env: Env) : Env by env {
+private class GraphQLDocumentGen(
+    env: Env
+) : Env by env {
     fun gen(): Document {
         val db = DocumentBuilder(schemas)
 
@@ -143,7 +149,8 @@ private class GraphQLDocumentGen(env: Env) : Env by env {
             )
         )
 
-        Arb.list(arbOperation, cfg[OperationCount])
+        Arb
+            .list(arbOperation, cfg[OperationCount])
             .next(rs)
             .also { list ->
                 val count = list.size
@@ -159,7 +166,9 @@ private class GraphQLDocumentGen(env: Env) : Env by env {
     }
 }
 
-private class GraphQLOperationGen(env: Env) : Env by env {
+private class GraphQLOperationGen(
+    env: Env
+) : Env by env {
     /** generate a document that contains exactly 1 operation definition and any number of fragment definitions */
     fun gen(
         db: DocumentBuilder,
@@ -172,7 +181,8 @@ private class GraphQLOperationGen(env: Env) : Env by env {
             if (canBeAnonymous && rs.sampleWeight(cfg[AnonymousOperationWeight])) {
                 null
             } else {
-                Arb.graphQLName(cfg[TypeNameLength])
+                Arb
+                    .graphQLName(cfg[TypeNameLength])
                     .filterNot { name -> db.operations.any { it.name == name } }
                     .next(rs)
             }
@@ -185,7 +195,8 @@ private class GraphQLOperationGen(env: Env) : Env by env {
 
         val ctx = Ctx(schemas, SelectionsBuilder(), objectType, db.fragments, variables, db.incrementalLabels, isSubscriptionOperation = objectType == schemas.schema.subscriptionType)
 
-        return OperationDefinition.newOperationDefinition()
+        return OperationDefinition
+            .newOperationDefinition()
             .name(name)
             .operation(operationType)
             .selectionSet(selectionSetGen.gen(ctx))
@@ -195,7 +206,9 @@ private class GraphQLOperationGen(env: Env) : Env by env {
     }
 }
 
-private class GraphQLSelectionSetGen(env: Env) : Env by env {
+private class GraphQLSelectionSetGen(
+    env: Env
+) : Env by env {
     /** generate a SelectionSet for the given [Ctx] */
     fun gen(ctx: Ctx): SelectionSet {
         // check depth and return early
@@ -281,7 +294,8 @@ private class GraphQLSelectionSetGen(env: Env) : Env by env {
         // when generating an alias name, generate aliases that can collide with
         // field names. These values are read using Arb.generate (rather than Arb.next),
         // which is one of a small number of Arb methods that do not ignore edge cases
-        val keyWithAlias = Arb.graphQLName(aliasNameSize)
+        val keyWithAlias = Arb
+            .graphQLName(aliasNameSize)
             .withEdgecases(ctx.selectableFields.map { it.name })
             .generate(rs)
             .take(100)
@@ -322,7 +336,8 @@ private class GraphQLSelectionSetGen(env: Env) : Env by env {
     }
 
     private fun genFragmentSpread(ctx: Ctx) {
-        val spreadableFragments = ctx.fragments.spreadableFragments(ctx.sb, ctx.typeCondition)
+        val spreadableFragments = ctx.fragments
+            .spreadableFragments(ctx.sb, ctx.typeCondition)
             .filter { frag ->
                 // a fragment may have been generated in the context of another operation, and used variables
                 // that are incompatible with the variables defined for this operation. Filter them out
@@ -376,14 +391,16 @@ private class GraphQLSelectionSetGen(env: Env) : Env by env {
 
         val fragCtx = ctx.push(fragmentScope, typeCondition).also(::gen)
 
-        val name = Arb.graphQLName(cfg[TypeNameLength])
+        val name = Arb
+            .graphQLName(cfg[TypeNameLength])
             // prefix fragment names to help with readability when debugging
             .map { "Fragment_$it" }
             .filter { ctx.fragments[it] == null }
             .next(rs)
 
         val directives = genDirectives(fragCtx, DirectiveLocation.FRAGMENT_DEFINITION)
-        val def = FragmentDefinition.newFragmentDefinition()
+        val def = FragmentDefinition
+            .newFragmentDefinition()
             .name(name)
             .typeCondition(TypeName(typeCondition.name))
             .directives(directives)
@@ -431,7 +448,9 @@ private class GraphQLSelectionSetGen(env: Env) : Env by env {
     ): List<Directive> = directiveGen.gen(location, ctx)
 }
 
-private class GraphQLArgumentsGen(env: Env) : Env by env {
+private class GraphQLArgumentsGen(
+    env: Env
+) : Env by env {
     fun gen(
         args: List<GraphQLArgument>,
         ctx: Ctx,
@@ -493,11 +512,13 @@ private class GraphQLArgumentsGen(env: Env) : Env by env {
                 null
             }
 
-        val name = Arb.graphQLFieldName(cfg)
+        val name = Arb
+            .graphQLFieldName(cfg)
             .filter { ctx.variables[it] == null }
             .next(rs)
 
-        return VariableDefinition.newVariableDefinition()
+        return VariableDefinition
+            .newVariableDefinition()
             .name(name)
             .type(forType.asAstType())
             .defaultValue(default)
@@ -505,13 +526,14 @@ private class GraphQLArgumentsGen(env: Env) : Env by env {
                 // A nuance of the spec grammar that isn't spelled out in the prose is that
                 // directives applied to variable definitions may not themselves use variables
                 directiveGen.gen(DirectiveLocation.VARIABLE_DEFINITION, ctx, canUseVariables = false)
-            )
-            .build()
+            ).build()
             .also(ctx.variables::add)
     }
 }
 
-private class GraphQLDirectivesGen(env: Env) : Env by env {
+private class GraphQLDirectivesGen(
+    env: Env
+) : Env by env {
     // a set of directives that are known to require const argument values
     private val incrementalDirs = setOf("stream", "defer")
     private val conditionalDirs = setOf("skip", "include")
@@ -534,7 +556,8 @@ private class GraphQLDirectivesGen(env: Env) : Env by env {
                 val useVariables = canUseVariables && def.name !in incrementalDirs
                 val newPool = if (def.isRepeatable) pool else pool - def
                 val arguments = genArguments(def.arguments, ctx, useVariables, isIncremental = def.name in incrementalDirs)
-                val dir = Directive.newDirective()
+                val dir = Directive
+                    .newDirective()
                     .name(def.name)
                     .arguments(arguments)
                     .build()

@@ -2,6 +2,7 @@ package viaduct.api
 
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.types.Arguments
+import viaduct.apiannotations.StableApi
 
 /**
  * A base interface for dynamic provisioning of variable values.
@@ -23,6 +24,7 @@ import viaduct.api.types.Arguments
  * }
  * ```
  */
+@StableApi
 fun interface VariablesProvider<T : Arguments> {
     /**
      * Return a Map with provided variable values.

@@ -21,6 +21,6 @@ class FlagManagerTest {
 
     @Test
     fun `FlagManager_default returns true for select flags`() {
-        assertTrue(FlagManager.default.isEnabled(Flags.EXECUTE_ACCESS_CHECKS_IN_MODERN_EXECUTION_STRATEGY))
+        assertTrue(FlagManager.default.isEnabled(Flags.EXECUTE_ACCESS_CHECKS))
     }
 }

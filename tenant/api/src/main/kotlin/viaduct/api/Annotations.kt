@@ -1,6 +1,7 @@
 package viaduct.api
 
 import org.intellij.lang.annotations.Language
+import viaduct.apiannotations.StableApi
 
 /**
  * Annotation to mark a class as a resolver for a field or object in a GraphQL schema which
@@ -97,6 +98,7 @@ import org.intellij.lang.annotations.Language
  * @property[variables] This property is an array of [Variable] annotations that describe how to extract
  * values from the [graphql.schema.DataFetchingEnvironment] and bind them to variables used in the fragments.
  */
+@StableApi
 @Target(AnnotationTarget.CLASS)
 annotation class Resolver(
     @Language("GraphQL") val objectValueFragment: String = "",
@@ -163,6 +165,7 @@ annotation class Resolver(
  *  In all cases, the schema type of the argument indicated by this property must be coercible to
  *  the type in which this variable is used.
  */
+@StableApi
 annotation class Variable(
     val name: String,
     val fromObjectField: String = UNSET_STRING_VALUE,
@@ -174,6 +177,7 @@ annotation class Variable(
     }
 }
 
+@StableApi
 @Target(AnnotationTarget.CLASS)
 annotation class Variables(
     /**

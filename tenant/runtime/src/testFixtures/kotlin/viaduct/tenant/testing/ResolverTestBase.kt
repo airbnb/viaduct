@@ -5,14 +5,12 @@ import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.KClass
 import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.declaredFunctions
-import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.primaryConstructor
 import viaduct.api.FieldValue
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
-import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
@@ -34,9 +32,11 @@ import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
+import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.TestingApi
 import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.RawSelectionsLoaderImpl
@@ -47,9 +47,9 @@ import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.select.SelectionsLoaderImpl
 
 /**
- * Base class for Viaduct resolver tests. Use [runFieldResolver] to execute
- * the resolver you want to test. This utility function calls the resolve function
- * with the correct Context parameter.
+ * Base class for Viaduct resolver tests. Use [runFieldResolver] for non-mutation resolvers
+ * or [runMutationFieldResolver] for mutation resolvers to execute the resolver you want to test.
+ * These utility functions call the resolve function with the correct Context parameter.
  *
  * This class provides core resolver testing utilities without assumptions about
  * dependency injection frameworks. Subclasses should provide their own injector
@@ -97,6 +97,7 @@ import viaduct.tenant.runtime.select.SelectionsLoaderImpl
  *    )
  *    assertEquals("Hawaii", result)
  */
+@OptIn(TestingApi::class)
 interface ResolverTestBase {
     /**
      * An ExecutionContext that can be used to construct a builder, e.g. Foo.Builder(context).
@@ -122,13 +123,15 @@ interface ResolverTestBase {
     val ossSelectionSetFactory: SelectionSetFactory
 
     /**
-     * Calls the resolve function for the given field [resolver]
+     * Calls the resolve function for the given field [resolver].
+     * Use this for non-mutation field resolvers. For mutation field resolvers, use [runMutationFieldResolver] instead.
      *
      * @param resolver The resolver to execute
      * @param objectValue The value of `ctx.objectValue` -- the result of the required selection set defined in @Resolver
      * @param queryValue The value of `ctx.queryValue` -- the query value
      * @param arguments The value of `ctx.arguments` -- the field arguments
      * @param selections The value of `ctx.selections()` -- the selection set of the field
+     * @param contextQueryValues List of Query objects to mock results from ctx.query()
      * @return The return value of resolver.resolve()
      */
     suspend fun <T> runFieldResolver(
@@ -142,7 +145,7 @@ interface ResolverTestBase {
     ): T {
         try {
             val ctxKClass = getFieldResolverContextKClass(resolver)
-            val ctx = createResolverContext(ctxKClass, objectValue, queryValue, arguments, requestContext, selections, contextQueryValues)
+            val ctx = createFieldResolverContext(ctxKClass, objectValue, queryValue, arguments, requestContext, selections, contextQueryValues)
             @Suppress("UNCHECKED_CAST")
             return resolver::class.declaredFunctions.first { it.name == "resolve" }.callSuspend(resolver, ctx) as T
         } catch (e: InvocationTargetException) {
@@ -151,12 +154,45 @@ interface ResolverTestBase {
     }
 
     /**
-     * Calls the batchResolve function for the given field [resolver]
+     * Calls the resolve function for the given mutation field [resolver].
+     * Use this for mutation field resolvers. For non-mutation field resolvers, use [runFieldResolver] instead.
+     *
+     * @param resolver The resolver to execute
+     * @param queryValue The value of `ctx.queryValue` -- the query value
+     * @param arguments The value of `ctx.arguments` -- the field arguments
+     * @param selections The value of `ctx.selections()` -- the selection set of the field
+     * @param contextQueryValues List of Query objects to mock results from ctx.query()
+     * @param contextMutationValues List of Mutation objects to mock results from ctx.mutation()
+     * @return The return value of resolver.resolve()
+     */
+    suspend fun <T> runMutationFieldResolver(
+        resolver: ResolverBase<T>,
+        queryValue: Query = NullQuery,
+        arguments: Arguments = Arguments.NoArguments,
+        requestContext: Any? = null,
+        selections: SelectionSet<*> = SelectionSet.NoSelections,
+        contextQueryValues: List<Query> = emptyList(),
+        contextMutationValues: List<Mutation> = emptyList()
+    ): T {
+        try {
+            val ctxKClass = getMutationFieldResolverContextKClass(resolver)
+            val ctx = createMutationFieldResolverContext(ctxKClass, queryValue, arguments, requestContext, selections, contextQueryValues, contextMutationValues)
+            @Suppress("UNCHECKED_CAST")
+            return resolver::class.declaredFunctions.first { it.name == "resolve" }.callSuspend(resolver, ctx) as T
+        } catch (e: InvocationTargetException) {
+            throw e.targetException
+        }
+    }
+
+    /**
+     * Calls the batchResolve function for the given field [resolver].
+     * Use this for non-mutation field resolvers that use [FieldExecutionContext].
      *
      * @param resolver The resolver to execute
      * @param objectValues The values of `ctx.objectValue` -- the result of the required selection set defined in @Resolver
      * @param queryValues The values of `ctx.queryValue` -- the query values
      * @param selections The value of `ctx.selections()` -- the selection set of the field
+     * @param contextQueryValues List of Query objects to mock results from ctx.query()
      * @return The return value of resolver.resolve()
      */
     suspend fun <T> runFieldBatchResolver(
@@ -173,7 +209,7 @@ interface ResolverTestBase {
             }
             val ctxKClass = getFieldResolverContextKClass(resolver)
             val ctxs = objectValues.zip(queryValues) { obj, query ->
-                createResolverContext(
+                createFieldResolverContext(
                     ctxKClass,
                     obj,
                     query,
@@ -254,33 +290,62 @@ interface ResolverTestBase {
     /**
      * Builds a map of selection set representations to Query objects
      */
-    fun buildContextQueryMap(contextQueries: List<Query>): PrebakedResults<Query> {
-        if (contextQueries.isEmpty()) return prebakedResultsOf<Query>(emptyMap())
+    fun buildContextQueryMap(contextQueries: List<Query>): PrebakedResults<Query> =
+        buildContextMap(
+            contextValues = contextQueries,
+            rootTypeName = getSchema().schema.queryType.name,
+            typeName = "Query",
+            wrapperClass = QueryForSelection::class,
+            extractSelection = { (it as QueryForSelection).selections },
+            extractValue = { (it as QueryForSelection).query }
+        )
 
-        val unselectedQueries = contextQueries.filterNot { it is QueryForSelection }
-        if (unselectedQueries.size > 1) {
+    /**
+     * Builds a map of selection set representations to Mutation objects
+     */
+    fun buildContextMutationMap(contextMutations: List<Mutation>): PrebakedResults<Mutation> =
+        buildContextMap(
+            contextValues = contextMutations,
+            rootTypeName = getSchema().schema.mutationType.name,
+            typeName = "Mutation",
+            wrapperClass = MutationForSelection::class,
+            extractSelection = { (it as MutationForSelection).selections },
+            extractValue = { (it as MutationForSelection).mutation }
+        )
+
+    private fun <T : CompositeOutput> buildContextMap(
+        contextValues: List<T>,
+        rootTypeName: String,
+        typeName: String,
+        wrapperClass: KClass<*>,
+        extractSelection: (T) -> String,
+        extractValue: (T) -> T
+    ): PrebakedResults<T> {
+        if (contextValues.isEmpty()) return prebakedResultsOf(emptyMap())
+
+        val unselectedValues = contextValues.filterNot { wrapperClass.isInstance(it) }
+        if (unselectedValues.size > 1) {
             throw IllegalArgumentException(
-                "Cannot have multiple Query values in contextQueries. " +
-                    "Please provide a single Query or use QueryForSelection to distinguish results."
+                "Cannot have multiple $typeName values in context${typeName}s. " +
+                    "Please provide a single $typeName or use ${wrapperClass.simpleName} to distinguish results."
             )
         }
 
         val rl = context.internal.reflectionLoader
 
         @Suppress("UNCHECKED_CAST")
-        val rootQueryType = rl.reflectionFor(getSchema().schema.queryType.name) as Type<Query>
-        val resultMap = mutableMapOf<String, Query>()
-        contextQueries.forEach { rawQuery ->
-            val (selectionSet, query) = when (rawQuery) {
-                is QueryForSelection -> {
-                    val selSet = ossSelectionSetFactory.selectionsOn(rootQueryType, rawQuery.selections, emptyMap())
-                    Pair(selSet, rawQuery.query)
-                }
-                else -> Pair(SelectionSet.NoSelections, rawQuery)
+        val rootType = rl.reflectionFor(rootTypeName) as Type<T>
+        val resultMap = mutableMapOf<String, T>()
+        contextValues.forEach { rawValue ->
+            val (selectionSet, value) = if (wrapperClass.isInstance(rawValue)) {
+                val selSet = ossSelectionSetFactory.selectionsOn(rootType, extractSelection(rawValue), emptyMap())
+                Pair(selSet, extractValue(rawValue))
+            } else {
+                Pair(SelectionSet.NoSelections, rawValue)
             }
-            resultMap[createSelectionSetKey(selectionSet)] = query
+            resultMap[createSelectionSetKey(selectionSet)] = value
         }
-        return prebakedResultsOf<Query>(resultMap)
+        return prebakedResultsOf(resultMap)
     }
 
     /**
@@ -306,34 +371,45 @@ interface ResolverTestBase {
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
 
-    fun ResolverTestBase.createResolverContext(
-        ctxKClass: KClass<out ResolverExecutionContext>,
+    fun ResolverTestBase.createFieldResolverContext(
+        ctxKClass: KClass<out FieldExecutionContext<*, *, *, *>>,
         objectValue: Object = NullObject,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
         requestContext: Any? = null,
         selections: SelectionSet<*> = SelectionSet.NoSelections,
         contextQueries: List<Query> = emptyList()
-    ): ResolverExecutionContext {
-        val innerCtx = if (ctxKClass.isSubclassOf(MutationFieldExecutionContext::class)) {
-            mkMutationFieldExecutionContext(
-                queryValue,
-                arguments,
-                requestContext,
-                selections,
-                contextQueries
-            )
-        } else {
-            mkFieldExecutionContext(
-                objectValue,
-                queryValue,
-                arguments,
-                requestContext,
-                selections,
-                contextQueries
-            )
-        }
+    ): FieldExecutionContext<*, *, *, *> {
+        val innerCtx = mkFieldExecutionContext(
+            objectValue,
+            queryValue,
+            arguments,
+            requestContext,
+            selections,
+            contextQueries
+        )
         // Primary constructor is null when Ctx is FieldExecutionContext
+        return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
+    }
+
+    fun ResolverTestBase.createMutationFieldResolverContext(
+        ctxKClass: KClass<out MutationFieldExecutionContext<*, *, *>>,
+        queryValue: Query = NullQuery,
+        arguments: Arguments = Arguments.NoArguments,
+        requestContext: Any? = null,
+        selections: SelectionSet<*> = SelectionSet.NoSelections,
+        contextQueries: List<Query> = emptyList(),
+        contextMutations: List<Mutation> = emptyList()
+    ): MutationFieldExecutionContext<*, *, *> {
+        val innerCtx = mkMutationFieldExecutionContext(
+            queryValue,
+            arguments,
+            requestContext,
+            selections,
+            contextQueries,
+            contextMutations
+        )
+        // Primary constructor is null when Ctx is MutationFieldExecutionContext
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
 
@@ -408,7 +484,7 @@ private fun <T : NodeObject> ResolverTestBase.mkNodeExecutionContext(
     )
 }
 
-private fun <T> getFieldResolverContextKClass(resolver: ResolverBase<T>): KClass<out FieldExecutionContext<*, *, *, *>> {
+private inline fun <T, reified C : Any> getResolverContextKClass(resolver: ResolverBase<T>): KClass<out C> {
     val nestedClasses = resolver.javaClass.classes
     val contextClass = nestedClasses.firstOrNull { it.simpleName == "Context" }
         ?: throw IllegalArgumentException(
@@ -416,11 +492,15 @@ private fun <T> getFieldResolverContextKClass(resolver: ResolverBase<T>): KClass
         )
 
     @Suppress("UNCHECKED_CAST")
-    return contextClass.kotlin as? KClass<out FieldExecutionContext<*, *, *, *>>
+    return contextClass.kotlin as? KClass<out C>
         ?: throw IllegalArgumentException(
-            "Expected resolver (${resolver::class.qualifiedName}) Context class (${contextClass.kotlin.qualifiedName}) to implement FieldExecutionContext."
+            "Expected resolver (${resolver::class.qualifiedName}) Context class (${contextClass.kotlin.qualifiedName}) to implement ${C::class.simpleName}."
         )
 }
+
+private fun <T> getFieldResolverContextKClass(resolver: ResolverBase<T>): KClass<out FieldExecutionContext<*, *, *, *>> = getResolverContextKClass(resolver)
+
+private fun <T> getMutationFieldResolverContextKClass(resolver: ResolverBase<T>): KClass<out MutationFieldExecutionContext<*, *, *>> = getResolverContextKClass(resolver)
 
 /**
  * Creates a Context class for a specific node resolver. We suggest using [runNodeResolver] to test the
@@ -454,7 +534,7 @@ inline fun <reified ctx : FieldExecutionContext<*, *, *, *>> ResolverTestBase.cr
     requestContext: Any? = null,
     selections: SelectionSet<*> = SelectionSet.NoSelections,
     contextQueries: List<Query> = emptyList()
-): ctx = createResolverContext(ctx::class, objectValue, queryValue, arguments, requestContext, selections, contextQueries) as ctx
+): ctx = createFieldResolverContext(ctx::class, objectValue, queryValue, arguments, requestContext, selections, contextQueries) as ctx
 
 private fun ResolverTestBase.mkFieldExecutionContext(
     objectValue: Object,
@@ -484,10 +564,12 @@ private fun ResolverTestBase.mkMutationFieldExecutionContext(
     arguments: Arguments,
     requestContext: Any?,
     selections: SelectionSet<*>,
-    contextQueryValues: List<Query> = emptyList()
+    contextQueryValues: List<Query> = emptyList(),
+    contextMutationValues: List<Mutation> = emptyList()
 ): MutationFieldExecutionContext<*, *, *> {
     val internalContext = context.internal
     val queryResultsMap = buildContextQueryMap(contextQueryValues)
+    val mutationResultsMap = buildContextMutationMap(contextMutationValues)
 
     return MockMutationFieldExecutionContext(
         queryValue = queryValue,
@@ -496,7 +578,7 @@ private fun ResolverTestBase.mkMutationFieldExecutionContext(
         selectionsValue = selections,
         internalContext = internalContext,
         queryResults = queryResultsMap,
-        // No mutation results -- can be extended later if needed
+        mutationResults = mutationResultsMap,
         selectionSetFactory = ossSelectionSetFactory,
     )
 }
@@ -527,6 +609,15 @@ class QueryForSelection(
     val selections: String,
     val query: Query
 ) : Query by query
+
+/**
+ * Wrapper around a [Mutation] that is used to distinguish between different selections in the context mutation map.
+ * Pass in one (or more) of these to [runMutationFieldResolver] to mock out the mutation results for a specific selection set.
+ */
+class MutationForSelection(
+    val selections: String,
+    val mutation: Mutation
+) : Mutation by mutation
 
 @Suppress("USELESS_CAST")
 private fun <T : CompositeOutput> prebakedResultsOf(results: Map<String, T>) =

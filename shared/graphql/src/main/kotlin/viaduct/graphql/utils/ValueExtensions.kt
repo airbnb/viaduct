@@ -32,8 +32,8 @@ import graphql.util.Traverser
 import graphql.util.TraverserContext
 import graphql.util.TraverserVisitorStub
 
-fun Value<*>.rawValue(variables: Map<String, Any?> = mapOf()): Any? {
-    return when (this) {
+fun Value<*>.rawValue(variables: Map<String, Any?> = mapOf()): Any? =
+    when (this) {
         is StringValue -> value
         is IntValue -> value.toInt()
         is BooleanValue -> isValue
@@ -41,14 +41,14 @@ fun Value<*>.rawValue(variables: Map<String, Any?> = mapOf()): Any? {
         is NullValue -> null
         is ArrayValue -> values.map { it.rawValue(variables) }
         is ObjectValue ->
-            objectFields.map {
-                it.name to it.value.rawValue(variables)
-            }.toMap()
+            objectFields
+                .map {
+                    it.name to it.value.rawValue(variables)
+                }.toMap()
         is EnumValue -> name
         is VariableReference -> variables[name]
         else -> throw UnrecognizedValueTypeException("Value does not have a raw equivalent: $this")
     }
-}
 
 fun AbstractNode<*>.collectVariableReferences(): Set<String> {
     val visitor = object : TraverserVisitorStub<Node<*>>() {
@@ -60,13 +60,16 @@ fun AbstractNode<*>.collectVariableReferences(): Set<String> {
                 if (node is VariableReference) variableReferences += node.name
             }
     }
-    Traverser.depthFirst { n: Node<*> -> n.children }
+    Traverser
+        .depthFirst { n: Node<*> -> n.children }
         .traverse(this, visitor)
     return visitor.variableReferences
 }
 
-class UnrecognizedValueTypeException(message: String? = null, cause: Throwable? = null) :
-    java.lang.RuntimeException(message, cause)
+class UnrecognizedValueTypeException(
+    message: String? = null,
+    cause: Throwable? = null
+) : java.lang.RuntimeException(message, cause)
 
 /**
  * Information about variable usage in selections.
@@ -102,7 +105,8 @@ fun AbstractNode<*>.collectAllVariableUsages(
 
     val visitor = VariableUsageInfoVisitor(schema)
 
-    ViaductQueryTraverser.newQueryTraverser()
+    ViaductQueryTraverser
+        .newQueryTraverser()
         .schema(schema)
         .root(this as Node<*>)
         .rootParentType(rootParentType)
@@ -142,16 +146,16 @@ fun AbstractNode<*>.collectVariableDefinitions(
     schema: GraphQLSchema,
     typeName: String,
     fragmentDefinitions: Map<String, FragmentDefinition> = emptyMap()
-): List<VariableDefinition> {
-    return collectAllVariableUsages(schema, typeName, fragmentDefinitions)
+): List<VariableDefinition> =
+    collectAllVariableUsages(schema, typeName, fragmentDefinitions)
         .map { (varName, usages) ->
             val combinedType = usages.map { it.type }.reduce { acc, type -> combineInputTypes(acc, type) }
-            VariableDefinition.newVariableDefinition()
+            VariableDefinition
+                .newVariableDefinition()
                 .name(varName)
                 .type(combinedType.toASTType())
                 .build()
         }
-}
 
 /**
  * Compares two GraphQLInputTypes and combines them if possible. This includes prioritizing non-nullability
@@ -202,11 +206,10 @@ internal fun combineInputTypes(
 /**
  * Converts a graphql.schema.GraphQLType to a graphql.language.Type (AST type)
  */
-private fun GraphQLType.toASTType(): Type<*> {
-    return when (this) {
+private fun GraphQLType.toASTType(): Type<*> =
+    when (this) {
         is GraphQLNonNull -> NonNullType.newNonNullType(this.wrappedType.toASTType()).build()
         is GraphQLList -> ListType.newListType(this.wrappedType.toASTType()).build()
         is GraphQLNamedType -> TypeName.newTypeName(this.name).build()
         else -> throw IllegalArgumentException("Unsupported GraphQLType: $this")
     }
-}

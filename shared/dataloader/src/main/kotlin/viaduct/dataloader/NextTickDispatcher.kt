@@ -73,7 +73,9 @@ open class NextTickDispatcher(
     flagManager: FlagManager = FlagManager.disabled,
 ) : CoroutineDispatcher() {
     /*** Feature flags ***/
-    enum class Flags(override val flagName: String) : Flag {
+    enum class Flags(
+        override val flagName: String
+    ) : Flag {
         // Disables non-blocking enqueue/flush behavior in the NextTickDispatcher
         KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH("common.kotlin.nextTickDispatcher.killswitch.nonBlockingEnqueueFlush"),
     }

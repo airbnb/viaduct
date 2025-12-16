@@ -2,13 +2,13 @@ package viaduct.engine.runtime.instrumentation.resolver
 
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.FieldResolverDispatcher
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.runtime.FieldResolverDispatcher
 
 /**
- * Wraps [viaduct.engine.api.FieldResolverDispatcher] to add instrumentation callbacks during resolver execution.
+ * Wraps [FieldResolverDispatcher] to add instrumentation callbacks during resolver execution.
  *
  * Delegates all operations to [dispatcher] except [resolve], which creates instrumentation state
  * and wraps the object/query values with [InstrumentedEngineObjectData] for observability.

@@ -43,7 +43,10 @@ private fun <T> Roundtripper<T>.roundtrips(
 ) = value == this(t, value)
 
 class ValueMapperTest : KotestPropertyBase() {
-    private class Fixture(sdl: String = "", fn: suspend Fixture.() -> Unit) {
+    private class Fixture(
+        sdl: String = "",
+        fn: suspend Fixture.() -> Unit
+    ) {
         val gjSchema = mkGJSchema(sdl)
         val viaductSchema = mkViaductSchema(sdl)
         val resolver = TypeReferenceResolver.fromSchema(gjSchema)
@@ -122,7 +125,8 @@ class ValueMapperTest : KotestPropertyBase() {
             // from the graphql spec:
             //   Non-finite floating-point internal values (NaN and Infinity) cannot be coerced to Float
             //   and must raise a field error.
-            Arb.double(includeNonFiniteEdgeCases = false)
+            Arb
+                .double(includeNonFiniteEdgeCases = false)
                 // Arb.double can generate a signed zero value, "-0.0", which is both difficult to filter
                 // out and doesn't roundtrip through BigDecimal, which GJ uses internally.
                 // Normalize values through BigDecimal before testing
@@ -179,7 +183,8 @@ class ValueMapperTest : KotestPropertyBase() {
     @Test
     fun `roundtrip list`() {
         Fixture("input Container { x: [Int] }") {
-            Arb.list(Arb.int().orNull())
+            Arb
+                .list(Arb.int().orNull())
                 .forAll { ints ->
                     val list = RawList(ints.map { it?.scalar ?: RawENull })
                     roundtrips("Container.x", list)

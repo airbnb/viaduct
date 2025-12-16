@@ -1,15 +1,15 @@
 [versions]
-coroutinesReactor = "1.7.3"
-kotest = "5.8.0"
-kotlin = "2.2.0"
-micronaut = "4.6.0"
+coroutinesReactor = "1.10.2"
+kotest = "6.0.5"
+kotlin = "2.2.21"
+micronaut = "4.6.1"
 micronautKotlin = "4.7.0"
-reactor = "3.5.0"
-assertj = "3.24.2"
-logback-classic = "1.4.14"
-guice = "6.0.0"
-jackson = "2.15.2"
-micronautGraphql = "4.2.0"
+reactor = "3.8.0"
+assertj = "4.0.0-M1"
+logback-classic = "1.5.21"
+guice = "6.0.0" # Must be 6.0.0 until shaded Jars - then update to 7
+jackson = "2.20.1"
+micronautGraphql = "4.8.0"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -24,6 +24,7 @@ micronaut-inject-java = { group = "io.micronaut", name = "micronaut-inject-java"
 micronaut-validation = { group = "io.micronaut", name = "micronaut-http-validation", version.ref = "micronaut" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
 viaduct-engine-wiring = { group = "com.airbnb.viaduct", name = "engine-wiring" }
+viaduct-service-wiring = { group = "com.airbnb.viaduct", name = "service-wiring" }
 viaduct-tenant-api = { group = "com.airbnb.viaduct", name = "tenant-api" }
 guice = { group = "com.google.inject", name = "guice", version.ref = "guice" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }

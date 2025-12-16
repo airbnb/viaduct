@@ -13,9 +13,9 @@ tasks.register<Detekt>("detektCustomRules") {
     val detektConfigFile = providers.provider { repoRoot().file("detekt.yml") }
     val detektViaductConfigFile = providers.provider { repoRoot().file("detekt-viaduct.yml") }
 
-    setSource(files(project.projectDir))
-    include("build.gradle.kts", "**/*.gradle.kts", "**/*.kt")
-    exclude("**/build/**", "**/.gradle/**")
+    setSource(files(repoRoot()))
+    include("**/*.gradle.kts", "**/*.kt")
+    exclude("**/demoapps/**","**/build/**", "**/.gradle/**", "**/buildSrc/**", "**/viaduct-bom/**")
 
     config.setFrom(detektConfigFile, detektViaductConfigFile)
     pluginClasspath.setFrom(detektPluginsCfg)

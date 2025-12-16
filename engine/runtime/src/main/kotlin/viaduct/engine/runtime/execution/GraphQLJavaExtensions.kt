@@ -4,8 +4,8 @@ import graphql.execution.DataFetcherResult
 import graphql.execution.ExecutionContext
 import graphql.execution.FetchedValue
 import kotlinx.coroutines.withContext
-import viaduct.engine.api.context.DispatcherLocalContext
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.context.DispatcherLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
 
 suspend inline fun <T> ExecutionContext.executeWithDispatcher(crossinline block: suspend () -> T): T {

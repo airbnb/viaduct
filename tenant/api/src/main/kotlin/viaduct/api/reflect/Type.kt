@@ -2,10 +2,12 @@ package viaduct.api.reflect
 
 import kotlin.reflect.KClass
 import viaduct.api.types.GRT
+import viaduct.apiannotations.StableApi
 
 /**
  * A ReflectedType describes static properties of a GraphQL type
  */
+@StableApi
 interface Type<out T : GRT> {
     /** the GraphQL name of this type */
     val name: String

@@ -35,9 +35,7 @@ interface DataLoaderInstrumentation {
      * Creates initial state for the instrumentation. A new state is created for each batch.
      * Defaults to an empty state object
      */
-    fun createBatchState(): BatchState {
-        return DEFAULT_BATCH_STATE
-    }
+    fun createBatchState(): BatchState = DEFAULT_BATCH_STATE
 
     /**
      * Called for each load call into the dataloader. Important distinction is that this is not instrumenting the batch dispatch function, but instead

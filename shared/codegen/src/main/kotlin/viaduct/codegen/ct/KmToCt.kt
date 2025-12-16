@@ -83,20 +83,22 @@ fun buildCtClasses(
         updateAttributes(pool, results)
     }
 
-    return kmClassTrees.flatten().flatMap {
-        val className = KmName(it.kmClass.name).asJavaBinaryName
-        val c = ctCtx.getClass(className)
-        if (c.isInterface) {
-            // DefaultImpls classes are created on the fly, and don't have an associated KmClassWrapper
-            val defaultImpls = ctCtx.getClassOrNull(JavaBinaryName(className.toString() + "$" + DEFAULT_IMPLS))
-            if (defaultImpls != null) return@flatMap listOf(c, defaultImpls)
+    return kmClassTrees
+        .flatten()
+        .flatMap {
+            val className = KmName(it.kmClass.name).asJavaBinaryName
+            val c = ctCtx.getClass(className)
+            if (c.isInterface) {
+                // DefaultImpls classes are created on the fly, and don't have an associated KmClassWrapper
+                val defaultImpls = ctCtx.getClassOrNull(JavaBinaryName(className.toString() + "$" + DEFAULT_IMPLS))
+                if (defaultImpls != null) return@flatMap listOf(c, defaultImpls)
+            }
+            listOf(c)
+        }.also {
+            if (classFileMajorVersion != null) {
+                it.forEach { it.classFile.majorVersion = classFileMajorVersion }
+            }
         }
-        listOf(c)
-    }.also {
-        if (classFileMajorVersion != null) {
-            it.forEach { it.classFile.majorVersion = classFileMajorVersion }
-        }
-    }
 }
 
 private fun primeExternalClass(
@@ -229,11 +231,13 @@ private fun updateAttributes(
         val cp = cls.classFile.constPool
 
         cls.classFile.addAttribute(
-            wrapper.annotationsAttribute(
-                cp,
-                VISIBLE,
-                notNull = true
-            )!!.also { it.addAnnotation(kmMetadataAnnotation) }
+            wrapper
+                .annotationsAttribute(
+                    cp,
+                    VISIBLE,
+                    notNull = true
+                )!!
+                .also { it.addAnnotation(kmMetadataAnnotation) }
         )
         wrapper.annotationsAttribute(cp, INVISIBLE)?.let { cls.classFile.addAttribute(it) }
     }

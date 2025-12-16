@@ -2,7 +2,6 @@ package viaduct.engine.runtime
 
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.NodeResolverDispatcher
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ResolverMetadata

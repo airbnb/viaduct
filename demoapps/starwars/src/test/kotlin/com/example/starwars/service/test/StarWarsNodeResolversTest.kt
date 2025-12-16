@@ -3,6 +3,7 @@ package com.example.starwars.service.test
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldNotBeEmpty
+import io.micronaut.context.annotation.Property
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.annotation.Client
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
@@ -18,6 +19,7 @@ import viaduct.api.grts.Vehicle
  * Tests for verifying Node and Nodes query functionality in the Star Wars GraphQL API.
  */
 @MicronautTest
+@Property(name = "micronaut.server.port", value = "-1")
 class StarWarsNodeResolversTest {
     @Inject
     @field:Client("/")

@@ -20,16 +20,17 @@ internal fun mkGJSchema(
     sdl: String,
     includeMinimal: Boolean = true
 ): GraphQLSchema =
-    sdl.let {
-        if (includeMinimal) {
-            """
+    sdl
+        .let {
+            if (includeMinimal) {
+                """
                 $minimalSdl
                 $sdl
-            """.trimIndent()
-        } else {
-            sdl
-        }
-    }.asSchema
+                """.trimIndent()
+            } else {
+                sdl
+            }
+        }.asSchema
 
 internal fun mkViaductSchema(
     sdl: String,

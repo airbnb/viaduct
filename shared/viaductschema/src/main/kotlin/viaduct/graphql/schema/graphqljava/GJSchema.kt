@@ -238,15 +238,21 @@ class GJSchema internal constructor(
             }
     }
 
-    sealed interface TypeDef : ViaductSchema.TypeDef, Def {
+    sealed interface TypeDef :
+        ViaductSchema.TypeDef,
+        Def {
         override fun asTypeExpr(): TypeExpr
 
         override val possibleObjectTypes: Set<Object>
     }
 
-    abstract class Arg : HasDefaultValue(), ViaductSchema.Arg
+    abstract class Arg :
+        HasDefaultValue(),
+        ViaductSchema.Arg
 
-    interface HasArgs : Def, ViaductSchema.HasArgs {
+    interface HasArgs :
+        Def,
+        ViaductSchema.HasArgs {
         override val args: List<Arg>
     }
 
@@ -256,7 +262,8 @@ class GJSchema internal constructor(
         override val type: TypeExpr,
         protected override val _defaultValue: Any?,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>
-    ) : ViaductSchema.DirectiveArg, Arg() {
+    ) : Arg(),
+        ViaductSchema.DirectiveArg {
         override val name: String = def.name
 
         override fun toString() = describe()
@@ -266,7 +273,8 @@ class GJSchema internal constructor(
         private val typeMap: TypeMap,
         override val def: GraphQLDirective,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Directive, HasArgs {
+    ) : ViaductSchema.Directive,
+        HasArgs {
         override val name: String = def.name
         override val isRepeatable: Boolean = def.isRepeatable
         override val args =
@@ -277,7 +285,9 @@ class GJSchema internal constructor(
             }
 
         override val allowedLocations =
-            def.validLocations().map {
+            def
+                .validLocations()
+                .map {
                 ViaductSchema.Directive.Location.valueOf(it.name)
             }.toSet()
 
@@ -295,7 +305,8 @@ class GJSchema internal constructor(
         private val typeMap: TypeMap,
         override val def: GraphQLScalarType,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Scalar, TypeDef {
+    ) : ViaductSchema.Scalar,
+        TypeDef {
         override val name: String = def.name
 
         override val sourceLocation =
@@ -317,7 +328,8 @@ class GJSchema internal constructor(
         override val def: GraphQLEnumValueDefinition,
         override val containingExtension: ViaductSchema.Extension<Enum, EnumValue>,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>
-    ) : ViaductSchema.EnumValue, Def {
+    ) : ViaductSchema.EnumValue,
+        Def {
         override val name: String = def.name
 
         override fun toString() = describe()
@@ -328,7 +340,8 @@ class GJSchema internal constructor(
         private val typeMap: TypeMap,
         override val def: GraphQLEnumType,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Enum, TypeDef {
+    ) : ViaductSchema.Enum,
+        TypeDef {
         override val name: String = def.name
         override val values by lazy { extensions.flatMap { it.members } }
 
@@ -383,14 +396,17 @@ class GJSchema internal constructor(
         override fun toString() = describe()
     }
 
-    sealed interface CompositeOutput : ViaductSchema.CompositeOutput, TypeDef
+    sealed interface CompositeOutput :
+        ViaductSchema.CompositeOutput,
+        TypeDef
 
     class Union internal constructor(
         schema: GraphQLSchema,
         private val typeMap: TypeMap,
         override val def: GraphQLUnionType,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Union, CompositeOutput {
+    ) : ViaductSchema.Union,
+        CompositeOutput {
         override val name: String = def.name
         override val possibleObjectTypes by lazy { extensions.flatMap { it.members }.toSet() }
         override val appliedDirectives by lazy { typeMap.collectDirectives(def, valueConverter) }
@@ -431,7 +447,9 @@ class GJSchema internal constructor(
         }
     }
 
-    abstract class HasDefaultValue : ViaductSchema.HasDefaultValue, Def {
+    abstract class HasDefaultValue :
+        ViaductSchema.HasDefaultValue,
+        Def {
         abstract override val containingDef: Def
 
         abstract override val type: TypeExpr
@@ -456,13 +474,17 @@ class GJSchema internal constructor(
         override val type: TypeExpr,
         protected override val _defaultValue: Any?,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>
-    ) : ViaductSchema.FieldArg, Arg() {
+    ) : Arg(),
+        ViaductSchema.FieldArg {
         override val name: String = def.name
 
         override fun toString() = describe()
     }
 
-    sealed class Field : ViaductSchema.Field, HasArgs, HasDefaultValue() {
+    sealed class Field :
+        HasDefaultValue(),
+        ViaductSchema.Field,
+        HasArgs {
         abstract override val containingDef: Record
         abstract override val containingExtension: ViaductSchema.Extension<Record, Field>
         abstract override val type: TypeExpr
@@ -506,7 +528,9 @@ class GJSchema internal constructor(
         override val args = emptyList<FieldArg>()
     }
 
-    sealed interface Record : ViaductSchema.Record, TypeDef {
+    sealed interface Record :
+        ViaductSchema.Record,
+        TypeDef {
         override val extensions: List<ViaductSchema.Extension<Record, Field>>
         override val fields: List<Field>
 
@@ -524,7 +548,9 @@ class GJSchema internal constructor(
         override val def: GraphQLInterfaceType,
         possibleObjectStrings: Iterable<String>,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Interface, CompositeOutput, Record {
+    ) : ViaductSchema.Interface,
+        CompositeOutput,
+        Record {
         override val name: String = def.name
 
         override fun field(name: String) = super<Record>.field(name)
@@ -596,7 +622,9 @@ class GJSchema internal constructor(
         override val def: GraphQLObjectType,
         unionNames: Iterable<String>,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Object, CompositeOutput, Record {
+    ) : ViaductSchema.Object,
+        CompositeOutput,
+        Record {
         override val name: String = def.name
 
         override fun field(name: String) = super<Record>.field(name)
@@ -670,7 +698,8 @@ class GJSchema internal constructor(
         private val typeMap: TypeMap,
         override val def: GraphQLInputObjectType,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Input, Record {
+    ) : ViaductSchema.Input,
+        Record {
         override val name: String = def.name
         override val supers = NO_INTERFACES
         override val unions = NO_UNIONS
@@ -740,13 +769,12 @@ class GJSchema internal constructor(
 
         override fun unwrapLists() = TypeExpr(typeMap, baseTypeDefName, baseTypeNullable)
 
-        override fun unwrapList(): TypeExpr? {
-            return if (listNullable.size == 0) {
+        override fun unwrapList(): TypeExpr? =
+            if (listNullable.size == 0) {
                 null
             } else {
                 TypeExpr(typeMap, baseTypeDefName, baseTypeNullable, listNullable.lsr())
             }
-        }
     }
 }
 
@@ -786,11 +814,10 @@ private fun toTypeExpr(
     return GJSchema.TypeExpr(typeMap, baseTypeDefName(gtype), baseTypeNullable, listNullable)
 }
 
-private fun TypeMap.toTypeExpr(type: Type<*>): GJSchema.TypeExpr {
-    return type.toTypeExpr { baseTypeDefName, baseTypeNullable, listNullable ->
+private fun TypeMap.toTypeExpr(type: Type<*>): GJSchema.TypeExpr =
+    type.toTypeExpr { baseTypeDefName, baseTypeNullable, listNullable ->
         GJSchema.TypeExpr(this, baseTypeDefName, baseTypeNullable, listNullable)
     }
-}
 
 private fun TypeMap.toAppliedDirective(
     schema: GraphQLSchema,

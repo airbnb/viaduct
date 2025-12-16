@@ -1,6 +1,7 @@
 package com.example.starwars.service.test
 
 import io.kotest.matchers.shouldBe
+import io.micronaut.context.annotation.Property
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpStatus
 import io.micronaut.http.client.HttpClient
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test
  * These tests also check that the GraphQL endpoint is functional.
  */
 @MicronautTest
+@Property(name = "micronaut.server.port", value = "-1")
 class GraphiQLTest {
     @Inject
     @field:Client("/")

@@ -43,8 +43,8 @@ class UtilTest : KotestPropertyBase() {
                 val range = i.asIntRange()
                 val isEmpty = range.isEmpty()
                 val containsI = range.contains(i)
-                val checkLo = if (i > Int.MIN_VALUE) !range.contains(i-1) else true
-                val checkHi = if (i < Int.MAX_VALUE) !range.contains(i+1) else true
+                val checkLo = if (i > Int.MIN_VALUE) !range.contains(i - 1) else true
+                val checkHi = if (i < Int.MAX_VALUE) !range.contains(i + 1) else true
 
                 !isEmpty && checkLo && containsI && checkHi
             }
@@ -53,7 +53,8 @@ class UtilTest : KotestPropertyBase() {
     @Test
     fun `Arb-set subset`(): Unit =
         runBlocking {
-            Arb.set(Arb.int())
+            Arb
+                .set(Arb.int())
                 .forAll { set ->
                     val subset = Arb.constant(set).subset().bind()
                     set.containsAll(subset)
@@ -63,37 +64,41 @@ class UtilTest : KotestPropertyBase() {
     @Test
     fun `Arb-set subset with range`(): Unit =
         runBlocking {
-            Arb.pair(
-                Arb.set(Arb.int()),
-                Arb.intRange(0 until Int.MAX_VALUE).nonEmpty()
-            ).checkAll { (set, range) ->
-                val subset =
-                    Arb.constant(set)
-                        .subset(range)
-                        .bind()
+            Arb
+                .pair(
+                    Arb.set(Arb.int()),
+                    Arb.intRange(0 until Int.MAX_VALUE).nonEmpty()
+                ).checkAll { (set, range) ->
+                    val subset =
+                        Arb
+                            .constant(set)
+                            .subset(range)
+                            .bind()
 
-                if (range.first > set.size && subset.size != set.size) {
-                    markFailure()
-                } else if (range.last > set.size && subset.size != set.size) {
-                    markFailure()
-                } else {
-                    markSuccess()
+                    if (range.first > set.size && subset.size != set.size) {
+                        markFailure()
+                    } else if (range.last > set.size && subset.size != set.size) {
+                        markFailure()
+                    } else {
+                        markSuccess()
+                    }
                 }
-            }
         }
 
     @Test
     fun `Set arbSubset`(): Unit =
         runBlocking {
             // without range
-            Arb.set(Arb.int())
+            Arb
+                .set(Arb.int())
                 .forAll { set ->
                     val subset = set.arbSubset().bind()
                     set.containsAll(subset)
                 }
 
             // with range
-            Arb.set(Arb.int())
+            Arb
+                .set(Arb.int())
                 .forAll { set ->
                     val subset = set.arbSubset(set.size.asIntRange()).bind()
                     set == subset
@@ -104,7 +109,8 @@ class UtilTest : KotestPropertyBase() {
     fun filterNotNull(): Unit =
         runBlocking {
             val range = 0..100
-            Arb.int(range)
+            Arb
+                .int(range)
                 .orNull()
                 .filterNotNull()
                 .forAll { it in range }
@@ -113,9 +119,11 @@ class UtilTest : KotestPropertyBase() {
     @Test
     fun zip(): Unit =
         runBlocking {
-            Arb.pair(Arb.int(), Arb.string())
+            Arb
+                .pair(Arb.int(), Arb.string())
                 .flatMap { (int, string) ->
-                    Arb.constant(int)
+                    Arb
+                        .constant(int)
                         .zip(Arb.constant(string))
                         .map { pair -> pair to (int to string) }
                 }.forAll { (pair1, pair2) ->
@@ -129,7 +137,8 @@ class UtilTest : KotestPropertyBase() {
             val weighted = Arb.constant(true)
             val fallback = Arb.constant(false)
 
-            Arb.element(setOf(0.0, 1.0))
+            Arb
+                .element(setOf(0.0, 1.0))
                 .flatMap { weight ->
                     val arb = Arb.weightedChoose(weight to weighted, fallback)
                     arb.zip(Arb.constant(weight))

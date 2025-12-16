@@ -37,82 +37,94 @@ class GraphQLValuesTest {
     @Test
     fun `graphQLValueFor -- type and typeresolver`(): Unit =
         runBlocking {
-            graphQLTypesWithInputs.flatMap { types ->
-                Arb.of(types.allInputs).flatMap { type ->
-                    // The ".Companion" notation is not needed, though it gives a hint to the code coverage scanner
-                    // that a function is covered.
-                    Arb.graphQLValueFor(
-                        type,
-                        TypeReferenceResolver.fromTypes(types),
-                        cfg
-                    )
-                }
-            }.assertNoErrors()
+            graphQLTypesWithInputs
+                .flatMap { types ->
+                    Arb.of(types.allInputs).flatMap { type ->
+                        // The ".Companion" notation is not needed, though it gives a hint to the code coverage scanner
+                        // that a function is covered.
+                        Arb.graphQLValueFor(
+                            type,
+                            TypeReferenceResolver.fromTypes(types),
+                            cfg
+                        )
+                    }
+                }.assertNoErrors()
         }
 
     @Test
     fun `graphQLValueFor -- type and types`(): Unit =
         runBlocking {
-            graphQLTypesWithInputs.flatMap { types ->
-                Arb.of(types.allInputs).flatMap { type ->
-                    Arb.graphQLValueFor(type, types, cfg)
-                }
-            }.assertNoErrors()
+            graphQLTypesWithInputs
+                .flatMap { types ->
+                    Arb.of(types.allInputs).flatMap { type ->
+                        Arb.graphQLValueFor(type, types, cfg)
+                    }
+                }.assertNoErrors()
         }
 
     @Test
     fun `rawValueFor -- type and resolver`(): Unit =
         runBlocking {
-            graphQLTypesWithInputs.flatMap { types ->
-                Arb.of(types.allInputs).flatMap { type ->
-                    Arb.rawValueFor(
-                        type,
-                        TypeReferenceResolver.fromTypes(types),
-                        cfg
-                    )
-                }
-            }.assertNoErrors()
+            graphQLTypesWithInputs
+                .flatMap { types ->
+                    Arb.of(types.allInputs).flatMap { type ->
+                        Arb.rawValueFor(
+                            type,
+                            TypeReferenceResolver.fromTypes(types),
+                            cfg
+                        )
+                    }
+                }.assertNoErrors()
         }
 
     @Test
     fun `rawValueFor -- type and types`(): Unit =
         runBlocking {
-            graphQLTypesWithInputs.flatMap { types ->
-                Arb.of(types.allInputs).flatMap { type ->
-                    Arb.rawValueFor(type, types, cfg)
-                }
-            }.assertNoErrors()
+            graphQLTypesWithInputs
+                .flatMap { types ->
+                    Arb.of(types.allInputs).flatMap { type ->
+                        Arb.rawValueFor(type, types, cfg)
+                    }
+                }.assertNoErrors()
         }
 
     @Test
     fun `rawValueFor -- typedef`(): Unit =
         runBlocking {
-            Arb.typeExpr(cfg).flatMap { type ->
-                Arb.rawValueFor(type.baseTypeDef, cfg)
-            }.assertNoErrors()
+            Arb
+                .typeExpr(cfg)
+                .flatMap { type ->
+                    Arb.rawValueFor(type.baseTypeDef, cfg)
+                }.assertNoErrors()
         }
 
     @Test
     fun `rawValueFor -- bridge typeexpr`(): Unit =
         runBlocking {
-            Arb.typeExpr(cfg).flatMap { type ->
-                Arb.rawValueFor(type, cfg)
-            }.assertNoErrors()
+            Arb
+                .typeExpr(cfg)
+                .flatMap { type ->
+                    Arb.rawValueFor(type, cfg)
+                }.assertNoErrors()
         }
 
     @Test
     fun `mappedValueFor -- mapped bridge typedef `(): Unit =
         runBlocking {
-            Arb.typeExpr(cfg).flatMap { type ->
-                Arb.mappedValueFor(type.baseTypeDef, ToStringMapper, cfg)
-            }.assertNoErrors()
+            Arb
+                .typeExpr(cfg)
+                .flatMap { type ->
+                    Arb.mappedValueFor(type.baseTypeDef, ToStringMapper, cfg)
+                }.assertNoErrors()
         }
 
     @Test
     fun `mappedValueFor -- mapped bridge typexpr `(): Unit =
         runBlocking {
-            Arb.typeExpr(cfg).flatMap { expr ->
-                Arb.mappedValueFor(expr, ToStringMapper, cfg)
-            }.assertNoErrors()
+            Arb
+                .typeExpr(cfg)
+                .flatMap { expr ->
+                    Arb.mappedValueFor(expr, ToStringMapper, cfg)
+                }.assertNoErrors()
         }
 }

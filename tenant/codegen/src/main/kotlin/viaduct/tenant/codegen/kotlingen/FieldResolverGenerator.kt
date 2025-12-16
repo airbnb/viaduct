@@ -78,6 +78,7 @@ private interface ResolverModel {
     val resolverName: String
     val typeSpecifier: String
     val ctxInterface: String
+    val includeBatchResolve: Boolean
 }
 
 private class ResolversModelImpl(
@@ -118,6 +119,7 @@ private class ResolverModelImpl(val field: ViaductSchema.Field, val grtPackage: 
             } else {
                 "viaduct.api.context.FieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
             }
+    override val includeBatchResolve: Boolean = this.field.containingDef.name != "Mutation"
 }
 
 private val resolversST = stTemplate(
@@ -150,9 +152,10 @@ private val resolverST = stTemplate(
         ) : <mdl.ctxInterface> by inner, InternalContext by (inner as InternalContext)
         open suspend fun resolve(ctx: Context): <mdl.typeSpecifier> =
             throw NotImplementedError("<mdl.gqlTypeName>.<mdl.gqlFieldName>.resolve not implemented")
-
+        <if(mdl.includeBatchResolve)>
         open suspend fun batchResolve(contexts: List\<Context>): List\<FieldValue\<<mdl.typeSpecifier>\>> =
             throw NotImplementedError("<mdl.gqlTypeName>.<mdl.gqlFieldName>.batchResolve not implemented")
+        <endif>
     }
     """
 )

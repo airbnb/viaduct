@@ -47,7 +47,8 @@ internal fun CtGenContext.kmToCtObject(kmClassWrapper: KmClassWrapper): CtClass 
     result.applySupers(this, kmClassWrapper)
 
     // INSTANCE backing field
-    CtField.make("public static final $javaBinaryName INSTANCE = new $javaBinaryName();", result)
+    CtField
+        .make("public static final $javaBinaryName INSTANCE = new $javaBinaryName();", result)
         .also { field ->
             // add @NotNull
             val notNull = result.classFile.constPool.asCtAnnotation(

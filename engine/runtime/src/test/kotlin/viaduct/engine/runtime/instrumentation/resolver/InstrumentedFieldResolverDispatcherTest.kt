@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.FieldResolverDispatcher
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.runtime.FieldResolverDispatcher
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class InstrumentedFieldResolverDispatcherTest {

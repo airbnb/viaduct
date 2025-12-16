@@ -33,9 +33,7 @@ import viaduct.tenant.testing.DefaultAbstractResolverTestBase
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
-    override fun getSchema(): ViaductSchema =
-        SchemaFactory(DefaultCoroutineInterop)
-            .fromResources("com.example.starwars", Regex(".*\\.graphqls"))
+    override fun getSchema(): ViaductSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
 
     private lateinit var speciesRepository: SpeciesRepository
 

@@ -5,7 +5,6 @@ project = "INCLUDED"
 # Libraries
 assertj = "3.27.6"
 antlr-st4 = "4.3.1"
-bytebuddy = "1.14.12"
 caffeine = "2.9.3"
 classgraph = "4.8.177"
 clikt = "3.5.4"
@@ -36,7 +35,6 @@ micrometer = "1.10.8"
 ktlintPluginVersion = "12.1.2"
 ktlintVersion = "1.4.1"
 detekt = "1.23.7"
-dependency-analysis = "2.4.2"
 jacoco = "0.8.12"
 dokka = "2.0.0"
 gradle-maven-publish = "0.34.0"
@@ -71,6 +69,7 @@ viaduct-service-api = { module = "com.airbnb.viaduct:service-api", version.ref =
 viaduct-service-runtime = { module = "com.airbnb.viaduct:service-runtime", version.ref = "project" }
 viaduct-service-wiring = { module = "com.airbnb.viaduct:service-wiring", version.ref = "project" }
 
+viaduct-shared-apiannotations = { module = "com.airbnb.viaduct:shared-apiannotations", version.ref = "project" }
 viaduct-shared-arbitrary = { module = "com.airbnb.viaduct:shared-arbitrary", version.ref = "project" }
 viaduct-shared-codegen = { module = "com.airbnb.viaduct:shared-codegen", version.ref = "project" }
 viaduct-shared-dataloader = { module = "com.airbnb.viaduct:shared-dataloader", version.ref = "project" }
@@ -108,7 +107,6 @@ jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", ver
 jackson-module = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 javassist = { module = "org.javassist:javassist", version.ref = "javassist" }
 javax-inject = { module = "javax.inject:javax.inject", version.ref = "javax-inject" }
-net-bytebuddy = { module = "net.bytebuddy:byte-buddy", version.ref = "bytebuddy" }
 reflections = { module = "org.reflections:reflections", version.ref = "reflections" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
@@ -133,10 +131,8 @@ kotest-common-jvm = { module = "io.kotest:kotest-common-jvm", version.ref = "kot
 kotest-property-jvm = { module = "io.kotest:kotest-property-jvm", version.ref = "kotest" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 strikt-core = { module = "io.strikt:strikt-core", version.ref = "strikt" }
-strikt-jvm = { module = "io.strikt:strikt-jvm", version.ref = "strikt" }
 checker-qual = { module = "org.checkerframework:checker-qual", version.ref = "checker" }
 
 # Linting
 konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
-detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }

@@ -20,10 +20,12 @@ import viaduct.codegen.km.boxingExpression
 import viaduct.codegen.km.castObjectExpression
 import viaduct.codegen.km.checkNotNullParameterExpression
 import viaduct.codegen.utils.JavaIdName
+import viaduct.codegen.utils.JavaName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.tenant.codegen.bytecode.config.InputTypeFactoryConfig
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.kmType
 
@@ -60,6 +62,9 @@ private class InputBuilderGenV2(
     private val graphQLInputObjectType = KmName("graphql/schema/GraphQLInputObjectType").asType()
 
     init {
+        grtClassFilesBuilder.kmClassFilesBuilder.addImportedClass(
+            JavaName("viaduct.api.internal.InputTypeFactory")
+        )
         builderClass
             .addSupertype(cfg.INPUT_LIKE_BASE_BUILDER.asKmName.asType())
             .addContextProperty()
@@ -192,13 +197,14 @@ private class InputBuilderGenV2(
             )
         }
         val className = builderBuilder.kmType.name.toString().split("/").last()
+        val inputTypeFactoryMethod = InputTypeFactoryConfig.getFactoryMethodName(inputTaggingInterface)
 
         this.addConstructor(
             kmConstructor,
             superCall = """
                 this(
                     ${castObjectExpression(internalContextType, "$1")},
-                    ${inputTaggingInterface.asJavaName}.Companion.inputType(
+                    InputTypeFactory.$inputTypeFactoryMethod(
                         "$className",
                         (${castObjectExpression(internalContextType, "$1")}).getSchema()
                     ),

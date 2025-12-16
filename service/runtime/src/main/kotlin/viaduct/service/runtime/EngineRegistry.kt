@@ -141,6 +141,11 @@ class EngineRegistry private constructor(
     private val enginesById = ConcurrentHashMap<SchemaId, Engine>()
 
     /**
+     * Retrieve the set of all registered [SchemaId]s.
+     */
+    fun getRegisteredSchemaIds(): Set<SchemaId> = schemasById.keys
+
+    /**
      * Retrieve the [Engine] associated with the given [schemaId].
      * If the engine was registered for lazy initialization, a warning is logged.
      *

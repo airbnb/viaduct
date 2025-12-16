@@ -13,7 +13,9 @@ import viaduct.codegen.utils.KmName
 
 annotation class Simple
 
-annotation class Single(val i: Int)
+annotation class Single(
+    val i: Int
+)
 
 annotation class ScalarParams(
     val b: Boolean,
@@ -28,9 +30,7 @@ annotation class ScalarParams(
 
 enum class E {
     A { // Force creation of subclass
-        override fun toString(): String {
-            return super.toString()
-        }
+        override fun toString(): String = super.toString()
     },
     B,
     C
@@ -43,11 +43,17 @@ annotation class OtherParams(
     val s: String
 )
 
-annotation class IntArrayParam(val value: IntArray)
+annotation class IntArrayParam(
+    val value: IntArray
+)
 
-annotation class StringArrayParam(vararg val params: String)
+annotation class StringArrayParam(
+    vararg val params: String
+)
 
-annotation class EmptyArrayParam(vararg val params: String)
+annotation class EmptyArrayParam(
+    vararg val params: String
+)
 
 // Test subject
 
@@ -143,9 +149,7 @@ private val Annotation.asKmAnnotation: KmAnnotation get() {
     return result
 }
 
-private fun <T : Annotation> KClass<T>.make(vararg arg: Any): T {
-    return this.constructors.first().call(*arg)
-}
+private fun <T : Annotation> KClass<T>.make(vararg arg: Any): T = this.constructors.first().call(*arg)
 
 private fun toKmAnnotationArgument(value: Any?): KmAnnotationArgument =
     when (value) {

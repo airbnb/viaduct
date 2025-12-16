@@ -130,7 +130,9 @@ fun interface SimpleFunInterface {
 }
 
 @JvmInline
-value class SimpleInlineClass(val i: Int)
+value class SimpleInlineClass(
+    val i: Int
+)
 
 class SimpleGenericClass<T>
 

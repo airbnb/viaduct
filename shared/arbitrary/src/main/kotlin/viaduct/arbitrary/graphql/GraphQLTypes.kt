@@ -65,8 +65,7 @@ data class GraphQLTypes(
         directives.values
             .flatMap { dir ->
                 dir.validLocations().map { it to dir }
-            }
-            .groupBy({ it.first }, { it.second })
+            }.groupBy({ it.first }, { it.second })
             .mapValues { it.value.toSet() }
     }
 
@@ -102,7 +101,8 @@ data class GraphQLTypes(
 
 /** Generate arbitrary GraphQLTypes from a static Config */
 fun Arb.Companion.graphQLTypes(cfg: Config = Config.default): Arb<GraphQLTypes> =
-    Arb.graphQLNames(cfg)
+    Arb
+        .graphQLNames(cfg)
         .flatMap { names ->
             graphQLTypes(names, cfg)
         }
@@ -134,7 +134,8 @@ internal class GraphQLTypesGen(
         // Most of the sub-generators called here can satisfy their type dependencies using
         // the GraphQLNames instance. Sub-generators that require *materialized* types (as
         // opposed to references), are indicated below.
-        Arb.of(cfg[IncludeTypes])
+        Arb
+            .of(cfg[IncludeTypes])
             .withScalars()
             .withEnums()
             .withInputs() // input field default depend on enums
@@ -155,22 +156,23 @@ internal class GraphQLTypesGen(
         }
 
     private fun genDirectives(types: GraphQLTypes): List<GraphQLDirective> {
-        val validLocations = DirectiveLocation.values()
+        val validLocations = DirectiveLocation
+            .values()
             .toSet()
             .arbSubset(1..DirectiveLocation.values().size)
 
         return names.directives.map { name ->
             when (val d = builtinDirectives[name]) {
                 null -> {
-                    GraphQLDirective.newDirective()
+                    GraphQLDirective
+                        .newDirective()
                         .name(name)
                         .description(genDescription())
                         .replaceArguments(genArguments(types, DirectiveHasArgs))
                         .repeatable(sampleWeight(DirectiveIsRepeatable))
                         .also {
                             validLocations.next(rs).forEach(it::validLocation)
-                        }
-                        .build()
+                        }.build()
                 }
                 else -> d
             }
@@ -222,12 +224,12 @@ internal class GraphQLTypesGen(
      * in GraphQLNonNull and GraphQLList wrappers.
      */
     private fun genOutputTypeRef(): GraphQLOutputType =
-        Arb.element(names.interfaces + names.scalars + names.unions + names.objects + names.enums)
+        Arb
+            .element(names.interfaces + names.scalars + names.unions + names.objects + names.enums)
             .map(GraphQLTypeReference::typeRef)
             .map {
                 decorate(it) as GraphQLOutputType
-            }
-            .next(rs)
+            }.next(rs)
 
     /**
      * Generate a GraphQLInputType that is backed by a GraphQLTypeReference and potentially wrapped
@@ -262,11 +264,11 @@ internal class GraphQLTypesGen(
                     ?.let { pool -> tt to pool }
             }
 
-        return Arb.element(namePools)
+        return Arb
+            .element(namePools)
             .flatMap { (tt, pool) ->
                 Arb.element(pool).map { tt to it }
-            }
-            .map { (tt, name) ->
+            }.map { (tt, name) ->
                 InputTypeDescriptor(
                     underlyingTypeName = name,
                     underlyingTypeType = tt,
@@ -287,7 +289,8 @@ internal class GraphQLTypesGen(
             val allFields = (edges.flatMap { it.fields } + localFields)
                 .distinctBy { it.name }
 
-            val iface = GraphQLInterfaceType.newInterface()
+            val iface = GraphQLInterfaceType
+                .newInterface()
                 .name(name)
                 .description(genDescription())
                 .fields(allFields)
@@ -339,8 +342,7 @@ internal class GraphQLTypesGen(
             .let { edges ->
                 // filter out conflicting edges
                 edges.nonConflicting()
-            }
-            .let { edges ->
+            }.let { edges ->
                 // then add in all interfaces-of-interfaces
                 withImplementedInterfaces(emptySet(), edges)
             }
@@ -353,7 +355,8 @@ internal class GraphQLTypesGen(
         tailrec fun loop(acc: Map<String, GraphQLArgument>): List<GraphQLArgument> =
             if (acc.size != cfg[key].max && sampleWeight(key)) {
                 val itd = genInputTypeDescriptor().next(rs)
-                val arg = GraphQLArgument.newArgument()
+                val arg = GraphQLArgument
+                    .newArgument()
                     .name(Arb.graphQLArgumentName(cfg).next(rs))
                     .description(genDescription())
                     .type(itd.type)
@@ -363,8 +366,7 @@ internal class GraphQLTypesGen(
                             val default = genDefaultValue(itd.type, types)
                             it.defaultValueLiteral(default)
                         }
-                    }
-                    .build()
+                    }.build()
 
                 loop(acc = acc + (arg.name to arg))
             } else {
@@ -402,7 +404,8 @@ internal class GraphQLTypesGen(
         val allFields = (interfaceFields + genFields(types, ObjectTypeSize))
             .distinctBy { it.name }
 
-        return GraphQLObjectType.newObject()
+        return GraphQLObjectType
+            .newObject()
             .name(name)
             .replaceInterfaces(implements.toList())
             .description(genDescription())
@@ -421,7 +424,8 @@ internal class GraphQLTypesGen(
         ): List<GraphQLAppliedDirective> =
             if (pool.isNotEmpty() && acc.size != cfg[DirectiveWeight].max && sampleWeight(DirectiveWeight)) {
                 val dir = Arb.element(pool).next(rs)
-                val applied = dir.toAppliedDirective()
+                val applied = dir
+                    .toAppliedDirective()
                     .transform {
                         val args = dir.arguments.map { arg ->
                             val value = Arb.graphQLValueFor(arg.type, types, cfg).next(rs)
@@ -444,14 +448,15 @@ internal class GraphQLTypesGen(
         types: GraphQLTypes,
         sizeKey: ConfigKey<IntRange>
     ): List<GraphQLFieldDefinition> =
-        Arb.int(cfg[sizeKey])
+        Arb
+            .int(cfg[sizeKey])
             .map { size ->
                 List(size) { genField(types) }.distinctBy { it.name }
-            }
-            .next(rs)
+            }.next(rs)
 
     private fun genField(types: GraphQLTypes): GraphQLFieldDefinition =
-        GraphQLFieldDefinition.newFieldDefinition()
+        GraphQLFieldDefinition
+            .newFieldDefinition()
             .name(Arb.graphQLFieldName(cfg).next(rs))
             .description(genDescription())
             .replaceAppliedDirectives(genAppliedDirectives(types, DirectiveLocation.FIELD_DEFINITION))
@@ -474,7 +479,8 @@ internal class GraphQLTypesGen(
              * baked into [isUnsatisfiableInputEdge]
              */
             names.inputs.sorted().fold(types) { acc, name ->
-                val inp = GraphQLInputObjectType.newInputObject()
+                val inp = GraphQLInputObjectType
+                    .newInputObject()
                     .name(name)
                     .description(genDescription())
                     .fields(genInputFields(acc, name, InputObjectTypeSize))
@@ -494,22 +500,22 @@ internal class GraphQLTypesGen(
             .filterNot { isUnsatisfiableInputEdge(hostType, it) }
             .zip(Arb.graphQLFieldName(cfg))
             .map { (itd, fn) ->
-                GraphQLInputObjectField.newInputObjectField()
+                GraphQLInputObjectField
+                    .newInputObjectField()
                     .name(fn)
                     .description(genDescription())
                     .replaceAppliedDirectives(
                         genAppliedDirectives(types, DirectiveLocation.INPUT_FIELD_DEFINITION)
-                    )
-                    .type(itd.type)
+                    ).type(itd.type)
                     .also {
                         if (sampleWeight(DefaultValueWeight)) {
                             it.defaultValueLiteral(genDefaultValue(itd.type, types))
                         }
-                    }
-                    .build()
+                    }.build()
             }
 
-        return Arb.set(arbInputField, cfg[key])
+        return Arb
+            .set(arbInputField, cfg[key])
             .map { it.distinctBy { it.name } }
             .next(rs)
     }
@@ -565,7 +571,11 @@ internal class GraphQLTypesGen(
                 ifaces
             } else {
                 loop(
-                    ifaces - objs.first().interfaces.map { it.name }.toSet(),
+                    ifaces - objs
+                        .first()
+                        .interfaces
+                        .map { it.name }
+                        .toSet(),
                     objs.drop(1)
                 )
             }
@@ -605,7 +615,8 @@ internal class GraphQLTypesGen(
         return names.unions.map { name ->
             val members = arbMembers.next(rs).map(::GraphQLTypeReference)
 
-            GraphQLUnionType.newUnionType()
+            GraphQLUnionType
+                .newUnionType()
                 .name(name)
                 .description(genDescription())
                 .replacePossibleTypes(members)
@@ -619,17 +630,19 @@ internal class GraphQLTypesGen(
         // generate the target size. This becomes more likely as the target size grows and collisions
         // become harder to avoid.
         // Use Arb.list instead which is close enough and more reliable
-        Arb.list(
-            Arb.graphQLEnumValueName(cfg),
-            cfg[EnumTypeSize]
-        ).map { values ->
-            values.toSet().map {
-                GraphQLEnumValueDefinition.newEnumValueDefinition()
-                    .name(it)
-                    .replaceAppliedDirectives(genAppliedDirectives(types, DirectiveLocation.ENUM_VALUE))
-                    .build()
-            }
-        }.next(rs)
+        Arb
+            .list(
+                Arb.graphQLEnumValueName(cfg),
+                cfg[EnumTypeSize]
+            ).map { values ->
+                values.toSet().map {
+                    GraphQLEnumValueDefinition
+                        .newEnumValueDefinition()
+                        .name(it)
+                        .replaceAppliedDirectives(genAppliedDirectives(types, DirectiveLocation.ENUM_VALUE))
+                        .build()
+                }
+            }.next(rs)
 
     private fun Arb<GraphQLTypes>.withEnums(): Arb<GraphQLTypes> =
         map { types ->
@@ -638,7 +651,8 @@ internal class GraphQLTypesGen(
 
     private fun genEnums(types: GraphQLTypes): List<GraphQLEnumType> =
         names.enums.map { name ->
-            GraphQLEnumType.newEnum()
+            GraphQLEnumType
+                .newEnum()
                 .name(name)
                 .description(genDescription())
                 .values(genEnumValues(types))

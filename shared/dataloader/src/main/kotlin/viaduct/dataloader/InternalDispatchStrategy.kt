@@ -13,24 +13,22 @@ interface InternalDispatchStrategy<K, V> {
             batchScheduleFn: DispatchScheduleFn,
             dataLoaderOptions: DataLoaderOptions,
             instrumentation: DataLoaderInstrumentation,
-        ): InternalDispatchStrategy<K, V> {
-            return BatchDispatchStrategy(
+        ): InternalDispatchStrategy<K, V> =
+            BatchDispatchStrategy(
                 batchLoadFn,
                 batchScheduleFn,
                 dataLoaderOptions,
                 instrumentation
             )
-        }
 
         fun <K, V> immediateDispatchStrategy(
             batchLoadFn: GenericBatchLoadFn<K, V>,
             instrumentation: DataLoaderInstrumentation,
-        ): InternalDispatchStrategy<K, V> {
-            return ImmediateDispatchStrategy(
+        ): InternalDispatchStrategy<K, V> =
+            ImmediateDispatchStrategy(
                 batchLoadFn,
                 instrumentation
             )
-        }
     }
 
     val instrumentation: DataLoaderInstrumentation
@@ -133,7 +131,8 @@ internal class BatchDispatchStrategy<K, V>(
             result: InternalDataLoader.Batch.BatchResult<V?>
         ): Boolean =
             if (totalKeyCount.getAndIncrement() < this.maxBatchSize) { // if we're ok on batch size...
-                mutex.withLock { // grab a mutex to protect writings
+                mutex.withLock {
+                    // grab a mutex to protect writings
                     if (!hasDispatched) { // check if we've been dispatched
                         val entry = BatchEntry(key, keyContext, result)
                         result.batchState.complete(batchState)

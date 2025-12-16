@@ -107,11 +107,12 @@ internal fun CtClass.applySupers(
         }
     }
     genericSignature =
-        SignatureAttribute.ClassSignature(
-            arrayOf<SignatureAttribute.TypeParameter>(),
-            superClassType,
-            interfaceClassTypes.toTypedArray()
-        ).encode()
+        SignatureAttribute
+            .ClassSignature(
+                arrayOf<SignatureAttribute.TypeParameter>(),
+                superClassType,
+                interfaceClassTypes.toTypedArray()
+            ).encode()
 }
 
 /**
@@ -223,42 +224,44 @@ private fun CtClass.useDefaultImpls(
                 val paramTypes = defaultImplsMethod.parameterTypes
                 paramTypes[0] = this
                 val method =
-                    CtNewMethod.make(
-                        AccessFlag.PUBLIC or AccessFlag.STATIC,
-                        defaultImplsMethod.returnType,
-                        defaultImplsMethod.name,
-                        paramTypes,
-                        null,
-                        null,
-                        implementer
-                    ).also {
-                        it.copyAnnotations(defaultImplsMethod, this.classFile.constPool)
-                        it.copyGenericSignature(defaultImplsMethod, typeVariablesToArgs) { paramTypes ->
-                            paramTypes[0] = SignatureAttribute.ClassType(this.name)
-                            paramTypes
+                    CtNewMethod
+                        .make(
+                            AccessFlag.PUBLIC or AccessFlag.STATIC,
+                            defaultImplsMethod.returnType,
+                            defaultImplsMethod.name,
+                            paramTypes,
+                            null,
+                            null,
+                            implementer
+                        ).also {
+                            it.copyAnnotations(defaultImplsMethod, this.classFile.constPool)
+                            it.copyGenericSignature(defaultImplsMethod, typeVariablesToArgs) { paramTypes ->
+                                paramTypes[0] = SignatureAttribute.ClassType(this.name)
+                                paramTypes
+                            }
                         }
-                    }
                 ctx.addCompilable(methodBody, method)
                 implementer.addMethod(method)
             } else {
                 val methodBody = "{ return $defaultImplsName.${defaultImplsMethod.name}(this, $$); }"
                 val method =
-                    CtNewMethod.make(
-                        AccessFlag.PUBLIC,
-                        defaultImplsMethod.returnType,
-                        defaultImplsMethod.name,
-                        defaultImplsMethod.parameterTypes.drop(1).toTypedArray(),
-                        null,
-                        null,
-                        this
-                    ).also {
-                        it.copyAnnotations(defaultImplsMethod, this.classFile.constPool) { annotations ->
-                            annotations.drop(1).toTypedArray()
+                    CtNewMethod
+                        .make(
+                            AccessFlag.PUBLIC,
+                            defaultImplsMethod.returnType,
+                            defaultImplsMethod.name,
+                            defaultImplsMethod.parameterTypes.drop(1).toTypedArray(),
+                            null,
+                            null,
+                            this
+                        ).also {
+                            it.copyAnnotations(defaultImplsMethod, this.classFile.constPool) { annotations ->
+                                annotations.drop(1).toTypedArray()
+                            }
+                            it.copyGenericSignature(defaultImplsMethod, typeVariablesToArgs) { paramTypes ->
+                                paramTypes.drop(1).toTypedArray()
+                            }
                         }
-                        it.copyGenericSignature(defaultImplsMethod, typeVariablesToArgs) { paramTypes ->
-                            paramTypes.drop(1).toTypedArray()
-                        }
-                    }
                 ctx.addCompilable(methodBody, method)
                 this.addMethod(method)
             }
@@ -280,9 +283,10 @@ internal fun CtClass.addClassFunctionFromKm(
     fnWrapper.checkAbstract()
 
     val paramTypes =
-        fnWrapper.jvmValueParameters.map {
-            ctx.getClass(it.javaTypeName)
-        }.toTypedArray()
+        fnWrapper.jvmValueParameters
+            .map {
+                ctx.getClass(it.javaTypeName)
+            }.toTypedArray()
 
     ctx.withContext(fnWrapper.function.name) {
         val method =
@@ -344,13 +348,14 @@ private fun CtClass.addBridgedClassFunction(
             bridgeTo.returnType
         }
     val bridgeParamTypes =
-        paramTypes.mapIndexed { idx, pt ->
-            if (fnWrapper.bridgeParameters.contains(idx)) {
-                ctx.getClass(Ct.OBJECT)
-            } else {
-                pt
-            }
-        }.toTypedArray()
+        paramTypes
+            .mapIndexed { idx, pt ->
+                if (fnWrapper.bridgeParameters.contains(idx)) {
+                    ctx.getClass(Ct.OBJECT)
+                } else {
+                    pt
+                }
+            }.toTypedArray()
     val synthBridge =
         CtNewMethod.make(
             AccessFlag.PUBLIC or AccessFlag.SYNTHETIC or AccessFlag.BRIDGE,
@@ -391,9 +396,10 @@ private fun CtClass.addInterfaceFunctionFromKm(
             CtNewMethod.abstractMethod(
                 ctx.getClass(fnWrapper.function.javaReturnTypeName),
                 fnWrapper.function.name,
-                fnWrapper.jvmValueParameters.map {
-                    ctx.getClass(it.javaTypeName)
-                }.toTypedArray(),
+                fnWrapper.jvmValueParameters
+                    .map {
+                        ctx.getClass(it.javaTypeName)
+                    }.toTypedArray(),
                 null,
                 this
             )
@@ -478,7 +484,9 @@ internal fun CtClass.addConstructorFromKm(
     kmCtorWrapper: KmConstructorWrapper
 ) {
     val cp = this.classFile.constPool
-    val paramTypes = kmCtorWrapper.constructor.valueParameters.map { ctx.getClass(it.javaTypeName) }.toTypedArray()
+    val paramTypes = kmCtorWrapper.constructor.valueParameters
+        .map { ctx.getClass(it.javaTypeName) }
+        .toTypedArray()
     val label = "ctor(${paramTypes.joinToString(", ") { it.name }})"
     val ctorBody =
         if (kmCtorWrapper.superCall == null) {
@@ -574,16 +582,17 @@ internal fun CtClass.addConstructorFromKm(
                 } + List(defaultBitmaskCount(kmCtorWrapper.constructor.valueParameters.size)) { "-1" } + listOf("null")
             val emptyCtorBody = "{ this(${params.joinToString(",")}); }"
             val emptyConstructor =
-                CtNewConstructor.make(
-                    emptyArray(),
-                    null,
-                    null,
-                    this
-                ).apply {
-                    modifiers = AccessFlag.PUBLIC
-                    visibleAnnotations?.let { methodInfo.addAttribute(it) }
-                    invisibleAnnotations?.let { methodInfo.addAttribute(it) }
-                }
+                CtNewConstructor
+                    .make(
+                        emptyArray(),
+                        null,
+                        null,
+                        this
+                    ).apply {
+                        modifiers = AccessFlag.PUBLIC
+                        visibleAnnotations?.let { methodInfo.addAttribute(it) }
+                        invisibleAnnotations?.let { methodInfo.addAttribute(it) }
+                    }
             ctx.addCompilable(emptyCtorBody, emptyConstructor)
             this.addConstructor(emptyConstructor)
         }
@@ -663,12 +672,13 @@ private fun CtMethod.copyGenericSignature(
             it(toCopy.parameterTypes)
         } ?: toCopy.parameterTypes
     this.genericSignature =
-        SignatureAttribute.MethodSignature(
-            toCopy.typeParameters.filter { !typeVariablesToArgs.containsKey(it.name) }.toTypedArray(),
-            paramTypes.map { it.replaceTypeVariables(typeVariablesToArgs) }.toTypedArray(),
-            toCopy.returnType.replaceTypeVariables(typeVariablesToArgs),
-            toCopy.exceptionTypes
-        ).encode()
+        SignatureAttribute
+            .MethodSignature(
+                toCopy.typeParameters.filter { !typeVariablesToArgs.containsKey(it.name) }.toTypedArray(),
+                paramTypes.map { it.replaceTypeVariables(typeVariablesToArgs) }.toTypedArray(),
+                toCopy.returnType.replaceTypeVariables(typeVariablesToArgs),
+                toCopy.exceptionTypes
+            ).encode()
 }
 
 /**
@@ -681,14 +691,15 @@ private fun SignatureAttribute.Type.replaceTypeVariables(typeVariablesToArgs: Ma
     if (this is SignatureAttribute.ClassType && typeVariablesToArgs.isNotEmpty()) {
         return SignatureAttribute.ClassType(
             this.name,
-            this.typeArguments?.map {
-                val type = it.type
-                if (type is SignatureAttribute.TypeVariable && typeVariablesToArgs.containsKey(type.name)) {
-                    typeVariablesToArgs.getValue(type.name)
-                } else {
-                    it
-                }
-            }?.toTypedArray()
+            this.typeArguments
+                ?.map {
+                    val type = it.type
+                    if (type is SignatureAttribute.TypeVariable && typeVariablesToArgs.containsKey(type.name)) {
+                        typeVariablesToArgs.getValue(type.name)
+                    } else {
+                        it
+                    }
+                }?.toTypedArray()
         )
     }
     return this
@@ -797,7 +808,8 @@ private fun synthAccessorCtorBody(ctorWrapper: KmConstructorWrapper): String =
             // Using the javassist "$$" notation will forward the DefaultConstructorMarker
             // to our target constructor, which we want to avoid.
             // Manually create a "$1, $2, ..." string
-            ctorWrapper.constructor.valueParameters.indices.joinToString(",") { "\$${it + 1}" }
+            ctorWrapper.constructor.valueParameters.indices
+                .joinToString(",") { "\$${it + 1}" }
         )
         append(")\n;")
         append("}")
@@ -816,8 +828,8 @@ private fun castExpr(castTo: CtClass): String =
 private fun bridgeMethodBody(
     bridgeTo: CtMethod,
     bridgeParameters: Set<Int>
-): String {
-    return buildString {
+): String =
+    buildString {
         append("{\n")
         append("return ")
         if (bridgeParameters.contains(-1)) {
@@ -829,19 +841,19 @@ private fun bridgeMethodBody(
         append(bridgeTo.name)
         append("(")
         append(
-            bridgeTo.parameterTypes.mapIndexed { idx, pt ->
-                buildString {
-                    if (bridgeParameters.contains(idx)) {
-                        append(castExpr(pt))
+            bridgeTo.parameterTypes
+                .mapIndexed { idx, pt ->
+                    buildString {
+                        if (bridgeParameters.contains(idx)) {
+                            append(castExpr(pt))
+                        }
+                        append("$${idx + 1}")
                     }
-                    append("$${idx + 1}")
-                }
-            }.joinToString(",")
+                }.joinToString(",")
         )
         append(");\n")
         append("}")
     }
-}
 
 /**
  * @param valueParams: Parameters of the non-default method. Does not include the additional parameters the Kotlin
@@ -889,9 +901,7 @@ private fun defaultValuesCodeBlock(
  * The number of bitmasks to append to a default method or constructor's params
  * @param numParams: The number of parameters in the Kotlin function / constructor
  */
-private fun defaultBitmaskCount(numParams: Int): Int {
-    return (numParams + BITS_IN_INT - 1) / BITS_IN_INT
-}
+private fun defaultBitmaskCount(numParams: Int): Int = (numParams + BITS_IN_INT - 1) / BITS_IN_INT
 
 private fun KmFunctionWrapper.checkAbstract() {
     val isAbstract = (function.modality == Modality.ABSTRACT)

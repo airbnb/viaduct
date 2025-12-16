@@ -19,15 +19,16 @@ import viaduct.arbitrary.common.Config
 /** Methods for generating GraphQLSchema instances */
 internal object SchemaGenerator {
     private val emptyQuery: GraphQLObjectType =
-        GraphQLObjectType.newObject()
+        GraphQLObjectType
+            .newObject()
             .name("EmptyQuery")
             .field(
-                GraphQLFieldDefinition.newFieldDefinition()
+                GraphQLFieldDefinition
+                    .newFieldDefinition()
                     .name("placeholder")
                     .type(Scalars.GraphQLInt)
                     .build()
-            )
-            .build()
+            ).build()
 
     private fun codeRegistry(types: GraphQLTypes): GraphQLCodeRegistry {
         val noopResolver =
@@ -35,7 +36,8 @@ internal object SchemaGenerator {
                 override fun getType(env: TypeResolutionEnvironment?): GraphQLObjectType = throw UnsupportedOperationException("not implemented")
             }
 
-        return GraphQLCodeRegistry.newCodeRegistry()
+        return GraphQLCodeRegistry
+            .newCodeRegistry()
             .also {
                 types.interfaces.forEach { (name, _) ->
                     it.typeResolver(name, noopResolver)
@@ -43,8 +45,7 @@ internal object SchemaGenerator {
                 types.unions.forEach { (name, _) ->
                     it.typeResolver(name, noopResolver)
                 }
-            }
-            .build()
+            }.build()
     }
 
     /** Generate a GraphQLSchema from a GraphQLTypes */
@@ -52,8 +53,11 @@ internal object SchemaGenerator {
         Result.runCatching {
             GraphQLSchema
                 .newSchema()
-                .query(types.objects.entries.firstOrNull()?.value ?: emptyQuery)
-                .additionalTypes(types.interfaces.values.toSet())
+                .query(
+                    types.objects.entries
+                        .firstOrNull()
+                        ?.value ?: emptyQuery
+                ).additionalTypes(types.interfaces.values.toSet())
                 .additionalTypes(types.objects.values.toSet())
                 .additionalTypes(types.inputs.values.toSet())
                 .additionalTypes(types.unions.values.toSet())
@@ -66,7 +70,9 @@ internal object SchemaGenerator {
 
     fun mkSchema(sdl: String): GraphQLSchema {
         val tdr = SchemaParser().parse(sdl)
-        return graphql.schema.idl.SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING)
+        return graphql.schema.idl
+            .SchemaGenerator()
+            .makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING)
     }
 }
 

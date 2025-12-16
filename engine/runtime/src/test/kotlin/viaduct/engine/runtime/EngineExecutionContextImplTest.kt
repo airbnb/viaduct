@@ -12,7 +12,7 @@ class EngineExecutionContextImplTest {
     @Test
     fun `copy keeps dataloaders request-scoped`() {
         val eec = ContextMocks().engineExecutionContextImpl
-        val eecCopy = eec.copy(mockk())
+        val eecCopy = eec.copy()
         val resolver = mockk<NodeResolverExecutor> { every { typeName } returns "User" }
         val batchNodeLoader = eec.nodeDataLoader(resolver)
         val copyBatchNodeLoader = eecCopy.nodeDataLoader(resolver)

@@ -68,7 +68,9 @@ class NextTickBatchQueue<T>(
             val item: T
         ) : QueueableItem
 
-        data class Flush(val debugInfo: NextTickMetadata?) : QueueableItem
+        data class Flush(
+            val debugInfo: NextTickMetadata?
+        ) : QueueableItem
     }
 
     private val queueChannel = Channel<QueueableItem>(nonBlockingQueueLimit, BufferOverflow.SUSPEND)

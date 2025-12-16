@@ -431,9 +431,11 @@ class FilterChildrenVisitorTest {
         val mockScopeDirectiveParser = spyk(ScopeDirectiveParser(setOf("test-scope")))
         mockBlock(mockScopeDirectiveParser)
         val elementChildren =
-            schema.allTypesAsList.map {
-                Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
-            }.toMap().toMutableMap()
+            schema.allTypesAsList
+                .map {
+                    Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
+                }.toMap()
+                .toMutableMap()
         val visitor =
             FilterChildrenVisitor(
                 appliedScopes = setOf("test-scope"),
@@ -449,7 +451,8 @@ class FilterChildrenVisitorTest {
         typeName: String
     ) = elementChildren.entries
         .filter { (it.key as? GraphQLNamedSchemaElement)?.name == typeName }
-        .firstOrNull()?.value
+        .firstOrNull()
+        ?.value
 
     private fun MockKMatcherScope.schemaElementNamed(name: String) =
         match<GraphQLSchemaElement> {

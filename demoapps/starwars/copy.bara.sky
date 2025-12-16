@@ -1,0 +1,71 @@
+# Syncs commits from airbnb/viaduct starwars to viaduct-graphql/starwars repo
+# Based on the main viaduct OSS copybara configuration
+
+DEFAULT_AUTHOR = "ViaBot <viabot@ductworks.io>"
+
+core.workflow(
+    name = "airbnb-viaduct-to-starwars",
+    mode = "SQUASH",
+    origin = git.origin(
+        url = "file:///jorb/repo",
+        ref = "master",
+        partial_fetch = True,
+        describe_version = False,
+    ),
+    origin_files = glob(
+        include = ["projects/viaduct/oss/demoapps/starwars/**"],
+        exclude = [
+            "**/copy.bara.sky",
+            "**/*.bara.sky",
+            "**/_infra/**",
+            "**/BUILD.bazel",
+        ],
+    ),
+    destination = git.destination(
+        url = "https://github.com/viaduct-graphql/starwars.git",
+        fetch = "main",
+    ),
+    authoring = authoring.overwrite(DEFAULT_AUTHOR),
+    transformations = [
+        # Move from the nested path to root
+        core.move("projects/viaduct/oss/demoapps/starwars/", ""),
+        # Set fixed commit message
+        metadata.replace_message(
+            "🚀 StarWars Demo App",
+        ),
+    ],
+)
+
+# Workflow for creating initial commit with all current content
+core.workflow(
+    name = "initial-commit",
+    mode = "SQUASH",
+    origin = git.origin(
+        url = "org-4@git.musta.ch:airbnb/treehouse.git",
+        ref = "master",
+        partial_fetch = True,
+        describe_version = False,
+    ),
+    origin_files = glob(
+        include = ["projects/viaduct/oss/demoapps/starwars/**"],
+        exclude = [
+            "**/copy.bara.sky",
+            "**/*.bara.sky",
+            "**/_infra/**",
+            "**/BUILD.bazel",
+        ],
+    ),
+    destination = git.destination(
+        url = "https://github.com/viaduct-graphql/starwars.git",
+        fetch = "main",
+    ),
+    authoring = authoring.overwrite(DEFAULT_AUTHOR),
+    transformations = [
+        # Move from nested path to root
+        core.move("projects/viaduct/oss/demoapps/starwars/", ""),
+        # Set initial commit message
+        metadata.replace_message(
+            "🚀 StarWars Demo App",
+        ),
+    ],
+)

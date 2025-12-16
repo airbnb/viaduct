@@ -3,6 +3,7 @@ package viaduct.service.api.spi
 import java.lang.reflect.Constructor
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Provider
+import viaduct.apiannotations.StableApi
 
 /**
  * The Viaduct engine always invokes tenant code by first
@@ -11,6 +12,7 @@ import javax.inject.Provider
  * for _each_ invocation of a tenant function, even when that function
  * is invoked multiple times per request.
  */
+@StableApi
 interface TenantCodeInjector {
     fun <T> getProvider(clazz: Class<T>): Provider<T>
 
@@ -26,6 +28,7 @@ interface TenantCodeInjector {
     }
 }
 
+@StableApi
 class NaiveTenantCodeInjector : TenantCodeInjector {
     val constructorCache: ConcurrentHashMap<Class<*>, Constructor<*>> =
         ConcurrentHashMap()

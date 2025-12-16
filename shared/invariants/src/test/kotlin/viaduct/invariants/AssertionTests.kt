@@ -390,11 +390,13 @@ class AssertionTests {
             .doesNotThrow("IGNORE", arrayOfNulls(0)) { 1 }
             .ifNoThrow { arg: Int? -> assert(arg == 1) }
         val o = Any()
-        subject.doesNotThrow(
-            "IGNORE"
-        ) { o }.ifNoThrow { arg: Any? ->
-            arg!!::class.java shouldBe o::class.java
-        }
+        subject
+            .doesNotThrow(
+                "IGNORE"
+            ) { o }
+            .ifNoThrow { arg: Any? ->
+                arg!!::class.java shouldBe o::class.java
+            }
     }
 
     @Test

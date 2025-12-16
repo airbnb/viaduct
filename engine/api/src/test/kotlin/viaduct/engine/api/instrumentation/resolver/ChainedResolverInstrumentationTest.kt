@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.runtime.instrumentation.resolver.ChainedResolverInstrumentation
 
 class ChainedResolverInstrumentationTest {
     @Test

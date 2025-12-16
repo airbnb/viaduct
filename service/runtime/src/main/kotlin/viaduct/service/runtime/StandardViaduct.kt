@@ -38,9 +38,11 @@ import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.ResolverErrorReporter
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.runtime.noderesolvers.ViaductNodeResolverAPIBootstrapper
 
 /**
@@ -103,6 +105,7 @@ class StandardViaduct
             private var meterRegistry: MeterRegistry? = null
             private var resolverInstrumentation: ViaductResolverInstrumentation? = null
             private var allowSubscriptions: Boolean = false
+            private var globalIDCodec: GlobalIDCodec? = null
 
             fun enableAirbnbBypassDoNotUse(
                 fragmentLoader: FragmentLoader,
@@ -223,6 +226,19 @@ class StandardViaduct
                     this.resolverInstrumentation = resolverInstrumentation
                 }
 
+            /**
+             * Configures the GlobalIDCodec for serializing and deserializing GlobalIDs.
+             * All tenant-API implementations within this Viaduct instance will share this codec
+             * to ensure interoperability.
+             *
+             * @param globalIDCodec The GlobalIDCodec instance to use
+             * @return This Builder instance for method chaining
+             */
+            fun withGlobalIDCodec(globalIDCodec: GlobalIDCodec): Builder =
+                apply {
+                    this.globalIDCodec = globalIDCodec
+                }
+
             @Deprecated("For testing only, subscriptions are not currently supported in Viaduct.", level = DeprecationLevel.WARNING)
             fun allowSubscriptions(allow: Boolean) =
                 apply {
@@ -236,6 +252,8 @@ class StandardViaduct
              * @return a Viaduct Instance ready to execute
              */
             fun build(): StandardViaduct {
+                val finalGlobalIDCodec = globalIDCodec ?: GlobalIDCodecDefault
+
                 // engine configuration has a lot of defaults, so we copy over any non-null values from the StandardViaduct.Builder
                 val engineConfiguration = with(EngineConfiguration.default) {
                     val builder = this@Builder
@@ -254,6 +272,7 @@ class StandardViaduct
                         additionalInstrumentation = builder.instrumentation ?: additionalInstrumentation,
                         chainInstrumentationWithDefaults = builder.chainInstrumentationWithDefaults,
                         resolverInstrumentation = builder.resolverInstrumentation ?: resolverInstrumentation,
+                        globalIDCodec = finalGlobalIDCodec,
                     )
                 }
 
@@ -375,7 +394,7 @@ class StandardViaduct
                 return mkSchemaNotFoundError(schemaId)
             }
             return coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
-                val executionResult = engine.execute(executionInput.toEngineExecutionInput()).awaitExecutionResult()
+                val executionResult = engine.execute(executionInput.toEngineExecutionInput())
                 sortExecutionResult(executionResult)
             }
         }

@@ -19,12 +19,16 @@ interface TypeReferenceResolver : (GraphQLTypeReference) -> GraphQLUnmodifiedTyp
     fun resolveOrThrow(t: GraphQLTypeReference): GraphQLUnmodifiedType = this.invoke(t) ?: throw IllegalArgumentException("Cannot resolve type reference ${t.name}")
 
     /** Build a [TypeReferenceResolver] from a [GraphQLTypes] */
-    class fromTypes(val types: GraphQLTypes) : TypeReferenceResolver {
+    class fromTypes(
+        val types: GraphQLTypes
+    ) : TypeReferenceResolver {
         override fun invoke(ref: GraphQLTypeReference): GraphQLUnmodifiedType? = types.resolve(ref)
     }
 
     /** Build a [TypeReferenceResolver] from a [GraphQLSchema] */
-    class fromSchema(val schema: GraphQLSchema) : TypeReferenceResolver {
+    class fromSchema(
+        val schema: GraphQLSchema
+    ) : TypeReferenceResolver {
         override fun invoke(ref: GraphQLTypeReference): GraphQLUnmodifiedType? = schema.getType(ref.name)?.let { it as GraphQLUnmodifiedType }
     }
 

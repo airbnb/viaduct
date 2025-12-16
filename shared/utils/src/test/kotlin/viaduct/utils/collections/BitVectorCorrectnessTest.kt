@@ -21,8 +21,16 @@ class BitVectorCorrectnessTest : BitVectorSetup() {
         val v2 = mk(128)
 
         // Set some bits to make test more interesting
-        v1.set(0).set(63).set(64).set(127)
-        v2.set(0).set(63).set(64).set(127)
+        v1
+            .set(0)
+            .set(63)
+            .set(64)
+            .set(127)
+        v2
+            .set(0)
+            .set(63)
+            .set(64)
+            .set(127)
 
         // This should work without throwing
         assertEquals(v1, v2)

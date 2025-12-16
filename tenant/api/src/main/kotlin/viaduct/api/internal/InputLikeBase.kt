@@ -7,12 +7,14 @@ import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantUsageException
 import viaduct.api.handleTenantAPIErrors
 import viaduct.api.types.InputLike
+import viaduct.apiannotations.InternalApi
 import viaduct.mapping.graphql.GJValueConv
 import viaduct.mapping.graphql.IR
 
 /**
  * Base class for input & field argument GRTs
  */
+@InternalApi
 @Suppress("UNCHECKED_CAST")
 abstract class InputLikeBase : InputLike {
     protected abstract val context: InternalContext
@@ -37,7 +39,7 @@ abstract class InputLikeBase : InputLike {
             )
 
             val irValue: IR.Value = if (isPresent(fieldName)) {
-                val conv = EngineValueConv(context.schema, fieldDefinition.type)
+                val conv = EngineValueConv(context.schema, fieldDefinition.type, null)
                 conv(inputData[fieldName])
             } else if (fieldDefinition.hasSetDefaultValue()) {
                 require(fieldDefinition.inputFieldDefaultValue.isLiteral) {
@@ -80,7 +82,7 @@ abstract class InputLikeBase : InputLike {
             val field = requireNotNull(graphQLInputObjectType.getField(fieldName)) {
                 "Field $fieldName not found on type ${graphQLInputObjectType.name}"
             }
-            val conv = GRTConv(context, field) andThen EngineValueConv(context.schema, field.type).inverse()
+            val conv = GRTConv(context, field) andThen EngineValueConv(context.schema, field.type, null).inverse()
             inputData.put(fieldName, conv(value))
         }
 

@@ -14,7 +14,9 @@ package viaduct.arbitrary.common
  *   val value = cfg[key]
  * ```
  */
-class Config private constructor(private val map: Map<ConfigKey<*>, Any?>) {
+class Config private constructor(
+    private val map: Map<ConfigKey<*>, Any?>
+) {
     @Suppress("UNCHECKED_CAST")
     operator fun <T> get(key: ConfigKey<T>): T = map[key] as? T ?: key.default
 
@@ -47,7 +49,10 @@ class Config private constructor(private val map: Map<ConfigKey<*>, Any?>) {
     }
 }
 
-class InvalidConfigValue(msg: String, val value: Any?) : Exception(msg)
+class InvalidConfigValue(
+    msg: String,
+    val value: Any?
+) : Exception(msg)
 
 /** Validator returns a descriptive error string for invalid inputs */
 typealias Validator<T> = (t: T) -> String?
@@ -74,7 +79,10 @@ object WeightValidator : Validator<Double> {
  * - .1% of fields would define 3 arguments,
  * - no fields would define 4 or more arguments
  */
-data class CompoundingWeight(val weight: Double, val max: Int) {
+data class CompoundingWeight(
+    val weight: Double,
+    val max: Int
+) {
     companion object {
         /** A [CompoundingWeight] that will be false every time it is sampled */
         val Never: CompoundingWeight = CompoundingWeight(0.0, 0)
@@ -103,7 +111,9 @@ object CompoundingWeightValidator : Validator<CompoundingWeight> {
 /**
  * Validates that Int values are within an IntRange domain
  */
-class IntValidator(val domain: IntRange) : Validator<Int> {
+class IntValidator(
+    val domain: IntRange
+) : Validator<Int> {
     override fun invoke(x: Int): String? =
         if (!domain.contains(x)) {
             "Value must be between ${domain.first} and ${domain.last}"
@@ -116,7 +126,9 @@ class IntValidator(val domain: IntRange) : Validator<Int> {
  * Validates that all possible values of a provided IntRange values are
  * also within a specified IntRange domain
  */
-class IntRangeValidator(val domain: IntRange) : Validator<IntRange> {
+class IntRangeValidator(
+    val domain: IntRange
+) : Validator<IntRange> {
     override fun invoke(x: IntRange): String? =
         if (domain.first > x.first || domain.last < x.last) {
             "Range must be between ${domain.first} and ${domain.last}"
@@ -137,4 +149,7 @@ object Unvalidated : Validator<Any> {
 /**
  * Base class for identifying configurable values.
  */
-open class ConfigKey<T>(val default: T, val validate: Validator<T>)
+open class ConfigKey<T>(
+    val default: T,
+    val validate: Validator<T>
+)

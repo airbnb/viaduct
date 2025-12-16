@@ -38,7 +38,11 @@ val KM_UNIT_TYPE = Km.UNIT.asType()
 
 // KmClass utilities
 
-val KmClass.simpleName get() = name.split("/").last().split(".").last()
+val KmClass.simpleName get() = name
+    .split("/")
+    .last()
+    .split(".")
+    .last()
 
 // KmFunction type-related extensions
 

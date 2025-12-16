@@ -44,7 +44,11 @@ fun arbRuntimeWiring(
     cfg: Config = Config.default
 ): RuntimeWiring = ArbRuntimeWiringGen(sdl, seed, cfg).gen()
 
-private class ArbRuntimeWiringGen(sdl: String, private val seed: Long, private val cfg: Config) {
+private class ArbRuntimeWiringGen(
+    sdl: String,
+    private val seed: Long,
+    private val cfg: Config
+) {
     private val schema = viaduct.engine.api.ViaductSchema(sdl.asSchema)
     private val scalarArbs = ScalarRawValueArbs(cfg)
 

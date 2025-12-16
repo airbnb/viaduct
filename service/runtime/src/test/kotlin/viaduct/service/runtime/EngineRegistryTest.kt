@@ -290,7 +290,7 @@ class EngineRegistryTest {
             SchemaConfiguration.ScopeConfig(id = "resources-scope", scopeIds = setOf("resource"))
         )
         val config = SchemaConfiguration.fromResources(
-            packagePrefix = "com.test.schema",
+            grtPackagePrefix = "com.test.schema",
             resourcesIncluded = Regex(".*\\.graphqls"),
             scopes = scopeConfigs
         )

@@ -29,7 +29,9 @@ import viaduct.graphql.scopes.utils.getChildrenForElement
  * In the future this class could be made more generic, but for now it only handles type
  * removals and updates of children.
  */
-internal class TransformationsVisitor(private val transformations: SchemaTransformations) : GraphQLTypeVisitorStub() {
+internal class TransformationsVisitor(
+    private val transformations: SchemaTransformations
+) : GraphQLTypeVisitorStub() {
     override fun visitGraphQLType(
         node: GraphQLSchemaElement,
         context: TraverserContext<GraphQLSchemaElement>
@@ -93,10 +95,12 @@ internal class TransformationsVisitor(private val transformations: SchemaTransfo
                             newChildren.filter { it is GraphQLInterfaceType } as List<GraphQLInterfaceType>
                         )
 
-                        val fields = newChildren.filter { it is GraphQLFieldDefinition }
+                        val fields = newChildren
+                            .filter { it is GraphQLFieldDefinition }
                             .map { it as GraphQLFieldDefinition }
                             .map { it.definition }
-                        val interfaces = newChildren.filter { it is GraphQLInterfaceType }
+                        val interfaces = newChildren
+                            .filter { it is GraphQLInterfaceType }
                             .map { it as GraphQLInterfaceType }
                             .map { TypeName.newTypeName(it.name).build() }
                         val newObjectTypeDefinition = element.definition?.transform {
@@ -114,10 +118,12 @@ internal class TransformationsVisitor(private val transformations: SchemaTransfo
                             newChildren.filter { it is GraphQLInterfaceType } as List<GraphQLInterfaceType>
                         )
 
-                        val fields = newChildren.filter { it is GraphQLFieldDefinition }
+                        val fields = newChildren
+                            .filter { it is GraphQLFieldDefinition }
                             .map { it as GraphQLFieldDefinition }
                             .map { it.definition }
-                        val interfaces = newChildren.filter { it is GraphQLInterfaceType }
+                        val interfaces = newChildren
+                            .filter { it is GraphQLInterfaceType }
                             .map { it as GraphQLInterfaceType }
                             .map { TypeName.newTypeName(it.name).build() }
                         val newInterfaceDefinition = element.definition?.transform {
@@ -202,10 +208,9 @@ data class SchemaTransformations(
     val elementChildren: Map<GraphQLSchemaElement, List<GraphQLNamedSchemaElement>?> = mapOf(),
     val typesNamesToRemove: Set<String> = setOf()
 ) {
-    override fun toString(): String {
-        return "elementChildren = " +
+    override fun toString(): String =
+        "elementChildren = " +
             elementChildren.map { (key, value) ->
                 Pair((key as GraphQLNamedSchemaElement).name, value?.map { it.name })
             } + ", typeNamesToRemove = " + typesNamesToRemove
-    }
 }

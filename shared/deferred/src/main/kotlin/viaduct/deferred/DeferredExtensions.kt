@@ -5,7 +5,6 @@ package viaduct.deferred
 
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
@@ -429,8 +428,10 @@ fun <T> CompletionStage<T>.asDeferred(): Deferred<T> {
 }
 
 /**
- * Waits for every Deferred in [deferreds] to finish, failing fast on the first error or cancellation
- * and cancelling the remaining inputs if that happens.
+ * Waits for every Deferred in [deferreds] to finish.
+ *
+ * All inputs are allowed to complete (no fail-fast cancellation). If any input fails, the first
+ * failure is propagated after all inputs have completed.
  *
  * @param deferreds inputs to synchronize
  * @return a Deferred that completes when all inputs finish successfully or propagates the first failure
@@ -453,7 +454,7 @@ fun waitAllDeferreds(deferreds: Collection<Deferred<*>>): Deferred<Unit> {
 
     val result = completableDeferred<Unit>()
     val remaining = AtomicInteger(deferreds.size)
-    val failed = AtomicBoolean(false)
+    val firstFailure = AtomicReference<Throwable?>(null)
 
     result.invokeOnCompletion { cause ->
         if (cause is CancellationException) {
@@ -475,28 +476,18 @@ fun waitAllDeferreds(deferreds: Collection<Deferred<*>>): Deferred<Unit> {
 
     deferreds.forEach { d ->
         d.invokeOnCompletion { cause ->
-            if (cause == null) {
-                if (!failed.get() && remaining.decrementAndGet() == 0) {
-                    result.complete(Unit)
-                }
-            } else if (failed.compareAndSet(false, true)) {
-                when (cause) {
-                    is CancellationException -> result.cancel(cause)
-                    else -> result.completeExceptionally(cause)
-                }
-                val cancelCause = CancellationException("waitAll fail-fast")
-                deferreds.forEach { other ->
-                    if (other !== d && !other.isCompleted) {
-                        try {
-                            other.cancel(cancelCause)
-                        } catch (ex: Exception) {
-                            try {
-                                ex.maybeRethrowCompletionHandlerException()
-                            } catch (cancel: CancellationException) {
-                                // ignore cancellation exceptions thrown while cascading cancel
-                            }
-                        }
+            if (cause != null) {
+                firstFailure.compareAndSet(null, cause)
+            }
+            if (remaining.decrementAndGet() == 0) {
+                val failure = firstFailure.get()
+                if (failure != null) {
+                    when (failure) {
+                        is CancellationException -> result.cancel(failure)
+                        else -> result.completeExceptionally(failure)
                     }
+                } else {
+                    result.complete(Unit)
                 }
             }
         }
@@ -525,8 +516,8 @@ inline fun <T> Throwable.handleLocalCancellation(
     job: Job,
     onCancellation: (CancellationException) -> T,
     onNonCancellation: (Exception) -> T
-): T {
-    return when (this) {
+): T =
+    when (this) {
         is CancellationException -> {
             if (job.isCancelled) {
                 onCancellation(this)
@@ -542,7 +533,6 @@ inline fun <T> Throwable.handleLocalCancellation(
 
         else -> throw this // Errors should propagate immediately
     }
-}
 
 /**
  * Finish this deferred with an exception that was thrown inside its own coroutine context.

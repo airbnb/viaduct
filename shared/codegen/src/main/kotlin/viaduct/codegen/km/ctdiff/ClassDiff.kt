@@ -125,7 +125,9 @@ class ClassDiff(
             }
 
             // Compare methods and constructors
-            class ExecutableElement<T : CtBehavior>(override val self: T) : Element<T> {
+            class ExecutableElement<T : CtBehavior>(
+                override val self: T
+            ) : Element<T> {
                 override val identifier get() = self.sig
                 override val modifiers get() = self.modifiers
                 override val annotations get() = self.methodInfo2.attributes.comparableAnnotations()
@@ -253,8 +255,8 @@ class ClassDiff(
      * Appends the attribute name (e.g. RuntimeInvisibleAnnotations) to the annotation string so we don't lose
      * context about which attribute the annotation belongs to.
      */
-    private fun List<AttributeInfo>.comparableAnnotations(): List<String> {
-        return this.flatMap { attribute ->
+    private fun List<AttributeInfo>.comparableAnnotations(): List<String> =
+        this.flatMap { attribute ->
             if (attribute is AnnotationsAttribute) {
                 attribute.annotations
                     .filter { it.typeName != "kotlin.Metadata" }
@@ -280,7 +282,6 @@ class ClassDiff(
                 emptyList()
             }
         }
-    }
 
     private val String.packageNormalized: String
         get() = replace(expectedPkg, actualPkg)
@@ -288,9 +289,10 @@ class ClassDiff(
 
 // JaCoCo, which we use for the coverage job in CI, will insert fields and methods
 val Class<*>.fieldsToCompare
-    get() = this.declaredFields.filter {
-        it.name != "this\$0" && !it.name.startsWith("\$jacoco")
-    }.toTypedArray()
+    get() = this.declaredFields
+        .filter {
+            it.name != "this\$0" && !it.name.startsWith("\$jacoco")
+        }.toTypedArray()
 
 val Class<*>.methodsToCompare
     get() = this.declaredMethods.filterNot { it.name.startsWith("\$jacoco") }.toTypedArray()

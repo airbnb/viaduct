@@ -2,6 +2,7 @@ package viaduct.api.globalid
 
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeCompositeOutput
+import viaduct.apiannotations.StableApi
 
 /**
  * GlobalIDs are objects in Viaduct that contain 'type' and 'internalID' properties.
@@ -14,6 +15,7 @@ import viaduct.api.types.NodeCompositeOutput
  * Instances of GlobalID can be created using execution-context objects,
  * e.g., ExecutionContext.nodeIDFor(User, 123).
  */
+@StableApi
 interface GlobalID<out T : NodeCompositeOutput> {
     /** The type of the node object, e.g. User. */
     val type: Type<T>

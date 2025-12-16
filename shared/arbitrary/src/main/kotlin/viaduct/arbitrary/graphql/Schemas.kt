@@ -12,15 +12,16 @@ internal interface Schemas {
     val directivesByLocation: Map<DirectiveLocation, Set<GraphQLDirective>>
 
     companion object {
-        private class Impl(override val schema: GraphQLSchema) : Schemas {
+        private class Impl(
+            override val schema: GraphQLSchema
+        ) : Schemas {
             override val rels: GraphQLTypeRelations = GraphQLTypeRelations(schema)
 
             override val directivesByLocation: Map<DirectiveLocation, Set<GraphQLDirective>> =
                 schema.directives
                     .flatMap { dir ->
                         dir.validLocations().map { loc -> dir to loc }
-                    }
-                    .groupBy({ it.second }, { it.first })
+                    }.groupBy({ it.second }, { it.first })
                     .mapValues { it.value.toSet() }
         }
 

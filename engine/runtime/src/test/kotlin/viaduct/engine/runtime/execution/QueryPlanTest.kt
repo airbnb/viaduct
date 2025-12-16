@@ -394,7 +394,7 @@ class QueryPlanTest {
                 checkEquals(
                     mkQueryPlan(
                         SelectionSet(
-                            Field(
+                            mkField(
                                 resultKey = "x",
                                 constraints = typeConstraint(query),
                                 field = GJField(
@@ -416,7 +416,7 @@ class QueryPlanTest {
                                             parentType = objectX
                                         )
                                     )
-                                ),
+                                )
                             )
                         ),
                         parentType = query
@@ -530,115 +530,7 @@ class QueryPlanTest {
     }
 
     @Test
-    fun `QueryPlanBuilder -- inCheckerContext`() {
-        Fixture(
-            "type Query { x:Int, y:Int z:Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Query" to "x", "y")
-                .fieldResolverEntry("Query" to "x", "z")
-                .build()
-        ) {
-            // inCheckerContext = true
-            expectThat(buildPlan("{x}", inCheckerContext = true)) {
-                checkEquals(
-                    mkQueryPlan(
-                        SelectionSet(
-                            mkField(
-                                "x",
-                                typeConstraint(query),
-                                childPlans = listOf(
-                                    // Includes resolver plan but not checker plan
-                                    mkQueryPlan(
-                                        SelectionSet(
-                                            mkField("z", typeConstraint(query))
-                                        ),
-                                        parentType = query
-                                    )
-                                )
-                            )
-                        ),
-                        parentType = query
-                    )
-                )
-            }
-
-            // inCheckerContext = false
-            expectThat(buildPlan("{x}", inCheckerContext = false)) {
-                checkEquals(
-                    mkQueryPlan(
-                        SelectionSet(
-                            mkField(
-                                "x",
-                                typeConstraint(query),
-                                childPlans = listOf(
-                                    mkQueryPlan(
-                                        SelectionSet(
-                                            mkField("z", typeConstraint(query)),
-                                        ),
-                                        parentType = query
-                                    ),
-                                    // Includes checker plan
-                                    mkQueryPlan(
-                                        SelectionSet(
-                                            mkField("y", typeConstraint(query)),
-                                        ),
-                                        parentType = query
-                                    )
-                                )
-                            )
-                        ),
-                        parentType = query
-                    )
-                )
-            }
-        }
-    }
-
-    @Test
-    fun `QueryPlanBuilder -- inCheckerContext excludes type checker child plans`() {
-        // Test that field type child plans are not built when in checker context
-        Fixture(
-            """
-                type Query { x:ObjectX }
-                type ObjectX { y:Int, z:Int }
-            """.trimIndent(),
-            MockRequiredSelectionSetRegistry.builder()
-                .typeCheckerEntry("ObjectX", "z")
-                .build()
-        ) {
-            val objectX = schema.getObjectType("ObjectX")!!
-
-            // Build checker query plan - should not have field type child plans
-            val checkerPlan = buildPlan("{x{y}}", inCheckerContext = true)
-            expectThat(checkerPlan) {
-                checkEquals(
-                    mkQueryPlan(
-                        SelectionSet(
-                            Field(
-                                resultKey = "x",
-                                constraints = typeConstraint(query),
-                                field = GJField(
-                                    "x",
-                                    GJSelectionSet(
-                                        listOf(GJField("y"))
-                                    )
-                                ),
-                                selectionSet = SelectionSet(
-                                    mkField("y", typeConstraint(objectX))
-                                ),
-                                childPlans = emptyList(),
-                                fieldTypeChildPlans = emptyMap(), // Empty because inCheckerContext = true
-                            )
-                        ),
-                        parentType = query
-                    )
-                )
-            }
-        }
-    }
-
-    @Test
-    fun `QueryPlanBuilder -- checker with variable resolver RSS maintains inCheckerContext`() {
+    fun `QueryPlanBuilder -- cycle prevention in checker RSS chains`() {
         val varResolvers = VariablesResolver.fromSelectionSetVariables(
             SelectionsParser.parse("Query", "z"),
             ParsedSelections.empty("Query"),
@@ -653,11 +545,10 @@ class QueryPlanTest {
                 "y(a:\$vara)",
                 varResolvers
             )
-            .fieldResolverEntry("Query" to "z", "zz") // Should be included
-            .fieldCheckerEntry("Query" to "z", "x") // Should not be included
+            .fieldResolverEntry("Query" to "z", "zz")
+            .fieldCheckerEntry("Query" to "z", "x")
             .build()
         Fixture("type Query { x:Int, y(a:Int):Int, z:Int zz:String}", reg) {
-            // Build a normal plan that triggers the checker
             val plan = buildPlan("{x}")
             expectThat(plan) {
                 checkEquals(
@@ -688,11 +579,19 @@ class QueryPlanTest {
                                                     mkField("z", typeConstraint(query))
                                                 ),
                                                 parentType = query,
-                                                // This should be built in checker context, so only includes child plan for z's resolver
+                                                // Both resolver and checker RSSes for z are now included
                                                 childPlans = listOf(
+                                                    // Resolver RSS for z: selects zz
                                                     mkQueryPlan(
                                                         SelectionSet(
                                                             mkField("zz", typeConstraint(query))
+                                                        ),
+                                                        parentType = query
+                                                    ),
+                                                    // Checker RSS for z: selects x, but x has no child plans (cycle broken)
+                                                    mkQueryPlan(
+                                                        SelectionSet(
+                                                            mkField("x", typeConstraint(query))
                                                         ),
                                                         parentType = query
                                                     )
@@ -711,13 +610,141 @@ class QueryPlanTest {
     }
 
     @Test
+    fun `QueryPlanBuilder -- cycle prevention for direct self-reference`() {
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry("Query" to "x", "x") // x's checker selects x
+            .build()
+        Fixture("type Query { x:Int }", reg) {
+            val plan = buildPlan("{x}")
+            expectThat(plan) {
+                checkEquals(
+                    mkQueryPlan(
+                        SelectionSet(
+                            mkField(
+                                "x",
+                                typeConstraint(query),
+                                childPlans = listOf(
+                                    // Checker RSS for x selects x, but x has no child plans (cycle broken)
+                                    mkQueryPlan(
+                                        SelectionSet(
+                                            mkField("x", typeConstraint(query))
+                                        ),
+                                        parentType = query
+                                    )
+                                )
+                            )
+                        ),
+                        parentType = query
+                    )
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- cycle prevention for type checker self-reference`() {
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .typeCheckerEntry("ObjectX", "y") // ObjectX's type checker selects y (which is of type ObjectX)
+            .build()
+        Fixture(
+            """
+                type Query { x:ObjectX }
+                type ObjectX { y:ObjectX z:Int }
+            """.trimIndent(),
+            reg
+        ) {
+            val objectX = schema.getObjectType("ObjectX")!!
+            val plan = buildPlan("{x{z}}")
+            expectThat(plan) {
+                checkEquals(
+                    mkQueryPlan(
+                        SelectionSet(
+                            mkField(
+                                resultKey = "x",
+                                constraints = typeConstraint(query),
+                                field = GJField(
+                                    "x",
+                                    GJSelectionSet(
+                                        listOf(GJField("z"))
+                                    )
+                                ),
+                                selectionSet = SelectionSet(
+                                    mkField("z", typeConstraint(objectX))
+                                ),
+                                childPlans = emptyList(),
+                                fieldTypeChildPlans = mapOf(
+                                    objectX to listOf(
+                                        // Type checker for ObjectX selects y (type ObjectX)
+                                        mkQueryPlan(
+                                            SelectionSet(
+                                                mkField(
+                                                    resultKey = "y",
+                                                    constraints = typeConstraint(objectX),
+                                                    field = GJField("y"),
+                                                    selectionSet = null,
+                                                    childPlans = emptyList(),
+                                                    // y's type is ObjectX, but ObjectX is already in seen set (cycle broken)
+                                                    fieldTypeChildPlans = emptyMap()
+                                                )
+                                            ),
+                                            parentType = objectX
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        parentType = query
+                    )
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- interface with multiple implementing types`() {
+        fun uniqueVarResolvers(id: String) =
+            VariablesResolver.fromSelectionSetVariables(
+                SelectionsParser.parse("I", "x"),
+                ParsedSelections.empty("I"),
+                listOf(FromObjectFieldVariable("var_$id", "x")),
+                forChecker = true,
+            )
+
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .typeCheckerEntry("A", "fragment Main on A { ...Frag1 } fragment Frag1 on I { x y z }", uniqueVarResolvers("typeA"))
+            .fieldCheckerEntry("A" to "x", "fragment Main on A { ...Frag2 } fragment Frag2 on I { x y z }", uniqueVarResolvers("Ax"))
+            .fieldCheckerEntry("A" to "y", "fragment Main on A { ...Frag2 } fragment Frag2 on I { x y z }", uniqueVarResolvers("Ay"))
+            .fieldCheckerEntry("A" to "z", "v { v }", uniqueVarResolvers("Az"), selectionsType = "Query")
+            .typeCheckerEntry("B", "fragment Main on B { ...Frag1 } fragment Frag1 on I { x y z }", uniqueVarResolvers("typeB"))
+            .fieldCheckerEntry("B" to "x", "fragment Main on B { ...Frag2 } fragment Frag2 on I { x y z }", uniqueVarResolvers("Bx"))
+            .fieldCheckerEntry("B" to "y", "fragment Main on B { ...Frag2 } fragment Frag2 on I { x y z }", uniqueVarResolvers("By"))
+            .fieldCheckerEntry("B" to "z", "v { v }", uniqueVarResolvers("Bz"), selectionsType = "Query")
+            .build()
+
+        Fixture(
+            """
+                interface I { x: Int, y: Int, z: Int }
+                type A implements I { x: Int, y: Int, z: Int }
+                type B implements I { x: Int, y: Int, z: Int}
+
+                type V { v: String }
+                type Query { i: I, v: V }
+            """.trimIndent(),
+            reg
+        ) {
+            val plan = buildPlan("{ i { x } }")
+            expectThat(plan.selectionSet.selections).hasSize(1)
+        }
+    }
+
+    @Test
     fun `QueryPlan can be built with custom ExecutionCondition`() {
         Fixture("type Query { x:Int }") {
             val customCondition = QueryPlanExecutionCondition { false }
             val plan = runExecutionTest {
                 val params = mkQPParameters("{x}", ViaductSchema(schema), requiredSelectionSetRegistry)
                     .copy(executionCondition = customCondition)
-                QueryPlan.build(params, "{x}".asDocument, inCheckerContext = false)
+                QueryPlan.build(params, "{x}".asDocument)
             }
 
             // Verify the ExecutionCondition is stored in the plan
@@ -738,7 +765,7 @@ class QueryPlanTest {
             val plan = runExecutionTest {
                 val params = mkQPParameters("{x}", ViaductSchema(schema), reg)
                     .copy(executionCondition = customCondition)
-                QueryPlan.build(params, "{x}".asDocument, inCheckerContext = false)
+                QueryPlan.build(params, "{x}".asDocument)
             }
 
             // Verify the root plan has the custom ExecutionCondition from parameters
@@ -774,10 +801,7 @@ class QueryPlanTest {
             fn(this)
         }
 
-        fun buildPlan(
-            doc: String,
-            inCheckerContext: Boolean = false
-        ): QueryPlan = buildPlan(doc, ViaductSchema(schema), requiredSelectionSetRegistry, inCheckerContext)
+        fun buildPlan(doc: String): QueryPlan = buildPlan(doc, ViaductSchema(schema), requiredSelectionSetRegistry)
     }
 }
 
@@ -899,12 +923,11 @@ internal fun <T : Node<*>> Assertion.Builder<T>.checkEquals(exp: T): Assertion.B
 internal fun buildPlan(
     doc: String,
     schema: ViaductSchema,
-    requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
-    inCheckerContext: Boolean = false
+    requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty
 ): QueryPlan =
     runExecutionTest {
         mkQPParameters(doc, schema, requiredSelectionSetRegistry).let { params ->
-            QueryPlan.build(params, doc.asDocument, inCheckerContext = inCheckerContext)
+            QueryPlan.build(params, doc.asDocument)
         }
     }
 
@@ -953,7 +976,7 @@ private fun mkField(
     field = field ?: GJField(resultKey),
     selectionSet = selectionSet,
     childPlans = childPlans,
-    fieldTypeChildPlans = fieldTypeChildPlans
+    fieldTypeChildPlans = fieldTypeChildPlans.mapValues { (_, v) -> lazy { v } }
 )
 
 private fun typeConstraint(type: GraphQLObjectType) = Constraints(emptyList(), listOf(type))

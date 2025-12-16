@@ -103,11 +103,16 @@ sealed interface RawRecord {
 
 @JvmInline value class RawInput(
     override val values: List<Pair<String, RawValue>>
-) : RawValue, RawRecord {
+) : RawValue,
+    RawRecord {
     override fun toString(): String = values.toString()
 }
 
-data class RawObject(val typename: String, override val values: List<Pair<String, RawValue>>) : RawValue, RawRecord {
+data class RawObject(
+    val typename: String,
+    override val values: List<Pair<String, RawValue>>
+) : RawValue,
+    RawRecord {
     override fun toString(): String = "<$typename> $values"
 
     operator fun plus(entry: Pair<String, RawValue>): RawObject = copy(values = values + entry)
@@ -117,7 +122,10 @@ data class RawObject(val typename: String, override val values: List<Pair<String
     }
 }
 
-data class RawScalar(val typename: String, val value: Any?) : RawValue {
+data class RawScalar(
+    val typename: String,
+    val value: Any?
+) : RawValue {
     init {
         require(value !is RawValue) {
             "Cannot wrap a RawValue in RawScalar"
@@ -127,11 +135,15 @@ data class RawScalar(val typename: String, val value: Any?) : RawValue {
     override fun toString(): String = value.toString()
 }
 
-@JvmInline value class RawEnum(val valueName: String) : RawValue {
+@JvmInline value class RawEnum(
+    val valueName: String
+) : RawValue {
     override fun toString(): String = valueName
 }
 
-@JvmInline value class RawList(val values: List<RawValue>) : RawValue {
+@JvmInline value class RawList(
+    val values: List<RawValue>
+) : RawValue {
     override fun toString(): String = values.toString()
 
     companion object {

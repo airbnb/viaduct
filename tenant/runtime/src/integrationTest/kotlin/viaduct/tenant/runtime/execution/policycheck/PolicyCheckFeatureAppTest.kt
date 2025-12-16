@@ -180,7 +180,7 @@ class PolicyCheckFeatureAppTest : FeatureAppTestBase() {
     @BeforeEach
     fun setupPolicyCheck() {
         // Create MockFlagManager that disables executeAccessChecksInModstrat to enable Node-level policy checks
-        val mockFlagManager = MockFlagManager() // Empty set = no flags enabled = EXECUTE_ACCESS_CHECKS_IN_MODERN_EXECUTION_STRATEGY is disabled
+        val mockFlagManager = MockFlagManager() // Empty set = no flags enabled = EXECUTE_ACCESS_CHECKS is disabled
 
         // Configure the viaduct builder with policy check support
         withViaductBuilder {

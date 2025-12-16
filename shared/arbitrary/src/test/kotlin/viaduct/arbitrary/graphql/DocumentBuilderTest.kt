@@ -23,7 +23,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DocumentBuilderTest {
-    private class Fixture(sdl: String, fn: Fixture.() -> Unit = {}) {
+    private class Fixture(
+        sdl: String,
+        fn: Fixture.() -> Unit = {}
+    ) {
         val schema = sdl.asSchema
         val query = schema.queryType
         val schemas = Schemas(schema)
@@ -59,7 +62,8 @@ class DocumentBuilderTest {
 
         fun assertDocument(expected: String) {
             val db = DocumentBuilder(schemas, fragments)
-            val op = OperationDefinition.newOperationDefinition()
+            val op = OperationDefinition
+                .newOperationDefinition()
                 .operation(OperationDefinition.Operation.QUERY)
                 .selectionSet(sb.build())
                 .build()

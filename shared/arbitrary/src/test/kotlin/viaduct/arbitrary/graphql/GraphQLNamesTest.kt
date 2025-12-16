@@ -19,7 +19,8 @@ class GraphQLNamesTest : KotestPropertyBase() {
     @Test
     fun `Arb_graphQLNames`(): Unit =
         runBlocking {
-            Arb.int(min = 1, max = 1000)
+            Arb
+                .int(min = 1, max = 1000)
                 .forAll { count ->
                     val cfg = Config.default + (SchemaSize to count)
                     val names = Arb.graphQLNames(cfg).bind()
@@ -39,13 +40,14 @@ class GraphQLNamesTest : KotestPropertyBase() {
 
     @Test
     fun `Arb_graphQLNames -- IncludeCustomScalars`() {
-        Arb.of(true, false)
+        Arb
+            .of(true, false)
             .flatMap { incl ->
                 val cfg = Config.default + (GenCustomScalars to incl)
-                Arb.graphQLNames(cfg)
+                Arb
+                    .graphQLNames(cfg)
                     .map { names -> incl to names.scalars - builtinScalars.keys }
-            }
-            .checkInvariants { (incl, scalars), check ->
+            }.checkInvariants { (incl, scalars), check ->
                 if (!incl) {
                     check.isTrue(
                         scalars.isEmpty(),
@@ -71,7 +73,8 @@ class GraphQLNamesTest : KotestPropertyBase() {
     fun `Arb_graphQLNames -- TypeTypeWeights -- skewed weights`(): Unit =
         runBlocking {
             val ttw = TypeTypeWeights.default + (TypeType.Enum to 10.0) + (TypeType.Union to 0.0)
-            Arb.int(0 until 1_000)
+            Arb
+                .int(0 until 1_000)
                 .flatMap { schemaSize ->
                     val cfg = Config.default + (TypeTypeWeights to ttw) + (SchemaSize to schemaSize)
                     Arb.graphQLNames(cfg)
@@ -83,12 +86,13 @@ class GraphQLNamesTest : KotestPropertyBase() {
     @Test
     fun `graphQLNames plus`(): Unit =
         runBlocking {
-            Arb.pair(
-                Arb.graphQLNames(),
-                Arb.graphQLNames()
-            ).forAll { (a, b) ->
-                (a.allNames + b.allNames) == (a + b).allNames
-            }
+            Arb
+                .pair(
+                    Arb.graphQLNames(),
+                    Arb.graphQLNames()
+                ).forAll { (a, b) ->
+                    (a.allNames + b.allNames) == (a + b).allNames
+                }
         }
 
     @Test

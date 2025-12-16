@@ -64,13 +64,16 @@ class EmptyClassTest {
     @Test
     fun shouldMatch() {
         val kmCtx = KmClassFilesBuilder()
-        kmCtx.customClassBuilder(ClassKind.CLASS, KmName("$actualspkg/EmptyClass"))
+        kmCtx
+            .customClassBuilder(ClassKind.CLASS, KmName("$actualspkg/EmptyClass"))
             .addEmptyCtor()
         kmCtx.assertNoDiff(EmptyClass::class, "$actualspkg.EmptyClass")
     }
 }
 
-data class DataClassWithDefaultValue(var s: String = "s")
+data class DataClassWithDefaultValue(
+    var s: String = "s"
+)
 
 class DataClassWithDefaultValueTest {
     @Test
@@ -226,7 +229,9 @@ class NullTypesTest {
 }
 
 @Suppress("UNUSED_PARAMETER")
-class UnitTypes(p: Int) {
+class UnitTypes(
+    p: Int
+) {
     fun f1(a1: String?) = Unit
 
     fun f2(a1: Unit) = Unit
@@ -281,7 +286,10 @@ class BasicInterfaceTest {
     }
 }
 
-data class DataClass(var a: String, var b: Int?)
+data class DataClass(
+    var a: String,
+    var b: Int?
+)
 
 class DataClassTest {
     @Test

@@ -117,6 +117,11 @@ class ApiTestSchemaFeatureAppTest {
     | union U2 = Concrete
     | type Concrete { x:Int }
     |
+    | type RecursiveObject {
+    |    int: Int
+    |    nested: RecursiveObject
+    | }
+    |
 #END_SCHEMA
     """
 }

@@ -29,6 +29,7 @@ includeNamed(":x:javaapi:api", "../..")
 includeNamed(":x:javaapi:runtime", "../..")
 
 // Include all shared modules
+includeNamed(":shared:apiannotations", "../..")
 includeNamed(":shared:arbitrary", "../..")
 includeNamed(":shared:dataloader", "../..")
 includeNamed(":shared:utils", "../..")

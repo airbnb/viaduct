@@ -1,6 +1,6 @@
 /**
  * Add this to projects that have a companion -integration-tests project
- * 
+ *
  * It will publishes JaCoCo's exec files and source jars to allow us to make
  * a comprehensive test-coverage report.
  */

@@ -3,6 +3,7 @@ package viaduct.engine.api.observability
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 
 class ExecutionObservabilityContextTest {
     @Test

@@ -5,11 +5,13 @@ import viaduct.api.reflect.CompositeField
 import viaduct.api.reflect.Field
 import viaduct.api.reflect.Type
 import viaduct.api.types.CompositeOutput
+import viaduct.apiannotations.StableApi
 
 /**
  * SelectionSet describes a type-safe interface to querying and transforming a
  * GraphQL selection set.
  */
+@StableApi
 interface SelectionSet<T : CompositeOutput> {
     /**
      * Returns true if this SelectionSet includes the provided [Field].

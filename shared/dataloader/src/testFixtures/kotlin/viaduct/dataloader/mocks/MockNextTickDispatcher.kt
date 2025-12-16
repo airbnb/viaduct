@@ -27,7 +27,9 @@ import viaduct.service.api.spi.FlagManager
 class MockNextTickDispatcher constructor(
     private val internalDispatcher: TestCoroutineDispatcher = TestCoroutineDispatcher(),
     private val batchQueueDispatcher: TestCoroutineDispatcher = TestCoroutineDispatcher()
-) : NextTickDispatcher(internalDispatcher, batchQueueDispatcher, flagManager = FlagManager.disabled), Delay, DelayController {
+) : NextTickDispatcher(internalDispatcher, batchQueueDispatcher, flagManager = FlagManager.disabled),
+    Delay,
+    DelayController {
     override val currentTime: Long
         get() = internalDispatcher.currentTime
 
@@ -68,7 +70,5 @@ class MockNextTickDispatcher constructor(
         timeMillis: Long,
         block: Runnable,
         context: CoroutineContext
-    ): DisposableHandle {
-        return internalDispatcher.invokeOnTimeout(timeMillis, block, context)
-    }
+    ): DisposableHandle = internalDispatcher.invokeOnTimeout(timeMillis, block, context)
 }

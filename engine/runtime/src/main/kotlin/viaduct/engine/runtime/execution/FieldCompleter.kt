@@ -6,6 +6,7 @@ package viaduct.engine.runtime.execution
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
+import graphql.execution.ResultPath
 import graphql.execution.SimpleDataFetcherExceptionHandler
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.SimpleInstrumentationContext.nonNullCtx
@@ -15,9 +16,11 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLEnumType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLTypeUtil
+import kotlin.getValue
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.asDeferred
+import viaduct.deferred.waitAllDeferreds
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.Cell
@@ -31,6 +34,8 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingE
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.collectFields
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoFactory
+import viaduct.logging.ifDebug
+import viaduct.utils.slf4j.logger
 
 /**
  * Core component of Viaduct's execution engine responsible for completing GraphQL field values by transforming raw
@@ -78,6 +83,10 @@ class FieldCompleter(
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler,
     private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck,
 ) {
+    companion object {
+        private val log by logger()
+    }
+
     /**
      * Completes the selection set by completing each field.
      *
@@ -85,12 +94,21 @@ class FieldCompleter(
      * @return A [Deferred] of [FieldCompletionResult] representing the completed fields.
      */
     fun completeObject(parameters: ExecutionParameters): Value<FieldCompletionResult> {
-        val instrumentationParams = InstrumentationExecutionStrategyParameters(parameters.executionContext, parameters.gjParameters)
+        val instrumentationParams = InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters)
         val ctxCompleteObject = nonNullCtx(
             parameters.instrumentation.beginCompleteObject(instrumentationParams, parameters.executionContext.instrumentationState)
         )
         val parentOER = parameters.parentEngineResult
-        return Value.fromDeferred(parentOER.state)
+
+        val barrier = Value.fromDeferred(
+            waitAllDeferreds(
+                listOf(
+                    parentOER.fieldResolutionState, // Ensure all fields are resolved
+                    parentOER.lazyResolutionState, // If the OER is lazy, ensure it's been resolved
+                )
+            )
+        )
+        return barrier
             .thenCompose { _, throwable ->
                 ctxCompleteObject.onDispatched()
                 if (throwable != null) {
@@ -127,7 +145,9 @@ class FieldCompleter(
             val handledFieldValue = combineValues(
                 parentOER.getValue(fieldKey, RAW_VALUE_SLOT),
                 parentOER.getValue(fieldKey, ACCESS_CHECK_SLOT),
-                bypassChecker
+                bypassChecker,
+                field.fieldName,
+                newParams.path
             ).handleException(newParams, field)
 
             field.responseKey to completeField(field, newParams, handledFieldValue).map { it.value }
@@ -154,11 +174,18 @@ class FieldCompleter(
         rawSlotValue: Value<*>,
         checkerSlotValue: Value<*>,
         bypassChecker: Boolean,
+        fieldName: String,
+        path: ResultPath
     ): Value<FieldResolutionResult> {
         val fieldResolutionResultValue = checkNotNull(rawSlotValue as? Value<FieldResolutionResult>) {
             "Expected raw slot to contain Value<FieldResolutionResult>, was ${rawSlotValue.javaClass}"
         }
 
+        if (bypassChecker) {
+            log.ifDebug {
+                debug("[AccessCheck] Bypassing access check during completion for field '$fieldName' at path '$path'")
+            }
+        }
         // Return raw value immediatley if bypassing check or checkerSlot value is null
         if (bypassChecker || checkerSlotValue == Value.nullValue) {
             return fieldResolutionResultValue
@@ -247,7 +274,7 @@ class FieldCompleter(
         )
 
         val instParams = InstrumentationFieldCompleteParameters(
-            parameters.executionContext,
+            parameters.executionContextWithLocalContext,
             parameters.gjParameters,
             { executionStepInfo },
             fieldResolutionResult,
@@ -391,10 +418,10 @@ class FieldCompleter(
         }
         val bypassCheck = temporaryBypassAccessCheck.shouldBypassCheck(field.mergedField.singleField, parameters.bypassChecksDuringCompletion)
         val listValues = cells.map {
-            combineValues(it.getValue(RAW_VALUE_SLOT), it.getValue(ACCESS_CHECK_SLOT), bypassCheck)
+            combineValues(it.getValue(RAW_VALUE_SLOT), it.getValue(ACCESS_CHECK_SLOT), bypassCheck, field.fieldName, parameters.path)
         }
         val instrumentationParams = InstrumentationFieldCompleteParameters(
-            parameters.executionContext,
+            parameters.executionContextWithLocalContext,
             parameters.gjParameters,
             { parameters.executionStepInfo },
             listValues
@@ -501,6 +528,7 @@ class FieldCompleter(
                     return Value.fromThrowable(err)
                 }
             }
+
             is Enum<*> -> {
                 // Java enum instance - extract name and validate
                 val enumName = result.name
@@ -516,6 +544,7 @@ class FieldCompleter(
                     return Value.fromThrowable(err)
                 }
             }
+
             else -> {
                 // Unexpected type - try GraphQL Java's serialize as fallback
                 try {

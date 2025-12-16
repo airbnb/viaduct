@@ -70,14 +70,16 @@ class ScopedSchemaBuilder(
             it.mutation(replaceChildrenWithTypeReferences(inputSchema.mutationType) as GraphQLObjectType?)
             it.subscription(replaceChildrenWithTypeReferences(inputSchema.subscriptionType) as GraphQLObjectType?)
             val additionalTypes =
-                inputSchema.allTypesAsList.filter {
-                    !isIntrospectionType(it) &&
-                        it != inputSchema.queryType &&
-                        it != inputSchema.mutationType &&
-                        it != inputSchema.subscriptionType && it !is GraphQLScalarType
-                }.map { type ->
-                    replaceChildrenWithTypeReferences(type)
-                }.toSet()
+                inputSchema.allTypesAsList
+                    .filter {
+                        !isIntrospectionType(it) &&
+                            it != inputSchema.queryType &&
+                            it != inputSchema.mutationType &&
+                            it != inputSchema.subscriptionType &&
+                            it !is GraphQLScalarType
+                    }.map { type ->
+                        replaceChildrenWithTypeReferences(type)
+                    }.toSet()
             it.clearAdditionalTypes()
             it.additionalTypes(additionalTypes)
 
@@ -128,9 +130,10 @@ class ScopedSchemaBuilder(
             )
             it.clearInterfaces()
             it.withInterfaces(
-                *type.interfaces.map { iface ->
-                    replaceTypeWithReference(iface) as GraphQLTypeReference
-                }.toTypedArray()
+                *type.interfaces
+                    .map { iface ->
+                        replaceTypeWithReference(iface) as GraphQLTypeReference
+                    }.toTypedArray()
             )
             it.replaceDirectives(
                 type.directives.map(replaceDirectiveChildrenWithTypeReferences)
@@ -167,11 +170,12 @@ class ScopedSchemaBuilder(
             )
 
             it.replaceInterfaces(listOf())
-            type.interfaces.map { iface ->
-                replaceTypeWithReference(iface) as GraphQLTypeReference
-            }.forEach { ref ->
-                it.withInterface(ref)
-            }
+            type.interfaces
+                .map { iface ->
+                    replaceTypeWithReference(iface) as GraphQLTypeReference
+                }.forEach { ref ->
+                    it.withInterface(ref)
+                }
         }
 
     private fun replaceInputObjectTypeChildrenWithTypeReferences(type: GraphQLInputObjectType) =
@@ -201,7 +205,8 @@ class ScopedSchemaBuilder(
         type.transform {
             it.clearPossibleTypes()
             it.possibleTypes(
-                *type.types.map { replaceTypeWithReference(it) as GraphQLTypeReference }
+                *type.types
+                    .map { replaceTypeWithReference(it) as GraphQLTypeReference }
                     .toTypedArray()
             )
         }

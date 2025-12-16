@@ -7,7 +7,9 @@ class MetadataDisagreementTests {
 
     interface Names
 
-    class Constructors(a: Int) {
+    class Constructors(
+        a: Int
+    ) {
         constructor(b: String) : this(0)
         constructor(a: Double) : this(0)
     }
@@ -20,7 +22,9 @@ class MetadataDisagreementTests {
         protected abstract fun f3()
     }
 
-    class Properties(p1: String) {
+    class Properties(
+        p1: String
+    ) {
         var p2: Int = 1
         private var p3: Int? = 2
     }

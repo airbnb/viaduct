@@ -28,9 +28,7 @@ import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 // tag::character_resolver_unit_tests[10] Example of unit tests for field resolvers
 @OptIn(ExperimentalCoroutinesApi::class)
 class CharacterResolverUnitTests : DefaultAbstractResolverTestBase() {
-    override fun getSchema(): ViaductSchema =
-        SchemaFactory(DefaultCoroutineInterop)
-            .fromResources("com.example.starwars", Regex(".*\\.graphqls"))
+    override fun getSchema(): ViaductSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
 
     lateinit var characterRepository: CharacterRepository
 

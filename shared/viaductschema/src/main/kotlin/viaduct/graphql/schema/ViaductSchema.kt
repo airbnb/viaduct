@@ -73,9 +73,7 @@ interface ViaductSchema {
                     return arguments == other.arguments
                 }
 
-                override fun hashCode(): Int {
-                    return name.hashCode() + 31 * arguments.hashCode()
-                }
+                override fun hashCode(): Int = name.hashCode() + 31 * arguments.hashCode()
 
                 override fun toString() =
                     "@$name${
@@ -152,7 +150,9 @@ interface ViaductSchema {
         }
     }
 
-    data class SourceLocation(val sourceName: String)
+    data class SourceLocation(
+        val sourceName: String
+    )
 
     interface Extension<out D : TypeDef, out M : Def> {
         val def: D
@@ -206,7 +206,10 @@ interface ViaductSchema {
         val extensions: Collection<Extension<D, M>>
     }
 
-    interface HasExtensionsWithSupers<D : Record, M : Field> : CompositeOutput, Record, HasExtensions<D, M> {
+    interface HasExtensionsWithSupers<D : Record, M : Field> :
+        CompositeOutput,
+        Record,
+        HasExtensions<D, M> {
         override val extensions: Collection<ExtensionWithSupers<D, M>>
     }
 
@@ -276,7 +279,9 @@ interface ViaductSchema {
      *  anything that can be a supertype of an object-value type. */
     interface CompositeOutput : TypeDef
 
-    interface Union : CompositeOutput, HasExtensions<Union, Object> {
+    interface Union :
+        CompositeOutput,
+        HasExtensions<Union, Object> {
         override val kind get() = TypeDefKind.UNION
         override val extensions: Collection<Extension<Union, Object>>
         override val sourceLocation get() = extensions.firstOrNull().let {
@@ -335,7 +340,9 @@ interface ViaductSchema {
     }
 
     /** Represents fields for all of interface, object, and input types. */
-    interface Field : HasDefaultValue, HasArgs {
+    interface Field :
+        HasDefaultValue,
+        HasArgs {
         override val containingDef: Record
         val containingExtension: Extension<Record, Field>
         override val sourceLocation get() = containingExtension.sourceLocation
@@ -396,7 +403,9 @@ interface ViaductSchema {
         override fun describe() = "Object<$name>"
     }
 
-    interface Input : Record, HasExtensions<Input, Field> {
+    interface Input :
+        Record,
+        HasExtensions<Input, Field> {
         override val kind get() = TypeDefKind.INPUT
         override val extensions: Collection<Extension<Input, Field>>
 

@@ -66,7 +66,8 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
     private val GraphQLType.isNonNull: Boolean get() = GraphQLTypeUtil.isNonNull(this)
 
     private fun parseSelections(fragmentString: String): SelectionSet =
-        Parser.parse(fragmentString)
+        Parser
+            .parse(fragmentString)
             .getFirstDefinitionOfType(FragmentDefinition::class.java)
             .get()
             .selectionSet
@@ -77,12 +78,13 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
             arbitrary {
                 val cfg = config.bind()
                 val type = scalars.bind()
-                val value = Arb.rawValueFor(
-                    type = type,
-                    selections = null,
-                    schema = minimalSchema,
-                    cfg = cfg
-                ).bind()
+                val value = Arb
+                    .rawValueFor(
+                        type = type,
+                        selections = null,
+                        schema = minimalSchema,
+                        cfg = cfg
+                    ).bind()
                 Triple(type, cfg, value)
             }.checkInvariants { (type, cfg, value), check ->
                 if (cfg[ExplicitNullValueWeight] == 1.0) {
@@ -103,12 +105,13 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
                 val cfg = config.bind()
                 val type = maybeNonNull(GraphQLList.list(maybeNonNull(scalars.bind())))
 
-                val value = Arb.rawValueFor(
-                    type = type,
-                    selections = null,
-                    schema = minimalSchema,
-                    cfg = cfg
-                ).bind()
+                val value = Arb
+                    .rawValueFor(
+                        type = type,
+                        selections = null,
+                        schema = minimalSchema,
+                        cfg = cfg
+                    ).bind()
                 Triple(type, cfg, value)
             }.checkInvariants { (type, cfg, value), check ->
                 if (!type.isNonNull && cfg[ExplicitNullValueWeight] == 1.0) {
@@ -152,12 +155,13 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
             arbitrary {
                 val cfg = config.bind()
                 val type = maybeNonNull(enum)
-                val value = Arb.rawValueFor(
-                    type = type,
-                    selections = null,
-                    schema = schema,
-                    cfg = cfg
-                ).bind()
+                val value = Arb
+                    .rawValueFor(
+                        type = type,
+                        selections = null,
+                        schema = schema,
+                        cfg = cfg
+                    ).bind()
                 Triple(type, cfg, value)
             }.checkInvariants { (type, cfg, value), check ->
                 if (!type.isNonNull && cfg[ExplicitNullValueWeight] == 1.0) {
@@ -182,12 +186,13 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
             arbitrary {
                 val cfg = config.bind()
                 val selections = Arb.of(emptySelections, fullSelections).bind()
-                val value = Arb.rawValueFor(
-                    type = obj,
-                    selections = selections,
-                    schema = schema,
-                    cfg = cfg
-                ).bind()
+                val value = Arb
+                    .rawValueFor(
+                        type = obj,
+                        selections = selections,
+                        schema = schema,
+                        cfg = cfg
+                    ).bind()
                 Triple(selections, cfg, value)
             }.checkInvariants { (selections, cfg, value), check ->
                 if (value is RawObject) {
@@ -252,12 +257,13 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
                 val cfg = config.bind()
                 val useEmptySelections = Arb.boolean().bind()
                 val selections = if (useEmptySelections) emptySelections else fullSelections
-                val value = Arb.rawValueFor(
-                    type = u,
-                    selections = selections,
-                    schema = schema,
-                    cfg = cfg
-                ).bind()
+                val value = Arb
+                    .rawValueFor(
+                        type = u,
+                        selections = selections,
+                        schema = schema,
+                        cfg = cfg
+                    ).bind()
                 useEmptySelections to value
             }.checkInvariants { (useEmptySelections, value), check ->
                 check.isTrue(
@@ -307,12 +313,13 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
                 val cfg = config.bind()
                 val useEmptySelections = Arb.boolean().bind()
                 val selections = if (useEmptySelections) emptySelections else fullSelections
-                val value = Arb.rawValueFor(
-                    type = u,
-                    selections = selections,
-                    schema = schema,
-                    cfg = cfg
-                ).bind()
+                val value = Arb
+                    .rawValueFor(
+                        type = u,
+                        selections = selections,
+                        schema = schema,
+                        cfg = cfg
+                    ).bind()
                 useEmptySelections to value
             }.checkInvariants { (useEmptySelections, value), check ->
                 check.isTrue(
@@ -342,11 +349,12 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
             val schema = mkGJSchema("type O { x: Int! }")
             val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             arbitrary {
-                Arb.rawValueFor(
-                    o,
-                    parseSelections("fragment _ on O { a: x }"),
-                    schema,
-                ).bind()
+                Arb
+                    .rawValueFor(
+                        o,
+                        parseSelections("fragment _ on O { a: x }"),
+                        schema,
+                    ).bind()
             }.checkInvariants { value, check ->
                 val obj = value as RawObject
                 check.isEqualTo(
@@ -363,10 +371,11 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
             val schema = mkGJSchema("type O { x: Int! o: O! }")
             val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             arbitrary {
-                Arb.rawValueFor(
-                    o,
-                    parseSelections(
-                        """
+                Arb
+                    .rawValueFor(
+                        o,
+                        parseSelections(
+                            """
                         fragment _ on O {
                             o {
                                 ... on O {
@@ -374,10 +383,10 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
                                 }
                             }
                         }
-                        """.trimIndent()
-                    ),
-                    schema,
-                ).bind()
+                            """.trimIndent()
+                        ),
+                        schema,
+                    ).bind()
             }.checkInvariants { value, check ->
                 val obj = value as RawObject
                 check.isEqualTo("O", obj.typename, "Expected RawObject for `O` but got $obj")
@@ -398,10 +407,11 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
             val schema = mkGJSchema("type O { x: Int! y: Int! o: O! }")
             val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             arbitrary {
-                Arb.rawValueFor(
-                    o,
-                    parseSelections(
-                        """
+                Arb
+                    .rawValueFor(
+                        o,
+                        parseSelections(
+                            """
                         fragment _ on O {
                             o {
                                 y
@@ -410,10 +420,10 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
                                 }
                             }
                         }
-                        """.trimIndent()
-                    ),
-                    schema,
-                ).bind()
+                            """.trimIndent()
+                        ),
+                        schema,
+                    ).bind()
             }.checkInvariants { value, check ->
                 val obj = value as RawObject
                 check.isEqualTo("O", obj.typename, "Expected RawObject for `O` but got $obj")
@@ -545,10 +555,11 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
             val schema = mkGJSchema("type O { x: Int! }")
             val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             arbitrary {
-                Arb.rawValueFor(
-                    o,
-                    parseSelections(
-                        """
+                Arb
+                    .rawValueFor(
+                        o,
+                        parseSelections(
+                            """
                         fragment _ on O {
                             ... {
                                ... {
@@ -558,10 +569,10 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
                                }
                             }
                         }
-                        """.trimIndent()
-                    ),
-                    schema,
-                ).bind()
+                            """.trimIndent()
+                        ),
+                        schema,
+                    ).bind()
             }.checkInvariants { value, check ->
                 val obj = value as RawObject
                 check.isEqualTo("O", obj.typename, "Expected RawObject for `O` but got $obj")
@@ -577,18 +588,20 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
             val schema = mkGJSchema("type O { x: Int! }")
             val o = GraphQLNonNull.nonNull(schema.getObjectType("O"))
             arbitrary {
-                Arb.rawValueFor(
-                    type = o,
-                    selections = parseSelections("fragment _ on O { ... F }"),
-                    schema,
-                    fragments = mapOf(
-                        "F" to FragmentDefinition.newFragmentDefinition()
-                            .name("F")
-                            .typeCondition(TypeName("O"))
-                            .selectionSet(parseSelections("fragment F on O { x }"))
-                            .build()
-                    ),
-                ).bind()
+                Arb
+                    .rawValueFor(
+                        type = o,
+                        selections = parseSelections("fragment _ on O { ... F }"),
+                        schema,
+                        fragments = mapOf(
+                            "F" to FragmentDefinition
+                                .newFragmentDefinition()
+                                .name("F")
+                                .typeCondition(TypeName("O"))
+                                .selectionSet(parseSelections("fragment F on O { x }"))
+                                .build()
+                        ),
+                    ).bind()
             }.checkInvariants { value, check ->
                 val obj = value as RawObject
                 check.isEqualTo("O", obj.typename, "Expected RawObject for `O` but got $obj")
@@ -619,9 +632,10 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
                     }
             }
 
-            Arb.rawValueFor(
-                document = Parser.parse(
-                    """
+            Arb
+                .rawValueFor(
+                    document = Parser.parse(
+                        """
                         {
                             b {
                                 a {
@@ -630,18 +644,17 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
                                 }
                             }
                         }
-                    """.trimIndent()
-                ),
-                schema = mkGJSchema(
-                    """
+                        """.trimIndent()
+                    ),
+                    schema = mkGJSchema(
+                        """
                         type A { x: Int!, y: String! }
                         type B { a: A! }
                         type Query { b: B! }
-                    """.trimIndent(),
-                    includeMinimal = false
-                ),
-            )
-                .map { mapper(Unit, it) }
+                        """.trimIndent(),
+                        includeMinimal = false
+                    ),
+                ).map { mapper(Unit, it) }
                 .forAll { value ->
                     val b = (value as Map<*, *>)["b"] as Map<*, *>
                     val a = b["a"] as Map<*, *>
@@ -667,12 +680,13 @@ class GJRawValueResultGenTest : KotestPropertyBase() {
 
             val u = GraphQLNonNull.nonNull(schema.getTypeAs<GraphQLUnionType>("U"))
             val arb = arbitrary {
-                Arb.rawValueFor(
-                    type = u,
-                    selections = Arb.of(selections).bind(),
-                    schema = schema,
-                    cfg = Config.default + (SelectedTypeBias to 1.0)
-                ).bind()
+                Arb
+                    .rawValueFor(
+                        type = u,
+                        selections = Arb.of(selections).bind(),
+                        schema = schema,
+                        cfg = Config.default + (SelectedTypeBias to 1.0)
+                    ).bind()
             }
 
             arb.forAll { it is RawObject && it.typename == "A" }

@@ -22,7 +22,10 @@ import viaduct.codegen.utils.KmName
 // is represented as a boxed java.lang.Integer
 
 @Suppress("UNUSED_PARAMETER")
-class Outer private constructor(a: Int, b: Int?) {
+class Outer private constructor(
+    a: Int,
+    b: Int?
+) {
     @Suppress("UNUSED")
     class Inner {
         fun build(): Outer = Outer(1, null)
@@ -59,7 +62,8 @@ class SyntheticAccessorTest {
                             body = "{}",
                             genSyntheticAccessor = true
                         )
-                        outer.nestedClassBuilder(JavaIdName("Inner"))
+                        outer
+                            .nestedClassBuilder(JavaIdName("Inner"))
                             .also { inner ->
                                 inner.addConstructor(
                                     KmConstructor().apply {

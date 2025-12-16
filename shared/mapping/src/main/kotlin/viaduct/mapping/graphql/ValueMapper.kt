@@ -15,7 +15,9 @@ interface ValueMapper<in Type, From, To> : Function2<Type, From, To> {
     }
 
     // A simple wrapper that converts a regular function into a ValueMapper.
-    private class Fn<Type, From, To>(val fn: Function2<Type, From, To>) : ValueMapper<Type, From, To> {
+    private class Fn<Type, From, To>(
+        val fn: Function2<Type, From, To>
+    ) : ValueMapper<Type, From, To> {
         override fun invoke(
             type: Type,
             from: From

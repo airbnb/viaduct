@@ -9,14 +9,17 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.of
 import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.reflect.Type
 import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.O1
 import viaduct.api.types.Input
 import viaduct.api.types.Object
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.DomainValidator
 
 class JsonDomainTest : KotestPropertyBase() {
@@ -61,6 +64,22 @@ class JsonDomainTest : KotestPropertyBase() {
                 obj.name == type.name
             }
         }
+
+    @Test
+    fun `JsonDomain_forSelectionSet -- converts simple aliased values`() {
+        val domain = JsonDomain.forSelectionSet(
+            executionContext,
+            mkSelectionSet(
+                schema,
+                O1.Reflection,
+                "myId: id, myStringField:stringField"
+            )
+        )
+        assertEquals(
+            IR.Value.Object(O1.Reflection.name, "myId" to IR.Value.String("1")),
+            domain.conv("""{"myId":"1"}""")
+        )
+    }
 
     @Test
     fun `JsonDomain can parse values with a __typename key`(): Unit =

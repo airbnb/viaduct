@@ -13,6 +13,7 @@ import graphql.schema.GraphQLUnionType
 import kotlin.reflect.KClass
 import viaduct.api.ViaductTenantUsageException
 import viaduct.api.globalid.GlobalID
+import viaduct.apiannotations.InternalApi
 import viaduct.graphql.schema.baseGraphqlScalarTypeMapping
 
 private fun graphqlScalarTypeToKotlinClass(
@@ -30,6 +31,7 @@ private fun graphqlScalarTypeToKotlinClass(
         baseGraphqlScalarTypeMapping[typeName]
     }
 
+@InternalApi
 @JvmInline
 value class DynamicValueBuilderTypeChecker(val ctx: InternalContext) {
     data class FieldContext(

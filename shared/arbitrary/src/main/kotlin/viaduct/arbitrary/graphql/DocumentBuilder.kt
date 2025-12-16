@@ -39,11 +39,12 @@ internal class Fragments(
         sb: SelectionsBuilder,
         type: GraphQLCompositeType
     ): List<FragmentDef> =
-        fragmentsByType.flatMap { (k, v) ->
-            if (!schemas.rels.isSpreadable(type, k)) emptyList() else v
-        }.filter { fb ->
-            fb.sb.fieldSelections().all(sb::canAdd)
-        }
+        fragmentsByType
+            .flatMap { (k, v) ->
+                if (!schemas.rels.isSpreadable(type, k)) emptyList() else v
+            }.filter { fb ->
+                fb.sb.fieldSelections().all(sb::canAdd)
+            }
 
     fun add(fragment: FragmentDef) {
         require(get(fragment.name) == null) {
@@ -148,13 +149,13 @@ internal class FieldSelection private constructor(
             selections: SelectionsBuilder? = null,
             directives: List<Directive> = emptyList()
         ): FieldSelection {
-            val field = Field.newField()
+            val field = Field
+                .newField()
                 .name(key.fieldName)
                 .alias(key.alias)
                 .arguments(
                     key.arguments.map { it.arg }.toList()
-                )
-                .selectionSet(selections?.build())
+                ).selectionSet(selections?.build())
                 .directives(directives)
                 .build()
             return FieldSelection(key, field, selections?.mergeKeyTree)
@@ -171,7 +172,8 @@ internal data class InlineFragmentSelection(
         selections: List<Selection> = emptyList(),
         directives: List<Directive> = emptyList()
     ) : this(
-        InlineFragment.newInlineFragment()
+        InlineFragment
+            .newInlineFragment()
             .typeCondition(sdlTypeCondition?.let(::TypeName))
             .selectionSet(SelectionsBuilder(selections).build())
             .directives(directives)
@@ -192,7 +194,8 @@ internal data class FragmentSpreadSelection(
         selections: List<Selection>,
         directives: List<Directive> = emptyList()
     ) : this(
-        FragmentSpread.newFragmentSpread(name)
+        FragmentSpread
+            .newFragmentSpread(name)
             .directives(directives)
             .build(),
         selections
@@ -220,7 +223,10 @@ internal data class DocumentBuilder(
     fun build(): Document = Document(operations + fragments.fragments.map { it.def })
 }
 
-internal data class ArgumentKey private constructor(private val repr: String, val arg: Argument) {
+internal data class ArgumentKey private constructor(
+    private val repr: String,
+    val arg: Argument
+) {
     constructor(arg: Argument) : this(AstPrinter.printAstCompact(arg), arg)
 
     override fun toString(): String = repr
@@ -317,7 +323,8 @@ internal data class FragmentDef(
             variables: List<VariableDefinition>,
             directives: List<Directive>,
         ): FragmentDef {
-            val def = FragmentDefinition.newFragmentDefinition()
+            val def = FragmentDefinition
+                .newFragmentDefinition()
                 .name(name)
                 .typeCondition(TypeName(typeCondition.name))
                 .selectionSet(sb.build())
@@ -571,12 +578,11 @@ internal class SelectionsBuilder private constructor(
      * The new builder will retain a view of this builder's view on field merging.
      * @see canAdd
      */
-    fun newFieldScope(key: FieldKey): SelectionsBuilder {
-        return SelectionsBuilder(
+    fun newFieldScope(key: FieldKey): SelectionsBuilder =
+        SelectionsBuilder(
             mutableSelections = mutableListOf(),
             mergeKeyTree = mergeKeyTree[key] ?: KeyTree(key)
         )
-    }
 
     fun build(): SelectionSet =
         SelectionSet(selections.map { it.gjSelection })

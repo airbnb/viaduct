@@ -73,7 +73,8 @@ class ConfigTest : KotestPropertyBase() {
     @Test
     fun `WeightValidator rejects values outside of 0 and 1`(): Unit =
         runBlocking {
-            Arb.double()
+            Arb
+                .double()
                 .withEdgecases(listOf(-1.0, 0.0, 1.0))
                 .forAll { d ->
                     val result =
@@ -102,9 +103,10 @@ class ConfigTest : KotestPropertyBase() {
 
             cw.checkAll {
                 val passed =
-                    Result.runCatching {
-                        Config.validateOrThrow(CompoundingWeightValidator, it)
-                    }.isSuccess
+                    Result
+                        .runCatching {
+                            Config.validateOrThrow(CompoundingWeightValidator, it)
+                        }.isSuccess
 
                 if (it.weight < 0.0 && passed) {
                     markFailure()
@@ -121,57 +123,61 @@ class ConfigTest : KotestPropertyBase() {
     @Test
     fun `IntValidator rejects values outside of range`(): Unit =
         runBlocking {
-            Arb.pair(
-                Arb.intRange(Int.MIN_VALUE until Int.MAX_VALUE),
-                Arb.int()
-            ).forAll { (range, i) ->
-                val result =
-                    Result.runCatching {
-                        Config.validateOrThrow(IntValidator(range), i)
-                    }
+            Arb
+                .pair(
+                    Arb.intRange(Int.MIN_VALUE until Int.MAX_VALUE),
+                    Arb.int()
+                ).forAll { (range, i) ->
+                    val result =
+                        Result.runCatching {
+                            Config.validateOrThrow(IntValidator(range), i)
+                        }
 
-                if (range.contains(i)) {
-                    result.isSuccess
-                } else {
-                    result.isFailure
+                    if (range.contains(i)) {
+                        result.isSuccess
+                    } else {
+                        result.isFailure
+                    }
                 }
-            }
         }
 
     @Test
     fun `IntRangeValidator rejects values outside of domain`(): Unit =
         runBlocking {
-            Arb.pair(
-                Arb.intRange(Int.MIN_VALUE until Int.MAX_VALUE),
-                Arb.intRange(Int.MIN_VALUE until Int.MAX_VALUE)
-            ).forAll { (domain, range) ->
-                val result =
-                    Result.runCatching {
-                        Config.validateOrThrow(IntRangeValidator(domain), range)
-                    }
+            Arb
+                .pair(
+                    Arb.intRange(Int.MIN_VALUE until Int.MAX_VALUE),
+                    Arb.intRange(Int.MIN_VALUE until Int.MAX_VALUE)
+                ).forAll { (domain, range) ->
+                    val result =
+                        Result.runCatching {
+                            Config.validateOrThrow(IntRangeValidator(domain), range)
+                        }
 
-                if (range.isEmpty()) {
-                    result.isFailure
-                } else if (domain.first <= range.first && domain.last >= range.last) {
-                    result.isSuccess
-                } else {
-                    result.isFailure
+                    if (range.isEmpty()) {
+                        result.isFailure
+                    } else if (domain.first <= range.first && domain.last >= range.last) {
+                        result.isSuccess
+                    } else {
+                        result.isFailure
+                    }
                 }
-            }
         }
 
     @Test
     fun `Unvalidated accepts all values`(): Unit =
         runBlocking {
-            Arb.choice(
-                Arb.int(),
-                Arb.string(),
-                Arb.double(),
-                Arb.char()
-            ).forAll {
-                Result.runCatching {
-                    Config.validateOrThrow(Unvalidated, it)
-                }.isSuccess
-            }
+            Arb
+                .choice(
+                    Arb.int(),
+                    Arb.string(),
+                    Arb.double(),
+                    Arb.char()
+                ).forAll {
+                    Result
+                        .runCatching {
+                            Config.validateOrThrow(Unvalidated, it)
+                        }.isSuccess
+                }
         }
 }

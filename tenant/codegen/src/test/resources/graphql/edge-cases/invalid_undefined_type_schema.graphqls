@@ -1,0 +1,15 @@
+# Invalid schema for testing - references undefined type
+# This should fail during schema validation or code generation
+
+type UserWithInvalidField {
+  id: ID!
+  name: String
+  # This references a type that doesn't exist
+  profile: NonExistentProfileType
+}
+
+input CreateUserInput {
+  name: String!
+  # This also references an undefined type
+  settings: UndefinedSettingsType
+}

@@ -9,7 +9,9 @@ private const val JAVA_BINARY_NAME_REGEX = "($ID[.])*$ID(\\$$$ID)*"
 
 /** Java and Kotlin identifier names. */
 @JvmInline
-value class JavaIdName(private val name: String) {
+value class JavaIdName(
+    private val name: String
+) {
     init {
         if (!checker.matches(name)) {
             throw IllegalArgumentException("Malformed JavaName ($name).")
@@ -28,7 +30,9 @@ value class JavaIdName(private val name: String) {
  *  so these are ambiguous when used for
  *  inner classes. */
 @JvmInline
-value class JavaName(private val name: String) {
+value class JavaName(
+    private val name: String
+) {
     init {
         if (!checker.matches(name)) {
             throw IllegalArgumentException("Malformed JavaName ($name).")
@@ -52,7 +56,9 @@ value class JavaName(private val name: String) {
  *  See [13.1](https://docs.oracle.com/javase/specs/jls/se8/html/jls-13.html#jls-13.1)
  *  of the Java Language Specification. */
 @JvmInline
-value class JavaBinaryName(private val name: String) {
+value class JavaBinaryName(
+    private val name: String
+) {
     init {
         if (!checker.matches(name)) {
             throw IllegalArgumentException("Malformed JavaBinaryName ($name).")
@@ -74,7 +80,9 @@ value class JavaBinaryName(private val name: String) {
  *  names.  (Same as [JavaBinaryName] except using dots in place
  *  of dollar signs.) */
 @JvmInline
-value class KmName(private val name: String) {
+value class KmName(
+    private val name: String
+) {
     init {
         if (!checker.matches(name)) {
             throw IllegalArgumentException("Malformed KmName ($name).")

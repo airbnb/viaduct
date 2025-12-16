@@ -1,0 +1,57 @@
+# Unified Copybara configuration for publishing Viaduct demo apps
+# This config dynamically creates workflows for all demo apps
+
+# Source ref can be overridden via -v SOURCE_REF=<branch>
+SOURCE_REF = "HEAD"
+
+# Define all demo apps that should be published
+# Add new demo apps here to automatically include them in publishing
+DEMO_APPS = [
+    "starwars",
+    "cli-starter",
+    "ktor-starter",
+]
+
+# Function to create a workflow for a specific demo app
+def create_demoapp_workflow(demoapp_name):
+    """Creates a workflow for publishing a demo app."""
+    core.workflow(
+        name = "airbnb-viaduct-to-" + demoapp_name,
+        origin = git.origin(
+            url = "https://github.com/airbnb/viaduct.git",  # Placeholder, actual path is current directory
+            ref = SOURCE_REF,
+        ),
+        destination = git.destination(
+            url = "https://github.com/viaduct-graphql/" + demoapp_name + ".git",
+            fetch = "main",
+            push = "main",
+        ),
+        origin_files = glob(["demoapps/" + demoapp_name + "/**"], exclude = [
+            # Exclude build artifacts
+            "demoapps/" + demoapp_name + "/build/**",
+            "demoapps/" + demoapp_name + "/.gradle/**",
+
+            # Exclude IDE files
+            "demoapps/" + demoapp_name + "/.idea/**",
+            "demoapps/" + demoapp_name + "/.settings/**",
+            "demoapps/" + demoapp_name + "/.classpath",
+            "demoapps/" + demoapp_name + "/.project",
+            "demoapps/" + demoapp_name + "/bin/**",
+
+            # Exclude local database files
+            "demoapps/" + demoapp_name + "/**/*.db",
+            "demoapps/" + demoapp_name + "/**/*.db-journal",
+        ]),
+        destination_files = glob(["**"], exclude = [
+            ".git/**",
+        ]),
+        authoring = authoring.pass_thru("ViaBot <viabot@ductworks.io>"),
+        mode = "SQUASH",
+        transformations = [
+            # Move files from demoapps/<name>/ to root
+            core.move("demoapps/" + demoapp_name, ""),
+        ],
+    )
+
+# Create workflows for all demo apps using list comprehension
+[create_demoapp_workflow(demoapp) for demoapp in DEMO_APPS]

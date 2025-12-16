@@ -24,6 +24,7 @@ fun Map<String, *>.assertJson(expectedJson: String) {
 }
 
 // configure an ObjectMapper that allows parsing compact JSON
+@Suppress("DEPRECATION")
 private val mapper: ObjectMapper = ObjectMapper()
     .configure(JsonParser.Feature.ALLOW_COMMENTS, true)
     .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)

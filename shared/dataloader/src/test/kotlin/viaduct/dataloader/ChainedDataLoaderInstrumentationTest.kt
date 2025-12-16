@@ -17,9 +17,7 @@ class ChainedDataLoaderInstrumentationTest {
 
         private val batchState = BatchState()
 
-        override fun createBatchState(): DataLoaderInstrumentation.BatchState {
-            return batchState
-        }
+        override fun createBatchState(): DataLoaderInstrumentation.BatchState = batchState
 
         override fun <K> beginLoad(
             key: K,

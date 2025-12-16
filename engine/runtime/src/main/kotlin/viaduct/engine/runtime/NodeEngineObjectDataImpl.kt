@@ -13,15 +13,13 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.NodeResolverDispatcherRegistry
 import viaduct.engine.api.RawSelectionSet
-import viaduct.engine.api.TypeCheckerDispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextExtensions.executeAccessChecksInModstrat
 
 class NodeEngineObjectDataImpl(
     override val id: String,
     override val graphQLObjectType: GraphQLObjectType,
-    private val resolverRegistry: NodeResolverDispatcherRegistry,
-    private val checkerRegistry: TypeCheckerDispatcherRegistry
+    private val dispatcherRegistry: DispatcherRegistry
 ) : NodeEngineObjectData, NodeReference {
     private lateinit var resolvedEngineObjectData: EngineObjectData
     private val resolving = CompletableDeferred<Unit>()
@@ -58,11 +56,11 @@ class NodeEngineObjectDataImpl(
         }
 
         try {
-            val nodeResolver = resolverRegistry.getNodeResolverDispatcher(graphQLObjectType.name)
+            val nodeResolver = dispatcherRegistry.getNodeResolverDispatcher(graphQLObjectType.name)
                 ?: throw IllegalStateException("No node resolver found for type ${graphQLObjectType.name}")
 
-            if (!(context as EngineExecutionContextImpl).executeAccessChecksInModstrat) {
-                val nodeChecker = checkerRegistry.getTypeCheckerDispatcher(graphQLObjectType.name)
+            if (!context.executeAccessChecksInModstrat) {
+                val nodeChecker = dispatcherRegistry.getTypeCheckerDispatcher(graphQLObjectType.name)
                 if (nodeChecker == null) {
                     resolvedEngineObjectData = nodeResolver.resolve(id, selections, context)
                     resolving.complete(Unit)

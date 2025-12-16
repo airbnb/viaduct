@@ -25,9 +25,8 @@ class ViaductConfiguration(
                 scopes = listOf(
                     DEFAULT_SCHEMA_ID.toSchemaScopeInfo(),
                     EXTRAS_SCHEMA_ID.toSchemaScopeInfo(),
-                ),
-                packagePrefix = "com.example.starwars",
-                resourcesIncluded = ".*\\.graphqls"
+                )
+                // grtPackagePrefix and grtResourcesIncluded not set - using defaults
             ),
             tenantRegistrationInfo = TenantRegistrationInfo(
                 tenantPackagePrefix = "com.example.starwars",

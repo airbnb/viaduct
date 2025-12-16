@@ -15,7 +15,9 @@ import viaduct.utils.collections.MaskedSet
  * GraphQLTypeRelations computes relationships between GraphQL types.
  * @see [GraphQLTypeRelation.Relation]
  */
-class GraphQLTypeRelations(schemaTypes: List<GraphQLType>) {
+class GraphQLTypeRelations(
+    schemaTypes: List<GraphQLType>
+) {
     constructor(schema: GraphQLSchema) : this(schema.allTypesAsList)
 
     // parent interface/union type -> child object/interface types
@@ -48,8 +50,8 @@ class GraphQLTypeRelations(schemaTypes: List<GraphQLType>) {
             when (t) {
                 is GraphQLObjectType -> {
                     val interfaces = collectInterfaces(t)
-                    interfaces.forEach { i ->
-                        if (ignore(i)) return@forEach
+                    interfaces.forEach graphQLObjectTypeInterfaces@{ i ->
+                        if (ignore(i)) return@graphQLObjectTypeInterfaces
                         addEntry(objectToAbstractTypes, t, i)
 
                         // an object is mutually spreadable with all of its interfaces
@@ -68,15 +70,15 @@ class GraphQLTypeRelations(schemaTypes: List<GraphQLType>) {
                 is GraphQLInterfaceType -> {
                     // collect all parent interfaces implemented by this interface type t
                     // foreach parent interface i, add t as a possible type
-                    collectInterfaces(t).forEach {
-                        if (ignore(it)) return@forEach
+                    collectInterfaces(t).forEach graphQLInterfaceTypeInterfaces@{
+                        if (ignore(it)) return@graphQLInterfaceTypeInterfaces
                         addEntry(possibleTypes, it, t)
                     }
                 }
 
                 is GraphQLUnionType -> {
-                    t.types.forEach { member ->
-                        if (ignore(member)) return@forEach
+                    t.types.forEach graphQLUnionTypeMembers@{ member ->
+                        if (ignore(member)) return@graphQLUnionTypeMembers
 
                         // member is typed as a GraphQLNamedOutputType, which allows type references
                         // to be used before the schema is completely resolved
@@ -108,9 +110,10 @@ class GraphQLTypeRelations(schemaTypes: List<GraphQLType>) {
             }
         }
 
-        possibleObjectTypes = possibleTypes.mapValues { (_, values) ->
-            MaskedSet(values.filterIsInstance<GraphQLObjectType>())
-        }.toMap()
+        possibleObjectTypes = possibleTypes
+            .mapValues { (_, values) ->
+                MaskedSet(values.filterIsInstance<GraphQLObjectType>())
+            }.toMap()
     }
 
     private fun ignore(type: GraphQLType): Boolean = type is GraphQLNamedType && type.name == "VIADUCT_IGNORE"

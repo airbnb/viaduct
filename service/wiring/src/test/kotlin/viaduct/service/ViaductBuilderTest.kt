@@ -54,7 +54,6 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withSchemaConfiguration(schemaConfiguration)
-            .standardNodeBehavior(false)
             .build().let {
                 assertNotNull(it)
             }
@@ -72,7 +71,6 @@ class ViaductBuilderTest {
             .withNoTenantAPIBootstrapper()
             .withSchemaConfiguration(schemaConfiguration)
             .withMeterRegistry(meterRegistry)
-            .standardNodeBehavior(false)
             .build()
 
         assertNotNull(viaduct)
@@ -92,7 +90,6 @@ class ViaductBuilderTest {
             .withNoTenantAPIBootstrapper()
             .withSchemaConfiguration(schemaConfiguration)
             .withResolverErrorReporter(errorReporter)
-            .standardNodeBehavior(false)
             .build()
 
         assertNotNull(viaduct)
@@ -110,7 +107,6 @@ class ViaductBuilderTest {
             .withNoTenantAPIBootstrapper()
             .withSchemaConfiguration(schemaConfiguration)
             .withDataFetcherErrorBuilder(errorBuilder)
-            .standardNodeBehavior(false)
             .build()
 
         assertNotNull(viaduct)
@@ -134,7 +130,6 @@ class ViaductBuilderTest {
             .withNoTenantAPIBootstrapper()
             .withSchemaConfiguration(schemaConfiguration)
             .withDataFetcherExceptionHandler(exceptionHandler)
-            .standardNodeBehavior(false)
             .build()
 
         assertNotNull(viaduct)
@@ -166,7 +161,6 @@ class ViaductBuilderTest {
             .withResolverErrorReporter(errorReporter)
             .withDataFetcherErrorBuilder(errorBuilder)
             .withDataFetcherExceptionHandler(exceptionHandler)
-            .standardNodeBehavior(false)
 
         // Verify that method chaining returns the same builder instance
         assertSame(builder, result)
@@ -201,7 +195,6 @@ class ViaductBuilderTest {
             .withResolverErrorReporter(errorReporter)
             .withDataFetcherErrorBuilder(errorBuilder)
             .withDataFetcherExceptionHandler(exceptionHandler)
-            .standardNodeBehavior(false)
             .build()
 
         assertNotNull(viaduct)
@@ -223,7 +216,6 @@ class ViaductBuilderTest {
             .withNoTenantAPIBootstrapper()
             .withResolverErrorReporter(errorReporter) // Observability in the middle
             .withSchemaConfiguration(schemaConfiguration)
-            .standardNodeBehavior(false)
             .build()
 
         assertNotNull(viaduct)

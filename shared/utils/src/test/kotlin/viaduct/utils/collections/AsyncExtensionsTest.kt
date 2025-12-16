@@ -32,11 +32,12 @@ class AsyncExtensionsTest {
             val inspectionChannel = Channel<Int>()
             val results =
                 async {
-                    testList.parallelMap {
-                        inspectionChannel.send(it)
-                        completionBarrier.await()
-                        it
-                    }.toList()
+                    testList
+                        .parallelMap {
+                            inspectionChannel.send(it)
+                            completionBarrier.await()
+                            it
+                        }.toList()
                 }
 
             withTimeout(100) {
@@ -55,11 +56,13 @@ class AsyncExtensionsTest {
     fun testParallelMap_shouldPropagateExceptions() {
         runBlocking {
             val exception = shouldThrow<IllegalArgumentException> {
-                0.until(4).parallelMap(2, 2) {
-                    if (it == 3) {
-                        throw IllegalArgumentException("Test!")
-                    }
-                }.toList()
+                0
+                    .until(4)
+                    .parallelMap(2, 2) {
+                        if (it == 3) {
+                            throw IllegalArgumentException("Test!")
+                        }
+                    }.toList()
             }
             exception.message shouldBe "Test!"
         }
@@ -77,29 +80,31 @@ class AsyncExtensionsTest {
             val job =
                 launch(Dispatchers.Default) {
                     var nextItem = 0
-                    0.until(100).parallelMap(2, 20) {
-                        if (it == 0) {
-                            firstItemCompletionBarrier.await()
-                        }
+                    0
+                        .until(100)
+                        .parallelMap(2, 20) {
+                            if (it == 0) {
+                                firstItemCompletionBarrier.await()
+                            }
 
-                        if (it == 60) {
-                            secondItemCompletionBarrier.await()
-                        }
+                            if (it == 60) {
+                                secondItemCompletionBarrier.await()
+                            }
 
-                        if (firstItemCompletionBarrier.isActive) {
-                            it shouldBeLessThan 20
-                        }
+                            if (firstItemCompletionBarrier.isActive) {
+                                it shouldBeLessThan 20
+                            }
 
-                        if (secondItemCompletionBarrier.isActive) {
-                            it shouldBeLessThan 80
-                        }
+                            if (secondItemCompletionBarrier.isActive) {
+                                it shouldBeLessThan 80
+                            }
 
-                        itemsProcessed.incrementAndGet()
-                        it
-                    }.collect {
-                        it shouldBe nextItem
-                        nextItem++
-                    }
+                            itemsProcessed.incrementAndGet()
+                            it
+                        }.collect {
+                            it shouldBe nextItem
+                            nextItem++
+                        }
                 }
 
             withTimeout(2000) {
@@ -138,18 +143,19 @@ class AsyncExtensionsTest {
             val semaphoreChannel = BroadcastChannel<Boolean>(1)
             val results =
                 async {
-                    testList.parallelMap(2, 2) {
-                        // start listening for termination signal
-                        val semaphore = semaphoreChannel.openSubscription()
+                    testList
+                        .parallelMap(2, 2) {
+                            // start listening for termination signal
+                            val semaphore = semaphoreChannel.openSubscription()
 
-                        // send my value in for inspection
-                        currentInspectionChannel.send(it)
+                            // send my value in for inspection
+                            currentInspectionChannel.send(it)
 
-                        // wait for the go-ahead to move on
-                        semaphore.receive()
+                            // wait for the go-ahead to move on
+                            semaphore.receive()
 
-                        it
-                    }.toList()
+                            it
+                        }.toList()
                 }
 
             withTimeout(500) {

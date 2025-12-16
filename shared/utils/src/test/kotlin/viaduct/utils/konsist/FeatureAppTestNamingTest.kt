@@ -16,7 +16,8 @@ class FeatureAppTestNamingTest {
         println("=== FeatureAppTest Naming Convention Validation ===")
 
         // Find all classes that extend FeatureAppTestBase
-        val featureAppTestClasses = scope.classes()
+        val featureAppTestClasses = scope
+            .classes()
             .filter { it.hasParentClass { parent -> parent.name == "FeatureAppTestBase" } }
 
         println("Found ${featureAppTestClasses.size} classes extending FeatureAppTestBase")

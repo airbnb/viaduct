@@ -1,13 +1,13 @@
 # Jacoco Code Coverage Setup
 
-This project has been configured with Jacoco code coverage reporting optimized for CircleCI integration.
+This project has been configured with Jacoco code coverage reporting optimized.
 
 ## Configuration Details
 
 ### What's Configured
 - **Individual module coverage**: Each submodule generates its own coverage reports
-- **Aggregated coverage**: Combined coverage report across all modules  
-- **CircleCI optimization**: XML reports generated in standardized paths
+- **Aggregated coverage**: Combined coverage report across all modules
+- **Github integration**: XML reports generated in standardized paths
 - **Gradle integration**: Coverage automatically runs after tests
 
 ### Available Gradle Tasks
@@ -39,28 +39,15 @@ This will:
 - **Aggregated XML report**: `build/reports/jacoco/aggregate/jacocoAggregatedReport.xml`
 - **Aggregated HTML report**: `build/reports/jacoco/aggregate/html/index.html`
 
-### CircleCI Integration
 
-#### Sample CircleCI Config
+#### Sample Github Actions Config
 ```yaml
-version: 2.1
-
-jobs:
-  test-and-coverage:
-    docker:
-      - image: cimg/openjdk:17.0
-    steps:
-      - checkout
-      - run:
-          name: Run tests and generate coverage
-          command: |
-            cd projects/viaduct/oss
-            ./gradlew testAndCoverage
-      - store_test_results:
-          path: projects/viaduct/oss/build/test-results
-      - store_artifacts:
-          path: projects/viaduct/oss/build/reports/jacoco/aggregate
-          destination: coverage-reports
+name: Upload JaCoCo coverage reports
+if: always()
+uses: actions/upload-artifact@v4
+with:
+  name: coverage-reports-java-${{ matrix.java }}-${{ matrix.os }}
+  path: build/reports/jacoco
 ```
 
 #### Coverage Thresholds
@@ -86,6 +73,6 @@ tasks.jacocoTestReport {
 
 ### Best Practices
 1. Run `./gradlew testAndCoverage` locally before pushing
-2. Monitor coverage trends in CircleCI
+2. Monitor coverage trends
 3. Gradually increase coverage thresholds as code coverage improves
 4. Use the HTML reports for detailed coverage analysis

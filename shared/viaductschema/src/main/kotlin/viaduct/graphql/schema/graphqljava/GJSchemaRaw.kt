@@ -135,6 +135,25 @@ class GJSchemaRaw private constructor(
             )
         }
 
+        fun fromSDL(
+            sdl: String,
+            timer: Timer = Timer(),
+            valueConverter: ValueConverter = ValueConverter.default,
+            queryTypeName: String? = null,
+            mutationTypeName: String? = null,
+            subscriptionTypeName: String? = null,
+        ): GJSchemaRaw {
+            val typeDefRegistry = timer.time("readTypes") { readTypes(sdl) }
+            return fromRegistry(
+                typeDefRegistry,
+                timer,
+                valueConverter,
+                queryTypeName,
+                mutationTypeName,
+                subscriptionTypeName,
+            )
+        }
+
         /** Convert a graphql-java TypeDefinitionRegistry into
          *  a schema sketch. */
         fun fromRegistry(
@@ -148,32 +167,32 @@ class GJSchemaRaw private constructor(
             timer.time("fromSchema") {
                 // graphql-java assumes these get created during language->schema translation
                 val deprecatedDirectiveDef =
-                    DirectiveDefinition.newDirectiveDefinition()
+                    DirectiveDefinition
+                        .newDirectiveDefinition()
                         .name("deprecated")
                         .inputValueDefinition(
                             InputValueDefinition("reason", NonNullType(TypeName("String")), StringValue("No longer supported"))
-                        )
-                        .directiveLocations(
+                        ).directiveLocations(
                             listOf(
                                 DirectiveLocation("FIELD_DEFINITION"),
                                 DirectiveLocation("ARGUMENT_DEFINITION"),
                                 DirectiveLocation("INPUT_FIELD_DEFINITION"),
                                 DirectiveLocation("ENUM_VALUE")
                             )
-                        )
-                        .build()
+                        ).build()
                 registry.add(deprecatedDirectiveDef)
                 val specifiedByDirectiveDef =
-                    DirectiveDefinition.newDirectiveDefinition()
+                    DirectiveDefinition
+                        .newDirectiveDefinition()
                         .name("specifiedBy")
                         .inputValueDefinition(
                             InputValueDefinition("url", NonNullType(TypeName("String")))
-                        )
-                        .directiveLocations(listOf(DirectiveLocation("SCALAR")))
+                        ).directiveLocations(listOf(DirectiveLocation("SCALAR")))
                         .build()
                 registry.add(specifiedByDirectiveDef)
                 val oneOfDirectiveDef =
-                    DirectiveDefinition.newDirectiveDefinition()
+                    DirectiveDefinition
+                        .newDirectiveDefinition()
                         .name("oneOf")
                         .description(
                             Description(
@@ -181,8 +200,7 @@ class GJSchemaRaw private constructor(
                                 null,
                                 false
                             )
-                        )
-                        .directiveLocations(listOf(DirectiveLocation("INPUT_OBJECT")))
+                        ).directiveLocations(listOf(DirectiveLocation("INPUT_OBJECT")))
                         .build()
                 registry.add(oneOfDirectiveDef)
 
@@ -193,7 +211,8 @@ class GJSchemaRaw private constructor(
                     registry.getTypes(UnionTypeDefinition::class.java) + registry.unionTypeExtensions().values.flatten()
                 for (def in unionDefs) {
                     def.memberTypes.forEach {
-                        unionsMap.getOrPut((it as TypeName).name) {
+                        unionsMap
+                            .getOrPut((it as TypeName).name) {
                             mutableSetOf()
                         }.add(def.name)
                     }
@@ -207,7 +226,8 @@ class GJSchemaRaw private constructor(
                     )
                 for (def in implTypeDefs) {
                     def.implements.forEach {
-                        membersMap.getOrPut((it as TypeName).name) {
+                        membersMap
+                            .getOrPut((it as TypeName).name) {
                             mutableSetOf()
                         }.add(def)
                     }
@@ -245,7 +265,8 @@ class GJSchemaRaw private constructor(
                     }
                 }
                 val scalarExtensions = registry.scalarTypeExtensions()
-                registry.scalars().values.forEach { // Scalars are handled differently
+                registry.scalars().values.forEach {
+                    // Scalars are handled differently
                     val x = scalarExtensions[it.name] ?: emptyList()
                     val v = Scalar(registry, it as ScalarTypeDefinition, x, result, valueConverter)
                     result[it.name] = v
@@ -277,7 +298,11 @@ class GJSchemaRaw private constructor(
             stdName: String
         ): Object? {
             var nameFromSchema =
-                schemaDef?.operationTypeDefinitions?.find { it.name == stdName.lowercase() }?.typeName?.name
+                schemaDef
+                    ?.operationTypeDefinitions
+                    ?.find { it.name == stdName.lowercase() }
+                    ?.typeName
+                    ?.name
             var result: TypeDef? = nameFromSchema?.let {
                 defs[nameFromSchema] ?: throw IllegalArgumentException("Type not found: $nameFromSchema")
             }
@@ -349,7 +374,9 @@ class GJSchemaRaw private constructor(
         override fun hasAppliedDirective(name: String) = appliedDirectives.find { it.name == name } != null
     }
 
-    sealed interface TypeDef : ViaductSchema.TypeDef, Def {
+    sealed interface TypeDef :
+        ViaductSchema.TypeDef,
+        Def {
         override val def: TypeDefinition<*>
         val extensionDefs: List<TypeDefinition<*>>
 
@@ -366,9 +393,13 @@ class GJSchemaRaw private constructor(
         override fun toString() = describe()
     }
 
-    abstract class Arg : HasDefaultValue(), ViaductSchema.Arg
+    abstract class Arg :
+        HasDefaultValue(),
+        ViaductSchema.Arg
 
-    interface HasArgs : Def, ViaductSchema.HasArgs {
+    interface HasArgs :
+        Def,
+        ViaductSchema.HasArgs {
         override val args: List<Arg>
     }
 
@@ -378,7 +409,8 @@ class GJSchemaRaw private constructor(
         override val type: TypeExpr,
         protected override val _defaultValue: Any?,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>
-    ) : ViaductSchema.DirectiveArg, Arg() {
+    ) : Arg(),
+        ViaductSchema.DirectiveArg {
         override val name = def.name
 
         override fun toString() = describe()
@@ -388,7 +420,8 @@ class GJSchemaRaw private constructor(
         override val def: DirectiveDefinition,
         protected val typeMap: RawTypeMap,
         protected val valueConverter: ValueConverter
-    ) : ViaductSchema.Directive, HasArgs {
+    ) : ViaductSchema.Directive,
+        HasArgs {
         override val name = def.name
         override val isRepeatable: Boolean = def.isRepeatable
         override val args =
@@ -403,7 +436,8 @@ class GJSchemaRaw private constructor(
             }
 
         override val allowedLocations =
-            def.directiveLocations.map {
+            def.directiveLocations
+                .map {
                 ViaductSchema.Directive.Location.valueOf(it.name)
             }.toSet()
         override val appliedDirectives: List<ViaductSchema.AppliedDirective> = emptyList()
@@ -417,7 +451,8 @@ class GJSchemaRaw private constructor(
         override val extensionDefs: List<ScalarTypeExtensionDefinition>,
         protected override val typeMap: RawTypeMap,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Scalar, TypeDefImpl() {
+    ) : TypeDefImpl(),
+        ViaductSchema.Scalar {
         override val name = def.name
 
         override val sourceLocation =
@@ -437,7 +472,8 @@ class GJSchemaRaw private constructor(
         override val def: EnumValueDefinition,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>,
         override val containingExtension: ViaductSchema.Extension<Enum, EnumValue>
-    ) : ViaductSchema.EnumValue, Def {
+    ) : ViaductSchema.EnumValue,
+        Def {
         override val name = def.name
 
         override fun toString() = describe()
@@ -449,7 +485,8 @@ class GJSchemaRaw private constructor(
         override val extensionDefs: List<EnumTypeExtensionDefinition>,
         protected override val typeMap: RawTypeMap,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Enum, TypeDefImpl() {
+    ) : TypeDefImpl(),
+        ViaductSchema.Enum {
         override val name = def.name
         override val values by lazy { extensions.flatMap { it.members } }
         override val extensions by lazy {
@@ -480,7 +517,9 @@ class GJSchemaRaw private constructor(
         override val possibleObjectTypes: Set<Object> get() = setOf<Object>()
     }
 
-    sealed interface CompositeOutput : ViaductSchema.CompositeOutput, TypeDef
+    sealed interface CompositeOutput :
+        ViaductSchema.CompositeOutput,
+        TypeDef
 
     class Union internal constructor(
         registry: TypeDefinitionRegistry,
@@ -488,7 +527,9 @@ class GJSchemaRaw private constructor(
         override val extensionDefs: List<UnionTypeExtensionDefinition>,
         protected override val typeMap: RawTypeMap,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Union, CompositeOutput, TypeDefImpl() {
+    ) : TypeDefImpl(),
+    ViaductSchema.Union,
+        CompositeOutput {
         override val name = def.name
         override val possibleObjectTypes by lazy { extensions.flatMap { it.members }.toSet() }
         override val extensions by lazy {
@@ -516,7 +557,9 @@ class GJSchemaRaw private constructor(
         }
     }
 
-    abstract class HasDefaultValue : ViaductSchema.HasDefaultValue, Def {
+    abstract class HasDefaultValue :
+        ViaductSchema.HasDefaultValue,
+        Def {
         abstract override val containingDef: Def
 
         abstract override val type: TypeExpr
@@ -542,13 +585,17 @@ class GJSchemaRaw private constructor(
         override val type: TypeExpr,
         protected override val _defaultValue: Any?,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective>
-    ) : ViaductSchema.FieldArg, Arg() {
+    ) : Arg(),
+        ViaductSchema.FieldArg {
         override val name = def.name
 
         override fun toString() = describe()
     }
 
-    sealed class Field : ViaductSchema.Field, HasArgs, HasDefaultValue() {
+    sealed class Field :
+        HasDefaultValue(),
+        ViaductSchema.Field,
+        HasArgs {
         abstract override val containingDef: Record
         abstract override val containingExtension: ViaductSchema.Extension<Record, Field>
         abstract override val type: TypeExpr
@@ -591,7 +638,9 @@ class GJSchemaRaw private constructor(
         override val containingDef get() = containingExtension.def as Input
     }
 
-    sealed interface Record : ViaductSchema.Record, TypeDef {
+    sealed interface Record :
+        ViaductSchema.Record,
+        TypeDef {
         override val fields: List<Field>
 
         override fun field(name: String) = fields.find { name == it.name }
@@ -607,7 +656,8 @@ class GJSchemaRaw private constructor(
         override val def: ImplementingTypeDefinition<*>,
         protected override val typeMap: RawTypeMap,
         valueConverter: ValueConverter
-    ) : Record, TypeDefImpl() {
+    ) : TypeDefImpl(),
+        Record {
         abstract override val extensionDefs: List<ImplementingTypeDefinition<*>>
 
         override fun field(name: String) = super<Record>.field(name)
@@ -634,8 +684,9 @@ class GJSchemaRaw private constructor(
         protected override val typeMap: RawTypeMap,
         memberNames: Iterable<String>,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Interface, CompositeOutput,
-        ImplementingType(registry, def, typeMap, valueConverter) {
+    ) : ImplementingType(registry, def, typeMap, valueConverter),
+    ViaductSchema.Interface,
+        CompositeOutput {
         override val name = def.name
         override val fields by lazy { extensions.flatMap { it.members } }
         override val possibleObjectTypes by lazy { memberNames.map { typeMap[it] as Object }.toSet() }
@@ -674,9 +725,9 @@ class GJSchemaRaw private constructor(
         protected override val typeMap: RawTypeMap,
         unionNames: Iterable<String>,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Object,
-        CompositeOutput,
-        ImplementingType(registry, def, typeMap, valueConverter) {
+    ) : ImplementingType(registry, def, typeMap, valueConverter),
+    ViaductSchema.Object,
+        CompositeOutput {
         override val name = def.name
         override val fields by lazy { extensions.flatMap { it.members } }
         val extensionDefinitions get() = extensionDefs
@@ -713,7 +764,9 @@ class GJSchemaRaw private constructor(
         override val extensionDefs: List<InputObjectTypeExtensionDefinition>,
         protected override val typeMap: RawTypeMap,
         valueConverter: ValueConverter
-    ) : ViaductSchema.Input, Record, TypeDefImpl() {
+    ) : TypeDefImpl(),
+    ViaductSchema.Input,
+        Record {
         override val name = def.name
         override val fields by lazy { extensions.flatMap { it.members } }
         override val appliedDirectives = typeMap.collectDirectives(registry, def, extensionDefs, valueConverter)
@@ -768,13 +821,12 @@ class GJSchemaRaw private constructor(
 
         override fun unwrapLists() = TypeExpr(typeMap, baseTypeDefName, baseTypeNullable)
 
-        override fun unwrapList(): TypeExpr? {
-            return if (listNullable.size == 0) {
+        override fun unwrapList(): TypeExpr? =
+            if (listNullable.size == 0) {
                 null
             } else {
                 TypeExpr(typeMap, baseTypeDefName, baseTypeNullable, listNullable.lsr())
             }
-        }
     }
 }
 
@@ -820,11 +872,10 @@ internal fun <T : ViaductSchema.TypeExpr> Type<*>.toTypeExpr(createTypeExpr: (St
     return createTypeExpr(t.name, (currentNullableBit == 1L), listNullable.build())
 }
 
-private fun RawTypeMap.toTypeExpr(type: Type<*>): GJSchemaRaw.TypeExpr {
-    return type.toTypeExpr { baseTypeDefName, baseTypeNullable, listNullable ->
+private fun RawTypeMap.toTypeExpr(type: Type<*>): GJSchemaRaw.TypeExpr =
+    type.toTypeExpr { baseTypeDefName, baseTypeNullable, listNullable ->
         GJSchemaRaw.TypeExpr(this, baseTypeDefName, baseTypeNullable, listNullable)
     }
-}
 
 private fun RawTypeMap.toAppliedDirective(
     registry: TypeDefinitionRegistry,
@@ -859,11 +910,10 @@ private fun RawTypeMap.appliedDirectives(
     registry: TypeDefinitionRegistry,
     def: DirectivesContainer<*>,
     valueConverter: ValueConverter
-): List<ViaductSchema.AppliedDirective> {
-    return def.directives.map {
+): List<ViaductSchema.AppliedDirective> =
+    def.directives.map {
         this.toAppliedDirective(registry, it, valueConverter)
     }
-}
 
 private fun Iterable<Directive>.toAppliedDirectives(
     registry: TypeDefinitionRegistry,

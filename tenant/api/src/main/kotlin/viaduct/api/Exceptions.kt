@@ -4,6 +4,7 @@ import java.lang.reflect.InvocationTargetException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import viaduct.apiannotations.StableApi
 
 /**
  * Use this to wrap all entry points into the tenant API. This will catch any exception
@@ -42,13 +43,15 @@ internal suspend fun <T> handleTenantAPIErrorsSuspend(
 /**
  * Marker interface for exceptions that should be attributed to tenant code
  */
+@StableApi
 interface ViaductTenantException
 
 /**
  * Used in the tenant API and dependencies to indicate that an error is due to framework code
  * and shouldn't be attributed to tenant code
  */
-class ViaductFrameworkException internal constructor(
+@StableApi
+class ViaductFrameworkException(
     message: String,
     cause: Throwable? = null
 ) : Exception(message, cause)
@@ -57,6 +60,7 @@ class ViaductFrameworkException internal constructor(
  * Used in framework code to indicate that an error is due to invalid usage of the tenant API
  * by tenant code.
  */
+@StableApi
 class ViaductTenantUsageException(
     message: String,
     cause: Throwable? = null
@@ -66,6 +70,7 @@ class ViaductTenantUsageException(
  * Used to wrap non-framework exceptions that are thrown while executing tenant resolver code.
  * This is tied to a specific tenant-written resolver.
  */
+@StableApi
 class ViaductTenantResolverException constructor(
     override val cause: Throwable,
     val resolver: String
@@ -83,6 +88,7 @@ class ViaductTenantResolverException constructor(
  * Catches any exception thrown by [resolveFn] (which must be called via reflection) and wraps it
  * in [ViaductTenantResolverException] unless it's a [ViaductFrameworkException].
  */
+@StableApi
 suspend fun wrapResolveException(
     resolverId: String,
     resolveFn: suspend () -> Any?
@@ -101,12 +107,4 @@ suspend fun wrapResolveException(
         if (resolverException is ViaductFrameworkException) throw resolverException
         throw ViaductTenantResolverException(resolverException, resolverId)
     }
-}
-
-object ExceptionsForTesting {
-    private class TestViaductTenantException(m: String) : ViaductTenantException, Exception(m)
-
-    fun throwViaductFrameworkException(m: String): Nothing = throw ViaductFrameworkException(m)
-
-    fun throwViaductTenantException(m: String): Nothing = throw TestViaductTenantException(m)
 }

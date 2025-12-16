@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.TenantCodeInjector
 
 internal class BasicViaductFactoryTest {
@@ -34,8 +36,8 @@ internal class BasicViaductFactoryTest {
             val schemaInfo = SchemaRegistrationInfo()
 
             assertEquals(0, schemaInfo.scopes.size)
-            assertNull(schemaInfo.packagePrefix)
-            assertNull(schemaInfo.resourcesIncluded)
+            assertNull(schemaInfo.grtPackagePrefix)
+            assertNull(schemaInfo.grtResourcesIncluded)
         }
 
         @Test
@@ -71,7 +73,7 @@ internal class BasicViaductFactoryTest {
         fun `SchemaRegistrationInfo equality should work correctly`() {
             val info1 = SchemaRegistrationInfo()
             val info2 = SchemaRegistrationInfo()
-            val info3 = SchemaRegistrationInfo(packagePrefix = "different")
+            val info3 = SchemaRegistrationInfo(grtPackagePrefix = "different")
 
             assertEquals(info1, info2)
             assertNotEquals(info1, info3)
@@ -133,14 +135,14 @@ internal class BasicViaductFactoryTest {
         }
 
         @Test
-        fun `should handle custom package prefix and resource patterns`() {
+        fun `should handle custom GRT package prefix and resource patterns`() {
             val schemaInfo = SchemaRegistrationInfo(
-                packagePrefix = "com.airbnb.custom",
-                resourcesIncluded = ".*\\.gql"
+                grtPackagePrefix = "com.airbnb.custom",
+                grtResourcesIncluded = ".*\\.gql"
             )
 
-            assertEquals("com.airbnb.custom", schemaInfo.packagePrefix)
-            assertEquals(".*\\.gql", schemaInfo.resourcesIncluded)
+            assertEquals("com.airbnb.custom", schemaInfo.grtPackagePrefix)
+            assertEquals(".*\\.gql", schemaInfo.grtResourcesIncluded)
         }
     }
 
@@ -150,8 +152,8 @@ internal class BasicViaductFactoryTest {
         fun `should apply schema registry with single full schema`() {
             val schemaInfo = SchemaRegistrationInfo(
                 scopes = listOf(SchemaScopeInfo("main", null)),
-                packagePrefix = "com.test",
-                resourcesIncluded = ".*\\.graphqls"
+                grtPackagePrefix = "com.test",
+                grtResourcesIncluded = ".*\\.graphqls"
             )
 
             val builder = BasicViaductFactory.applySchemaRegistry(schemaInfo)
@@ -163,8 +165,8 @@ internal class BasicViaductFactoryTest {
         fun `should apply schema registry with single scoped schema`() {
             val schemaInfo = SchemaRegistrationInfo(
                 scopes = listOf(SchemaScopeInfo("scoped", setOf("scope1", "scope2"))),
-                packagePrefix = "com.test.scoped",
-                resourcesIncluded = ".*test.*\\.graphqls"
+                grtPackagePrefix = "com.test.scoped",
+                grtResourcesIncluded = ".*test.*\\.graphqls"
             )
 
             val builder = BasicViaductFactory.applySchemaRegistry(schemaInfo)
@@ -180,8 +182,8 @@ internal class BasicViaductFactoryTest {
                     SchemaScopeInfo("public", setOf("public")),
                     SchemaScopeInfo("admin", setOf("admin", "internal"))
                 ),
-                packagePrefix = "com.mixed",
-                resourcesIncluded = ".*\\.gql"
+                grtPackagePrefix = "com.mixed",
+                grtResourcesIncluded = ".*\\.gql"
             )
 
             val builder = BasicViaductFactory.applySchemaRegistry(schemaInfo)
@@ -193,8 +195,8 @@ internal class BasicViaductFactoryTest {
         fun `should apply schema registry with empty scopes list`() {
             val schemaInfo = SchemaRegistrationInfo(
                 scopes = emptyList(),
-                packagePrefix = "com.empty",
-                resourcesIncluded = ".*\\.graphqls"
+                grtPackagePrefix = "com.empty",
+                grtResourcesIncluded = ".*\\.graphqls"
             )
 
             val builder = BasicViaductFactory.applySchemaRegistry(schemaInfo)
@@ -206,8 +208,8 @@ internal class BasicViaductFactoryTest {
         fun `should apply schema registry with empty scope set`() {
             val schemaInfo = SchemaRegistrationInfo(
                 scopes = listOf(SchemaScopeInfo("empty-scope", emptySet())),
-                packagePrefix = "com.test",
-                resourcesIncluded = ".*\\.graphqls"
+                grtPackagePrefix = "com.test",
+                grtResourcesIncluded = ".*\\.graphqls"
             )
 
             val builder = BasicViaductFactory.applySchemaRegistry(schemaInfo)
@@ -216,16 +218,99 @@ internal class BasicViaductFactoryTest {
         }
 
         @Test
-        fun `should apply schema registry with null package prefix and resources`() {
+        fun `should apply schema registry with null GRT package prefix and resources`() {
             val schemaInfo = SchemaRegistrationInfo(
                 scopes = listOf(SchemaScopeInfo("test", setOf("scope1"))),
-                packagePrefix = null,
-                resourcesIncluded = null
+                grtPackagePrefix = null,
+                grtResourcesIncluded = null
             )
 
             val builder = BasicViaductFactory.applySchemaRegistry(schemaInfo)
 
             assertNotNull(builder)
+        }
+    }
+
+    @Nested
+    inner class CreateTests {
+        @Test
+        fun `create should attempt to build Viaduct with valid configuration`() {
+            val tenantInfo = TenantRegistrationInfo("com.test")
+            val schemaInfo = SchemaRegistrationInfo()
+
+            // This will throw because no GRT resources exist on classpath
+            // but it exercises the create() code path
+            assertThrows<Exception> {
+                BasicViaductFactory.create(schemaInfo, tenantInfo)
+            }
+        }
+
+        @Test
+        fun `create should use default schema registration info when not provided`() {
+            val tenantInfo = TenantRegistrationInfo("com.test")
+
+            assertThrows<Exception> {
+                BasicViaductFactory.create(tenantRegistrationInfo = tenantInfo)
+            }
+        }
+    }
+
+    @Nested
+    inner class CreateForTestingTests {
+        @Test
+        fun `createForTesting should attempt to build Viaduct with valid configuration`() {
+            val tenantInfo = TenantRegistrationInfo("com.test")
+
+            assertThrows<Exception> {
+                BasicViaductFactory.createForTesting(
+                    scopes = listOf(SchemaScopeInfo("test", setOf("scope1"))),
+                    tenantRegistrationInfo = tenantInfo,
+                    grtPackagePrefix = "com.test",
+                    grtResourcesIncluded = ".*\\.graphqls"
+                )
+            }
+        }
+
+        @Test
+        fun `createForTesting should use default parameters when not provided`() {
+            val tenantInfo = TenantRegistrationInfo("com.test")
+
+            assertThrows<Exception> {
+                BasicViaductFactory.createForTesting(tenantRegistrationInfo = tenantInfo)
+            }
+        }
+    }
+
+    @Nested
+    inner class ToSchemaScopeInfoTests {
+        @Test
+        fun `should convert SchemaId Scoped with scopes to SchemaScopeInfo`() {
+            val schemaId = SchemaId.Scoped("test-id", setOf("scope1", "scope2"))
+
+            val scopeInfo = schemaId.toSchemaScopeInfo()
+
+            assertEquals("test-id", scopeInfo.schemaId)
+            assertEquals(setOf("scope1", "scope2"), scopeInfo.scopesToApply)
+        }
+
+        @Test
+        fun `should convert SchemaId Scoped with empty scopes to SchemaScopeInfo with null scopesToApply`() {
+            val schemaId = SchemaId.Scoped("empty-scope-id", emptySet())
+
+            val scopeInfo = schemaId.toSchemaScopeInfo()
+
+            assertEquals("empty-scope-id", scopeInfo.schemaId)
+            assertNull(scopeInfo.scopesToApply)
+        }
+
+        @Test
+        fun `should convert SchemaId Scoped with single scope to SchemaScopeInfo`() {
+            val schemaId = SchemaId.Scoped("single-scope", setOf("admin"))
+
+            val scopeInfo = schemaId.toSchemaScopeInfo()
+
+            assertEquals("single-scope", scopeInfo.schemaId)
+            assertEquals(setOf("admin"), scopeInfo.scopesToApply)
         }
     }
 }

@@ -40,6 +40,7 @@ class TypeDefinitionRegistryExtensionsTest {
             .toSDL()
             .toTDR()
 
+        @Suppress("DEPRECATION")
         val obj = tdr.getType("Obj", ObjectTypeDefinition::class.java).get()
         assertEquals(0, obj.fieldDefinitions.size)
     }

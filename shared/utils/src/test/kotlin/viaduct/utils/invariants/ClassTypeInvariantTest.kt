@@ -5,9 +5,15 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class ClassTypeInvariantTest {
-    class User(val name: String, val age: Int)
+    class User(
+        val name: String,
+        val age: Int
+    )
 
-    class Product(val name: String, val price: Double) : HasInvariantAssertion {
+    class Product(
+        val name: String,
+        val price: Double
+    ) : HasInvariantAssertion {
         override fun assertInvariants() {
             require(price > 0) { "Price must be greater than zero" }
         }

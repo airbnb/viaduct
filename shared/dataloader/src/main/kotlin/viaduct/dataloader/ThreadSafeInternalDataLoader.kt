@@ -21,12 +21,13 @@ internal class ThreadSafeInternalDataLoader<K : Any, V, C : Any> internal constr
     ): List<V?> =
         coroutineScope {
             val kcs = keyContexts ?: keys.map { null }
-            keys.mapIndexed { i, k ->
-                val keyContext = kcs.getOrNull(i)
-                async {
-                    load(k, keyContext)
-                }
-            }.awaitAll()
+            keys
+                .mapIndexed { i, k ->
+                    val keyContext = kcs.getOrNull(i)
+                    async {
+                        load(k, keyContext)
+                    }
+                }.awaitAll()
         }
 
     override suspend fun load(
@@ -37,9 +38,10 @@ internal class ThreadSafeInternalDataLoader<K : Any, V, C : Any> internal constr
         val defaultResult = InternalDataLoader.Batch.BatchResult(CompletableDeferred<V?>())
         val entryResult =
             cacheKeyMatchFn?.let { matchFn ->
-                cacheMap.searchKeys(50) { existingKey ->
-                    if (matchFn(cacheKey, existingKey)) existingKey else null
-                }?.let { matchedKey -> cacheMap.get(matchedKey) }
+                cacheMap
+                    .searchKeys(50) { existingKey ->
+                        if (matchFn(cacheKey, existingKey)) existingKey else null
+                    }?.let { matchedKey -> cacheMap.get(matchedKey) }
             } ?: cacheMap.computeIfAbsent(cacheKey) { defaultResult }
 
         val isCached = entryResult != defaultResult

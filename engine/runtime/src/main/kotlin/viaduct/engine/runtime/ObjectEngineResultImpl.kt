@@ -32,7 +32,7 @@ import viaduct.engine.api.gj
  * 2. Resolvers may request field values before they are computed
  * 3. Field values, once set, are immutable
  *
- * The ObjectEngineResultImpl has a state. It can start in either a complete or incomplete state,
+ * The [ObjectEngineResultImpl] has a "lazy resolution state". It can start in either a complete or incomplete state,
  * represented using a [Deferred] value.
  *
  * Usage example:
@@ -74,13 +74,13 @@ class ObjectEngineResultImpl private constructor(
      * if the node resolver has failed, we need to treat the field containing the OER as if it
      * failed (and discard any results we optimistically resolved).
      *
-     * To implement these semantics, OERs have a property called state, which is a CompletableDeferred.
-     * While state is uncompleted, we say that the OER is "pending", which means its in its "optimistic"
+     * To implement these semantics, OERs have a property called [lazyResolutionState], which is a CompletableDeferred.
+     * While [lazyResolutionState] is uncompleted, we say that the OER is "pending", which means its in its "optimistic"
      * phase and fetches of its fields return normally. However, once the node resolver returns,
-     * state is completed either normally or exceptionally based on the success of the node resolver.
-     * After that point, fetches of its values will fail if state was completed exceptionally.
+     * [lazyResolutionState] is completed either normally or exceptionally based on the success of the node resolver.
+     * After that point, fetches of its values will fail if [lazyResolutionState] was completed exceptionally.
      */
-    val state: CompletableDeferred<Unit> = let {
+    val lazyResolutionState: CompletableDeferred<Unit> = let {
         if (pending) {
             // create a new pending deferred
             CompletableDeferred()
@@ -89,6 +89,18 @@ class ObjectEngineResultImpl private constructor(
             completedDeferred(Unit)
         }
     }
+
+    /**
+     * A deferred that is completed when all fields of this object have been resolved
+     * (fetched and cells populated), but not necessarily when all nested objects have
+     * finished resolving.
+     *
+     * This acts as a barrier for [FieldCompleter]: completion of this object should
+     * not start until this barrier is open, ensuring that synchronous values are
+     * already present in [Cell]s, avoiding the need for [CompletableDeferred]s in
+     * the [Cell] read path.
+     */
+    val fieldResolutionState: CompletableDeferred<Unit> = CompletableDeferred()
 
     /**
      * Fetches the value in slot number [slotNo] for the field, suspending if not yet available.
@@ -110,14 +122,14 @@ class ObjectEngineResultImpl private constructor(
         key: ObjectEngineResult.Key,
         slotNo: Int
     ): Value<*> {
-        if (state.isCompleted) {
-            state.getCompletionExceptionOrNull()?.let {
+        if (lazyResolutionState.isCompleted) {
+            lazyResolutionState.getCompletionExceptionOrNull()?.let {
                 return Value.fromThrowable<Nothing>(it)
             }
         }
-        // It's possible that state is completed between the isCompleted check above
+        // It's possible that [lazyResolutionState] is completed between the isCompleted check above
         // and here. It's only in the "optimistic" case during resolution that this can
-        // occur. During field completion, we "pessimistically" wait for state to complete
+        // occur. During field completion, we "pessimistically" wait for nodeResolutionState to complete
         // before retrieving the value, so there is no race condition.
         return maybeInitializeKey(key).getValue(slotNo)
     }
@@ -149,7 +161,7 @@ class ObjectEngineResultImpl private constructor(
      * or null if it resolved successfully.
      */
     internal suspend fun resolvedExceptionOrNull(): Throwable? {
-        return runCatching { state.await() }.exceptionOrNull()
+        return runCatching { lazyResolutionState.await() }.exceptionOrNull()
     }
 
     /**
@@ -167,8 +179,8 @@ class ObjectEngineResultImpl private constructor(
      * @throws IllegalStateException if this OER is already resolved normally or with a different exception
      */
     internal fun resolveExceptionally(exception: Throwable) {
-        if (!state.completeExceptionally(exception)) {
-            val completionException = state.getCompletionExceptionOrNull()
+        if (!lazyResolutionState.completeExceptionally(exception)) {
+            val completionException = lazyResolutionState.getCompletionExceptionOrNull()
             if (completionException == exception) {
                 return
             }
@@ -184,8 +196,8 @@ class ObjectEngineResultImpl private constructor(
      * @throws IllegalStateException if this OER is already resolved exceptionally
      */
     internal fun resolve() {
-        if (!state.complete(Unit)) {
-            state.getCompletionExceptionOrNull()?.let {
+        if (!lazyResolutionState.complete(Unit)) {
+            lazyResolutionState.getCompletionExceptionOrNull()?.let {
                 throw IllegalStateException("Invariant: already resolved exceptionally", it)
             }
         }
@@ -255,6 +267,8 @@ class ObjectEngineResultImpl private constructor(
             selectionSet: RawSelectionSet
         ): ObjectEngineResultImpl {
             val result = newForType(type)
+            // Since this OER is created from existing data, its resolution is already complete
+            result.fieldResolutionState.complete(Unit)
 
             data.forEach { (key, value) ->
                 val field = schema.schema.getFieldDefinition((type.name to key.name).gj)

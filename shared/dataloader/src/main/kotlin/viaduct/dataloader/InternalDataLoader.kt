@@ -76,8 +76,8 @@ interface InternalDataLoader<K : Any, V, C : Any> {
             cacheKeyFn: CacheKeyFn<K, C> = { k: K -> k as C },
             cacheKeyMatchFn: CacheKeyMatchFn<C>? = null,
             dataLoaderInstrumentationProvider: Provider<DataLoaderInstrumentation>? = null,
-        ): InternalDataLoader<K, V, C> {
-            return createInternalDataLoader(
+        ): InternalDataLoader<K, V, C> =
+            createInternalDataLoader(
                 InternalDispatchStrategy.batchDispatchStrategy(
                     fn.genericBatchLoadFn(),
                     batchScheduleFn,
@@ -87,16 +87,13 @@ interface InternalDataLoader<K : Any, V, C : Any> {
                 cacheKeyFn,
                 cacheKeyMatchFn
             )
-        }
 
         @Suppress("UNCHECKED_CAST")
         internal fun <K : Any, V, C : Any> newLoader(
             internalDispatchStrategy: InternalDispatchStrategy<K, V>,
             cacheKeyFn: CacheKeyFn<K, C> = { k: K -> k as C },
             cacheKeyMatchFn: CacheKeyMatchFn<C>? = null,
-        ): InternalDataLoader<K, V, C> {
-            return createInternalDataLoader(internalDispatchStrategy, cacheKeyFn, cacheKeyMatchFn)
-        }
+        ): InternalDataLoader<K, V, C> = createInternalDataLoader(internalDispatchStrategy, cacheKeyFn, cacheKeyMatchFn)
 
         private fun <K : Any, V, C : Any> createInternalDataLoader(
             internalDispatchStrategy: InternalDispatchStrategy<K, V>,
@@ -128,7 +125,10 @@ data class BatchLoaderEnvironment<K>(
     val dispatchingContext: DispatchingContext
 )
 
-data class Try<V>(val value: V? = null, val error: Throwable? = null)
+data class Try<V>(
+    val value: V? = null,
+    val error: Throwable? = null
+)
 
 data class DataLoaderOptions(
     val maxBatchSize: Int = 1000

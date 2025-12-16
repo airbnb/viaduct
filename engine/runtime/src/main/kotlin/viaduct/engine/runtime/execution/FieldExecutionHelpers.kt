@@ -37,13 +37,14 @@ import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
-import viaduct.engine.api.observability.ExecutionObservabilityContext
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
+import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
+import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
-import viaduct.engine.runtime.context.findLocalContextForType
+import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 import viaduct.graphql.utils.collectVariableDefinitions
 
 object FieldExecutionHelpers {
@@ -110,7 +111,7 @@ object FieldExecutionHelpers {
             parameters.executionContext.locale
         )
         val fieldResolverMetadata = field.collectedFieldMetadata?.resolverCoordinate?.let {
-            parameters.constants.fieldResolverDispatcherRegistry.getFieldResolverDispatcher(it.first, it.second)?.resolverMetadata
+            parameters.engineExecutionContext.dispatcherRegistry.getFieldResolverDispatcher(it.first, it.second)?.resolverMetadata
         }
         val localContext = parameters.localContext.let { ctx ->
             // update the context with either a new EngineResultLocalContext or update the existing one
@@ -149,14 +150,14 @@ object FieldExecutionHelpers {
 
         // Get the EngineExecutionContext from local context and update it with
         // context-sensitive field scope (fragments/variables)
-        val engineExecCtx = parameters.executionContext.findLocalContextForType<EngineExecutionContextImpl>()
-        val fieldScope = EngineExecutionContextImpl.FieldExecutionScopeImpl(
-            fragments = parameters.queryPlan.fragments.map.mapValues { it.value.gjDef },
-            variables = parameters.coercedVariables.toMap(),
-            resolutionPolicy = parameters.resolutionPolicy
-        )
-        val updatedEngineExecCtx = engineExecCtx.copy(fieldScope = fieldScope)
-
+        val fieldScope = FpKit.intraThreadMemoize {
+            EngineExecutionContextImpl.FieldExecutionScopeImpl(
+                fragments = parameters.queryPlan.fragments.map.mapValues { it.value.gjDef },
+                variables = parameters.coercedVariables.toMap(),
+                resolutionPolicy = parameters.resolutionPolicy
+            )
+        }
+        val updatedEngineExecCtx = parameters.engineExecutionContext.copy(fieldScopeSupplier = fieldScope)
         return ViaductDataFetchingEnvironmentImpl(dfe, updatedEngineExecCtx)
     }
 
@@ -223,7 +224,7 @@ object FieldExecutionHelpers {
         executionStepInfo: Supplier<ExecutionStepInfo>
     ): Supplier<ExecutableNormalizedField> {
         val normalizedQuery = executionContext.normalizedQueryTree
-        return Supplier {
+        return FpKit.intraThreadMemoize {
             normalizedQuery.get().getNormalizedField(
                 parameters.field,
                 executionStepInfo.get().objectType,
@@ -242,7 +243,7 @@ object FieldExecutionHelpers {
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters
     ): QueryPlan.SelectionSet =
-        CollectFields.shallowStrictCollect(
+        parameters.constants.collectCache.collect(
             parameters.graphQLSchema,
             parameters.selectionSet,
             parameters.coercedVariables,
@@ -358,8 +359,8 @@ object FieldExecutionHelpers {
         }
 
     /**
-     * Cache for variable definitions computed from RequiredSelectionSets. Uses weak keys for reference equality
-     * and automatic cleanup when new RequiredSelectionSets are created, e.g. during hotswap.
+     * Cache for variable definitions computed from RequiredSelectionSets. Uses weak keys for
+     * automatic cleanup when new RequiredSelectionSets are created, e.g. during hotswap.
      */
     private val rssVariableDefinitionsCache: Cache<RequiredSelectionSet, List<VariableDefinition>> =
         Caffeine.newBuilder()

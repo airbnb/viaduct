@@ -12,6 +12,11 @@ class MockRequiredSelectionSetRegistry(
         abstract val selectionsType: String
         abstract val selectionsString: String
         abstract val variablesResolvers: List<VariablesResolver>
+
+        /**
+         * Ensures each RSS is only constructed once like the actual registry
+         */
+        abstract val rss: RequiredSelectionSet
     }
 
     abstract class FieldEntry(
@@ -26,7 +31,11 @@ class MockRequiredSelectionSetRegistry(
         override val selectionsType: String,
         override val selectionsString: String,
         override val variablesResolvers: List<VariablesResolver>
-    ) : FieldEntry(coord)
+    ) : FieldEntry(coord) {
+        override val rss: RequiredSelectionSet by lazy {
+            mkRSS(selectionsType, selectionsString, variablesResolvers, forChecker = false)
+        }
+    }
 
     /**
      * A RequiredSelectionSet entry for a specific coordinate's checker.
@@ -36,7 +45,11 @@ class MockRequiredSelectionSetRegistry(
         override val selectionsType: String,
         override val selectionsString: String,
         override val variablesResolvers: List<VariablesResolver>
-    ) : FieldEntry(coord)
+    ) : FieldEntry(coord) {
+        override val rss: RequiredSelectionSet by lazy {
+            mkRSS(selectionsType, selectionsString, variablesResolvers, forChecker = true)
+        }
+    }
 
     /**
      * A RequiredSelectionSet entry for a specific type checker.
@@ -46,7 +59,11 @@ class MockRequiredSelectionSetRegistry(
         override val selectionsType: String,
         override val selectionsString: String,
         override val variablesResolvers: List<VariablesResolver>
-    ) : RequiredSelectionSetEntry()
+    ) : RequiredSelectionSetEntry() {
+        override val rss: RequiredSelectionSet by lazy {
+            mkRSS(selectionsType, selectionsString, variablesResolvers, forChecker = true)
+        }
+    }
 
     /** merge this registry with the provided registry */
     operator fun plus(other: MockRequiredSelectionSetRegistry): MockRequiredSelectionSetRegistry = MockRequiredSelectionSetRegistry(other.entries + entries)
@@ -58,7 +75,7 @@ class MockRequiredSelectionSetRegistry(
         entries
             .filterIsInstance<FieldResolverEntry>()
             .filter { it.coord == (typeName to fieldName) }
-            .map { mkRSS(it.selectionsType, it.selectionsString, it.variablesResolvers, forChecker = false) }
+            .map { it.rss }
 
     override fun getFieldCheckerRequiredSelectionSets(
         typeName: String,
@@ -68,7 +85,7 @@ class MockRequiredSelectionSetRegistry(
         entries
             .filterIsInstance<FieldCheckerEntry>()
             .filter { it.coord == (typeName to fieldName) }
-            .map { mkRSS(it.selectionsType, it.selectionsString, it.variablesResolvers, forChecker = true) }
+            .map { it.rss }
 
     fun getRequiredSelectionSetsForField(
         typeName: String,
@@ -84,7 +101,7 @@ class MockRequiredSelectionSetRegistry(
         entries
             .filterIsInstance<TypeCheckerEntry>()
             .filter { it.typeName == typeName }
-            .map { mkRSS(it.selectionsType, it.selectionsString, it.variablesResolvers, forChecker = true) }
+            .map { it.rss }
 
     companion object {
         val empty: MockRequiredSelectionSetRegistry = MockRequiredSelectionSetRegistry()
@@ -113,14 +130,16 @@ class MockRequiredSelectionSetRegistry(
             fun fieldCheckerEntry(
                 coord: Coordinate,
                 selectionsString: String,
-                variablesResolvers: List<VariablesResolver> = emptyList()
-            ): Builder = add(FieldCheckerEntry(coord, coord.first, selectionsString, variablesResolvers))
+                variablesResolvers: List<VariablesResolver> = emptyList(),
+                selectionsType: String = coord.first
+            ): Builder = add(FieldCheckerEntry(coord, selectionsType, selectionsString, variablesResolvers))
 
             fun typeCheckerEntry(
                 typeName: String,
                 selectionsString: String,
-                variablesResolvers: List<VariablesResolver> = emptyList()
-            ): Builder = add(TypeCheckerEntry(typeName, typeName, selectionsString, variablesResolvers))
+                variablesResolvers: List<VariablesResolver> = emptyList(),
+                selectionsType: String = typeName
+            ): Builder = add(TypeCheckerEntry(typeName, selectionsType, selectionsString, variablesResolvers))
 
             fun build(): MockRequiredSelectionSetRegistry = MockRequiredSelectionSetRegistry(entries)
         }

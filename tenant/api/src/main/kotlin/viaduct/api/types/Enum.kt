@@ -2,10 +2,12 @@ package viaduct.api.types
 
 import kotlin.Enum as KotlinEnum
 import kotlin.reflect.KClass
+import viaduct.apiannotations.StableApi
 
 /**
  * Tagging interface for enum types
  */
+@StableApi
 interface Enum : GRT {
     companion object {
         fun <T> enumFrom(

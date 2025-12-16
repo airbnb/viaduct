@@ -16,7 +16,8 @@ class ViaductSchemasTest : KotestPropertyBase() {
 
     @Test
     fun `TypeExpr methods do not throw for non-list types`() =
-        Arb.typeExpr()
+        Arb
+            .typeExpr()
             .filter { !it.isList }
             .checkInvariants(100) { type, check ->
                 check.doesNotThrow("unexpected err") {

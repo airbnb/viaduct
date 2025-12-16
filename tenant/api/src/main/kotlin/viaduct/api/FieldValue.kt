@@ -1,10 +1,12 @@
 package viaduct.api
 
 import viaduct.api.exception.FieldError
+import viaduct.apiannotations.StableApi
 
 /**
  * Represents the value of a resolved GraphQL object field
  */
+@StableApi
 sealed interface FieldValue<out T> {
     /**
      * Returns the value on success, or throws an exception for an error value

@@ -106,6 +106,7 @@ object GJValueConv {
             "nullable-$inner"
         )
 
+    @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
     private val string: Conv<Value<*>, IR.Value> = Conv(
         forward = { IR.Value.String((it as StringValue).value) },
         inverse = { StringValue((it as IR.Value.String).value) },

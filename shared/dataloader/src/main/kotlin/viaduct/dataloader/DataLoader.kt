@@ -59,13 +59,12 @@ abstract class DataLoader<K : Any, V, C : Any> {
     /**
      * Default to the mutex batch
      */
-    private fun getInternalDispatchStrategy(batchLoadFn: GenericBatchLoadFn<K, V>): InternalDispatchStrategy<K, V> {
-        return if (shouldUseImmediateDispatch()) {
+    private fun getInternalDispatchStrategy(batchLoadFn: GenericBatchLoadFn<K, V>): InternalDispatchStrategy<K, V> =
+        if (shouldUseImmediateDispatch()) {
             createImmediateDispatchStrategy(batchLoadFn)
         } else {
             createBatchDispatchStrategy(batchLoadFn)
         }
-    }
 
     /**
      * Controls the dispatch strategy for this data loader.
@@ -86,8 +85,8 @@ abstract class DataLoader<K : Any, V, C : Any> {
         return InternalDispatchStrategy.immediateDispatchStrategy(instrumentedBatchLoadFn, dataLoaderInstrumentationProvider.get())
     }
 
-    private fun createBatchDispatchStrategy(batchLoadFn: GenericBatchLoadFn<K, V>): InternalDispatchStrategy<K, V> {
-        return InternalDispatchStrategy.batchDispatchStrategy(
+    private fun createBatchDispatchStrategy(batchLoadFn: GenericBatchLoadFn<K, V>): InternalDispatchStrategy<K, V> =
+        InternalDispatchStrategy.batchDispatchStrategy(
             batchLoadFn,
             { block ->
                 val start = System.nanoTime()
@@ -101,7 +100,6 @@ abstract class DataLoader<K : Any, V, C : Any> {
             getDataLoaderOptions(),
             dataLoaderInstrumentationProvider.get()
         )
-    }
 
     protected open val statsCollector: DataLoaderStatsCollector? = null
 

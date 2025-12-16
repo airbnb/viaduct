@@ -20,7 +20,5 @@ interface DataLoaderInstrumentationFactory {
 }
 
 class NoopInstrumentationFactory : DataLoaderInstrumentationFactory {
-    override fun dataLoaderInstrumentation(args: DataLoaderInstrumentationArgs): DataLoaderInstrumentation {
-        return DataLoaderInstrumentation.DEFAULT
-    }
+    override fun dataLoaderInstrumentation(args: DataLoaderInstrumentationArgs): DataLoaderInstrumentation = DataLoaderInstrumentation.DEFAULT
 }

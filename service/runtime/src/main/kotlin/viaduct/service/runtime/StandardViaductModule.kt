@@ -17,10 +17,10 @@ import viaduct.engine.api.NoOpCheckerExecutorFactoryImpl
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.coroutines.CoroutineInterop
-import viaduct.engine.api.fragment.ExecutableFragmentParser
-import viaduct.engine.api.fragment.ViaductExecutableFragmentParser
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.execution.TenantNameResolver
+import viaduct.engine.runtime.fragment.ExecutableFragmentParser
+import viaduct.engine.runtime.fragment.ViaductExecutableFragmentParser
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.ResolverErrorReporter

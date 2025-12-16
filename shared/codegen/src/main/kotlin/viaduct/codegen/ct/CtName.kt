@@ -6,7 +6,9 @@ package viaduct.codegen.ct
  *  by ClassPool.get, for example, where getting a CtClass
  *  that represents an array is useful). */
 @JvmInline
-value class CtName(private val name: String) {
+value class CtName(
+    private val name: String
+) {
     init {
         if (!checker.matches(name)) {
             throw IllegalArgumentException("Malformed CtName ($name).")

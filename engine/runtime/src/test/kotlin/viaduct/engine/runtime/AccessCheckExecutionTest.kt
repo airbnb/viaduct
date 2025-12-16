@@ -20,6 +20,7 @@ import viaduct.engine.api.mocks.mkRSS
 import viaduct.engine.api.mocks.mkSchemaWithWiring
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
+import viaduct.service.api.spi.ErrorMetadata
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.ResolverErrorReporter
 
@@ -1033,7 +1034,7 @@ class AccessCheckExecutionTest {
                 fieldDefinition: GraphQLFieldDefinition,
                 dataFetchingEnvironment: DataFetchingEnvironment,
                 errorMessage: String,
-                metadata: ResolverErrorReporter.Companion.ErrorMetadata
+                metadata: ErrorMetadata
             ) {
                 reporter(exception)
             }
@@ -1042,7 +1043,7 @@ class AccessCheckExecutionTest {
             override fun exceptionToGraphQLError(
                 throwable: Throwable,
                 dataFetchingEnvironment: DataFetchingEnvironment,
-                errorMetadata: ResolverErrorReporter.Companion.ErrorMetadata
+                errorMetadata: ErrorMetadata
             ): List<GraphQLError>? {
                 return listOf(
                     GraphQLError.newError()

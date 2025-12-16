@@ -60,7 +60,9 @@ interface ValueGen<Type, Value> : Function1<Type, Value> {
         override fun invoke(type: Type): NewValue = mapper(type, gen(type))
     }
 
-    private class Fn<Type, Value>(val fn: Function1<Type, Value>) : ValueGen<Type, Value> {
+    private class Fn<Type, Value>(
+        val fn: Function1<Type, Value>
+    ) : ValueGen<Type, Value> {
         override fun invoke(type: Type): Value = fn(type)
     }
 
@@ -91,7 +93,9 @@ interface ValueGen<Type, Value> : Function1<Type, Value> {
  * A set of [Arb]s for generating scalar RawValues, which can be initialized
  * once and rendered using multiple [RandomSource]'s .
  */
-internal class ScalarRawValueArbs(val cfg: Config) {
+internal class ScalarRawValueArbs(
+    val cfg: Config
+) {
     private val stringGen = Arb.string(cfg[StringValueSize])
 
     private val builtins = mapOf(
@@ -117,7 +121,10 @@ internal class ScalarRawValueArbs(val cfg: Config) {
     }
 }
 
-internal class ScalarRawValueGen(val cfg: Config, val rs: RandomSource) : ValueGen<String, RawValue> {
+internal class ScalarRawValueGen(
+    val cfg: Config,
+    val rs: RandomSource
+) : ValueGen<String, RawValue> {
     private val arbs = ScalarRawValueArbs(cfg)
 
     override fun invoke(typename: String): RawValue = arbs(typename, rs)
@@ -169,7 +176,10 @@ private abstract class GenCtx {
  *
  * @see RawValue
  */
-class ViaductSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : ValueGen<ViaductSchema.TypeExpr, RawValue> {
+class ViaductSchemaRawValueGen(
+    val cfg: Config,
+    val rs: RandomSource
+) : ValueGen<ViaductSchema.TypeExpr, RawValue> {
     private val scalarGen = ScalarRawValueGen(cfg, rs)
 
     private data class Ctx(
@@ -218,17 +228,18 @@ class ViaductSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : ValueGen
             )
         )
 
-    private fun gen(c: Ctx): RawValue {
-        return if (c.isList) {
+    private fun gen(c: Ctx): RawValue =
+        if (c.isList) {
             c.enullOr {
                 if (c.overBudget) {
                     RawList.empty
                 } else {
                     rs.random.nextInt(cfg[ListValueSize]).let { size ->
                         RawList(
-                            (0..size).map {
-                                gen(c.traverseList())
-                            }.toList()
+                            (0..size)
+                                .map {
+                                    gen(c.traverseList())
+                                }.toList()
                         )
                     }
                 }
@@ -272,19 +283,22 @@ class ViaductSchemaRawValueGen(val cfg: Config, val rs: RandomSource) : ValueGen
                 }
             )
         } else if (c.def is ViaductSchema.CompositeOutput) {
-            Arb.of(c.def.possibleObjectTypes)
+            Arb
+                .of(c.def.possibleObjectTypes)
                 .next(rs)
                 .let { gen(c.traverseType(it.asTypeExpr())) }
         } else {
             throw IllegalArgumentException("cannot gen value for type ${c.type}")
         }
-    }
 }
 
 /** Generates values for a provided [GraphQLInputType] in the [RawValue] domain */
-class GJRawValueGen(val resolver: TypeReferenceResolver, val cfg: Config, val rs: RandomSource) :
-    ValueGen<GraphQLInputType, RawValue>,
-    RawValue.DSL() {
+class GJRawValueGen(
+    val resolver: TypeReferenceResolver,
+    val cfg: Config,
+    val rs: RandomSource
+) : RawValue.DSL(),
+    ValueGen<GraphQLInputType, RawValue> {
     private val scalarGen = ScalarRawValueGen(cfg, rs)
 
     private data class Ctx(
@@ -329,11 +343,13 @@ class GJRawValueGen(val resolver: TypeReferenceResolver, val cfg: Config, val rs
                     if (c.overBudget) {
                         list()
                     } else {
-                        c.traverseList().let { lctx ->
-                            (0..rs.random.nextInt(cfg[ListValueSize])).map {
-                                gen(lctx)
-                            }
-                        }.let(::RawList)
+                        c
+                            .traverseList()
+                            .let { lctx ->
+                                (0..rs.random.nextInt(cfg[ListValueSize])).map {
+                                    gen(lctx)
+                                }
+                            }.let(::RawList)
                     }
                 }
             }
@@ -341,18 +357,20 @@ class GJRawValueGen(val resolver: TypeReferenceResolver, val cfg: Config, val rs
             is GraphQLInputObjectType ->
                 c.enullOr {
                     if (t.isOneOf) {
-                        Arb.element(t.fields)
+                        Arb
+                            .element(t.fields)
                             .next(rs)
                             .let { f ->
                                 val value = gen(c.traverseField(f).asNonNullable())
                                 input(f.name to value)
                             }
                     } else {
-                        t.fields.map { f ->
-                            f.name to c.inullOr(f) {
-                                gen(c.traverseField(f))
-                            }
-                        }.let(::RawInput)
+                        t.fields
+                            .map { f ->
+                                f.name to c.inullOr(f) {
+                                    gen(c.traverseField(f))
+                                }
+                            }.let(::RawInput)
                     }
                 }
 
@@ -398,9 +416,8 @@ class GJRawValueResultGen(
     private val fragments: Map<String, FragmentDefinition>,
     private val rs: RandomSource,
     private val cfg: Config,
-) :
-    ValueGen<Pair<GraphQLOutputType, SelectionSet?>, RawValue>,
-        RawValue.DSL() {
+) : RawValue.DSL(),
+    ValueGen<Pair<GraphQLOutputType, SelectionSet?>, RawValue> {
     private val scalarGen = ScalarRawValueGen(cfg, rs)
     private val rels = GraphQLTypeRelations(schema)
 

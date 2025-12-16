@@ -375,7 +375,7 @@ class FeatureTestBuilder(
             .withTenantAPIBootstrapperBuilders(builders)
             .withFlagManager(
                 MockFlagManager.mk(
-                    Flags.EXECUTE_ACCESS_CHECKS_IN_MODERN_EXECUTION_STRATEGY
+                    Flags.EXECUTE_ACCESS_CHECKS
                 )
             )
             .allowSubscriptions(true)

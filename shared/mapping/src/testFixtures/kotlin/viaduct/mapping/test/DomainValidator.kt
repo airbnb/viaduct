@@ -43,7 +43,8 @@ class DomainValidator<From, To> private constructor(
     ) {
         runBlocking {
             val random = randomSource()
-            valueGen.take(iter, random)
+            valueGen
+                .take(iter, random)
                 .forEach { from ->
                     checkOrThrow(from, random.seed)
                 }
@@ -63,8 +64,7 @@ class DomainValidator<From, To> private constructor(
         tryRoundtrip(expected)
             .recover { err ->
                 throw RoundtripError(expected, err, seed)
-            }
-            .map { actualOpt ->
+            }.map { actualOpt ->
                 actualOpt.forEach { actual ->
                     throw ValueRoundtripError(expected, actual, seed)
                 }
@@ -131,11 +131,13 @@ class DomainValidator<From, To> private constructor(
             )
 
         private fun mkValueGen(schemaGen: Arb<GraphQLSchema>): Arb<IR.Value.Object> =
-            schemaGen.map { schema ->
-                Arb.objectIR(schema)
-                    .take(100, randomSource())
-                    .toList()
-            }.flatten()
+            schemaGen
+                .map { schema ->
+                    Arb
+                        .objectIR(schema)
+                        .take(100, randomSource())
+                        .toList()
+                }.flatten()
 
         private fun mkSchemaGen(schema: GraphQLSchema?): Arb<GraphQLSchema> =
             schema?.let(Arb.Companion::constant)
@@ -156,7 +158,9 @@ class DomainValidator<From, To> private constructor(
                 ) = a == b
             }
 
-            class Fn<T>(val fn: Function2<T, T, Boolean>) : Equals<T> {
+            class Fn<T>(
+                val fn: Function2<T, T, Boolean>
+            ) : Equals<T> {
                 override fun invoke(
                     a: T,
                     b: T

@@ -139,6 +139,25 @@ class IRTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `List -- vararg ctor`() {
+        // empty
+        assertEquals(
+            IR.Value.List(listOf()),
+            IR.Value.List()
+        )
+
+        assertEquals(
+            IR.Value.List(
+                listOf(IR.Value.Number(1), IR.Value.Null)
+            ),
+            IR.Value.List(
+                IR.Value.Number(1),
+                IR.Value.Null
+            )
+        )
+    }
+
+    @Test
     fun `Time -- instant`(): Unit =
         runBlocking {
             Arb.instant().forAll {
@@ -179,12 +198,34 @@ class IRTest : KotestPropertyBase() {
         runBlocking {
             val arbFieldValue = Arb.pair(Arb.graphQLFieldName(), Arb.int().map(IR.Value::Number))
             val arbFieldMap = Arb.map(arbFieldValue)
-            Arb.pair(Arb.graphQLName(), arbFieldMap)
+            Arb
+                .pair(Arb.graphQLName(), arbFieldMap)
                 .forAll { (name, fields) ->
                     val obj = IR.Value.Object(name, fields)
                     obj.name == name && obj.fields == fields
                 }
         }
+
+    @Test
+    fun `Object -- vararg ctor`() {
+        // empty
+        assertEquals(
+            IR.Value.Object("Obj", emptyMap()),
+            IR.Value.Object("Obj")
+        )
+
+        assertEquals(
+            IR.Value.Object(
+                "Obj",
+                mapOf("a" to IR.Value.Number(1), "b" to IR.Value.Null)
+            ),
+            IR.Value.Object(
+                "Obj",
+                "a" to IR.Value.Number(1),
+                "b" to IR.Value.Null
+            )
+        )
+    }
 
     @Test
     fun `valid for all objects`(): Unit =

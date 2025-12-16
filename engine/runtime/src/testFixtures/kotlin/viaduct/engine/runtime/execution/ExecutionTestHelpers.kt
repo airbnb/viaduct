@@ -42,11 +42,9 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.FieldCheckerDispatcherRegistry
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.TemporaryBypassAccessCheck
-import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
@@ -63,28 +61,67 @@ object ExecutionTestHelpers {
         query: String,
         variables: Map<String, Any?> = emptyMap(),
         typeResolvers: Map<String, TypeResolver> = emptyMap(),
-        requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
         fieldCheckerDispatchers: Map<Coordinate, CheckerDispatcher> = emptyMap(),
         typeCheckerDispatchers: Map<String, CheckerDispatcher> = emptyMap(),
         instrumentations: List<ViaductModernInstrumentation> = emptyList(),
-        flagManager: FlagManager = FlagManager.default
+        flagManager: FlagManager = FlagManager.default,
+        dispatcherRegistry: DispatcherRegistry? = null,
+        requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty
     ): ExecutionResult {
         val schema = createSchema(sdl, resolvers, typeResolvers)
-        val dispatcherRegistry = DispatcherRegistry(
+        val baseDispatcherRegistry = dispatcherRegistry ?: DispatcherRegistry.Impl(
             fieldResolverDispatchers = emptyMap(),
             nodeResolverDispatchers = emptyMap(),
             fieldCheckerDispatchers = fieldCheckerDispatchers,
             typeCheckerDispatchers = typeCheckerDispatchers
         )
+        // Wrap the dispatcher registry to delegate RSS calls to the provided registry
+        val effectiveDispatcherRegistry = if (requiredSelectionSetRegistry != RequiredSelectionSetRegistry.Empty) {
+            TestDispatcherRegistryWithRSS(baseDispatcherRegistry, requiredSelectionSetRegistry)
+        } else {
+            baseDispatcherRegistry
+        }
         val modernGraphQL = createViaductGraphQL(
             schema,
-            requiredSelectionSetRegistry,
-            fieldCheckerDispatcherRegistry = dispatcherRegistry,
-            typeCheckerDispatcherRegistry = dispatcherRegistry,
             instrumentations = instrumentations,
             flagManager = flagManager
         )
-        return executeQuery(schema, modernGraphQL, query, variables, dispatcherRegistry)
+        return executeQuery(schema, modernGraphQL, query, variables, effectiveDispatcherRegistry)
+    }
+
+    /**
+     * A test helper class that implements [DispatcherRegistry] by delegating dispatcher lookups
+     * to a base registry while allowing [RequiredSelectionSetRegistry] calls to be overridden.
+     * This allows tests to use MockRequiredSelectionSetRegistry without requiring inheritance.
+     */
+    private class TestDispatcherRegistryWithRSS(
+        private val delegate: DispatcherRegistry,
+        private val rssDelegate: RequiredSelectionSetRegistry
+    ) : DispatcherRegistry by delegate {
+        override fun getFieldResolverRequiredSelectionSets(
+            typeName: String,
+            fieldName: String
+        ): List<RequiredSelectionSet> {
+            val delegateResult = rssDelegate.getFieldResolverRequiredSelectionSets(typeName, fieldName)
+            return delegateResult.ifEmpty { delegate.getFieldResolverRequiredSelectionSets(typeName, fieldName) }
+        }
+
+        override fun getFieldCheckerRequiredSelectionSets(
+            typeName: String,
+            fieldName: String,
+            executeAccessChecksInModstrat: Boolean
+        ): List<RequiredSelectionSet> {
+            val delegateResult = rssDelegate.getFieldCheckerRequiredSelectionSets(typeName, fieldName, executeAccessChecksInModstrat)
+            return delegateResult.ifEmpty { delegate.getFieldCheckerRequiredSelectionSets(typeName, fieldName, executeAccessChecksInModstrat) }
+        }
+
+        override fun getTypeCheckerRequiredSelectionSets(
+            typeName: String,
+            executeAccessChecksInModstrat: Boolean
+        ): List<RequiredSelectionSet> {
+            val delegateResult = rssDelegate.getTypeCheckerRequiredSelectionSets(typeName, executeAccessChecksInModstrat)
+            return delegateResult.ifEmpty { delegate.getTypeCheckerRequiredSelectionSets(typeName, executeAccessChecksInModstrat) }
+        }
     }
 
     fun createSchema(
@@ -133,22 +170,17 @@ object ExecutionTestHelpers {
 
     fun createViaductGraphQL(
         schema: ViaductSchema,
-        requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
         preparsedDocumentProvider: PreparsedDocumentProvider = DocumentCache(),
         instrumentations: List<ViaductModernInstrumentation> = emptyList(),
         gjInstrumentations: List<Instrumentation> = emptyList(),
-        fieldCheckerDispatcherRegistry: FieldCheckerDispatcherRegistry = FieldCheckerDispatcherRegistry.Empty,
-        typeCheckerDispatcherRegistry: TypeCheckerDispatcherRegistry = TypeCheckerDispatcherRegistry.Empty,
         coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
         flagManager: FlagManager = FlagManager.default
     ): GraphQL {
         val execParamFactory = ExecutionParameters.Factory(
-            requiredSelectionSetRegistry,
-            fieldCheckerDispatcherRegistry,
-            typeCheckerDispatcherRegistry,
             flagManager
         )
         val accessCheckRunner = AccessCheckRunner(coroutineInterop)
+
         @Suppress("DEPRECATION")
         val executionStrategyFactory = ViaductExecutionStrategy.Factory.Impl(
             dataFetcherExceptionHandler = ExceptionHandlerWithFuture(),

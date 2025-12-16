@@ -18,8 +18,9 @@ import viaduct.utils.collections.BitVector
  *  elements having the bast-type as their type. */
 fun ViaductSchema.TypeExpr.unparseWrappers(): String {
     val result = StringBuilder()
-    for (i in 0 until listDepth)
+    for (i in 0 until listDepth) {
         result.append(if (nullableAtDepth(i)) '?' else '!')
+    }
     result.append(if (baseTypeNullable) '?' else '!')
     return result.toString()
 }

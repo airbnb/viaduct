@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.runtime.FieldResolverDispatcherImpl
+import viaduct.engine.runtime.mocks.mkDispatcherRegistry
 
 class MocksAdditionalTest {
     @Test
@@ -80,24 +80,6 @@ class MocksAdditionalTest {
 
         assertSame(typeChecker, factory.checkerExecutorForType(mockSchema, "TestNode"))
         assertNull(factory.checkerExecutorForType(mockSchema, "NonExistent"))
-    }
-
-    @Test
-    fun `MockFieldResolverDispatcherRegistry functionality`() {
-        val dispatcher1 = FieldResolverDispatcherImpl(MockFieldUnbatchedResolverExecutor.Null)
-        val dispatcher2 = FieldResolverDispatcherImpl(MockFieldUnbatchedResolverExecutor(resolverId = "TestType.field2") { _, _, _, _, _ -> "test" })
-        val dispatcher3 = FieldResolverDispatcherImpl(MockFieldBatchResolverExecutor(resolverId = "TestType.field3") { _, _ -> emptyMap() })
-
-        val registry = MockFieldResolverDispatcherRegistry(
-            Pair("TestType", "field1") to dispatcher1,
-            Pair("TestType", "field2") to dispatcher2,
-            Pair("TestType", "field3") to dispatcher3
-        )
-
-        assertSame(dispatcher1, registry.getFieldResolverDispatcher("TestType", "field1"))
-        assertSame(dispatcher2, registry.getFieldResolverDispatcher("TestType", "field2"))
-        assertSame(dispatcher3, registry.getFieldResolverDispatcher("TestType", "field3"))
-        assertNull(registry.getFieldResolverDispatcher("TestType", "nonExistent"))
     }
 
     @Test

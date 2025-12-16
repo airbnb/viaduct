@@ -4,10 +4,12 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Query
+import viaduct.apiannotations.StableApi
 
 /**
  * Base [ExecutionContext] interface for mutation and non-mutation field resolvers
  */
+@StableApi
 interface BaseFieldExecutionContext<
     Q : Query,
     A : Arguments,

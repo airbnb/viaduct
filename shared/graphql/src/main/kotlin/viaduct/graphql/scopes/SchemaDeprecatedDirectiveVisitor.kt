@@ -23,8 +23,7 @@ import viaduct.graphql.scopes.utils.isIntrospectionField
 class SchemaDeprecatedDirectiveVisitor(
     // element.validLocations just returns the current location, so we need to pass this in
     private val validLocations: EnumSet<Introspection.DirectiveLocation>
-) :
-    TraverserVisitorStub<GraphQLSchemaElement>() {
+) : TraverserVisitorStub<GraphQLSchemaElement>() {
     val invalidElements = mutableListOf<Pair<GraphQLNamedSchemaElement, String>>()
 
     override fun enter(context: TraverserContext<GraphQLSchemaElement>): TraversalControl {

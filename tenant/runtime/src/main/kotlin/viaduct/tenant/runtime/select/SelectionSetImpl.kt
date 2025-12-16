@@ -1,5 +1,6 @@
 package viaduct.tenant.runtime.select
 
+import viaduct.api.internal.InternalSelectionSet
 import viaduct.api.reflect.CompositeField
 import viaduct.api.reflect.Field
 import viaduct.api.reflect.Type
@@ -12,8 +13,8 @@ import viaduct.engine.api.RawSelectionSet
  */
 data class SelectionSetImpl<T : CompositeOutput>(
     override val type: Type<T>,
-    val rawSelectionSet: RawSelectionSet
-) : SelectionSet<T> {
+    override val rawSelectionSet: RawSelectionSet
+) : SelectionSet<T>, InternalSelectionSet {
     override fun <U : T> contains(field: Field<U>): Boolean = rawSelectionSet.containsField(field.containingType.name, field.name)
 
     override fun <U : T> requestsType(type: Type<U>): Boolean = rawSelectionSet.requestsType(type.name)

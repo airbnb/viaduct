@@ -115,8 +115,7 @@ class BazelVisibilityTest {
                             importPackagePath.startsWith(restrictedPackagePrefix) &&
                                 !isPackageAllowed(filePackagePath, rule)
                         }
-                    }
-                    .forEach { violatingImport ->
+                    }.forEach { violatingImport ->
                         println("  - Violating import: ${violatingImport.name}")
                     }
             }

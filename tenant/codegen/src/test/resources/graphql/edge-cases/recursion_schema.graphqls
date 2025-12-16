@@ -1,0 +1,469 @@
+# Test schema for recursion patterns and edge cases
+# Tests that the code generator handles recursive types and unusual structures
+
+# =============================================================================
+# DIRECT SELF-RECURSION
+# =============================================================================
+
+# Type that references itself directly
+# Note: Self-references must have at least one nullable path to break the cycle
+type SelfReferencing {
+  id: ID!
+  name: String
+  parent: SelfReferencing
+  children: [SelfReferencing]
+  # List can be non-null but empty to break the cycle
+  requiredChildren: [SelfReferencing!]!
+}
+
+# Input that references itself
+input SelfReferencingInput {
+  name: String!
+  nested: SelfReferencingInput
+  nestedList: [SelfReferencingInput]
+}
+
+# =============================================================================
+# MUTUAL RECURSION (A -> B -> A)
+# =============================================================================
+
+type MutualA {
+  id: ID!
+  toB: MutualB
+  toBList: [MutualB]
+}
+
+type MutualB {
+  id: ID!
+  toA: MutualA
+  toAList: [MutualA]
+}
+
+input MutualInputA {
+  value: String!
+  toB: MutualInputB
+}
+
+input MutualInputB {
+  value: Int!
+  toA: MutualInputA
+}
+
+# =============================================================================
+# TRIPLE RECURSION (A -> B -> C -> A)
+# =============================================================================
+
+type TripleA {
+  name: String
+  toB: TripleB
+}
+
+type TripleB {
+  name: String
+  toC: TripleC
+}
+
+type TripleC {
+  name: String
+  toA: TripleA
+}
+
+# =============================================================================
+# DEEPLY NESTED STRUCTURES
+# =============================================================================
+
+type Level1 {
+  level2: Level2
+}
+
+type Level2 {
+  level3: Level3
+}
+
+type Level3 {
+  level4: Level4
+}
+
+type Level4 {
+  level5: Level5
+}
+
+type Level5 {
+  value: String
+  backToLevel1: Level1
+}
+
+# =============================================================================
+# RECURSIVE THROUGH UNION
+# =============================================================================
+
+type TreeNode {
+  id: ID!
+  value: String
+  child: TreeChild
+}
+
+union TreeChild = TreeLeaf | TreeNode
+
+type TreeLeaf {
+  data: String!
+}
+
+# =============================================================================
+# RECURSIVE THROUGH INTERFACE
+# =============================================================================
+
+interface RecursiveInterface {
+  id: ID!
+  next: RecursiveInterface
+}
+
+type RecursiveImplA implements RecursiveInterface {
+  id: ID!
+  next: RecursiveInterface
+  specificA: String
+}
+
+type RecursiveImplB implements RecursiveInterface {
+  id: ID!
+  next: RecursiveInterface
+  specificB: Int
+}
+
+# =============================================================================
+# COMPLEX RECURSIVE GRAPH
+# =============================================================================
+
+type GraphNode implements Node {
+  id: ID!
+  edges: [GraphEdge]
+  metadata: GraphMetadata
+}
+
+type GraphEdge {
+  source: GraphNode!
+  target: GraphNode!
+  weight: Float
+  attributes: GraphEdgeAttributes
+}
+
+type GraphEdgeAttributes {
+  label: String
+  bidirectional: Boolean
+  edge: GraphEdge
+}
+
+type GraphMetadata {
+  node: GraphNode
+  tags: [String]
+}
+
+# =============================================================================
+# EDGE CASES: EMPTY AND MINIMAL TYPES
+# =============================================================================
+
+# Type with only ID (minimal Node implementation)
+type MinimalNode implements Node {
+  id: ID!
+}
+
+# Type with single nullable field
+type SingleNullableField {
+  value: String
+}
+
+# Type with single non-nullable field
+type SingleRequiredField {
+  value: String!
+}
+
+# =============================================================================
+# EDGE CASES: LISTS OF VARIOUS NULLABILITIES
+# =============================================================================
+
+type ListNullabilityVariants {
+  # Nullable list of nullable items
+  nullableListNullableItems: [String]
+  # Nullable list of non-nullable items
+  nullableListRequiredItems: [String!]
+  # Required list of nullable items
+  requiredListNullableItems: [String]!
+  # Required list of required items
+  requiredListRequiredItems: [String!]!
+  # Nested lists
+  nestedList: [[String]]
+  nestedRequiredList: [[String!]!]!
+  # List of complex types
+  listOfObjects: [ListNullabilityVariants]
+  requiredListOfObjects: [ListNullabilityVariants!]!
+}
+
+# =============================================================================
+# EDGE CASES: ALL SCALAR TYPES
+# =============================================================================
+
+type AllScalarTypes {
+  stringField: String
+  intField: Int
+  floatField: Float
+  booleanField: Boolean
+  idField: ID
+  # Required versions
+  requiredString: String!
+  requiredInt: Int!
+  requiredFloat: Float!
+  requiredBoolean: Boolean!
+  requiredId: ID!
+}
+
+input AllScalarInputTypes {
+  stringField: String
+  intField: Int
+  floatField: Float
+  booleanField: Boolean
+  idField: ID
+  requiredString: String!
+  requiredInt: Int!
+  requiredFloat: Float!
+  requiredBoolean: Boolean!
+  requiredId: ID!
+}
+
+# =============================================================================
+# EDGE CASES: COMPLEX DEFAULT VALUES
+# =============================================================================
+
+input ComplexDefaultValues {
+  # Scalar defaults
+  stringWithDefault: String = "default"
+  intWithDefault: Int = 42
+  floatWithDefault: Float = 3.14159
+  boolWithDefault: Boolean = true
+  # List defaults
+  stringListDefault: [String] = ["a", "b", "c"]
+  intListDefault: [Int] = [1, 2, 3]
+  emptyListDefault: [String] = []
+  # Null defaults
+  nullDefault: String = null
+  # Enum default
+  enumDefault: EdgeCaseEnum = VALUE_ONE
+  # Nested input default
+  nestedDefault: SimpleNestedInput = { value: "nested" }
+}
+
+input SimpleNestedInput {
+  value: String!
+}
+
+enum EdgeCaseEnum {
+  VALUE_ONE
+  VALUE_TWO
+  VALUE_THREE
+}
+
+# =============================================================================
+# EDGE CASES: ARGUMENTS WITH DEFAULTS
+# =============================================================================
+
+type TypeWithComplexArguments {
+  fieldWithManyArgs(
+    required: String!
+    optional: String
+    withDefault: String = "default"
+    intDefault: Int = 100
+    boolDefault: Boolean = false
+    enumDefault: EdgeCaseEnum = VALUE_TWO
+    listDefault: [String] = ["x", "y"]
+    inputDefault: SimpleNestedInput = { value: "arg" }
+  ): String
+
+  fieldWithOnlyDefaults(a: String = "a", b: Int = 1, c: Boolean = true): Int
+
+  fieldWithNoArgs: String
+
+  fieldWithOnlyRequired(a: String!, b: Int!, c: Boolean!): Boolean
+}
+
+# =============================================================================
+# EDGE CASES: INTERFACE HIERARCHIES
+# =============================================================================
+
+interface BaseInterface {
+  baseField: String
+}
+
+interface MiddleInterface implements BaseInterface {
+  baseField: String
+  middleField: Int
+}
+
+interface LeafInterface implements BaseInterface & MiddleInterface {
+  baseField: String
+  middleField: Int
+  leafField: Boolean
+}
+
+type ConcreteFromLeaf implements BaseInterface & MiddleInterface & LeafInterface {
+  baseField: String
+  middleField: Int
+  leafField: Boolean
+  concreteField: Float
+}
+
+# =============================================================================
+# EDGE CASES: DIAMOND INHERITANCE
+# =============================================================================
+
+interface DiamondTop {
+  topField: String
+}
+
+interface DiamondLeft implements DiamondTop {
+  topField: String
+  leftField: Int
+}
+
+interface DiamondRight implements DiamondTop {
+  topField: String
+  rightField: Int
+}
+
+type DiamondBottom implements DiamondTop & DiamondLeft & DiamondRight {
+  topField: String
+  leftField: Int
+  rightField: Int
+  bottomField: String
+}
+
+# =============================================================================
+# EDGE CASES: UNION WITH MANY MEMBERS
+# =============================================================================
+
+type UnionMemberA {
+  a: String
+}
+type UnionMemberB {
+  b: Int
+}
+type UnionMemberC {
+  c: Boolean
+}
+type UnionMemberD {
+  d: Float
+}
+type UnionMemberE {
+  e: ID
+}
+
+union LargeUnion = UnionMemberA | UnionMemberB | UnionMemberC | UnionMemberD | UnionMemberE
+
+type ContainsLargeUnion {
+  member: LargeUnion
+  members: [LargeUnion]
+  requiredMember: LargeUnion!
+}
+
+# =============================================================================
+# EDGE CASES: SPECIAL CHARACTERS IN DESCRIPTIONS
+# =============================================================================
+
+"Type with 'quotes' and \"double quotes\" in description"
+type DescriptionEdgeCases {
+  "Field with special chars: <>&\"\\"
+  specialChars: String
+
+  """
+  Multi-line description
+  with multiple paragraphs.
+
+  And some code: `foo.bar()`
+  """
+  multiLineDesc: Int
+
+  "Unicode: émojis 🎉 and symbols ñ ü ö"
+  unicode: Boolean
+}
+
+# =============================================================================
+# EDGE CASES: NUMERIC EDGE CASES IN DEFAULTS
+# =============================================================================
+
+input NumericEdgeCases {
+  zero: Int = 0
+  negativeInt: Int = -1
+  largeInt: Int = 2147483647
+  smallFloat: Float = 0.0001
+  negativeFloat: Float = -3.14
+  scientificNotation: Float = 1.5e10
+}
+
+# =============================================================================
+# EDGE CASES: EXTEND TYPES
+# =============================================================================
+
+type ExtendableType {
+  originalField: String
+}
+
+extend type ExtendableType {
+  extendedField1: Int
+}
+
+extend type ExtendableType {
+  extendedField2: Boolean
+  extendedField3: Float
+}
+
+interface ExtendableInterface {
+  originalInterfaceField: String
+}
+
+extend interface ExtendableInterface {
+  extendedInterfaceField: Int
+}
+
+enum ExtendableEnum {
+  ORIGINAL_VALUE
+}
+
+extend enum ExtendableEnum {
+  EXTENDED_VALUE_1
+  EXTENDED_VALUE_2
+}
+
+input ExtendableInput {
+  originalInputField: String
+}
+
+extend input ExtendableInput {
+  extendedInputField: Int
+}
+
+# =============================================================================
+# EDGE CASES: FIELD OVERLOADING IN INTERFACES
+# =============================================================================
+
+interface FieldCovariance {
+  # Nullable in interface
+  field: String
+}
+
+type FieldCovarianceImpl implements FieldCovariance {
+  # Non-nullable in implementation (covariant)
+  field: String!
+  extra: Int
+}
+
+# =============================================================================
+# EDGE CASES: CIRCULAR THROUGH ARGUMENTS
+# =============================================================================
+
+type CircularThroughArgs {
+  id: ID!
+  related(filter: CircularArgInput): [CircularThroughArgs]
+}
+
+input CircularArgInput {
+  ids: [ID!]
+  nested: CircularArgInput
+}

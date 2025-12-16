@@ -44,7 +44,11 @@ fun Arb.Companion.graphQLExecutionInput(
         GraphQLExecutionInputGen(schema, cfg, rs).gen(doc)
     }
 
-private class GraphQLExecutionInputGen(val schema: GraphQLSchema, val cfg: Config, val rs: RandomSource) {
+private class GraphQLExecutionInputGen(
+    val schema: GraphQLSchema,
+    val cfg: Config,
+    val rs: RandomSource
+) {
     private val valueGen = ValueGens(schema, cfg, rs).kotlin
 
     fun gen(doc: Document): ExecutionInput {
@@ -68,9 +72,10 @@ private class GraphQLExecutionInputGen(val schema: GraphQLSchema, val cfg: Confi
             }
         }
 
-        return ExecutionInput.newExecutionInput()
+        return ExecutionInput
+            .newExecutionInput()
             .query(AstPrinter.printAst(doc))
-            .operationName(operationName)
+            .apply { operationName?.let { operationName(it) } }
             .variables(variables)
             .build()
     }

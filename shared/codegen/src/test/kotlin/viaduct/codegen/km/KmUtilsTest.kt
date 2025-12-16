@@ -214,20 +214,104 @@ class KmUtilsTest {
 
     @Test
     fun testKmToJvmBoxedJavaName() {
-        assertEquals("java.lang.Object", Km.ANY.asType().boxedJavaName().toString())
-        assertEquals("java.lang.Boolean", Km.BOOLEAN.asType().boxedJavaName().toString())
-        assertEquals("java.lang.Byte", Km.BYTE.asType().boxedJavaName().toString())
-        assertEquals("java.lang.Character", Km.CHAR.asType().boxedJavaName().toString())
-        assertEquals("java.lang.Double", Km.DOUBLE.asType().boxedJavaName().toString())
-        assertEquals("java.lang.Float", Km.FLOAT.asType().boxedJavaName().toString())
-        assertEquals("java.lang.Integer", Km.INT.asType().boxedJavaName().toString())
-        assertEquals("java.util.List", Km.LIST.asType().boxedJavaName().toString())
-        assertEquals("java.lang.Long", Km.LONG.asType().boxedJavaName().toString())
-        assertEquals("java.util.Map", Km.MAP.asType().boxedJavaName().toString())
-        assertEquals("java.util.Map", Km.MUTABLE_MAP.asType().boxedJavaName().toString())
-        assertEquals("java.lang.Short", Km.SHORT.asType().boxedJavaName().toString())
-        assertEquals("java.lang.String", Km.STRING.asType().boxedJavaName().toString())
-        assertEquals("kotlin.Unit", Km.UNIT.asType().boxedJavaName().toString())
+        assertEquals(
+            "java.lang.Object",
+            Km.ANY
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.lang.Boolean",
+            Km.BOOLEAN
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.lang.Byte",
+            Km.BYTE
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.lang.Character",
+            Km.CHAR
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.lang.Double",
+            Km.DOUBLE
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.lang.Float",
+            Km.FLOAT
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.lang.Integer",
+            Km.INT
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.util.List",
+            Km.LIST
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.lang.Long",
+            Km.LONG
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.util.Map",
+            Km.MAP
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.util.Map",
+            Km.MUTABLE_MAP
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.lang.Short",
+            Km.SHORT
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "java.lang.String",
+            Km.STRING
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
+        assertEquals(
+            "kotlin.Unit",
+            Km.UNIT
+                .asType()
+                .boxedJavaName()
+                .toString()
+        )
         assertEquals(
             "viaduct.api.grts.TestObject.NestedObject",
             KmName("viaduct/api/grts/TestObject.NestedObject").asType().boxedJavaName().toString()

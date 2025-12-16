@@ -181,6 +181,4 @@ private fun runBlockingWithTimeout(
     context: CoroutineContext,
     timeout: Long = 1000L,
     block: suspend CoroutineScope.() -> Unit
-) {
-    return runBlocking { withTimeout(timeout) { withContext(context) { block() } } }
-}
+) = runBlocking { withTimeout(timeout) { withContext(context) { block() } } }

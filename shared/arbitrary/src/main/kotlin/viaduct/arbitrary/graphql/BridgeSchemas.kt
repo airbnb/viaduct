@@ -24,7 +24,8 @@ fun Arb.Companion.typeExpr(
     viaductExtendedSchema(config, valueConverter)
         .filter { it.types.values.isNotEmpty() }
         .flatMap { schema ->
-            Arb.element(schema.types.values)
+            Arb
+                .element(schema.types.values)
                 .flatMap {
                     val exprs =
                         when (val type = it) {

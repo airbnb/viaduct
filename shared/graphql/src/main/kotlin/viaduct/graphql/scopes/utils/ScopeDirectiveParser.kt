@@ -249,7 +249,8 @@ internal class ScopeDirectiveParser(
         }
 
         val scopesArrayValue =
-            scopesDirectives.first()
+            scopesDirectives
+                .first()
                 .getArgument(SCOPED_TO_ARG)
                 .value as? ArrayValue
                 ?: throw SchemaScopeValidationError(
@@ -300,6 +301,9 @@ internal class ScopeDirectiveParser(
     }
 }
 
-internal data class ElementScopeMetadata(val typeName: String, val elementsForScopes: Map<String, List<NamedNode<*>>>) {
+internal data class ElementScopeMetadata(
+    val typeName: String,
+    val elementsForScopes: Map<String, List<NamedNode<*>>>
+) {
     fun scopesForType(): Set<String> = elementsForScopes.keys
 }

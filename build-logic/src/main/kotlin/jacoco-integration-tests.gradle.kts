@@ -1,6 +1,6 @@
 /**
  * Add this to integration-test projects (e.g., tenant/runtime-integration-tests)
- * 
+ *
  * It will generate an exec file for the integration tests and then combine that
  * with the unit tests from the base project to generate a full coverage report
  */
@@ -13,13 +13,13 @@ import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import viaduct.gradle.internal.IntegrationCoverageExt
 
-private val FULL_REPORT_TASK_NAME = "jacocoFullCoverageReport"
+private val fullReportTaskName = "jacocoFullCoverageReport"
 
 val ext = extensions.create(
     "viaductIntegrationCoverage",
     IntegrationCoverageExt::class,
     project,
-    FULL_REPORT_TASK_NAME,
+    fullReportTaskName,
     objects,
 )
 
@@ -120,7 +120,7 @@ fun registerCoverageTask(name: String) =
         executionData.from(itExecsProvider)
 
         // For full report, add execution data from unit tests
-        if (name == FULL_REPORT_TASK_NAME) {
+        if (name == fullReportTaskName) {
             executionData.from(
                 configurations.named("incomingUnitExec").map { it.incoming.artifactView { }.files }
             )
@@ -137,5 +137,5 @@ fun registerCoverageTask(name: String) =
         dependsOn(unpackBaseSources)
     }
 
-registerCoverageTask(FULL_REPORT_TASK_NAME)
+registerCoverageTask(fullReportTaskName)
 registerCoverageTask("jacocoIntegrationOnlyReport")

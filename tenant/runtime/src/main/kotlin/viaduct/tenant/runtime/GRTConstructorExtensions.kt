@@ -7,6 +7,7 @@ import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.full.valueParameters
+import viaduct.api.internal.InputTypeFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.types.Arguments
 import viaduct.api.types.Input
@@ -73,8 +74,8 @@ fun <T : InputLike> Map<String, Any?>.toInputLikeGRT(
 
     val inputType = when {
         kcls.hasAnnotation<FakeGRT>() -> null
-        kcls.isSubclassOf(Arguments::class) -> Arguments.inputType(kcls.simpleName!!, internalContext.schema)
-        kcls.isSubclassOf(Input::class) -> Input.inputType(kcls.simpleName!!, internalContext.schema)
+        kcls.isSubclassOf(Arguments::class) -> InputTypeFactory.argumentsInputType(kcls.simpleName!!, internalContext.schema)
+        kcls.isSubclassOf(Input::class) -> InputTypeFactory.inputObjectInputType(kcls.simpleName!!, internalContext.schema)
         else -> throw IllegalArgumentException("KClass $kcls is not in { Arguments, Input}.")
     }
     return kcls.getGRTConstructor(InputLike::class).call(internalContext, this, inputType)

@@ -140,11 +140,12 @@ class DataClassBuilder internal constructor(
             run {
                 val javaName = kmFQN.asJavaName
                 val toStringProps =
-                    constructorProperties.mapIndexed { index, propWrapper ->
-                        val n = propWrapper.property.name
-                        val delimiter = if (index == 0) "" else ", "
-                        """result.append("$delimiter$n=").append(this.${propWrapper.getterName}());"""
-                    }.joinToString("\n")
+                    constructorProperties
+                        .mapIndexed { index, propWrapper ->
+                            val n = propWrapper.property.name
+                            val delimiter = if (index == 0) "" else ", "
+                            """result.append("$delimiter$n=").append(this.${propWrapper.getterName}());"""
+                        }.joinToString("\n")
 
                 """
                 {

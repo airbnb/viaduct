@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 import viaduct.api.globalid.GlobalID
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
+import viaduct.apiannotations.StableApi
 
 /**
  * Internal cache of NodeObject to avoid repeated reflection lookups.
@@ -43,6 +44,7 @@ internal fun <T : NodeObject> publishedGeneratedType(clazz: Class<T>): Type<T> =
  *
  * @see [viaduct.api.context.ResolverExecutionContext.nodeFor]
  */
+@StableApi
 inline fun <reified T : NodeObject> ResolverExecutionContext.nodeFor(localId: String): T {
     val type = publishedGeneratedType(T::class.java)
     val gid = globalIDFor(type, localId)
@@ -54,6 +56,7 @@ inline fun <reified T : NodeObject> ResolverExecutionContext.nodeFor(localId: St
  *
  * @see [viaduct.api.context.ExecutionContext.globalIDFor]
  */
+@StableApi
 inline fun <reified T : NodeObject> ExecutionContext.globalIDFor(localId: String): GlobalID<T> {
     return globalIDFor(publishedGeneratedType(T::class.java), localId)
 }

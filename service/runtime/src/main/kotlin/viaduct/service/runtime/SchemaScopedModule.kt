@@ -10,12 +10,8 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineFactory
 import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.CheckerExecutorFactoryCreator
-import viaduct.engine.api.FieldCheckerDispatcherRegistry
-import viaduct.engine.api.FieldResolverDispatcherRegistry
-import viaduct.engine.api.NodeResolverDispatcherRegistry
 import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.TenantAPIBootstrapper
-import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.DispatcherRegistry
@@ -35,10 +31,6 @@ internal class SchemaScopedModule(
     override fun configure() {
         bind(SchemaConfiguration::class.java).toInstance(schemaConfig)
 
-        bind(FieldResolverDispatcherRegistry::class.java).to(DispatcherRegistry::class.java)
-        bind(NodeResolverDispatcherRegistry::class.java).to(DispatcherRegistry::class.java)
-        bind(FieldCheckerDispatcherRegistry::class.java).to(DispatcherRegistry::class.java)
-        bind(TypeCheckerDispatcherRegistry::class.java).to(DispatcherRegistry::class.java)
         bind(RequiredSelectionSetRegistry::class.java).to(DispatcherRegistry::class.java)
 
         install(SchemaRegistryModule())

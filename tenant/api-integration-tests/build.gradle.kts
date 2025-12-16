@@ -33,6 +33,7 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.tenant.api))
 
     testImplementation(libs.viaduct.tenant.runtime)
+    testImplementation(libs.viaduct.shared.apiannotations)
     testImplementation(libs.viaduct.shared.arbitrary)
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)

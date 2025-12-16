@@ -5,7 +5,6 @@ package viaduct.tenant.runtime.internal
 import graphql.schema.GraphQLObjectType
 import io.mockk.every
 import io.mockk.mockk
-import javax.inject.Provider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -22,8 +21,6 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockType
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.NodeResolverDispatcherRegistry
-import viaduct.engine.api.TypeCheckerDispatcherRegistry
 import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
@@ -34,10 +31,6 @@ class NodeReferenceFactoryImplTest {
     @Test
     fun `nodeFor returns a Node Reference`(): Unit =
         runBlocking {
-            val nodeResolverRegistryProvider = mockk<Provider<NodeResolverDispatcherRegistry>>()
-            val nodeCheckerRegistryProvider = mockk<Provider<TypeCheckerDispatcherRegistry>>()
-            every { nodeResolverRegistryProvider.get() } returns mockk()
-            every { nodeCheckerRegistryProvider.get() } returns mockk()
             val schema = GlobalIdFeatureAppTest.schema
             val globalId = GlobalIDImpl(User.Reflection, "123")
             val factory = NodeReferenceGRTFactoryImpl { _: String, objectType: GraphQLObjectType ->

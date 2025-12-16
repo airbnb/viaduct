@@ -1,6 +1,7 @@
 package viaduct.api.internal
 
 import graphql.schema.GraphQLObjectType
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData
 
 /**
@@ -12,6 +13,7 @@ import viaduct.engine.api.EngineObjectData
  * This enables the toBuilder() pattern where a GRT can be converted to a builder,
  * some fields overridden, and then built back into a new GRT while preserving unmodified fields from the original GRT.
  */
+@InternalApi
 class OverlayEngineObjectData(
     private val overlay: EngineObjectData,
     private val base: EngineObjectData

@@ -64,7 +64,9 @@ object None : Option<Nothing> {
 
 /** A non-empty instance of [Option] */
 @JvmInline
-value class Some<T>(val value: T) : Option<T> {
+value class Some<T>(
+    val value: T
+) : Option<T> {
     override fun getOrNull(): T? = get()
 
     override fun get(): T = value

@@ -50,8 +50,10 @@ class TypeRemovalVisitorTest {
 
         val transformedSchema = pruneSchema(schema)
 
-        transformedSchema.getObjectType("RootQuery")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getObjectType("RootQuery")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one", "two")
 
         transformedSchema.getObjectType("Baz").shouldBeNull()
@@ -89,12 +91,15 @@ class TypeRemovalVisitorTest {
 
         val transformedSchema = pruneSchema(schema)
 
-        transformedSchema.getObjectType("RootQuery")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getObjectType("RootQuery")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one", "two")
 
         (transformedSchema.getType("Bar") as? GraphQLInputObjectType)
-            ?.fieldDefinitions?.map { it.name }
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one")
 
         transformedSchema.getObjectType("Baz").shouldBeNull()
@@ -141,8 +146,10 @@ class TypeRemovalVisitorTest {
 
         val transformedSchema = pruneSchema(schema)
 
-        transformedSchema.getObjectType("RootQuery")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getObjectType("RootQuery")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("one", "two")
 
         transformedSchema.getObjectType("Baz").shouldBeNull()
@@ -187,20 +194,26 @@ class TypeRemovalVisitorTest {
 
         val transformedSchema = pruneSchema(schema)
 
-        transformedSchema.getObjectType("RootQuery")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getObjectType("RootQuery")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("a", "b")
 
         transformedSchema.getObjectType("Baz").shouldBeNull()
         transformedSchema.getObjectType("Bim").shouldBeNull()
         transformedSchema.getType("Boop").shouldBeNull()
 
-        transformedSchema.getObjectType("Foo")
-            ?.interfaces?.map { it.name }
+        transformedSchema
+            .getObjectType("Foo")
+            ?.interfaces
+            ?.map { it.name }
             .shouldContainExactly("OneInterface")
 
-        transformedSchema.getObjectType("Bar")
-            ?.interfaces?.map { it.name }
+        transformedSchema
+            .getObjectType("Bar")
+            ?.interfaces
+            ?.map { it.name }
             .shouldContainExactly("OneInterface")
 
         transformedSchema.getType("TwoInterface").shouldBeNull()
@@ -243,14 +256,17 @@ class TypeRemovalVisitorTest {
 
         val transformedSchema = pruneSchema(schema)
 
-        transformedSchema.getObjectType("RootQuery")
-            ?.fieldDefinitions?.map { it.name }
+        transformedSchema
+            .getObjectType("RootQuery")
+            ?.fieldDefinitions
+            ?.map { it.name }
             .shouldContainExactly("two")
 
         transformedSchema.getType("UnionOne").shouldBeNull()
 
         (transformedSchema.getType("UnionTwo") as? GraphQLUnionType)
-            ?.types?.map { it.name }
+            ?.types
+            ?.map { it.name }
             .shouldContainExactly("Foo", "Bar")
 
         transformedSchema.getType("Baz").shouldBeNull()
@@ -259,9 +275,11 @@ class TypeRemovalVisitorTest {
     private fun pruneSchema(schema: GraphQLSchema): GraphQLSchema {
         val typesToRemove = mutableSetOf<String>()
         val elementChildren =
-            schema.allTypesAsList.map {
-                Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
-            }.toMap().toMutableMap()
+            schema.allTypesAsList
+                .map {
+                    Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
+                }.toMap()
+                .toMutableMap()
         buildSchemaTraverser(schema).traverse(
             StubRoot(schema),
             CompositeVisitor(

@@ -56,7 +56,9 @@ internal class ExtensionsTest {
     @Test
     fun testTenantExtractionWhenNoTenant() {
         val field = GJSchema.fromRegistry(readTypes(sdl))
-        val tenant = field.types.values.first().tenant
+        val tenant = field.types.values
+            .first()
+            .tenant
         assertEquals("NO_TENANT", tenant)
     }
 
@@ -102,11 +104,13 @@ internal class ExtensionsTest {
         val field = spyk(mockFieldWithSourceLoc("repo/schema/other/someFile"))
 
         val typeExpression = mockk<GJSchema.TypeExpr>()
-        every { typeExpression.baseTypeDef } returns GJSchema.fromFiles(
-            listOf(
-                buildSchemaFileWithTenantMatchingStructure()
-            )
-        ).types.values.first()
+        every { typeExpression.baseTypeDef } returns GJSchema
+            .fromFiles(
+                listOf(
+                    buildSchemaFileWithTenantMatchingStructure()
+                )
+            ).types.values
+            .first()
         every { field.type } returns typeExpression
         val def = mockk<GraphQLInputObjectField>(relaxed = true)
         every { field.def } returns def
@@ -120,7 +124,7 @@ internal class ExtensionsTest {
         Files.createDirectories(child)
 
         val classLoader = ExtensionsTest::class.java.classLoader
-        val schemaStream = classLoader.getResourceAsStream("sample-schema.graphql")
+        val schemaStream = classLoader.getResourceAsStream("sample-schema/sample-schema.graphql")
         val temp: Path = Files.createTempFile(child, "sample-schema-", ".graphql")
         Files.copy(schemaStream, temp, StandardCopyOption.REPLACE_EXISTING)
         return temp.toFile()

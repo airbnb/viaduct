@@ -21,8 +21,23 @@ dependencies {
 
     runtimeOnly(libs.viaduct.tenant.api)
 
+    testImplementation(libs.viaduct.engine.api)
+    testImplementation(libs.viaduct.tenant.api)
+    testImplementation(libs.viaduct.tenant.runtime)
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.javassist)
     testImplementation(testFixtures(libs.viaduct.shared.viaductschema))
+    testImplementation(testFixtures(libs.viaduct.tenant.api))
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.reflections)
+    testImplementation(libs.kotlin.reflect)
+    testImplementation(libs.guava)
+    testImplementation(libs.jackson.annotations)
+    testImplementation(libs.slf4j.api)
+    testImplementation(libs.kotest.property.jvm)
+}
+
+tasks.test {
+    jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
 }

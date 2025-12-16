@@ -27,7 +27,11 @@ val GJSchema.TypeDef.isData: Boolean
  *  is returned.
  */
 val GJSchema.Field.tenant: String
-    get() = extractTenant(this.def.definition?.sourceLocation?.sourceName)
+    get() = extractTenant(
+        this.def.definition
+            ?.sourceLocation
+            ?.sourceName
+    )
 
 /** Returns the tenant that defines a type.  The result is typically
  *  a string that matches "<schema-tier>/<tenant-module>", where
@@ -40,7 +44,11 @@ val GJSchema.Field.tenant: String
  *  is returned.
  */
 val GJSchema.TypeDef.tenant: String
-    get() = extractTenant(this.def.definition?.sourceLocation?.sourceName)
+    get() = extractTenant(
+        this.def.definition
+            ?.sourceLocation
+            ?.sourceName
+    )
 
 /** Does the actual work of extracting a tenant name (e.g.,
  *  "data/user") from a source-file pathname.  While typically the

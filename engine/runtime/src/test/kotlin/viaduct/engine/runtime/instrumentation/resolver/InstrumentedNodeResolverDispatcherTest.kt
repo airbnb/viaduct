@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.NodeResolverDispatcher
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.runtime.NodeResolverDispatcher
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class InstrumentedNodeResolverDispatcherTest {

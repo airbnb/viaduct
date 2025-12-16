@@ -21,6 +21,7 @@ dependencies {
 
     /** Viaduct dependencies **/
     implementation(libs.viaduct.engine.api)
+    implementation(libs.viaduct.shared.apiannotations)
 
     /** Test dependencies - External **/
     testImplementation(libs.io.mockk.jvm)

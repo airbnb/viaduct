@@ -50,7 +50,9 @@ class ConvMemo {
      * A Conv that can be lazily constructed, allowing for cyclic references.
      * @see [ConvMemo]
      */
-    private class ConvRef(val memoKey: String) : Conv<Any?, Any?> {
+    private class ConvRef(
+        val memoKey: String
+    ) : Conv<Any?, Any?> {
         var inner: Conv<Any?, Any?>? = null
 
         override fun invoke(from: Any?): Any? = checkState().invoke(from)

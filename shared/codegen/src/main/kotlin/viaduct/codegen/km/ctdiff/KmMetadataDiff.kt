@@ -188,17 +188,11 @@ class KmMetadataDiff(
         }
     }
 
-    private fun updateSignaturePkg(sig: JvmMethodSignature?): JvmMethodSignature? {
-        return sig?.let { it.copy(descriptor = it.descriptor.replace(expectedPkgKm, actualPkgKm)) }
-    }
+    private fun updateSignaturePkg(sig: JvmMethodSignature?): JvmMethodSignature? = sig?.let { it.copy(descriptor = it.descriptor.replace(expectedPkgKm, actualPkgKm)) }
 
-    private fun updateSignaturePkg(sig: JvmFieldSignature?): JvmFieldSignature? {
-        return sig?.let { it.copy(descriptor = it.descriptor.replace(expectedPkgKm, actualPkgKm)) }
-    }
+    private fun updateSignaturePkg(sig: JvmFieldSignature?): JvmFieldSignature? = sig?.let { it.copy(descriptor = it.descriptor.replace(expectedPkgKm, actualPkgKm)) }
 
-    private fun updatePkg(s: String): String {
-        return s.replace(expectedPkgKm, actualPkgKm)
-    }
+    private fun updatePkg(s: String): String = s.replace(expectedPkgKm, actualPkgKm)
 
     private fun kmTypeToString(
         kmType: KmType,
@@ -312,8 +306,6 @@ class KmMetadataDiff(
     }
 
     companion object {
-        private fun parseMetadata(metadata: Metadata): KotlinClassMetadata {
-            return KotlinClassMetadata.readStrict(metadata)
-        }
+        private fun parseMetadata(metadata: Metadata): KotlinClassMetadata = KotlinClassMetadata.readStrict(metadata)
     }
 }

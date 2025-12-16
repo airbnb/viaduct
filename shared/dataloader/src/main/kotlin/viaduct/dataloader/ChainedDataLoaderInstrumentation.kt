@@ -11,9 +11,7 @@ class ChainedDataLoaderInstrumentation(
         val instrumentationsAndStates: List<Pair<DataLoaderInstrumentation, DataLoaderInstrumentation.BatchState>>
     ) : DataLoaderInstrumentation.BatchState
 
-    override fun createBatchState(): DataLoaderInstrumentation.BatchState {
-        return BatchState(instrumentations.map { Pair(it, it.createBatchState()) })
-    }
+    override fun createBatchState(): DataLoaderInstrumentation.BatchState = BatchState(instrumentations.map { Pair(it, it.createBatchState()) })
 
     override fun <K> beginLoad(
         key: K,

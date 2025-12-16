@@ -2,7 +2,6 @@ package viaduct.engine.runtime
 
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.FieldResolverDispatcher
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet

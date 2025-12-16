@@ -63,33 +63,34 @@ class GJValueConvTest : KotestPropertyBase() {
         includeLists: Boolean = true
     ): List<GraphQLType> =
         // generate a list of unwrapped types
-        schema.allTypesAsList.filter {
-            when (it) {
-                is GraphQLScalarType -> when {
-                    it.name == "BackingData" -> includeScalars && includeBackingData
-                    else -> includeScalars
+        schema.allTypesAsList
+            .filter {
+                when (it) {
+                    is GraphQLScalarType -> when {
+                        it.name == "BackingData" -> includeScalars && includeBackingData
+                        else -> includeScalars
+                    }
+                    is GraphQLInputObjectType -> includeInputObjects
+                    is GraphQLEnumType -> includeEnums
+                    else -> false
                 }
-                is GraphQLInputObjectType -> includeInputObjects
-                is GraphQLEnumType -> includeEnums
-                else -> false
+            }.flatMap { unwrappedType ->
+                // add decorators
+                buildList {
+                    add(unwrappedType)
+                    if (includeNonNulls) {
+                        add(GraphQLNonNull(unwrappedType))
+                    }
+                    if (includeLists) {
+                        add(GraphQLList(unwrappedType))
+                        add(GraphQLList(GraphQLList(unwrappedType)))
+                    }
+                    if (includeNonNulls && includeLists) {
+                        add(GraphQLNonNull(GraphQLList(unwrappedType)))
+                        add(GraphQLList(GraphQLNonNull(unwrappedType)))
+                    }
+                }
             }
-        }.flatMap { unwrappedType ->
-            // add decorators
-            buildList {
-                add(unwrappedType)
-                if (includeNonNulls) {
-                    add(GraphQLNonNull(unwrappedType))
-                }
-                if (includeLists) {
-                    add(GraphQLList(unwrappedType))
-                    add(GraphQLList(GraphQLList(unwrappedType)))
-                }
-                if (includeNonNulls && includeLists) {
-                    add(GraphQLNonNull(GraphQLList(unwrappedType)))
-                    add(GraphQLList(GraphQLNonNull(unwrappedType)))
-                }
-            }
-        }
 
     @Test
     fun `arbitrary ir values can be roundtripped through GJValue`(): Unit =

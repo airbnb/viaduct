@@ -33,7 +33,9 @@ abstract class ViaductSchemaSubtypeContract {
         run {
             val result = mutableMapOf<String, KClass<*>>()
             for (className in MANDATORY_CLASS_NAMES) {
-                getSchemaClass().nestedClasses.firstOrNull { it.simpleName == className }
+                getSchemaClass()
+                    .nestedClasses
+                    .firstOrNull { it.simpleName == className }
                     ?.let { result[className] = it }
                     ?: missingClasses.add(className)
             }
@@ -41,8 +43,7 @@ abstract class ViaductSchemaSubtypeContract {
                 (
                     getSchemaClass().nestedClasses.firstOrNull { it.simpleName == className }
                         ?: ViaductSchema::class.nestedClasses.firstOrNull { it.simpleName == className }
-                )
-                    ?.let { result[className] = it }
+                )?.let { result[className] = it }
             }
             result
         }

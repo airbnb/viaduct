@@ -85,10 +85,11 @@ abstract class ValueConverterContract {
      */
     fun defaultsToEffectiveDefaults() {
         val nullDefaults = mutableMapOf<String, Any?>()
-        for (case in viaductExtendedSchema.cases())
+        for (case in viaductExtendedSchema.cases()) {
             if (!defaultValues.containsKey(case.key) && case.type.isNullable) {
                 nullDefaults[case.key] = null
             }
+        }
         effectiveDefaultValues = defaultValues + nullDefaults
     }
 
@@ -191,8 +192,8 @@ abstract class ValueConverterContract {
             }
 
     @TestFactory
-    fun `test default and effective-default functions for`(): List<DynamicTest> {
-        return viaductExtendedSchema.cases(allElements = true).map { case ->
+    fun `test default and effective-default functions for`(): List<DynamicTest> =
+        viaductExtendedSchema.cases(allElements = true).map { case ->
             DynamicTest.dynamicTest(case.key) {
                 if (defaultValues.containsKey(case.key)) {
                     assert(case.hasDefault)
@@ -210,7 +211,6 @@ abstract class ValueConverterContract {
                 }
             }
         }
-    }
 
     @TestFactory
     fun `convert literal`(): List<DynamicTest> {

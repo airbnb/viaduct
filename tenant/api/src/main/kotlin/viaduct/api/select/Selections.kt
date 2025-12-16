@@ -1,5 +1,7 @@
 package viaduct.api.select
 
+import viaduct.apiannotations.StableApi
+
 /**
  * [Selections] describes a String value in 1 of 2 forms:
  *
@@ -47,4 +49,5 @@ package viaduct.api.select
  * ```
  */
 @Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
+@StableApi
 annotation class Selections

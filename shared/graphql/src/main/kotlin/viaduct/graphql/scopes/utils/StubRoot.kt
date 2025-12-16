@@ -18,7 +18,9 @@ import java.util.LinkedHashSet
  *
  * Forked from https://github.com/graphql-java/graphql-java/blob/bb87d8f5211f4770934bbca408ca41557d5b4196/src/main/java/graphql/schema/SchemaTransformer.java#L38
  */
-class StubRoot(private var schema: GraphQLSchema) : GraphQLSchemaElement {
+class StubRoot(
+    private var schema: GraphQLSchema
+) : GraphQLSchemaElement {
     companion object {
         const val QUERY = "query"
         const val MUTATION = "mutation"
@@ -38,13 +40,12 @@ class StubRoot(private var schema: GraphQLSchema) : GraphQLSchemaElement {
     private var additionalTypes: Set<GraphQLType> = schema.additionalTypes
     private var directives: Set<GraphQLDirective> = schema.directives.toSet()
 
-    override fun getChildren(): List<GraphQLSchemaElement> {
-        return Assert.assertShouldNeverHappen()
-    }
+    override fun getChildren(): List<GraphQLSchemaElement> = Assert.assertShouldNeverHappen()
 
     override fun getChildrenWithTypeReferences(): SchemaElementChildrenContainer {
         val builder =
-            SchemaElementChildrenContainer.newSchemaElementChildrenContainer()
+            SchemaElementChildrenContainer
+                .newSchemaElementChildrenContainer()
                 .child(QUERY, query)
         if (schema.isSupportingMutations) {
             builder.child(MUTATION, mutation)
@@ -69,9 +70,7 @@ class StubRoot(private var schema: GraphQLSchema) : GraphQLSchemaElement {
     override fun accept(
         context: TraverserContext<GraphQLSchemaElement>,
         visitor: GraphQLTypeVisitor
-    ): TraversalControl {
-        return Assert.assertShouldNeverHappen()
-    }
+    ): TraversalControl = Assert.assertShouldNeverHappen()
 
     override fun copy(): GraphQLSchemaElement = this
 }

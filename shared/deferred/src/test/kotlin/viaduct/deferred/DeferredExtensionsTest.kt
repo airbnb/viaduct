@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.fail
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DeferredExtensionsTest {
     @Nested
     inner class ParentingCompletableDeferredTests {
@@ -701,9 +702,7 @@ class DeferredExtensionsTest {
                 // This is synthetic; in practice getCompleted() shouldn't throw here
                 // but we can still check that such a throw cancels vs completes exceptionally.
                 val d = object : CompletableDeferred<Int> by completableDeferred() {
-                    override fun getCompleted(): Int {
-                        throw IllegalStateException("weird")
-                    }
+                    override fun getCompleted(): Int = throw IllegalStateException("weird")
                 }
                 val res = d.thenCompose { completableDeferred<String>().apply { complete("ok") } }
                 d.complete(1)
@@ -912,7 +911,7 @@ class DeferredExtensionsTest {
                 val outer = completableDeferred<Int>()
                 val fallbackCancelled = CompletableDeferred<CancellationException>()
 
-                val result = outer.exceptionallyCompose { cause ->
+                val result = outer.exceptionallyCompose { _ ->
                     // long-lived fallback; record its cancellation
                     completableDeferred<Int>().also { fb ->
                         fb.invokeOnCompletion { c ->
@@ -974,9 +973,7 @@ class DeferredExtensionsTest {
             runBlocking {
                 // Synthetic: getCompleted throws even though completion was "successful"
                 val d = object : CompletableDeferred<Int> by CompletableDeferred() {
-                    override fun getCompleted(): Int {
-                        throw IllegalStateException("weird-getCompleted")
-                    }
+                    override fun getCompleted(): Int = throw IllegalStateException("weird-getCompleted")
                 }
 
                 val res = d.exceptionallyCompose { _ ->
@@ -1187,7 +1184,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `waitAllDeferreds SLOW exception cancels others`() =
+        fun `waitAllDeferreds SLOW exception does NOT cancel others`() =
             runBlocking {
                 val first = CompletableDeferred<Unit>()
                 val second = CompletableDeferred<Unit>()
@@ -1196,14 +1193,18 @@ class DeferredExtensionsTest {
 
                 first.completeExceptionally(IllegalStateException("boom"))
 
+                // Result should eventually fail with "boom", but we need second to complete for result to complete
+                assertFalse(result.isCompleted)
+                assertFalse(second.isCancelled)
+
+                second.complete(Unit)
+
                 val ex = assertThrows<IllegalStateException> { result.await() }
                 assertEquals("boom", ex.message)
-                val cancel = assertThrows<CancellationException> { second.await() }
-                assertEquals("waitAll fail-fast", cancel.message)
             }
 
         @Test
-        fun `waitAllDeferreds SLOW cancellation cancels others`() =
+        fun `waitAllDeferreds SLOW cancellation does NOT cancel others`() =
             runBlocking {
                 val first = CompletableDeferred<Unit>()
                 val second = CompletableDeferred<Unit>()
@@ -1213,10 +1214,14 @@ class DeferredExtensionsTest {
                 val cancel = CancellationException("stop")
                 first.cancel(cancel)
 
+                // Result should eventually fail with "stop", but we need second to complete for result to complete
+                assertFalse(result.isCompleted)
+                assertFalse(second.isCancelled)
+
+                second.complete(Unit)
+
                 val thrown = assertThrows<CancellationException> { result.await() }
                 assertEquals("stop", thrown.message)
-                val other = assertThrows<CancellationException> { second.await() }
-                assertEquals("stop", other.message)
             }
 
         // Regression test for a past implementation that folded over inputs and chained `invokeOnCompletion` callbacks.
@@ -1354,7 +1359,7 @@ class DeferredExtensionsTest {
         fun `thenApply slow path rethrows CompletionHandlerException`() =
             runBlocking {
                 val src = completableDeferred<Int>()
-                val derived = src.thenApply { throw CompletionHandlerException("boom", Error("cause")) }
+                src.thenApply { throw CompletionHandlerException("boom", Error("cause")) }
 
                 assertThrows<CompletionHandlerException> { src.complete(1) }
                 Unit
@@ -1374,7 +1379,7 @@ class DeferredExtensionsTest {
         fun `thenCompose nested completion handler Error surfaces as CompletionHandlerException`() =
             runBlocking {
                 val outer = completableDeferred<Int>()
-                val chained = outer.thenCompose { _ ->
+                outer.thenCompose { _ ->
                     val inner = completableDeferred<Int>()
                     inner.invokeOnCompletion { throw Error("boom") }
                     inner.complete(1)
