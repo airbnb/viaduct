@@ -7,6 +7,7 @@ weight: 100
 ## Overview
 
 The `serve` task provides a development server for Viaduct applications with:
+
 - **GraphiQL IDE**: Interactive GraphQL explorer in your browser
 - **Auto-reloading**: Automatic rebuild and restart when code changes
 - **Zero configuration**: Works out-of-the-box for simple applications
@@ -30,16 +31,19 @@ Start the development server with automatic reloading:
 ```
 
 The serve task automatically uses configuration from your `viaductApplication` extension in `build.gradle.kts`:
+
 - **Package prefix**: Uses `viaductApplication.modulePackagePrefix` to discover your resolvers
 - **Port**: Defaults to 8080 (configurable via `viaductApplication.servePort`)
 - **Host**: Defaults to 0.0.0.0 (configurable via `viaductApplication.serveHost`)
 
 This is the recommended way to run the development server. When you change source files:
+
 1. Gradle detects the change
 2. Rebuilds the affected code
 3. Restarts the server automatically
 
 The server provides:
+
 - GraphQL endpoint: `http://localhost:8080/graphql`
 - GraphiQL IDE: `http://localhost:8080/graphiql`
 - Health check: `http://localhost:8080/health`
@@ -194,13 +198,14 @@ serve.host=127.0.0.1
 ### What Gets Watched
 
 Continuous mode watches:
+
 - **GraphQL schema files** (`.graphqls`) in all modules
 - **Kotlin source files** in `src/main/kotlin`
 - **Resource files** referenced by the application
 
 ## Using GraphiQL
 
-GraphiQL provides an interactive environment for exploring and testing your GraphQL API:
+GraphiQL provides an interactive environment for exploring and testing your GraphQL API.
 
 ### Features
 
@@ -231,6 +236,7 @@ Try this query in GraphiQL:
 ### Port Already in Use
 
 If port 8080 is already in use, either:
+
 - Stop the process using the port
 - Use a different port with `-Pserve.port=<port>`
 
@@ -247,6 +253,7 @@ Note: In this mode, you must manually stop and restart the server after making c
 ### Server Not Restarting in Continuous Mode
 
 If the server doesn't restart after changes:
+
 1. Check that you're using `--continuous` flag
 2. Verify your changes are in watched files (schema or source code)
 3. Check Gradle output for any compilation errors
@@ -255,6 +262,7 @@ If the server doesn't restart after changes:
 ### Changes Not Reflected
 
 If code changes don't appear in GraphiQL:
+
 1. Hard refresh your browser (`Cmd+Shift+R` or `Ctrl+Shift+F5`)
 2. Check the Gradle output for any errors during recompilation
 3. Verify the server actually restarted (look for "Starting Viaduct Development Server..." in logs)
@@ -262,6 +270,7 @@ If code changes don't appear in GraphiQL:
 ### Resolver Instantiation Errors
 
 If you see errors about resolvers failing to instantiate:
+
 1. Check if your resolvers require dependencies (constructor parameters)
 2. If yes, create a `@ViaductServerConfiguration` class to enable DI
 3. Verify your DI framework is configured correctly
@@ -269,6 +278,7 @@ If you see errors about resolvers failing to instantiate:
 ## Comparison with Production
 
 `serve` is for development only. For production deployments:
+
 - Configure your actual HTTP server (Ktor, Jetty, etc.)
 - Set up proper authentication and authorization
 - Configure production logging and monitoring
