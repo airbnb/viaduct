@@ -155,7 +155,34 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         val servePort = project.findProperty("serve.port")?.toString()?.toIntOrNull() ?: appExt.servePort.get()
         val serveHost = project.findProperty("serve.host")?.toString() ?: appExt.serveHost.get()
 
-        // Get the application plugin's classpath (which now includes bundled serve classes)
+        // Create configuration for serve runtime dependencies
+        val serveConfig = configurations.create("serveRuntime") {
+            isCanBeConsumed = false
+            isCanBeResolved = true
+            isVisible = false
+            attributes {
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+                attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
+                attribute(
+                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                    objects.named(LibraryElements::class.java, LibraryElements.JAR)
+                )
+            }
+        }
+
+        // Add serve runtime dependencies
+        val ktorVersion = "3.0.3"
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-core:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-netty:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-content-negotiation:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-cors:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-websockets:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-serialization-jackson:$ktorVersion")
+        dependencies.add(serveConfig.name, "com.fasterxml.jackson.module:jackson-module-kotlin:2.18.0")
+        dependencies.add(serveConfig.name, "io.github.classgraph:classgraph:4.8.174")
+        dependencies.add(serveConfig.name, "ch.qos.logback:logback-classic:1.4.14")
+
+        // Get the application plugin's jar (contains bundled serve classes)
         val pluginClasspath = files(ViaductApplicationPlugin::class.java.protectionDomain.codeSource.location.toURI())
 
         tasks.register<org.gradle.api.tasks.JavaExec>("serve") {
@@ -169,11 +196,13 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             mainClass.set("viaduct.serve.ServeServerKt")
 
             // Configure classpath to include:
-            // 1. Plugin classpath (contains bundled serve runtime)
-            // 2. App classes
-            // 3. Runtime classpath (app dependencies)
+            // 1. Plugin jar (contains bundled serve classes)
+            // 2. Serve runtime dependencies (Ktor, Jackson, etc.)
+            // 3. App classes
+            // 4. Runtime classpath (app dependencies)
             classpath = files(
                 pluginClasspath,
+                serveConfig,
                 project.extensions.getByType(org.gradle.api.tasks.SourceSetContainer::class.java)
                     .getByName("main").output,
                 configurations.getByName("runtimeClasspath")
