@@ -2,6 +2,7 @@ package viaduct.tenant.codegen.kotlingen.bytecode
 
 // See README.md for the patterns that guided this file
 
+import viaduct.apiannotations.TestingApi
 import viaduct.codegen.km.getterName
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
@@ -12,6 +13,7 @@ import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
 
+@TestingApi
 fun KotlinGRTFilesBuilder.interfaceKotlinGen(typeDef: ViaductSchema.Interface) = STContents(interfaceSTGroup, InterfaceModelImpl(typeDef, pkg, reflectedTypeGen(typeDef), baseTypeMapper))
 
 private interface InterfaceModel {

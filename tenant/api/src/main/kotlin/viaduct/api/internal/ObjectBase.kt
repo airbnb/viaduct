@@ -271,7 +271,7 @@ abstract class ObjectBase(
          * Dynamic builder function with type check and alias support.
          * Only used for unit tests, where we need to associate data with an alias.
          */
-        // Internal for testing
+        @InternalApi
         internal fun put(
             name: String,
             value: Any?,

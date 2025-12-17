@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
+import viaduct.apiannotations.TestingApi
 import viaduct.graphql.schema.graphqljava.GJSchemaRaw
 import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
@@ -27,6 +28,7 @@ import viaduct.utils.timer.Timer
  * source-level debugging, IDE support, and easier development workflows compared
  * to runtime bytecode generation.
  **/
+@TestingApi
 class KotlinGRTsGenerator : CliktCommand() {
     private val outputArchive: File? by option("--output_archive")
         .file(mustExist = false, canBeDir = false)

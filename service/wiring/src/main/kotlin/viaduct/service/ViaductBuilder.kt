@@ -2,6 +2,7 @@ package viaduct.service
 
 import graphql.execution.DataFetcherExceptionHandler
 import io.micrometer.core.instrument.MeterRegistry
+import viaduct.apiannotations.TestingApi
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
@@ -37,6 +38,7 @@ class ViaductBuilder {
      * wanted.  Used for testing purposes.
      * Failing to provide a bootstrapper is an error that should be flagged at build() time.
      */
+    @TestingApi
     fun withNoTenantAPIBootstrapper() =
         apply {
             builder.withTenantAPIBootstrapperBuilders(emptyList())

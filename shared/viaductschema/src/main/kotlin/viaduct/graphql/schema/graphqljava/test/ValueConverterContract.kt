@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
+import viaduct.apiannotations.TestingApi
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.ValueConverter
 import viaduct.graphql.schema.graphqljava.test.ValueConverterContract.Companion.schema
@@ -42,6 +43,7 @@ import viaduct.graphql.schema.graphqljava.test.ValueConverterContract.Companion.
  *  * The [schema] property provides a GraphQL schema that tests almost
  *    every case of [ValueConverter] and its interaction with [GJSchema].
  */
+@TestingApi
 abstract class ValueConverterContract {
     /** Subclasses initialize this with a GJSchema with a particular value converter to be tested. */
     lateinit var viaductExtendedSchema: ViaductSchema

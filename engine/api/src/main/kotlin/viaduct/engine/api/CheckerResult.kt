@@ -1,5 +1,7 @@
 package viaduct.engine.api
 
+import viaduct.apiannotations.TestingApi
+
 /**
  * Represents the result of CheckerExecutor.execute, which will be stored into the checker slot
  * of the OER. This is an SPI to be implemented by implementors of Viaduct Tenant APIs.
@@ -52,6 +54,7 @@ sealed interface CheckerResult {
     /**
      * Represents a successful check result that grants access.
      */
+    @TestingApi
     object Success : CheckerResult {
         override val asError: Nothing? get() = null
     }

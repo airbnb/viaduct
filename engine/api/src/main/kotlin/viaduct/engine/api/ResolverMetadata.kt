@@ -1,5 +1,7 @@
 package viaduct.engine.api
 
+import viaduct.apiannotations.TestingApi
+
 /**
  * Metadata for a resolver.
  * @property flavor The type of the resolver, e.g. "modern" for modern resolvers.
@@ -14,6 +16,7 @@ data class ResolverMetadata(
     companion object {
         fun forModern(name: String): ResolverMetadata = ResolverMetadata("modern", name)
 
+        @TestingApi
         fun forMock(name: String): ResolverMetadata = ResolverMetadata("mock", name)
     }
 }

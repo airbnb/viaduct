@@ -18,6 +18,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.runBlocking
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineImpl
 import viaduct.engine.api.CheckerExecutorFactory
@@ -139,6 +140,7 @@ class StandardViaduct
              * to be explicit because in almost all non-test scenarios
              * this is a programming error that should be flagged early.
              */
+            @InternalApi
             fun withNoTenantAPIBootstrapper() = apply { withTenantAPIBootstrapperBuilders(emptyList()) }
 
             /**

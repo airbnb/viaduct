@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.viaduct.shared.codegen)
     implementation(libs.viaduct.shared.utils)
     implementation(libs.viaduct.shared.viaductschema)
+    implementation(libs.viaduct.shared.apiannotations)
 
     runtimeOnly(libs.viaduct.tenant.api)
 

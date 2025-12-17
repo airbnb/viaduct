@@ -11,14 +11,14 @@ import viaduct.api.internal.internal
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.GRT
-import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.RawSelectionSet
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.Domain
 import viaduct.mapping.graphql.IR
 
 /** A [Domain] that models [GRT] values */
-@InternalApi
+@ExperimentalApi
 class GRTDomain<T : GRT> private constructor(
     private val ctx: InternalContext,
     private val selectionSet: RawSelectionSet?,

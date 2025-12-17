@@ -19,6 +19,7 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.reflections)
     implementation(libs.jspecify)
+    implementation(libs.viaduct.shared.apiannotations)
 
     testFixturesApi(libs.graphql.java)
     testFixturesApi(libs.junit)

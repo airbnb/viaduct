@@ -71,8 +71,7 @@ class FieldUnbatchedResolverExecutorImpl(
         return unwrapFieldResolverResult(result, globalIDCodec)
     }
 
-    // public for testing
-    fun mkResolver(): ResolverBase<*> = resolver.get()
+    private fun mkResolver(): ResolverBase<*> = resolver.get()
 
     companion object {
         internal fun unwrapFieldResolverResult(

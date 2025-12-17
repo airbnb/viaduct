@@ -409,7 +409,7 @@ class FieldResolver(
             return FieldResolutionResult.fromFetchedValue(
                 resultIterable.mapIndexed { index, it ->
                     // Data could be a list of objects or DataFetcherResults, so unwrap them as we loop over
-                    val itemFV = maybeUnwrapDataFetcherResult(parameters, it)
+                    val itemFV = toFetchedValueOrThrow(parameters, it)
                     ObjectEngineResultImpl.newCell { slotSetter ->
                         val itemFieldResolutionResult = buildFieldResolutionResult(
                             parameters,
@@ -652,7 +652,7 @@ class FieldResolver(
                 fieldCheckerResultValue.thenCompose { fieldCheckerRes, fieldCheckerError ->
                     if (fieldCheckerRes is CheckerResult.Error || fieldCheckerError != null) {
                         // The field checker has failed. Don't execute the data fetcher.
-                        Value.fromValue(maybeUnwrapDataFetcherResult(parameters, null))
+                        Value.nullValue
                     } else {
                         executeDataFetcher(parameters, fieldDef, dataFetchingEnvironmentProvider, dataFetcher)
                     }
@@ -745,20 +745,28 @@ class FieldResolver(
             return Value.fromThrowable(FieldFetchingException.wrapWithPathAndLocation(error, parameters.path, field.sourceLocation))
         }
 
-        return Value.fromValue(maybeUnwrapDataFetcherResult(parameters, value))
+        return Value.fromValue(toFetchedValueOrThrow(parameters, value))
     }
 
     /**
-     * Unwraps the result from the data fetcher, handling [DataFetcherResult].
+     * Converts a data fetcher result to [FetchedValueWithExtensions].
      *
-     * @param parameters The modern execution parameters.
+     * Handles two input types:
+     * - Raw values (String, List, Map, null, etc.) → wrapped in [FetchedValueWithExtensions]
+     * - [DataFetcherResult] → extracts data/errors/extensions and wraps in [FetchedValueWithExtensions]
+     *
+     * @param parameters The execution parameters.
      * @param result The result from the data fetcher.
-     * @return The unwrapped [FetchedValue].
+     * @return A [FetchedValueWithExtensions] containing the normalized result.
+     * @throws IllegalStateException if result is already a [FetchedValueWithExtensions], as this indicates a double-wrapping bug.
      */
-    private fun maybeUnwrapDataFetcherResult(
+    private fun toFetchedValueOrThrow(
         parameters: ExecutionParameters,
         result: Any?,
     ): FetchedValueWithExtensions {
+        check(result !is FetchedValueWithExtensions) {
+            "Result is already a FetchedValueWithExtensions - this indicates a double-wrapping bug"
+        }
         if (result !is DataFetcherResult<*>) {
             return FetchedValueWithExtensions(
                 parameters.executionContext.valueUnboxer.unbox(result),

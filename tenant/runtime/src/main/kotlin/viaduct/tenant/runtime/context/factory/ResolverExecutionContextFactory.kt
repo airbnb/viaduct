@@ -25,6 +25,7 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.TestingApi
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RawSelectionSet
@@ -104,7 +105,7 @@ class NodeExecutionContextFactory(
         return wrap(wrappedContext)
     }
 
-    // visible for testing
+    @TestingApi
     class FakeResolverBase<T : NodeObject> : NodeResolverBase<T> {
         class Context<T : NodeObject>(ctx: NodeExecutionContext<T>) : NodeExecutionContext<T> by ctx, InternalContext by (ctx as InternalContext)
     }
@@ -176,7 +177,7 @@ class FieldExecutionContextFactory internal constructor(
         return VariablesProviderContextImpl(ic, requestContext, rawArguments.toInputLikeGRT(ic, argumentsCls))
     }
 
-    // visible for testing
+    @TestingApi
     class FakeResolverBase<O : CompositeOutput> : ResolverBase<O> {
         class Context<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(ctx: FieldExecutionContext<T, Q, A, O>) :
             FieldExecutionContext<T, Q, A, O> by ctx, InternalContext by (ctx as InternalContext)

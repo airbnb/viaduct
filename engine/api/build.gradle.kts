@@ -20,6 +20,7 @@ dependencies {
     /** Viaduct dependencies **/
     implementation(libs.viaduct.shared.utils)
     implementation(libs.viaduct.shared.graphql)
+    implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.snipped.errors)
 
     /** Test fixtures - Viaduct dependencies **/

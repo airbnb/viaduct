@@ -20,6 +20,7 @@ dependencies {
     implementation(libs.viaduct.service.api)
 
     implementation(libs.viaduct.shared.graphql)
+    implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.shared.utils)
     implementation(libs.classgraph)
     implementation(libs.guava)
