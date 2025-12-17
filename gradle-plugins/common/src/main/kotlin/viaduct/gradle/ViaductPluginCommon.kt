@@ -79,6 +79,7 @@ object ViaductPluginCommon {
         const val SCHEMA_PARTITION = "schema-partition"
         const val CENTRAL_SCHEMA = "central-schema"
         const val GRT_CLASSES = "grt-classes"
+        const val DSL_CLASSES = "dsl-classes"
     }
 
     object Configs {
@@ -99,6 +100,12 @@ object ViaductPluginCommon {
 
         /** Module: resolvable configuration for the GRT class files. */
         const val GRT_CLASSES_INCOMING = "viaductGRTClassesIn"
+
+        /** Root/app: consumable configuration for the generated DSL files. */
+        const val DSL_CLASSES_OUTGOING = "viaductDslClasses"
+
+        /** Module: resolvable configuration for the DSL class files. */
+        const val DSL_CLASSES_INCOMING = "viaductDslClassesIn"
     }
 
     // TODO: Must be a better way to do this.  Right now we are limited because we

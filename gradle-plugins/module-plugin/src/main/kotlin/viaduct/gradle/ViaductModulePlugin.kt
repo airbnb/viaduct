@@ -78,6 +78,16 @@ class ViaductModulePlugin : Plugin<Project> {
                 }
             }
 
+            // DSL classes incoming configuration (experimental)
+            val dslIncomingCfg = configurations.create(ViaductPluginCommon.Configs.DSL_CLASSES_INCOMING).apply {
+                description = "Resolvable configuration for the DSL classes (experimental)."
+                isCanBeConsumed = false
+                isCanBeResolved = true
+                attributes {
+                    attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.DSL_CLASSES)
+                }
+            }
+
             val assembleSchemaPartitionTask = setupAssembleSchemaPartitionTask(moduleExt)
             setupOutgoingConfigurationForPartitionSchema(assembleSchemaPartitionTask)
 
@@ -116,6 +126,17 @@ class ViaductModulePlugin : Plugin<Project> {
                         )
                     )
                 )
+
+                // DSL classes dependency from root project (experimental)
+                dependencies.add(
+                    ViaductPluginCommon.Configs.DSL_CLASSES_INCOMING,
+                    project.dependencies.project(
+                        mapOf(
+                            "path" to rootProject.path,
+                            "configuration" to ViaductPluginCommon.Configs.DSL_CLASSES_OUTGOING
+                        )
+                    )
+                )
             }
 
             // GRT classes into source sets
@@ -127,11 +148,25 @@ class ViaductModulePlugin : Plugin<Project> {
                 configurations.named("testFixturesImplementation").configure { extendsFrom(grtIncomingCfg) }
             }
 
+            // DSL classes into source sets (experimental - only when DSL is enabled in app plugin)
+            plugins.withId("java") {
+                configurations.named("implementation").configure { extendsFrom(dslIncomingCfg) }
+                configurations.named("testImplementation").configure { extendsFrom(dslIncomingCfg) }
+            }
+            pluginManager.withPlugin("java-test-fixtures") {
+                configurations.named("testFixturesImplementation").configure { extendsFrom(dslIncomingCfg) }
+            }
+
             // Generated resolver bases into Kotlin source set
             pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
                 val kotlinExt = extensions.getByType(KotlinJvmProjectExtension::class.java)
                 kotlinExt.sourceSets.named("main") {
                     kotlin.srcDir(generateResolverBasesTask.flatMap { it.outputDirectory })
+                }
+
+                // Add DSL sources to Kotlin compilation (if DSL files are present)
+                kotlinExt.sourceSets.named("main") {
+                    kotlin.srcDir(dslIncomingCfg)
                 }
             }
 

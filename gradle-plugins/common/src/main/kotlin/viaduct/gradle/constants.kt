@@ -10,6 +10,10 @@ val grtClassesDirectoryName = "generated-sources/$viaductBuildDirectory/grtClass
 
 fun Project.grtClassesDirectory() = layout.buildDirectory.dir(grtClassesDirectoryName)
 
+val dslClassesDirectoryName = "generated-sources/$viaductBuildDirectory/dslClasses"
+
+fun Project.dslClassesDirectory() = layout.buildDirectory.dir(dslClassesDirectoryName)
+
 val resolverBasesDirectoryName = "generated-sources/$viaductBuildDirectory/resolverBases"
 
 fun Project.resolverBasesDirectory() = layout.buildDirectory.dir(resolverBasesDirectoryName)

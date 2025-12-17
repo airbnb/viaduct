@@ -21,4 +21,16 @@ open class ViaductApplicationExtension(objects: org.gradle.api.model.ObjectFacto
 
     /** Which Viaduct testFixtures to automatically add as test dependencies. */
     val viaductTestFixtures = objects.setProperty(String::class.java).convention(ViaductPluginCommon.BOM.DEFAULT_TEST_FIXTURES)
+
+    /**
+     * Whether to enable experimental DSL query builder generation.
+     * Defaults to false.
+     */
+    val enableDsl = objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * Kotlin package name for generated DSL classes.
+     * Only used when [enableDsl] is set to true.
+     */
+    val dslPackageName = objects.property(String::class.java).convention("viaduct.api.dsl")
 }
