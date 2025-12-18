@@ -23,7 +23,9 @@ class TestMutationResolver {
  * Test fixture: Resolver without no-arg constructor
  */
 @Resolver
-class ResolverWithoutNoArgConstructor(private val dependency: String) {
+class ResolverWithoutNoArgConstructor(
+    private val dependency: String
+) {
     // Should be skipped by DefaultViaductFactory
 }
 

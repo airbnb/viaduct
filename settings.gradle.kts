@@ -20,6 +20,7 @@ includeBuild("gradle-plugins") {
         substitute(module("com.airbnb.viaduct:gradle-plugins-common")).using(project(":common"))
         substitute(module("com.airbnb.viaduct:module-gradle-plugin")).using(project(":module-plugin"))
         substitute(module("com.airbnb.viaduct:application-gradle-plugin")).using(project(":application-plugin"))
+        substitute(module("com.airbnb.viaduct:serve")).using(project(":core:serve"))
     }
 }
 

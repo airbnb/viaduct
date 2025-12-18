@@ -85,6 +85,7 @@ viaduct-shared-utils = { module = "com.airbnb.viaduct:shared-utils", version.ref
 viaduct-shared-viaductschema = { module = "com.airbnb.viaduct:shared-viaductschema", version.ref = "project" }
 
 viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version.ref = "project" }
+viaduct-serve = { module = "com.airbnb.viaduct:serve", version.ref = "project" }
 
 # Kotlin
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }

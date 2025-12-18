@@ -21,33 +21,8 @@ dependencies {
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)
 
-    // Serve runtime dependencies (bundled into the plugin)
-    implementation(libs.viaduct.service.api)
-    implementation(libs.viaduct.service.wiring)
-    implementation(libs.viaduct.tenant.api)
-    implementation(libs.graphql.java)
-
-    // Ktor server for development server
-    implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.netty)
-    implementation(libs.ktor.server.content.negotiation)
-    implementation(libs.ktor.server.cors)
-    implementation(libs.ktor.server.websockets)
-    implementation(libs.ktor.serialization.jackson)
-
-    // Classpath scanning for finding @ViaductServerConfiguration
-    implementation(libs.classgraph)
-
-    // Logging
-    implementation(libs.slf4j.api)
-    implementation(libs.logback.classic)
-
-    // Kotlin
-    implementation(libs.kotlin.reflect)
-    implementation(libs.kotlinx.coroutines.core.jvm)
-
-    // JSON
-    implementation(libs.jackson.module)
+    // Serve runtime (development server with GraphiQL)
+    implementation(libs.viaduct.serve)
 
     // Testing
     testImplementation(libs.kotlin.test)

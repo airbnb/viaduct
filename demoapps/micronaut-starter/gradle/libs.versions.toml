@@ -13,6 +13,7 @@ viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref =
 [libraries]
 # Common libraries
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
+viaduct-serve = { group = "com.airbnb.viaduct", name = "serve", version.ref = "viaduct" }
 
 # Micronaut
 micronaut-inject = { module = "io.micronaut:micronaut-inject", version.ref = "micronautCore" }

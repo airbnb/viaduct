@@ -14,6 +14,7 @@ dependencies {
     implementation(libs.micronaut.context)
 
     implementation(libs.kotlin.reflect)
+    implementation(libs.viaduct.serve)
 
     implementation(project(":resolvers"))
 

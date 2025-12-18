@@ -28,9 +28,7 @@ class ValidTestProvider : ViaductServerProvider {
  * Test fixture: Provider without annotation (should be ignored).
  */
 class ProviderWithoutAnnotation : ViaductServerProvider {
-    override fun getViaduct(): Viaduct {
-        throw NotImplementedError("Test provider - should not be called")
-    }
+    override fun getViaduct(): Viaduct = throw NotImplementedError("Test provider - should not be called")
 }
 
 /**
@@ -46,8 +44,8 @@ class AnnotatedNonProvider {
  * This should be skipped during discovery with a warning.
  */
 @ViaductServerConfiguration
-class ProviderWithoutNoArgConstructor(private val param: String) : ViaductServerProvider {
-    override fun getViaduct(): Viaduct {
-        throw NotImplementedError("Test provider - should not be called")
-    }
+class ProviderWithoutNoArgConstructor(
+    private val param: String
+) : ViaductServerProvider {
+    override fun getViaduct(): Viaduct = throw NotImplementedError("Test provider - should not be called")
 }

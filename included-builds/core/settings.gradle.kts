@@ -41,3 +41,6 @@ includeNamed(":shared:invariants", "../..")
 includeNamed(":shared:codegen", "../..")
 includeNamed(":shared:mapping", "../..")
 includeNamed(":snipped:errors", "../..")
+
+// Serve module (development server runtime)
+includeNamed(":serve", "../..")

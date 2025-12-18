@@ -36,7 +36,8 @@ class GraphiQLEndpointTest {
         // Use port 0 for dynamic port assignment to avoid conflicts
         server = ViaductServer(port = 0, host = "127.0.0.1")
 
-        httpClient = HttpClient.newBuilder()
+        httpClient = HttpClient
+            .newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build()
 
@@ -93,7 +94,8 @@ class GraphiQLEndpointTest {
         val client = HttpClient.newHttpClient()
         while (System.currentTimeMillis() - startTime < timeoutMs) {
             try {
-                val request = HttpRequest.newBuilder()
+                val request = HttpRequest
+                    .newBuilder()
                     .uri(URI.create("http://127.0.0.1:$port/health"))
                     .GET()
                     .timeout(Duration.ofMillis(100))
@@ -118,7 +120,8 @@ class GraphiQLEndpointTest {
         val client = HttpClient.newHttpClient()
         while (System.currentTimeMillis() - startTime < timeoutMs) {
             try {
-                val request = HttpRequest.newBuilder()
+                val request = HttpRequest
+                    .newBuilder()
                     .uri(URI.create("http://127.0.0.1:$port/health"))
                     .GET()
                     .timeout(Duration.ofMillis(100))
@@ -143,7 +146,8 @@ class GraphiQLEndpointTest {
         }
 
         // Given: Server is running
-        val request = HttpRequest.newBuilder()
+        val request = HttpRequest
+            .newBuilder()
             .uri(URI.create("http://127.0.0.1:$serverPort/graphiql"))
             .GET()
             .timeout(Duration.ofSeconds(5))
@@ -183,7 +187,8 @@ class GraphiQLEndpointTest {
             mapOf("query" to introspectionQuery)
         )
 
-        val request = HttpRequest.newBuilder()
+        val request = HttpRequest
+            .newBuilder()
             .uri(URI.create("http://127.0.0.1:$serverPort/graphql"))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -223,7 +228,8 @@ class GraphiQLEndpointTest {
             mapOf("query" to typeIntrospectionQuery)
         )
 
-        val request = HttpRequest.newBuilder()
+        val request = HttpRequest
+            .newBuilder()
             .uri(URI.create("http://127.0.0.1:$serverPort/graphql"))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -263,7 +269,8 @@ class GraphiQLEndpointTest {
             mapOf("query" to query)
         )
 
-        val request = HttpRequest.newBuilder()
+        val request = HttpRequest
+            .newBuilder()
             .uri(URI.create("http://127.0.0.1:$serverPort/graphql"))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -298,7 +305,8 @@ class GraphiQLEndpointTest {
         )
 
         for ((file, expectedContent) in jsFiles) {
-            val request = HttpRequest.newBuilder()
+            val request = HttpRequest
+                .newBuilder()
                 .uri(URI.create("http://127.0.0.1:$serverPort/js/$file"))
                 .GET()
                 .timeout(Duration.ofSeconds(5))
