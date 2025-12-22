@@ -71,8 +71,8 @@ class ViaductServer(
         logger.info("Starting Viaduct Development Server...")
 
         try {
-            // Discover and instantiate ViaductServerProvider
-            logger.info("Discovering ViaductServerProvider...")
+            // Discover and instantiate ViaductProvider
+            logger.info("Discovering ViaductProvider...")
             val provider = FactoryDiscovery.discoverProvider(packagePrefix)
             logger.info("Found provider: {}", provider::class.qualifiedName)
 
@@ -252,7 +252,7 @@ class ViaductServer(
         logger.error("  Option 2: Create a @ViaductServerConfiguration provider with DI")
         logger.error("  ─────────────────────────────────────────────────────────────────────────────")
         logger.error("    @ViaductServerConfiguration")
-        logger.error("    class MyViaductProvider : ViaductServerProvider {")
+        logger.error("    class MyViaductProvider : ViaductProvider {")
         logger.error("        override fun getViaduct(): Viaduct {")
         logger.error("            // Use your DI framework (Micronaut, Guice, etc.) to create Viaduct")
         logger.error("            return myDiContainer.getBean(Viaduct::class.java)")

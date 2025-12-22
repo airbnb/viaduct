@@ -1,4 +1,4 @@
-package com.example.viadapp.injector
+package com.example.viadapp.production
 
 import io.micronaut.context.BeanContext
 import jakarta.inject.Singleton
@@ -10,6 +10,8 @@ import viaduct.service.api.spi.TenantCodeInjector
  *
  * This allows resolvers and tenant modules to have their dependencies
  * automatically injected by Micronaut's DI container.
+ *
+ * This is used in both production and development modes.
  */
 @Singleton
 class MicronautTenantCodeInjector(

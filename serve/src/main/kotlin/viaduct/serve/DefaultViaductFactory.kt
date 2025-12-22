@@ -6,7 +6,7 @@ import viaduct.service.TenantRegistrationInfo
 import viaduct.service.api.Viaduct
 
 /**
- * Default ViaductServerProvider implementation that creates a Viaduct instance using
+ * Default ViaductProvider implementation that creates a Viaduct instance using
  * the provided package prefix.
  *
  * This factory is used as the fallback when no @ViaductServerConfiguration is found on the classpath.
@@ -24,7 +24,7 @@ import viaduct.service.api.Viaduct
  */
 class DefaultViaductFactory(
     private val packagePrefix: String
-) : ViaductServerProvider {
+) : ViaductProvider {
     private val logger = LoggerFactory.getLogger(DefaultViaductFactory::class.java)
 
     override fun getViaduct(): Viaduct {
@@ -37,7 +37,7 @@ class DefaultViaductFactory(
         logger.warn("║  If your resolvers require injected dependencies, they will fail.         ║")
         logger.warn("║                                                                            ║")
         logger.warn("║  To enable DI, create a class annotated with @ViaductServerConfiguration  ║")
-        logger.warn("║  that implements ViaductServerProvider and returns your Viaduct instance. ║")
+        logger.warn("║  that implements ViaductProvider and returns your Viaduct instance.       ║")
         logger.warn("║  See: https://viaduct.dev/docs/developers/serve                           ║")
         logger.warn("╚════════════════════════════════════════════════════════════════════════════╝")
 

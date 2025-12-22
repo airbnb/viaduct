@@ -56,15 +56,15 @@ Press `Ctrl+C` to stop.
 
 ### Using @ViaductServerConfiguration
 
-To enable dependency injection in your resolvers, create a class annotated with `@ViaductServerConfiguration` that implements `ViaductServerProvider`:
+To enable dependency injection in your resolvers, create a class annotated with `@ViaductServerConfiguration` that implements `ViaductProvider`:
 
 ```kotlin
 import viaduct.serve.ViaductServerConfiguration
-import viaduct.serve.ViaductServerProvider
+import viaduct.serve.ViaductProvider
 import viaduct.service.api.Viaduct
 
 @ViaductServerConfiguration
-class MyServerProvider : ViaductServerProvider {
+class MyViaductProvider : ViaductProvider {
     override fun getViaduct(): Viaduct {
         // Return your Viaduct instance configured with DI
         return myDiFramework.getBean(Viaduct::class.java)
@@ -78,7 +78,7 @@ The serve server automatically discovers your implementation via classpath scann
 
 ```kotlin
 @ViaductServerConfiguration
-class MicronautServerProvider : ViaductServerProvider {
+class MicronautViaductProvider : ViaductProvider {
     override fun getViaduct(): Viaduct {
         val context = ApplicationContext.builder()
             .packages(
@@ -95,7 +95,7 @@ class MicronautServerProvider : ViaductServerProvider {
 
 ```kotlin
 @ViaductServerConfiguration
-class MyServerProvider : ViaductServerProvider {
+class MyViaductProvider : ViaductProvider {
     override fun getViaduct(): Viaduct {
         return ViaductBuilder()
             .withTenantModule(MyTenantModule())
@@ -125,7 +125,7 @@ You will see this warning when running in default mode:
 ║  If your resolvers require injected dependencies, they will fail.         ║
 ║                                                                            ║
 ║  To enable DI, create a class annotated with @ViaductServerConfiguration  ║
-║  that implements ViaductServerProvider and returns your Viaduct instance. ║
+║  that implements ViaductProvider and returns your Viaduct instance.       ║
 ╚════════════════════════════════════════════════════════════════════════════╝
 ```
 

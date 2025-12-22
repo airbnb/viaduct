@@ -89,7 +89,7 @@ tasks.register<PrintVersionTask>("printVersion") {
 if (gradle.parent == null) {
     tasks.register<SyncDemoAppVersionsTask>("syncDemoAppVersions") {
         repoRoot.set(layout.projectDirectory)
-        demoappDirs.set(listOf("demoapps/cli-starter", "demoapps/jetty-starter", "demoapps/ktor-starter", "demoapps/starwars"))
+        demoappDirs.set(listOf("demoapps/cli-starter", "demoapps/jetty-starter", "demoapps/ktor-starter", "demoapps/micronaut-starter", "demoapps/starwars"))
         targetVersion.set(baseVersion)
         outputFiles.setFrom(demoappDirs.get().map { layout.projectDirectory.file("$it/gradle.properties") })
     }

@@ -1,4 +1,4 @@
-package com.example.viadapp.injector
+package com.example.viadapp.production
 
 import io.micronaut.context.annotation.Bean
 import io.micronaut.context.annotation.Factory
@@ -15,6 +15,8 @@ val SCHEMA_ID = "default"
  *
  * This configuration uses dependency injection for the TenantCodeInjector,
  * allowing resolvers to have their dependencies automatically injected.
+ *
+ * This is used in both production and development modes.
  */
 @Factory
 class ViaductConfiguration(

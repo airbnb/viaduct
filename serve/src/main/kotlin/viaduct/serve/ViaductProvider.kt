@@ -17,7 +17,7 @@ import viaduct.service.api.Viaduct
  * **Example with Micronaut:**
  * ```kotlin
  * @ViaductServerConfiguration
- * class MyServerProvider : ViaductServerProvider {
+ * class MicronautViaductProvider : ViaductProvider {
  *     override fun getViaduct(): Viaduct {
  *         val context = ApplicationContext.run()
  *         return context.getBean(Viaduct::class.java)
@@ -28,7 +28,7 @@ import viaduct.service.api.Viaduct
  * **Example with manual configuration:**
  * ```kotlin
  * @ViaductServerConfiguration
- * class MyServerProvider : ViaductServerProvider {
+ * class MyViaductProvider : ViaductProvider {
  *     override fun getViaduct(): Viaduct {
  *         return ViaductBuilder()
  *             .withTenantModule(MyTenantModule())
@@ -44,7 +44,7 @@ import viaduct.service.api.Viaduct
  *
  * @see ViaductServerConfiguration
  */
-interface ViaductServerProvider {
+interface ViaductProvider {
     /**
      * Returns the Viaduct instance to be used by the serve server.
      *

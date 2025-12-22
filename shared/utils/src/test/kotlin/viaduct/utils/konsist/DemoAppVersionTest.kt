@@ -25,6 +25,7 @@ class DemoAppVersionTest {
         val demoappDirs = listOf(
             "cli-starter",
             "jetty-starter",
+            "micronaut-starter",
             "starwars"
         )
 
