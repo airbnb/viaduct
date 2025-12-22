@@ -1,8 +1,8 @@
 package com.example.viadapp.dev
 
 import io.micronaut.context.ApplicationContext
-import viaduct.serve.ViaductProvider
 import viaduct.serve.ViaductServerConfiguration
+import viaduct.serve.ViaductProvider
 import viaduct.service.api.Viaduct
 
 /**
@@ -24,6 +24,7 @@ import viaduct.service.api.Viaduct
  */
 @ViaductServerConfiguration
 class MicronautViaductProvider : ViaductProvider {
+
     private var applicationContext: ApplicationContext? = null
 
     override fun getViaduct(): Viaduct {
@@ -34,7 +35,7 @@ class MicronautViaductProvider : ViaductProvider {
         val context = ApplicationContext.builder()
             .packages(
                 "com.example.viadapp.production",
-                "com.example.viadapp"
+                "com.example.viadapp.resolvers"
             )
             .start()
         applicationContext = context
