@@ -14,4 +14,4 @@
  |  ||    ||    ||    ||    ||    ||    ||    ||  |
  |  ||    ||    ||    ||    ||    ||    ||    ||  |
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-         GraphQL Data Pipeline Framework
+        GraphQL Data-Oriented Service Mesh

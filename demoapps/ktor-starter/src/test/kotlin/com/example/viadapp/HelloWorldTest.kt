@@ -238,7 +238,7 @@ class HelloWorldTest {
             response.status shouldBe HttpStatusCode.OK
             // Verify we get ASCII art data (contains GraphQL framework text)
             val body = response.bodyAsText()
-            body.contains("GraphQL Data Pipeline Framework") shouldBe true
+            body.contains("GraphQL Data-Oriented Service Mesh") shouldBe true
             body.contains("data") shouldBe true
             body.contains("asciiArt") shouldBe true
         }
