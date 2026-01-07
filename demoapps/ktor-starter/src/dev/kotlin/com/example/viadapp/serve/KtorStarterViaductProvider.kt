@@ -3,7 +3,6 @@ package com.example.viadapp.serve
 import com.example.viadapp.di.viaductModule
 import com.example.viadapp.resolvers.di.resolversModule
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import viaduct.serve.ViaductServerConfiguration
@@ -27,9 +26,6 @@ import viaduct.service.api.Viaduct
 @ViaductServerConfiguration
 class KtorStarterViaductProvider : ViaductProvider, KoinComponent {
 
-    // Lazy inject Viaduct from Koin
-    private val viaduct: Viaduct by inject()
-
     init {
         // Initialize Koin if not already started (for serve mode)
         if (GlobalContext.getOrNull() == null) {
@@ -39,5 +35,5 @@ class KtorStarterViaductProvider : ViaductProvider, KoinComponent {
         }
     }
 
-    override fun getViaduct(): Viaduct = viaduct
+    override fun getViaduct(): Viaduct = getKoin().get()
 }
