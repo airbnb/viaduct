@@ -6,6 +6,7 @@ import io.micronaut.http.MediaType
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Get
 import io.micronaut.http.annotation.Produces
+import viaduct.service.wiring.graphiql.graphiQLHtml
 
 /**
  * Minimal GraphiQL Web interface to interact with the Viaduct-powered GraphQL API.
@@ -18,8 +19,6 @@ class GraphiQLController {
     @Produces(MediaType.TEXT_HTML)
     @Order(0)
     fun graphiql(): HttpResponse<String> {
-        val resource = this::class.java.classLoader.getResource("graphiql/index.html")
-        val content = resource?.readText() ?: return HttpResponse.notFound()
-        return HttpResponse.ok(content).contentType(MediaType.TEXT_HTML)
+        return HttpResponse.ok(graphiQLHtml()).contentType(MediaType.TEXT_HTML)
     }
 }

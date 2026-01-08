@@ -35,7 +35,6 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.reactor)
     implementation(libs.reactor.core)
-    implementation(libs.micronaut.graphql)
     implementation(libs.micronaut.http.server.netty)
     implementation(libs.micronaut.jackson.databind)
     implementation(libs.micronaut.inject)
