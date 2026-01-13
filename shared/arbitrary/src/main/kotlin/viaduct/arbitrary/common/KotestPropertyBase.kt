@@ -3,6 +3,7 @@ package viaduct.arbitrary.common
 import io.kotest.property.PropertyTesting
 import io.kotest.property.RandomSource
 import kotlin.random.Random
+import viaduct.apiannotations.TestingApi
 
 /**
  * Abstract base class for kotest-property test suites
@@ -11,6 +12,7 @@ import kotlin.random.Random
  * To preserve the randomness of property testing, subclasses should not permanently override
  * the seed value.
  */
+@TestingApi
 abstract class KotestPropertyBase(
     private val seed: Long = Random.nextLong()
 ) {
@@ -28,4 +30,5 @@ abstract class KotestPropertyBase(
     val randomSource: RandomSource get() = randomSource()
 }
 
+@TestingApi
 fun randomSource(): RandomSource = PropertyTesting.defaultSeed?.let(RandomSource::seeded) ?: RandomSource.default()

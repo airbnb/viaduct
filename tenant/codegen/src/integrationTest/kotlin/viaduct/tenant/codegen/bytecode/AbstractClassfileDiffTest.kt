@@ -72,6 +72,11 @@ object ClassNames {
 
     fun isEligibleWith(baseTypeMapper: BaseTypeMapper): Predicate<TypeDef> = Predicate { (it as? Object)?.isEligible(baseTypeMapper) ?: true }
 
+    fun isEligibleWith(
+        baseTypeMapper: BaseTypeMapper,
+        schema: ViaductSchema
+    ): Predicate<TypeDef> = Predicate { (it as? Object)?.isEligible(baseTypeMapper, schema) ?: true }
+
     fun fromSchema(
         packages: Packages,
         typePredicate: Predicate<TypeDef> = NoScalars
@@ -127,6 +132,9 @@ object Resolvers {
             } else if (it.actual.classNotFound) {
                 if (!ignorable) classDiff.addFailure(actual)
                 null
+            } else if (ignorable) {
+                // Skip comparison for ignorable types even if both classes exist
+                null
             } else {
                 Classes(it.expected.getOrThrow(), it.actual.getOrThrow(), it.def)
             }
@@ -137,6 +145,7 @@ object Resolvers {
             val defName = names.def?.name
             val ignorable = defName == "Query" ||
                 defName == "Mutation" ||
+                defName == "Subscription" ||
                 (names.def is Object && names.def.supers.any { it.name == "PagedConnection" })
 
             return names.resolve(classDiff, ignorable)

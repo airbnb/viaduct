@@ -81,6 +81,19 @@ class SelectionsParserTest : Assertions() {
     }
 
     @Test
+    fun `parses fieldsets with comments`() {
+        val parsed = SelectionsParser.parse(
+            "Foo",
+            """
+                # comment
+                id
+                # comment
+            """.trimIndent()
+        )
+        assertNodesEqual(GJSelectionSet(listOf(Field("id"))), parsed.selections)
+    }
+
+    @Test
     fun `parses documents`() {
         val docString =
             """

@@ -329,7 +329,7 @@ style:
   SpacingBetweenPackageAndImports:
     active: true
     autoCorrect: true
-    excludes: "**/oss/build-logic/**/*.gradle.kts"
+    excludes: "**/build-logic/src/main/kotlin/**/*.gradle.kts"
   ThrowsCount:
     active: false
   TrailingWhitespace:

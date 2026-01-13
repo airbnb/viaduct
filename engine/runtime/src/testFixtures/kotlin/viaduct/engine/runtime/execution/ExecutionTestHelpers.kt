@@ -37,17 +37,20 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.graphQLExecutionInput
-import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ExecuteSelectionSetOptions
+import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.instrumentation.ChainedViaductModernInstrumentation
@@ -370,9 +373,10 @@ class DocumentCache : PreparsedDocumentProvider {
 }
 
 object CheckerDispatchers {
-    fun success(requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()): CheckerDispatcher =
-        object : CheckerDispatcher {
+    fun success(requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()): CheckerDispatcher {
+        val dispatcher = object : CheckerDispatcher {
             override val requiredSelectionSets = requiredSelectionSets
+            override lateinit var executor: CheckerExecutor
 
             override suspend fun execute(
                 arguments: Map<String, Any?>,
@@ -381,4 +385,51 @@ object CheckerDispatchers {
                 checkerType: viaduct.engine.api.CheckerExecutor.CheckerType
             ): CheckerResult = CheckerResult.Success
         }
+        dispatcher.executor = object : CheckerExecutor {
+            override suspend fun execute(
+                arguments: Map<String, Any?>,
+                objectDataMap: Map<String, EngineObjectData>,
+                context: EngineExecutionContext,
+                checkerType: CheckerExecutor.CheckerType
+            ): CheckerResult = CheckerResult.Success
+
+            override val checkerMetadata = null
+            override val requiredSelectionSets = dispatcher.requiredSelectionSets
+        }
+        return dispatcher
+    }
 }
+
+/**
+ * Test-only extension to execute a Query selection set.
+ *
+ * This is a convenience wrapper for tests that previously used the deprecated
+ * `EngineExecutionContext.query()` method. For production code, use
+ * [EngineExecutionContext.executeSelectionSet] directly.
+ */
+suspend fun EngineExecutionContext.query(
+    resolverId: String,
+    selectionSet: RawSelectionSet
+): EngineObjectData =
+    executeSelectionSet(
+        resolverId,
+        selectionSet,
+        ExecuteSelectionSetOptions.DEFAULT
+    )
+
+/**
+ * Test-only extension to execute a Mutation selection set.
+ *
+ * This is a convenience wrapper for tests that previously used the deprecated
+ * `EngineExecutionContext.mutation()` method. For production code, use
+ * [EngineExecutionContext.executeSelectionSet] directly.
+ */
+suspend fun EngineExecutionContext.mutation(
+    resolverId: String,
+    selectionSet: RawSelectionSet
+): EngineObjectData =
+    executeSelectionSet(
+        resolverId,
+        selectionSet,
+        ExecuteSelectionSetOptions.MUTATION
+    )

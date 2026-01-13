@@ -156,7 +156,7 @@ abstract class ObjectBase(
             }
             return value
         } else if (baseFieldTypeClass == GlobalID::class) {
-            return context.globalIDCodec.deserialize<NodeObject>(value as String)
+            return context.deserializeGlobalID<NodeObject>(value as String)
         }
         return type.coercing.parseValue(value, GraphQLContext.getDefault(), Locale.getDefault()) ?: throw RuntimeException(
             "Failed to parse value $value for scalar type ${type.name}"
@@ -271,7 +271,7 @@ abstract class ObjectBase(
          * Dynamic builder function with type check and alias support.
          * Only used for unit tests, where we need to associate data with an alias.
          */
-        // Internal for testing
+        @InternalApi
         internal fun put(
             name: String,
             value: Any?,

@@ -1,9 +1,11 @@
 package viaduct.service.api.spi.mocks
 
-import viaduct.service.api.spi.Flag
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.FlagManager.Flag
 
-class MockFlagManager(private val enabled: Set<Flag> = emptySet()) : FlagManager {
+class MockFlagManager(
+    private val enabled: Set<Flag> = emptySet()
+) : FlagManager {
     override fun isEnabled(flag: Flag): Boolean = enabled.contains(flag)
 
     companion object {

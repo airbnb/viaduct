@@ -8,14 +8,16 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
+import java.io.FileInputStream
+import viaduct.graphql.schema.binary.readBSchema
 import viaduct.graphql.schema.graphqljava.GJSchemaRaw
-import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.cfg.BUILD_TIME_MODULE_EXTRACTOR
 import viaduct.tenant.codegen.kotlingen.Args
 import viaduct.tenant.codegen.kotlingen.generateFieldResolvers
 import viaduct.tenant.codegen.kotlingen.generateNodeResolvers
 import viaduct.tenant.codegen.util.ZipUtil.zipAndWriteDirectories
+import viaduct.tenant.codegen.util.shouldUseBinarySchema
 
 /**
  * Entry point to Modern Bazel code generation for a viaduct tenant.
@@ -35,6 +37,10 @@ class ViaductGenerator : CliktCommand() {
     // schema args
     private val schemaFiles: List<File> by option("--schema_files")
         .file(mustExist = true, canBeDir = false).split(",").required()
+    private val binarySchemaFile: File by option("--binary_schema_file")
+        .file(mustExist = true, canBeDir = false).required()
+    private val flagFile: File by option("--flag_file")
+        .file(mustExist = true, canBeDir = false).required()
 
     // resolver args
     private val resolverGeneratedDir: File by option("--resolver_generated_directory")
@@ -55,8 +61,12 @@ class ViaductGenerator : CliktCommand() {
         require(archivesNullCount == 0 || archivesNullCount == 3) {
             "Provided directories to store the archives must be either null or non-null together"
         }
-        val typeDefRegistry = readTypesFromFiles(schemaFiles)
-        val schema = GJSchemaRaw.fromRegistry(typeDefRegistry)
+
+        val schema = if (shouldUseBinarySchema(flagFile)) {
+            readBSchema(FileInputStream(binarySchemaFile))
+        } else {
+            GJSchemaRaw.fromFiles(schemaFiles)
+        }
         // TODO(jimmy): Remove this global mutable state, see https://docs.google.com/document/d/18FKs13huMY3JyslnO11_V_WtYPcSA7Xb_vNQAf79yP0/edit?tab=t.0#heading=h.a24h0oe8myl2
         cfg.moduleExtractor = if (!tenantFromSourceNameRegex.isNullOrEmpty()) {
             Regex(tenantFromSourceNameRegex!!)

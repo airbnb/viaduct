@@ -14,9 +14,10 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantUsageException
-import viaduct.api.mocks.MockGlobalID
+import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
+import viaduct.api.mocks.testGlobalId
 import viaduct.api.schemautils.SchemaUtils
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.Input1
@@ -297,8 +298,8 @@ class InputLikeBaseTest {
     @Test
     fun `GlobalID wrapping`() {
         val id = "a"
-        val id2 = MockGlobalID(O1.Reflection, "b")
-        val id3 = MockGlobalID(O2.Reflection, "1")
+        val id2 = GlobalIDImpl(O1.Reflection, "b")
+        val id3 = GlobalIDImpl(O2.Reflection, "1")
         val ids = listOf(listOf(null, id3))
 
         val input = InputWithGlobalIDs.Builder(executionContext)
@@ -308,12 +309,13 @@ class InputLikeBaseTest {
             .build()
 
         assertEquals(input.id, id)
-        assertEquals(input.id2, id2)
+        assertEquals(id2.type.name, input.id2.type.name)
+        assertEquals(id2.internalID, input.id2.internalID)
         assertEquals(
             mapOf(
                 "id" to id,
-                "id2" to id2.toString(),
-                "ids" to listOf(listOf(null, id3.toString()))
+                "id2" to O1.Reflection.testGlobalId("b"),
+                "ids" to listOf(listOf(null, O2.Reflection.testGlobalId("1")))
             ),
             input.inputData
         )
@@ -322,7 +324,7 @@ class InputLikeBaseTest {
     @Test
     fun `GlobalID wrapping -- nested`() {
         val id1 = "a"
-        val id2 = MockGlobalID(TestUser.Reflection, "b")
+        val id2 = GlobalIDImpl(TestUser.Reflection, "b")
 
         val inp = Input1.Builder(executionContext)
             // non-null field

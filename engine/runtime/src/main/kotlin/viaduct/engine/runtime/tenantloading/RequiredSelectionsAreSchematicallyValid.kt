@@ -14,9 +14,9 @@ import graphql.validation.rules.NoUnusedFragments
 import java.util.Locale
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.select.Constants.EntryPointFragmentName
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.validation.Validator
+import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
 
 class RequiredSelectionsAreSchematicallyValid(private val schema: ViaductSchema) : Validator<RequiredSelectionsValidationCtx> {
     private val validator = DocumentValidator()

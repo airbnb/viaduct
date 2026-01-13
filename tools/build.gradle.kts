@@ -8,6 +8,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.graphql.java)
     implementation(libs.clikt.jvm)
 }

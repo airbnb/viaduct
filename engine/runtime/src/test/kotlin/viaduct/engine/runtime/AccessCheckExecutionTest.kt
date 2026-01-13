@@ -1,8 +1,5 @@
 package viaduct.engine.runtime
 
-import graphql.GraphQLError
-import graphql.schema.DataFetchingEnvironment
-import graphql.schema.GraphQLFieldDefinition
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertContains
 import kotlin.test.assertNull
@@ -20,9 +17,9 @@ import viaduct.engine.api.mocks.mkRSS
 import viaduct.engine.api.mocks.mkSchemaWithWiring
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
-import viaduct.service.api.spi.ErrorMetadata
+import viaduct.service.api.spi.ErrorBuilder
+import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.ResolverErrorReporter
 
 @ExperimentalCoroutinesApi
 class AccessCheckExecutionTest {
@@ -990,7 +987,7 @@ class AccessCheckExecutionTest {
         MockTenantModuleBootstrapper(schema) {
             field("Query" to "bazList") {
                 resolver {
-                    fn { _, _, _, _, ctx ->
+                    fn { _, _, _, _, _ ->
                         listOf(
                             mkEngineObjectData(bazType, mapOf("id" to 1)),
                             mkEngineObjectData(bazType, mapOf("id" to 2)),
@@ -1028,31 +1025,16 @@ class AccessCheckExecutionTest {
     }
 
     fun engineConfigWithHandler(reporter: (Throwable) -> Unit): EngineConfiguration {
-        val errorReporter = object : ResolverErrorReporter {
-            override fun reportError(
-                exception: Throwable,
-                fieldDefinition: GraphQLFieldDefinition,
-                dataFetchingEnvironment: DataFetchingEnvironment,
-                errorMessage: String,
-                metadata: ErrorMetadata
-            ) {
-                reporter(exception)
-            }
+        val errorReporter = ErrorReporter { exception, _, _ ->
+            reporter(exception)
         }
-        val errorBuilder = object : ResolverErrorBuilder {
-            override fun exceptionToGraphQLError(
-                throwable: Throwable,
-                dataFetchingEnvironment: DataFetchingEnvironment,
-                errorMetadata: ErrorMetadata
-            ): List<GraphQLError>? {
-                return listOf(
-                    GraphQLError.newError()
-                        .message(throwable.message)
-                        .path(dataFetchingEnvironment.executionStepInfo.path)
-                        .extensions(mapOf("type" to "FOO"))
-                        .build()
-                )
-            }
+        val errorBuilder = ResolverErrorBuilder { throwable, errorMetadata ->
+            listOf(
+                ErrorBuilder.newError(errorMetadata)
+                    .message(throwable.message ?: "")
+                    .extension("type", "FOO")
+                    .build()
+            )
         }
         return EngineConfiguration.featureTestDefault.copy(
             dataFetcherExceptionHandler = ViaductDataFetcherExceptionHandler(

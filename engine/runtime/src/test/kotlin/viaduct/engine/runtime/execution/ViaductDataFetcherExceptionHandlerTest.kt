@@ -24,32 +24,23 @@ import org.junit.jupiter.api.Test
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantResolverException
 import viaduct.engine.runtime.exceptions.FieldFetchingException
-import viaduct.service.api.spi.ErrorMetadata
+import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.ResolverErrorReporter
 
 class ViaductDataFetcherExceptionHandlerTest {
     lateinit var exceptionHandler: ViaductDataFetcherExceptionHandler
-    lateinit var reporter: ResolverErrorReporter
+    lateinit var reporter: ErrorReporter
 
     val capturedThrowables = mutableListOf<Throwable>()
-    val capturedMetadata = mutableListOf<ErrorMetadata>()
+    val capturedMetadata = mutableListOf<ErrorReporter.Metadata>()
 
     @BeforeEach
     fun setUp() {
-        reporter = object : ResolverErrorReporter {
-            override fun reportError(
-                exception: Throwable,
-                fieldDefinition: GraphQLFieldDefinition,
-                dataFetchingEnvironment: DataFetchingEnvironment,
-                errorMessage: String,
-                metadata: ErrorMetadata
-            ) {
-                capturedThrowables.add(exception)
-                capturedMetadata.add(metadata)
-            }
+        reporter = ErrorReporter { exception, _, metadata ->
+            capturedThrowables.add(exception)
+            capturedMetadata.add(metadata)
         }
-        exceptionHandler = ViaductDataFetcherExceptionHandler(reporter, ResolverErrorBuilder.NoOpResolverErrorBuilder)
+        exceptionHandler = ViaductDataFetcherExceptionHandler(reporter, ResolverErrorBuilder.NOOP)
         capturedThrowables.clear()
         capturedMetadata.clear()
     }

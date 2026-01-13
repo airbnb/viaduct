@@ -13,15 +13,14 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import strikt.api.expectThat
 import strikt.assertions.isA
-import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.InternalContext
-import viaduct.api.mocks.MockGlobalID
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
+import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.MockType
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.NodeReference
-import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
+import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
 import viaduct.tenant.runtime.globalid.User
@@ -40,21 +39,25 @@ class NodeReferenceFactoryImplTest {
             }
 
             val reflectionLoader = ReflectionLoaderImpl { TODO("unused") }
-            val globalIDCodec = GlobalIDCodecImpl(reflectionLoader)
-            val result = factory.nodeFor(globalId, InternalContextImpl(schema, globalIDCodec, reflectionLoader))
+            val result = factory.nodeFor(globalId, InternalContextImpl(schema, GlobalIDCodecDefault, reflectionLoader))
             expectThat(result.engineObject).isA<NodeReference>()
         }
 
-    private fun createMockInternalContext(globalIDCodec: GlobalIDCodec = MockGlobalIDCodec()): InternalContext = MockInternalContext(GlobalIdFeatureAppTest.schema, globalIDCodec)
+    private fun createMockInternalContext(globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault): InternalContext =
+        MockInternalContext(
+            GlobalIdFeatureAppTest.schema,
+            globalIDCodec,
+            MockReflectionLoader(User.Reflection)
+        )
 
     private fun createDefaultNodeReference(
         globalIDImpl: GlobalIDImpl<out NodeObject>,
         graphqlObjectType: GraphQLObjectType = GlobalIdFeatureAppTest.schema.schema.getObjectType(globalIDImpl.type.name),
-        globalIDCodec: GlobalIDCodec = MockGlobalIDCodec(),
+        globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
     ): NodeReference {
         return object : NodeReference {
             override val id: String
-                get() = globalIDCodec.serialize(globalIDImpl)
+                get() = globalIDCodec.serialize(globalIDImpl.type.name, globalIDImpl.internalID)
 
             override val graphQLObjectType: GraphQLObjectType
                 get() = graphqlObjectType
@@ -130,7 +133,7 @@ class NodeReferenceFactoryImplTest {
         val user = factory.nodeFor(globalId, internalContext)
 
         runBlocking {
-            val userInternalId = (user.getId() as MockGlobalID<User>).internalID
+            val userInternalId = user.getId().internalID
             assertEquals(internalId, userInternalId)
         }
     }

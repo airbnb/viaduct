@@ -20,7 +20,7 @@ class NodeEngineObjectDataImpl(
     override val id: String,
     override val graphQLObjectType: GraphQLObjectType,
     private val dispatcherRegistry: DispatcherRegistry
-) : NodeEngineObjectData, NodeReference {
+) : NodeEngineObjectData, NodeReference, LazyEngineObjectData {
     private lateinit var resolvedEngineObjectData: EngineObjectData
     private val resolving = CompletableDeferred<Unit>()
     private val resolveDataCalled = AtomicBoolean(false)

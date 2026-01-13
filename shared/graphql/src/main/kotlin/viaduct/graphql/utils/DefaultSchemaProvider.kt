@@ -479,6 +479,9 @@ object DefaultSchemaProvider {
      * Intelligently adds root types (Query, Mutation, Subscription) only if they have
      * type extensions but no existing type definition.
      *
+     * If the user has provided a custom schema definition (e.g., `schema { query: CustomQuery }`),
+     * this method respects that and does not add default root types or schema definition.
+     *
      * @param registry the TypeDefinitionRegistry to enhance with root types
      * @param force whether to force adding root types even without extensions
      * @param allowExisting whether to allow existing definitions without throwing errors
@@ -488,6 +491,13 @@ object DefaultSchemaProvider {
         force: Boolean = false,
         allowExisting: Boolean = false
     ) {
+        // Check if user has provided a custom schema definition
+        val existingSchemaDefinition = builder.getSchemaDefinition()
+        if (existingSchemaDefinition != null) {
+            log.debug("Custom schema definition detected. Skipping default root type generation.")
+            return
+        }
+
         val objectExtensions = builder.objectTypeExtensions
 
         val queryTypeName = "Query"
@@ -730,6 +740,10 @@ object DefaultSchemaProvider {
 
         @Suppress("DEPRECATION")
         fun getType(name: String): Optional<TypeDefinition<*>> = building.getType(name).or { extant.getType(name) }
+
+        fun getSchemaDefinition(): SchemaDefinition? =
+            building.schemaDefinition().getOrNull()
+                ?: extant.schemaDefinition().getOrNull()
 
         fun add(def: SDLDefinition<*>): RegistryBuilder {
             building.add(def)

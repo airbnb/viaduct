@@ -23,7 +23,7 @@ import graphql.schema.DataFetcher
 import graphql.schema.GraphQLSchema
 import graphql.validation.ValidationError
 import java.util.concurrent.CompletableFuture
-import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 
 /**
  * Adapts an optimized ViaductInstrumentation into a standard Instrumentation.
@@ -173,14 +173,14 @@ open class ViaductInstrumentationAdapter(
         }
 
     override fun instrumentAccessCheck(
-        checkerDispatcher: CheckerDispatcher,
+        checkerExecutor: CheckerExecutor,
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?
-    ): CheckerDispatcher {
+    ): CheckerExecutor {
         return if (viaductInstrumentation is IViaductInstrumentation.WithInstrumentAccessCheck) {
-            return viaductInstrumentation.instrumentAccessCheck(checkerDispatcher, parameters, state)
+            return viaductInstrumentation.instrumentAccessCheck(checkerExecutor, parameters, state)
         } else {
-            checkerDispatcher
+            checkerExecutor
         }
     }
 }

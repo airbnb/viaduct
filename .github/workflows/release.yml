@@ -44,6 +44,8 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_REF }}
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Verify Gradle wrapper
         run: |
@@ -63,6 +65,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
+
+      - name: Install Python dependencies
+        run: pip install -r .github/scripts/requirements.txt
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -116,7 +121,7 @@ jobs:
         if: ${{ !inputs.publish_snapshot }}
         run: |
           echo "## Changelog\n\n" > ${{ github.workspace }}-CHANGELOG.txt
-          python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "v${{ inputs.release_version }}" >> ${{ github.workspace }}-CHANGELOG.txt
+          python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "HEAD" >> ${{ github.workspace }}-CHANGELOG.txt
           cat ${{ github.workspace }}-CHANGELOG.txt
       - name: Create Draft Release
         id: create_release

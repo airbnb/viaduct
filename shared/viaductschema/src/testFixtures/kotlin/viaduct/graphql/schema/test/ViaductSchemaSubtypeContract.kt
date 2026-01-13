@@ -73,8 +73,6 @@ abstract class ViaductSchemaSubtypeContract {
         assertIsSubtype(returnType("HasArgs.args").elementType(), "Arg") // args: Iterable<Args>
     }
 
-    // None from CompositeOutput
-
     // From BridgeSchema
 
     @Test
@@ -126,15 +124,14 @@ abstract class ViaductSchemaSubtypeContract {
         assertIsSubtype("DirectiveArg", "Arg")
         assertIsSubtype("FieldArg", "Arg")
 
-        assertIsSubtype("CompositeOutput", "TypeDef")
         assertIsSubtype("Record", "TypeDef")
 
         assertIsSubtype("Enum", "TypeDef")
         assertIsSubtype("Input", "Record")
-        assertIsSubtype("Interface", "CompositeOutput", "Record")
-        assertIsSubtype("Object", "CompositeOutput", "Record")
+        assertIsSubtype("Interface", "Record")
+        assertIsSubtype("Object", "Record")
         assertIsSubtype("Scalar", "TypeDef")
-        assertIsSubtype("Union", "CompositeOutput")
+        assertIsSubtype("Union", "TypeDef")
     }
 
     // From Directive
@@ -272,7 +269,6 @@ abstract class ViaductSchemaSubtypeContract {
             listOf(
                 "Arg",
                 "FieldArg",
-                "CompositeOutput",
                 "Def",
                 "Directive",
                 "DirectiveArg",

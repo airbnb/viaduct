@@ -5,9 +5,9 @@ import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.internal.EODBuilderWrapper
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.mkSchema
 import viaduct.engine.api.EngineObjectData
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 /**
  * Test suite for EODBuilderWrapper with emphasis on graceful handling of schema version skew.
@@ -44,7 +44,7 @@ class EODBuilderWrapperTest {
     )
 
     private val testObjectType = testSchema.getType("TestObject") as GraphQLObjectType
-    private val globalIDCodec = MockGlobalIDCodec()
+    private val globalIDCodec = GlobalIDCodecDefault
 
     @Test
     fun `unwrapEnum handles Java enum instance`() {

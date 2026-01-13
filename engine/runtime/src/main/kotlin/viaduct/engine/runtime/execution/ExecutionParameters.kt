@@ -23,6 +23,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.gj
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
@@ -33,8 +34,9 @@ import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.updateCompositeLocalContext
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
+import viaduct.engine.runtime.select.RawSelectionSetImpl
 import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.Flags
+import viaduct.service.api.spi.FlagManager.Flags
 import viaduct.utils.slf4j.logger
 
 /**
@@ -379,6 +381,61 @@ data class ExecutionParameters(
             localContext = localContext,
             source = source,
             resolutionPolicy = resolutionPolicy,
+        )
+    }
+
+    /**
+     * Creates ExecutionParameters for executing a subquery from within a resolver.
+     *
+     * This method builds a QueryPlan from the provided RawSelectionSet and creates
+     * child execution parameters suitable for subquery execution via ctx.query() or ctx.mutation().
+     *
+     * The caller controls memoization behavior by choosing which [ObjectEngineResultImpl] to provide:
+     * - Pass a fresh [ObjectEngineResultImpl] for isolated execution (no memoization reuse)
+     * - Pass an existing [ObjectEngineResultImpl] (e.g., from the parent context) to reuse memoized results
+     *
+     * @param rss The RawSelectionSet containing the selections to execute
+     * @param targetOER The [ObjectEngineResultImpl] to populate with resolved field results
+     * @param attribution Attribution for this subquery execution
+     * @return New ExecutionParameters configured for subquery execution
+     */
+    suspend fun forSubquery(
+        rss: RawSelectionSet,
+        targetOER: ObjectEngineResultImpl,
+        attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
+    ): ExecutionParameters {
+        val eecImpl = engineExecutionContext as EngineExecutionContextImpl
+        val rssImpl = rss as RawSelectionSetImpl
+
+        // Subqueries always use fullSchema, not activeSchema.
+        // activeSchema may be a scoped/subset schema (e.g., for introspection),
+        // but subqueries are internal server-side calls that should see the complete schema.
+        // This is consistent with RawSelectionSetFactoryImpl which builds RSS with fullSchema.
+        val queryPlanParams = QueryPlan.Parameters(
+            query = rss.printAsFieldSet(),
+            schema = eecImpl.fullSchema,
+            registry = eecImpl.dispatcherRegistry,
+            executeAccessChecksInModstrat = eecImpl.executeAccessChecksInModstrat,
+            dispatcherRegistry = eecImpl.dispatcherRegistry,
+        )
+
+        val queryPlan = QueryPlan.buildFromSelections(
+            parameters = queryPlanParams,
+            rss = rss,
+            attribution = attribution,
+        )
+
+        val objectType = queryPlan.parentType as? GraphQLObjectType
+            ?: throw IllegalArgumentException("Subquery plan must have a parent type of GraphQLObjectType")
+
+        return forChildPlan(
+            childPlan = queryPlan,
+            variables = rssImpl.ctx.coercedVariables,
+            isRootQueryQueryPlan = true, // Subqueries always start from root
+            objectType = objectType,
+            newParentOER = targetOER,
+            source = executionContext.getRoot(),
+            parentFieldStepInfo = null, // Subqueries start fresh without parent field context
         )
     }
 

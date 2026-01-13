@@ -1,0 +1,11 @@
+# Minimal test schema for DefaultViaductFactory tests
+
+extend type Query {
+  # Test query field
+  testField: String
+}
+
+extend type Mutation {
+  # Test mutation field
+  testMutation(input: String): String
+}

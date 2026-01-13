@@ -10,7 +10,9 @@ class BadFixtureNotAccessible private constructor() {
     val f = 2
 }
 
-class BadFixtureNoNoArgs(arg: Int) {
+class BadFixtureNoNoArgs(
+    arg: Int
+) {
     val f = arg
 }
 

@@ -22,8 +22,8 @@ import viaduct.graphql.scopes.errors.SchemaScopeValidationError
 import viaduct.graphql.utils.DefaultSchemaProvider
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.spi.Flag
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.FlagManager.Flag
 
 /**
  * Integration tests for Viaduct scoped schema functionality.

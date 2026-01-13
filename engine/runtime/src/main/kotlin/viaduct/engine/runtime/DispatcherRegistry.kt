@@ -1,7 +1,6 @@
 package viaduct.engine.runtime
 
 import javax.inject.Singleton
-import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSetRegistry

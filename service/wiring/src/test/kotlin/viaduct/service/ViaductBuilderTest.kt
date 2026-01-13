@@ -13,10 +13,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
-import viaduct.service.api.spi.Flag
+import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.FlagManager.Flag
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.ResolverErrorReporter
 import viaduct.service.runtime.SchemaConfiguration
 
 class ViaductBuilderTest {
@@ -78,7 +78,7 @@ class ViaductBuilderTest {
 
     @Test
     fun testWithResolverErrorReporter() {
-        val errorReporter = ResolverErrorReporter { _, _, _, _, _ ->
+        val errorReporter = ErrorReporter { _, _, _ ->
             // No-op for testing
         }
         val schemaConfiguration = SchemaConfiguration.fromSchema(
@@ -97,7 +97,7 @@ class ViaductBuilderTest {
 
     @Test
     fun testWithDataFetcherErrorBuilder() {
-        val errorBuilder = ResolverErrorBuilder.NoOpResolverErrorBuilder
+        val errorBuilder = ResolverErrorBuilder.NOOP
         val schemaConfiguration = SchemaConfiguration.fromSchema(
             schema,
             scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
@@ -138,8 +138,8 @@ class ViaductBuilderTest {
     @Test
     fun testMethodChaining() {
         val meterRegistry = SimpleMeterRegistry()
-        val errorReporter = ResolverErrorReporter.NoOpResolverErrorReporter
-        val errorBuilder = ResolverErrorBuilder.NoOpResolverErrorBuilder
+        val errorReporter = ErrorReporter.NOOP
+        val errorBuilder = ResolverErrorBuilder.NOOP
         val exceptionHandler = object : DataFetcherExceptionHandler {
             override fun handleException(handlerParameters: DataFetcherExceptionHandlerParameters): CompletableFuture<DataFetcherExceptionHandlerResult> {
                 return CompletableFuture.completedFuture(
@@ -172,8 +172,8 @@ class ViaductBuilderTest {
     @Test
     fun testAllObservabilityMethodsTogether() {
         val meterRegistry = SimpleMeterRegistry()
-        val errorReporter = ResolverErrorReporter.NoOpResolverErrorReporter
-        val errorBuilder = ResolverErrorBuilder.NoOpResolverErrorBuilder
+        val errorReporter = ErrorReporter.NOOP
+        val errorBuilder = ResolverErrorBuilder.NOOP
         val exceptionHandler = object : DataFetcherExceptionHandler {
             override fun handleException(handlerParameters: DataFetcherExceptionHandlerParameters): CompletableFuture<DataFetcherExceptionHandlerResult> {
                 return CompletableFuture.completedFuture(
@@ -203,7 +203,7 @@ class ViaductBuilderTest {
     @Test
     fun testObservabilityWithOtherBuilderMethods() {
         val meterRegistry = SimpleMeterRegistry()
-        val errorReporter = ResolverErrorReporter.NoOpResolverErrorReporter
+        val errorReporter = ErrorReporter.NOOP
         val schemaConfiguration = SchemaConfiguration.fromSchema(
             schema,
             scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))

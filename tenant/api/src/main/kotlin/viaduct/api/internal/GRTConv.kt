@@ -14,7 +14,6 @@ import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
 import kotlin.Enum as KotlinEnum
 import viaduct.api.globalid.GlobalID
-import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.reflect.Type
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Enum
@@ -170,10 +169,10 @@ object GRTConv {
             name = "enumGRT-${type.name}"
         )
 
-    private fun globalIDGRT(codec: GlobalIDCodec): Conv<GlobalID<*>, IR.Value.String> =
+    private fun globalIDGRT(ctx: InternalContext): Conv<GlobalID<*>, IR.Value.String> =
         Conv(
-            forward = { IR.Value.String(codec.serialize(it)) },
-            inverse = { codec.deserialize<NodeCompositeOutput>(it.value) }
+            forward = { IR.Value.String(ctx.globalIDCodec.serialize(it.type.name, it.internalID)) },
+            inverse = { ctx.deserializeGlobalID<NodeCompositeOutput>(it.value) }
         )
 
     /**
@@ -394,7 +393,7 @@ object GRTConv {
                     ctx.parentContext is InputParentContext &&
                         isGlobalID(ctx.parentContext.parentField) &&
                         ctx.wrapGRTs -> {
-                        globalIDGRT(internalContext.globalIDCodec)
+                        globalIDGRT(internalContext)
                     }
 
                     /** handling for output GlobalID wrapping */
@@ -402,7 +401,7 @@ object GRTConv {
                         ctx.parentContext.parentType is GraphQLObjectType &&
                         isGlobalID(ctx.parentContext.parentField, ctx.parentContext.parentType) &&
                         ctx.wrapGRTs -> {
-                        globalIDGRT(internalContext.globalIDCodec)
+                        globalIDGRT(internalContext)
                     }
 
                     /**

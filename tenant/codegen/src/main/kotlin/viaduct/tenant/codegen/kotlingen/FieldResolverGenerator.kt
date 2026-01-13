@@ -13,8 +13,16 @@ import viaduct.utils.string.capitalize
 private const val RESOLVER_DIRECTIVE = "resolver"
 
 fun ViaductSchema.generateFieldResolvers(args: Args) {
-    FieldResolverGenerator(this, args.tenantPackage, args.tenantPackagePrefix, args.resolverGeneratedDir, args.grtPackage, args.isFeatureAppTest, args.baseTypeMapper)
-        .generate()
+    FieldResolverGenerator(
+        this,
+        args.tenantPackage,
+        args.tenantPackagePrefix,
+        args.resolverGeneratedDir,
+        args.grtPackage,
+        args.isFeatureAppTest,
+        args.baseTypeMapper,
+        mutationTypeName = this.mutationTypeDef?.name
+    ).generate()
 }
 
 private class FieldResolverGenerator(
@@ -24,7 +32,8 @@ private class FieldResolverGenerator(
     private val resolverGeneratedDir: File,
     private val grtPackage: String,
     private val isFeatureAppTest: Boolean = false,
-    private val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
+    private val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+    private val mutationTypeName: String?
 ) {
     fun generate() {
         val typeToFields = schema.types.values.associate { typeDef ->
@@ -34,7 +43,7 @@ private class FieldResolverGenerator(
         for ((typeName, fields) in typeToFields) {
             if (fields.isNullOrEmpty()) continue
 
-            val contents = genResolver(typeName, fields, tenantPackage, grtPackage, baseTypeMapper)
+            val contents = genResolver(typeName, fields, tenantPackage, grtPackage, baseTypeMapper, mutationTypeName)
             val file = File(resolverGeneratedDir, "${typeName}Resolvers.kt")
             contents.write(file)
         }
@@ -63,8 +72,9 @@ internal fun genResolver(
     fields: Collection<ViaductSchema.Field>,
     tenantPackage: String,
     grtPackage: String,
-    baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
-): STContents = STContents(stGroup, ResolversModelImpl(tenantPackage, grtPackage, typeName, fields, baseTypeMapper))
+    baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+    mutationTypeName: String? = "Mutation"
+): STContents = STContents(stGroup, ResolversModelImpl(tenantPackage, grtPackage, typeName, fields, baseTypeMapper, mutationTypeName))
 
 private interface ResolversModel {
     val pkg: String
@@ -86,13 +96,19 @@ private class ResolversModelImpl(
     grtPackage: String,
     override val typeName: String,
     fields: Collection<ViaductSchema.Field>,
-    baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
+    baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+    mutationTypeName: String?
 ) : ResolversModel {
     override val pkg: String = tenantPackage
-    override val resolvers: List<ResolverModel> = fields.map { ResolverModelImpl(it, grtPackage, baseTypeMapper) }
+    override val resolvers: List<ResolverModel> = fields.map { ResolverModelImpl(it, grtPackage, baseTypeMapper, mutationTypeName) }
 }
 
-private class ResolverModelImpl(val field: ViaductSchema.Field, val grtPackage: String, val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper) : ResolverModel {
+private class ResolverModelImpl(
+    val field: ViaductSchema.Field,
+    val grtPackage: String,
+    val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+    val mutationTypeName: String?
+) : ResolverModel {
     override val gqlTypeName: String = this.field.containingDef.name
     override val gqlFieldName: String = this.field.name
     override val resolverName: String = gqlFieldName.capitalize()
@@ -105,7 +121,7 @@ private class ResolverModelImpl(val field: ViaductSchema.Field, val grtPackage: 
             "viaduct.api.types.Arguments.NoArguments"
         }
     private val grtOutputName: String =
-        if (field.type.baseTypeDef is ViaductSchema.CompositeOutput) {
+        if (field.type.baseTypeDef.isComposite) {
             "$grtPackage.${field.type.baseTypeDef.name}"
         } else {
             "viaduct.api.types.CompositeOutput.NotComposite"
@@ -114,7 +130,7 @@ private class ResolverModelImpl(val field: ViaductSchema.Field, val grtPackage: 
     override val typeSpecifier: String = field.kmType(JavaName(grtPackage).asKmName, baseTypeMapper).kotlinTypeString
     override val ctxInterface: String
         get() =
-            if (this.field.containingDef.name == "Mutation") {
+            if (mutationTypeName != null && this.field.containingDef.name == mutationTypeName) {
                 "viaduct.api.context.MutationFieldExecutionContext<$queryGrtTypeName, $grtArgsName, $grtOutputName>"
             } else {
                 "viaduct.api.context.FieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"

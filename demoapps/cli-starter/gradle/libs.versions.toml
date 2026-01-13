@@ -12,6 +12,12 @@ viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", ver
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
 
 [libraries]
+# Viaduct
+viaduct-bom = { group = "com.airbnb.viaduct", name = "bom", version.ref = "viaduct" }
+viaduct-api = { group = "com.airbnb.viaduct", name = "api" }
+viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime" }
+viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures" }
+
 # Runtime dependencies
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }

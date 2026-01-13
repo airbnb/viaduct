@@ -13,13 +13,21 @@ plugins {
 
 rootProject.name = "viaduct"
 
-includeBuild(".")
+includeBuild(".") {
+    dependencySubstitution {
+        // Bundle modules for simplified dependency management
+        substitute(module("com.airbnb.viaduct:api")).using(project(":api"))
+        substitute(module("com.airbnb.viaduct:runtime")).using(project(":runtime"))
+        substitute(module("com.airbnb.viaduct:test-fixtures")).using(project(":test-fixtures"))
+    }
+}
 includeBuild("included-builds/core")
 includeBuild("gradle-plugins") {
     dependencySubstitution {
         substitute(module("com.airbnb.viaduct:gradle-plugins-common")).using(project(":common"))
         substitute(module("com.airbnb.viaduct:module-gradle-plugin")).using(project(":module-plugin"))
         substitute(module("com.airbnb.viaduct:application-gradle-plugin")).using(project(":application-plugin"))
+        substitute(module("com.airbnb.viaduct:serve")).using(project(":core:serve"))
     }
 }
 
@@ -27,6 +35,7 @@ includeBuild("gradle-plugins") {
 includeBuild("demoapps/cli-starter")
 includeBuild("demoapps/jetty-starter")
 includeBuild("demoapps/ktor-starter")
+includeBuild("demoapps/micronaut-starter")
 includeBuild("demoapps/starwars")
 
 // integration tests
@@ -39,3 +48,6 @@ include(":tenant:tutorials")
 include(":docs")
 includeNamed(":viaduct-bom", projectName = "bom")
 include(":tools")
+include(":api")
+include(":runtime")
+include(":test-fixtures")

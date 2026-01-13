@@ -36,6 +36,8 @@ class FieldResolverGeneratorTest {
     fun `verifies that fieldResolvergenerator function runs succesfully`() {
         val sdl = """
                 type Query { placeholder: Int }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
                 type Subject {
                     field: Int
                 }
@@ -63,6 +65,8 @@ class FieldResolverGeneratorTest {
         val contents = gen(
             """
                 type Query { placeholder: Int }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
                 type Subject {
                     field: Int
                 }
@@ -83,11 +87,57 @@ class FieldResolverGeneratorTest {
             """
                 type Query { placeholder: Int }
                 type Mutation { field(x: Int!): Int! }
+                type Subscription { placeholder: Int }
             """.trimIndent(),
             "Mutation"
         )
         assertTrue(contents.contains("MutationFieldExecutionContext"))
         assertFalse(contents.contains("batchResolve"))
+    }
+
+    @Test
+    fun `generates mutation resolvers with custom mutation type name`() {
+        val sdl = """
+            schema {
+                query: CustomQuery
+                mutation: CustomMutation
+                subscription: CustomSubscription
+            }
+            type CustomQuery { placeholder: Int }
+            type CustomMutation { field(x: Int!): Int! }
+            type CustomSubscription { event: String }
+        """.trimIndent()
+
+        val schema = mkSchema(sdl)
+        val type = schema.types["CustomMutation"] as ViaductSchema.Record
+
+        // With correct mutationTypeName, should generate MutationFieldExecutionContext
+        val contentsWithCorrectName = genResolver(
+            "CustomMutation",
+            type.fields,
+            "pkg.tenant",
+            "viaduct.api.grts",
+            ViaductBaseTypeMapper(schema),
+            mutationTypeName = "CustomMutation"
+        ).toString()
+        assertTrue(
+            contentsWithCorrectName.contains("MutationFieldExecutionContext"),
+            "Should generate MutationFieldExecutionContext when mutationTypeName matches"
+        )
+
+        // With wrong mutationTypeName (default "Mutation"), should NOT generate MutationFieldExecutionContext
+        val contentsWithWrongName = genResolver(
+            "CustomMutation",
+            type.fields,
+            "pkg.tenant",
+            "viaduct.api.grts",
+            ViaductBaseTypeMapper(schema),
+            mutationTypeName = "Mutation"
+        ).toString()
+        assertFalse(
+            contentsWithWrongName.contains("MutationFieldExecutionContext"),
+            "Should NOT generate MutationFieldExecutionContext when mutationTypeName doesn't match"
+        )
     }
 
     @Test
@@ -98,6 +148,8 @@ class FieldResolverGeneratorTest {
                 directive @backingData(class: String!) on FIELD_DEFINITION
 
                 type Query { placeholder: Int }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
                 type Subject {
                     field: BackingData @backingData(class: "com.airbnb.myCustomType")
                 }
@@ -113,6 +165,8 @@ class FieldResolverGeneratorTest {
         gen(
             """
                 type Query { field: ID }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
             """.trimIndent(),
             "Query"
         ).let {
@@ -123,6 +177,8 @@ class FieldResolverGeneratorTest {
             """
                 directive @idOf(type: String!) on FIELD_DEFINITION
                 type Query { field: ID @idOf(type: "Foo") }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
                 interface Node { id: ID! }
                 type Foo implements Node { id: ID! }
             """.trimIndent(),

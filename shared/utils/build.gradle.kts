@@ -9,6 +9,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.slf4j.api)
+    implementation(libs.viaduct.shared.apiannotations)
 
     testImplementation(libs.kotest.assertions.shared)
     testImplementation(libs.guava.testlib)

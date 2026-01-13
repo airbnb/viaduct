@@ -282,7 +282,7 @@ class ViaductSchemaRawValueGen(
                     fieldValue.let { field.name to it }
                 }
             )
-        } else if (c.def is ViaductSchema.CompositeOutput) {
+        } else if (c.def.isComposite) {
             Arb
                 .of(c.def.possibleObjectTypes)
                 .next(rs)

@@ -1,0 +1,47 @@
+# .github/workflows/bcv_api_check.yaml
+name: API Compatibility
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+
+jobs:
+    api-compatibility:
+        runs-on: ubuntu-latest
+        name: Binary API compatibility
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Set up Java
+              uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: '21'
+                  cache: gradle
+
+            - name: Run binary API check (apiCheck)
+              run: |
+                  set -euo pipefail
+
+                  echo "[api-check] Running binary API compatibility check via Gradle..."
+                  if ./gradlew runApiCheck; then
+                    echo "[api-check] OK"
+                  else
+                    echo " "
+                    echo "[api-check] Binary API check failed."
+                    echo " "
+                    echo "This check validates the public Kotlin APIs definitions for modules that enforce binary compatibility (i.e., :api modules )."
+                    echo "If you intentionally changed a public API covered by this check, you must:"
+                    echo " "
+                    echo "  1) Regenerate the API dumps locally:"
+                    echo "       ./gradlew runApiDump"
+                    echo " "
+                    echo "  2) Commit the updated .api files"
+                    echo " "
+                    echo "::warning title=Binary API changes detected::Public APIs covered by the binary compatibility check changed. If intentional, regenerate and commit updated .api dumps."
+                    exit 0
+                  fi

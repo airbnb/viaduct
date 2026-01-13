@@ -24,7 +24,7 @@ import graphql.schema.GraphQLSchema
 import graphql.validation.ValidationError
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
-import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 
 /**
  * An optimized instrumentation interface for Viaduct. Provides specialized interface methods that
@@ -181,13 +181,14 @@ interface IViaductInstrumentation {
 
     interface WithInstrumentAccessCheck : IViaductInstrumentation {
         fun instrumentAccessCheck(
-            checkerDispatcher: CheckerDispatcher,
+            checkerExecutor: CheckerExecutor,
             parameters: InstrumentationExecutionStrategyParameters,
             state: InstrumentationState?
-        ): CheckerDispatcher
+        ): CheckerExecutor
     }
 
     companion object {
-        @JvmStatic fun asStandardInstrumentations(viaductInstrumentations: List<ViaductInstrumentationBase>) = viaductInstrumentations.asStandardInstrumentations()
+        @JvmStatic
+        fun asStandardInstrumentations(viaductInstrumentations: List<ViaductInstrumentationBase>) = viaductInstrumentations.asStandardInstrumentations()
     }
 }

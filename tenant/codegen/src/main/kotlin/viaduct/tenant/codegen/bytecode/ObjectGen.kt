@@ -55,11 +55,13 @@ private class ObjectClassGenV2(
         if (def.isNode) {
             objectClass.addSupertype(cfg.NODE_OBJECT_GRT.asKmName.asType())
         }
-        if (def.name == "Query") {
-            objectClass.addSupertype(cfg.QUERY_OBJECT_GRT.asKmName.asType())
-        }
-        if (def.name == "Mutation") {
-            objectClass.addSupertype(cfg.MUTATION_OBJECT_GRT.asKmName.asType())
+        with(grtClassFilesBuilder) {
+            if (def.isQueryType()) {
+                objectClass.addSupertype(cfg.QUERY_OBJECT_GRT.asKmName.asType())
+            }
+            if (def.isMutationType()) {
+                objectClass.addSupertype(cfg.MUTATION_OBJECT_GRT.asKmName.asType())
+            }
         }
 
         objectClass

@@ -5,8 +5,10 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.TenantModuleBootstrapper
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinderFactory
 import viaduct.tenant.runtime.bootstrap.ViaductTenantModuleBootstrapper
@@ -23,6 +25,7 @@ class ViaductTenantAPIBootstrapper
         private val tenantCodeInjector: TenantCodeInjector,
         private val tenantPackageFinder: TenantPackageFinder,
         private val tenantResolverClassFinderFactory: TenantResolverClassFinderFactory,
+        private val globalIDCodec: GlobalIDCodec,
     ) : TenantAPIBootstrapper {
         /*
          * Discovers all Viaduct TenantModule(s) and creates ViaductTenantModuleBootstrapper for each tenant.
@@ -41,6 +44,7 @@ class ViaductTenantAPIBootstrapper
                         ViaductTenantModuleBootstrapper(
                             tenantCodeInjector,
                             tenantResolverClassFinderFactory.create(tenantModuleName),
+                            globalIDCodec,
                         )
                     }
                 }.awaitAll()
@@ -50,11 +54,12 @@ class ViaductTenantAPIBootstrapper
         /**
          * Builder for creating a ViaductTenantAPIBootstrapper instance.
          */
-        class Builder : TenantAPIBootstrapperBuilder {
+        class Builder : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
             private var tenantCodeInjector: TenantCodeInjector = TenantCodeInjector.Naive
             private var tenantPackagePrefix: String? = null
             private var tenantPackageFinder: TenantPackageFinder? = null
             private var tenantResolverClassFinderFactory: TenantResolverClassFinderFactory? = null
+            private var globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault
 
             fun tenantCodeInjector(tenantCodeInjector: TenantCodeInjector) =
                 apply {
@@ -78,6 +83,18 @@ class ViaductTenantAPIBootstrapper
                     this.tenantResolverClassFinderFactory = tenantResolverClassFinderFactory
                 }
 
+            /**
+             * Configures the GlobalIDCodec for serializing and deserializing GlobalIDs.
+             * All tenant modules bootstrapped by this instance will share this codec.
+             *
+             * @param globalIDCodec The GlobalIDCodec instance to use
+             * @return This Builder instance for method chaining
+             */
+            fun globalIDCodec(globalIDCodec: GlobalIDCodec) =
+                apply {
+                    this.globalIDCodec = globalIDCodec
+                }
+
             override fun create(): ViaductTenantAPIBootstrapper {
                 val tenantPackageFinder = when {
                     tenantPackagePrefix != null -> TenantPackageFinder { setOf(tenantPackagePrefix!!) }
@@ -92,6 +109,7 @@ class ViaductTenantAPIBootstrapper
                     tenantCodeInjector = tenantCodeInjector,
                     tenantPackageFinder = tenantPackageFinder,
                     tenantResolverClassFinderFactory = finalTenantResolverClassFinderFactory,
+                    globalIDCodec = globalIDCodec,
                 )
             }
         }

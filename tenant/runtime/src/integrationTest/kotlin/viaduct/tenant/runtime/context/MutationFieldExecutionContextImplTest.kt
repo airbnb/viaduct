@@ -7,9 +7,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.select.SelectionSet
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.select.Mutation
 import viaduct.tenant.runtime.select.SelectTestFeatureAppTest
 
@@ -23,7 +23,7 @@ class MutationFieldExecutionContextImplTest : ContextTestBase() {
         )
 
         return MutationFieldExecutionContextImpl(
-            MockInternalContext(SelectTestFeatureAppTest.schema, MockGlobalIDCodec()),
+            MockInternalContext(SelectTestFeatureAppTest.schema, GlobalIDCodecDefault),
             wrapper,
             noSelections,
             null, // requestContext

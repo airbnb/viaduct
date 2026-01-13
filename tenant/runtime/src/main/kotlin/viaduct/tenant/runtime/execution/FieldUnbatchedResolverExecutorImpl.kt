@@ -4,7 +4,6 @@ import javax.inject.Provider
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
 import viaduct.api.globalid.GlobalID
-import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.ResolverBase
@@ -16,6 +15,7 @@ import viaduct.engine.api.FieldResolverExecutor.Selector
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
 /**
@@ -71,8 +71,7 @@ class FieldUnbatchedResolverExecutorImpl(
         return unwrapFieldResolverResult(result, globalIDCodec)
     }
 
-    // public for testing
-    fun mkResolver(): ResolverBase<*> = resolver.get()
+    private fun mkResolver(): ResolverBase<*> = resolver.get()
 
     companion object {
         internal fun unwrapFieldResolverResult(
@@ -82,7 +81,7 @@ class FieldUnbatchedResolverExecutorImpl(
             return when (result) {
                 is ObjectBase -> result.engineObject
                 is List<*> -> result.map { unwrapFieldResolverResult(it, globalIDCodec) }
-                is GlobalID<*> -> globalIDCodec.serialize(result)
+                is GlobalID<*> -> globalIDCodec.serialize(result.type.name, result.internalID)
                 is Enum<*> -> result.name
                 else -> result
             }

@@ -23,6 +23,7 @@ object ObjectBaseTestHelpers {
 }
 
 /** @see [ObjectBaseTestHelpers.putWithAlias] */
+@TestingApi
 fun <T, Builder : ObjectBase.Builder<T>> Builder.putWithAlias(
     name: String,
     alias: String,

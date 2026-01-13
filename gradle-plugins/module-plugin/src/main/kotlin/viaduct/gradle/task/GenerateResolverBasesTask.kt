@@ -1,11 +1,13 @@
 package viaduct.gradle.task
 
+import java.io.FileOutputStream
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.CacheableTask
@@ -19,6 +21,9 @@ import org.gradle.process.ExecOperations
 import resolverBasesDirectory
 import viaduct.gradle.ViaductApplicationExtension
 import viaduct.gradle.ViaductModuleExtension
+import viaduct.gradle.ViaductPluginCommon
+import viaduct.graphql.schema.binary.writeBSchema
+import viaduct.graphql.schema.graphqljava.GJSchema
 
 @CacheableTask
 abstract class GenerateResolverBasesTask
@@ -33,6 +38,9 @@ abstract class GenerateResolverBasesTask
 
         @get:Input
         abstract val mainClass: Property<String>
+
+        @get:Input
+        abstract val buildFlags: MapProperty<String, String>
 
         @get:InputFiles
         @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -56,6 +64,15 @@ abstract class GenerateResolverBasesTask
 
         @TaskAction
         fun taskAction() {
+            val flagFile = temporaryDir.resolve("viaduct_build_flags")
+            flagFile.writeText(ViaductPluginCommon.buildFlagFileContent(buildFlags.get()))
+
+            val binarySchemaFile = temporaryDir.resolve("schema.bgql")
+            writeBSchema(
+                GJSchema.fromFiles(centralSchemaFiles.files.toList()),
+                FileOutputStream(binarySchemaFile)
+            )
+
             execOperations.javaexec {
                 classpath = this@GenerateResolverBasesTask.classpath
                 mainClass.set(this@GenerateResolverBasesTask.mainClass.get())
@@ -63,8 +80,12 @@ abstract class GenerateResolverBasesTask
                     listOf(
                         "--schema_files",
                         centralSchemaFiles.files.map { it.absolutePath }.sorted().joinToString(","),
+                        "--binary_schema_file",
+                        binarySchemaFile.absolutePath,
                         "--tenant_package_prefix",
                         tenantPackagePrefix.get(),
+                        "--flag_file",
+                        flagFile.absolutePath,
                         "--tenant_pkg",
                         tenantPackage.get(),
                         "--resolver_generated_directory",

@@ -11,12 +11,12 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalID
+import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.internal.internal
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
-import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.arbitrary.graphql.graphQLName
@@ -49,22 +49,6 @@ class MocksTest {
     }
 
     @Test
-    fun MockGlobalIDCodec_roundtrip(): Unit =
-        runBlocking {
-            Arb.graphQLName().forAll { typeName ->
-                val type = MockType.mkNodeObject(typeName)
-                val internalId = Arb.string().bind()
-
-                val codec = MockGlobalIDCodec()
-                val id1 = MockGlobalID(type, internalId)
-                val serialized = codec.serialize(MockGlobalID(type, internalId))
-                val id2 = codec.deserialize<NodeObject>(serialized)
-
-                id1 == id2 && serialized == "$typeName:$internalId"
-            }
-        }
-
-    @Test
     fun MockType_mkNodeObject(): Unit =
         runBlocking {
             Arb.graphQLName().forAll { typeName ->
@@ -73,15 +57,13 @@ class MocksTest {
         }
 
     @Test
-    fun `MockGlobalID equals`(): Unit =
+    fun `GlobalIDImpl equals`(): Unit =
         runBlocking {
             Arb.graphQLName().forAll { typeName ->
                 val internalId = Arb.string().bind()
-                val id1: GlobalID<*> = MockGlobalID(MockType.mkNodeObject(typeName), internalId)
-                val id2: GlobalID<*> = object : GlobalID<NodeObject> {
-                    override val internalID: String = internalId
-                    override val type: Type<NodeObject> = MockType.mkNodeObject(typeName)
-                }
+                val type = MockType.mkNodeObject(typeName)
+                val id1: GlobalID<*> = GlobalIDImpl(type, internalId)
+                val id2: GlobalID<*> = GlobalIDImpl(type, internalId)
                 id1 == id2
             }
         }

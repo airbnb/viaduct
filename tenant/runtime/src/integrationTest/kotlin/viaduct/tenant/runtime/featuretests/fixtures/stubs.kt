@@ -29,10 +29,10 @@ import viaduct.engine.api.RequiredSelectionSets
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockCheckerErrorResult
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.bootstrap.RequiredSelectionSetFactory
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
-import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 @Suppress("UNUSED_PARAMETER", "UNCHECKED_CAST")
@@ -64,7 +64,7 @@ class FieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContext<*, *, *>>(
     ): FieldExecutionContextFactory =
         FieldExecutionContextFactory.of(
             resolverBaseClass = FieldUnbatchedResolverStub::class.java,
-            globalIDCodec = GlobalIDCodecImpl(reflectionLoader),
+            globalIDCodec = GlobalIDCodecDefault,
             reflectionLoader = reflectionLoader,
             schema = schema,
             typeName = coord.first,
@@ -76,10 +76,9 @@ class FieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContext<*, *, *>>(
         schema: GraphQLSchema,
         reflectionLoader: ReflectionLoader
     ): RequiredSelectionSets {
-        val globalIDCodec = GlobalIDCodecImpl(reflectionLoader)
         val variablesProviderContextFactory = resolverFactory(ViaductSchema(schema), reflectionLoader)
 
-        val factory = RequiredSelectionSetFactory(globalIDCodec, reflectionLoader)
+        val factory = RequiredSelectionSetFactory(GlobalIDCodecDefault, reflectionLoader)
         return factory.mkRequiredSelectionSets(
             variablesProvider = variablesProvider,
             objectSelections = objectSelections,

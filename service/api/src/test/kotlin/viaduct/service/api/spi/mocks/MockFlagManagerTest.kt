@@ -3,13 +3,12 @@
 package viaduct.service.api.spi.mocks
 
 import io.kotest.property.Arb
-import io.kotest.property.arbitrary.map
-import io.kotest.property.arbitrary.string
-import io.kotest.property.arbitrary.take
+import io.kotest.property.arbitrary.of
 import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
-import viaduct.service.api.spi.Flag
+import viaduct.service.api.spi.FlagManager.Flag
+import viaduct.service.api.spi.FlagManager.Flags
 
 class MockFlagManagerTest {
     @Test
@@ -31,15 +30,13 @@ class MockFlagManagerTest {
     @Test
     fun mk(): Unit =
         runBlocking {
-            val allFlags = Arb.flag()
-            val enabledFlags = allFlags.take(100).toSet()
+            val allFlags = Flags.values().toList()
+            val enabledFlags = allFlags.take(1).toSet()
             val flagMgr = MockFlagManager(enabledFlags)
-            allFlags.forAll { flag ->
-                flagMgr.isEnabled(flag) == enabledFlags.contains(flag)
+            allFlags.forEach { flag ->
+                assert(flagMgr.isEnabled(flag) == enabledFlags.contains(flag))
             }
         }
+
+    private fun Arb.Companion.flag(): Arb<Flag> = Arb.of(Flags.values().toList())
 }
-
-private data class MockFlag(override val flagName: String) : Flag
-
-fun Arb.Companion.flag(): Arb<Flag> = Arb.string().map(::MockFlag)

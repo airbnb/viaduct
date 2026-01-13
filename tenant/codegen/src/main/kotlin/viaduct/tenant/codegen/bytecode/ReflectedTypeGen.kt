@@ -56,7 +56,7 @@ private class ReflectedTypeBuilder(
     fun build() {
         buildNameProperty()
         buildKclsProperty()
-        if (def is ViaductSchema.Record || def is ViaductSchema.CompositeOutput) {
+        if (def is ViaductSchema.Record || def is ViaductSchema.Union) {
             FieldsObjectBuilder(grtClassFilesBuilder, typeBuilder, def)
                 .build()
         }

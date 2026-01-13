@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.internal.NodeResolverBase
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockType
 import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.types.Arguments
@@ -16,6 +15,7 @@ import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
 import viaduct.tenant.runtime.globalid.User
 
@@ -24,7 +24,7 @@ import viaduct.tenant.runtime.globalid.User
  */
 class ResolverExecutionContextFactoryBaseTest {
     private val contextMocks = ContextMocks(GlobalIdFeatureAppTest.schema)
-    private val globalIDCodec = MockGlobalIDCodec()
+    private val globalIDCodec = GlobalIDCodecDefault
     private val reflectionLoader = mockReflectionLoader("viaduct.tenant.runtime.globalid")
 
     @Suppress("UNCHECKED_CAST")

@@ -9,6 +9,7 @@ import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.ExecuteSelectionSetOptions
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.toObjectGRT
 
@@ -52,13 +53,23 @@ class EngineExecutionContextWrapperImpl(
         ctx: InternalContext,
         resolverId: String,
         selections: SelectionSet<T>
-    ): T = engineExecutionContext.query(resolverId, selections.getRawSelectionSet()).toObjectGRT(ctx, selections.type.kcls)
+    ): T =
+        engineExecutionContext.executeSelectionSet(
+            resolverId,
+            selections.getRawSelectionSet(),
+            ExecuteSelectionSetOptions.DEFAULT
+        ).toObjectGRT(ctx, selections.type.kcls)
 
     override suspend fun <T : Mutation> mutation(
         ctx: InternalContext,
         resolverId: String,
         selections: SelectionSet<T>
-    ): T = engineExecutionContext.mutation(resolverId, selections.getRawSelectionSet()).toObjectGRT(ctx, selections.type.kcls)
+    ): T =
+        engineExecutionContext.executeSelectionSet(
+            resolverId,
+            selections.getRawSelectionSet(),
+            ExecuteSelectionSetOptions.MUTATION
+        ).toObjectGRT(ctx, selections.type.kcls)
 
     private fun SelectionSet<*>.getRawSelectionSet() =
         (this as? SelectionSetImpl)?.rawSelectionSet
@@ -80,7 +91,7 @@ class EngineExecutionContextWrapperImpl(
     ): T {
         val typeName = globalID.type.name
         val graphqlObjectType = ctx.schema.schema.getObjectType(typeName)
-        val id = ctx.globalIDCodec.serialize(globalID)
+        val id = ctx.globalIDCodec.serialize(globalID.type.name, globalID.internalID)
         val nodeReference = engineExecutionContext.createNodeReference(id, graphqlObjectType)
 
         return nodeReference.toObjectGRT(ctx, globalID.type.kcls)

@@ -292,4 +292,38 @@ class FieldResolverTest {
             "fetchObject onCompleted was called before all field resolvers completed."
         }
     }
+
+    @Test
+    @DisplayName("mutation returning list with failed field check should handle result type correctly")
+    fun mutationReturningListWithFailedFieldCheck() =
+        FeatureTestBuilder(
+            """
+            extend type Mutation {
+                getUrls: [String!]
+            }
+            """.trimIndent()
+        )
+            .mutation("Mutation" to "getUrls") {
+                // This mutator would return a list
+                listOf("url1", "url2", "url3")
+            }
+            .fieldChecker(
+                "Mutation" to "getUrls",
+                "privacy-check",
+                { _, _ ->
+                    // Simulate a privacy check failure by throwing an exception
+                    throw IllegalAccessException("Privacy check failed: user not authorized")
+                }
+            )
+            .build()
+            .execute("mutation { getUrls }")
+            .apply {
+                // We expect the mutation to fail gracefully with an error, not crash with a type mismatch
+                assertEquals(1, errors.size, "Expected exactly one error from failed field check")
+                val error = errors[0]
+                assertTrue(
+                    error.message.contains("Privacy check failed") || error.message.contains("not authorized"),
+                    "Expected error message to contain privacy failure info, got: ${error.message}"
+                )
+            }.getData<Map<String, Any?>>().mapAssertJson("{getUrls: null}")
 }

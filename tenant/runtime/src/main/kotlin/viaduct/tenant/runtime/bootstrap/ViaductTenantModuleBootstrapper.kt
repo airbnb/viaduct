@@ -16,14 +16,15 @@ import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.TenantModuleException
 import viaduct.engine.api.ViaductSchema
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeUnbatchedResolverExecutorImpl
-import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
 import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.utils.slf4j.logger
 
@@ -39,10 +40,10 @@ import viaduct.utils.slf4j.logger
 class ViaductTenantModuleBootstrapper(
     private val tenantCodeInjector: TenantCodeInjector,
     private val tenantResolverClassFinder: TenantResolverClassFinder,
+    private val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
 ) : TenantModuleBootstrapper {
     private val reflectionLoader = ReflectionLoaderImpl { name -> tenantResolverClassFinder.grtClassForName(name) }
 
-    private val globalIDCodec = GlobalIDCodecImpl(reflectionLoader)
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(globalIDCodec, reflectionLoader)
 
     /**

@@ -25,7 +25,7 @@ import graphql.schema.DataFetcher
 import graphql.schema.GraphQLSchema
 import graphql.validation.ValidationError
 import java.util.concurrent.CompletableFuture
-import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 
 /**
  * ViaductModernInstrumentation is an interface representing the instrumentation methods that are available in
@@ -119,14 +119,14 @@ interface ViaductModernInstrumentation {
                 }
 
                 override fun instrumentAccessCheck(
-                    checkerDispatcher: CheckerDispatcher,
+                    checkerExecutor: CheckerExecutor,
                     parameters: InstrumentationExecutionStrategyParameters,
                     state: InstrumentationState?
-                ): CheckerDispatcher {
+                ): CheckerExecutor {
                     if (viaductInstrumentation is WithInstrumentAccessCheck) {
-                        return viaductInstrumentation.instrumentAccessCheck(checkerDispatcher, parameters, state)
+                        return viaductInstrumentation.instrumentAccessCheck(checkerExecutor, parameters, state)
                     }
-                    return checkerDispatcher
+                    return checkerExecutor
                 }
 
                 override fun beginFieldCompletion(
@@ -333,10 +333,10 @@ interface ViaductModernInstrumentation {
 
     interface WithInstrumentAccessCheck : ViaductModernInstrumentation {
         fun instrumentAccessCheck(
-            checkerDispatcher: CheckerDispatcher,
+            checkerExecutor: CheckerExecutor,
             parameters: InstrumentationExecutionStrategyParameters,
             state: InstrumentationState?
-        ): CheckerDispatcher
+        ): CheckerExecutor
     }
 
     fun instrumentDocumentAndVariables(
@@ -547,10 +547,10 @@ interface ViaductModernGJInstrumentation : Instrumentation {
     }
 
     fun instrumentAccessCheck(
-        checkerDispatcher: CheckerDispatcher,
+        checkerExecutor: CheckerExecutor,
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?
-    ): CheckerDispatcher {
-        return checkerDispatcher
+    ): CheckerExecutor {
+        return checkerExecutor
     }
 }

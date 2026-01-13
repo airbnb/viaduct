@@ -37,6 +37,8 @@ class ParameterizedSchemaDrivenTests {
             "kotlin-reserved-names" to listOf("graphql/edge-cases/kotlin_reserved_names_schema.graphqls"),
             "recursion" to listOf("graphql/edge-cases/recursion_schema.graphqls"),
             "edge-cases" to listOf("graphql/edge-cases/edge_cases_schema.graphqls"),
+            "custom-schema" to listOf("graphql/custom_schema.graphqls"),
+            "custom-root-types" to listOf("graphql/custom_root_types_schema.graphqls"),
         )
         private val INVALID_SCHEMA_CONFIGS: List<Pair<String, List<String>>> = listOf(
             "invalid-undefined-type" to listOf("graphql/edge-cases/invalid_undefined_type_schema.graphqls"),

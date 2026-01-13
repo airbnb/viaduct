@@ -7,6 +7,7 @@ import io.mockk.slot
 import io.mockk.unmockkAll
 import io.mockk.verify
 import java.io.File
+import java.io.FileOutputStream
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -14,6 +15,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import viaduct.graphql.schema.binary.writeBSchema
+import viaduct.graphql.schema.graphqljava.GJSchemaRaw
 import viaduct.tenant.codegen.bytecode.CodeGenArgs
 import viaduct.tenant.codegen.bytecode.GRTClassFilesBuilderBase
 
@@ -21,6 +24,8 @@ class SchemaObjectsBytecodeTest {
     @TempDir
     private lateinit var tempDir: File
     private lateinit var schemaFile: File
+    private lateinit var binarySchemaFile: File
+    private lateinit var flagFile: File
     private lateinit var generatedDir: File
     private lateinit var outputArchive: File
     private lateinit var pkgFile: File
@@ -28,10 +33,26 @@ class SchemaObjectsBytecodeTest {
 
     @BeforeEach
     fun setup() {
-        schemaFile = File(tempDir, "schema.graphql").apply {
+        val sdl = "type Query { hello: String }"
+        binarySchemaFile = File(tempDir, "schema.bgql").apply {
             createNewFile()
-            writeText("type Query { hello: String }")
         }
+        schemaFile = File(tempDir, "schema.gql").apply {
+            createNewFile()
+        }
+
+        flagFile = File(tempDir, "viaduct_build_flags.bzl").apply {
+            createNewFile()
+        }
+        schemaFile.writeText(sdl)
+        flagFile.writeText(
+            """
+                viaduct_build_flags = {
+                    "enable_binary_schema": "True",
+                }
+            """.trimIndent()
+        )
+        writeBSchema(GJSchemaRaw.fromSDL(sdl), FileOutputStream(binarySchemaFile))
         generatedDir = File(tempDir, "generated").apply { mkdirs() }
         outputArchive = File(tempDir, "output.zip")
         pkgFile = File(tempDir, "package.txt").apply {
@@ -57,6 +78,8 @@ class SchemaObjectsBytecodeTest {
         SchemaObjectsBytecode().main(
             listOf("--generated_directory", generatedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
+                listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                listOf("--flag_file", flagFile.absolutePath) +
                 listOf("--bytecode_worker_number", "0") +
                 listOf("--bytecode_worker_count", "1")
         )
@@ -78,6 +101,8 @@ class SchemaObjectsBytecodeTest {
         SchemaObjectsBytecode().main(
             listOf("--generated_directory", generatedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
+                listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                listOf("--flag_file", flagFile.absolutePath) +
                 listOf("--bytecode_worker_number", "0") +
                 listOf("--bytecode_worker_count", "1") +
                 listOf("--module_name", "testModule") +
@@ -101,6 +126,8 @@ class SchemaObjectsBytecodeTest {
         SchemaObjectsBytecode().main(
             listOf("--generated_directory", generatedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
+                listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                listOf("--flag_file", flagFile.absolutePath) +
                 listOf("--bytecode_worker_number", "0") +
                 listOf("--bytecode_worker_count", "1") +
                 listOf("--pkg_for_generated_classes_as_file", pkgFile.absolutePath)
@@ -117,6 +144,8 @@ class SchemaObjectsBytecodeTest {
         SchemaObjectsBytecode().main(
             listOf("--generated_directory", generatedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
+                listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                listOf("--flag_file", flagFile.absolutePath) +
                 listOf("--bytecode_worker_number", "0") +
                 listOf("--bytecode_worker_count", "1") +
                 listOf("--output_archive", outputArchive.absolutePath)

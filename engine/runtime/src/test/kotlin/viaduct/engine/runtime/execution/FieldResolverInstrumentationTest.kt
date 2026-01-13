@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
@@ -23,6 +22,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 
@@ -69,9 +69,10 @@ class FieldResolverInstrumentationTest {
             }
         }
 
-        private fun checkerDispatcher(block: suspend () -> CheckerResult) =
-            object : CheckerDispatcher {
+        private fun checkerDispatcher(block: suspend () -> CheckerResult): CheckerDispatcher {
+            val dispatcher = object : CheckerDispatcher {
                 override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()
+                override lateinit var executor: CheckerExecutor
 
                 override suspend fun execute(
                     arguments: Map<String, Any?>,
@@ -80,6 +81,19 @@ class FieldResolverInstrumentationTest {
                     checkerType: CheckerExecutor.CheckerType
                 ) = block()
             }
+            dispatcher.executor = object : CheckerExecutor {
+                override suspend fun execute(
+                    arguments: Map<String, Any?>,
+                    objectDataMap: Map<String, EngineObjectData>,
+                    context: EngineExecutionContext,
+                    checkerType: CheckerExecutor.CheckerType
+                ) = block()
+
+                override val checkerMetadata = null
+                override val requiredSelectionSets = dispatcher.requiredSelectionSets
+            }
+            return dispatcher
+        }
 
         private fun failingChecker(message: String) =
             checkerDispatcher {

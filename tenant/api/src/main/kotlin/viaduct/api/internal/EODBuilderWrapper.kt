@@ -10,10 +10,10 @@ import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.globalid.GlobalID
-import viaduct.api.globalid.GlobalIDCodec
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
+import viaduct.service.api.spi.GlobalIDCodec
 
 /**
  * A wrapper around EngineObjectDataBuilder that allows for setting fields by name for a given GraphQLObjectType.
@@ -88,7 +88,10 @@ internal class EODBuilderWrapper(
         }
     }
 
-    private fun unwrapGlobalID(value: Any): String = globalIDCodec.serialize(value as GlobalID<*>)
+    private fun unwrapGlobalID(value: Any): String {
+        val globalID = value as GlobalID<*>
+        return globalIDCodec.serialize(globalID.type.name, globalID.internalID)
+    }
 
     private fun unwrapList(
         field: GraphQLFieldDefinition,

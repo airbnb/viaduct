@@ -7,12 +7,16 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
+import java.io.FileInputStream
+import viaduct.apiannotations.TestingApi
+import viaduct.graphql.schema.binary.readBSchema
 import viaduct.graphql.schema.graphqljava.GJSchemaRaw
 import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.tenant.codegen.kotlingen.bytecode.KotlinCodeGenArgs
 import viaduct.tenant.codegen.kotlingen.bytecode.KotlinGRTFilesBuilder
 import viaduct.tenant.codegen.util.ZipUtil.zipAndWriteDirectories
+import viaduct.tenant.codegen.util.shouldUseBinarySchema
 import viaduct.utils.timer.Timer
 
 /**
@@ -27,6 +31,7 @@ import viaduct.utils.timer.Timer
  * source-level debugging, IDE support, and easier development workflows compared
  * to runtime bytecode generation.
  **/
+@TestingApi
 class KotlinGRTsGenerator : CliktCommand() {
     private val outputArchive: File? by option("--output_archive")
         .file(mustExist = false, canBeDir = false)
@@ -34,18 +39,27 @@ class KotlinGRTsGenerator : CliktCommand() {
         .file(mustExist = false, canBeFile = false).required()
     private val schemaFiles: List<File> by option("--schema_files")
         .file(mustExist = true, canBeDir = false).split(",").required()
+    private val binarySchemaFile: File by option("--binary_schema_file")
+        .file(mustExist = true, canBeDir = false).required()
+    private val flagFile: File by option("--flag_file")
+        .file(mustExist = true, canBeDir = false).required()
     private val pkgForGeneratedClasses: String by option("--pkg_for_generated_classes")
         .default("com.airbnb.viaduct.schema.generated")
 
     override fun run() {
+        val useBinarySchema = shouldUseBinarySchema(flagFile)
         if (generatedDir.exists()) generatedDir.deleteRecursively()
         generatedDir.mkdirs()
 
         val timer = Timer()
 
         val schema = timer.time("schemaFromFiles") {
-            val typeDefRegistry = timer.time("readTypesFromFiles") { readTypesFromFiles(schemaFiles) }
-            GJSchemaRaw.fromRegistry(typeDefRegistry, timer)
+            if (useBinarySchema) {
+                readBSchema(FileInputStream(binarySchemaFile))
+            } else {
+                val typeDefRegistry = timer.time("readTypesFromFiles") { readTypesFromFiles(schemaFiles) }
+                GJSchemaRaw.fromRegistry(typeDefRegistry, timer)
+            }
         }
 
         val args = KotlinCodeGenArgs(

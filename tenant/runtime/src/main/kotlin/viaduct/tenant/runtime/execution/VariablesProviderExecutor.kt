@@ -28,7 +28,7 @@ class VariablesProviderExecutor(
         return (provider as VariablesProvider<Arguments>).provide(variablesProviderCtx).mapValues {
             // The Viaduct engine expects the values to be scalar types or maps, so converting InputLikeBase and GlobalID to their internal representations
             when (val value = it.value) {
-                is GlobalID<*> -> variablesProviderCtx.internal.globalIDCodec.serialize(value)
+                is GlobalID<*> -> variablesProviderCtx.internal.globalIDCodec.serialize(value.type.name, value.internalID)
                 is InputLikeBase -> value.inputData
                 else -> value
             }

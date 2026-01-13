@@ -7,7 +7,6 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.globalid.GlobalID
-import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.select.SelectionSetFactory
@@ -16,15 +15,16 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
+import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.toObjectGRT
 
@@ -56,13 +56,6 @@ class MockNodeEngineObjectData(
         }
         throw UnsupportedOperationException()
     }
-
-    override suspend fun resolveData(
-        selections: RawSelectionSet,
-        context: EngineExecutionContext
-    ): Boolean {
-        throw UnsupportedOperationException()
-    }
 }
 
 /**
@@ -87,15 +80,22 @@ val InternalContext.resolverExecutionContext: ResolverExecutionContext
 
 class MockInternalContext(
     override val schema: ViaductSchema,
-    override val globalIDCodec: GlobalIDCodec = MockGlobalIDCodec(),
+    override val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
     override val reflectionLoader: ReflectionLoader = mockReflectionLoader("viaduct.api.grts")
 ) : InternalContext {
+    override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> {
+        val (typeName, localID) = globalIDCodec.deserialize(serialized)
+        @Suppress("UNCHECKED_CAST")
+        val type = reflectionLoader.reflectionFor(typeName) as Type<T>
+        return GlobalIDImpl(type, localID)
+    }
+
     companion object {
         fun mk(
             schema: ViaductSchema,
             grtPackage: String = "viaduct.api.grts",
             classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
-        ): MockInternalContext = MockInternalContext(schema, MockGlobalIDCodec(), mockReflectionLoader(grtPackage, classLoader))
+        ): MockInternalContext = MockInternalContext(schema, GlobalIDCodecDefault, mockReflectionLoader(grtPackage, classLoader))
     }
 }
 
@@ -142,7 +142,7 @@ open class MockResolverExecutionContext(
 
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun <T : NodeObject> nodeFor(globalID: GlobalID<T>): T {
-        val id = globalIDCodec.serialize(globalID)
+        val id = globalIDCodec.serialize(globalID.type.name, globalID.internalID)
         val graphqlObjectType = schema.schema.getObjectType(globalID.type.name)
         return MockNodeEngineObjectData(id, graphqlObjectType).toObjectGRT(this, globalID.type.kcls)
     }
@@ -151,7 +151,7 @@ open class MockResolverExecutionContext(
         type: Type<T>,
         internalID: String
     ): String {
-        return globalIDCodec.serialize(globalIDFor(type, internalID))
+        return globalIDCodec.serialize(type.name, internalID)
     }
 
     companion object {
@@ -200,6 +200,7 @@ class MockMutationFieldExecutionContext<Q : Query, A : Arguments, O : CompositeO
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 class MockNodeExecutionContext<T : NodeObject>(
     override val id: GlobalID<T>,
+    override val requestContext: Any? = null,
     private val selectionsValue: SelectionSet<T>,
     internalContext: InternalContext,
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),

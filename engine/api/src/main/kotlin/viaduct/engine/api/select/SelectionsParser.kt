@@ -7,11 +7,9 @@ import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.parse.CachedDocumentParser
-import viaduct.engine.api.select.Constants.EntryPointFragmentName
+import viaduct.graphql.utils.SelectionsParserUtils
 
 object SelectionsParser {
-    private val fragmentRegex = Regex("^\\s*fragment\\s+")
-
     /** Return a [ParsedSelections] from the provided [Fragment] */
     fun parse(fragment: Fragment): ParsedSelections =
         ParsedSelectionsImpl(
@@ -27,14 +25,8 @@ object SelectionsParser {
     ): ParsedSelections {
         val document =
             try {
-                if (isFieldSet(selections)) {
-                    val docString =
-                        """
-                        fragment $EntryPointFragmentName on $typeName {
-                            $selections
-                        }
-                        """.trimIndent()
-                    CachedDocumentParser.parseDocument(docString)
+                if (SelectionsParserUtils.isShorthandForm(selections)) {
+                    CachedDocumentParser.parseDocument(SelectionsParserUtils.wrapShorthandAsFragment(selections, typeName))
                 } else {
                     CachedDocumentParser.parseDocument(selections)
                 }
@@ -86,24 +78,24 @@ object SelectionsParser {
         )
     }
 
+    /**
+     * Determines the entry point fragment from a list of fragment definitions and validates its type.
+     * - If there's exactly one fragment, it's used as the entry point
+     * - If there are multiple fragments, the one named [SelectionsParserUtils.EntryPointFragmentName] is used
+     *
+     * @param typeName The expected type name for the entry point fragment
+     * @param fragments The list of fragment definitions to search
+     * @return The entry point fragment definition
+     * @throws IllegalArgumentException if no valid entry point fragment is found or type mismatch
+     */
     private fun entryPointFragment(
         typeName: String,
         fragments: List<FragmentDefinition>
     ): FragmentDefinition {
-        val entry =
-            if (fragments.size == 1) {
-                fragments.first()
-            } else {
-                fragments.find { it.name == EntryPointFragmentName }
-            }
-        requireNotNull(entry) {
-            "selections must contain only 1 fragment or have 1 fragment definition named Main"
-        }
+        val entry = SelectionsParserUtils.findEntryPointFragment(fragments)
         require(entry.typeCondition.name == typeName) {
             "Fragment ${entry.name} must be on type $typeName"
         }
         return entry
     }
-
-    private fun isFieldSet(s: String): Boolean = !s.contains(fragmentRegex)
 }

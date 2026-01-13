@@ -14,8 +14,8 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ResolverBase
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockReflectionLoader
+import viaduct.api.mocks.testGlobalId
 import viaduct.api.reflect.Type
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
@@ -26,6 +26,7 @@ import viaduct.api.types.Query
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.FakeMutation
 import viaduct.tenant.runtime.FakeObject
 import viaduct.tenant.runtime.FakeQuery
@@ -47,7 +48,7 @@ import viaduct.tenant.runtime.FakeQuery
  * - Variable resolution (tested in other tests)
  */
 class ResolverExecutionContextFactoryTest {
-    private val codec = MockGlobalIDCodec()
+    private val codec = GlobalIDCodecDefault
 
     // Create mock reflection types for Query
     private val queryReflection = object : Type<Query> {
@@ -60,7 +61,12 @@ class ResolverExecutionContextFactoryTest {
         override val kcls = FakeMutation::class
     }
 
-    private val reflectionLoader = MockReflectionLoader(queryReflection, mutationReflection)
+    private val testNodeReflection = object : Type<TestNode> {
+        override val name = "TestNode"
+        override val kcls = TestNode::class
+    }
+
+    private val reflectionLoader = MockReflectionLoader(queryReflection, mutationReflection, testNodeReflection)
 
     private val schema = MockSchema.mk(
         """
@@ -95,8 +101,8 @@ class ResolverExecutionContextFactoryTest {
         assertNotNull(factory)
 
         val contextMocks = ContextMocks(myFullSchema = schema)
-        // MockGlobalIDCodec uses format "TypeName:internalID"
-        val testNodeId = "TestNode:test-id-123"
+        // GlobalIDCodecDefault uses Base64-encoded format
+        val testNodeId = testNodeReflection.testGlobalId("test-id-123")
 
         assertNotNull(
             factory(

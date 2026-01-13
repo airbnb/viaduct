@@ -13,7 +13,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationAdapter
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
@@ -94,12 +94,12 @@ class OptimizedChainedInstrumentationTest {
         var called = false
 
         override fun instrumentAccessCheck(
-            checkerDispatcher: CheckerDispatcher,
+            checkerExecutor: CheckerExecutor,
             parameters: InstrumentationExecutionStrategyParameters,
             state: InstrumentationState?
-        ): CheckerDispatcher {
+        ): CheckerExecutor {
             called = true
-            return checkerDispatcher
+            return checkerExecutor
         }
     }
 
@@ -111,8 +111,8 @@ class OptimizedChainedInstrumentationTest {
         )
         val params = mockk<InstrumentationExecutionStrategyParameters>()
         val state = mockk<InstrumentationState>()
-        val checkerDispatcher = mockk<CheckerDispatcher>()
-        val result = optimized.instrumentAccessCheck(checkerDispatcher, params, state)
+        val checkerExecutor = mockk<CheckerExecutor>()
+        val result = optimized.instrumentAccessCheck(checkerExecutor, params, state)
         assertNotNull(result)
         assert(instrumentAccessCheckInstrumentation.called)
         verify { noInteractionInstrumentation wasNot Called }

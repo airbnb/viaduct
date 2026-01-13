@@ -1,0 +1,25 @@
+schema {
+  query: CustomQuery
+  mutation: CustomMutation
+  subscription: CustomSubscription
+}
+
+type CustomQuery {
+  shops(howMany: Int = 5): [Shop]
+}
+
+type CustomMutation {
+  createShop(name: String!): Shop @resolver
+  updateShop(id: ID!, name: String!): Shop
+  deleteShop(id: ID!): Boolean
+}
+
+type CustomSubscription {
+  shopCreated: Shop
+  shopUpdated: Shop
+}
+
+type Shop {
+  id: ID!
+  name: String!
+}

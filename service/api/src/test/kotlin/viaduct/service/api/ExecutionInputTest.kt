@@ -24,14 +24,16 @@ internal class ExecutionInputTest {
     @Test
     fun `builder requires operationText`() {
         assertThrows<IllegalStateException> {
-            ExecutionInput.builder()
+            ExecutionInput
+                .builder()
                 .build()
         }
     }
 
     @Test
     fun `builder with all parameters`() {
-        val input = ExecutionInput.builder()
+        val input = ExecutionInput
+            .builder()
             .operationText("query GetUser { user { name } }")
             .operationName("GetUser")
             .variables(mapOf("id" to 123))

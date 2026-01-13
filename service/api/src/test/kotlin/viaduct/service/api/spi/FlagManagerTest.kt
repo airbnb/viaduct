@@ -3,6 +3,7 @@ package viaduct.service.api.spi
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.service.api.spi.FlagManager.Flags
 
 class FlagManagerTest {
     @Test
@@ -10,13 +11,6 @@ class FlagManagerTest {
         Flags.values().forEach { flag ->
             assertFalse(FlagManager.disabled.isEnabled(flag))
         }
-
-        val anonymousFlag = object : Flag {
-            // flagName getter intentionally throws -- FlagManager
-            //  should return false without accessing Flag.flagName
-            override val flagName: String get() = TODO()
-        }
-        assertFalse(FlagManager.disabled.isEnabled(anonymousFlag))
     }
 
     @Test

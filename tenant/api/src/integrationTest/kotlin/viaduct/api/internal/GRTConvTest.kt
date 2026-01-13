@@ -18,9 +18,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.ViaductTenantUsageException
-import viaduct.api.mocks.MockGlobalID
+import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
+import viaduct.api.mocks.testGlobalId
 import viaduct.api.schemautils.SchemaUtils
 import viaduct.api.testschema.Concrete
 import viaduct.api.testschema.E1
@@ -68,8 +69,8 @@ class GRTConvTest : KotestPropertyBase() {
                 schema.typeAs("O1"),
                 selectionSet = null
             ),
-            MockGlobalID(O1.Reflection, "foo"),
-            IR.Value.String("O1:foo")
+            GlobalIDImpl(O1.Reflection, "foo"),
+            IR.Value.String(O1.Reflection.testGlobalId("foo"))
         )
     }
 
@@ -125,11 +126,11 @@ class GRTConvTest : KotestPropertyBase() {
                 selectionSet = null
             ),
             listOf(
-                MockGlobalID(TestUser.Reflection, "foo"),
-                MockGlobalID(TestUser.Reflection, "bar"),
+                GlobalIDImpl(TestUser.Reflection, "foo"),
+                GlobalIDImpl(TestUser.Reflection, "bar"),
             ),
             IR.Value.List(
-                listOf(IR.Value.String("TestUser:foo"), IR.Value.String("TestUser:bar"))
+                listOf(IR.Value.String(TestUser.Reflection.testGlobalId("foo")), IR.Value.String(TestUser.Reflection.testGlobalId("bar")))
             )
         )
     }
@@ -147,8 +148,8 @@ class GRTConvTest : KotestPropertyBase() {
     fun `ID -- id field of input type with idOf directive is a GlobalID`() {
         assertRoundtrip(
             GRTConv(internalContext, schema.inputField("InputWithGlobalIDs" to "id2")),
-            MockGlobalID(TestUser.Reflection, "foo"),
-            IR.Value.String("TestUser:foo")
+            GlobalIDImpl(TestUser.Reflection, "foo"),
+            IR.Value.String(TestUser.Reflection.testGlobalId("foo"))
         )
     }
 
@@ -157,13 +158,13 @@ class GRTConvTest : KotestPropertyBase() {
         assertRoundtrip(
             GRTConv(internalContext, schema.inputField("InputWithGlobalIDs" to "id3")),
             listOf(
-                MockGlobalID(O1.Reflection, "foo"),
-                MockGlobalID(O1.Reflection, "bar"),
+                GlobalIDImpl(O1.Reflection, "foo"),
+                GlobalIDImpl(O1.Reflection, "bar"),
             ),
             IR.Value.List(
                 listOf(
-                    IR.Value.String("O1:foo"),
-                    IR.Value.String("O1:bar"),
+                    IR.Value.String(O1.Reflection.testGlobalId("foo")),
+                    IR.Value.String(O1.Reflection.testGlobalId("bar")),
                 )
             )
         )
@@ -390,7 +391,7 @@ class GRTConvTest : KotestPropertyBase() {
                     "objectField",
                     "obj",
                     O2.Builder(executionContext)
-                        .putWithAlias("id", "y", MockGlobalID(O2.Reflection, "1"))
+                        .putWithAlias("id", "y", GlobalIDImpl(O2.Reflection, "1"))
                         .build(),
                 )
                 .build(),
@@ -398,7 +399,7 @@ class GRTConvTest : KotestPropertyBase() {
                 "O1",
                 "obj" to IR.Value.Object(
                     "O2",
-                    "y" to IR.Value.String("O2:1"),
+                    "y" to IR.Value.String(O2.Reflection.testGlobalId("1")),
                 )
             )
         )

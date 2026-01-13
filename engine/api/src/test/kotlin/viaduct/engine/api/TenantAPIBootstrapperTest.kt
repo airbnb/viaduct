@@ -5,7 +5,6 @@ package viaduct.engine.api
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.TenantAPIBootstrapper.Companion.flatten
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper

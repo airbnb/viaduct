@@ -9,8 +9,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.api.globalid.GlobalIDCodec
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
@@ -18,6 +16,8 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
 import viaduct.engine.api.mocks.variables
+import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.select.Foo
 import viaduct.tenant.runtime.select.Query
 import viaduct.tenant.runtime.select.SelectTestFeatureAppTest
@@ -30,7 +30,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
         obj: Object = Obj,
         query: QueryType = Q,
         args: Arguments = Args,
-        globalIDCodec: GlobalIDCodec = MockGlobalIDCodec(),
+        globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
         selectionSet: SelectionSet<CompositeOutput> = noSelections,
     ): FieldExecutionContextImpl {
         val wrapper = createMockingWrapper(

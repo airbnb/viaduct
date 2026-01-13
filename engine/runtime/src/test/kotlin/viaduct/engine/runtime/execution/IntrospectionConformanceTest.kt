@@ -145,4 +145,87 @@ class IntrospectionConformanceTest {
             GJIntrospection.INTROSPECTION_SYSTEM_FIELDS
         )
     }
+
+    /**
+     * Verify that introspection correctly returns custom root type names as per GraphQL spec.
+     * https://spec.graphql.org/October2021/#sec-The-__Schema-Type
+     */
+    @Test
+    fun `introspection returns correct custom root type names`() {
+        val customRootSdl = """
+            schema {
+                query: CustomQuery
+                mutation: CustomMutation
+                subscription: CustomSubscription
+            }
+            type CustomQuery { placeholder: String }
+            type CustomMutation { doSomething: String }
+            type CustomSubscription { onEvent: String }
+        """.trimIndent()
+
+        val introspectionQuery = """
+            {
+                __schema {
+                    queryType { name }
+                    mutationType { name }
+                    subscriptionType { name }
+                }
+            }
+        """.trimIndent()
+
+        @Suppress("UNCHECKED_CAST")
+        Conformer(customRootSdl).check(
+            introspectionQuery,
+            checkNoModernErrors = true,
+            extraChecks = CheckResult { _, (act) ->
+                val data = act.getData<Map<String, Any?>>()
+                val schema = data["__schema"] as Map<String, Any?>
+                val queryType = schema["queryType"] as Map<String, Any?>
+                val mutationType = schema["mutationType"] as Map<String, Any?>
+                val subscriptionType = schema["subscriptionType"] as Map<String, Any?>
+
+                assertEquals("CustomQuery", queryType["name"], "queryType.name should be CustomQuery")
+                assertEquals("CustomMutation", mutationType["name"], "mutationType.name should be CustomMutation")
+                assertEquals("CustomSubscription", subscriptionType["name"], "subscriptionType.name should be CustomSubscription")
+            }
+        )
+    }
+
+    /**
+     * Verify that introspection correctly returns null for missing root types.
+     */
+    @Test
+    fun `introspection returns null for missing root types`() {
+        val queryOnlySdl = """
+            schema {
+                query: MyQuery
+            }
+            type MyQuery { placeholder: String }
+        """.trimIndent()
+
+        val introspectionQuery = """
+            {
+                __schema {
+                    queryType { name }
+                    mutationType { name }
+                    subscriptionType { name }
+                }
+            }
+        """.trimIndent()
+
+        Conformer(queryOnlySdl).check(
+            introspectionQuery,
+            checkNoModernErrors = true,
+            extraChecks = CheckResult { _, (act) ->
+                @Suppress("UNCHECKED_CAST")
+                val data = act.getData<Map<String, Any?>>()
+                val schema = data["__schema"] as Map<String, Any?>
+                val queryType = schema["queryType"] as Map<String, Any?>
+
+                assertEquals("MyQuery", queryType["name"], "queryType.name should be MyQuery")
+                assertNull(schema["mutationType"], "mutationType should be null when not defined")
+                assertNull(schema["subscriptionType"], "subscriptionType should be null when not defined")
+            }
+        )
+    }
 }

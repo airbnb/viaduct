@@ -1,6 +1,5 @@
 package viaduct.tenant.runtime.featuretests.fixtures
 
-import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.ReflectionLoader
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.FieldResolverExecutor
@@ -8,6 +7,7 @@ import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.TenantAPIBootstrapper
 import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.ViaductSchema
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl
@@ -20,7 +20,7 @@ class FeatureTestTenantAPIBootstrapperBuilder(
     val nodeBatchResolverStubs: Map<String, NodeBatchResolverStub>,
     val reflectionLoader: ReflectionLoader,
     val globalIDCodec: GlobalIDCodec,
-) : TenantAPIBootstrapperBuilder {
+) : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
     override fun create() =
         object : TenantAPIBootstrapper {
             val module: TenantModuleBootstrapper = FeatureTestTenantModuleBootstrapper(

@@ -14,14 +14,12 @@ import viaduct.api.types.NodeObject
 import viaduct.service.ViaductBuilder
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
 import viaduct.tenant.runtime.bootstrap.ViaductTenantResolverClassFinderFactory
-import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
-import viaduct.tenant.runtime.globalid.GlobalIDImpl
-import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 
 /**
  * Base class for testing GraphQL feature applications with Viaduct.
@@ -70,12 +68,7 @@ abstract class FeatureAppTestBase {
     private val flagManager = MockFlagManager()
 
     // GlobalID codec for creating GlobalID strings in tests
-    private val globalIdCodec by lazy {
-        val reflectionLoader = ReflectionLoaderImpl { name: String ->
-            Class.forName("$derivedClassPackagePrefix.$name").kotlin
-        }
-        GlobalIDCodecImpl(reflectionLoader)
-    }
+    private val globalIdCodec = GlobalIDCodecDefault
 
     // package name of the derived class
     private val derivedClassPackagePrefix: String =
@@ -128,16 +121,14 @@ abstract class FeatureAppTestBase {
     fun <T : NodeObject> createGlobalIdString(
         type: Type<T>,
         internalId: String
-    ): String {
-        val globalId = GlobalIDImpl(type, internalId)
-        return globalIdCodec.serialize(globalId)
-    }
+    ): String = globalIdCodec.serialize(type.name, internalId)
 
     /**
-     * Helper function to get internalId from the GlobalID given a generated Type.
+     * Helper function to get internalId from a GlobalID string.
      */
     fun <T : NodeObject> getInternalId(globalID: String): String {
-        return globalIdCodec.deserialize<T>(globalID).internalID
+        val (_, internalId) = globalIdCodec.deserialize(globalID)
+        return internalId
     }
 
     /**

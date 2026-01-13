@@ -2,9 +2,11 @@ package viaduct.api.internal
 
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.context.ExecutionContext
-import viaduct.api.globalid.GlobalIDCodec
+import viaduct.api.globalid.GlobalID
+import viaduct.api.types.NodeCompositeOutput
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.ViaductSchema
+import viaduct.service.api.spi.GlobalIDCodec
 
 /**
  * InternalContext encapsulates contextual dependencies of the viaduct runtime that
@@ -21,12 +23,25 @@ interface InternalContext {
 
     /**
      * A codec that is used to translate between [viaduct.api.globalid.GlobalID] tenant-space
-     * values and [kotlin.String] engine-space values
+     * values and [kotlin.String] engine-space values.
+     *
+     * This is the service-level codec shared across all tenant modules in a Viaduct instance.
      */
     val globalIDCodec: GlobalIDCodec
 
     /** An interface that can serve GRT's and type information for GraphQL types */
     val reflectionLoader: ReflectionLoader
+
+    /**
+     * Deserializes a GlobalID string into a typed [GlobalID] object.
+     *
+     * This method uses [globalIDCodec] for decoding the string and [reflectionLoader]
+     * for reconstructing the type information.
+     *
+     * @param serialized The serialized GlobalID string
+     * @return A typed GlobalID object
+     */
+    fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T>
 }
 
 /** project this [ExecutionContext] as an [InternalContext] */

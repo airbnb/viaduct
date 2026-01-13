@@ -13,7 +13,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 
@@ -81,9 +81,9 @@ class ChainedModernGJInstrumentationTest {
         val parameters = mockk<InstrumentationExecutionStrategyParameters>()
         val state1 = object : InstrumentationState {}
         val state2 = object : InstrumentationState {}
-        val initialChecker = mockk<CheckerDispatcher>()
-        val intermediateChecker = mockk<CheckerDispatcher>()
-        val finalChecker = mockk<CheckerDispatcher>()
+        val initialChecker = mockk<CheckerExecutor>()
+        val intermediateChecker = mockk<CheckerExecutor>()
+        val finalChecker = mockk<CheckerExecutor>()
 
         val instr1 = mockk<ViaductModernGJInstrumentation> {
             every { createStateAsync(any()) } returns CompletableFuture.completedFuture(state1)

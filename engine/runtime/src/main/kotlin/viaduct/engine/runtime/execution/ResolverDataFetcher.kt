@@ -6,12 +6,12 @@ import graphql.schema.DataFetchingEnvironment
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
-import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.engineExecutionContext
+import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineResultLocalContext

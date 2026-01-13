@@ -16,3 +16,10 @@ dependencyResolutionManagement {
 pluginManagement {
     includeBuild("../build-logic")
 }
+
+includeBuild("../gradle-plugins") {
+    dependencySubstitution {
+        substitute(module("com.airbnb.viaduct:gradle-plugins-common")).using(project(":common"))
+    }
+}
+includeBuild("../included-builds/core")

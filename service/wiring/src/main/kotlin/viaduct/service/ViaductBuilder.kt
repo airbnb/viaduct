@@ -2,10 +2,12 @@ package viaduct.service
 
 import graphql.execution.DataFetcherExceptionHandler
 import io.micrometer.core.instrument.MeterRegistry
+import viaduct.apiannotations.TestingApi
+import viaduct.engine.api.TenantModuleBootstrapper
+import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.ResolverErrorReporter
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
@@ -14,7 +16,7 @@ class ViaductBuilder {
     val builder = StandardViaduct.Builder()
 
     /** See [withTenantAPIBootstrapperBuilder]. */
-    fun withTenantAPIBootstrapperBuilder(builder: TenantAPIBootstrapperBuilder) =
+    fun withTenantAPIBootstrapperBuilder(builder: TenantAPIBootstrapperBuilder<TenantModuleBootstrapper>) =
         apply {
             this.builder.withTenantAPIBootstrapperBuilders(listOf(builder))
         }
@@ -27,7 +29,7 @@ class ViaductBuilder {
      * @param builders The builder instance that will be used to create a TenantAPIBootstrapper
      * @return This Builder instance for method chaining
      */
-    fun withTenantAPIBootstrapperBuilders(builders: List<TenantAPIBootstrapperBuilder>) =
+    fun withTenantAPIBootstrapperBuilders(builders: List<TenantAPIBootstrapperBuilder<TenantModuleBootstrapper>>) =
         apply {
             builder.withTenantAPIBootstrapperBuilders(builders)
         }
@@ -37,6 +39,7 @@ class ViaductBuilder {
      * wanted.  Used for testing purposes.
      * Failing to provide a bootstrapper is an error that should be flagged at build() time.
      */
+    @TestingApi
     fun withNoTenantAPIBootstrapper() =
         apply {
             builder.withTenantAPIBootstrapperBuilders(emptyList())
@@ -72,7 +75,7 @@ class ViaductBuilder {
      * @param resolverErrorReporter The ResolverErrorReporter instance to use for error reporting
      * @return This Builder instance for method chaining
      */
-    fun withResolverErrorReporter(resolverErrorReporter: ResolverErrorReporter) =
+    fun withResolverErrorReporter(resolverErrorReporter: ErrorReporter) =
         apply {
             builder.withResolverErrorReporter(resolverErrorReporter)
         }

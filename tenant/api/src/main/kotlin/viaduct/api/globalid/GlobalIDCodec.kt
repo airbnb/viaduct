@@ -5,6 +5,13 @@ import viaduct.apiannotations.StableApi
 
 /**
  * GlobalIDCodec provides a way to serialize and deserialize GlobalIDs.
+ *
+ * This interface provides typed GlobalID operations for use within the Viaduct tenant API.
+ * The implementation wraps the service-level [viaduct.service.api.spi.GlobalIDCodec] and
+ * adds type information via reflection.
+ *
+ * Note: Tenant code should prefer using the methods on ExecutionContext
+ * (e.g., globalIDStringFor, deserializeGlobalID) rather than using this interface directly.
  */
 @StableApi
 interface GlobalIDCodec {

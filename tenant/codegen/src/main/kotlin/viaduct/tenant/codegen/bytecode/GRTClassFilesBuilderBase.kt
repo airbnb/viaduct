@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.bytecode
 
 import java.io.File
+import viaduct.apiannotations.TestingApi
 import viaduct.codegen.km.KmClassFilesBuilder
 import viaduct.codegen.utils.JavaName
 import viaduct.codegen.utils.KmName
@@ -36,6 +37,40 @@ abstract class GRTClassFilesBuilderBase protected constructor(
 
     private var isLoaded = false
 
+    /**
+     * The schema being processed. Available after [addAll] is called.
+     */
+    protected lateinit var schema: ViaductSchema
+        private set
+
+    /**
+     * Returns true if the given object type is the query root type in the schema.
+     */
+    internal fun ViaductSchema.Object.isQueryType(): Boolean = this === schema.queryTypeDef
+
+    /**
+     * Returns true if the given object type is the mutation root type in the schema.
+     */
+    internal fun ViaductSchema.Object.isMutationType(): Boolean = this === schema.mutationTypeDef
+
+    /**
+     * Returns true if the given object type is the subscription root type in the schema.
+     */
+    internal fun ViaductSchema.Object.isSubscriptionType(): Boolean = this === schema.subscriptionTypeDef
+
+    /**
+     * Returns true if the given object type is any root type (query, mutation, or subscription).
+     */
+    internal fun ViaductSchema.Object.isRootType(): Boolean = isQueryType() || isMutationType() || isSubscriptionType()
+
+    /**
+     * Initialize the schema for tests that call individual gen methods directly without going through [addAll].
+     * This is only for testing purposes.
+     */
+    internal fun initSchemaForTest(schema: ViaductSchema) {
+        this.schema = schema
+    }
+
     fun buildClassfiles(outputRoot: File) {
         if (!isLoaded) throw IllegalStateException("Must call addAll first.")
         kmClassFilesBuilder.buildClassfiles(outputRoot)
@@ -48,6 +83,7 @@ abstract class GRTClassFilesBuilderBase protected constructor(
 
     fun addAll(schema: ViaductSchema): GRTClassFilesBuilderBase {
         if (isLoaded) throw IllegalStateException("Can't call addAll twice.")
+        this.schema = schema
         setup()
         for (def in schema.types.values) {
             if (!def.isInShard) continue
@@ -126,7 +162,7 @@ abstract class GRTClassFilesBuilderBase protected constructor(
         baseTypeMapper.addSchemaGRTReference(def, fqn, kmClassFilesBuilder)
     }
 
-    // For testing
+    @TestingApi
     fun checkInvariants(
         check: InvariantChecker = InvariantChecker(),
         allowedSuperTypes: Set<KmName>

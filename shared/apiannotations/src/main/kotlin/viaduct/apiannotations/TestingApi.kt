@@ -19,7 +19,7 @@ import kotlin.annotation.AnnotationTarget.TYPEALIAS
  */
 @RequiresOptIn(
     message = "This API is intended for testing only. Do not use it from production code.",
-    level = Level.ERROR,
+    level = Level.WARNING,
 )
 @Retention(BINARY)
 @Target(

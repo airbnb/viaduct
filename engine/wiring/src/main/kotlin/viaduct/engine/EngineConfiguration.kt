@@ -14,10 +14,10 @@ import viaduct.engine.runtime.ViaductFragmentLoader
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.engine.runtime.fragment.ViaductExecutableFragmentParser
+import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.ResolverErrorReporter
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 /**
@@ -33,11 +33,11 @@ data class EngineConfiguration(
     val flagManager: FlagManager = FlagManager.default,
     @Suppress("DEPRECATION")
     val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default,
-    val resolverErrorReporter: ResolverErrorReporter = ResolverErrorReporter.NoOpResolverErrorReporter,
-    val resolverErrorBuilder: ResolverErrorBuilder = ResolverErrorBuilder.NoOpResolverErrorBuilder,
+    val resolverErrorReporter: ErrorReporter = ErrorReporter.NOOP,
+    val resolverErrorBuilder: ResolverErrorBuilder = ResolverErrorBuilder.NOOP,
     val dataFetcherExceptionHandler: DataFetcherExceptionHandler = ViaductDataFetcherExceptionHandler(
-        ResolverErrorReporter.NoOpResolverErrorReporter,
-        ResolverErrorBuilder.NoOpResolverErrorBuilder,
+        ErrorReporter.NOOP,
+        ResolverErrorBuilder.NOOP,
     ),
     val meterRegistry: MeterRegistry? = null,
     val additionalInstrumentation: Instrumentation? = null,

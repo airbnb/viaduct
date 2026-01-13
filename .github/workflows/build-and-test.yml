@@ -196,6 +196,10 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Install Python dependencies
+        if: always()
+        run: pip install -r .github/scripts/requirements.txt
+
       - name: Running Python Script Tests
         if: always()
         run: |

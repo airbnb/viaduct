@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.types.Arguments
 import viaduct.engine.api.VariablesResolver
@@ -18,6 +17,7 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.resolve
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.VariablesProviderContextImpl
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
 import viaduct.tenant.runtime.internal.InternalContextImpl
@@ -64,7 +64,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
 
     private fun mkFactory(): RequiredSelectionSetFactory =
         RequiredSelectionSetFactory(
-            MockGlobalIDCodec(),
+            GlobalIDCodecDefault,
             mockReflectionLoader("viaduct.api.bootstrap.test.grts"),
         )
 
@@ -92,7 +92,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
         ): VariablesProviderContext<Arguments> {
             val ic = InternalContextImpl(
                 engineExecutionContext.fullSchema,
-                MockGlobalIDCodec(),
+                GlobalIDCodecDefault,
                 mockReflectionLoader("viaduct.api.bootstrap.test.grts")
             )
             return VariablesProviderContextImpl(ic, requestContext, MockArguments())

@@ -14,7 +14,8 @@ class NaiveTenantCodeInjectorTests {
     fun `When good fixture then succeed`() {
         expectThat(subject.getProvider(GoodFixture::class.java).get())
             .isA<GoodFixture>()
-            .get { f }.isEqualTo(1)
+            .get { f }
+            .isEqualTo(1)
     }
 
     @Test

@@ -17,9 +17,18 @@ dependencies {
     // Your runtime helpers used by the plugin implementation (keep as needed)
     implementation(libs.viaduct.tenant.codegen)
     implementation(libs.viaduct.shared.graphql)
+    implementation(libs.viaduct.shared.viaductschema)
 
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)
+
+    // Serve runtime (development server with GraphiQL)
+    implementation(libs.viaduct.serve)
+
+    // Testing
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.junit)
+    testRuntimeOnly(libs.junit.engine)
 }
 
 // Manifest with Implementation-Version for runtime access if you need it

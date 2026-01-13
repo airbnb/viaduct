@@ -10,6 +10,7 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
+import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.defaultschema.DefaultSchemaPlugin
 import viaduct.gradle.utils.capitalize
 
@@ -242,6 +243,7 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
 
             this.schemaName.set("default")
             this.packageName.set(packageName)
+            this.buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             this.workerNumber.set(0)
             this.workerCount.set(1)
             this.includeIneligibleForTesting.set(true)
@@ -277,6 +279,7 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
 
             this.tenantName.set(tenantName)
             this.packageNamePrefix.set(tenantPackageName)
+            this.buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             this.schemaFiles.from(schemaFile)
             this.tenantFromSourceNameRegex.set("(.*)")
             this.modernModuleSrcDir.set(project.layout.buildDirectory.dir("generated-sources/featureapp/tenant/$featureAppName/modernmodule"))

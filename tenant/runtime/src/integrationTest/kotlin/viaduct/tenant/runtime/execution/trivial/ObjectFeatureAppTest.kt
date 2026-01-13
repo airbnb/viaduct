@@ -1,6 +1,5 @@
 package viaduct.tenant.runtime.execution.trivial
 
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
@@ -9,6 +8,18 @@ import viaduct.tenant.runtime.execution.trivial.resolverbases.NestedFooResolvers
 import viaduct.tenant.runtime.execution.trivial.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
+/**
+ * Feature tests for basic object resolution patterns.
+ *
+ * This tests:
+ * - Shorthand and fragment @Resolver patterns
+ * - Object builders
+ * - Field resolvers returning lists of objects
+ * - Field resolvers with arguments
+ *
+ * For ctx.query() / ctx.mutation() tests, see [SubqueryExecutionFeatureAppTest]
+ * and [RecursiveSubmutationFeatureAppTest].
+ */
 class ObjectFeatureAppTest : FeatureAppTestBase() {
     override var sdl = """
         | #START_SCHEMA
@@ -24,8 +35,6 @@ class ObjectFeatureAppTest : FeatureAppTestBase() {
         | }
         | extend type Query {
         |   greeting: Foo @resolver
-        |   selectionSetDemo: String @resolver
-        |   selectionSetShorthandDemo: String @resolver
         |   fooList: [Foo] @resolver
         |   nestedFooList: [NestedFoo] @resolver
         |   fooWithArgs(message: String, count: Int): Foo @resolver
@@ -51,60 +60,6 @@ class ObjectFeatureAppTest : FeatureAppTestBase() {
     @Resolver
     class NestedFoo_ValueResolver : NestedFooResolvers.Value() {
         override suspend fun resolve(ctx: Context) = "nested_value"
-    }
-
-    // This resolver demonstrates selectionsFor WITH FRAGMENT SYNTAX
-    @Resolver
-    class Query_SelectionSetDemoResolver : QueryResolvers.SelectionSetDemo() {
-        override suspend fun resolve(ctx: Context): String {
-            // selectionsFor with fragment syntax - this is the missing pattern!
-            val selections = ctx.selectionsFor(
-                Query.Reflection,
-                """
-                fragment _ on Query {
-                    greeting {
-                        baz
-                        nested {
-                            value
-                        }
-                    }
-                }
-                """
-            )
-
-            val result = ctx.query(selections)
-            val greeting = result.getGreeting()
-            val baz = greeting?.getBaz()
-            val nested = greeting?.getNested()
-
-            return "baz=$baz, nested.value=${nested?.getValue()}"
-        }
-    }
-
-    // This resolver demonstrates selectionsFor WITH SHORTHAND SYNTAX
-    @Resolver
-    class Query_SelectionSetShorthandDemoResolver : QueryResolvers.SelectionSetShorthandDemo() {
-        override suspend fun resolve(ctx: Context): String {
-            // selectionsFor with shorthand syntax - direct field selection without "fragment _ on"
-            val selections = ctx.selectionsFor(
-                Query.Reflection,
-                """
-                greeting {
-                    baz
-                    nested {
-                        value
-                    }
-                }
-                """
-            )
-
-            val result = ctx.query(selections)
-            val greeting = result.getGreeting()
-            val baz = greeting?.getBaz()
-            val nested = greeting?.getNested()
-
-            return "shorthand: baz=$baz, nested.value=${nested?.getValue()}"
-        }
     }
 
     // SHORTHAND PATTERN: Uses simple field name delegation
@@ -224,46 +179,6 @@ class ObjectFeatureAppTest : FeatureAppTestBase() {
                 "greeting" to {
                     "fragmentBar" to "world-nested_value"
                 }
-            }
-        }
-    }
-
-    @Test
-    @Disabled("selectionsFor requires proper query object setup - demonstrates pattern but will fail")
-    fun `selectionsFor with fragment syntax - demonstrates pattern but disabled`() {
-        // This test demonstrates selectionsFor WITH FRAGMENT SYNTAX - the missing pattern!
-        // It's disabled because selectionsFor requires a proper query object context.
-        // The resolver above shows the correct pattern with fragment syntax.
-
-        execute(
-            query = """
-                query {
-                    selectionSetDemo
-                }
-            """.trimIndent()
-        ).assertEquals {
-            "data" to {
-                "selectionSetDemo" to "baz=world, nested.value=nested_value"
-            }
-        }
-    }
-
-    @Test
-    @Disabled("selectionsFor requires proper query object setup - demonstrates pattern but will fail")
-    fun `selectionsFor with shorthand syntax - demonstrates pattern but disabled`() {
-        // This test demonstrates selectionsFor WITH SHORTHAND SYNTAX (no "fragment _ on")
-        // It's disabled because selectionsFor requires a proper query object context.
-        // This uses simple field selection like "greeting { baz }" directly.
-
-        execute(
-            query = """
-                query {
-                    selectionSetShorthandDemo
-                }
-            """.trimIndent()
-        ).assertEquals {
-            "data" to {
-                "selectionSetShorthandDemo" to "shorthand: baz=world, nested.value=nested_value"
             }
         }
     }

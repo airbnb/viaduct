@@ -2,6 +2,7 @@ package viaduct.engine.api
 
 import graphql.language.FragmentDefinition
 import graphql.schema.GraphQLObjectType
+import viaduct.service.api.spi.GlobalIDCodec
 
 /**
  * Request-scoped execution context used to pass contextual elements to tenant API implementations
@@ -25,11 +26,8 @@ interface EngineExecutionContext {
      * The GlobalIDCodec shared across all tenant-API implementations in this Viaduct instance.
      * This ensures that GlobalIDs serialized by one tenant module can be correctly deserialized
      * by another tenant module.
-     *
-     * Type: viaduct.service.api.spi.GlobalIDCodec
-     * (Untyped here to avoid circular dependency between engine.api and service.api)
      */
-    val globalIDCodec: Any
+    val globalIDCodec: GlobalIDCodec
 
     // Request-scoped: Per-request context set by Viaduct Service Engineers
     val requestContext: Any?
@@ -44,7 +42,7 @@ interface EngineExecutionContext {
      *
      * This handle is set automatically by the engine when execution begins. It allows
      * the engine to associate this context with the correct execution state when
-     * [query] or [mutation] is called.
+     * [executeSelectionSet] is called.
      *
      * ## Lifecycle
      *
@@ -128,7 +126,7 @@ interface EngineExecutionContext {
     /**
      * Interface representing an opaque handle representing an ongoing execution.
      *
-     * This handle enables subquery execution (e.g., [query], [mutation]) without tenant runtime
+     * This handle enables subquery execution (via [executeSelectionSet]) without tenant runtime
      * code needing to understand execution internals. The engine uses this handle to:
      * - Access the current execution's coroutine scope and error accumulator
      * - Maintain parent-child relationships for error attribution
@@ -139,26 +137,45 @@ interface EngineExecutionContext {
     interface ExecutionHandle
 
     /**
-     * For now, a wrapper around [rawSelectionsLoaderFactory].  Eventually will
-     * probably replace that.
-     * TODO(https://app.asana.com/1/150975571430/project/1208357307661305/task/1211071764227014):
-     *    is this the best way to pass [resolverId] instrumentaiton data?
+     * Executes a selection set against the engine with configurable options.
+     *
+     * This is the primary API for internal selection execution, providing control
+     * over operation type and memoization behavior.
+     *
+     * ## Three-Tier Architecture
+     *
+     * This method is the Engine API layer in the three-tier architecture:
+     * - **Tenant**: `ctx.query(SelectionSet<T>)` / `ctx.mutation(SelectionSet<T>)` - typed, simple
+     * - **Engine API**: `EEC.executeSelectionSet(...)` - flexible, for shims and engine internals
+     * - **Wiring**: `Engine.executeSelectionSet(...)` - implementation detail, only called by EEC
+     *
+     * ## Execution Handle Requirements
+     *
+     * If [ExecuteSelectionSetOptions.targetResult] is set, this method requires:
+     * - a non-null [executionHandle], and
+     * - the `ENABLE_SUBQUERY_EXECUTION_VIA_HANDLE` flag to be enabled.
+     *
+     * If these conditions are not met, it will **fail fast** with [SubqueryExecutionException]
+     * rather than silently degrading behavior.
+     *
+     * For basic execution (default options with [ExecuteSelectionSetOptions.targetResult] == null),
+     * this method may fall back to the legacy [RawSelectionsLoader] path when the handle-based
+     * path is unavailable.
+     *
+     * @param resolverId Identifier for instrumentation and tracing
+     * @param selectionSet The [RawSelectionSet] containing the fields to resolve
+     * @param options Execution options controlling behavior. Default executes as a Query.
+     * @return The resolved [EngineObjectData]
+     * @throws SubqueryExecutionException if [ExecuteSelectionSetOptions.targetResult] is requested
+     *         but handle-based execution is not available, the schema doesn't support the
+     *         requested operation type, or field resolution fails
+     * @see ExecuteSelectionSetOptions For available options
      */
-    suspend fun query(
+    suspend fun executeSelectionSet(
         resolverId: String,
-        selections: RawSelectionSet
-    ): EngineObjectData = rawSelectionsLoaderFactory.forQuery(resolverId).load(selections)
-
-    /**
-     * For now, a wrapper around [rawSelectionsLoaderFactory].  Eventually will
-     * probably replace that.
-     * TODO(https://app.asana.com/1/150975571430/project/1208357307661305/task/1211071764227014):
-     *    is this the best way to pass [resolverId] instrumentaiton data?
-     */
-    suspend fun mutation(
-        resolverId: String,
-        selections: RawSelectionSet
-    ): EngineObjectData = rawSelectionsLoaderFactory.forMutation(resolverId).load(selections)
+        selectionSet: RawSelectionSet,
+        options: ExecuteSelectionSetOptions = ExecuteSelectionSetOptions.DEFAULT,
+    ): EngineObjectData
 
     fun createNodeReference(
         id: String,

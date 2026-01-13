@@ -1,6 +1,5 @@
 package viaduct.engine.runtime
 
-import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
@@ -10,10 +9,11 @@ import viaduct.engine.api.EngineObjectData
  * Dispatch the access checker execution to the appropriate executor.
  */
 class CheckerDispatcherImpl(
-    private val executor: CheckerExecutor
+    private val checkerExecutor: CheckerExecutor
 ) : CheckerDispatcher {
-    override val requiredSelectionSets = executor.requiredSelectionSets
-    override val checkerMetadata = executor.checkerMetadata
+    override val requiredSelectionSets = checkerExecutor.requiredSelectionSets
+    override val checkerMetadata = checkerExecutor.checkerMetadata
+    override val executor = checkerExecutor
 
     override suspend fun execute(
         arguments: Map<String, Any?>,
@@ -21,6 +21,6 @@ class CheckerDispatcherImpl(
         context: EngineExecutionContext,
         checkerType: CheckerExecutor.CheckerType
     ): CheckerResult {
-        return executor.execute(arguments, objectDataMap, context, checkerType)
+        return checkerExecutor.execute(arguments, objectDataMap, context, checkerType)
     }
 }

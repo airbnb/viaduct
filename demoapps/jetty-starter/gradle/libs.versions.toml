@@ -15,6 +15,10 @@ viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", ver
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
 
 [libraries]
+viaduct-bom = { group = "com.airbnb.viaduct", name = "bom", version.ref = "viaduct" }
+viaduct-api = { group = "com.airbnb.viaduct", name = "api" }
+viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime" }
+viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures" }
 jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version.ref = "jackson" }
 jakarta-servlet-api = { group = "jakarta.servlet", name = "jakarta.servlet-api", version.ref = "jakarta" }
 jetty-server = { group = "org.eclipse.jetty", name = "jetty-server", version.ref = "jetty" }
@@ -23,5 +27,6 @@ junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.r
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junit-platform" }
 kotest-assertions-core = { group = "io.kotest", name = "kotest-assertions-core-jvm", version.ref = "kotest" }
 kotest-assertions-json = { group = "io.kotest", name = "kotest-assertions-json-jvm", version.ref = "kotest" }
+kotest-common = { group = "io.kotest", name = "kotest-common", version.ref = "kotest" }
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 httpclient5 = { group = "org.apache.httpcomponents.client5", name = "httpclient5", version.ref = "httpclient" }

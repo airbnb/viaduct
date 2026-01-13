@@ -25,6 +25,7 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.QueryPlanExecutionCondition
 import viaduct.engine.api.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
+import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.VariablesResolver
@@ -294,6 +295,50 @@ data class QueryPlan(
             } else {
                 build()
             }
+        }
+
+        /**
+         * Builds a [QueryPlan] from a [RawSelectionSet] for subquery execution.
+         *
+         * This method extracts the graphql-java AST directly from the RawSelectionSet
+         * without re-parsing. The [RawSelectionSet.toSelectionSet] method inlines all
+         * fragment spreads, so no fragment definitions are needed.
+         *
+         * @param parameters The parameters containing the schema and registry.
+         * @param rss The RawSelectionSet containing the selections to execute.
+         * @param attribution Attribution for this query plan execution.
+         * @param executionCondition Condition under which this plan should execute.
+         * @return A new [QueryPlan] instance.
+         * @throws IllegalArgumentException if rss is empty
+         */
+        suspend fun buildFromSelections(
+            parameters: Parameters,
+            rss: RawSelectionSet,
+            attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
+            executionCondition: QueryPlanExecutionCondition = ALWAYS_EXECUTE
+        ): QueryPlan {
+            if (rss.isEmpty()) {
+                throw IllegalArgumentException("RawSelectionSet.Empty is not supported for subquery execution")
+            }
+
+            val gjSelectionSet = rss.toSelectionSet()
+            val parentType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(rss.type)
+
+            val queryText = rss.printAsFieldSet()
+            // DocumentKey is part of the cache key alongside queryText, so we just need
+            // a stable identifier that distinguishes subqueries from regular operations.
+            // The parentType name provides useful context for debugging.
+            val documentKey = DocumentKey.Fragment("subquery:${parentType.name}")
+
+            return build(
+                parameters = parameters.copy(query = queryText, executionCondition = executionCondition),
+                selectionSet = gjSelectionSet,
+                documentKey = documentKey,
+                parentType = parentType,
+                fragmentsByName = emptyMap(),
+                useCache = true,
+                attribution = attribution
+            )
         }
     }
 }

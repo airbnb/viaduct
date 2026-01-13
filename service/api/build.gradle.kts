@@ -7,6 +7,7 @@ plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     id("conventions.dokka")
+    id("conventions.bcv-api")
 }
 
 viaductPublishing {
@@ -20,8 +21,11 @@ dependencies {
     implementation(libs.graphql.java)
 
     /** Viaduct dependencies **/
-    implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.apiannotations)
+    implementation(libs.viaduct.shared.graphql)
+
+    /** Test fixtures dependencies **/
+    testFixturesImplementation(libs.viaduct.engine.api)
 
     /** Test dependencies - External **/
     testImplementation(libs.io.mockk.jvm)

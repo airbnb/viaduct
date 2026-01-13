@@ -16,8 +16,10 @@ viaductPublishing {
 dependencies {
     /** Viaduct dependencies **/
     implementation(libs.viaduct.engine.api)
+    implementation(libs.viaduct.service.api)
     implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.shared.mapping)
+    implementation(libs.viaduct.shared.apiannotations)
 
     /** External dependencies **/
     implementation(libs.graphql.java)
@@ -31,6 +33,8 @@ dependencies {
 
     /** Test fixtures - External dependencies **/
     testFixturesApi(libs.junit)
+    testFixturesImplementation(libs.io.mockk.jvm)
+    testFixturesRuntimeOnly(libs.kotlin.reflect)
 
     /** Test dependencies - Viaduct **/
     testImplementation(testFixtures(libs.viaduct.shared.mapping))

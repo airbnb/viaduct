@@ -283,6 +283,12 @@ private fun checkMiscInvariants(
     if (def is ViaductSchema.TypeDef) {
         val isSimple = def is ViaductSchema.Scalar || def is ViaductSchema.Enum
         check.isEqualTo(isSimple, def.isSimple, "CORRECT_IS_SIMPLE")
+        val isComposite = def is ViaductSchema.Object || def is ViaductSchema.Interface || def is ViaductSchema.Union
+        check.isEqualTo(isComposite, def.isComposite, "CORRECT_IS_COMPOUND")
+        val isInput = def is ViaductSchema.Input
+        check.isEqualTo(isInput, def.isInput, "CORRECT_IS_INPUT")
+        val isOutput = def !is ViaductSchema.Input
+        check.isEqualTo(isOutput, def.isOutput, "CORRECT_IS_OUTPUT")
         when (def) {
             is ViaductSchema.Enum -> check.isEqualTo(ViaductSchema.TypeDefKind.ENUM, def.kind, "CORRECT_ENUM")
             is ViaductSchema.Input -> check.isEqualTo(ViaductSchema.TypeDefKind.INPUT, def.kind, "CORRECT_INPUT")

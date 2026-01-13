@@ -7,6 +7,7 @@ import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.register
+import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.defaultschema.DefaultSchemaPlugin
 import viaduct.gradle.utils.capitalize
 
@@ -97,6 +98,7 @@ abstract class ViaductClassDiffPlugin : Plugin<Project> {
             description = "Generates schema objects for schema diff '${schemaDiff.name}'"
             schemaName.set("default")
             packageName.set(schemaDiff.actualPackage.get())
+            buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             workerNumber.set(0)
             workerCount.set(1)
             includeIneligibleForTesting.set(true)
@@ -121,6 +123,7 @@ abstract class ViaductClassDiffPlugin : Plugin<Project> {
             description = "Generates Kotlin GRTs for schema diff '${schemaDiff.name}'"
             this.schemaFiles.from(schemaFiles)
             packageName.set(pkg)
+            buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             generatedSrcDir.set(project.layout.buildDirectory.dir("$GENERATED_SOURCES_PATH/$pkgPath"))
             dependsOn("processResources")
             doFirst { generatedSrcDir.get().asFile.mkdirs() }

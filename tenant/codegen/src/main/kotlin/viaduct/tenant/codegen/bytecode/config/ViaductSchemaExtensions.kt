@@ -5,6 +5,7 @@ import kotlinx.metadata.KmType
 import kotlinx.metadata.KmTypeProjection
 import kotlinx.metadata.KmVariance
 import kotlinx.metadata.isNullable
+import viaduct.apiannotations.TestingApi
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
@@ -126,8 +127,9 @@ fun ViaductSchema.TypeExpr.baseTypeKmType(
 
 /**
  * Returns true iff [ViaductSchema.HasDefaultValue.viaductDefaultValue]
- * would _not_ throw an exception.  (Public for test generator.)
+ * would _not_ throw an exception. (Public for test generator.)
  */
+@TestingApi
 val ViaductSchema.HasDefaultValue.hasViaductDefaultValue get() = type.isNullable
 
 /**
@@ -158,8 +160,31 @@ fun ViaductSchema.TypeDef.hashForSharding(): Int {
     return if (0 <= h) h else -h
 }
 
-fun ViaductSchema.Object.isEligible(baseTypeMapper: BaseTypeMapper): Boolean {
-    if (name == "Query" || name == "Mutation") return true
+@TestingApi
+fun ViaductSchema.Object.isEligible(baseTypeMapper: BaseTypeMapper): Boolean = isEligible(baseTypeMapper, schema = null)
+
+fun ViaductSchema.Object.isEligible(
+    baseTypeMapper: BaseTypeMapper,
+    schema: ViaductSchema?
+): Boolean {
+    // Root types (Query, Mutation, Subscription) are always eligible
+    if (schema != null) {
+        if (this === schema.queryTypeDef || this === schema.mutationTypeDef || this === schema.subscriptionTypeDef) {
+            return true
+        }
+    } else {
+        // When schema is not provided, check against conventional and likely custom root type patterns
+        // This handles both standard names (Query, Mutation, Subscription) and custom names that are
+        // actual root types in schemas with custom schema definitions
+        val nativeTypes = cfg.nativeGraphQLTypeToKmName(baseTypeMapper)
+        // Root types in nativeGraphQLTypeToKmName include Query and Mutation but not Subscription,
+        // so we need explicit handling. Any type that's a native type BUT is Query/Mutation should be eligible.
+        // However, we can't distinguish custom root types from regular types without schema context.
+        // The safest approach: if it's not in nativeTypes OR it's Query/Mutation/Subscription, it's eligible.
+        if (name in setOf("Query", "Mutation", "Subscription")) {
+            return true
+        }
+    }
 
     // PagedConnection types are generated via Kotlin src codegen (ConnectionTypeGenerator)
     return !isPagedConnection &&
@@ -176,6 +201,7 @@ val ViaductSchema.TypeDef.isPagedConnection
  * arguments to fields where the parent has none.  This is a feature
  * we can't support in Kotlin, so here we're scanning for this use case.
  */
+@TestingApi
 fun ViaductSchema.Interface.noArgsAnywhere(fieldName: String): Boolean {
     if (this.field(fieldName)!!.hasArgs) return false
 

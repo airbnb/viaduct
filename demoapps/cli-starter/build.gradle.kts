@@ -9,13 +9,20 @@ plugins {
 
 viaductApplication {
     modulePackagePrefix.set("com.example.viadapp")
+    // Disable automatic BOM/dependency injection - we manage dependencies explicitly
+    applyBOM.set(false)
 }
 
 viaductModule {
     modulePackageSuffix.set("resolvers")
+    // Disable automatic BOM/dependency injection - we manage dependencies explicitly
+    applyBOM.set(false)
 }
 
 dependencies {
+    implementation(libs.viaduct.api)
+    implementation(libs.viaduct.runtime)
+
     implementation(libs.logback.classic)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.jackson.databind)
@@ -24,6 +31,9 @@ dependencies {
     testImplementation(libs.junit.jupiter.engine)
     testImplementation(libs.junit.platform.launcher)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // Use test fixtures bundle
+    testImplementation(libs.viaduct.test.fixtures)
 }
 
 application {

@@ -7,7 +7,7 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldComplete
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
-import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
@@ -130,11 +130,11 @@ class OptimizedChainedInstrumentation(
     }
 
     override fun instrumentAccessCheck(
-        checkerDispatcher: CheckerDispatcher,
+        checkerExecutor: CheckerExecutor,
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?
-    ): CheckerDispatcher {
-        var instrumentedChecker = checkerDispatcher
+    ): CheckerExecutor {
+        var instrumentedChecker = checkerExecutor
         for (instr in instrumentAccessCheckInstrumentations) {
             instrumentedChecker = instr.instrumentAccessCheck(instrumentedChecker, parameters, getState(instr, state))
         }

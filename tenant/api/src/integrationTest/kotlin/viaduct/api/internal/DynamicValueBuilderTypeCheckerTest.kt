@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.ViaductTenantUsageException
-import viaduct.api.mocks.MockGlobalID
+import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.api.schemautils.SchemaUtils
@@ -149,7 +149,7 @@ class DynamicValueBuilderTypeCheckerTest {
     @Test
     fun testGlobalIDType() {
         val idField = userType.getField("id")
-        val globalId = MockGlobalID(TestUser.Reflection, "456")
+        val globalId = GlobalIDImpl(TestUser.Reflection, "456")
         val context = DynamicValueBuilderTypeChecker.FieldContext(idField, userType)
         checker.checkType(idField.type, globalId, context)
 

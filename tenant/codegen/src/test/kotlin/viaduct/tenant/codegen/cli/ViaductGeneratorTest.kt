@@ -12,6 +12,8 @@ import io.mockk.slot
 import io.mockk.unmockkAll
 import io.mockk.verify
 import java.io.File
+import java.io.FileOutputStream
+import kotlin.io.writeText
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import viaduct.graphql.schema.binary.writeBSchema
 import viaduct.graphql.schema.graphqljava.GJSchemaRaw
 import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.tenant.codegen.kotlingen.Args
@@ -30,6 +33,8 @@ class ViaductGeneratorTest {
     @TempDir
     private lateinit var tempDir: File
     private lateinit var schemaFile: File
+    private lateinit var binarySchemaFile: File
+    private lateinit var flagFile: File
     private lateinit var modernModuleGeneratedDir: File
     private lateinit var modernModuleOutputArchive: File
     private lateinit var metainfGeneratedDir: File
@@ -41,12 +46,26 @@ class ViaductGeneratorTest {
     @BeforeEach
     fun setup() {
         clearAllMocks()
-
-        schemaFile = File(tempDir, "schema.graphql").apply {
+        val sdl = "type Query { hello: String }"
+        binarySchemaFile = File(tempDir, "schema.bgql").apply {
             createNewFile()
-            writeText("type Query { hello: String }")
+        }
+        schemaFile = File(tempDir, "schema.gql").apply {
+            createNewFile()
         }
 
+        flagFile = File(tempDir, "viaduct_build_flags.bzl").apply {
+            createNewFile()
+        }
+        schemaFile.writeText(sdl)
+        flagFile.writeText(
+            """
+                viaduct_build_flags = {
+                    "enable_binary_schema": "True",
+                }
+            """.trimIndent()
+        )
+        writeBSchema(GJSchemaRaw.fromSDL(sdl), FileOutputStream(binarySchemaFile))
         modernModuleGeneratedDir = File(tempDir, "modern_module_generated").apply { mkdirs() }
         metainfGeneratedDir = File(tempDir, "metainf_generated").apply { mkdirs() }
         resolverGeneratedDir = File(tempDir, "resolver_generated").apply { mkdirs() }
@@ -104,6 +123,8 @@ class ViaductGeneratorTest {
                 listOf("--metainf_generated_directory", metainfGeneratedDir.absolutePath) +
                 listOf("--resolver_generated_directory", resolverGeneratedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
+                listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                listOf("--flag_file", flagFile.absolutePath) +
                 listOf("--tenant_package_prefix", "com.test")
         )
 
@@ -137,6 +158,8 @@ class ViaductGeneratorTest {
                 listOf("--metainf_generated_directory", metainfGeneratedDir.absolutePath) +
                 listOf("--resolver_generated_directory", resolverGeneratedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
+                listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                listOf("--flag_file", flagFile.absolutePath) +
                 listOf("--tenant_package_prefix", "com.test") +
                 listOf("--tenant_package_prefix_in_file", tenantPackagePrefixFile.absolutePath)
         )
@@ -160,6 +183,8 @@ class ViaductGeneratorTest {
                 listOf("--metainf_generated_directory", metainfGeneratedDir.absolutePath) +
                 listOf("--resolver_generated_directory", resolverGeneratedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
+                listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                listOf("--flag_file", flagFile.absolutePath) +
                 listOf("--tenant_package_prefix", "com.test") +
                 listOf("--isFeatureAppTest")
         )
@@ -179,6 +204,8 @@ class ViaductGeneratorTest {
                 listOf("--metainf_generated_directory", metainfGeneratedDir.absolutePath) +
                 listOf("--resolver_generated_directory", resolverGeneratedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
+                listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                listOf("--flag_file", flagFile.absolutePath) +
                 listOf("--tenant_package_prefix", "com.test") +
                 listOf("--tenant_from_source_name_regex", "test_regex")
         )
@@ -197,34 +224,10 @@ class ViaductGeneratorTest {
                     listOf("--metainf_generated_directory", metainfGeneratedDir.absolutePath) +
                     listOf("--resolver_generated_directory", resolverGeneratedDir.absolutePath) +
                     listOf("--schema_files", schemaFile.absolutePath) +
+                    listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                    listOf("--flag_file", flagFile.absolutePath) +
                     listOf("--tenant_package_prefix", "com.test")
             )
-        }
-    }
-
-    @Test
-    fun `test multiple schema files`() {
-        val schemaFile2 = File(tempDir, "schema2.graphql").apply {
-            createNewFile()
-            writeText("type Mutation { update: String }")
-        }
-        val filesSlot = slot<List<File>>()
-        every { readTypesFromFiles(capture(filesSlot)) } returns mockk()
-
-        ViaductGenerator().main(
-            listOf("--tenant_pkg", "test_tenant") +
-                listOf("--modern_module_generated_directory", modernModuleGeneratedDir.absolutePath) +
-                listOf("--metainf_generated_directory", metainfGeneratedDir.absolutePath) +
-                listOf("--resolver_generated_directory", resolverGeneratedDir.absolutePath) +
-                listOf("--schema_files", "${schemaFile.absolutePath},${schemaFile2.absolutePath}") +
-                listOf("--tenant_package_prefix", "com.test")
-        )
-
-        verify { readTypesFromFiles(any()) }
-        with(filesSlot.captured) {
-            assertEquals(2, size)
-            assertTrue(contains(schemaFile))
-            assertTrue(contains(schemaFile2))
         }
     }
 
@@ -236,6 +239,8 @@ class ViaductGeneratorTest {
                 listOf("--metainf_generated_directory", metainfGeneratedDir.absolutePath) +
                 listOf("--resolver_generated_directory", resolverGeneratedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
+                listOf("--binary_schema_file", binarySchemaFile.absolutePath) +
+                listOf("--flag_file", flagFile.absolutePath) +
                 listOf("--tenant_package_prefix", "com.test") +
                 listOf("--tenant_from_source_name_regex", "\"quoted_regex\"")
         )

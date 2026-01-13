@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.CheckerDispatcher
+import viaduct.engine.api.CheckerExecutor
 
 class ViaductInstrumentationAdapterTest {
     class TestModernInstrumentation :
@@ -95,12 +95,12 @@ class ViaductInstrumentationAdapterTest {
         }
 
         override fun instrumentAccessCheck(
-            checkerDispatcher: CheckerDispatcher,
+            checkerExecutor: CheckerExecutor,
             parameters: InstrumentationExecutionStrategyParameters,
             state: InstrumentationState?
-        ): CheckerDispatcher {
+        ): CheckerExecutor {
             instrumentAccessCheckCalled = true
-            return checkerDispatcher
+            return checkerExecutor
         }
     }
 

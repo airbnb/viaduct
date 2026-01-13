@@ -6,11 +6,11 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import java.util.function.Supplier
-import viaduct.engine.api.CheckerDispatcher
 import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.combine
 import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
@@ -172,7 +172,7 @@ class AccessCheckRunner(
             dataFetchingEnvironment = dataFetchingEnvironmentSupplier.get()
         )
         val instrumentedDispatcher = parameters.instrumentation.instrumentAccessCheck(
-            dispatcher,
+            dispatcher.executor,
             InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters),
             parameters.executionContext.instrumentationState
         )

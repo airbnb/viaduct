@@ -11,8 +11,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.spi.Flag
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.FlagManager.Flag
 
 /**
  * Tests that introspection results are properly filtered by scope.

@@ -11,7 +11,7 @@ import graphql.language.Selection as GJSelection
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.TypeName
 import viaduct.engine.api.ParsedSelections
-import viaduct.engine.api.select.Constants.EntryPointFragmentName
+import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
 
 data class ParsedSelectionsImpl(
     override val typeName: String,

@@ -7,13 +7,13 @@ import viaduct.api.ViaductTenantUsageException
 import viaduct.api.context.ExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.codegen.km.getterName
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.tenant.codegen.bytecode.config.cfg
 
@@ -41,8 +41,8 @@ private suspend fun Exerciser.exerciseBuilderRoundtrip(
     val objClazz = classResolver.mainClassFor(expected.name)
     val objCtor = objClazz.constructors.firstOrNull {
         it.parameterCount == 2 &&
-            it.parameterTypes[0] == InternalContext::class.java
-        it.parameterTypes[1] == EngineObject::class.java
+            it.parameterTypes[0] == InternalContext::class.java &&
+            it.parameterTypes[1] == EngineObject::class.java
     }
     check.isNotNull(objCtor, "OBJECT_CONSTRUCTOR")
     objCtor ?: return
@@ -57,7 +57,7 @@ private suspend fun Exerciser.exerciseBuilderRoundtrip(
     val builder = builderCtor.newInstance(
         MockInternalContext(
             schema,
-            MockGlobalIDCodec(),
+            GlobalIDCodecDefault,
             reflectionLoaderForClassResolver(classResolver)
         ).executionContext
     )
@@ -126,7 +126,7 @@ private suspend fun Exerciser.exerciseBuilderRoundtrip(
                     listDepth(actValue),
                     "OBJECT_GETTER_LIST_DEPTH:$fName"
                 )
-            } else if (field.type.baseTypeDef is ViaductSchema.CompositeOutput) {
+            } else if (field.type.baseTypeDef.isComposite) {
                 check.isEqualTo(
                     (expValue as ObjectBase).engineObject,
                     (actValue as ObjectBase).engineObject,

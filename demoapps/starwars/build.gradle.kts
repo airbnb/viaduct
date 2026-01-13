@@ -9,6 +9,8 @@ plugins {
 viaductApplication {
     grtPackageName.set("viaduct.api.grts")
     modulePackagePrefix.set("com.example.starwars")
+    // Disable automatic BOM/dependency injection - we manage dependencies explicitly
+    applyBOM.set(false)
 }
 
 micronaut {
@@ -26,11 +28,13 @@ configurations.all {
 }
 
 dependencies {
+    implementation(libs.viaduct.api)
+    implementation(libs.viaduct.runtime)
+
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.reactor)
     implementation(libs.reactor.core)
-    implementation(libs.micronaut.graphql)
     implementation(libs.micronaut.http.server.netty)
     implementation(libs.micronaut.jackson.databind)
     implementation(libs.micronaut.inject)
@@ -58,6 +62,7 @@ dependencies {
     testImplementation(libs.viaduct.engine.wiring)
     testImplementation(libs.micronaut.http.client)
     testImplementation(testFixtures(libs.viaduct.tenant.api))
+    testImplementation(testFixtures(libs.viaduct.tenant.runtime))
 }
 
 application {

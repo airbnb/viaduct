@@ -1,45 +1,101 @@
 import unittest
+from unittest.mock import patch, MagicMock
+
+from semantic_release.commit_parser.conventional import ConventionalCommitParser
+from semantic_release.enums import LevelBump
+
 import sys
 from pathlib import Path
 
 # Add parent directory to path so we can import the module
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from generate_changelog import extract_username_from_email, extract_username, format_entry, clean_commit_message, should_include_entry
+from generate_changelog import (
+    extract_username_from_email,
+    extract_username_from_coauthor,
+    clean_commit_message,
+    replace_airbnb_marker,
+    should_include_commit,
+    extract_authors,
+    parse_commit,
+    group_entries_by_type,
+    render_section,
+    render_breaking_changes,
+    generate_changelog,
+    CommitInfo,
+    ChangelogEntry,
+    BOT_USERNAMES,
+)
 
 
-class TestShouldIncludeEntry(unittest.TestCase):
-    def test_includes_normal_commit(self):
-        entry = "Fix bug in parser by AUTHOR_STARTjohn.doe@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        self.assertTrue(should_include_entry(entry))
+class TestExtractUsernameFromEmail(unittest.TestCase):
+    def test_valid_email(self):
+        self.assertEqual(extract_username_from_email("john.doe@example.com"), "@john.doe")
 
-    def test_includes_feat_commit(self):
-        entry = "feat: add new feature by AUTHOR_STARTjohn.doe@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        self.assertTrue(should_include_entry(entry))
+    def test_email_with_plus(self):
+        self.assertEqual(extract_username_from_email("john+test@example.com"), "@john+test")
 
-    def test_excludes_ignore_lowercase(self):
-        entry = "ignore: test commit by AUTHOR_STARTjohn.doe@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        self.assertFalse(should_include_entry(entry))
+    def test_empty_email(self):
+        self.assertIsNone(extract_username_from_email(""))
 
-    def test_excludes_ignore_uppercase(self):
-        entry = "IGNORE: experimental change by AUTHOR_STARTjohn.doe@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        self.assertFalse(should_include_entry(entry))
+    def test_none_email(self):
+        self.assertIsNone(extract_username_from_email(None))
 
-    def test_excludes_ignore_mixed_case(self):
-        entry = "Ignore: testing feature by AUTHOR_STARTjohn.doe@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        self.assertFalse(should_include_entry(entry))
+    def test_noreply_email(self):
+        self.assertIsNone(extract_username_from_email("noreply@github.com"))
 
-    def test_includes_commit_with_ignore_in_middle(self):
-        entry = "Fix: ignore whitespace in parser by AUTHOR_STARTjohn.doe@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        self.assertTrue(should_include_entry(entry))
+    def test_no_reply_email(self):
+        self.assertIsNone(extract_username_from_email("no-reply@github.com"))
 
-    def test_handles_entry_without_author_marker(self):
-        entry = "Some commit without proper format"
-        self.assertTrue(should_include_entry(entry))
+    def test_github_actions_email(self):
+        self.assertIsNone(extract_username_from_email("github-actions@github.com"))
 
-    def test_includes_commit_with_ignore_after_description(self):
-        entry = "feat: new feature (ignore old implementation) by AUTHOR_STARTjohn.doe@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        self.assertTrue(should_include_entry(entry))
+    def test_viaductbot_email(self):
+        self.assertIsNone(extract_username_from_email("viaductbot@airbnb.com"))
+
+    def test_invalid_email_no_at(self):
+        self.assertIsNone(extract_username_from_email("notanemail"))
+
+    def test_email_with_dash(self):
+        self.assertEqual(extract_username_from_email("john-doe@example.com"), "@john-doe")
+
+    def test_email_with_underscore(self):
+        self.assertEqual(extract_username_from_email("john_doe@example.com"), "@john_doe")
+
+
+class TestExtractUsernameFromCoauthor(unittest.TestCase):
+    def test_valid_co_author_line(self):
+        self.assertEqual(
+            extract_username_from_coauthor("John Doe <john.doe@example.com>"),
+            "@john.doe"
+        )
+
+    def test_co_author_with_full_name(self):
+        self.assertEqual(
+            extract_username_from_coauthor("Jane Smith <jane.smith@company.com>"),
+            "@jane.smith"
+        )
+
+    def test_noreply_co_author(self):
+        self.assertIsNone(extract_username_from_coauthor("GitHub <noreply@github.com>"))
+
+    def test_github_actions_co_author(self):
+        self.assertIsNone(extract_username_from_coauthor("Actions Bot <github-actions@github.com>"))
+
+    def test_viaductbot_co_author(self):
+        self.assertIsNone(extract_username_from_coauthor("Viaduct Bot <viaductbot@airbnb.com>"))
+
+    def test_invalid_format_no_email(self):
+        self.assertIsNone(extract_username_from_coauthor("John Doe"))
+
+    def test_email_only(self):
+        self.assertEqual(extract_username_from_coauthor("<alice@example.com>"), "@alice")
+
+    def test_co_author_with_plus_in_email(self):
+        self.assertEqual(
+            extract_username_from_coauthor("Bob <bob+test@example.com>"),
+            "@bob+test"
+        )
 
 
 class TestCleanCommitMessage(unittest.TestCase):
@@ -87,196 +143,303 @@ class TestCleanCommitMessage(unittest.TestCase):
         self.assertNotIn("GITHUB-CHANGE-ID", result)
 
 
-class TestExtractUsernameFromEmail(unittest.TestCase):
-    def test_valid_email(self):
-        self.assertEqual(extract_username_from_email("john.doe@example.com"), "@john.doe")
+class TestReplaceAirbnbMarker(unittest.TestCase):
+    def test_replaces_airbnb_lowercase(self):
+        result = replace_airbnb_marker("Fix bug (airbnb)", "abc123")
+        self.assertEqual(result, "Fix bug (abc123)")
 
-    def test_email_with_plus(self):
-        self.assertEqual(extract_username_from_email("john+test@example.com"), "@john+test")
+    def test_replaces_airbnb_uppercase(self):
+        result = replace_airbnb_marker("Update feature (AIRBNB)", "def456")
+        self.assertEqual(result, "Update feature (def456)")
 
-    def test_empty_email(self):
-        self.assertEqual(extract_username_from_email(""), "")
+    def test_replaces_airbnb_mixed_case(self):
+        result = replace_airbnb_marker("Add endpoint (AirBnB)", "789abc")
+        self.assertEqual(result, "Add endpoint (789abc)")
 
-    def test_noreply_email(self):
-        self.assertEqual(extract_username_from_email("noreply@github.com"), "")
-
-    def test_no_reply_email(self):
-        self.assertEqual(extract_username_from_email("no-reply@github.com"), "")
-
-    def test_github_actions_email(self):
-        self.assertEqual(extract_username_from_email("github-actions@github.com"), "")
-
-    def test_viaductbot_email(self):
-        self.assertEqual(extract_username_from_email("viaductbot@airbnb.com"), "")
-
-    def test_invalid_email_no_at(self):
-        self.assertEqual(extract_username_from_email("notanemail"), "")
-
-    def test_email_with_dash(self):
-        self.assertEqual(extract_username_from_email("john-doe@example.com"), "@john-doe")
-
-    def test_email_with_underscore(self):
-        self.assertEqual(extract_username_from_email("john_doe@example.com"), "@john_doe")
+    def test_no_airbnb_marker(self):
+        result = replace_airbnb_marker("Fix normal bug", "123456")
+        self.assertEqual(result, "Fix normal bug")
+        self.assertNotIn("123456", result)
 
 
-class TestExtractUsername(unittest.TestCase):
-    def test_valid_co_author_line(self):
-        self.assertEqual(
-            extract_username("John Doe <john.doe@example.com>"),
-            "@john.doe"
-        )
+class TestShouldIncludeCommit(unittest.TestCase):
+    def test_includes_normal_commit(self):
+        self.assertTrue(should_include_commit("Fix bug in parser"))
 
-    def test_co_author_with_full_name(self):
-        self.assertEqual(
-            extract_username("Jane Smith <jane.smith@company.com>"),
-            "@jane.smith"
-        )
+    def test_includes_feat_commit(self):
+        self.assertTrue(should_include_commit("feat: add new feature"))
 
-    def test_noreply_co_author(self):
-        self.assertEqual(
-            extract_username("GitHub <noreply@github.com>"),
-            ""
-        )
+    def test_excludes_ignore_lowercase(self):
+        self.assertFalse(should_include_commit("ignore: test commit"))
 
-    def test_github_actions_co_author(self):
-        self.assertEqual(
-            extract_username("Actions Bot <github-actions@github.com>"),
-            ""
-        )
+    def test_excludes_ignore_uppercase(self):
+        self.assertFalse(should_include_commit("IGNORE: experimental change"))
 
-    def test_viaductbot_co_author(self):
-        self.assertEqual(
-            extract_username("Viaduct Bot <viaductbot@airbnb.com>"),
-            ""
-        )
+    def test_excludes_ignore_mixed_case(self):
+        self.assertFalse(should_include_commit("Ignore: testing feature"))
 
-    def test_invalid_format_no_email(self):
-        self.assertEqual(extract_username("John Doe"), "")
-
-    def test_email_only(self):
-        self.assertEqual(
-            extract_username("<alice@example.com>"),
-            "@alice"
-        )
-
-    def test_co_author_with_plus_in_email(self):
-        self.assertEqual(
-            extract_username("Bob <bob+test@example.com>"),
-            "@bob+test"
-        )
+    def test_includes_commit_with_ignore_in_middle(self):
+        self.assertTrue(should_include_commit("Fix: ignore whitespace in parser"))
 
 
-class TestFormatEntry(unittest.TestCase):
+class TestExtractAuthors(unittest.TestCase):
     def test_single_author_no_coauthors(self):
-        entry = "SHA_STARTabc123SHA_END Fix bug in parser by AUTHOR_STARTjohn.doe@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Fix bug in parser by @john.doe")
+        commit = CommitInfo(
+            sha="abc123",
+            message="Fix bug",
+            body='',
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        authors = extract_authors(commit)
+        self.assertEqual(authors, ["@john.doe"])
 
     def test_author_with_single_coauthor(self):
-        entry = "SHA_STARTabc123SHA_END Add new feature by AUTHOR_STARTjohn.doe@example.comAUTHOR_END CO_AUTHORS_STARTJane Smith <jane.smith@example.com>CO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Add new feature by @john.doe, @jane.smith")
+        commit = CommitInfo(
+            sha="abc123",
+            message="Add feature",
+            body='',
+            author_email="john.doe@example.com",
+            co_authors_raw="Jane Smith <jane.smith@example.com>"
+        )
+        authors = extract_authors(commit)
+        self.assertEqual(authors, ["@john.doe", "@jane.smith"])
 
     def test_author_with_multiple_coauthors(self):
-        entry = "SHA_STARTabc123SHA_END Refactor code by AUTHOR_STARTalice@example.comAUTHOR_END CO_AUTHORS_STARTBob <bob@example.com>|Charlie <charlie@example.com>CO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Refactor code by @alice, @bob, @charlie")
+        commit = CommitInfo(
+            sha="abc123",
+            message="Refactor code",
+            body='',
+            author_email="alice@example.com",
+            co_authors_raw="Bob <bob@example.com>|Charlie <charlie@example.com>"
+        )
+        authors = extract_authors(commit)
+        self.assertEqual(authors, ["@alice", "@bob", "@charlie"])
 
     def test_bot_author_filtered_out(self):
-        entry = "SHA_STARTabc123SHA_END Update dependencies by AUTHOR_STARTnoreply@github.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Update dependencies by @anonymous")
+        commit = CommitInfo(
+            sha="abc123",
+            message="Update deps",
+            body='',
+            author_email="noreply@github.com",
+            co_authors_raw=""
+        )
+        authors = extract_authors(commit)
+        self.assertEqual(authors, [])
 
     def test_bot_coauthor_filtered_out(self):
-        entry = "SHA_STARTabc123SHA_END Merge PR by AUTHOR_STARTjohn@example.comAUTHOR_END CO_AUTHORS_STARTGitHub Actions <github-actions@github.com>CO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Merge PR by @john")
+        commit = CommitInfo(
+            sha="abc123",
+            message="Merge PR",
+            body='',
+            author_email="john@example.com",
+            co_authors_raw="GitHub Actions <github-actions@github.com>"
+        )
+        authors = extract_authors(commit)
+        self.assertEqual(authors, ["@john"])
 
     def test_all_bots_filtered_out(self):
-        entry = "SHA_STARTabc123SHA_END Auto update by AUTHOR_STARTnoreply@github.comAUTHOR_END CO_AUTHORS_STARTBot <viaductbot@airbnb.com>CO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Auto update by @anonymous")
-
-    def test_empty_coauthors_segment(self):
-        entry = "SHA_STARTabc123SHA_END Simple commit by AUTHOR_STARTdev@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Simple commit by @dev")
-
-    def test_commit_message_with_special_chars(self):
-        entry = "SHA_STARTabc123SHA_END Fix: handle [special] chars (issue #123) by AUTHOR_STARTuser@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Fix: handle [special] chars (issue #123) by @user")
+        commit = CommitInfo(
+            sha="abc123",
+            message="Auto update",
+            body='',
+            author_email="noreply@github.com",
+            co_authors_raw="Bot <viaductbot@airbnb.com>"
+        )
+        authors = extract_authors(commit)
+        self.assertEqual(authors, [])
 
     def test_mixed_valid_and_invalid_coauthors(self):
-        entry = "SHA_STARTabc123SHA_END Team effort by AUTHOR_STARTlead@example.comAUTHOR_END CO_AUTHORS_STARTDev1 <dev1@example.com>|Bot <noreply@github.com>|Dev2 <dev2@example.com>CO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Team effort by @lead, @dev1, @dev2")
+        commit = CommitInfo(
+            sha="abc123",
+            message="Team effort",
+            body='',
+            author_email="lead@example.com",
+            co_authors_raw="Dev1 <dev1@example.com>|Bot <noreply@github.com>|Dev2 <dev2@example.com>"
+        )
+        authors = extract_authors(commit)
+        self.assertEqual(authors, ["@lead", "@dev1", "@dev2"])
 
-    def test_coauthor_with_empty_entries(self):
-        entry = "SHA_STARTabc123SHA_END Update docs by AUTHOR_STARTauthor@example.comAUTHOR_END CO_AUTHORS_START|Helper <helper@example.com>|CO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertEqual(result, "Update docs by @author, @helper")
 
-    def test_commit_with_metadata_in_subject(self):
-        """
-        Test that exposes the issue where commits without proper blank line after subject
-        include metadata (Github-Change-Id, Closes, etc.) in the changelog entry.
+class TestChangelogEntry(unittest.TestCase):
+    def test_formatted_authors_with_authors(self):
+        entry = ChangelogEntry(
+            sha="abc123",
+            message="Fix bug",
+            authors=["@john", "@jane"],
+            change_type="fix",
+            scope=None,
+            description="Fix bug",
+            is_breaking=False,
+            breaking_description=None,
+            bump=LevelBump.PATCH,
+        )
+        self.assertEqual(entry.formatted_authors, "@john, @jane")
 
-        This happens because git's %s format joins multi-line subjects with spaces.
-        Metadata should be filtered out from the changelog.
-        """
-        entry = "SHA_STARTabc123SHA_END Build from scratch docs improvement Closes #137 Github-Change-Id: 956283 by AUTHOR_STARTuser@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
+    def test_formatted_authors_empty(self):
+        entry = ChangelogEntry(
+            sha="abc123",
+            message="Fix bug",
+            authors=[],
+            change_type="fix",
+            scope=None,
+            description="Fix bug",
+            is_breaking=False,
+            breaking_description=None,
+            bump=LevelBump.PATCH,
+        )
+        self.assertEqual(entry.formatted_authors, "@anonymous")
 
-        # Assert that metadata is NOT in the result
-        self.assertNotIn("Github-Change-Id", result)
-        self.assertIn("Closes #137", result)
-        self.assertIn("Build from scratch docs improvement", result)
-        self.assertIn("@user", result)
+    def test_formatted_entry(self):
+        entry = ChangelogEntry(
+            sha="abc123",
+            message="Fix bug",
+            authors=["@john"],
+            change_type="fix",
+            scope=None,
+            description="Fix bug",
+            is_breaking=False,
+            breaking_description=None,
+            bump=LevelBump.PATCH,
+        )
+        self.assertEqual(entry.formatted_entry, "Fix bug by @john")
 
-    def test_commit_with_gitorigin_revid_in_subject(self):
-        """
-        Test for filtering out GitOrigin-RevId metadata from changelog entries.
-        """
-        entry = "SHA_STARTabc123SHA_END Fix parser bug GitOrigin-RevId: 1fcdd8123bc49a717103985430322eca3b5b1fb3 by AUTHOR_STARTdev@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
 
-        # Assert that GitOrigin-RevId is NOT in the result
-        self.assertNotIn("GitOrigin-RevId", result)
-        self.assertIn("Fix parser bug", result)
-        self.assertIn("@dev", result)
+class TestParseCommit(unittest.TestCase):
+    def setUp(self):
+        self.parser = ConventionalCommitParser()
 
-    def test_replaces_airbnb_with_sha_lowercase(self):
-        """Test that (AIRBNB) is replaced with the commit SHA (lowercase)."""
-        entry = "SHA_STARTabc123SHA_END Fix bug (airbnb) by AUTHOR_STARTdev@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertIn("(abc123)", result)
-        self.assertNotIn("(airbnb)", result.lower())
-        self.assertIn("Fix bug", result)
+    def test_conventional_commit_fix(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="fix: bug in parser",
+            body='',
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        entry = parse_commit(commit, self.parser)
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.change_type, "fix")
+        self.assertEqual(entry.bump, LevelBump.PATCH)
+        self.assertIn("@john.doe", entry.authors)
 
-    def test_replaces_airbnb_with_sha_uppercase(self):
-        """Test that (AIRBNB) is replaced with the commit SHA (uppercase)."""
-        entry = "SHA_STARTdef456SHA_END Update feature (AIRBNB) by AUTHOR_STARTuser@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertIn("(def456)", result)
-        self.assertNotIn("(AIRBNB)", result)
-        self.assertIn("Update feature", result)
+    def test_conventional_commit_feat(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="feat: add new feature",
+            body='',
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        entry = parse_commit(commit, self.parser)
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.change_type, "feat")
+        self.assertEqual(entry.bump, LevelBump.MINOR)
 
-    def test_replaces_airbnb_with_sha_mixed_case(self):
-        """Test that (AirBnB) is replaced with the commit SHA (mixed case)."""
-        entry = "SHA_START789abcSHA_END Add new endpoint (AirBnB) by AUTHOR_STARTdev@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertIn("(789abc)", result)
-        self.assertNotIn("AirBnB", result)
-        self.assertIn("Add new endpoint", result)
+    def test_breaking_change(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="fix!: breaking change",
+            body='',
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        entry = parse_commit(commit, self.parser)
+        self.assertIsNotNone(entry)
+        self.assertTrue(entry.is_breaking)
+        self.assertEqual(entry.bump, LevelBump.MAJOR)
 
-    def test_commit_without_airbnb_marker(self):
-        """Test that commits without (AIRBNB) work normally."""
-        entry = "SHA_START123456SHA_END Fix normal bug by AUTHOR_STARTdev@example.comAUTHOR_END CO_AUTHORS_STARTCO_AUTHORS_END"
-        result = format_entry(entry)
-        self.assertIn("Fix normal bug", result)
-        self.assertIn("@dev", result)
-        self.assertNotIn("(123456)", result)  # SHA should NOT appear unless (AIRBNB) was present
+    def test_breaking_change_with_body(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="fix!: breaking change",
+            body="BREAKING CHANGE: This change breaks the thing.",
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        entry = parse_commit(commit, self.parser)
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.bump, LevelBump.MAJOR)
+        self.assertTrue(entry.is_breaking)
+        self.assertEqual(entry.breaking_description, "This change breaks the thing.")
+
+    def test_ignored_commit_returns_none(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="ignore: test commit",
+            body='',
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        entry = parse_commit(commit, self.parser)
+        self.assertIsNone(entry)
+
+    def test_metadata_cleaned(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="fix: bug Github-Change-Id: 12345",
+            body='',
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        entry = parse_commit(commit, self.parser)
+        self.assertIsNotNone(entry)
+        self.assertNotIn("Github-Change-Id", entry.description)
+
+    def test_airbnb_marker_replaced(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="fix: bug (AIRBNB)",
+            body='',
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        entry = parse_commit(commit, self.parser)
+        self.assertIsNotNone(entry)
+        self.assertIn("(abc123)", entry.message)
+        self.assertNotIn("AIRBNB", entry.message)
+
+
+class TestGroupEntriesByType(unittest.TestCase):
+    def test_groups_by_type(self):
+        entries = [
+            ChangelogEntry("a", "m1", [], "fix", None, "d1", False, None, LevelBump.PATCH),
+            ChangelogEntry("b", "m2", [], "feat", None, "d2", False, None, LevelBump.MINOR),
+            ChangelogEntry("c", "m3", [], "fix", None, "d3", False, None, LevelBump.PATCH),
+        ]
+        grouped = group_entries_by_type(entries)
+        self.assertEqual(len(grouped["fix"]), 2)
+        self.assertEqual(len(grouped["feat"]), 1)
+
+    def test_non_conventional_goes_to_chore(self):
+        entries = [
+            ChangelogEntry("a", "m1", [], None, None, "d1", False, None, LevelBump.NO_RELEASE),
+        ]
+        grouped = group_entries_by_type(entries)
+        self.assertEqual(len(grouped["chore"]), 1)
+
+
+class TestRenderSection(unittest.TestCase):
+    def test_render_section(self):
+        entries = [
+            ChangelogEntry("a", "m1", ["@john"], "fix", None, "Fix bug 1", False, None, LevelBump.PATCH),
+            ChangelogEntry("b", "m2", ["@jane"], "fix", None, "Fix bug 2", False, None, LevelBump.PATCH),
+        ]
+        result = render_section("fix", entries)
+        self.assertIn("## Bug Fixes", result)
+        self.assertIn("- Fix bug 1 by @john", result)
+        self.assertIn("- Fix bug 2 by @jane", result)
+
+
+class TestRenderBreakingChanges(unittest.TestCase):
+    def test_render_breaking_changes(self):
+        entries = [
+            ChangelogEntry("a", "m1", ["@john"], "fix", None, "d1", True, "Breaking change description", LevelBump.MAJOR),
+        ]
+        result = render_breaking_changes(entries)
+        self.assertIn("## Breaking Changes", result)
+        self.assertIn("Breaking change description", result)
+        self.assertIn("@john", result)
 
 
 if __name__ == '__main__':

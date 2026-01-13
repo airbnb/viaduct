@@ -396,17 +396,13 @@ class GJSchema internal constructor(
         override fun toString() = describe()
     }
 
-    sealed interface CompositeOutput :
-        ViaductSchema.CompositeOutput,
-        TypeDef
-
     class Union internal constructor(
         schema: GraphQLSchema,
         private val typeMap: TypeMap,
         override val def: GraphQLUnionType,
         valueConverter: ValueConverter
     ) : ViaductSchema.Union,
-        CompositeOutput {
+        TypeDef {
         override val name: String = def.name
         override val possibleObjectTypes by lazy { extensions.flatMap { it.members }.toSet() }
         override val appliedDirectives by lazy { typeMap.collectDirectives(def, valueConverter) }
@@ -549,7 +545,6 @@ class GJSchema internal constructor(
         possibleObjectStrings: Iterable<String>,
         valueConverter: ValueConverter
     ) : ViaductSchema.Interface,
-        CompositeOutput,
         Record {
         override val name: String = def.name
 
@@ -623,7 +618,6 @@ class GJSchema internal constructor(
         unionNames: Iterable<String>,
         valueConverter: ValueConverter
     ) : ViaductSchema.Object,
-        CompositeOutput,
         Record {
         override val name: String = def.name
 

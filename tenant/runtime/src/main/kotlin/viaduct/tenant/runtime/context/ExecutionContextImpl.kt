@@ -1,8 +1,10 @@
 package viaduct.tenant.runtime.context
 
 import viaduct.api.context.ExecutionContext
+import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
 import viaduct.api.reflect.Type
+import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
 
@@ -34,7 +36,7 @@ import viaduct.tenant.runtime.globalid.GlobalIDImpl
  *             MutationFieldExecutionContextImpl
  */
 sealed class ExecutionContextImpl(
-    baseData: InternalContext,
+    private val baseData: InternalContext,
 ) : ExecutionContext, InternalContext {
     override val schema = baseData.schema
     override val globalIDCodec = baseData.globalIDCodec
@@ -44,4 +46,6 @@ sealed class ExecutionContextImpl(
         type: Type<T>,
         internalID: String
     ) = GlobalIDImpl(type, internalID)
+
+    override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> = baseData.deserializeGlobalID(serialized)
 }

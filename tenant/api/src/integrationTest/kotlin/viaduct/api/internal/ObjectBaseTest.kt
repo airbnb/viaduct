@@ -16,6 +16,7 @@ import viaduct.api.ViaductTenantException
 import viaduct.api.ViaductTenantUsageException
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
+import viaduct.api.mocks.testGlobalId
 import viaduct.api.schemautils.SchemaUtils
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.I1
@@ -589,10 +590,12 @@ class ObjectBaseTest {
             val o1 = O1(
                 internalContext,
                 object : NR() {
-                    override val id = "O1:foo"
+                    override val id = O1.Reflection.testGlobalId("foo")
                 }
             )
-            assertEquals("O1:foo", o1.getId().toString())
+            val globalId = o1.getId()
+            assertEquals("O1", globalId.type.name)
+            assertEquals("foo", globalId.internalID)
             assertThrows<ViaductFrameworkException> { o1.get("thisFieldDoesNotExist", String::class) }
             assertInstanceOf(
                 UnsetSelectionException::class.java,

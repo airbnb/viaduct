@@ -12,8 +12,8 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.grts.Film
-import viaduct.api.mocks.MockGlobalID
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -121,7 +121,7 @@ class FilmResolverUnitTests : DefaultAbstractResolverTestBase() {
             val result = runFieldResolver(
                 resolver = resolver,
                 objectValue = Film.Builder(context)
-                    .id(MockGlobalID(Film.Reflection, "1"))
+                    .id(GlobalIDImpl(Film.Reflection, "1"))
                     .title("A New Hope")
                     .build(),
             )

@@ -10,19 +10,19 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
+import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
-import viaduct.api.mocks.MockGlobalID
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.MockType
+import viaduct.api.mocks.testGlobalId
 import viaduct.api.types.Arguments
-import viaduct.api.types.NodeObject
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.VariablesProviderContextImpl
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
 import viaduct.tenant.runtime.internal.InternalContextImpl
@@ -36,7 +36,7 @@ class VariablesProviderExecutorTest {
 
     private val objectData = mkEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap())
     private val reflectionLoader = MockReflectionLoader()
-    private val globalIDCodec = MockGlobalIDCodec()
+    private val globalIDCodec = GlobalIDCodecDefault
 
     private inner class TestVariablesProviderContextFactory : VariablesProviderContextFactory {
         override fun createVariablesProviderContext(
@@ -106,7 +106,8 @@ class VariablesProviderExecutorTest {
                 MockInternalContext(MockSchema.minimal, globalIDCodec, reflectionLoader),
                 GraphQLInputObjectType.newInputObject().name("MockInputType").build()
             )
-            val mockGlobalID = MockGlobalID(MockType("User", NodeObject::class), "1234")
+            val userType = MockType.mkNodeObject("User")
+            val mockGlobalID = GlobalIDImpl(userType, "1234")
 
             val adapter = VariablesProviderExecutor(
                 variablesProvider = VariablesProviderInfo(setOf("foo", "bar")) {
@@ -118,7 +119,7 @@ class VariablesProviderExecutorTest {
             )
 
             assertEquals(
-                mapOf("foo" to mapOf("a" to 10, "b" to 14), "bar" to "User:1234"),
+                mapOf("foo" to mapOf("a" to 10, "b" to 14), "bar" to userType.testGlobalId("1234")),
                 adapter.resolve(
                     VariablesResolver.ResolveCtx(
                         objectData,

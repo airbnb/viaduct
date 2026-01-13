@@ -13,8 +13,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.globalid.GlobalID
-import viaduct.api.globalid.GlobalIDCodec
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
@@ -24,11 +22,12 @@ import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.runtime.mocks.ContextMocks
-import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
+import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault as DefaultCodec
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
 import viaduct.tenant.runtime.globalid.User
-import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 
 @ExperimentalCoroutinesApi
 class ExecutionContextImplTest : ContextTestBase() {
@@ -36,7 +35,7 @@ class ExecutionContextImplTest : ContextTestBase() {
         obj: Object = Obj,
         query: Query = Q,
         args: Arguments = Args,
-        globalIDCodec: GlobalIDCodec = MockGlobalIDCodec(),
+        globalIDCodec: GlobalIDCodec = DefaultCodec,
         selectionSet: SelectionSet<CompositeOutput> = noSelections,
     ): FieldExecutionContext<Object, Query, Arguments, CompositeOutput> =
         FieldExecutionContextImpl(
@@ -177,11 +176,7 @@ class ExecutionContextImplTest : ContextTestBase() {
         val expectedSerializedString = "encoded_user_123"
 
         every {
-            mockGlobalIDCodec.serialize<User>(
-                match { globalId ->
-                    globalId.type == User.Reflection && globalId.internalID == "123"
-                }
-            )
+            mockGlobalIDCodec.serialize("User", "123")
         } returns expectedSerializedString
 
         val result = ctx.globalIDStringFor(User.Reflection, "123")
@@ -189,19 +184,13 @@ class ExecutionContextImplTest : ContextTestBase() {
         assertEquals(expectedSerializedString, result)
 
         verify {
-            mockGlobalIDCodec.serialize<User>(
-                match { globalId ->
-                    globalId.type == User.Reflection && globalId.internalID == "123"
-                }
-            )
+            mockGlobalIDCodec.serialize("User", "123")
         }
     }
 
     @Test
     fun `globalIDStringFor - internalID contains characters that require escaping`() {
-        val reflectionLoader = ReflectionLoaderImpl { TODO("unused") }
-        val realGlobalIDCodec = GlobalIDCodecImpl(reflectionLoader)
-        val ctx = mk(globalIDCodec = realGlobalIDCodec)
+        val ctx = mk(globalIDCodec = GlobalIDCodecDefault)
 
         val internalIdWithSpecialChars = "user:123%+test value"
 
@@ -210,6 +199,7 @@ class ExecutionContextImplTest : ContextTestBase() {
         assertNotNull(result)
         assertTrue(result.isNotEmpty())
 
+        // GlobalIDCodecDefault uses Base64 encoding, which doesn't contain these characters
         assertFalse(result.contains(":"))
         assertFalse(result.contains("%"))
         assertFalse(result.contains("+"))
@@ -217,38 +207,22 @@ class ExecutionContextImplTest : ContextTestBase() {
     }
 
     @Test
-    fun `globalIDStringFor - returned value can be decoded using GlobalIDCodecImpl`() {
-        val reflectionLoader = ReflectionLoaderImpl { className ->
-            when (className) {
-                "User\$Reflection" -> User.Reflection::class
-                else -> throw ClassNotFoundException("Class not found: $className")
-            }
-        }
-
-        val realGlobalIDCodec = GlobalIDCodecImpl(reflectionLoader)
-        val ctx = mk(globalIDCodec = realGlobalIDCodec)
+    fun `globalIDStringFor - returned value can be decoded using GlobalIDCodecDefault`() {
+        val ctx = mk(globalIDCodec = GlobalIDCodecDefault)
 
         val originalInternalId = "user:123%+test value"
 
         val encodedString = ctx.globalIDStringFor(User.Reflection, originalInternalId)
 
-        val decodedGlobalId: GlobalID<User> = realGlobalIDCodec.deserialize(encodedString)
+        val (decodedTypeName, decodedInternalId) = GlobalIDCodecDefault.deserialize(encodedString)
 
-        assertEquals(User.Reflection.name, decodedGlobalId.type.name)
-        assertEquals(User.Reflection.kcls, decodedGlobalId.type.kcls)
-        assertEquals(originalInternalId, decodedGlobalId.internalID)
+        assertEquals(User.Reflection.name, decodedTypeName)
+        assertEquals(originalInternalId, decodedInternalId)
     }
 
     @Test
     fun `globalIDStringFor - round trip encoding with various special characters`() {
-        val reflectionLoader = ReflectionLoaderImpl { className ->
-            when (className) {
-                "User\$Reflection" -> User.Reflection::class
-                else -> throw ClassNotFoundException("Class not found: $className")
-            }
-        }
-        val realGlobalIDCodec = GlobalIDCodecImpl(reflectionLoader)
-        val ctx = mk(globalIDCodec = realGlobalIDCodec)
+        val ctx = mk(globalIDCodec = GlobalIDCodecDefault)
 
         val testCases = listOf(
             "simple123",
@@ -266,14 +240,14 @@ class ExecutionContextImplTest : ContextTestBase() {
         testCases.forEach { originalInternalId ->
             val encodedString = ctx.globalIDStringFor(User.Reflection, originalInternalId)
 
-            val decodedGlobalId: GlobalID<User> = realGlobalIDCodec.deserialize(encodedString)
+            val (decodedTypeName, decodedInternalId) = GlobalIDCodecDefault.deserialize(encodedString)
 
             assertEquals(
                 originalInternalId,
-                decodedGlobalId.internalID,
+                decodedInternalId,
                 "Round-trip failed for internal ID: '$originalInternalId'"
             )
-            assertEquals(User.Reflection.name, decodedGlobalId.type.name)
+            assertEquals(User.Reflection.name, decodedTypeName)
         }
     }
 }

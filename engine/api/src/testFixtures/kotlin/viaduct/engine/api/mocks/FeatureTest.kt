@@ -10,8 +10,8 @@ import viaduct.engine.EngineFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionInput
-import viaduct.engine.api.TenantAPIBootstrapper.Companion.flatten
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.flatten
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidator

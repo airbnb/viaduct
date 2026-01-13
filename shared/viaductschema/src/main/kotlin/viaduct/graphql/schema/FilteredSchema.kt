@@ -166,15 +166,11 @@ class FilteredSchema<T : ViaductSchema.TypeDef>(
         override fun toString() = unfilteredDef.toString()
     }
 
-    sealed interface CompositeOutput<C : ViaductSchema.CompositeOutput> :
-        TypeDef<C>,
-        ViaductSchema.CompositeOutput
-
     class Union<U : ViaductSchema.Union> internal constructor(
         override val unfilteredDef: U,
         private val defs: TypeMap,
         filter: SchemaFilter
-    ) : CompositeOutput<U>,
+    ) : TypeDef<U>,
         ViaductSchema.Union by unfilteredDef {
         override val extensions: List<ViaductSchema.Extension<Union<U>, Object<*>>> by lazy {
             unfilteredDef.extensions.map { unfilteredExt ->
@@ -242,7 +238,6 @@ class FilteredSchema<T : ViaductSchema.TypeDef>(
         private val defs: TypeMap,
         filter: SchemaFilter
     ) : Record<I>,
-        CompositeOutput<I>,
         ViaductSchema.Interface by unfilteredDef {
         override val extensions: List<ViaductSchema.ExtensionWithSupers<Interface<I>, Field<I, *>>> by lazy {
             val superNames = supers.map { it.name }.toSet()
@@ -286,7 +281,6 @@ class FilteredSchema<T : ViaductSchema.TypeDef>(
         private val defs: TypeMap,
         filter: SchemaFilter
     ) : Record<O>,
-        CompositeOutput<O>,
         ViaductSchema.Object by unfilteredDef {
         override val extensions: List<ViaductSchema.ExtensionWithSupers<Object<O>, Field<O, *>>> by lazy {
             val superNames = supers.map { it.name }.toSet()

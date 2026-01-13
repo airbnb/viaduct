@@ -63,6 +63,7 @@ class ContextMocks(
             flagManager,
             engine,
             globalIDCodec,
+            meterRegistry = null,
         )
 
     val localContext: CompositeLocalContext by lazy {

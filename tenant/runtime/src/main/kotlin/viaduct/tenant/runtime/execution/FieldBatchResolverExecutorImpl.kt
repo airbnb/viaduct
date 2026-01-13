@@ -9,7 +9,6 @@ import kotlinx.coroutines.ensureActive
 import viaduct.api.FieldValue
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantResolverException
-import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.ResolverBase
 import viaduct.api.wrapResolveException
@@ -18,6 +17,7 @@ import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.FieldResolverExecutor.Selector
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
 /**

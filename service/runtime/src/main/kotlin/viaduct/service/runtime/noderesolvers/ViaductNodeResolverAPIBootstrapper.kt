@@ -13,7 +13,7 @@ class ViaductNodeResolverAPIBootstrapper : TenantAPIBootstrapper {
         return listOf(ViaductQueryNodeResolverModuleBootstrapper())
     }
 
-    class Builder : TenantAPIBootstrapperBuilder {
+    class Builder : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
         override fun create(): TenantAPIBootstrapper = ViaductNodeResolverAPIBootstrapper()
     }
 }

@@ -125,3 +125,9 @@ reports/
 # Ignore Dokka artifacts
 # ----------------------------------------
 docs/static/apis/
+
+
+# ----------------------------------------
+# Ignore pycache artifacts
+# ----------------------------------------
+**/__pycache__/

@@ -41,7 +41,7 @@ import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.RawSelectionsLoaderImpl
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
-import viaduct.tenant.runtime.globalid.GlobalIDCodecImpl
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.select.SelectionsLoaderImpl
@@ -415,7 +415,7 @@ interface ResolverTestBase {
 
     fun mkExecutionContext(): ExecutionContext {
         val rl = mockReflectionLoader("viaduct.api.grts")
-        val internal = MockInternalContext(getSchema(), GlobalIDCodecImpl(rl), rl)
+        val internal = MockInternalContext(getSchema(), GlobalIDCodecDefault, rl)
         return MockExecutionContext(internal)
     }
 

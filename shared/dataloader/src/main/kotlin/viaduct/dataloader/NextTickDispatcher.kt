@@ -20,7 +20,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
-import viaduct.service.api.spi.Flag
 import viaduct.service.api.spi.FlagManager
 
 /**
@@ -72,17 +71,9 @@ open class NextTickDispatcher(
     private val nextTickExceptionHandler: CoroutineExceptionHandler? = null,
     flagManager: FlagManager = FlagManager.disabled,
 ) : CoroutineDispatcher() {
-    /*** Feature flags ***/
-    enum class Flags(
-        override val flagName: String
-    ) : Flag {
-        // Disables non-blocking enqueue/flush behavior in the NextTickDispatcher
-        KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH("common.kotlin.nextTickDispatcher.killswitch.nonBlockingEnqueueFlush"),
-    }
-
     /********************/
 
-    private val nonBlockingEnqueueFlushKillSwitchEnabled = flagManager.isEnabled(Flags.KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH)
+    private val nonBlockingEnqueueFlushKillSwitchEnabled = flagManager.isEnabled(FlagManager.Flags.KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH)
 
     init {
         if (nextTickQueueDispatcher == wrappedDispatcher) {

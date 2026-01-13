@@ -23,9 +23,13 @@ jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackso
 micronaut-inject-java = { group = "io.micronaut", name = "micronaut-inject-java", version.ref = "micronaut" }
 micronaut-validation = { group = "io.micronaut", name = "micronaut-http-validation", version.ref = "micronaut" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+viaduct-bom = { group = "com.airbnb.viaduct", name = "bom", version.ref = "viaduct" }
+viaduct-api = { group = "com.airbnb.viaduct", name = "api" }
+viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime" }
 viaduct-engine-wiring = { group = "com.airbnb.viaduct", name = "engine-wiring" }
 viaduct-service-wiring = { group = "com.airbnb.viaduct", name = "service-wiring" }
 viaduct-tenant-api = { group = "com.airbnb.viaduct", name = "tenant-api" }
+viaduct-tenant-runtime = { group = "com.airbnb.viaduct", name = "tenant-runtime" }
 guice = { group = "com.google.inject", name = "guice", version.ref = "guice" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
 kotlinx-coroutines-reactor = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-reactor", version.ref = "coroutinesReactor" }

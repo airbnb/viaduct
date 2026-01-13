@@ -8,6 +8,7 @@ import graphql.schema.DataFetcher
 import graphql.schema.TypeResolver
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.apiannotations.InternalApi
 import viaduct.dataloader.NextTickDispatcher
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
@@ -46,6 +48,7 @@ import viaduct.service.api.spi.FlagManager
  */
 @ExperimentalCoroutinesApi
 class ViaductExecutionStrategyChildPlanTest {
+    @OptIn(InternalApi::class)
     private val nextTickDispatcher = NextTickDispatcher(flagManager = FlagManager.disabled)
 
     @Test
@@ -1094,6 +1097,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedCheckerPaths = ConcurrentLinkedQueue<String>()
+                val childPlanLatch = CountDownLatch(1)
 
                 val sdl = """
                     type Query {
@@ -1126,9 +1130,11 @@ class ViaductExecutionStrategyChildPlanTest {
                         "id" to DataFetcher { env ->
                             val path = env.executionStepInfo.path.toString()
                             capturedCheckerPaths.add(path)
+                            childPlanLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "name" to DataFetcher { env ->
+                            childPlanLatch.await() // Wait for child plan (id fetcher) to complete before returning
                             env.getSource<Map<String, Any>>()!!["name"]
                         },
                         "email" to DataFetcher { env ->
@@ -1177,6 +1183,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedCheckerTypes = ConcurrentLinkedQueue<Pair<String, String?>>()
+                val childPlanLatch = CountDownLatch(1)
 
                 val sdl = """
                     type Query {
@@ -1219,9 +1226,11 @@ class ViaductExecutionStrategyChildPlanTest {
                         "id" to DataFetcher { env ->
                             val objectType = env.executionStepInfo.objectType?.name
                             capturedCheckerTypes.add("User.id" to objectType)
+                            childPlanLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "commonField" to DataFetcher { env ->
+                            childPlanLatch.await() // Wait for child plan (id fetcher) to complete before returning
                             env.getSource<Map<String, Any>>()!!["commonField"]
                         },
                         "name" to DataFetcher { "Alice" }
@@ -1230,9 +1239,11 @@ class ViaductExecutionStrategyChildPlanTest {
                         "id" to DataFetcher { env ->
                             val objectType = env.executionStepInfo.objectType?.name
                             capturedCheckerTypes.add("Admin.id" to objectType)
+                            childPlanLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "commonField" to DataFetcher { env ->
+                            childPlanLatch.await() // Wait for child plan (id fetcher) to complete before returning
                             env.getSource<Map<String, Any>>()!!["commonField"]
                         },
                         "role" to DataFetcher { "super" }
@@ -1292,6 +1303,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedExecutions = ConcurrentLinkedQueue<Pair<String, String>>()
+                val childPlansLatch = CountDownLatch(3)
 
                 val sdl = """
                     type Query {
@@ -1330,6 +1342,7 @@ class ViaductExecutionStrategyChildPlanTest {
                         "id" to DataFetcher { env ->
                             val path = env.executionStepInfo.path.toString()
                             capturedExecutions.add("type-checker:UserProfile.id" to path)
+                            childPlansLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "user" to DataFetcher { _ ->
@@ -1340,14 +1353,19 @@ class ViaductExecutionStrategyChildPlanTest {
                         "id" to DataFetcher { env ->
                             val path = env.executionStepInfo.path.toString()
                             capturedExecutions.add("type-checker:User.id" to path)
+                            childPlansLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["id"]
                         },
                         "name" to DataFetcher { env ->
                             val path = env.executionStepInfo.path.toString()
                             capturedExecutions.add("field-resolver:User.name" to path)
+                            childPlansLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["name"]
                         },
-                        "restrictedData" to DataFetcher { "sensitive-data" }
+                        "restrictedData" to DataFetcher { _ ->
+                            childPlansLatch.await() // Wait for all child plans to complete before returning
+                            "sensitive-data"
+                        }
                     )
                 )
 
@@ -1397,6 +1415,7 @@ class ViaductExecutionStrategyChildPlanTest {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val capturedSelectionSets = ConcurrentLinkedQueue<GJSelectionSet>()
+                val childPlanLatch = CountDownLatch(1)
 
                 val sdl = """
                     interface Node {
@@ -1442,6 +1461,7 @@ class ViaductExecutionStrategyChildPlanTest {
                         "foo" to DataFetcher { env ->
                             scopedFuture {
                                 delay(10)
+                                childPlanLatch.await()
                                 env.getSource<Map<String, Any>>()!!["foo"]
                             }
                         },
@@ -1450,6 +1470,7 @@ class ViaductExecutionStrategyChildPlanTest {
                                 "Expected parent ExecutionStepInfo when executing fooSpecific"
                             }
                             capturedSelectionSets.add(parentStepInfo.field.singleField.selectionSet)
+                            childPlanLatch.countDown()
                             env.getSource<Map<String, Any>>()!!["fooSpecific"]
                         }
                     )
@@ -1474,6 +1495,13 @@ class ViaductExecutionStrategyChildPlanTest {
                 )
 
                 assertTrue(executionResult.errors.isEmpty(), "Expected no execution errors but got ${executionResult.errors}")
+
+                // Wait for child plan to complete before asserting
+                assertTrue(
+                    childPlanLatch.await(5, TimeUnit.SECONDS),
+                    "Child plan did not execute within timeout"
+                )
+
                 assertTrue(capturedSelectionSets.isNotEmpty(), "Expected to capture selection set for interface child plan")
 
                 val selectionSet = capturedSelectionSets.first()

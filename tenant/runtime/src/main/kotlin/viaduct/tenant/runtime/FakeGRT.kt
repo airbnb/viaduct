@@ -10,17 +10,19 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.Mutation
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.TestingApi
 import viaduct.engine.api.EngineObjectData
 
 @Retention(AnnotationRetention.RUNTIME)
 @Target(AnnotationTarget.CLASS)
+@TestingApi
 annotation class FakeGRT
 
-@FakeGRT
 /**
  * For testing without codegen: [KClass.makeGRT] will construct these
  * directly independent of the constructor-protocol of "real" GRTs.
  */
+@FakeGRT
 open class FakeObject(val ctx: InternalContext, val data: EngineObjectData) : ObjectBase(ctx, data), Object {
     suspend inline fun <reified T> get(
         fieldName: String,

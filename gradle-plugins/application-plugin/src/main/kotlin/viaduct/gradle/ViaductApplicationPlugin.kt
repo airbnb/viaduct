@@ -20,7 +20,7 @@ import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 
-class ViaductApplicationPlugin : Plugin<Project> {
+abstract class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             require(this == rootProject) {
@@ -49,6 +49,9 @@ class ViaductApplicationPlugin : Plugin<Project> {
             setupConsumableConfigurationForGRT(generateGRTsTask.flatMap { it.archiveFile })
 
             this.dependencies.add("api", files(generateGRTsTask.flatMap { it.archiveFile }))
+
+            // Setup serve task
+            setupServeTask(appExt, generateGRTsTask)
         }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
@@ -85,6 +88,7 @@ class ViaductApplicationPlugin : Plugin<Project> {
         val pluginClasspath = files(ViaductPluginCommon.getClassPathElements(this@ViaductApplicationPlugin::class.java))
 
         val generateGRTClassesTask = tasks.register<GenerateGRTClassFilesTask>("generateViaductGRTClassFiles") {
+            buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             grtClassesDirectory.set(grtClassesDirectory())
             schemaFiles.setFrom(assembleCentralSchemaTask.flatMap { it.outputDirectory.map { dir -> dir.asFileTree.matching { include("**/*.graphqls") }.files } })
             grtPackageName.set(appExt.grtPackageName)
@@ -142,6 +146,93 @@ class ViaductApplicationPlugin : Plugin<Project> {
                 )
             }
             outgoing.artifact(artifact)
+        }
+    }
+
+    private fun Project.setupServeTask(
+        appExt: ViaductApplicationExtension,
+        generateGRTsTask: TaskProvider<Jar>
+    ) {
+        // Capture configuration-time values for use in task (configuration cache safe)
+        val isContinuousMode = gradle.startParameter.isContinuous
+        // Allow property overrides, but default to extension values
+        val servePort = project.findProperty("serve.port")?.toString()?.toIntOrNull() ?: appExt.servePort.get()
+        val serveHost = project.findProperty("serve.host")?.toString() ?: appExt.serveHost.get()
+
+        // Create configuration for serve runtime dependencies
+        val serveConfig = configurations.create("serveRuntime") {
+            isCanBeConsumed = false
+            isCanBeResolved = true
+            isVisible = false
+            attributes {
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+                attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
+                attribute(
+                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                    objects.named(LibraryElements::class.java, LibraryElements.JAR)
+                )
+            }
+        }
+
+        // Add serve runtime dependencies
+        val ktorVersion = "3.0.3"
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-core:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-netty:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-content-negotiation:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-cors:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-server-websockets:$ktorVersion")
+        dependencies.add(serveConfig.name, "io.ktor:ktor-serialization-jackson:$ktorVersion")
+        dependencies.add(serveConfig.name, "com.fasterxml.jackson.module:jackson-module-kotlin:2.18.0")
+        dependencies.add(serveConfig.name, "io.github.classgraph:classgraph:4.8.174")
+        dependencies.add(serveConfig.name, "ch.qos.logback:logback-classic:1.4.14")
+
+        // Get the application plugin's jar (contains bundled serve classes)
+        val pluginClasspath = files(ViaductApplicationPlugin::class.java.protectionDomain.codeSource.location.toURI())
+
+        tasks.register<org.gradle.api.tasks.JavaExec>("serve") {
+            group = "viaduct"
+            description = "Start the Viaduct development server with GraphiQL IDE. Use: ./gradlew --continuous serve"
+
+            // Ensure GRTs are generated and classes are compiled before starting
+            dependsOn(generateGRTsTask)
+            dependsOn("classes")
+
+            mainClass.set("viaduct.serve.ServeServerKt")
+
+            // Configure classpath to include:
+            // 1. Plugin jar (contains bundled serve classes)
+            // 2. Serve runtime dependencies (Ktor, Jackson, etc.)
+            // 3. App classes
+            // 4. Runtime classpath (app dependencies)
+            classpath = files(
+                pluginClasspath,
+                serveConfig,
+                project.extensions.getByType(org.gradle.api.tasks.SourceSetContainer::class.java)
+                    .getByName("main").output,
+                configurations.getByName("runtimeClasspath")
+            )
+
+            // Pass system properties for port, host, and package prefix from extension
+            systemProperty("serve.port", servePort)
+            systemProperty("serve.host", serveHost)
+
+            // Use modulePackagePrefix from extension if set
+            appExt.modulePackagePrefix.orNull?.let { packagePrefix ->
+                systemProperty("serve.packagePrefix", packagePrefix)
+            }
+
+            // Enable standard I/O
+            standardInput = System.`in`
+
+            doFirst {
+                logger.lifecycle("Starting Viaduct Development Server...")
+                logger.lifecycle("GraphiQL IDE will be available at: http://$serveHost:$servePort/graphiql")
+                if (!isContinuousMode) {
+                    logger.lifecycle("")
+                    logger.lifecycle("TIP: Run with --continuous flag for automatic reload on code changes:")
+                    logger.lifecycle("     ./gradlew --continuous serve")
+                }
+            }
         }
     }
 

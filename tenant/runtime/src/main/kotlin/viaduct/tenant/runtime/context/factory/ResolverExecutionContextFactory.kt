@@ -13,7 +13,6 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.VariablesProviderContext
-import viaduct.api.globalid.GlobalIDCodec
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ReflectionLoader
@@ -25,10 +24,12 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.TestingApi
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.EngineExecutionContextWrapperImpl
 import viaduct.tenant.runtime.context.FieldExecutionContextImpl
 import viaduct.tenant.runtime.context.MutationFieldExecutionContextImpl
@@ -94,17 +95,18 @@ class NodeExecutionContextFactory(
         requestContext: Any?,
         id: String
     ): NodeExecutionContext<*> {
+        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
         val wrappedContext = NodeExecutionContextImpl(
-            InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader),
+            internalContext,
             EngineExecutionContextWrapperImpl(engineExecutionContext),
             this.toSelectionSet(selections),
             requestContext,
-            globalIDCodec.deserialize<NodeObject>(id)
+            internalContext.deserializeGlobalID(id)
         )
         return wrap(wrappedContext)
     }
 
-    // visible for testing
+    @TestingApi
     class FakeResolverBase<T : NodeObject> : NodeResolverBase<T> {
         class Context<T : NodeObject>(ctx: NodeExecutionContext<T>) : NodeExecutionContext<T> by ctx, InternalContext by (ctx as InternalContext)
     }
@@ -176,7 +178,7 @@ class FieldExecutionContextFactory internal constructor(
         return VariablesProviderContextImpl(ic, requestContext, rawArguments.toInputLikeGRT(ic, argumentsCls))
     }
 
-    // visible for testing
+    @TestingApi
     class FakeResolverBase<O : CompositeOutput> : ResolverBase<O> {
         class Context<T : Object, Q : Query, A : Arguments, O : CompositeOutput>(ctx: FieldExecutionContext<T, Q, A, O>) :
             FieldExecutionContext<T, Q, A, O> by ctx, InternalContext by (ctx as InternalContext)

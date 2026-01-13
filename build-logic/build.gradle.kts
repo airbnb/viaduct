@@ -6,6 +6,7 @@ description = "Provides PROJECT level convention plugins for the build"
 
 dependencies {
     // conventions dependencies
+    implementation(libs.kotlinx.binary.compatibility.validator)
     implementation(plugin(libs.plugins.kotlin.jvm))
     implementation(plugin(libs.plugins.gradle.maven.publish))
     implementation(plugin(libs.plugins.detekt))
@@ -13,6 +14,7 @@ dependencies {
     implementation(plugin(libs.plugins.dokka))
     implementation(plugin(libs.plugins.dokkaJavaDoc))
     implementation(plugin(libs.plugins.spotbugs))
+    implementation(plugin(libs.plugins.shadow))
     compileOnly(libs.detekt.api)
 
     // settings dependencies

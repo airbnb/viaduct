@@ -90,6 +90,21 @@ To build and publish all Viaduct artifacts to your local Maven repository:
 
 This will publish all Viaduct libraries and Gradle plugins to your local Maven repository. You can then use these artifacts in your own projects by adding `mavenLocal()` to your repositories list. The version of the artifacts will be `0.0.0-SNAPSHOT`.
 
+## Binary compatibility validation (BCV)
+
+Viaduct uses the Kotlin Binary Compatibility Validator Gradle plugin
+(`org.jetbrains.kotlinx.binary-compatibility-validator`) to track and enforce
+the public binary API of selected modules.
+
+BCV works by generating and checking `.api` signature files for modules that
+apply the BCV convention plugin `id("conventions.bcv-api")`, like `:tenant:api` and `:service:api`.
+
+Developers should amend those `.api` files when making intentional executing :
+
+```bash
+./gradlew runApiDump
+```
+
 ## Tests
 
 Run tests with:
@@ -112,7 +127,7 @@ Releases are listed [here](https://github.com/airbnb/viaduct/releases).
 
 ## Who is responsible for a release?
 
-Releases can only be performed by Airbnb staff as the process uses internal Airbnb infrastructure. If you are an external contributor and would like to help with a release, please reach out to the core team via a GitHub discussion.
+Releases are performed by maintainers according to the [RELEASE-RUNBOOK.md](RELEASE-RUNBOOK.md).  The release process requires permissions only held by maintainers.  If you are an external contributor and would like to help with a release, please reach out to the core team via a GitHub discussion.
 
 ## Versioning
 
@@ -120,14 +135,11 @@ Viaduct adheres to [Semantic Versioning](https://semver.org/).
 
 ## Cadence
 
-Until we release Viaduct 1.0, we are releasing on the following schedule:
-* Publishing gradle plugin weekly on Monday at 10AM UTC as a new minor version.
-* Publishing gradle plugin snapshots after each build using the time and the commit hash.
-* Publishing patches when [PATCH] and [VIADUCT] are in the title of the pull request.
+Until we release Viaduct 1.0, we are releasing a new minor version on a roughly weekly basis.
 
 ## Release Artifacts
 
-Release artifacts are published to the Gradle Plugin Portal and Maven Central. Releases are performed by internal Airbnb infrastructure. See [gradle-plugin-major-release.yml](_infra/ci/jobs/gradle-plugin-major-release.yml), [gradle-plugin-snapshot-release.yml](_infra/ci/jobs/gradle-plugin-snapshot-publish.yml), and [gradle-plugin-weekly-release.yml](_infra/ci/jobs/gradle-plugin-weekly-release.yml) for current process.
+Release artifacts are published to the Gradle Plugin Portal and Maven Central.
 
 ### Maven Central
 
@@ -137,17 +149,3 @@ Runtime libraries are published to Maven Central. Artifacts are grouped under th
 
 * [application-gradle-plugin](https://plugins.gradle.org/plugin/com.airbnb.viaduct.application-gradle-plugin)
 * [module-gradle-plugin](https://plugins.gradle.org/plugin/com.airbnb.viaduct.module-gradle-plugin)
-
-## Snapshots
-
-Snapshots are only published to Maven Central. To use snapshots versions of the Gradle plugins, add the following to your `settings.gradle.kts`:
-
-```kotlin
-pluginManagement {
-  repositories {
-    maven {
-      url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-    }
-  }
-}
-```

@@ -19,8 +19,8 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.spi.Flag
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.FlagManager.Flag
 
 /**
  * End-to-end tests for the Viaduct OSS interface.

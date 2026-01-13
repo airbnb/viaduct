@@ -10,6 +10,8 @@ import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
+import java.io.FileInputStream
+import viaduct.graphql.schema.binary.readBSchema
 import viaduct.graphql.schema.graphqljava.GJSchemaRaw
 import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.tenant.codegen.bytecode.CodeGenArgs
@@ -17,6 +19,7 @@ import viaduct.tenant.codegen.bytecode.GRTClassFilesBuilderBase
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.tenant.codegen.graphql.bridge.ScopedSchemaFilter
 import viaduct.tenant.codegen.util.ZipUtil.zipAndWriteDirectories
+import viaduct.tenant.codegen.util.shouldUseBinarySchema
 import viaduct.utils.timer.Timer
 
 /**
@@ -33,6 +36,9 @@ class SchemaObjectsBytecode : CliktCommand() {
 
     private val schemaFiles: List<File> by option("--schema_files")
         .file(mustExist = true, canBeDir = false).split(",").required()
+
+    private val binarySchemaFile: File by option("--binary_schema_file")
+        .file(mustExist = true, canBeDir = false).required()
 
     private val moduleName: String? by option("--module_name")
 
@@ -56,22 +62,32 @@ class SchemaObjectsBytecode : CliktCommand() {
                 "be used for tests only to generate all object types, including ineligible ones."
         )
     val compilationSchema: File? by option("--compilation_schema").file(mustExist = false, canBeDir = false)
+    val compilationSchemaBinary: File? by option("--binary_compilation_schema").file(mustExist = false, canBeDir = false)
+    val flagFile: File by option("--flag_file").file(mustExist = true, canBeDir = false).required()
 
     override fun run() {
-        val schemaCollectionForGeneration = if (compilationSchema != null) {
-            listOf(compilationSchema!!)
-        } else {
-            schemaFiles
-        }
-
         if (generatedDir.exists()) generatedDir.deleteRecursively()
         generatedDir.mkdirs()
         val scopeSet = appliedScopes?.toSet()
 
         val timer = Timer()
         val schema = timer.time("schemaFromFiles") {
-            val typeDefRegistry = timer.time("readTypesFromFiles") { readTypesFromFiles(schemaCollectionForGeneration) }
-            GJSchemaRaw.fromRegistry(typeDefRegistry, timer)
+            if (shouldUseBinarySchema(flagFile)) {
+                val schemaFile = if (compilationSchemaBinary != null) {
+                    compilationSchemaBinary
+                } else {
+                    binarySchemaFile
+                }
+                readBSchema(FileInputStream(schemaFile!!))
+            } else {
+                val schemaFiles = if (compilationSchema != null) {
+                    listOf(compilationSchema!!)
+                } else {
+                    schemaFiles
+                }
+                val typeDefRegistry = timer.time("readTypesFromFiles") { readTypesFromFiles(schemaFiles) }
+                GJSchemaRaw.fromRegistry(typeDefRegistry, timer)
+            }
         }.let {
             if (scopeSet.isNullOrEmpty()) {
                 it

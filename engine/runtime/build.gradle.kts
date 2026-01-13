@@ -19,6 +19,7 @@ dependencies {
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.service.api)
     implementation(libs.viaduct.shared.dataloader)
+    implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.shared.utils)
 
     implementation(libs.caffeine)

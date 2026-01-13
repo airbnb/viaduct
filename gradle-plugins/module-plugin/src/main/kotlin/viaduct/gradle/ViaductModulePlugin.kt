@@ -192,6 +192,7 @@ class ViaductModulePlugin : Plugin<Project> {
         val appExt = rootProject.extensions.getByType(ViaductApplicationExtension::class.java)
 
         return tasks.register<GenerateResolverBasesTask>("generateViaductResolverBases") {
+            buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             centralSchemaFiles.from(
                 centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching { include("**/*.graphqls") }
             )

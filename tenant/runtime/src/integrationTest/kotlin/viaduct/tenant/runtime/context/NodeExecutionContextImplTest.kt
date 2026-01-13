@@ -7,11 +7,11 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
-import viaduct.api.mocks.MockGlobalIDCodec
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.mocks.variables
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
 import viaduct.tenant.runtime.globalid.Query
@@ -33,7 +33,7 @@ class NodeExecutionContextImplTest : ContextTestBase() {
         )
 
         return NodeExecutionContextImpl(
-            MockInternalContext(GlobalIdFeatureAppTest.schema, MockGlobalIDCodec()),
+            MockInternalContext(GlobalIdFeatureAppTest.schema, GlobalIDCodecDefault),
             wrapper,
             selectionSet,
             null, // requestContext

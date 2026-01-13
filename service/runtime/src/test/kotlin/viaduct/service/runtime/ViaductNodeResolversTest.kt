@@ -2,7 +2,6 @@
 
 package viaduct.service.runtime
 
-import com.google.common.net.UrlEscapers
 import java.util.Base64
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -16,6 +15,7 @@ import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.graphql.test.assertJson
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.runtime.noderesolvers.ViaductQueryNodeResolverModuleBootstrapper
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -55,21 +55,10 @@ class ViaductNodeResolversTest {
         private const val INTERNAL_ID_2 = "456"
         private val GLOBAL_ID_2 = getGlobalId("User", INTERNAL_ID_2)
 
-        /**
-         * Logic for endcoding the GlobalID string format.
-         * This is copied from GlobalIDCodecImpl and should be refactored as part of:
-         * https://app.asana.com/1/150975571430/project/1209554365854885/task/1211213956653747
-         */
         private fun getGlobalId(
             typeName: String,
             internalID: String
-        ): String =
-            Base64.getEncoder().encodeToString(
-                arrayListOf(
-                    typeName,
-                    UrlEscapers.urlFormParameterEscaper().escape(internalID)
-                ).joinToString(":").toByteArray()
-            )
+        ): String = GlobalIDCodecDefault.serialize(typeName, internalID)
     }
 
     @Test
@@ -169,7 +158,8 @@ class ViaductNodeResolversTest {
     fun `errors with a syntactically invalid global id string`() {
         bootstrapper
             .runFeatureTest {
-                val invalidGlobalId = getGlobalId("Invalid:Syntax", INTERNAL_ID_1)
+                // Create a Base64 string that decodes to something without a colon delimiter
+                val invalidGlobalId = Base64.getEncoder().encodeToString("NoDelimiterHere".toByteArray())
 
                 val result = runQuery(
                     """
@@ -187,7 +177,11 @@ class ViaductNodeResolversTest {
                 result.getData<Map<String, Any?>>().assertJson("{node: null}")
                 assertEquals(1, result.errors.size)
                 val error = result.errors[0]
-                assertTrue(error.message.contains("Expected GlobalID \"$invalidGlobalId\" to be a Base64-encoded string with the decoded format '<type name>:<internal ID>'"))
+                assertTrue(
+                    error.message.contains("Failed to deserialize GlobalID") &&
+                        error.message.contains(invalidGlobalId),
+                    "Expected error message to contain 'Failed to deserialize GlobalID' and the invalid ID, but got: ${error.message}"
+                )
             }
     }
 

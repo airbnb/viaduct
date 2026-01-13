@@ -13,6 +13,7 @@ dependencies {
     api(libs.viaduct.shared.invariants)
     api(libs.viaduct.shared.viaductschema)
     api(libs.viaduct.shared.mapping)
+    api(libs.viaduct.shared.apiannotations)
 
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.utils)

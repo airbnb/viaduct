@@ -26,5 +26,5 @@ sealed class ResolverExecutionContextImpl(
     override fun <T : NodeObject> globalIDStringFor(
         type: Type<T>,
         internalID: String,
-    ) = globalIDCodec.serialize(globalIDFor(type, internalID))
+    ) = globalIDCodec.serialize(type.name, internalID)
 }

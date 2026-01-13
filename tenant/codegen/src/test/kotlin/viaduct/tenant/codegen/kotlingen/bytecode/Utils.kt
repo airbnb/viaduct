@@ -17,8 +17,8 @@ fun mkSchema(sdl: String): ViaductSchema {
 fun mkKotlinGRTFilesBuilder(
     schema: ViaductSchema,
     pkg: String = "pkg"
-): KotlinGRTFilesBuilder =
-    KotlinGRTFilesBuilderImpl(
+): KotlinGRTFilesBuilder {
+    val builder = KotlinGRTFilesBuilderImpl(
         KotlinCodeGenArgs(
             pkg,
             File.createTempFile("kotlingrt_", null),
@@ -26,3 +26,6 @@ fun mkKotlinGRTFilesBuilder(
             ViaductBaseTypeMapper(schema)
         )
     )
+    builder.initSchemaForTest(schema)
+    return builder
+}

@@ -98,12 +98,12 @@ If you're missing any access, contact your team lead before release day.
 ssh -T git@github.com
 ```
 
-Expected output: `Hi <username>! You've successfully authenticated`
+Expected output: `Hi <username>! You've successfully authenticated, but GitHub does not provide shell access.`
 
 If this fails:
 
-   - Ensure you have SSH keys set up: https://docs.github.com/en/authentication/connecting-to-github-with-ssh
-   - Add your key to ssh-agent: `ssh-add ~/.ssh/id_rsa`
+- Ensure you have SSH keys set up: https://docs.github.com/en/authentication/connecting-to-github-with-ssh
+- Add your key to ssh-agent: `ssh-add ~/.ssh/id_rsa`
 
 **Authenticate GitHub CLI**
 
@@ -172,9 +172,17 @@ git diff .
 
 You should see that the `VERSION` file has changed a the project root and the `gradle.properties` files have changed for each of the demo apps.
 
+> Use the normal PR merge process to merge this OSS PR. (pull-me)
+
 ### 3) Make release branch
 
-Once this PR is approved and merged, create a branch off the SHA just before the version bump. This branch should be named `release/v0.X.0`. In this branch, edit the `VERSION` file to contain `0.X.0` and then run:
+Once this PR is approved and merged:
+
+- Create a branch off the SHA just before the version bump. This branch should be named `release/v0.X.0`.
+- Make sure that the branch name contains the `v` before the version or subsequent steps might break.
+- In this branch, edit the `VERSION` file to contain `0.X.0`
+
+and then run:
 
 > Note: Make sure that the branch name contains the `v` before the version or subsequent steps might break.
 
@@ -302,7 +310,20 @@ At the Wednesday OSS meeting the team will confirm that the release is ready. If
 
 ### 8) Publish the artifacts
 
-The release manager manually invokes a Github Action that uses `HEAD` of the release candidate branch via
+Before triggering the workflow, verify you're in the correct repo + branch and that your working tree is clean:
+
+```bash
+gh repo view --json nameWithOwner
+git branch --show-current
+git status --porcelain
+```
+
+Expected :
+• nameWithOwner is airbnb/viaduct
+• branch is release/v0.X.0
+• git status --porcelain is empty
+
+Then, trigger the release workflow:
 
 ```
 gh workflow run ".github/workflows/release.yml" \
@@ -318,11 +339,11 @@ gh workflow run ".github/workflows/release.yml" \
 
 This workflow will:
 
-  - Package release artifacts using Gradle.
-  - Publish plugin artifacts to the Gradle Plugin Portal.
-  - Stage a deployment to Sonatype.
-  - Pushes a `v0.X.0` tag to Github.
-  - Create a draft Github release.
+- Package release artifacts using Gradle.
+- Publish plugin artifacts to the Gradle Plugin Portal.
+- Stage a deployment to Sonatype.
+- Pushes a `v0.X.0` tag to Github.
+- Create a draft Github release.
 
 ### 9) Verify publications
 
@@ -332,9 +353,9 @@ Log in to [Sonatype Maven Central](https://plugins.gradle.org/u/viaduct-maintain
 
 Once the artifacts are published, we need to update the standalone copies of the standalone apps to agree with the new release.
 
-  - `starwars` → `viaduct-graphql/starwars`
-  - `cli-starter` → `viaduct-graphql/cli-starter`
-  - `ktor-starter` → `viaduct-graphql/ktor-starter`
+- `starwars` → `viaduct-graphql/starwars`
+- `cli-starter` → `viaduct-graphql/cli-starter`
+- `ktor-starter` → `viaduct-graphql/ktor-starter`
 
 **It's important to do this on the release branch!**
 
@@ -362,6 +383,7 @@ You should have a local clone of each of these demoapp repository. After running
 
 ```bash
 cd ~/repos/starwars # Or wherever your public clone is
+git pull
 ./gradlew clean test --scan
 ```
 
@@ -377,7 +399,7 @@ Why this matters:
 - "Latest" badge helps users quickly find the current version
 - Changelog provides important migration information
 - Links from external sites often point to the releases page
-Once artifacts are published to Maven Central and Gradle Plugin Portal, and demo apps are verified, make the release official on GitHub.
+  Once artifacts are published to Maven Central and Gradle Plugin Portal, and demo apps are verified, make the release official on GitHub.
 
 To publish:
 
@@ -401,11 +423,11 @@ open https://github.com/airbnb/viaduct/releases
 
 Review one final time:
 
-  - Version tag is correct (e.g., `v0.7.0`)
-  - Target is the correct release branch
-  - Changelog is complete and well-formatted
-  - ✅ **Ensure that "Set as the latest release" is checked** (very important!)
-  - Click **"Publish release"**
+- Version tag is correct (e.g., `v0.7.0`)
+- Target is the correct release branch
+- Changelog is complete and well-formatted
+- ✅ **Ensure that "Set as the latest release" is checked** (very important!)
+- Click **"Publish release"**
 
 #### 11e) Verify publication
 

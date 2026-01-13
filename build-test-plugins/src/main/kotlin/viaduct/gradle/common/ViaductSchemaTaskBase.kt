@@ -1,15 +1,20 @@
 package viaduct.gradle.common
 
+import java.io.FileOutputStream
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.ProjectLayout
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
+import viaduct.gradle.ViaductPluginCommon
+import viaduct.graphql.schema.binary.writeBSchema
+import viaduct.graphql.schema.graphqljava.GJSchema
 import viaduct.tenant.codegen.cli.SchemaObjectsBytecode
 
 /**
@@ -25,6 +30,9 @@ abstract class ViaductSchemaTaskBase : DefaultTask() {
 
     @get:Input
     abstract val packageName: Property<String>
+
+    @get:Input
+    abstract val buildFlags: MapProperty<String, String>
 
     @get:Input
     abstract val workerNumber: Property<Int>
@@ -46,7 +54,10 @@ abstract class ViaductSchemaTaskBase : DefaultTask() {
      */
     protected fun executeSchemaGeneration() {
         val outputDir = generatedSrcDir.get().asFile
-        // val classpath = mainProjectClasspath.asPath
+
+        // Write build flags to temporary file
+        val flagFile = temporaryDir.resolve("viaduct_build_flags")
+        flagFile.writeText(ViaductPluginCommon.buildFlagFileContent(buildFlags.get()))
 
         // Include the default schema along with the configured schema files
         val allSchemaFiles = DefaultSchemaUtil
@@ -58,6 +69,13 @@ abstract class ViaductSchemaTaskBase : DefaultTask() {
         val workerCountArg = workerCount.get().toString()
         val includeEligibleForTesting = includeIneligibleForTesting.get()
 
+        // Generate binary schema file
+        val binarySchemaFile = temporaryDir.resolve("schema.bgql")
+        writeBSchema(
+            GJSchema.fromFiles(allSchemaFiles),
+            FileOutputStream(binarySchemaFile)
+        )
+
         // Clean and prepare directories
         if (outputDir.exists()) outputDir.deleteRecursively()
         outputDir.mkdirs()
@@ -67,6 +85,10 @@ abstract class ViaductSchemaTaskBase : DefaultTask() {
             outputDir.absolutePath,
             "--schema_files",
             schemaFilesArg,
+            "--binary_schema_file",
+            binarySchemaFile.absolutePath,
+            "--flag_file",
+            flagFile.absolutePath,
             "--bytecode_worker_number",
             workerNumberArg,
             "--bytecode_worker_count",

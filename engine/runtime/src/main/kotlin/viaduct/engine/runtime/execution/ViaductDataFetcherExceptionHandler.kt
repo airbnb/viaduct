@@ -14,12 +14,11 @@ import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantException
 import viaduct.api.ViaductTenantResolverException
 import viaduct.engine.runtime.exceptions.FieldFetchingException
-import viaduct.service.api.spi.ErrorMetadata
+import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.ResolverErrorReporter
 import viaduct.utils.slf4j.logger
 
-class ViaductDataFetcherExceptionHandler(val errorReporter: ResolverErrorReporter, val errorBuilder: ResolverErrorBuilder) : DataFetcherExceptionHandler {
+class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val errorBuilder: ResolverErrorBuilder) : DataFetcherExceptionHandler {
     companion object {
         // A map of error types to expose in the GraphQL error extensions
         // This is used to categorize the errors in the extensions for better error handling,
@@ -62,10 +61,8 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ResolverErrorReporte
         val errors = getErrors(unwrappedException, env, metadata)
         val message: String = getErrorMessage(operationName, env, metadata)
 
-        errorReporter.reportError(
+        errorReporter.reportResolverError(
             unwrappedException,
-            params.fieldDefinition,
-            env,
             message,
             metadata
         )
@@ -81,8 +78,8 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ResolverErrorReporte
         params: DataFetcherExceptionHandlerParameters,
         operationName: String?,
         exception: Throwable,
-    ): ErrorMetadata {
-        if (params.fieldDefinition == null) return ErrorMetadata.EMPTY
+    ): ErrorReporter.Metadata {
+        if (params.fieldDefinition == null) return ErrorReporter.Metadata.EMPTY
         val isFrameworkError = when (exception) {
             is ViaductFrameworkException -> true
             is ViaductTenantException -> false
@@ -92,24 +89,34 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ResolverErrorReporte
         val fieldName = params.fieldDefinition?.name
         val parentType = (params.dataFetchingEnvironment.parentType as? GraphQLNamedType)?.name
 
-        val errorType = EXTENSION_ERROR_TYPES_OVERRIDE[exception::class.java]
-
-        return ErrorMetadata(
+        @Suppress("DEPRECATION")
+        return ErrorReporter.Metadata(
             fieldName = fieldName,
             parentType = parentType,
             operationName = operationName,
             isFrameworkError = isFrameworkError,
             resolvers = (exception as? ViaductTenantResolverException)?.let(::resolverCallChain),
-            errorType = errorType,
+            dataFetchingEnvironment = params.dataFetchingEnvironment
         )
     }
 
     private fun getErrors(
         exception: Throwable,
         env: DataFetchingEnvironment,
-        metadata: ErrorMetadata
+        metadata: ErrorReporter.Metadata
     ): List<GraphQLError> {
-        val errors = errorBuilder.exceptionToGraphQLError(exception, env, metadata)
+        val viaductErrors = errorBuilder.exceptionToGraphQLError(exception, metadata)
+
+        val errors = viaductErrors?.map { viaductError ->
+            val builder = GraphqlErrorBuilder.newError().message(viaductError.message)
+            viaductError.path?.let { builder.path(it) } ?: builder.path(env.executionStepInfo.path)
+            viaductError.locations?.let { locations ->
+                builder.locations(locations.map { graphql.language.SourceLocation(it.line, it.column, it.sourceName) })
+            }
+            builder.extensions(viaductError.extensions ?: emptyMap())
+            builder.build()
+        }
+
         return errors
             ?: when (exception) {
                 is FieldFetchingException -> listOf(exception.toGraphQLError())
@@ -128,7 +135,7 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ResolverErrorReporte
     private fun getErrorMessage(
         operationName: String?,
         env: DataFetchingEnvironment,
-        metadata: ErrorMetadata,
+        metadata: ErrorReporter.Metadata,
     ): String {
         return "Error fetching %s:%s of type %s.%s: %s".format(
             operationName,
