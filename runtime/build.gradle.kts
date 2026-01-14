@@ -37,6 +37,9 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("com.google.guava", "viaduct.shaded.guava")
     relocate("com.fasterxml.jackson", "viaduct.shaded.jackson")
     relocate("org.slf4j", "viaduct.shaded.slf4j")
+    relocate("com.google.inject", "viaduct.shaded.guice")
+    relocate("graphql", "viaduct.shaded.graphql")
+    relocate("javax.inject", "viaduct.shaded.javax.inject")
 }
 
 // Make shadowJar replace the default jar

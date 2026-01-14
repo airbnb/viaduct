@@ -11,14 +11,10 @@ application {
 
 viaductApplication {
     modulePackagePrefix.set("com.example.viadapp")
-    // Disable automatic BOM/dependency injection - we manage dependencies explicitly
-    applyBOM.set(false)
 }
 
-dependencies {
-    implementation(libs.viaduct.api)
-    implementation(libs.viaduct.runtime)
 
+dependencies {
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.reactor)
@@ -42,9 +38,6 @@ dependencies {
     testImplementation(libs.kotest.runner.junit)
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.kotest.assertions.json)
-
-    // Use test fixtures bundle
-    testImplementation(libs.viaduct.test.fixtures)
 }
 
 tasks.withType<Test> {
