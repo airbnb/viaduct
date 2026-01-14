@@ -1,4 +1,5 @@
 [versions]
+viaduct = "0.20.0-SNAPSHOT"
 coroutinesReactor = "1.10.2"
 kotest = "6.0.5"
 kotlin = "2.2.21"
@@ -14,9 +15,9 @@ viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref =
 [libraries]
 # Viaduct
 viaduct-bom = { group = "com.airbnb.viaduct", name = "bom", version.ref = "viaduct" }
-viaduct-api = { group = "com.airbnb.viaduct", name = "api" }
-viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime" }
-viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures" }
+viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viaduct" }
+viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
+viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures", version.ref = "viaduct" }
 
 # Common libraries
 jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin" }

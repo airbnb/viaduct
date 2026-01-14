@@ -1,4 +1,5 @@
 [versions]
+viaduct = "0.20.0-SNAPSHOT"
 coroutinesReactor = "1.10.2"
 kotest = "6.0.5"
 kotlin = "2.2.21"
@@ -24,12 +25,12 @@ micronaut-inject-java = { group = "io.micronaut", name = "micronaut-inject-java"
 micronaut-validation = { group = "io.micronaut", name = "micronaut-http-validation", version.ref = "micronaut" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
 viaduct-bom = { group = "com.airbnb.viaduct", name = "bom", version.ref = "viaduct" }
-viaduct-api = { group = "com.airbnb.viaduct", name = "api" }
-viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime" }
-viaduct-engine-wiring = { group = "com.airbnb.viaduct", name = "engine-wiring" }
-viaduct-service-wiring = { group = "com.airbnb.viaduct", name = "service-wiring" }
-viaduct-tenant-api = { group = "com.airbnb.viaduct", name = "tenant-api" }
-viaduct-tenant-runtime = { group = "com.airbnb.viaduct", name = "tenant-runtime" }
+viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viaduct" }
+viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
+viaduct-engine-wiring = { group = "com.airbnb.viaduct", name = "engine-wiring", version.ref = "viaduct" }
+viaduct-service-wiring = { group = "com.airbnb.viaduct", name = "service-wiring", version.ref = "viaduct" }
+viaduct-tenant-api = { group = "com.airbnb.viaduct", name = "tenant-api", version.ref = "viaduct" }
+viaduct-tenant-runtime = { group = "com.airbnb.viaduct", name = "tenant-runtime", version.ref = "viaduct" }
 guice = { group = "com.google.inject", name = "guice", version.ref = "guice" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
 kotlinx-coroutines-reactor = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-reactor", version.ref = "coroutinesReactor" }

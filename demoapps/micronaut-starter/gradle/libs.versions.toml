@@ -1,4 +1,5 @@
 [versions]
+viaduct = "0.20.0-SNAPSHOT"
 kotlin = "2.1.0"
 ksp = "2.1.0-1.0.29"
 micronaut = "4.7.4"
