@@ -126,7 +126,7 @@ jobs:
       - name: Create Draft Release
         id: create_release
         if: ${{ !inputs.publish_snapshot }}
-        uses: softprops/action-gh-release@v2.4.1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           tag_name: "v${{ inputs.release_version }}"
           name: Release ${{ inputs.release_version }}
