@@ -294,7 +294,10 @@ Cursors are opaque strings that identify a position in a paginated list.
 
 ### Offset Cursors
 
-For offset/limit backends, Viaduct provides {{ kdoc("viaduct.api.types.OffsetCursor") }}:
+!!! note
+    This feature is still in development.
+
+For offset/limit backends, Viaduct provides `viaduct.api.types.OffsetCursor`:
 
 ```kotlin
 @JvmInline

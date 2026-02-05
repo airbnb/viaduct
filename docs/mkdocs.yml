@@ -88,6 +88,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - About: about/index.md
   - Documentation:
     - docs/index.md
     - Getting Started:
@@ -97,6 +98,7 @@ nav:
             - Clone Existing Tenant: getting_started/setup/clone/index.md
             - From Scratch: getting_started/setup/from_scratch/index.md
         - Tour: getting_started/tour/index.md
+        - Tutorial: tutorials/index.md
         - Star Wars Tutorial:
             - getting_started/starwars/index.md
             - Core Concepts:
@@ -141,6 +143,7 @@ nav:
       - Scopes: docs/developers/scopes/index.md
       - Schema Reference: docs/developers/schema_reference/index.md
       - Serve: docs/developers/serve/index.md
+      - Testing: docs/developers/testing/index.md
     - Service Engineers:
       - docs/service_engineers/index.md
       - Schema Extensions: docs/service_engineers/schema_extensions/index.md
@@ -148,6 +151,7 @@ nav:
       - Observability:
         - docs/service_engineers/observability/index.md
         - Error Handling: docs/service_engineers/observability/error_handling.md
+        - Setup: docs/service_engineers/observability/setup.md
     - Contributors:
       - docs/contributors/index.md
       - Architecture: docs/contributors/architecture/index.md

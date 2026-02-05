@@ -16,7 +16,7 @@ The following diagram illustrates the layers that make up the Viaduct architectu
 
 
 
-* Overall a Viaduct application consists of two layers, the Viaduct Framework, i.e., the open-source software found in [github.com/airbnb/viaduct](http://github.com/airbnb/viaduct), plus the application software that sits on top of that.  In addition, it’s organized into two “stacks,” the service stack and the application stack.
+* Overall a Viaduct application consists of two layers, the Viaduct Framework, i.e., the open-source software found in [github.com/airbnb/viaduct](https://github.com/airbnb/viaduct), plus the application software that sits on top of that.  In addition, it’s organized into two “stacks,” the service stack and the application stack.
 
 * The Viaduct Framework in turn consists of two internal layers: the engine
   and the tenant developer API.  The engine implements the GraphQL execution algorithms.  Internally this layer is written in a dynamically-typed manner: think of GraphQL objects represented as maps from field names to `Any?` values (it’s more complicated than that, but directionally that’s the way to think about it).  The tenant developer API provides an ergonomic layer for application developers sitting on top of this lower-level.  Among other things, the tenant developer API presents statically-typed wrappers around the lower-level, dynamically-type engine objects, providing type safety for application code.

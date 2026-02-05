@@ -384,9 +384,46 @@ jobs:
           echo "✅ Coverage thresholds met successfully"
         shell: bash
 
+  docs-link-check:
+    runs-on: ubuntu-latest
+    name: Docs API Link Check
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-java-21-ubuntu-latest
+          path: build/
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r docs/requirements.txt
+
+      - name: Build MkDocs site
+        run: |
+          cd docs
+          mkdocs build
+
+      - name: Copy Dokka API docs to site
+        run: |
+          cp -r docs/docs/apis/* docs/site/apis/
+
+      - name: Run API link validation
+        run: |
+          cd docs
+          PYTHONPATH=.:$PYTHONPATH djlint site/ --lint \
+            --ignore "H005,H006,H013,H014,H021,H023,H025,H030,H031" \
+            --include "LINK001"
+        shell: bash
+
   slack-alerts:
     runs-on: ubuntu-latest
-    needs: [build, test, detekt, ktlint, coverage-verification]
+    needs: [build, test, detekt, ktlint, coverage-verification, docs-link-check]
     if: always()
     steps:
       - name: Detect failed job and step
