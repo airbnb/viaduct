@@ -12,6 +12,7 @@ import io.mockk.mockk
 import java.util.function.Supplier
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -20,6 +21,7 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.QueryPlanExecutionCondition
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.runtime.CheckerDispatcherImpl
@@ -198,6 +200,88 @@ class AccessCheckRunnerTest {
                 assertEquals(CheckerResult.Success, result.await())
             }
         }
+
+    @Test
+    fun `typeCheck - skips child plan when executionCondition returns false`(): Unit =
+        runBlocking {
+            withThreadLocalCoroutineContext {
+                val neverExecuteCondition = QueryPlanExecutionCondition { false }
+
+                val childPlanLaunched = checkTypeWithExecutionCondition(neverExecuteCondition)
+
+                assertEquals(false, childPlanLaunched, "Child plan should NOT be launched when executionCondition returns false")
+            }
+        }
+
+    @Test
+    fun `typeCheck - executes child plan when executionCondition returns true`(): Unit =
+        runBlocking {
+            withThreadLocalCoroutineContext {
+                val childPlanLaunched = checkTypeWithExecutionCondition(QueryPlanExecutionCondition.ALWAYS_EXECUTE)
+
+                assertEquals(true, childPlanLaunched, "Child plan should be launched when executionCondition returns true")
+            }
+        }
+
+    private suspend fun checkTypeWithExecutionCondition(executionCondition: QueryPlanExecutionCondition): Boolean {
+        var childPlanLaunched = false
+        val mockChildPlan = mockk<QueryPlan> {
+            every { this@mockk.executionCondition } returns executionCondition
+            every { selectionSet } returns mockk(relaxed = true)
+        }
+
+        val typeChecks = mapOf("Foo" to CheckerDispatcherImpl(successCheckerExecutor))
+        val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), typeChecks)
+        val engineExecutionContext = mockk<EngineExecutionContextImpl> {
+            every { dispatcherRegistry } returns registry
+            every { rawSelectionSetFactory.rawSelectionSet(any(), any()) } returns RawSelectionSet.empty("Foo")
+            every { activeSchema } returns mockk()
+            every { fieldScopeSupplier } returns mockk()
+            every { dataFetchingEnvironment } returns null
+            every { copy(any(), any(), any(), any()) } returns this
+            every { executeAccessChecksInModstrat } returns true
+        }
+        val oer = objectEngineResult {
+            type = fooObjectType
+            data = emptyMap()
+        }
+        val params = mockk<ExecutionParameters> {
+            every { this@mockk.engineExecutionContext } returns engineExecutionContext
+            every { instrumentation } returns mockk {
+                every { instrumentAccessCheck(any(), any(), any()) } answers { firstArg() }
+            }
+            every { executionContext } returns mockk {
+                every { instrumentationState } returns mockk()
+            }
+            every { executionContextWithLocalContext } returns mockk {
+                every { instrumentationState } returns mockk()
+                every { getLocalContextForType<EngineExecutionContextImpl>() } returns engineExecutionContext
+            }
+            every { localContext } returns mockk {
+                every { get<EngineExecutionContextImpl>() } returns engineExecutionContext
+            }
+            every { gjParameters } returns mockk()
+            every { field } returns mockk {
+                every { fieldName } returns "testField"
+                every { fieldTypeChildPlans } returns mapOf(fooObjectType to lazy { listOf(mockChildPlan) })
+            }
+            every { launchOnRootScope(any()) } answers {
+                childPlanLaunched = true
+                mockk<Job>()
+            }
+        }
+
+        val result = runner.typeCheck(
+            params,
+            mockSupplier,
+            oer,
+            mockk(),
+            mockk()
+        )
+
+        result.await()
+        return childPlanLaunched
+    }
 
     private fun checkType(
         isEnabled: Boolean,

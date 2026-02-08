@@ -1,13 +1,13 @@
 package viaduct.engine.runtime
 
 import graphql.GraphQLError
+import graphql.introspection.Introspection
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ObjectEngineResult
-import viaduct.engine.api.ObjectEngineResult.Key.Companion.invoke
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.UnsetSelectionException
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
@@ -109,7 +109,7 @@ open class ProxyEngineObjectData(
         selections: RawSelectionSet
     ): RawSelectionSet? {
         val rawSelection = selections.resolveSelection(objectEngineResult.graphQLObjectType.name, resultKey)
-        val field = objectEngineResult.graphQLObjectType.getField(rawSelection.fieldName)
+        val field = requireNotNull(objectEngineResult.graphQLObjectType.getField(rawSelection.fieldName) ?: introspectionFields[rawSelection.fieldName])
         return if (GraphQLTypeUtil.unwrapAll(field.type) is GraphQLCompositeType) {
             selections.selectionSetForSelection(objectEngineResult.graphQLObjectType.name, resultKey)
         } else {
@@ -171,6 +171,14 @@ open class ProxyEngineObjectData(
                 throw error.error
             }
         }
+    }
+
+    companion object {
+        private val introspectionFields = listOf(
+            Introspection.TypeNameMetaFieldDef,
+            Introspection.SchemaMetaFieldDef,
+            Introspection.TypeMetaFieldDef
+        ).associateBy { it.name }
     }
 }
 

@@ -31,6 +31,7 @@ kotlin {
 
 dependencies {
     testImplementation(testFixtures(libs.viaduct.tenant.api))
+    testImplementation(testFixtures(libs.viaduct.tenant.runtime))
 
     testImplementation(libs.viaduct.tenant.runtime)
     testImplementation(libs.viaduct.shared.apiannotations)
@@ -42,5 +43,6 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.strikt.core)
     testImplementation(testFixtures(libs.viaduct.shared.mapping))
+    testImplementation(testFixtures(libs.viaduct.shared.graphql))
     testImplementation(testFixtures(libs.viaduct.engine.api))
 }

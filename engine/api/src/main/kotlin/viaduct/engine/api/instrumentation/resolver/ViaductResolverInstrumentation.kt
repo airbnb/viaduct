@@ -18,6 +18,13 @@ fun interface FetchFunction<T> {
 }
 
 /**
+ * A function interface for synchronous field selection fetching.
+ */
+fun interface SyncFetchFunction<T> {
+    fun fetch(): T
+}
+
+/**
  * A function interface for access checker execution.
  */
 fun interface CheckerFunction<T> {
@@ -87,6 +94,19 @@ interface ViaductResolverInstrumentation {
         parameters: InstrumentFetchSelectionParameters,
         state: InstrumentationState?,
     ): FetchFunction<T> = fetchFn
+
+    /**
+     * Wraps synchronous selection fetching with instrumentation.
+     * @param fetchFn The sync fetch function to instrument
+     * @param parameters Parameters for the fetch operation
+     * @param state The instrumentation state
+     * @return The instrumented sync fetch function
+     */
+    fun <T> instrumentSyncFetchSelection(
+        fetchFn: SyncFetchFunction<T>,
+        parameters: InstrumentFetchSelectionParameters,
+        state: InstrumentationState?,
+    ): SyncFetchFunction<T> = fetchFn
 
     data class InstrumentExecuteCheckerParameters(
         val checkerMetadata: CheckerMetadata

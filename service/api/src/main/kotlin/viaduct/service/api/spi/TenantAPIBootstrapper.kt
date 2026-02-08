@@ -26,6 +26,7 @@ interface TenantAPIBootstrapper<T> {
         override suspend fun tenantModuleBootstrappers(): Iterable<T> = items.flatMap { it.tenantModuleBootstrappers() }
     }
 
+    @StableApi
     companion object {
         /** flatten an Iterable of TenantAPIBootstrapper into a single instance */
         fun <T> Iterable<TenantAPIBootstrapper<T>>.flatten(): TenantAPIBootstrapper<T> = Flatten(this)

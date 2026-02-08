@@ -173,6 +173,7 @@ interface SelectionSet<T : CompositeOutput> {
     /** the type condition of this SelectionSet */
     val type: Type<T>
 
+    @StableApi
     companion object {
         /** Create a [SelectionSet] for a provided [Type] that contains no selections */
         fun <T : CompositeOutput> empty(type: Type<T>): SelectionSet<T> =
@@ -195,6 +196,7 @@ interface SelectionSet<T : CompositeOutput> {
      * A marker object that defines a [SelectionSet] for a type that does not support selections.
      * NoSelections can be used in places where a SelectionSet is required but cannot be defined.
      */
+    @StableApi
     object NoSelections : SelectionSet<CompositeOutput.NotComposite> {
         override fun <U : CompositeOutput.NotComposite> contains(field: Field<U>): Boolean = false
 

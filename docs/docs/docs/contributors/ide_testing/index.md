@@ -96,7 +96,7 @@ Each of these tests should be performed with **both the native/standard compiler
 
 ## Demo Applications Overview
 
-### starwars Application (<https://github.com/viaduct-graphql/starwars>)
+### starwars Application (<https://github.com/viaduct-dev/starwars>)
 
 - **Main class**: `src/main/kotlin/viaduct/demoapp/starwars/Application.kt`
 - **Run command**: `./gradlew bootRun`
@@ -106,7 +106,7 @@ Each of these tests should be performed with **both the native/standard compiler
   - `modules/starships/src/main/viaduct/schema/Starship.graphqls`
   - `modules/starwars/src/main/viaduct/schema/Film.graphqls`
 
-### cli-starter Application (<https://github.com/viaduct-graphql/cli-starter>)
+### cli-starter Application (<https://github.com/viaduct-dev/cli-starter>)
 
 - **Main class**: `src/main/kotlin/com/example/viadapp/ViaductApplication.kt`
 - **Run command**: `./gradlew -q run`
@@ -121,7 +121,7 @@ This test verifies the IDE's ability to run the application directly, detect cha
 
 ### For starwars Application
 
-- **Step 1:** Open the starwars project (<https://github.com/viaduct-graphql/starwars>) in the target IDE.
+- **Step 1:** Open the starwars project (<https://github.com/viaduct-dev/starwars>) in the target IDE.
 - **Step 2:** Locate and run the `main` function in `src/main/kotlin/viaduct/demoapp/starwars/Application.kt`. The application should start on <http://localhost:8080>.
 - **Step 3:** Open [http://localhost:8080/graphiql](http://localhost:8080/graphiql) in your browser to verify the application is working. Try the basic query:
 
@@ -164,7 +164,7 @@ This test verifies the IDE's ability to run the application directly, detect cha
 
 ### For cli-starter Application
 
-- **Step 1:** Open the cli-starter project (<https://github.com/viaduct-graphql/cli-starter>) in the target IDE.
+- **Step 1:** Open the cli-starter project (<https://github.com/viaduct-dev/cli-starter>) in the target IDE.
 - **Step 2:** Locate and run the `main` function in `src/main/kotlin/com/example/viadapp/ViaductApplication.kt`. You should see JSON output with "Hello, World!".
 - **Step 3:** Verify the application works by testing the GraphQL query execution. The output should be:
 
@@ -197,7 +197,7 @@ This test focuses on the IDE's handling of unit tests, change detection, and re-
 
 #### Test Suite: QueryResolverUnitTests
 
-- **Step 1:** Open the starwars project (<https://github.com/viaduct-graphql/starwars>) in the target IDE.
+- **Step 1:** Open the starwars project (<https://github.com/viaduct-dev/starwars>) in the target IDE.
 - **Step 2:** Run `src/test/kotlin/viaduct/demoapp/starwars/QueryResolverUnitTests.kt`. Verify that all tests pass.
 - **Step 3:** Break this test by removing the `name` field from `modules/starwars/src/main/viaduct/schema/Character.graphqls` (delete the line: `name: String`).
 - **Step 4:** Use the IDE's "Rebuild Project" or equivalent command to trigger code generation.
@@ -214,7 +214,7 @@ This test focuses on the IDE's handling of unit tests, change detection, and re-
 
 #### Test Suite: ViaductApplicationTest
 
-- **Step 1:** Open the cli-starter project (<https://github.com/viaduct-graphql/cli-starter>) in the target IDE.
+- **Step 1:** Open the cli-starter project (<https://github.com/viaduct-dev/cli-starter>) in the target IDE.
 - **Step 2:** Run `src/test/kotlin/com/example/viadapp/ViaductApplicationTest.kt`. Verify that all tests pass.
 - **Step 3:** Break this test by removing the `greeting` field from `src/main/viaduct/schema/schema.graphqls` (delete the line: `greeting: String @resolver`).
 - **Step 4:** Use the IDE's "Rebuild Project" or equivalent command to trigger code generation.
@@ -226,7 +226,7 @@ This test verifies that the IDE correctly recognizes and reflects changes introd
 
 ### For starwars Application
 
-- **Step 1:** Open the starwars project (<https://github.com/viaduct-graphql/starwars>) in the target IDE.
+- **Step 1:** Open the starwars project (<https://github.com/viaduct-dev/starwars>) in the target IDE.
 - **Step 2:** Introduce a compilation error by removing the `homeworld` field from `modules/starwars/src/main/viaduct/schema/Character.graphqls` (delete the line: `homeworld: Planet @resolver`). This will cause compilation errors in resolver code that references this field.
 - **Step 3:** Observe that the IDE highlights compilation errors in the generated code or resolver files that depend on the homeworld field.
 - **Step 4:** Initiate a "Rebuild Project" or equivalent command to trigger code generation.
@@ -240,7 +240,7 @@ This test verifies that the IDE correctly recognizes and reflects changes introd
 
 ### For cli-starter Application
 
-- **Step 1:** Open the cli-starter project (<https://github.com/viaduct-graphql/cli-starter>) in the target IDE.
+- **Step 1:** Open the cli-starter project (<https://github.com/viaduct-dev/cli-starter>) in the target IDE.
 - **Step 2:** Introduce a compilation error by removing the `author` field from `src/main/viaduct/schema/schema.graphqls` (delete the line: `author: String @resolver`). This will cause the application to fail when trying to resolve author queries.
 - **Step 3:** Observe that the IDE may highlight issues in generated code or when running queries that reference the missing field.
 - **Step 4:** Initiate a "Rebuild Project" or equivalent command to trigger code generation.

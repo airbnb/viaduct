@@ -25,6 +25,8 @@ interface FieldResolverDispatcher {
         arguments: Map<String, Any?>,
         objectValue: EngineObjectData,
         queryValue: EngineObjectData,
+        syncObjectValueGetter: suspend () -> EngineObjectData.Sync,
+        syncQueryValueGetter: suspend () -> EngineObjectData.Sync,
         selections: RawSelectionSet?,
         context: EngineExecutionContext,
     ): Any?

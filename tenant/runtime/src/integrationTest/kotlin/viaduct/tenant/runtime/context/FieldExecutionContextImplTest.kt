@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.mocks.MockInternalContext
+import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
@@ -32,20 +33,28 @@ class FieldExecutionContextImplTest : ContextTestBase() {
         args: Arguments = Args,
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
         selectionSet: SelectionSet<CompositeOutput> = noSelections,
-    ): FieldExecutionContextImpl {
+    ): FieldExecutionContextImpl<QueryType> {
         val wrapper = createMockingWrapper(
             schema = SelectTestFeatureAppTest.schema,
             queryMock = queryObject
         )
 
         return FieldExecutionContextImpl(
-            MockInternalContext(SelectTestFeatureAppTest.schema, globalIDCodec),
+            MockInternalContext(
+                SelectTestFeatureAppTest.schema,
+                globalIDCodec,
+                MockReflectionLoader(Query.Reflection)
+            ),
             wrapper,
             selectionSet,
             null, // requestContext
             args,
             obj,
             query,
+            syncObjectValueGetter = null,
+            syncQueryValueGetter = null,
+            objectCls = Object::class,
+            queryCls = QueryType::class,
         )
     }
 
@@ -81,13 +90,8 @@ class FieldExecutionContextImplTest : ContextTestBase() {
     fun query() =
         runBlockingTest {
             val ctx = mk()
-            ctx.selectionsFor(Query.Reflection, "__typename").also {
-                assertTrue(it.contains(Query.Reflection.Fields.__typename))
-
-                ctx.query(it).also { result ->
-                    assertEquals(queryObject, result)
-                }
-            }
+            val result = ctx.query("__typename")
+            assertEquals(queryObject, result)
         }
 
     @Test

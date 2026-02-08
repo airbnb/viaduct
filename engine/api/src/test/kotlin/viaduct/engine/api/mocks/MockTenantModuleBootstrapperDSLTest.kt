@@ -187,6 +187,8 @@ class MockTenantModuleBootstrapperDSLTest {
                 emptyArgs,
                 testObject,
                 testQuery,
+                { testObject },
+                { testQuery },
                 null,
                 ctx
             )
@@ -223,6 +225,8 @@ class MockTenantModuleBootstrapperDSLTest {
                 mapOf("input" to "test-input"),
                 testObject,
                 testQuery,
+                { testObject },
+                { testQuery },
                 null,
                 ctx
             )
@@ -408,6 +412,8 @@ class MockTenantModuleBootstrapperDSLTest {
                 emptyArgs,
                 testObject,
                 testQuery,
+                { testObject },
+                { testQuery },
                 null,
                 ctx
             )

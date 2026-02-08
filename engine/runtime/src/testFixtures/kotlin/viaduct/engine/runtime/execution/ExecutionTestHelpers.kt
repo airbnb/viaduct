@@ -42,10 +42,10 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.ExecuteSelectionSetOptions
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSetRegistry
+import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.coroutines.CoroutineInterop
@@ -405,16 +405,16 @@ object CheckerDispatchers {
  *
  * This is a convenience wrapper for tests that previously used the deprecated
  * `EngineExecutionContext.query()` method. For production code, use
- * [EngineExecutionContext.executeSelectionSet] directly.
+ * [EngineExecutionContext.resolveSelectionSet] directly.
  */
 suspend fun EngineExecutionContext.query(
     resolverId: String,
     selectionSet: RawSelectionSet
 ): EngineObjectData =
-    executeSelectionSet(
+    resolveSelectionSet(
         resolverId,
         selectionSet,
-        ExecuteSelectionSetOptions.DEFAULT
+        ResolveSelectionSetOptions.DEFAULT
     )
 
 /**
@@ -422,14 +422,14 @@ suspend fun EngineExecutionContext.query(
  *
  * This is a convenience wrapper for tests that previously used the deprecated
  * `EngineExecutionContext.mutation()` method. For production code, use
- * [EngineExecutionContext.executeSelectionSet] directly.
+ * [EngineExecutionContext.resolveSelectionSet] directly.
  */
 suspend fun EngineExecutionContext.mutation(
     resolverId: String,
     selectionSet: RawSelectionSet
 ): EngineObjectData =
-    executeSelectionSet(
+    resolveSelectionSet(
         resolverId,
         selectionSet,
-        ExecuteSelectionSetOptions.MUTATION
+        ResolveSelectionSetOptions.MUTATION
     )

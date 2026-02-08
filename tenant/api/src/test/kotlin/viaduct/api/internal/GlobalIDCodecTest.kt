@@ -1,8 +1,10 @@
 package viaduct.api.internal
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.api.ViaductTenantUsageException
 import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.MockType
@@ -77,5 +79,18 @@ class GlobalIDCodecTest {
         assertEquals("abc", id1.internalID)
         assertEquals("xyz", id2.internalID)
         assertEquals(id1.type.name, id2.type.name)
+    }
+
+    @Test
+    fun `deserialize throws ViaductTenantUsageException for malformed GlobalID`() {
+        val type = MockType.mkNodeObject("TestType")
+        val reflectionLoader = MockReflectionLoader(type)
+        val codec = GlobalIDCodec(GlobalIDCodecDefault, reflectionLoader)
+
+        val exception = assertThrows<ViaductTenantUsageException> {
+            codec.deserialize<NodeObject>("invalid-id-1")
+        }
+        assertTrue(exception.message?.contains("Invalid GlobalID") ?: false)
+        assertTrue(exception.cause is IllegalArgumentException)
     }
 }

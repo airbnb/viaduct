@@ -12,12 +12,15 @@ import graphql.schema.DataFetcher
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -1096,6 +1099,58 @@ class ViaductExecutionStrategyTest {
             }
 
         @Test
+        fun `nested request supervisors reuse existing supervisor and defer cleanup to outer scope`() =
+            runExecutionTest {
+                val strategy = createTestStrategy()
+                val childStarted = CompletableDeferred<Unit>()
+                val childCancellationCause = CompletableDeferred<Throwable?>()
+                var outerSupervisorJobId: Int? = null
+                var innerSupervisorJobId: Int? = null
+
+                strategy.withRequestSupervisor { outerFactory ->
+                    outerSupervisorJobId = outerFactory(coroutineContext).coroutineContext[Job]?.let { System.identityHashCode(it) }
+
+                    strategy.withRequestSupervisor { innerFactory ->
+                        innerSupervisorJobId = innerFactory(coroutineContext).coroutineContext[Job]?.let { System.identityHashCode(it) }
+                        innerFactory(coroutineContext).launch {
+                            childStarted.complete(Unit)
+                            delay(Long.MAX_VALUE)
+                        }.invokeOnCompletion { cause ->
+                            childCancellationCause.complete(cause)
+                        }
+
+                        childStarted.await()
+                    }
+
+                    assertEquals(outerSupervisorJobId, innerSupervisorJobId)
+                    val prematureCancellation = withTimeoutOrNull(100) { childCancellationCause.await() }
+                    assertNull(prematureCancellation)
+                }
+
+                val cause = withTimeout(1000) {
+                    childCancellationCause.await()
+                }
+
+                assertNotNull(cause)
+                assertInstanceOf(RequestScopeCancellationException::class.java, cause)
+                Unit
+            }
+
+        @Test
+        fun `nested request supervisors keep scopedFuture parent active`() =
+            runExecutionTest {
+                val strategy = createTestStrategy()
+
+                val value = strategy.withRequestSupervisor {
+                    strategy.withRequestSupervisor {
+                        scopedFuture { "ok" }.await()
+                    }
+                }
+
+                assertEquals("ok", value)
+            }
+
+        @Test
         fun `cancels supervisor even when block throws exception`() =
             runExecutionTest {
                 val strategy = createTestStrategy()
@@ -1219,6 +1274,7 @@ class ViaductExecutionStrategyTest {
 
                 assertNotNull(cause)
                 assertInstanceOf(RequestScopeCancellationException::class.java, cause)
+                Unit
             }
     }
 }

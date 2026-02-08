@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockInternalContext
+import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.mocks.variables
@@ -33,7 +34,11 @@ class NodeExecutionContextImplTest : ContextTestBase() {
         )
 
         return NodeExecutionContextImpl(
-            MockInternalContext(GlobalIdFeatureAppTest.schema, GlobalIDCodecDefault),
+            MockInternalContext(
+                GlobalIdFeatureAppTest.schema,
+                GlobalIDCodecDefault,
+                MockReflectionLoader(Query.Reflection, User.Reflection)
+            ),
             wrapper,
             selectionSet,
             null, // requestContext
@@ -52,7 +57,7 @@ class NodeExecutionContextImplTest : ContextTestBase() {
         val ctx = mk()
         val ss = ctx.selectionsFor(Query.Reflection, "__typename", mapOf("var" to true))
         assertTrue(ss.contains(Query.Reflection.Fields.__typename))
-        val inner = (ss as SelectionSetImpl).rawSelectionSet
+        val inner = (ss as SelectionSetImpl<*>).rawSelectionSet
         assertEquals(mapOf("var" to true), inner.variables())
     }
 
@@ -60,13 +65,8 @@ class NodeExecutionContextImplTest : ContextTestBase() {
     fun query() =
         runBlockingTest {
             val ctx = mk()
-            ctx.selectionsFor(Query.Reflection, "__typename").also {
-                assertTrue(it.contains(Query.Reflection.Fields.__typename))
-
-                ctx.query(it).also { result ->
-                    assertEquals(queryObject, result)
-                }
-            }
+            val result = ctx.query("__typename")
+            assertEquals(queryObject, result)
         }
 
     @Test

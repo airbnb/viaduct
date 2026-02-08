@@ -8,44 +8,75 @@ import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
 import viaduct.x.javaapi.codegen.JavaGRTsCodegen
+import viaduct.x.javaapi.codegen.JavaResolversCodegen
 
 /**
- * CLI entry point for generating Java GRTs (GraphQL Representational Types) from GraphQL schemas.
+ * CLI entry point for generating Java GRTs (GraphQL Representational Types) and resolver base
+ * classes from GraphQL schemas.
+ *
+ * Parameters:
+ * - grtOutputDir: directory for GRT files (written to package subdirs)
+ * - grtPackage: package name for GRT types
+ * - resolverGeneratedDir: directory for resolver files (written to package subdirs)
+ * - tenantPackage: package name for resolver bases ({tenantPackage}.resolverbases)
+ *
+ * GRTs and Resolvers are generated independently using separate codegen classes:
+ * - [JavaGRTsCodegen] for GRT types (enums, objects, inputs, interfaces, unions)
+ * - [JavaResolversCodegen] for resolver base classes
  */
 class JavaGRTsGenerator : CliktCommand(
     name = "java-grts-generator",
-    help = "Generates Java GRTs (GraphQL Representational Types) from GraphQL schema files"
+    help = "Generates Java GRTs (GraphQL Representational Types) and resolvers from GraphQL schema files"
 ) {
     private val schemaFiles: List<File> by option("--schema_files", help = "Comma-separated list of GraphQL schema files")
         .file(mustExist = true, canBeDir = false)
         .split(",")
         .required()
 
-    private val outputDir: File by option("--output_dir", help = "Output directory for generated Java files")
+    private val grtOutputDir: File by option("--grt_output_dir", help = "Output directory for generated GRT files (written to package subdirs)")
         .file(mustExist = false, canBeFile = false)
         .required()
 
-    private val packageName: String by option("--package", help = "Java package name for generated types")
+    private val grtPackage: String by option("--grt_package", help = "Java package name for generated GRT types")
+        .required()
+
+    private val resolverGeneratedDir: File by option("--resolver_generated_dir", help = "Output directory for resolver files (written to package subdirs)")
+        .file(mustExist = false, canBeFile = false)
+        .required()
+
+    private val tenantPackage: String by option("--tenant_package", help = "Java package name for resolver bases (uses {tenantPackage}.resolverbases)")
         .required()
 
     private val verbose: Boolean by option("--verbose", help = "Print generation results")
         .flag()
 
     override fun run() {
-        val codegen = JavaGRTsCodegen()
-        val result = codegen.generate(schemaFiles, outputDir, packageName)
+        // Generate GRTs (enums, objects, inputs, interfaces, unions)
+        val grtsCodegen = JavaGRTsCodegen()
+        val grtsResult = grtsCodegen.generate(schemaFiles, grtOutputDir, grtPackage)
+
+        // Generate Resolvers (separate step)
+        val resolversCodegen = JavaResolversCodegen()
+        val resolversResult = resolversCodegen.generate(schemaFiles, resolverGeneratedDir, grtPackage, tenantPackage)
 
         if (verbose) {
-            for (file in result.generatedFiles()) {
-                echo("Generated: $file")
+            for (file in grtsResult.generatedFiles()) {
+                echo("Generated GRT: $file")
+            }
+            for (file in resolversResult.generatedFiles()) {
+                echo("Generated Resolver: $file")
             }
 
-            echo("Generated ${result.totalCount()} types to ${outputDir.absolutePath}:")
-            echo("  - ${result.enumCount()} enum(s)")
-            echo("  - ${result.objectCount()} object(s)")
-            echo("  - ${result.inputCount()} input(s)")
-            echo("  - ${result.interfaceCount()} interface(s)")
-            echo("  - ${result.unionCount()} union(s)")
+            val totalCount = grtsResult.totalCount() + resolversResult.resolverFileCount()
+            echo("Generated $totalCount types:")
+            echo("  GRT output: ${grtOutputDir.absolutePath}")
+            echo("  Resolver output: ${resolverGeneratedDir.absolutePath}")
+            echo("  - ${grtsResult.enumCount()} enum(s)")
+            echo("  - ${grtsResult.objectCount()} object(s)")
+            echo("  - ${grtsResult.inputCount()} input(s)")
+            echo("  - ${grtsResult.interfaceCount()} interface(s)")
+            echo("  - ${grtsResult.unionCount()} union(s)")
+            echo("  - ${resolversResult.resolverFileCount()} resolver file(s) containing ${resolversResult.resolverCount()} resolver(s)")
         }
     }
 

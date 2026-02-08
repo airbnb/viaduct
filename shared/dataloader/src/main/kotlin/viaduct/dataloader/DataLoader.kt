@@ -1,7 +1,6 @@
 package viaduct.dataloader
 
 import javax.inject.Provider
-import viaduct.dataloader.InternalDataLoader.Companion.genericBatchLoadFn
 
 /**
  * This is the base for all data loaders with some dispatching mechanism
@@ -27,18 +26,16 @@ abstract class DataLoader<K : Any, V, C : Any> {
         }
 
     protected val internalDataLoader by lazy {
-        val loadFn = object : MappedBatchLoadFn<K, V> {
-            override suspend fun load(
-                keys: Set<K>,
-                env: BatchLoaderEnvironment<K>
-            ): Map<K, V?> {
-                statsCollector?.logDefaultLoad(loaderInfo, keys, env.dispatchingContext)
-                statsCollector?.logTotalKeyCount(loaderInfo, env.totalKeyCount)
-                return internalLoad(keys, env)
-            }
+        val loadFn = GenericBatchLoadFn<K, V> { keys, env ->
+            val keySet = keys.toSet()
+            statsCollector?.logDefaultLoad(loaderInfo, keySet, env.dispatchingContext)
+            statsCollector?.logTotalKeyCount(loaderInfo, env.totalKeyCount)
+            val resultMap = internalLoadWithTry(keySet, env)
+            // Convert map to list in the same order as keys
+            keys.map { key -> resultMap[key] ?: Try(value = null) }
         }
 
-        val dispatchStrategy = getInternalDispatchStrategy(loadFn.genericBatchLoadFn())
+        val dispatchStrategy = getInternalDispatchStrategy(loadFn)
 
         InternalDataLoader.newLoader(
             dispatchStrategy,
@@ -82,7 +79,11 @@ abstract class DataLoader<K : Any, V, C : Any> {
                 statsCollector?.logLoadTotalLatency(loaderInfo, System.nanoTime() - startTimeNs, 0L, env.dispatchingContext)
             }
         }
-        return InternalDispatchStrategy.immediateDispatchStrategy(instrumentedBatchLoadFn, dataLoaderInstrumentationProvider.get())
+        return InternalDispatchStrategy.immediateDispatchStrategy(
+            instrumentedBatchLoadFn,
+            dataLoaderInstrumentationProvider.get(),
+            getDataLoaderOptions()
+        )
     }
 
     private fun createBatchDispatchStrategy(batchLoadFn: GenericBatchLoadFn<K, V>): InternalDispatchStrategy<K, V> =
@@ -103,10 +104,44 @@ abstract class DataLoader<K : Any, V, C : Any> {
 
     protected open val statsCollector: DataLoaderStatsCollector? = null
 
-    protected abstract suspend fun internalLoad(
+    /**
+     * Override this method OR [internalLoadWithTry] to implement your loader.
+     *
+     * For simple loaders, override this method to return values directly.
+     * For loaders that need per-key error handling, override [internalLoadWithTry] instead.
+     */
+    protected open suspend fun internalLoad(
         keys: Set<K>,
         environment: BatchLoaderEnvironment<K>
-    ): Map<K, V?>
+    ): Map<K, V?> {
+        throw NotImplementedError(
+            "Override either internalLoad() or internalLoadWithTry() in ${this::class.qualifiedName}"
+        )
+    }
+
+    /**
+     * Override this method to return per-key errors via [Try.error].
+     *
+     * By default, this wraps [internalLoad] results in [Try] and catches any exception,
+     * applying it to all keys (existing behavior).
+     *
+     * Override this to handle errors per-key. For example, if loading key A fails but key B succeeds,
+     * return `mapOf(A to Try(error = exception), B to Try(value = result))`.
+     *
+     * When combined with [DataLoaderOptions.cachingExceptionsEnabled] = false, per-key errors
+     * will not be cached and subsequent loads will re-fetch from the batch loader.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    protected open suspend fun internalLoadWithTry(
+        keys: Set<K>,
+        environment: BatchLoaderEnvironment<K>
+    ): Map<K, Try<V>> {
+        return try {
+            internalLoad(keys, environment).mapValues { Try(it.value) }
+        } catch (e: Exception) {
+            keys.associateWith { Try(error = e) }
+        }
+    }
 
     protected open val batchScheduleFn: DispatchScheduleFn = NextTickScheduleFn
 

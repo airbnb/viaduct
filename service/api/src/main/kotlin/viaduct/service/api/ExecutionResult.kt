@@ -1,5 +1,7 @@
 package viaduct.service.api
 
+import viaduct.apiannotations.StableApi
+
 /**
  * The result of executing a GraphQL operation through Viaduct.
  *
@@ -39,6 +41,7 @@ package viaduct.service.api
  * )
  * ```
  */
+@StableApi
 interface ExecutionResult {
     /**
      * Returns the data from the GraphQL execution.

@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import viaduct.graphql.schema.ViaductSchema;
@@ -78,22 +80,30 @@ class GraphQLSchemaParserTest {
 
     List<ObjectModel> objects = parser.extractObjects(schema, "com.example.types");
 
-    assertThat(objects).hasSize(4);
+    assertThat(objects).hasSize(6); // User, Listing, Booking, PrimitiveListTest, Review, PageInfo
 
-    // User object
+    // User object (includes 5 base fields + 3 resolver fields from extend type)
     ObjectModel user =
         objects.stream().filter(o -> o.className().equals("User")).findFirst().orElseThrow();
     assertThat(user.packageName()).isEqualTo("com.example.types");
-    assertThat(user.fields()).hasSize(5);
+    assertThat(user.fields()).hasSize(8);
 
     // Check User fields (order may vary with ViaductSchema)
     assertThat(user.fields().stream().map(FieldModel::name).toList())
-        .containsExactlyInAnyOrder("id", "name", "email", "age", "isActive");
+        .containsExactlyInAnyOrder(
+            "id",
+            "name",
+            "email",
+            "age",
+            "isActive",
+            "profilePicture",
+            "activeBookings",
+            "totalSpent");
 
-    // Listing object with references to other types
+    // Listing object with references to other types (7 base + 2 resolver fields)
     ObjectModel listing =
         objects.stream().filter(o -> o.className().equals("Listing")).findFirst().orElseThrow();
-    assertThat(listing.fields()).hasSize(7);
+    assertThat(listing.fields()).hasSize(9);
 
     // Check that host field references User type
     FieldModel hostField =
@@ -421,6 +431,167 @@ class GraphQLSchemaParserTest {
     assertThat(optionsField.javaType())
         .as("Input [Boolean!] should map to List<Boolean>")
         .isEqualTo("List<Boolean>");
+  }
+
+  @Test
+  void extractsResolversFromSchema() throws IOException {
+    ViaductSchema schema = parser.parse(getTestSchemaReader());
+
+    Map<String, List<ResolverModel>> resolversByType =
+        parser.extractResolvers(schema, "com.example.types", "Mutation");
+
+    // Should have resolvers for User, Listing, and Mutation types
+    assertThat(resolversByType).hasSize(3);
+    assertThat(resolversByType).containsKeys("User", "Listing", "Mutation");
+  }
+
+  @Test
+  void extractsUserResolvers() throws IOException {
+    ViaductSchema schema = parser.parse(getTestSchemaReader());
+
+    Map<String, List<ResolverModel>> resolversByType =
+        parser.extractResolvers(schema, "com.example.types", "Mutation");
+
+    List<ResolverModel> userResolvers = resolversByType.get("User");
+    assertThat(userResolvers).hasSize(3);
+
+    // profilePicture resolver - no arguments, scalar output
+    ResolverModel profilePicture =
+        userResolvers.stream()
+            .filter(r -> r.gqlFieldName().equals("profilePicture"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(profilePicture.gqlTypeName()).isEqualTo("User");
+    assertThat(profilePicture.resolverClassName()).isEqualTo("ProfilePicture");
+    assertThat(profilePicture.returnType()).isEqualTo("String");
+    assertThat(profilePicture.objectType()).isEqualTo("com.example.types.User");
+    assertThat(profilePicture.queryType()).isEqualTo("com.example.types.Query");
+    assertThat(profilePicture.argumentsType()).isEqualTo("Arguments.NoArguments");
+    assertThat(profilePicture.hasArguments()).isFalse();
+    assertThat(profilePicture.includeBatchResolve()).isTrue();
+
+    // activeBookings resolver - list return type
+    ResolverModel activeBookings =
+        userResolvers.stream()
+            .filter(r -> r.gqlFieldName().equals("activeBookings"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(activeBookings.returnType()).isEqualTo("List<Booking>");
+    assertThat(activeBookings.includeBatchResolve()).isTrue();
+
+    // totalSpent resolver - non-null Float
+    ResolverModel totalSpent =
+        userResolvers.stream()
+            .filter(r -> r.gqlFieldName().equals("totalSpent"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(totalSpent.returnType()).isEqualTo("double");
+  }
+
+  @Test
+  void extractsListingResolversWithArguments() throws IOException {
+    ViaductSchema schema = parser.parse(getTestSchemaReader());
+
+    Map<String, List<ResolverModel>> resolversByType =
+        parser.extractResolvers(schema, "com.example.types", "Mutation");
+
+    List<ResolverModel> listingResolvers = resolversByType.get("Listing");
+    assertThat(listingResolvers).hasSize(2);
+
+    // availability resolver - has arguments
+    ResolverModel availability =
+        listingResolvers.stream()
+            .filter(r -> r.gqlFieldName().equals("availability"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(availability.hasArguments()).isTrue();
+    assertThat(availability.argumentsType())
+        .isEqualTo("com.example.types.Listing_Availability_Arguments");
+    assertThat(availability.returnType()).isEqualTo("List<String>");
+
+    // reviews resolver - no arguments
+    ResolverModel reviews =
+        listingResolvers.stream()
+            .filter(r -> r.gqlFieldName().equals("reviews"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(reviews.hasArguments()).isFalse();
+    assertThat(reviews.argumentsType()).isEqualTo("Arguments.NoArguments");
+  }
+
+  @Test
+  void excludesBatchResolveForMutationResolvers() throws IOException {
+    ViaductSchema schema = parser.parse(getTestSchemaReader());
+
+    Map<String, List<ResolverModel>> resolversByType =
+        parser.extractResolvers(schema, "com.example.types", "Mutation");
+
+    List<ResolverModel> mutationResolvers = resolversByType.get("Mutation");
+    assertThat(mutationResolvers).hasSize(1);
+
+    ResolverModel sendNotification =
+        mutationResolvers.stream()
+            .filter(r -> r.gqlFieldName().equals("sendNotification"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(sendNotification.gqlTypeName()).isEqualTo("Mutation");
+    assertThat(sendNotification.includeBatchResolve())
+        .as("Mutation resolvers should not have batchResolve")
+        .isFalse();
+    assertThat(sendNotification.hasArguments()).isTrue();
+  }
+
+  @Test
+  void resolverModelPreFormattedTypeStrings() throws IOException {
+    ViaductSchema schema = parser.parse(getTestSchemaReader());
+
+    Map<String, List<ResolverModel>> resolversByType =
+        parser.extractResolvers(schema, "com.example.types", "Mutation");
+
+    ResolverModel profilePicture =
+        resolversByType.get("User").stream()
+            .filter(r -> r.gqlFieldName().equals("profilePicture"))
+            .findFirst()
+            .orElseThrow();
+
+    // Test pre-formatted type strings used by the template
+    assertThat(profilePicture.getFieldResolverBaseType())
+        .isEqualTo(
+            "FieldResolverBase<String, com.example.types.User, com.example.types.Query,"
+                + " Arguments.NoArguments, CompositeOutput.NotComposite>");
+    assertThat(profilePicture.getContextBaseType())
+        .isEqualTo(
+            "FieldResolverBase.Context<com.example.types.User, com.example.types.Query,"
+                + " Arguments.NoArguments, CompositeOutput.NotComposite>");
+    assertThat(profilePicture.getFieldExecutionContextType())
+        .isEqualTo(
+            "FieldExecutionContext<com.example.types.User, com.example.types.Query,"
+                + " Arguments.NoArguments, CompositeOutput.NotComposite>");
+    assertThat(profilePicture.getResolveFutureType()).isEqualTo("CompletableFuture<String>");
+    assertThat(profilePicture.getBatchResolveFutureType())
+        .isEqualTo("CompletableFuture<Map<Context, String>>");
+    assertThat(profilePicture.getBatchResolveContextListType()).isEqualTo("List<Context>");
+  }
+
+  @Test
+  void returnsEmptyMapWhenNoResolversInSchema() throws IOException {
+    // Use a minimal schema with no resolver directives
+    String minimalSchema =
+        """
+        type Query {
+          hello: String
+        }
+        type User {
+          id: ID!
+          name: String!
+        }
+        """;
+    ViaductSchema schema = parser.parse(new StringReader(minimalSchema));
+
+    Map<String, List<ResolverModel>> resolversByType =
+        parser.extractResolvers(schema, "com.example.types", null);
+
+    assertThat(resolversByType).isEmpty();
   }
 
   private Reader getTestSchemaReader() {

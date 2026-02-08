@@ -14,7 +14,7 @@ The release process is straight forward. Assume the most recent published releas
 
 * Assuming all is well with the release branch, its artifacts are then published to the Maven Central and the Gradle Plugin Portal.
 
-* Next, the "standalone" copies of the demo apps (in https://github.com/viaduct-graphql) are updated to match the release. This step has been fagile, so more validation is required to assure correctness.
+* Next, the "standalone" copies of the demo apps (in https://github.com/viaduct-dev) are updated to match the release. This step has been fagile, so more validation is required to assure correctness.
 
 * Finally, the release is published on the [Viaduct Releases](https://github.com/airbnb/viaduct/releases) page (don't forget this step!).
 
@@ -83,7 +83,7 @@ python3 --version
 Verify you have access to:
 
 - Airbnb GitHub organization (check: [https://github.com/orgs/airbnb/people](https://github.com/orgs/airbnb/people))
-- Viaduct-GraphQL GitHub organization ([https://github.com/orgs/viaduct-graphql/people](https://github.com/orgs/viaduct-graphql/people))
+- Viaduct-GraphQL GitHub organization ([https://github.com/orgs/viaduct-dev/people](https://github.com/orgs/viaduct-dev/people))
 - Gradle Plugin Portal `viaduct-maintainers` account (check: https://plugins.gradle.org/u/viaduct-maintainers)
 - 1Password vault with `viaductbot` credentials (for Sonatype)
 
@@ -353,9 +353,9 @@ Log in to [Sonatype Maven Central](https://plugins.gradle.org/u/viaduct-maintain
 
 Once the artifacts are published, we need to update the standalone copies of the standalone apps to agree with the new release.
 
-- `starwars` → `viaduct-graphql/starwars`
-- `cli-starter` → `viaduct-graphql/cli-starter`
-- `ktor-starter` → `viaduct-graphql/ktor-starter`
+- `starwars` → `viaduct-dev/starwars`
+- `cli-starter` → `viaduct-dev/cli-starter`
+- `ktor-starter` → `viaduct-dev/ktor-starter`
 
 **It's important to do this on the release branch!**
 
@@ -372,7 +372,7 @@ for i in cli-starter ktor-starter starwars; do
     .github/copybara/copy.bara.sky \
     airbnb-viaduct-to-$i \
     release/v0.X.0 \
-    --git-destination-url=git@github.com:viaduct-graphql/$i.git \
+    --git-destination-url=git@github.com:viaduct-dev/$i.git \
     --git-committer-email=viabot@ductworks.io \
     --git-committer-name=viabot \
     --force

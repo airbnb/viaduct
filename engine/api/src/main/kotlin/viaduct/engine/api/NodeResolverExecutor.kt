@@ -26,6 +26,17 @@ interface NodeResolverExecutor {
     val isBatching: Boolean
 
     /**
+     * Whether this resolver is selective (varies its response based on the selection set).
+     *
+     * When `true`, the resolver may return different data based on what fields are requested,
+     * and cache entries must match both ID and selection set.
+     *
+     * When `false` (default), the resolver always returns its full output selection set,
+     * and cache entries only need to match the ID.
+     */
+    val isSelective: Boolean
+
+    /**
      * Executes the tenant-written resolver or batch resolver function, and unwraps
      * the result into a map of `Result<EngineObjectData>`.
      */

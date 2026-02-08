@@ -51,3 +51,8 @@ include(":tools")
 include(":api")
 include(":runtime")
 include(":test-fixtures")
+includeBuild("build-logic") {
+    dependencySubstitution {
+        substitute(module("com.airbnb.viaduct:common")).using(project(":common"))
+    }
+}

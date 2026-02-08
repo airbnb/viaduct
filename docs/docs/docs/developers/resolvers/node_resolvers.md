@@ -88,6 +88,7 @@ For the example `User` type, the `T` type would be the User [GRT](../generated_c
 **Advanced users:** If the `selections` function is *not* called by an invocation of a resolver, then the engine will assume that invocation will return the full responsibility set of the resolver and may take actions based on that assumption. If a resolver is going to be selective, then it **must** call this function to get its selection set rather than obtain it through some other means.
 
 Since `NodeExecutionContext` implements `ResolverExecutionContext`, it also includes the utilities provided there, which allow you to:
+
 * Execute [subqueries](subqueries.md)
 * Construct [node references](node_references.md)
 * Construct [GlobalIDs](../globalids/index.md)

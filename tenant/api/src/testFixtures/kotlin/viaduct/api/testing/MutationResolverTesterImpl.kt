@@ -29,9 +29,9 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  * This class is package-private and should not be used directly.
  * Use [MutationResolverTester.create] instead.
  */
-internal class MutationResolverTesterImpl<Q : Query, A : Arguments, O : CompositeOutput>(
+internal class MutationResolverTesterImpl<Q : Query, M : Mutation, A : Arguments, O : CompositeOutput>(
     override val config: ResolverTester.TesterConfig
-) : MutationResolverTester<Q, A, O> {
+) : MutationResolverTester<Q, M, A, O> {
     private val schema = ViaductSchema(mkSchema(config.schemaSDL))
     private val reflectionLoader = mockReflectionLoader(config.grtPackage, config.classLoader)
     private val internalContext = MockInternalContext(schema, GlobalIDCodecDefault, reflectionLoader)
@@ -42,9 +42,9 @@ internal class MutationResolverTesterImpl<Q : Query, A : Arguments, O : Composit
 
     override suspend fun test(
         resolver: ResolverBase<O>,
-        block: MutationResolverTester.MutationTestConfig<Q, A, O>.() -> Unit
+        block: MutationResolverTester.MutationTestConfig<Q, M, A, O>.() -> Unit
     ): O {
-        val testConfig = MutationResolverTester.MutationTestConfig<Q, A, O>().apply(block)
+        val testConfig = MutationResolverTester.MutationTestConfig<Q, M, A, O>().apply(block)
 
         // Validate required fields
         val arguments = testConfig.arguments
@@ -75,7 +75,7 @@ internal class MutationResolverTesterImpl<Q : Query, A : Arguments, O : Composit
         selections: SelectionSet<O>,
         contextQueryValues: List<Query>,
         contextMutationValues: List<Mutation>
-    ): MutationFieldExecutionContext<Q, A, O> {
+    ): MutationFieldExecutionContext<Q, M, A, O> {
         val queryResults = buildContextQueryMap(contextQueryValues)
         val mutationResults = buildContextMutationMap(contextMutationValues)
 
@@ -93,7 +93,7 @@ internal class MutationResolverTesterImpl<Q : Query, A : Arguments, O : Composit
 
     private suspend fun invokeResolver(
         resolver: ResolverBase<O>,
-        ctx: MutationFieldExecutionContext<Q, A, O>
+        ctx: MutationFieldExecutionContext<Q, M, A, O>
     ): O {
         // Get the Context nested class from the resolver
         val contextClass = getContextClass(resolver)

@@ -123,7 +123,14 @@ private class FieldsObjectBuilder(
         container.nestedClassBuilder(
             simpleName = JavaIdName("Fields"),
             kind = ClassKind.OBJECT
-        )
+        ).also {
+            // Fields implements TypeFields<T>
+            it.addSupertype(
+                cfg.REFLECTED_TYPE_FIELDS.asKmName.asType().also { type ->
+                    type.arguments += KmTypeProjection(KmVariance.INVARIANT, def.grtType)
+                }
+            )
+        }
 
     fun build() {
         buildSimpleFieldProperty("__typename")

@@ -4,6 +4,7 @@ import kotlin.collections.get
 import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
+import viaduct.api.SelectiveResolver
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.runtime.execution.batchresolver.errorhandling.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
@@ -32,7 +33,7 @@ class BatchResolverErrorHandlingFeatureAppTest : FeatureAppTestBase() {
         }
     }
 
-    class FooResolver : NodeResolvers.Foo() {
+    class FooResolver : NodeResolvers.Foo(), SelectiveResolver {
         companion object {
             var shouldReturnWrongNumberOfResults = false
         }

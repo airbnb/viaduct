@@ -3,6 +3,7 @@ package viaduct.engine.runtime.instrumentation.resolver
 import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
+import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 
 /**
@@ -56,6 +57,18 @@ class ChainedResolverInstrumentation(
         return instrumentations.foldRight(fetchFn) { instrumentation, next ->
             val instrState = state.getState(instrumentation)
             instrumentation.instrumentFetchSelection(next, parameters, instrState)
+        }
+    }
+
+    override fun <T> instrumentSyncFetchSelection(
+        fetchFn: SyncFetchFunction<T>,
+        parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): SyncFetchFunction<T> {
+        state as ChainedInstrumentationState
+        return instrumentations.foldRight(fetchFn) { instrumentation, next ->
+            val instrState = state.getState(instrumentation)
+            instrumentation.instrumentSyncFetchSelection(next, parameters, instrState)
         }
     }
 

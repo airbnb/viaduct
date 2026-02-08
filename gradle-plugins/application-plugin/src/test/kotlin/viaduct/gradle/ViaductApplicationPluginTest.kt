@@ -177,4 +177,98 @@ class ViaductApplicationPluginTest {
         assertTrue(allFileNames.contains("schema.graphql")) // File exists but not in result
         assertTrue(allFileNames.contains("README.md")) // File exists but not in result
     }
+
+    @Test
+    fun `discovers schema files`() {
+        val dir = createCommonSchemaDir()
+        File(dir, "schema.graphqls").writeText(
+            """
+        schema {
+            query: AppQuery
+        }
+        type AppQuery { test: String }
+            """.trimIndent()
+        )
+        File(dir, "mutations.graphqls").writeText(
+            """
+        schema {
+            mutation: AppMutation
+        }
+        type AppMutation { foo: String }
+            """.trimIndent()
+        )
+        task.commonSchemaFiles.setFrom(
+            project.fileTree(dir) { include("**/*.graphqls") }
+        )
+        assertEquals(
+            listOf("mutations.graphqls", "schema.graphqls"),
+            task.commonSchemaFiles.files.map { it.name }.sorted()
+        )
+    }
+
+    @Test
+    fun `discovers graphqls files including nested`() {
+        val dir = createCommonSchemaDir()
+        val subDir = File(dir, "queries").apply { mkdirs() }
+
+        File(dir, "schema.graphqls").writeText(
+            """
+        schema {
+            query: RootQuery
+        }
+        type RootQuery { a: String }
+            """.trimIndent()
+        )
+        File(subDir, "users.graphqls").writeText(
+            """
+        schema {
+            query: UserQuery
+        }
+        type UserQuery { b: String }
+            """.trimIndent()
+        )
+        File(dir, "readme.txt").writeText("ignored")
+
+        task.commonSchemaFiles.setFrom(
+            project.fileTree(dir) { include("**/*.graphqls") }
+        )
+        assertEquals(
+            listOf("schema.graphqls", "users.graphqls"),
+            task.commonSchemaFiles.files.map { it.name }.sorted()
+        )
+    }
+
+    @Test
+    fun `returns empty when directory missing`() {
+        assertTrue(task.commonSchemaFiles.files.isEmpty())
+    }
+
+    @Test
+    fun `independent from baseSchemaFiles`() {
+        val baseDir = File(project.projectDir, "src/main/viaduct/schemabase").apply { mkdirs() }
+        val rootDir = createCommonSchemaDir()
+
+        File(baseDir, "base.graphqls").writeText("directive @test on FIELD")
+        File(rootDir, "root.graphqls").writeText(
+            """
+        schema {
+            query: CustomQuery
+            mutation: CustomMutation
+            subscription: CustomSubscription
+        }
+        type CustomQuery { health: String }
+        type CustomMutation { refresh: Boolean }
+        type CustomSubscription { events: String }
+            """.trimIndent()
+        )
+
+        task.baseSchemaFiles.setFrom(project.fileTree(baseDir) { include("**/*.graphqls") })
+        task.commonSchemaFiles.setFrom(
+            project.fileTree(rootDir) { include("**/*.graphqls") }
+        )
+        assertEquals(listOf("base.graphqls"), task.baseSchemaFiles.files.map { it.name })
+        assertEquals(listOf("root.graphqls"), task.commonSchemaFiles.files.map { it.name })
+    }
+
+    private fun createCommonSchemaDir(): File = File(project.projectDir, "src/viaduct/schema").apply { mkdirs() }
 }

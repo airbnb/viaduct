@@ -9,10 +9,8 @@ import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.ResolverBase
 import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.FieldResolverExecutor.Selector
-import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.service.api.spi.GlobalIDCodec
@@ -46,23 +44,22 @@ class FieldUnbatchedResolverExecutorImpl(
         // Only handle single selector case because this is an unbatched resolver
         require(selectors.size == 1) { "Unbatched resolver should only receive single selector, got ${selectors.size}" }
         val selector = selectors.first()
-        return mapOf(selector to runCatching { resolve(selector.arguments, selector.objectValue, selector.queryValue, selector.selections, context) })
+        return mapOf(selector to runCatching { resolve(selector, context) })
     }
 
     private suspend fun resolve(
-        arguments: Map<String, Any?>,
-        objectValue: EngineObjectData,
-        queryValue: EngineObjectData,
-        selections: RawSelectionSet?,
+        selector: Selector,
         context: EngineExecutionContext,
     ): Any? {
         val ctx = resolverContextFactory(
             engineExecutionContext = context,
             requestContext = context.requestContext, // TODO - get rid of this argument
-            rawSelections = selections,
-            rawArguments = arguments,
-            rawObjectValue = objectValue,
-            rawQueryValue = queryValue,
+            rawSelections = selector.selections,
+            rawArguments = selector.arguments,
+            rawObjectValue = selector.objectValue,
+            rawQueryValue = selector.queryValue,
+            syncObjectValueGetter = selector.syncObjectValueGetter,
+            syncQueryValueGetter = selector.syncQueryValueGetter,
         )
         val resolver = mkResolver()
         val result = wrapResolveException(resolverId) {

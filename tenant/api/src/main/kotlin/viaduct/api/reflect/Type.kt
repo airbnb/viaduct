@@ -15,6 +15,7 @@ interface Type<out T : GRT> {
     /** the KClass that describes values for this type */
     val kcls: KClass<out T>
 
+    @StableApi
     companion object {
         /** Create a [Type] from the provided [KClass] */
         fun <T : GRT> ofClass(cls: KClass<T>): Type<T> =
@@ -35,3 +36,10 @@ interface Type<out T : GRT> {
             }
     }
 }
+
+/**
+ * Marker interface for the `Fields` object nested within a type's `Reflection` object.
+ * The `Fields` object contains [Field] descriptors for each field on the type.
+ */
+@StableApi
+interface TypeFields<out T : GRT>

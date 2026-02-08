@@ -45,7 +45,7 @@ internal fun <T : NodeObject> publishedGeneratedType(clazz: Class<T>): Type<T> =
  * @see [viaduct.api.context.ResolverExecutionContext.nodeFor]
  */
 @StableApi
-inline fun <reified T : NodeObject> ResolverExecutionContext.nodeFor(localId: String): T {
+inline fun <reified T : NodeObject> ResolverExecutionContext<*>.nodeFor(localId: String): T {
     val type = publishedGeneratedType(T::class.java)
     val gid = globalIDFor(type, localId)
     return nodeFor(gid)

@@ -1,0 +1,37 @@
+# GraphQL Schema for Enum Exerciser Tests
+# This schema defines enum types that will be used to test the code generator.
+# The generated enums will be compared against manually built expected classes.
+
+"""
+A simple enum with multiple values.
+"""
+enum SimpleEnum {
+  VALUE_A
+  VALUE_B
+  VALUE_C
+}
+
+"""
+An enum with a description to test Javadoc generation.
+"""
+enum EnumWithDescription {
+  FIRST
+  SECOND
+}
+
+"""
+Enum with a single value.
+"""
+enum SingleValueEnum {
+  ONLY_VALUE
+}
+
+"""
+Enum to test that generated enums are proper Java enums.
+"""
+enum StatusEnum {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}

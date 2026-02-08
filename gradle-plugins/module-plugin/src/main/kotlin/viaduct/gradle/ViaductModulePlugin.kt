@@ -108,6 +108,10 @@ class ViaductModulePlugin : Plugin<Project> {
                 kotlinExt.sourceSets.named("main") {
                     kotlin.srcDir(generateResolverBasesTask.flatMap { it.outputDirectory })
                 }
+
+                kotlinExt.compilerOptions {
+                    freeCompilerArgs.add("-Xcontext-receivers")
+                }
             }
 
             configureIdeaIntegration(generateResolverBasesTask)

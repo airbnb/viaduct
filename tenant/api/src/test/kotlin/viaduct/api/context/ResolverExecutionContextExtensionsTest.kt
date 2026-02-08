@@ -29,7 +29,7 @@ class NoReflectionNode : NodeObject
 class ResolverExecutionContextExtensionsTest {
     @Test
     fun `nodeFor T forwards to ctx with Type from nested Reflection`() {
-        val ctx = mockk<ResolverExecutionContext>()
+        val ctx = mockk<ResolverExecutionContext<*>>()
         val gid = mockk<GlobalID<DummyNode>>()
         val returned = DummyNode()
 
@@ -50,7 +50,7 @@ class ResolverExecutionContextExtensionsTest {
 
     @Test
     fun `globalIDFor T builds GlobalID using generated Type`() {
-        val ctx = mockk<ResolverExecutionContext>()
+        val ctx = mockk<ResolverExecutionContext<*>>()
         val gid = mockk<GlobalID<DummyNode>>()
         val typeSlot = slot<Type<DummyNode>>()
 
@@ -68,7 +68,7 @@ class ResolverExecutionContextExtensionsTest {
 
     @Test
     fun `nodeFor T throws a descriptive error when no nested Reflection exists`() {
-        val ctx = mockk<ResolverExecutionContext>()
+        val ctx = mockk<ResolverExecutionContext<*>>()
 
         val ex = assertFailsWith<Throwable> {
             ctx.nodeFor<NoReflectionNode>("id-1")
@@ -88,7 +88,7 @@ class ResolverExecutionContextExtensionsTest {
 
     @Test
     fun `nodeFor T reuses the same Type instance across calls (singleton Reflection)`() {
-        val ctx = mockk<ResolverExecutionContext>()
+        val ctx = mockk<ResolverExecutionContext<*>>()
         val gid1 = mockk<GlobalID<DummyNode>>()
         val gid2 = mockk<GlobalID<DummyNode>>()
         val ret1 = DummyNode()

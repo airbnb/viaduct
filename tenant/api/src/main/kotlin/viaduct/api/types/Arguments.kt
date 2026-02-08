@@ -8,5 +8,6 @@ import viaduct.apiannotations.StableApi
 @StableApi
 interface Arguments : InputLike {
     /** A marker object indicating the lack of schematic arguments */
+    @StableApi
     object NoArguments : Arguments
 }

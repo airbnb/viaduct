@@ -9,6 +9,7 @@ import viaduct.apiannotations.StableApi
  */
 @StableApi
 interface Enum : GRT {
+    @StableApi
     companion object {
         fun <T> enumFrom(
             clazz: KClass<T>,

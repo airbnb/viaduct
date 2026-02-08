@@ -29,6 +29,7 @@ import viaduct.apiannotations.TestingApi
  * class CreateWishlistMutationTest {
  *     private val tester = MutationResolverTester.create<
  *         Query,                              // Q: Query type
+ *         Mutation,                           // M: Mutation type
  *         Mutation_CreateWishlist_Arguments,  // A: Arguments type
  *         CreateWishlistPayload               // O: Output type
  *     >(
@@ -54,6 +55,7 @@ import viaduct.apiannotations.TestingApi
  * ## Type Parameters
  *
  * - **Q**: The Query type (usually just `Query`)
+ * - **M**: The Mutation type (usually just `Mutation`)
  * - **A**: The Arguments type for this mutation (e.g., `Mutation_CreateWishlist_Arguments`)
  * - **O**: The output/return type of the mutation (e.g., `CreateWishlistPayload`)
  *
@@ -61,7 +63,7 @@ import viaduct.apiannotations.TestingApi
  */
 @StableApi
 @TestingApi
-interface MutationResolverTester<Q : Query, A : Arguments, O : CompositeOutput> : ResolverTester {
+interface MutationResolverTester<Q : Query, M : Mutation, A : Arguments, O : CompositeOutput> : ResolverTester {
     /**
      * Test a mutation resolver with the provided configuration.
      *
@@ -85,7 +87,7 @@ interface MutationResolverTester<Q : Query, A : Arguments, O : CompositeOutput> 
      */
     suspend fun test(
         resolver: ResolverBase<O>,
-        block: MutationTestConfig<Q, A, O>.() -> Unit
+        block: MutationTestConfig<Q, M, A, O>.() -> Unit
     ): O
 
     /**
@@ -101,7 +103,7 @@ interface MutationResolverTester<Q : Query, A : Arguments, O : CompositeOutput> 
      * - **contextQueryValues**: Query objects for `ctx.query()` calls
      * - **contextMutationValues**: Mutation objects for `ctx.mutation()` calls
      */
-    class MutationTestConfig<Q : Query, A : Arguments, O : CompositeOutput> {
+    class MutationTestConfig<Q : Query, M : Mutation, A : Arguments, O : CompositeOutput> {
         /**
          * Query-level data accessible via `ctx.queryValue`.
          * Optional - defaults to an empty query placeholder if not set.
@@ -144,8 +146,9 @@ interface MutationResolverTester<Q : Query, A : Arguments, O : CompositeOutput> 
          * using the specified type parameters.
          *
          * ## Type Parameters
-         * All three type parameters must be specified explicitly:
+         * All four type parameters must be specified explicitly:
          * - **Q**: Query type (usually just `Query`)
+         * - **M**: Mutation type (usually just `Mutation`)
          * - **A**: Arguments type (e.g., `Mutation_CreateWishlist_Arguments`)
          * - **O**: Output type (e.g., `CreateWishlistPayload`)
          *
@@ -153,6 +156,7 @@ interface MutationResolverTester<Q : Query, A : Arguments, O : CompositeOutput> 
          * ```kotlin
          * val tester = MutationResolverTester.create<
          *     Query,                              // Query type
+         *     Mutation,                           // Mutation type
          *     Mutation_CreateWishlist_Arguments,  // Arguments type
          *     CreateWishlistPayload               // Output type
          * >(
@@ -163,6 +167,6 @@ interface MutationResolverTester<Q : Query, A : Arguments, O : CompositeOutput> 
          * @param config Configuration specifying schema and GRT package
          * @return A type-safe mutation resolver tester
          */
-        fun <Q : Query, A : Arguments, O : CompositeOutput> create(config: ResolverTester.TesterConfig): MutationResolverTester<Q, A, O> = MutationResolverTesterImpl(config)
+        fun <Q : Query, M : Mutation, A : Arguments, O : CompositeOutput> create(config: ResolverTester.TesterConfig): MutationResolverTester<Q, M, A, O> = MutationResolverTesterImpl(config)
     }
 }

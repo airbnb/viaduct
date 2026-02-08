@@ -16,6 +16,13 @@ tasks.register<JavaExec>("run") {
     classpath = sourceSets["testFixtures"].runtimeClasspath
 }
 
+// Schema CLI run task - for schema2csv and other schema analysis tools
+tasks.register<JavaExec>("runSchemaCli") {
+    description = "Run the Schema CLI (schema2csv, etc.)"
+    mainClass.set("viaduct.graphql.schema.cli.CLIKt")
+    classpath = sourceSets["testFixtures"].runtimeClasspath
+}
+
 dependencies {
     api(libs.graphql.java)
     api(libs.junit)

@@ -1,13 +1,19 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.arbitrary.graphql
 
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
+import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.constant
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.string
+import io.kotest.property.forAll
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlin.reflect.KClass
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.fail
@@ -75,4 +81,36 @@ class ScalarRawValueGenTest {
             }
         }
     }
+
+    @Test
+    fun `DateTime can be converted to millis`(): Unit =
+        runBlocking {
+            val instants = arbitrary { rs ->
+                val gen = ScalarRawValueGen(Config.default, rs)
+                val rawScalar = gen("DateTime") as RawScalar
+                rawScalar.value as Instant
+            }
+
+            instants.forAll { instant ->
+                runCatching {
+                    instant.toEpochMilli()
+                }.isSuccess
+            }
+        }
+
+    @Test
+    fun `Date can be converted to millis`(): Unit =
+        runBlocking {
+            val dates = arbitrary { rs ->
+                val gen = ScalarRawValueGen(Config.default, rs)
+                val rawScalar = gen("Date") as RawScalar
+                rawScalar.value as LocalDate
+            }
+
+            dates.forAll { date ->
+                runCatching {
+                    date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+                }.isSuccess
+            }
+        }
 }

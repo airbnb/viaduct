@@ -56,10 +56,10 @@ class JavaGRTsCodegenTest {
 
   @Test
   void generatesAllTypesToFiles() throws IOException {
-    File outputDir = tempDir.resolve("output").toFile();
+    File grtOutputDir = tempDir.resolve("grt-output").toFile();
 
     JavaGRTsCodegen.Result result =
-        codegen.generate(List.of(schemaFile.toFile()), outputDir, "com.example.generated");
+        codegen.generate(List.of(schemaFile.toFile()), grtOutputDir, "com.example.generated");
 
     // Verify counts
     assertThat(result.enumCount()).isEqualTo(1);
@@ -73,7 +73,7 @@ class JavaGRTsCodegenTest {
     assertThat(result.generatedFiles()).hasSize(5);
 
     // Verify files were created on disk
-    Path packageDir = outputDir.toPath().resolve("com/example/generated");
+    Path packageDir = grtOutputDir.toPath().resolve("com/example/generated");
     assertThat(packageDir.resolve("BookingStatus.java")).exists();
     assertThat(packageDir.resolve("User.java")).exists();
     assertThat(packageDir.resolve("CreateUserInput.java")).exists();
@@ -109,20 +109,20 @@ class JavaGRTsCodegenTest {
 
   @Test
   void createsOutputDirectoryIfNotExists() throws IOException {
-    File outputDir = tempDir.resolve("nested/output/dir").toFile();
-    assertThat(outputDir).doesNotExist();
+    File grtOutputDir = tempDir.resolve("nested/grt/dir").toFile();
+    assertThat(grtOutputDir).doesNotExist();
 
-    codegen.generate(List.of(schemaFile.toFile()), outputDir, "com.example");
+    codegen.generate(List.of(schemaFile.toFile()), grtOutputDir, "com.example");
 
-    assertThat(outputDir).exists();
+    assertThat(grtOutputDir).exists();
   }
 
   @Test
   void generatedFilesContainAbsolutePaths() throws IOException {
-    File outputDir = tempDir.resolve("output").toFile();
+    File grtOutputDir = tempDir.resolve("grt-output").toFile();
 
     JavaGRTsCodegen.Result result =
-        codegen.generate(List.of(schemaFile.toFile()), outputDir, "com.example");
+        codegen.generate(List.of(schemaFile.toFile()), grtOutputDir, "com.example");
 
     for (File file : result.generatedFiles()) {
       assertThat(file.isAbsolute()).isTrue();

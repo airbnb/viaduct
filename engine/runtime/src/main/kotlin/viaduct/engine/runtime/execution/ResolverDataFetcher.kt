@@ -8,6 +8,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
 import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData as EngineObjectDataApi
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.engineExecutionContext
@@ -17,6 +18,7 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.ProxyEngineObjectData
+import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
 
@@ -33,8 +35,10 @@ class ResolverDataFetcher(
          * This is used to resolve the field in the resolver executor.
          */
         private data class EngineObjectData(
-            val fieldResolverDispatcherEOD: ProxyEngineObjectData,
-            val queryProxyEOD: ProxyEngineObjectData
+            val objectValue: ProxyEngineObjectData,
+            val queryValue: ProxyEngineObjectData,
+            val syncObjectValueGetter: suspend () -> EngineObjectDataApi.Sync,
+            val syncQueryValueGetter: suspend () -> EngineObjectDataApi.Sync,
         )
 
         /**
@@ -59,9 +63,9 @@ class ResolverDataFetcher(
             dataFetchingEnvironment = environment
         )
 
-        val (objectValueEOD, queryValueEOD) = getFieldResolverDispatcherEOD(localExecutionContext, environment, engineResults)
+        val engineObjectData = getFieldResolverDispatcherEOD(localExecutionContext, environment, engineResults)
         if (localExecutionContext.executeAccessChecksInModstrat) {
-            return resolveField(environment, objectValueEOD, queryValueEOD, localExecutionContext)
+            return resolveField(environment, engineObjectData, localExecutionContext)
         }
 
         // Before modern access check is fully implemented, all modern fields will not be using
@@ -71,7 +75,7 @@ class ResolverDataFetcher(
         // --------- Execute access checks in ResolverDataFetcher ---------------
         // If there is no checker, just resolve the field
         if (checkerDispatcher == null) {
-            return resolveField(environment, objectValueEOD, queryValueEOD, localExecutionContext)
+            return resolveField(environment, engineObjectData, localExecutionContext)
         }
 
         val checkerProxyEODMap = getCheckerProxyEODMap(environment, engineResults.parentResult)
@@ -88,7 +92,7 @@ class ResolverDataFetcher(
                         )
                     }
                     runCatching {
-                        resolveField(environment, objectValueEOD, queryValueEOD, localExecutionContext)
+                        resolveField(environment, engineObjectData, localExecutionContext)
                     }.onSuccess {
                         val checkerResult = checkAsync.await()
                         checkerResult.asError?.let { throw it.error }
@@ -104,7 +108,7 @@ class ResolverDataFetcher(
                     CheckerExecutor.CheckerType.FIELD
                 )
                 checkerResult.asError?.let { throw it.error }
-                resolveField(environment, objectValueEOD, queryValueEOD, localExecutionContext)
+                resolveField(environment, engineObjectData, localExecutionContext)
             }
 
             else -> throw NotImplementedError("Unsupported operation: ${environment.operationDefinition.operation}")
@@ -117,6 +121,9 @@ class ResolverDataFetcher(
         engineResults: EngineResults,
     ): EngineObjectData {
         val selectionSetFactory = localExecutionContext.rawSelectionSetFactory
+
+        val objectErrorMessage =
+            "add it to @Resolver's objectValueFragment before accessing it via Context.objectValue"
         val objectSelectionSet = fieldResolverDispatcher.objectSelectionSet?.let { rss ->
             val variables = resolveRSSVariables(
                 rss = rss,
@@ -129,12 +136,21 @@ class ResolverDataFetcher(
             )
             selectionSetFactory.rawSelectionSet(rss.selections, variables.toMap())
         }
-        val fieldResolverDispatcherEOD = ProxyEngineObjectData(
+        val objectValue = ProxyEngineObjectData(
             engineResults.parentResult,
-            "add it to @Resolver's objectValueFragment before accessing it via Context.objectValue",
+            objectErrorMessage,
             objectSelectionSet
         )
+        val syncObjectValueGetter: suspend () -> EngineObjectDataApi.Sync = {
+            SyncEngineObjectDataFactory.resolve(
+                engineResults.parentResult,
+                objectErrorMessage,
+                objectSelectionSet
+            )
+        }
 
+        val queryErrorMessage =
+            "add it to @Resolver's queryValueFragment before accessing it via Context.queryValue"
         val querySelectionSet = fieldResolverDispatcher.querySelectionSet?.let { rss ->
             val variables = resolveRSSVariables(
                 rss = rss,
@@ -147,25 +163,32 @@ class ResolverDataFetcher(
             )
             selectionSetFactory.rawSelectionSet(rss.selections, variables.toMap())
         }
-
-        val queryProxyEOD = ProxyEngineObjectData(
+        val queryValue = ProxyEngineObjectData(
             engineResults.queryResult,
-            "add it to @Resolver's queryValueFragment before accessing it via Context.queryValue",
+            queryErrorMessage,
             querySelectionSet
         )
+        val syncQueryValueGetter: suspend () -> EngineObjectDataApi.Sync = {
+            SyncEngineObjectDataFactory.resolve(
+                engineResults.queryResult,
+                queryErrorMessage,
+                querySelectionSet
+            )
+        }
 
-        return EngineObjectData(fieldResolverDispatcherEOD, queryProxyEOD)
+        return EngineObjectData(objectValue, queryValue, syncObjectValueGetter, syncQueryValueGetter)
     }
 
     private suspend fun resolveField(
         environment: DataFetchingEnvironment,
-        fieldResolverDispatcherEOD: ProxyEngineObjectData,
-        resolverQueryProxyEOD: ProxyEngineObjectData,
+        engineObjectData: EngineObjectData,
         engineExecutionContext: EngineExecutionContext
     ) = fieldResolverDispatcher.resolve(
         environment.arguments,
-        fieldResolverDispatcherEOD,
-        resolverQueryProxyEOD,
+        engineObjectData.objectValue,
+        engineObjectData.queryValue,
+        engineObjectData.syncObjectValueGetter,
+        engineObjectData.syncQueryValueGetter,
         engineExecutionContext.rawSelectionSetFactory.rawSelectionSet(environment),
         engineExecutionContext
     )

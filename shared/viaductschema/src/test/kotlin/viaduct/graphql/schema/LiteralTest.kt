@@ -494,7 +494,6 @@ class LiteralTest {
             )
             val value = lv.value
 
-            assertTrue(value is List<*>)
             assertEquals(BigInteger.valueOf(1), value[0])
             assertEquals("two", value[1])
             assertNull(value[2])
@@ -631,7 +630,6 @@ class LiteralTest {
             )
             val value = ov.value
 
-            assertTrue(value is Map<*, *>)
             assertEquals(BigInteger.valueOf(42), value["num"])
             assertEquals("hello", value["str"])
             assertNull(value["nil"])

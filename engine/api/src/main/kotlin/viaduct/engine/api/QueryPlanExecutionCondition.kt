@@ -1,5 +1,7 @@
 package viaduct.engine.api
 
+import graphql.schema.DataFetchingEnvironment
+
 /**
  * Determines whether a QueryPlan should be executed at runtime.
  *
@@ -9,14 +11,18 @@ package viaduct.engine.api
  */
 fun interface QueryPlanExecutionCondition {
     /**
-     * Returns true if the QueryPlan should be executed, false otherwise.
+     * Returns true if the QueryPlan should be executed based on the given environment, false otherwise.
+     *
+     * This is the primary method to implement for environment-based execution conditions.
+     *
+     * @param env the DataFetchingEnvironment to check conditions against, may be null
      */
-    fun shouldExecute(): Boolean
+    fun shouldExecute(env: DataFetchingEnvironment?): Boolean
 
     companion object {
         /**
          * An execution condition that always returns true - the default for most QueryPlans.
          */
-        val ALWAYS_EXECUTE = QueryPlanExecutionCondition { true }
+        val ALWAYS_EXECUTE = QueryPlanExecutionCondition { _ -> true }
     }
 }

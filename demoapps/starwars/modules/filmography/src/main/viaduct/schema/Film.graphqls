@@ -96,6 +96,32 @@ extend type Query @scope(to: ["default"]) {
     @backingData(class: "com.example.starwars.modules.filmography.films.queries.AllFilmsQueryResolver")
 }
 
+# tag::films_connection_example[13] Example of @connection directive for Films
+"""
+A connection to a list of Films.
+Demonstrates usage of @connection directive.
+"""
+type FilmsConnection @connection @scope(to: ["default"]) {
+  "A list of edges."
+  edges: [FilmEdge]
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "Total number of films (optional extension field)."
+  totalCount: Int
+}
+
+# tag::films_edge_example[10] Example of @edge directive for Films
+"""
+An edge in a Films connection.
+Demonstrates usage of @edge directive.
+"""
+type FilmEdge @edge @scope(to: ["default"]) {
+  "The item at the end of the edge."
+  node: Film
+  "A cursor for use in pagination."
+  cursor: String!
+}
+
 extend type Mutation @scope(to: ["default"]) {
   # tag::mutation_example_3[6] Mutation examples
   """

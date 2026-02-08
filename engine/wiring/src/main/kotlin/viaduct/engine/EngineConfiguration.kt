@@ -6,14 +6,11 @@ import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.instrumentation.Instrumentation
 import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
-import viaduct.engine.runtime.ViaductFragmentLoader
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
-import viaduct.engine.runtime.fragment.ViaductExecutableFragmentParser
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
@@ -29,7 +26,6 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 @OptIn(ExperimentalCoroutinesApi::class)
 data class EngineConfiguration(
     val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
-    val fragmentLoader: FragmentLoader = ViaductFragmentLoader(ViaductExecutableFragmentParser()),
     val flagManager: FlagManager = FlagManager.default,
     @Suppress("DEPRECATION")
     val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default,

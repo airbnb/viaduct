@@ -1,6 +1,7 @@
 package viaduct.api.internal
 
 import kotlin.reflect.full.isSubclassOf
+import viaduct.api.ViaductTenantUsageException
 import viaduct.api.globalid.GlobalID
 import viaduct.api.globalid.GlobalIDCodec as TenantGlobalIDCodec
 import viaduct.api.globalid.GlobalIDImpl
@@ -37,10 +38,15 @@ class GlobalIDCodec(
      * Uses the service-level codec to decode the string, then reconstructs
      * the type information using the reflection loader.
      *
+     * @throws ViaductTenantUsageException if the GlobalID string is malformed
      * @throws IllegalArgumentException if the type is not a NodeObject
      */
     override fun <T : NodeCompositeOutput> deserialize(str: String): GlobalID<T> {
-        val (typeName, localID) = serviceGlobalIDCodec.deserialize(str)
+        val (typeName, localID) = try {
+            serviceGlobalIDCodec.deserialize(str)
+        } catch (e: IllegalArgumentException) {
+            throw ViaductTenantUsageException("Invalid GlobalID: \"$str\"", e)
+        }
 
         val type = reflectionLoader.reflectionFor(typeName).let {
             require(it.kcls.isSubclassOf(NodeObject::class)) {

@@ -48,14 +48,17 @@ class JavaGRTsGeneratorCliTest {
             """.trimIndent()
         )
 
-        val outputDir = tempDir.resolve("output")
+        val grtOutputDir = tempDir.resolve("grt-output")
+        val resolverOutputDir = tempDir.resolve("resolver-output")
 
         val cli = JavaGRTsGenerator()
         cli.parse(
             listOf(
                 "--schema_files=${schemaFile.toAbsolutePath()}",
-                "--output_dir=${outputDir.toAbsolutePath()}",
-                "--package=com.example",
+                "--grt_output_dir=${grtOutputDir.toAbsolutePath()}",
+                "--grt_package=com.example",
+                "--resolver_generated_dir=${resolverOutputDir.toAbsolutePath()}",
+                "--tenant_package=com.example.tenant",
                 "--verbose"
             )
         )
@@ -64,10 +67,11 @@ class JavaGRTsGeneratorCliTest {
         assertThat(output).contains("Generated")
         assertThat(output).contains("enum(s)")
         assertThat(output).contains("object(s)")
+        assertThat(output).contains("resolver(s)")
 
         // Verify files were created
-        assertThat(outputDir.resolve("com/example/Status.java")).exists()
-        assertThat(outputDir.resolve("com/example/User.java")).exists()
+        assertThat(grtOutputDir.resolve("com/example/Status.java")).exists()
+        assertThat(grtOutputDir.resolve("com/example/User.java")).exists()
     }
 
     @Test
@@ -82,14 +86,17 @@ class JavaGRTsGeneratorCliTest {
             """.trimIndent()
         )
 
-        val outputDir = tempDir.resolve("output")
+        val grtOutputDir = tempDir.resolve("grt-output")
+        val resolverOutputDir = tempDir.resolve("resolver-output")
 
         val cli = JavaGRTsGenerator()
         cli.parse(
             listOf(
                 "--schema_files=${schemaFile.toAbsolutePath()}",
-                "--output_dir=${outputDir.toAbsolutePath()}",
-                "--package=com.example"
+                "--grt_output_dir=${grtOutputDir.toAbsolutePath()}",
+                "--grt_package=com.example",
+                "--resolver_generated_dir=${resolverOutputDir.toAbsolutePath()}",
+                "--tenant_package=com.example.tenant"
             )
         )
 
@@ -97,6 +104,6 @@ class JavaGRTsGeneratorCliTest {
         assertThat(output).isEmpty()
 
         // Files should still be created
-        assertThat(outputDir.resolve("com/example/Status.java")).exists()
+        assertThat(grtOutputDir.resolve("com/example/Status.java")).exists()
     }
 }

@@ -296,7 +296,9 @@ class NodeResolverTest {
     }
 
     @Test
-    fun `node resolver does not read from dataloader cache if selection set does not cover`() {
+    fun `non-selective node resolver reads from dataloader cache for different selection sets`() {
+        // Non-selective resolvers always return their full output regardless of requested fields,
+        // so caching by ID alone is correct - same ID = cache hit
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
         MockTenantModuleBootstrapper(schemaSDL) {
             field("Query" to "baz") {
@@ -323,6 +325,42 @@ class NodeResolverTest {
             runQuery("{ baz { x anotherBaz { x x2 }}}")
                 .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"x":2, "x2":"foo"}}}}""")
 
+            // Non-selective resolver caches by ID only, so second request for same ID uses cache
+            assertEquals(mapOf("1" to 1), execCounts.mapValues { it.value.get() })
+        }
+    }
+
+    @Test
+    fun `selective node resolver does not read from dataloader cache if selection set does not cover`() {
+        // Selective resolvers tailor their response based on requested fields,
+        // so different selection sets for the same ID should NOT use cache
+        val execCounts = ConcurrentHashMap<String, AtomicInteger>()
+        MockTenantModuleBootstrapper(schemaSDL) {
+            field("Query" to "baz") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
+                    }
+                }
+            }
+            field("Baz" to "anotherBaz") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
+                    }
+                }
+            }
+            type("Baz") {
+                nodeUnbatchedExecutor(selective = true) { id, _, _ ->
+                    execCounts.computeIfAbsent(id) { AtomicInteger(0) }.incrementAndGet()
+                    mkEngineObjectData(objectType, mapOf("x" to 2, "x2" to "foo"))
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ baz { x anotherBaz { x x2 }}}")
+                .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"x":2, "x2":"foo"}}}}""")
+
+            // Selective resolver checks selection sets, so different selections = cache miss
             assertEquals(mapOf("1" to 2), execCounts.mapValues { it.value.get() })
         }
     }

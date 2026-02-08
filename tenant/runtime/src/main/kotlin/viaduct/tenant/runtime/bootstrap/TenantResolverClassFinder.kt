@@ -23,12 +23,12 @@ interface TenantResolverClassFinder {
     fun resolverClassesInPackage(): Set<Class<*>>
 
     /**
-     * Finds all subtypes of the specified typeName within the configured package.
+     * Finds all subtypes of the specified class within the configured package.
      *
-     * @param typeName the GraphQL type name
+     * @param type the base class
      * @return set of classes that extend or implement the specified class
      */
-    fun getSubTypesOf(typeName: String): Set<Class<*>>
+    fun <T : Any?> getSubTypesOf(type: Class<T>): Set<Class<out T>>
 
     /**
      * Discovers all node resolver classes within the configured package.

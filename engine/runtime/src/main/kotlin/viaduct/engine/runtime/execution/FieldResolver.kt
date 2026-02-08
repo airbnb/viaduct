@@ -258,7 +258,7 @@ class FieldResolver(
         parameters: ExecutionParameters,
         plan: QueryPlan
     ) {
-        if (!plan.executionCondition.shouldExecute()) {
+        if (!plan.executionCondition.shouldExecute(null)) {
             return
         }
 

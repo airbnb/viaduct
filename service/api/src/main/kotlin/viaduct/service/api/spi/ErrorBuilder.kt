@@ -55,6 +55,7 @@ class ErrorBuilder private constructor() {
             extensions = extensions.toMap()
         )
 
+    @StableApi
     companion object {
         /**
          * Creates a new error builder.

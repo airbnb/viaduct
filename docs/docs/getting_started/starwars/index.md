@@ -21,10 +21,10 @@ The StarWars demo showcases:
 
 ## Getting the starwars application
 
-The StarWars application is available on GitHub at [github.com/viaduct-graphql/starwars](https://github.com/viaduct-graphql/starwars).
+The StarWars application is available on GitHub at [github.com/viaduct-dev/starwars](https://github.com/viaduct-dev/starwars).
 
 ```shell
-git clone https://github.com/viaduct-graphql/starwars.git
+git clone https://github.com/viaduct-dev/starwars.git
 cd starwars
 ```
 
@@ -42,7 +42,7 @@ applications with Viaduct.
 
 ## Related resources
 
-- [Viaduct Documentation](../index.md)
-- [GitHub Repository](https://github.com/viaduct-graphql)
+- [Viaduct Documentation](../)
+- [GitHub Repository](https://github.com/viaduct-dev)
 
 

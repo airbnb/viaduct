@@ -69,9 +69,9 @@ def main():
 
     # Define demo apps to publish (name, github_repo)
     demo_apps = [
-        ("starwars", "viaduct-graphql/starwars"),
-        ("cli-starter", "viaduct-graphql/cli-starter"),
-        ("ktor-starter", "viaduct-graphql/ktor-starter"),
+        ("starwars", "viaduct-dev/starwars"),
+        ("cli-starter", "viaduct-dev/cli-starter"),
+        ("ktor-starter", "viaduct-dev/ktor-starter"),
     ]
 
     # Track failures

@@ -118,7 +118,7 @@ class ViaductTenantAPIBootstrapperTest {
             )
 
         tenantResolverClassFinder = ViaductTenantResolverClassFinder(
-            packageName = PACKAGE_NAME,
+            tenantPackage = PACKAGE_NAME,
             grtPackagePrefix = "$PACKAGE_NAME.grts"
         )
         runBlocking {

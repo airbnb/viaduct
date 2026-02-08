@@ -453,7 +453,7 @@ class ResolverIntegrationTest {
             errors shouldNotBe null
             (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
-            errorMessage shouldContain "Failed to deserialize GlobalID"
+            errorMessage shouldContain "Invalid GlobalID"
         }
 
         @Test
@@ -483,7 +483,7 @@ class ResolverIntegrationTest {
             errors shouldNotBe null
             (errors.isArray && errors.size() == 1) shouldBe true
             val errorMessage = errors[0].path("message").asText()
-            errorMessage shouldContain "Illegal base64 character"
+            errorMessage shouldContain "Invalid GlobalID"
         }
 
         @Test

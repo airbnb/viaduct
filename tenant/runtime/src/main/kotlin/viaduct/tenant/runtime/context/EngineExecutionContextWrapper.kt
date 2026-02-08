@@ -9,7 +9,7 @@ import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.ExecuteSelectionSetOptions
+import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.toObjectGRT
 
@@ -54,10 +54,10 @@ class EngineExecutionContextWrapperImpl(
         resolverId: String,
         selections: SelectionSet<T>
     ): T =
-        engineExecutionContext.executeSelectionSet(
+        engineExecutionContext.resolveSelectionSet(
             resolverId,
             selections.getRawSelectionSet(),
-            ExecuteSelectionSetOptions.DEFAULT
+            ResolveSelectionSetOptions.DEFAULT
         ).toObjectGRT(ctx, selections.type.kcls)
 
     override suspend fun <T : Mutation> mutation(
@@ -65,10 +65,10 @@ class EngineExecutionContextWrapperImpl(
         resolverId: String,
         selections: SelectionSet<T>
     ): T =
-        engineExecutionContext.executeSelectionSet(
+        engineExecutionContext.resolveSelectionSet(
             resolverId,
             selections.getRawSelectionSet(),
-            ExecuteSelectionSetOptions.MUTATION
+            ResolveSelectionSetOptions.MUTATION
         ).toObjectGRT(ctx, selections.type.kcls)
 
     private fun SelectionSet<*>.getRawSelectionSet() =

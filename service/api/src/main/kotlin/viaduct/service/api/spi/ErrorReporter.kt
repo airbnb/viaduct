@@ -31,6 +31,7 @@ fun interface ErrorReporter {
      * This class encapsulates various details about the error, such as the field name, parent type,
      * operation name, whether it is a framework error, the resolvers involved, and execution context.
      */
+    @StableApi
     data class Metadata(
         /**
          * The name of the field where the error occurred.
@@ -110,11 +111,13 @@ fun interface ErrorReporter {
             listOfNotNull(fieldName, parentType, operationName, isFrameworkError, resolvers)
                 .joinToString(separator = ", ", prefix = "{", postfix = "}")
 
+        @StableApi
         companion object {
             val EMPTY = Metadata()
         }
     }
 
+    @StableApi
     companion object {
         /**
          * A no-op implementation that does nothing.

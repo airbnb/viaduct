@@ -12,6 +12,7 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.internal.ResolverBase
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
+import viaduct.api.types.Mutation
 import viaduct.api.types.Query
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.TestingApi
@@ -45,11 +46,11 @@ class MutationResolverTesterTest {
         private const val ERROR_MISSING_ARGUMENTS = "arguments must be set"
     }
 
-    private val tester = MutationResolverTester.create<MockMutationQuery, MockMutationArguments, MockMutationPayload>(
+    private val tester = MutationResolverTester.create<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload>(
         ResolverTester.TesterConfig(schemaSDL = TEST_SCHEMA_SDL)
     )
 
-    private val noArgsTester = MutationResolverTester.create<MockMutationQuery, Arguments.NoArguments, MockMutationPayload>(
+    private val noArgsTester = MutationResolverTester.create<MockMutationQuery, MockMutation, Arguments.NoArguments, MockMutationPayload>(
         ResolverTester.TesterConfig(schemaSDL = TEST_SCHEMA_SDL)
     )
 
@@ -183,14 +184,16 @@ class MutationResolverTesterTest {
 
 internal object MockMutationQuery : Query
 
+internal object MockMutation : Mutation
+
 internal class MockMutationArguments(val name: String) : Arguments
 
 internal class MockMutationPayload(val result: String) : CompositeOutput
 
 @OptIn(InternalApi::class)
 internal class SimpleMutationResolver : ResolverBase<MockMutationPayload> {
-    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload>) :
-        MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload> by inner
+    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload>) :
+        MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload> by inner
 
     suspend fun resolve(ctx: Context): MockMutationPayload {
         return MockMutationPayload("mutation-result")
@@ -199,8 +202,8 @@ internal class SimpleMutationResolver : ResolverBase<MockMutationPayload> {
 
 @OptIn(InternalApi::class)
 internal class ArgumentAwareMutationResolver : ResolverBase<MockMutationPayload> {
-    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload>) :
-        MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload> by inner
+    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload>) :
+        MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload> by inner
 
     suspend fun resolve(ctx: Context): MockMutationPayload {
         val name = ctx.arguments.name
@@ -210,8 +213,8 @@ internal class ArgumentAwareMutationResolver : ResolverBase<MockMutationPayload>
 
 @OptIn(InternalApi::class)
 internal class NoArgsMutationResolver : ResolverBase<MockMutationPayload> {
-    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, Arguments.NoArguments, MockMutationPayload>) :
-        MutationFieldExecutionContext<MockMutationQuery, Arguments.NoArguments, MockMutationPayload> by inner
+    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutation, Arguments.NoArguments, MockMutationPayload>) :
+        MutationFieldExecutionContext<MockMutationQuery, MockMutation, Arguments.NoArguments, MockMutationPayload> by inner
 
     suspend fun resolve(ctx: Context): MockMutationPayload {
         return MockMutationPayload("no-args-mutation")
@@ -220,8 +223,8 @@ internal class NoArgsMutationResolver : ResolverBase<MockMutationPayload> {
 
 @OptIn(InternalApi::class)
 internal class QueryAwareMutationResolver : ResolverBase<MockMutationPayload> {
-    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload>) :
-        MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload> by inner
+    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload>) :
+        MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload> by inner
 
     suspend fun resolve(ctx: Context): MockMutationPayload {
         val queryVal = ctx.queryValue
@@ -231,8 +234,8 @@ internal class QueryAwareMutationResolver : ResolverBase<MockMutationPayload> {
 
 @OptIn(InternalApi::class)
 internal class ContextQueryMutationResolver : ResolverBase<MockMutationPayload> {
-    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload>) :
-        MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload> by inner
+    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload>) :
+        MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload> by inner
 
     suspend fun resolve(ctx: Context): MockMutationPayload {
         return MockMutationPayload("has-context-queries")
@@ -241,8 +244,8 @@ internal class ContextQueryMutationResolver : ResolverBase<MockMutationPayload> 
 
 @OptIn(InternalApi::class)
 internal class ExceptionThrowingMutationResolver : ResolverBase<MockMutationPayload> {
-    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload>) :
-        MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload> by inner
+    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload>) :
+        MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload> by inner
 
     suspend fun resolve(ctx: Context): MockMutationPayload {
         throw IllegalStateException("Test exception from resolver")
@@ -251,8 +254,8 @@ internal class ExceptionThrowingMutationResolver : ResolverBase<MockMutationPayl
 
 @OptIn(InternalApi::class)
 internal class RequestContextAwareMutationResolver : ResolverBase<MockMutationPayload> {
-    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload>) :
-        MutationFieldExecutionContext<MockMutationQuery, MockMutationArguments, MockMutationPayload> by inner
+    class Context(val inner: MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload>) :
+        MutationFieldExecutionContext<MockMutationQuery, MockMutation, MockMutationArguments, MockMutationPayload> by inner
 
     suspend fun resolve(ctx: Context): MockMutationPayload {
         val hasContext = ctx.requestContext != null

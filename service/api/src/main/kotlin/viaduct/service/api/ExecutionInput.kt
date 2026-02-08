@@ -55,6 +55,7 @@ interface ExecutionInput {
         }
     }
 
+    @StableApi
     companion object {
         /**
          * Creates a new [Builder] instance for constructing [ExecutionInput] objects.
@@ -92,6 +93,7 @@ interface ExecutionInput {
      * Builder class for creating [ExecutionInput] instances with proper defaults
      * and validation.
      */
+    @StableApi
     class Builder {
         private var operationText: String? = null
         private var operationName: String? = null

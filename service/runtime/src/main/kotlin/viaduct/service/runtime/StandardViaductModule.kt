@@ -13,7 +13,6 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.CheckerExecutorFactoryCreator
-import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.NoOpCheckerExecutorFactoryImpl
 import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.TenantAPIBootstrapper
@@ -45,7 +44,6 @@ class StandardViaductModule(
             .`in`(Singleton::class.java)
 
         bind(EngineConfiguration::class.java).toInstance(engineConfiguration)
-        bind(FragmentLoader::class.java).toInstance(engineConfiguration.fragmentLoader)
         bind(CoroutineInterop::class.java).toInstance(engineConfiguration.coroutineInterop)
         bind(FlagManager::class.java).toInstance(engineConfiguration.flagManager)
         bind(DataFetcherExceptionHandler::class.java).toInstance(engineConfiguration.dataFetcherExceptionHandler)

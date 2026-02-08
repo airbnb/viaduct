@@ -30,27 +30,32 @@ The JAR will be created at `x/javaapi/codegen/build/libs/java-grts-codegen-<vers
 ```bash
 java -jar x/javaapi/codegen/build/libs/java-grts-codegen-<version>.jar \
   --schema_files /path/to/schema.graphqls \
-  --output_dir /path/to/generated \
-  --package com.mycompany.graphql.types \
+  --grt_output_dir /path/to/generated/grts \
+  --grt_package com.mycompany.graphql.types \
+  --resolver_generated_dir /path/to/generated/resolvers \
+  --tenant_package com.mycompany.tenant \
   --verbose
 ```
 
 **Parameters:**
 
-| Parameter        | Required | Description                                                   |
-|------------------|----------|---------------------------------------------------------------|
-| `--schema_files` | Yes      | Comma-separated list of GraphQL schema files (absolute paths) |
-| `--output_dir`   | Yes      | Output directory for generated Java source files              |
-| `--package`      | Yes      | Java package name for generated types                         |
-| `--verbose`      | No       | Print generation results (file list and type counts)          |
+| Parameter                  | Required | Description                                                                 |
+|----------------------------|----------|-----------------------------------------------------------------------------|
+| `--schema_files`           | Yes      | Comma-separated list of GraphQL schema files (absolute paths)               |
+| `--grt_output_dir`         | Yes      | Output directory for GRT files (written to package subdirectories)          |
+| `--grt_package`            | Yes      | Java package name for generated GRT types                                   |
+| `--resolver_generated_dir` | Yes      | Output directory for resolver files (written directly, not in subdirs)      |
+| `--tenant_package`         | Yes      | Java package name for resolver bases (uses `{tenantPackage}.resolverbases`) |
+| `--verbose`                | No       | Print generation results (file list and type counts)                        |
 
 ## Generated Output
 
-The output directory will contain Java source files organized by package, where
-`com.mycompany.graphql.types` was the value of the `--package param`:
+### GRT Types
+
+The GRT output directory will contain Java source files organized by package:
 
 ```
-output_dir/
+grt_output_dir/
 └── com/
     └── mycompany/
         └── graphql/
@@ -62,6 +67,24 @@ output_dir/
                 └── MyUnion.java
 ```
 
+### Resolver Base Classes
+
+Resolver files are written to package subdirectories under the resolver output directory.
+The package is `{tenant_package}.resolverbases`:
+
+```
+resolver_generated_dir/
+└── com/
+    └── mycompany/
+        └── tenant/
+            └── resolverbases/
+                ├── UserResolvers.java
+                ├── ListingResolvers.java
+                └── QueryResolvers.java
+```
+
+Each resolver file contains abstract base classes for fields with the `@resolver` directive that tenant developers extend to implement resolvers.
+
 ## Supported Types
 
 - **Enums** - Including extended enums (`extend enum`)
@@ -69,6 +92,7 @@ output_dir/
 - **Inputs** - GraphQL input types with fields, getters/setters, and builder pattern
 - **Interfaces** - GraphQL interface types
 - **Unions** - GraphQL union types
+- **Resolvers** - Abstract base classes for fields with `@resolver` directive
 
 ## Testing
 

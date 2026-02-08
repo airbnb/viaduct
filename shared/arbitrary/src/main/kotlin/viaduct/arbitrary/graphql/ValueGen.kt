@@ -24,14 +24,16 @@ import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.double
 import io.kotest.property.arbitrary.element
-import io.kotest.property.arbitrary.instant
 import io.kotest.property.arbitrary.int
-import io.kotest.property.arbitrary.localDate
 import io.kotest.property.arbitrary.long
+import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.short
 import io.kotest.property.arbitrary.string
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlin.random.nextInt
 import viaduct.arbitrary.common.Config
 import viaduct.graphql.schema.ViaductSchema
@@ -97,11 +99,14 @@ internal class ScalarRawValueArbs(
     val cfg: Config
 ) {
     private val stringGen = Arb.string(cfg[StringValueSize])
+    private val arbInstant = Arb.long().map(Instant::ofEpochMilli)
 
     private val builtins = mapOf(
         "Boolean" to Arb.boolean(),
-        "Date" to Arb.localDate(),
-        "DateTime" to Arb.instant(),
+        "Date" to arbInstant.map { inst ->
+            LocalDate.from(inst.atZone(ZoneOffset.UTC))
+        },
+        "DateTime" to arbInstant,
         "Float" to Arb.double(includeNonFiniteEdgeCases = false),
         "ID" to stringGen,
         "Int" to Arb.int(),
