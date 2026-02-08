@@ -4,6 +4,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
+import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 
 class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
@@ -28,6 +29,7 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
     )
 
     val fetchSelectionContexts = ConcurrentLinkedQueue<RecordingFetchSelectionContext>()
+    val syncFetchSelectionContexts = ConcurrentLinkedQueue<RecordingFetchSelectionContext>()
     val executeResolverContexts = ConcurrentLinkedQueue<RecordingExecuteResolverContext>()
     val executeCheckerContexts = ConcurrentLinkedQueue<RecordingExecuteCheckerContext>()
 
@@ -57,8 +59,33 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
             }
         }
 
+    override fun <T> instrumentSyncFetchSelection(
+        fetchFn: SyncFetchFunction<T>,
+        parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): SyncFetchFunction<T> =
+        SyncFetchFunction {
+            recordSyncExecution({ fetchFn.fetch() }) { result, error ->
+                syncFetchSelectionContexts.add(RecordingFetchSelectionContext(parameters, result, error))
+            }
+        }
+
     private suspend inline fun <T> recordExecution(
         executeFn: suspend () -> T,
+        record: (result: Any?, error: Throwable?) -> Unit
+    ): T {
+        return try {
+            val result = executeFn()
+            record(result, null)
+            result
+        } catch (e: Throwable) {
+            record(null, e)
+            throw e
+        }
+    }
+
+    private inline fun <T> recordSyncExecution(
+        executeFn: () -> T,
         record: (result: Any?, error: Throwable?) -> Unit
     ): T {
         return try {
@@ -84,6 +111,7 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
 
     fun reset() {
         fetchSelectionContexts.clear()
+        syncFetchSelectionContexts.clear()
         executeResolverContexts.clear()
         executeCheckerContexts.clear()
     }

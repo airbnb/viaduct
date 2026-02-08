@@ -97,6 +97,15 @@ extend interface ExtendableInterface {
   extendedField: Int
 }
 
+"""
+Page Info type for connection
+"""
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
 # ============================================================================
 # Object Types
 # ============================================================================
@@ -291,4 +300,50 @@ type Mutation {
 
   "Confirm a booking"
   confirmBooking(bookingId: ID!): Booking!
+}
+
+# ============================================================================
+# Resolver Fields (via type extensions with @resolver directive)
+# ============================================================================
+
+"""
+@resolver directive marks a field as having a custom resolver
+"""
+directive @resolver on OBJECT | FIELD_DEFINITION
+
+"""
+Review type for testing resolver return types.
+"""
+type Review {
+  id: ID!
+  rating: Int!
+  comment: String
+  author: User!
+}
+
+# User type extensions with resolver fields
+extend type User {
+  "Resolver field: User's profile picture URL"
+  profilePicture: String @resolver
+
+  "Resolver field: User's active bookings"
+  activeBookings: [Booking!]! @resolver
+
+  "Resolver field: User's total spent amount"
+  totalSpent: Float! @resolver
+}
+
+# Listing type extension with resolver field that has arguments
+extend type Listing {
+  "Resolver field: Get availability for date range"
+  availability(startDate: String!, endDate: String!): [String!]! @resolver
+
+  "Resolver field: Get reviews for listing"
+  reviews: [Review!]! @resolver
+}
+
+# Mutation extension with resolver field (should not have batchResolve)
+extend type Mutation {
+  "Resolver field on Mutation - should not generate batchResolve"
+  sendNotification(userId: ID!, message: String!): Boolean! @resolver
 }

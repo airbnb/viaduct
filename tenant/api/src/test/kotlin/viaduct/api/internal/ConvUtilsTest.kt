@@ -78,7 +78,7 @@ class ConvUtilsTest {
                 .allTypesAsList
                 .filterNot { it.name.startsWith("__") }
                 .partition { t ->
-                    t.name in setOf("Query", "Union", "Interface")
+                    t.name in setOf("Query", "Union", "Interface", "PageInfo")
                 }
 
             hasSelections.flatMap(::decorate)

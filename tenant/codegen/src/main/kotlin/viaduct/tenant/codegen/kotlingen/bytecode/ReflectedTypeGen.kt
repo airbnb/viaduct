@@ -64,9 +64,9 @@ private val typeST =
         override final val kcls = <mdl.grtFqName>::class
 
         <if(mdl.typeHasFieldsObject)>
-            object Fields {
-                <mdl.fields:field(); separator="\n">
-            }
+        object Fields : ${cfg.REFLECTED_TYPE_FIELDS}\<<mdl.grtFqName>\> {
+            <mdl.fields:field(); separator="\n">
+        }
         <endif>
     }
 """

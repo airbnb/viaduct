@@ -81,7 +81,18 @@ class AccessCheckRunner(
         // fetch the selection sets of any child plans for this type
         val fieldTypeChildPlans = field.fieldTypeChildPlans[objectEngineResult.graphQLObjectType]?.value ?: emptyList()
         if (fieldTypeChildPlans.isNotEmpty()) {
+            val env = dataFetchingEnvironmentSupplier.get()
             fieldTypeChildPlans.forEach { childPlan ->
+                if (!childPlan.executionCondition.shouldExecute(env)) {
+                    log.ifDebug {
+                        debug(
+                            "[AccessCheck] Type checker '${checkerDispatcher.checkerMetadata?.checkerName}' for type '$typeName' " +
+                                "has child plan with selection set '${childPlan.selectionSet}', will not be executed due to execution condition'"
+                        )
+                    }
+                    return@forEach
+                }
+
                 parameters.launchOnRootScope {
                     log.ifDebug {
                         debug("[AccessCheck] Pre-fetching field type child plan for field '${field.fieldName}' of type '$typeName', selection set: '${childPlan.selectionSet}'")

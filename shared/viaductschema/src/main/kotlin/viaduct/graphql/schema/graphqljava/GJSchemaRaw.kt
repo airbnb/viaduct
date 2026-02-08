@@ -112,7 +112,6 @@ internal fun gjSchemaRawFromRegistry(
                 ).directiveLocations(listOf(DirectiveLocation("INPUT_OBJECT")))
                 .build()
         registry.add(oneOfDirectiveDef)
-
         // Take a first pass, translating unions and accumulating a
         // name-to-list-of-unions map for interfaces and object types
         val unionsMap = mutableMapOf<String, MutableSet<String>>()

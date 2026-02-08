@@ -68,7 +68,7 @@ class ViaductTenantModuleBootstrapper(
         val resolverClassesByBaseClass: Map<Class<out ResolverBase<*>>, List<Class<out ResolverBase<*>>>> =
             resolverBaseClasses.associateWith { type ->
                 // Get all @Resolver subclasses
-                tenantResolverClassFinder.getSubTypesOf(type.name).filter { it.kotlin.hasAnnotation<Resolver>() } as List<Class<out ResolverBase<*>>>
+                tenantResolverClassFinder.getSubTypesOf(type).filter { it.kotlin.hasAnnotation<Resolver>() } as List<Class<out ResolverBase<*>>>
             }
         for ((baseClass, resolverClasses) in resolverClassesByBaseClass) {
             val resolverForAnnotation = baseClass.annotations.firstOrNull { it is ResolverFor } as? ResolverFor
@@ -230,7 +230,7 @@ class ViaductTenantModuleBootstrapper(
         @Suppress("UNCHECKED_CAST")
         val nodeResolverClassesByBaseClass: Map<Class<out NodeResolverBase<*>>, Set<Class<out NodeResolverBase<*>>>> =
             nodeResolverBaseClasses.associateWith { // Get all node resolver subclasses
-                tenantResolverClassFinder.getSubTypesOf(it.name) as Set<Class<out NodeResolverBase<*>>>
+                tenantResolverClassFinder.getSubTypesOf(it) as Set<Class<out NodeResolverBase<*>>>
             }
         for ((baseClass, nodeResolverClasses) in nodeResolverClassesByBaseClass) {
             val nodeResolverForAnnotation = baseClass.annotations.first { it is NodeResolverFor } as NodeResolverFor
@@ -262,6 +262,9 @@ class ViaductTenantModuleBootstrapper(
             }
             val resolverClass = nodeResolverClasses.first()
 
+            // Detect if the resolver implements SelectiveResolver marker interface
+            val isSelective = viaduct.api.SelectiveResolver::class.java.isAssignableFrom(resolverClass)
+
             // We register providers for the resolvers here, and this is the only place where we discover Resolver classes
             // for Viaduct, register their providers with the injector provided in the constructor for this class,
             // and create the resolver executors for Viaduct engine.
@@ -291,6 +294,7 @@ class ViaductTenantModuleBootstrapper(
                         reflectionLoader = reflectionLoader,
                         factory = resolverContextFactory,
                         resolverName = resolverKClass.qualifiedName!!,
+                        isSelective = isSelective,
                     )
                 nodeResolverExecutors.put(typeName, nodeUnbatchedResolverExecutor)?.let { extant ->
                     throw TenantModuleException(
@@ -309,6 +313,7 @@ class ViaductTenantModuleBootstrapper(
                         reflectionLoader = reflectionLoader,
                         factory = resolverContextFactory,
                         resolverName = resolverKClass.qualifiedName!!,
+                        isSelective = isSelective,
                     )
                 nodeResolverExecutors.put(typeName, nodeResolverExecutor)?.let { extant ->
                     throw TenantModuleException(

@@ -4,26 +4,49 @@ import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 import javassist.ClassPool
-import javassist.CtBehavior
-import javassist.CtClass
-import javassist.CtConstructor
-import javassist.bytecode.AnnotationsAttribute
-import javassist.bytecode.AttributeInfo
-import javassist.bytecode.InnerClassesAttribute
-import javassist.bytecode.ParameterAnnotationsAttribute
 import viaduct.invariants.InvariantChecker
 
 /**
- * Compares two classes, checking that they have the same structure. This currently uses a mix of reflection and
- * Javassist, since we can't access RuntimeInvisibleAnnotations via reflection.
+ * Compares two classes, checking that they have the same structure.
+ * Uses ClassFinder abstraction for class inspection, enabling support for
+ * both Javassist-based (Kotlin codegen) and reflection-based (Java codegen) class loading.
  */
 class ClassDiff(
     /** Cannot be a prefix of [actualPkg]! */
     val expectedPkg: String,
     val actualPkg: String,
     val diffs: InvariantChecker = InvariantChecker(),
-    private val javassistPool: ClassPool = ClassPool.getDefault()
+    private val classFinder: ClassFinder = JavassistClassFinder()
 ) {
+    /**
+     * Secondary constructor for backwards compatibility with existing code that passes ClassPool directly.
+     */
+    constructor(
+        expectedPkg: String,
+        actualPkg: String,
+        diffs: InvariantChecker,
+        javassistPool: ClassPool
+    ) : this(
+        expectedPkg,
+        actualPkg,
+        diffs,
+        JavassistClassFinder(javassistPool, ClassLoader.getSystemClassLoader())
+    )
+
+    /**
+     * Constructor for backwards compatibility with code that only passes package names and ClassPool.
+     */
+    constructor(
+        expectedPkg: String,
+        actualPkg: String,
+        javassistPool: ClassPool
+    ) : this(
+        expectedPkg,
+        actualPkg,
+        InvariantChecker(),
+        JavassistClassFinder(javassistPool, ClassLoader.getSystemClassLoader())
+    )
+
     internal var elementsTested = 0
         private set
 
@@ -66,12 +89,10 @@ class ClassDiff(
 
             diffs.modifiersAreSame(expected.modifiers, actual.modifiers, "CLASS_MODIFIERS_AGREE")
 
-            // Check class-level annotations using Javassist since that also includes runtime invisible annotations
-            // Skip Metadata ones
-            val expectedCtClass = javassistPool.get(expected.name)
-            val actualCtClass = javassistPool.get(actual.name)
-            val expClassAnnotations = expectedCtClass.classFile.attributes.comparableAnnotations()
-            val actClassAnnotations = actualCtClass.classFile2.attributes.comparableAnnotations()
+            // Check class-level annotations using ClassFinder (which may use Javassist for runtime invisible annotations)
+            // Skip Metadata ones. Normalize both to handle annotation classes from shared packages.
+            val expClassAnnotations = classFinder.getClassAnnotations(expected).map { it.packageNormalized }
+            val actClassAnnotations = classFinder.getClassAnnotations(actual).map { it.packageNormalized }
             diffs.containsExactlyElementsIn(expClassAnnotations, actClassAnnotations, "CLASS_ANNOTATIONS_AGREE")
 
             // Compare Metadata
@@ -111,11 +132,7 @@ class ClassDiff(
                     override val self get() = el
                     override val modifiers get() = el.modifiers
                     override val annotations
-                        get(): List<String> {
-                            val ctClass = javassistPool.getCtClass(el.declaringClass.name)
-                            val ctField = ctClass.declaredFields.first { it.name == el.name }
-                            return ctField.fieldInfo2.attributes.comparableAnnotations()
-                        }
+                        get(): List<String> = classFinder.getFieldAnnotations(el.declaringClass, el.name)
                     override val identifier get() = el.name
 
                     override fun elSpecificComparisons(actualEl: Element<Field>) {
@@ -124,32 +141,21 @@ class ClassDiff(
                 }
             }
 
-            // Compare methods and constructors
-            class ExecutableElement<T : CtBehavior>(
-                override val self: T
-            ) : Element<T> {
-                override val identifier get() = self.sig
-                override val modifiers get() = self.modifiers
-                override val annotations get() = self.methodInfo2.attributes.comparableAnnotations()
-
-                override fun elSpecificComparisons(actualEl: Element<T>) {
-                    // Because the entire method signature is encoded into [identifier]
-                    // the check that expected and actual have the same set of executable
-                    // identifiers is implicitly checking that their signatures agree.
-                }
-            }
-            compareElements(expectedCtClass.methodsToCompare, actualCtClass.methodsToCompare, "METHOD") {
-                ExecutableElement(it)
-            }
+            // Compare methods using ClassFinder
+            compareMethodInfos(
+                classFinder.getMethodSignatures(expected),
+                classFinder.getMethodSignatures(actual),
+                "METHOD"
+            )
 
             // DefaultImpls generated by the Kotlin compiler don't have constructors, whereas Javassist inserts
             // an empty constructor for actual
             if (!expected.name.endsWith("\$DefaultImpls")) {
-                compareElements(
-                    expectedCtClass.declaredConstructors,
-                    actualCtClass.declaredConstructors,
+                compareConstructorInfos(
+                    classFinder.getConstructorSignatures(expected),
+                    classFinder.getConstructorSignatures(actual),
                     "CTOR"
-                ) { ExecutableElement(it) }
+                )
             }
 
             // Compare nested classes
@@ -206,31 +212,99 @@ class ClassDiff(
                     // which checks mods and annotations and increments elementsTested
                     elementsTested++
                     diffs.modifiersAreSame(expEl.modifiers, actEl.modifiers, "${elName}_MODIFIERS_AGREE")
-                    diffs.containsExactlyElementsIn(expEl.annotations, actEl.annotations, "${elName}_ANNOTATIONS_AGREE")
+                    // Normalize both to handle annotation classes from shared packages
+                    diffs.containsExactlyElementsIn(
+                        expEl.annotations.map { it.packageNormalized },
+                        actEl.annotations.map { it.packageNormalized },
+                        "${elName}_ANNOTATIONS_AGREE"
+                    )
                 }
             }
             expEl.elSpecificComparisons(actEl)
         }
     }
 
-    /** Return the "generic signature" of the method stripped of any
-     *  modifiers and also replacing [expectedPkg] with [actualPkg].
-     *  The result is a string that uniquely identifies a method in
-     *  the face of overloading and in the face of the package-renaming
-     *  that allows us to compare across packages.
+    /**
+     * Compare method signatures from ClassFinder.
+     * Handles package normalization for both expected and actual signatures.
      */
-    private val CtBehavior.sig: String
-        get() {
-            val asString =
-                when {
-                    // Kotlin compiler (like javac, see:
-                    // See https://stackoverflow.com/questions/32829143/enum-disassembled-with-javap-doesnt-show-constructor-arguments)
-                    // does not generate signature attributes for enum constructors
-                    this is CtConstructor && this.declaringClass.isEnum -> "${this.name} ${this.methodInfo2.descriptor}"
-                    else -> "${this.name} ${this.genericSignature ?: this.methodInfo2.descriptor}"
-                }
-            return asString.replace(expectedPkgSig, actualPkgSig)
+    private fun compareMethodInfos(
+        expected: List<MethodInfo>,
+        actual: List<MethodInfo>,
+        elName: String
+    ) {
+        val expSorted = expected.sortedBy { it.signature.packageNormalized }
+        val expIds = expSorted.map { it.signature.packageNormalized }
+        val actSorted = actual.sortedBy { it.signature.packageNormalized }
+        val actIds = actSorted.map { it.signature.packageNormalized }
+
+        diffs.containsExactlyElementsIn(expIds, actIds, "CLASS_${elName}S_AGREE")
+
+        val expFiltered = expSorted.filter { actIds.contains(it.signature.packageNormalized) }
+        val actFiltered = actSorted.filter { expIds.contains(it.signature.packageNormalized) }
+
+        if (!diffs.containsExactlyElementsIn(
+                expFiltered.map { it.signature.packageNormalized },
+                actFiltered.map { it.signature.packageNormalized },
+                "${elName}_SHOULD_NOT_HAPPEN"
+            )
+        ) {
+            return
         }
+
+        for ((expInfo, actInfo) in expFiltered.zip(actFiltered)) {
+            diffs.withContext(expInfo.signature.packageNormalized) {
+                elementsTested++
+                diffs.modifiersAreSame(expInfo.modifiers, actInfo.modifiers, "${elName}_MODIFIERS_AGREE")
+                diffs.containsExactlyElementsIn(
+                    expInfo.annotations.map { it.packageNormalized },
+                    actInfo.annotations.map { it.packageNormalized },
+                    "${elName}_ANNOTATIONS_AGREE"
+                )
+            }
+        }
+    }
+
+    /**
+     * Compare constructor signatures from ClassFinder.
+     * Handles package normalization for both expected and actual signatures.
+     */
+    private fun compareConstructorInfos(
+        expected: List<ConstructorInfo>,
+        actual: List<ConstructorInfo>,
+        elName: String
+    ) {
+        val expSorted = expected.sortedBy { it.signature.packageNormalized }
+        val expIds = expSorted.map { it.signature.packageNormalized }
+        val actSorted = actual.sortedBy { it.signature.packageNormalized }
+        val actIds = actSorted.map { it.signature.packageNormalized }
+
+        diffs.containsExactlyElementsIn(expIds, actIds, "CLASS_${elName}S_AGREE")
+
+        val expFiltered = expSorted.filter { actIds.contains(it.signature.packageNormalized) }
+        val actFiltered = actSorted.filter { expIds.contains(it.signature.packageNormalized) }
+
+        if (!diffs.containsExactlyElementsIn(
+                expFiltered.map { it.signature.packageNormalized },
+                actFiltered.map { it.signature.packageNormalized },
+                "${elName}_SHOULD_NOT_HAPPEN"
+            )
+        ) {
+            return
+        }
+
+        for ((expInfo, actInfo) in expFiltered.zip(actFiltered)) {
+            diffs.withContext(expInfo.signature.packageNormalized) {
+                elementsTested++
+                diffs.modifiersAreSame(expInfo.modifiers, actInfo.modifiers, "${elName}_MODIFIERS_AGREE")
+                diffs.containsExactlyElementsIn(
+                    expInfo.annotations.map { it.packageNormalized },
+                    actInfo.annotations.map { it.packageNormalized },
+                    "${elName}_ANNOTATIONS_AGREE"
+                )
+            }
+        }
+    }
 
     private fun InvariantChecker.typeNamesAreEqual(
         expected: Type,
@@ -249,42 +323,9 @@ class ClassDiff(
         this.isEqualTo(Modifier.toString(expectedModifiers), Modifier.toString(actualModifiers), msg)
     }
 
-    /**
-     * Converts the Javassist AttributeInfo list to a list of all annotations contained in those attributes.
-     * Filters out the kotlin.Metadata annotation since that's checked separately via [KmMetadataDiff].
-     * Appends the attribute name (e.g. RuntimeInvisibleAnnotations) to the annotation string so we don't lose
-     * context about which attribute the annotation belongs to.
-     */
-    private fun List<AttributeInfo>.comparableAnnotations(): List<String> =
-        this.flatMap { attribute ->
-            if (attribute is AnnotationsAttribute) {
-                attribute.annotations
-                    .filter { it.typeName != "kotlin.Metadata" }
-                    .map { "${attribute.name}:${it.toString().packageNormalized}" }
-            } else if (attribute is ParameterAnnotationsAttribute) {
-                attribute.annotations.flatMapIndexed { index, paramAnnotations ->
-                    paramAnnotations.map { annotation ->
-                        "${attribute.name}[$index]:${annotation.toString().packageNormalized}"
-                    }
-                }
-            } else if (attribute is InnerClassesAttribute) {
-                val list = (0 until attribute.tableLength()).map { i ->
-                    listOf(
-                        "attr=${attribute.name}",
-                        "outer=${attribute.outerClass(i)?.packageNormalized ?: "<null>"}",
-                        "inner=${attribute.innerClass(i)?.packageNormalized ?: "<null>"}",
-                        "name=${attribute.innerName(i)}",
-                        "flags=${attribute.accessFlags(i)}"
-                    ).joinToString("  ")
-                }
-                list.sorted()
-            } else {
-                emptyList()
-            }
-        }
-
     private val String.packageNormalized: String
         get() = replace(expectedPkg, actualPkg)
+            .replace(expectedPkgSig, actualPkgSig)
 }
 
 // JaCoCo, which we use for the coverage job in CI, will insert fields and methods
@@ -295,7 +336,4 @@ val Class<*>.fieldsToCompare
         }.toTypedArray()
 
 val Class<*>.methodsToCompare
-    get() = this.declaredMethods.filterNot { it.name.startsWith("\$jacoco") }.toTypedArray()
-
-val CtClass.methodsToCompare
     get() = this.declaredMethods.filterNot { it.name.startsWith("\$jacoco") }.toTypedArray()

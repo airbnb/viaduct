@@ -25,6 +25,7 @@ class NodeUnbatchedResolverExecutorImpl(
     private val reflectionLoader: ReflectionLoader,
     private val factory: NodeExecutionContextFactory,
     private val resolverName: String,
+    override val isSelective: Boolean,
 ) : NodeResolverExecutor {
     override val metadata = ResolverMetadata.forModern(resolverName)
     override val isBatching = false

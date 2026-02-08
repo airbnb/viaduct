@@ -18,13 +18,8 @@ class UserDisplayNameResolver: UserResolvers.DisplayName() {
 
         // determine if user is the logged-in user, in which case
         // we add a suffix to their displayName
-        // first, construct a selection set on the Query object
-        val querySelections = ctx.selectionsFor(
-            Query.Reflection,
-            "{ viewer { user { id } } }"
-        )
-        // second, load the selections on Query
-        val query = ctx.query(querySelections)
+        // loads a selection set on the root Query object
+        val query = ctx.query("{ viewer { user { id } } }")
         val isViewer = id == query.getViewer()?.getUser()?.getId()
         val suffix = if (isViewer) " (you!)" else ""
 

@@ -59,6 +59,17 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                 )
             }
 
+            // Root types schema files: global Query/Mutation/Subscription extensions
+            // for the entire project (not module-specific)
+            val commonSchemaDir = project.file("src/viaduct/schema")
+            if (commonSchemaDir.exists()) {
+                commonSchemaFiles.setFrom(
+                    project.fileTree(commonSchemaDir) {
+                        include("**/*.graphqls")
+                    }
+                )
+            }
+
             outputDirectory.set(centralSchemaDirectory())
         }
 

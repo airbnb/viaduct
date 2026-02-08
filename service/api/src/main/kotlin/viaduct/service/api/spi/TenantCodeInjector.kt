@@ -16,6 +16,7 @@ import viaduct.apiannotations.StableApi
 interface TenantCodeInjector {
     fun <T> getProvider(clazz: Class<T>): Provider<T>
 
+    @StableApi
     companion object {
         /**
          * Intended for testing and very simple applications.  Real

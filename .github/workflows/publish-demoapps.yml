@@ -48,11 +48,11 @@ jobs:
       matrix:
         include:
           - name: starwars
-            repo: viaduct-graphql/starwars
+            repo: viaduct-dev/starwars
           - name: cli-starter
-            repo: viaduct-graphql/cli-starter
+            repo: viaduct-dev/cli-starter
           - name: ktor-starter
-            repo: viaduct-graphql/ktor-starter
+            repo: viaduct-dev/ktor-starter
     steps:
       - uses: actions/checkout@v5
         with:
@@ -60,7 +60,7 @@ jobs:
           fetch-tags: false
 
       - name: Run Copybara for ${{ matrix.name }}
-        uses: viaduct-graphql/copybara-action@main
+        uses: viaduct-dev/copybara-action@main
         with:
           ssh_key: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
           access_token: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}

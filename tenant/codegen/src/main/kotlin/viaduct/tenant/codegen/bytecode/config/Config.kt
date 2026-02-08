@@ -180,4 +180,6 @@ object cfg {
         JavaBinaryName("viaduct.api.reflect.CompositeField")
     val REFLECTED_COMPOSITE_FIELD_IMPL =
         JavaBinaryName("viaduct.api.internal.CompositeFieldImpl")
+    val REFLECTED_TYPE_FIELDS =
+        JavaBinaryName("viaduct.api.reflect.TypeFields")
 }

@@ -1,5 +1,7 @@
 [versions]
 coroutinesReactor = "1.10.2"
+junit5 = "5.11.3"
+junitPlatform = "1.11.3"
 kotest = "6.0.5"
 kotlin = "2.2.21"
 micronaut = "4.6.1"
@@ -22,7 +24,8 @@ viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref =
 jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
 micronaut-inject-java = { group = "io.micronaut", name = "micronaut-inject-java", version.ref = "micronaut" }
 micronaut-validation = { group = "io.micronaut", name = "micronaut-http-validation", version.ref = "micronaut" }
-junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit5" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junitPlatform" }
 viaduct-bom = { group = "com.airbnb.viaduct", name = "bom", version.ref = "viaduct" }
 viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viaduct" }
 viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
@@ -42,7 +45,7 @@ micronaut-jackson-databind = { group = "io.micronaut", name = "micronaut-jackson
 micronaut-test-kotest5 = { group = "io.micronaut.test", name = "micronaut-test-kotest5", version.ref = "micronaut" }
 micronaut-inject = { group = "io.micronaut", name = "micronaut-inject", version.ref = "micronaut" }
 reactor-core = { group = "io.projectreactor", name = "reactor-core", version.ref = "reactor" }
-junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit5" }
 assertj-core = { group = "org.assertj", name = "assertj-core", version.ref = "assertj" }
 kotest-runner-junit = { group = "io.kotest", name = "kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { group = "io.kotest", name = "kotest-assertions-core", version.ref = "kotest" }

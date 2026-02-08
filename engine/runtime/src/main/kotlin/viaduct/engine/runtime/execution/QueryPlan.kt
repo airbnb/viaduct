@@ -2,6 +2,7 @@ package viaduct.engine.runtime.execution
 
 import com.github.benmanes.caffeine.cache.Caffeine
 import graphql.execution.MergedField
+import graphql.language.AbstractNode
 import graphql.language.AstPrinter
 import graphql.language.Document
 import graphql.language.Field as GJField
@@ -86,7 +87,9 @@ data class QueryPlan(
      * A CollectedField is the result of applying the CollectFields algorithm.
      *
      * It represents a merged and normalized selection within a selection set, and has
-     * no unresolved constraints like unapplied conditional directives, and will always be executed.
+     * no unresolved constraints like unapplied conditional directives.
+     *
+     * A CollectedField will always be executed.
      */
     data class CollectedField(
         val responseKey: String,
@@ -97,7 +100,8 @@ data class QueryPlan(
         val collectedFieldMetadata: FieldMetadata? = FieldMetadata.empty,
     ) : Selection {
         override val constraints: Constraints get() = Constraints.Unconstrained
-        val sourceLocation: SourceLocation get() = mergedField.singleField.sourceLocation
+
+        val sourceLocation: SourceLocation get() = mergedField.singleField.sourceLocation ?: SourceLocation.EMPTY
         val fieldName: String get() = mergedField.name
         val alias: String? get() = mergedField.singleField.alias
 
@@ -136,7 +140,7 @@ data class QueryPlan(
         override val constraints: Constraints
     ) : Selection
 
-    data class FragmentDefinition(val selectionSet: SelectionSet, val gjDef: GJFragmentDefinition)
+    data class FragmentDefinition(val selectionSet: SelectionSet, val gjDef: GJFragmentDefinition, val childPlans: List<QueryPlan>)
 
     data class Fragments(val map: Map<String, FragmentDefinition>) : Map<String, FragmentDefinition> by map {
         operator fun plus(other: Fragments): Fragments = copy(map + other.map)
@@ -492,12 +496,12 @@ private class QueryPlanBuilder(
         }
     }
 
-    /** Build a QueryPlan for each variable referenced by a field */
+    /** Build a QueryPlan for each variable referenced by a node */
     private fun buildVariablesPlans(
-        field: GJField,
+        selection: AbstractNode<*>,
         seenRSSes: SeenRSSes
     ): List<QueryPlan> {
-        val varRefs = field.collectVariableReferences()
+        val varRefs = selection.collectVariableReferences()
         if (varRefs.isEmpty()) return emptyList()
 
         return varRefs.mapNotNull { varRef ->
@@ -587,7 +591,7 @@ private class QueryPlanBuilder(
 
             state.copy(
                 selectionSet = selectionSet + field,
-                childPlans = childPlans + planChildPlans
+                childPlans = (childPlans + planChildPlans).distinct()
             )
         }
 
@@ -622,7 +626,11 @@ private class QueryPlanBuilder(
             )
 
             val inlineFragment = QueryPlan.InlineFragment(fragmentResult.selectionSet, newConstraints)
-            copy(selectionSet = selectionSet + inlineFragment)
+            val variablesPlans = buildVariablesPlans(sel, seenRSSes)
+            copy(
+                selectionSet = selectionSet + inlineFragment,
+                childPlans = (childPlans + variablesPlans + fragmentResult.childPlans).distinct()
+            )
         }
 
     private fun processFragmentSpread(
@@ -635,7 +643,7 @@ private class QueryPlanBuilder(
             val gjdef = checkNotNull(fragmentsByName[name]) { "Missing fragment definition: $name" }
             val fragType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(gjdef.typeCondition.name)
 
-            val fragChildPlans = if (name !in fragments) {
+            if (name !in fragments) {
                 val fragState = buildState(
                     gjdef.selectionSet,
                     State(
@@ -646,11 +654,10 @@ private class QueryPlanBuilder(
                     ),
                     seenRSSes
                 )
-                fragments[name] = QueryPlan.FragmentDefinition(fragState.selectionSet, gjdef)
+                fragments[name] = QueryPlan.FragmentDefinition(fragState.selectionSet, gjdef, fragState.childPlans)
                 fragState.childPlans
-            } else {
-                emptyList()
             }
+            val fragChildPlans = fragments[name]!!.childPlans
 
             val newConstraints = constraints
                 .withDirectives(sel.directives)
@@ -662,9 +669,11 @@ private class QueryPlanBuilder(
                 return state
             }
 
+            val variablesPlans = buildVariablesPlans(sel, seenRSSes)
+
             copy(
                 selectionSet = selectionSet + QueryPlan.FragmentSpread(name, newConstraints),
-                childPlans = childPlans + fragChildPlans
+                childPlans = (childPlans + variablesPlans + fragChildPlans).distinct()
             )
         }
 

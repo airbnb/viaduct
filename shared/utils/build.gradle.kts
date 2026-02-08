@@ -7,6 +7,8 @@ plugins {
 dependencies {
     api(libs.graphql.java)
 
+    implementation(libs.caffeine)
+    implementation(libs.classgraph)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.slf4j.api)
     implementation(libs.viaduct.shared.apiannotations)
@@ -15,7 +17,6 @@ dependencies {
     testImplementation(libs.guava.testlib)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.kotest.property.jvm)
-    testImplementation(libs.konsist)
 
     jmh(libs.jmh.annotation.processor)
     jmh(libs.jmh.core)

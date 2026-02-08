@@ -219,10 +219,12 @@ def define_env(env):
         display_text = display if display else class_name
 
         # Determine module based on package prefix
-        if fqcn.startswith("viaduct.service"):
-            module = "service"
+        if fqcn.startswith("viaduct.service.api"):
+            module = "service/service/service-api"
+        elif fqcn.startswith("viaduct.service"):
+            module = "service/service/service-wiring"
         elif fqcn.startswith("viaduct.api"):
-            module = "tenant-api"
+            module = "tenant-api/-viaduct%20-tenant%20-a-p-i"
         else:
             # Unknown module, return plain code
             return f"`{display_text}`"
@@ -232,7 +234,7 @@ def define_env(env):
 
         # Convert class name to URL slug (CamelCase -> kebab-case)
         # e.g., NodeObject -> -node-object -> node-object
-        class_slug = re.sub(r'([A-Z])', r'-\1', class_name).lower().lstrip('-')
+        class_slug = re.sub(r'([A-Z])', r'-\1', class_name).lower()
 
         # Build the documentation URL
         doc_url = f"/apis/{module}/{package}/{class_slug}/"

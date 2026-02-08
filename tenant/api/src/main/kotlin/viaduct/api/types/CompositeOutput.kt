@@ -12,5 +12,6 @@ interface CompositeOutput : GRT {
      * NotComposite may be used in places where a CompositeOutput type is required by the compiler
      * but one is not available.
      */
+    @StableApi
     object NotComposite : CompositeOutput
 }

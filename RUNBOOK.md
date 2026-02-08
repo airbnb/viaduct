@@ -56,9 +56,9 @@ To add a new demo app to the publishing workflow:
    matrix:
      include:
        - name: starwars
-         repo: viaduct-graphql/starwars
+         repo: viaduct-dev/starwars
        - name: your-new-app
-         repo: viaduct-graphql/your-new-app
+         repo: viaduct-dev/your-new-app
    ```
 
 3. **Ensure the demo app has proper structure**:
@@ -66,4 +66,4 @@ To add a new demo app to the publishing workflow:
    - Has a `gradle.properties` with `viaductVersion` property
    - Builds independently with `./gradlew build`
 
-4. **Create the destination repository** in the `viaduct-graphql` organization on GitHub
+4. **Create the destination repository** in the `viaduct-dev` organization on GitHub

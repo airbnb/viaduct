@@ -116,6 +116,7 @@ class FieldResolverGeneratorTest {
             "pkg.tenant",
             "viaduct.api.grts",
             ViaductBaseTypeMapper(schema),
+            queryTypeName = "CustomQuery",
             mutationTypeName = "CustomMutation"
         ).toString()
         assertTrue(
@@ -130,11 +131,56 @@ class FieldResolverGeneratorTest {
             "pkg.tenant",
             "viaduct.api.grts",
             ViaductBaseTypeMapper(schema),
+            queryTypeName = "CustomQuery",
             mutationTypeName = "Mutation"
         ).toString()
         assertFalse(
             contentsWithWrongName.contains("MutationFieldExecutionContext"),
             "Should NOT generate MutationFieldExecutionContext when mutationTypeName doesn't match"
+        )
+    }
+
+    @Test
+    fun `generates resolvers with custom query type name`() {
+        val sdl = """
+            schema {
+                query: AppQuery
+            }
+            type AppQuery { field: Int }
+        """.trimIndent()
+
+        val schema = mkSchema(sdl)
+        val type = schema.types["AppQuery"] as ViaductSchema.Record
+
+        // With correct queryTypeName, should generate FieldExecutionContext with AppQuery
+        val contentsWithCorrectName = genResolver(
+            "AppQuery",
+            type.fields,
+            "pkg.tenant",
+            "viaduct.api.grts",
+            ViaductBaseTypeMapper(schema),
+            queryTypeName = "AppQuery"
+        ).toString()
+        assertTrue(
+            contentsWithCorrectName.contains("viaduct.api.grts.AppQuery"),
+            "Should reference AppQuery in FieldExecutionContext"
+        )
+        assertFalse(
+            contentsWithCorrectName.contains("viaduct.api.grts.Query"),
+            "Should NOT reference default Query type"
+        )
+
+        // With default queryTypeName, should generate FieldExecutionContext with Query
+        val contentsWithDefaultName = genResolver(
+            "AppQuery",
+            type.fields,
+            "pkg.tenant",
+            "viaduct.api.grts",
+            ViaductBaseTypeMapper(schema)
+        ).toString()
+        assertTrue(
+            contentsWithDefaultName.contains("viaduct.api.grts.Query"),
+            "Should reference default Query type when queryTypeName not provided"
         )
     }
 

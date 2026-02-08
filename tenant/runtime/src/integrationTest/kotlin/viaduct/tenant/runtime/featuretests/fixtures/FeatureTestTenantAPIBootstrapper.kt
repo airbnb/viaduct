@@ -82,6 +82,7 @@ class FeatureTestTenantModuleBootstrapper(
                 reflectionLoader = reflectionLoader,
                 factory = stub.resolverFactory,
                 resolverName = stub.resolverName ?: "test-node-unbatched-resolver",
+                isSelective = false,
             )
         } + nodeBatchResolverExecutorStubs.mapNotNull { (typeName, stub) ->
             // Skip resolvers for types that don't exist in the schema (e.g., after schema hot-swap)
@@ -97,6 +98,7 @@ class FeatureTestTenantModuleBootstrapper(
                 reflectionLoader = reflectionLoader,
                 factory = stub.resolverFactory,
                 resolverName = stub.resolverName ?: "test-node-batch-resolver",
+                isSelective = false,
             )
         }
 }

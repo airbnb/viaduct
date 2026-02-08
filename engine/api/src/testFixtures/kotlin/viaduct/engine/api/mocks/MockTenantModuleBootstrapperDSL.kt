@@ -376,12 +376,18 @@ class MockTenantModuleBootstrapperDSL<F : Any>(
         val queryType: GraphQLObjectType get() = this@MockTenantModuleBootstrapperDSL.queryType
         val objectType: GraphQLObjectType get() = schema.schema.getObjectType(typeName)!!
 
-        fun nodeBatchedExecutor(block: NodeBatchResolverFn) {
-            nodeResolverExecutors.putIfMissingOrFail(typeName) { MockNodeBatchResolverExecutor(typeName, block) }
+        fun nodeBatchedExecutor(
+            selective: Boolean = false,
+            block: NodeBatchResolverFn
+        ) {
+            nodeResolverExecutors.putIfMissingOrFail(typeName) { MockNodeBatchResolverExecutor(typeName, selective, block) }
         }
 
-        fun nodeUnbatchedExecutor(block: NodeUnbatchedResolverFn) {
-            nodeResolverExecutors.putIfMissingOrFail(typeName) { MockNodeUnbatchedResolverExecutor(typeName, block) }
+        fun nodeUnbatchedExecutor(
+            selective: Boolean = false,
+            block: NodeUnbatchedResolverFn
+        ) {
+            nodeResolverExecutors.putIfMissingOrFail(typeName) { MockNodeUnbatchedResolverExecutor(typeName, selective, block) }
         }
 
         fun checker(block: CheckerScope.() -> Unit) =

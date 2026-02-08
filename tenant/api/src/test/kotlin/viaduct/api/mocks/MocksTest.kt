@@ -14,9 +14,6 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.internal.internal
 import viaduct.api.reflect.Type
-import viaduct.api.select.SelectionSet
-import viaduct.api.types.CompositeOutput
-import viaduct.api.types.Mutation
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.arbitrary.graphql.graphQLName
@@ -66,32 +63,6 @@ class MocksTest {
                 val id2: GlobalID<*> = GlobalIDImpl(type, internalId)
                 id1 == id2
             }
-        }
-
-    @Test
-    fun MockSelectionsLoader_Factory(): Unit =
-        runBlocking {
-            class Q : Query
-            val q = Q()
-
-            class M : Mutation
-            val m = M()
-
-            val factory = MockSelectionsLoader.Factory(q, m)
-            Assertions.assertEquals(MockSelectionsLoader(q), factory.forQuery("resolverid"))
-            Assertions.assertEquals(MockSelectionsLoader(m), factory.forMutation("resolverid"))
-        }
-
-    @Test
-    fun MockSelectionsLoader(): Unit =
-        runBlocking {
-            class Foo : CompositeOutput
-            val fooType = MockType("Foo", Foo::class)
-            val foo = Foo()
-
-            val loader = MockSelectionsLoader(foo)
-            val loaded = loader.load(MockExecutionContext.mk(), SelectionSet.empty(fooType))
-            Assertions.assertEquals(foo, loaded)
         }
 
     @Test

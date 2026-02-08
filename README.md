@@ -31,10 +31,10 @@ This vision embodies our commitment to creating a thriving open source project t
 
 ## Getting Started
 
-To get you started with Viaduct, we have a created a number of small demonstration applications you can play with.  You can find these at [github.com/viaduct-graphql](https://github.com/viaduct-graphql).  To get started with the simplest of these, make a local clone of the [CLI starter](https://github.com/viaduct-graphql/cli-starter):
+To get you started with Viaduct, we have a created a number of small demonstration applications you can play with.  You can find these at [github.com/viaduct-dev](https://github.com/viaduct-dev).  To get started with the simplest of these, make a local clone of the [CLI starter](https://github.com/viaduct-dev/cli-starter):
 
 ```shell
-git clone https://github.com/viaduct-graphql/cli-starter.git
+git clone https://github.com/viaduct-dev/cli-starter.git
 ```
 
 In the root of that cloned repo, type:

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Generic script to push demo apps from airbnb/viaduct to viaduct-graphql org repositories.
+Generic script to push demo apps from airbnb/viaduct to viaduct-dev org repositories.
 This script is called by the individual demo app wrapper scripts.
 Usage: demoapp_to_external_push.py <demoapp-name> <github-repo>
-Example: demoapp_to_external_push.py starwars viaduct-graphql/starwars
+Example: demoapp_to_external_push.py starwars viaduct-dev/starwars
 """
 
 import os
@@ -333,7 +333,7 @@ def main():
     if len(sys.argv) < 3:
         print("Error: Missing required arguments")
         print("Usage: demoapp_to_external_push.py <demoapp-name> <github-repo>")
-        print("Example: demoapp_to_external_push.py starwars viaduct-graphql/starwars")
+        print("Example: demoapp_to_external_push.py starwars viaduct-dev/starwars")
         return 1
 
     demoapp_name = sys.argv[1]

@@ -30,7 +30,7 @@ class NodeDataLoaderTest {
             id = "id1",
             selections = selectionSetFactory.rawSelectionSet("Test", "id bar", emptyMap())
         )
-        assertTrue(selector.covers(selector))
+        assertTrue(selector.covers(selector, isSelective = false))
     }
 
     @Test
@@ -43,7 +43,7 @@ class NodeDataLoaderTest {
             id = "id1",
             selections = selectionSetFactory.rawSelectionSet("Test", "foo { a } bar", emptyMap())
         )
-        assertTrue(selector.covers(other))
+        assertTrue(selector.covers(other, isSelective = false))
     }
 
     @Test
@@ -51,11 +51,12 @@ class NodeDataLoaderTest {
         val selections = selectionSetFactory.rawSelectionSet("Test", "id bar", emptyMap())
         val selector = NodeResolverExecutor.Selector("id1", selections)
         val other = NodeResolverExecutor.Selector("id2", selections)
-        assertFalse(selector.covers(other))
+        assertFalse(selector.covers(other, isSelective = false))
     }
 
     @Test
-    fun `covers returns false for smaller selection set`() {
+    fun `covers returns true for smaller selection set when non-selective`() {
+        // Non-selective resolvers always return their full output, so ID match is sufficient
         val selector = NodeResolverExecutor.Selector(
             id = "id1",
             selections = selectionSetFactory.rawSelectionSet("Test", "id foo { a }", emptyMap())
@@ -64,7 +65,53 @@ class NodeDataLoaderTest {
             id = "id1",
             selections = selectionSetFactory.rawSelectionSet("Test", "id foo { a } bar", emptyMap())
         )
-        assertFalse(selector.covers(other))
+        assertTrue(selector.covers(other, isSelective = false))
+    }
+
+    @Test
+    fun `covers returns false for smaller selection set when selective`() {
+        // Selective resolvers tailor their response to requested fields,
+        // so cached entry must cover all requested fields
+        val selector = NodeResolverExecutor.Selector(
+            id = "id1",
+            selections = selectionSetFactory.rawSelectionSet("Test", "id foo { a }", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = "id1",
+            selections = selectionSetFactory.rawSelectionSet("Test", "id foo { a } bar", emptyMap())
+        )
+        assertFalse(selector.covers(other, isSelective = true))
+    }
+
+    @Test
+    fun `covers returns true for larger selection set when selective`() {
+        // When cached entry has more fields than requested, it's a valid cache hit
+        val selector = NodeResolverExecutor.Selector(
+            id = "id1",
+            selections = selectionSetFactory.rawSelectionSet("Test", "id bar foo { a }", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = "id1",
+            selections = selectionSetFactory.rawSelectionSet("Test", "foo { a } bar", emptyMap())
+        )
+        assertTrue(selector.covers(other, isSelective = true))
+    }
+
+    @Test
+    fun `covers returns true for exact match when selective`() {
+        val selector = NodeResolverExecutor.Selector(
+            id = "id1",
+            selections = selectionSetFactory.rawSelectionSet("Test", "id bar", emptyMap())
+        )
+        assertTrue(selector.covers(selector, isSelective = true))
+    }
+
+    @Test
+    fun `covers returns false for different ID when selective`() {
+        val selections = selectionSetFactory.rawSelectionSet("Test", "id bar", emptyMap())
+        val selector = NodeResolverExecutor.Selector("id1", selections)
+        val other = NodeResolverExecutor.Selector("id2", selections)
+        assertFalse(selector.covers(other, isSelective = true))
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

@@ -23,6 +23,7 @@ fun interface ResolverErrorBuilder {
         errorMetadata: ErrorReporter.Metadata
     ): List<GraphQLError>?
 
+    @StableApi
     companion object {
         /**
          * A no-op implementation that does not handle any exceptions.

@@ -1,14 +1,12 @@
 package viaduct.service.api.spi
 
-import viaduct.apiannotations.ExperimentalApi
-import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 import viaduct.service.api.spi.FlagManager.Flags.EXECUTE_ACCESS_CHECKS
 
 /**
  * Interface for managing feature flags.
  */
-@InternalApi
+@StableApi
 interface FlagManager {
     /**
      * Returns a boolean representing whether [flag] is enabled. Impl should execute very quickly as it could
@@ -16,10 +14,12 @@ interface FlagManager {
      */
     fun isEnabled(flag: Flag): Boolean
 
+    @StableApi
     object disabled : FlagManager {
         override fun isEnabled(flag: Flag): Boolean = false
     }
 
+    @StableApi
     object default : FlagManager {
         override fun isEnabled(flag: Flag): Boolean =
             when (flag) {
@@ -39,13 +39,12 @@ interface FlagManager {
         val flagName: String
     }
 
-    @ExperimentalApi
+    @StableApi
     enum class Flags(
         override val flagName: String
     ) : Flag {
         EXECUTE_ACCESS_CHECKS("execute_access_checks_in_modern_execution_strategy"),
         DISABLE_QUERY_PLAN_CACHE("disable_query_plan_cache"),
         KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH("common.kotlin.nextTickDispatcher.killswitch.nonBlockingEnqueueFlush"),
-        ENABLE_SUBQUERY_EXECUTION_VIA_HANDLE("enable_subquery_execution_via_handle"),
     }
 }

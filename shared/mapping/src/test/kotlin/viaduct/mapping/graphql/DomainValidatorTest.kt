@@ -134,8 +134,8 @@ class DomainValidatorTest : KotestPropertyBase() {
             validator.checkAll()
         }
 
-        assertEquals(setOf("Inp", "Query"), mappedForward.toSet())
-        assertEquals(setOf("Inp", "Query"), inverted.toSet())
+        assertEquals(setOf("Inp", "Query", "PageInfo"), mappedForward.toSet())
+        assertEquals(setOf("Inp", "Query", "PageInfo"), inverted.toSet())
     }
 
     @Test

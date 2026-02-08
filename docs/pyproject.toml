@@ -1,0 +1,4 @@
+[tool.djlint]
+profile = "html"
+extension = "html"
+ignore = "H006,H013,H021,H025,H030,H031"

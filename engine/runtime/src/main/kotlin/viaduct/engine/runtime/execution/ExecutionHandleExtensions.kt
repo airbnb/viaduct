@@ -17,7 +17,7 @@ import viaduct.engine.api.SubqueryExecutionException
 /**
  * Extracts [ExecutionParameters] from an opaque [EngineExecutionContext.ExecutionHandle].
  *
- * This extension enables [viaduct.engine.api.Engine.executeSelectionSet] to access
+ * This extension enables [viaduct.engine.api.Engine.resolveSelectionSet] to access
  * the execution context needed for selection execution without exposing ExecutionParameters
  * in the public API.
  *

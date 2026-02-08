@@ -8,7 +8,6 @@ import graphql.execution.ExecutionStepInfo
 import graphql.execution.values.InputInterceptor
 import graphql.execution.values.legacycoercing.LegacyCoercingInputInterceptor
 import graphql.language.OperationDefinition
-import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLObjectType
 import io.mockk.every
 import io.mockk.mockk
@@ -26,17 +25,12 @@ import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.FromArgumentVariable
-import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.derived.DerivedFieldQueryMetadata
-import viaduct.engine.api.fragment.Fragment
-import viaduct.engine.api.fragment.FragmentFieldEngineResolutionResult
 import viaduct.engine.api.mocks.FieldUnbatchedResolverFn
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
@@ -630,20 +624,4 @@ private class TestFieldUnbatchedResolverExecutor(
         lastReceivedLocalContext = context as EngineExecutionContextImpl
         return super.batchResolve(selectors, context)
     }
-}
-
-private class MockFragmentLoader(val result: Any) : FragmentLoader {
-    override suspend fun loadFromEngine(
-        fragment: Fragment,
-        metadata: DerivedFieldQueryMetadata,
-        source: Any?,
-        dataFetchingEnvironment: DataFetchingEnvironment?
-    ): FragmentFieldEngineResolutionResult = TODO()
-
-    override suspend fun loadEngineObjectData(
-        fragment: Fragment,
-        metadata: DerivedFieldQueryMetadata,
-        source: Any,
-        dataFetchingEnvironment: DataFetchingEnvironment
-    ): ObjectEngineResult = result as ObjectEngineResult
 }

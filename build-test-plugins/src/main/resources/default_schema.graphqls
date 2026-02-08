@@ -1,11 +1,3 @@
-# TODO: Build this automatically from the utility in :shared:graphql
-
-schema {
-  query: Query
-  mutation: Mutation
-  subscription: Subscription
-}
-
 "@backingData directive"
 directive @backingData(class: String!) on FIELD_DEFINITION
 
@@ -17,6 +9,12 @@ directive @resolver on OBJECT | FIELD_DEFINITION
 
 "@scope directive"
 directive @scope(to: [String!]!) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT
+
+"Marks an object type as a Relay Connection type"
+directive @connection on OBJECT
+
+"Marks an object type as a Relay Edge type"
+directive @edge on OBJECT
 
 interface Node @scope(to: ["*"]) {
   id: ID!

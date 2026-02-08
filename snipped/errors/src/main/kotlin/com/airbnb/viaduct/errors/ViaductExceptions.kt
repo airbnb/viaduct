@@ -207,6 +207,8 @@ open class ViaductDelegationException(
 
     override fun getExtensions(): Map<String, Any?> = graphQLErrors.firstOrNull()?.extensions ?: mapOf()
 
+    fun getFullyQualifiedErrorClass(): String? = getExtensions()["fullyQualifiedErrorClass"] as? String
+
     companion object {
         fun concatGraphQLErrors(graphQLErrors: List<GraphQLError>) = graphQLErrors.map { it.message }.joinToString()
     }

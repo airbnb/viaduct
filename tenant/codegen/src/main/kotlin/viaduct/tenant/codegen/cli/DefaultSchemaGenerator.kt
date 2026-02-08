@@ -19,10 +19,16 @@ class DefaultSchemaGenerator : CliktCommand() {
 
     private val includeNodeFields: Boolean by option("--include_node_fields").flag(default = false)
 
+    private val includePageInfo: Boolean by option("--include_page_info").flag(default = false)
+
+    private val includeRootTypes: Boolean by option("--include_root_types").flag("--no-include_root_types", default = true)
+
     override fun run() {
         val sdl = DefaultSchemaProvider.getDefaultSDL(
             includeNodeDefinition = DefaultSchemaProvider.IncludeNodeSchema.Always,
-            includeNodeQueries = DefaultSchemaProvider.IncludeNodeSchema(includeNodeFields)
+            includeNodeQueries = DefaultSchemaProvider.IncludeNodeSchema(includeNodeFields),
+            includePageInfo = includePageInfo,
+            includeRootTypes = includeRootTypes
         )
         // Write to output file
         outputFile.writeText(sdl)

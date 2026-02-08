@@ -12,6 +12,7 @@ import graphql.execution.NonNullableFieldWasNullException
 import graphql.language.OperationDefinition
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.CompletableFuture
+import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -343,32 +344,42 @@ class ViaductExecutionStrategy internal constructor(
      * // At this point the supervisor is cancelled and joined.
      * ```
      */
-    internal suspend inline fun <T> withRequestSupervisor(crossinline block: suspend CoroutineScope.(supervisorFactory: (CoroutineContext) -> CoroutineScope) -> T): T {
+    internal suspend fun <T> withRequestSupervisor(block: suspend CoroutineScope.(supervisorFactory: (CoroutineContext) -> CoroutineScope) -> T): T {
         val cc = currentCoroutineContext()
+        val existingSupervisor = cc[RequestExecutionSupervisorContext]?.supervisorJob?.takeIf { it.isActive }
+        if (existingSupervisor != null) {
+            return executeWithSupervisor(existingSupervisor, block)
+        }
         val sup = SupervisorJob(cc[Job])
         return try {
-            // Capture any errors that don't propagate from child coroutines launched in the request scope.
-            // Ideally this doesn't happen, but if it does, we want to log them.
-            val ctx = cc + sup + CoroutineExceptionHandler { _, t ->
-                log.error("Uncaught exception in request scope", t)
-            }
-            CoroutineScope(ctx).async {
-                // this acts as a fallback for TL context. if we try to access the TL context's job and
-                // it's already completed or cancelled, we will fall back to the job here. We want to
-                // ensure that that's parented by are supervisor so that it's cancellable and gets
-                // cleaned up at our finally block below
-                withThreadLocalCoroutineContext {
-                    // by setting the scope factory as such, we ensure that all things launched with
-                    // parameters.launchOnRootScope are children of the request supervisor
-                    val factory = { ctx: CoroutineContext -> CoroutineScope(ctx + sup) }
-                    this.block(factory)
-                }
-            }.await()
+            executeWithSupervisor(sup, block)
         } finally {
             withContext(NonCancellable) {
                 sup.cancel(RequestScopeCancellationException("Request complete. Cleaning up request scope."))
                 sup.join()
             }
         }
+    }
+
+    private suspend fun <T> executeWithSupervisor(
+        supervisorJob: Job,
+        block: suspend CoroutineScope.(supervisorFactory: (CoroutineContext) -> CoroutineScope) -> T
+    ): T {
+        val cc = currentCoroutineContext()
+        val ctx = cc + RequestExecutionSupervisorContext(supervisorJob) + CoroutineExceptionHandler { _, t ->
+            log.error("Uncaught exception in request scope", t)
+        }
+        return CoroutineScope(ctx).async {
+            withThreadLocalCoroutineContext {
+                val factory = { ctx: CoroutineContext -> CoroutineScope(ctx + supervisorJob) }
+                this.block(factory)
+            }
+        }.await()
+    }
+
+    internal class RequestExecutionSupervisorContext(
+        val supervisorJob: Job
+    ) : AbstractCoroutineContextElement(Key) {
+        companion object Key : CoroutineContext.Key<RequestExecutionSupervisorContext>
     }
 }

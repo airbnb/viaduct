@@ -20,7 +20,7 @@ interface Engine {
     /**
      * Executes a selection set from within a resolver using an existing execution context.
      *
-     * This is an internal wiring-layer API. Prefer using [EngineExecutionContext.executeSelectionSet]
+     * This is an internal wiring-layer API. Prefer using [EngineExecutionContext.resolveSelectionSet]
      * from the engine layer, or the tenant-level `ctx.query()`/`ctx.mutation()` methods.
      *
      * This method enables resolvers to execute additional queries or mutations against the
@@ -33,14 +33,14 @@ interface Engine {
      *
      * @param executionHandle The opaque handle from the current execution context.
      * @param selectionSet The [RawSelectionSet] containing the fields to resolve.
-     * @param options The [ExecuteSelectionSetOptions] controlling execution behavior.
+     * @param options The [ResolveSelectionSetOptions] controlling execution behavior.
      * @return The resolved [EngineObjectData] wrapping the target result.
      * @throws SubqueryExecutionException on execution failures. See subquery-execution.md for details.
      */
-    suspend fun executeSelectionSet(
+    suspend fun resolveSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: RawSelectionSet,
-        options: ExecuteSelectionSetOptions,
+        options: ResolveSelectionSetOptions,
     ): EngineObjectData
 
     /**

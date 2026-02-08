@@ -134,6 +134,45 @@ extend type Query @scope(to: ["default"]) {
     @backingData(class: "com.example.starwars.modules.filmography.characters.queries.AllCharactersQueryResolver")
 }
 
+# tag::connection_example[11] Example of @connection directive
+"""
+A connection to a list of Characters with pagination support.
+Follows the Relay Connection specification.
+"""
+type CharactersConnection @connection @scope(to: ["default"]) {
+  "List of character edges"
+  edges: [CharacterEdge]
+  "Pagination information"
+  pageInfo: PageInfo!
+}
+
+# tag::edge_example[9] Example of @edge directive
+"""
+An edge in a CharactersConnection.
+"""
+type CharacterEdge @edge @scope(to: ["default"]) {
+  "The character at the end of the edge"
+  node: Character
+  "A cursor for pagination"
+  cursor: String!
+}
+
+# tag::pageinfo_example[12] PageInfo type for pagination
+"""
+Information about pagination in a connection.
+Part of the Relay Connection specification.
+"""
+type PageInfo @scope(to: ["default"]) {
+  "When paginating forwards, are there more items?"
+  hasNextPage: Boolean!
+  "When paginating backwards, are there more items?"
+  hasPreviousPage: Boolean!
+  "Cursor to continue backwards pagination"
+  startCursor: String
+  "Cursor to continue forwards pagination"
+  endCursor: String
+}
+
 # tag::one_of_example[16] ID search sample
 input CharacterSearchInput @oneOf @scope(to: ["default"]) {
   """

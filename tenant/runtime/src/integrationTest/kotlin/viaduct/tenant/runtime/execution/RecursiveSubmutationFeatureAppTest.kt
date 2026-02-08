@@ -1,11 +1,8 @@
 package viaduct.tenant.runtime.execution.submutations
 
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.tenant.runtime.execution.submutations.resolverbases.MutationResolvers
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
@@ -21,14 +18,6 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
  * [SubqueryExecutionFeatureAppTest].
  */
 class RecursiveSubmutationFeatureAppTest : FeatureAppTestBase() {
-    @BeforeEach
-    override fun initViaductBuilder() {
-        super.initViaductBuilder()
-        withViaductBuilder {
-            withFlagManager(MockFlagManager.mk(FlagManager.Flags.ENABLE_SUBQUERY_EXECUTION_VIA_HANDLE))
-        }
-    }
-
     override var sdl =
         """
         |#START_SCHEMA
@@ -44,7 +33,7 @@ class RecursiveSubmutationFeatureAppTest : FeatureAppTestBase() {
      *
      * Note: Subqueries do NOT inherit the parent request's GraphQL variables. You can either:
      * - Use inline literal values in the selection string (as shown here)
-     * - Pass a variables map to selectionsFor: `ctx.selectionsFor(Type, "field(arg: \$var)", mapOf("var" to value))`
+     * - Pass a variables map to ctx.mutation: `ctx.mutation("field(arg: \$var)", mapOf("var" to value))`
      */
     @Resolver
     class Mutation_ExampleMutationSelections : MutationResolvers.ExampleMutationSelections() {
@@ -54,12 +43,7 @@ class RecursiveSubmutationFeatureAppTest : FeatureAppTestBase() {
                 1 -> 1
                 else -> {
                     // Use inline literal value for the argument, not a variable
-                    val mutation = ctx.mutation(
-                        ctx.selectionsFor(
-                            Mutation.Reflection,
-                            "exampleMutationSelections(triangleSize: ${size - 1})"
-                        )
-                    )
+                    val mutation = ctx.mutation("exampleMutationSelections(triangleSize: ${size - 1})")
                     size + mutation.getExampleMutationSelections()!!
                 }
             }

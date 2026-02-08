@@ -29,6 +29,9 @@ dependencies {
     // Testing
     testImplementation(libs.assertj.core)
     testImplementation(libs.kotest.assertions.core.jvm)
+
+    // For GraphQLInput interface in exercise tests
+    testImplementation(project(":x:javaapi:x-javaapi-api"))
 }
 
 // Create fat jar with all dependencies for CLI usage

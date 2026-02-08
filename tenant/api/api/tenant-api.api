@@ -24,6 +24,9 @@ public abstract interface annotation class viaduct/api/Resolver : java/lang/anno
 	public abstract fun variables ()[Lviaduct/api/Variable;
 }
 
+public abstract interface class viaduct/api/SelectiveResolver {
+}
+
 public abstract interface class viaduct/api/TenantModule {
 	public abstract fun getMetadata ()Ljava/util/Map;
 	public abstract fun getPackageName ()Ljava/lang/String;
@@ -90,27 +93,31 @@ public abstract interface class viaduct/api/context/FieldExecutionContext : viad
 }
 
 public abstract interface class viaduct/api/context/MutationFieldExecutionContext : viaduct/api/context/BaseFieldExecutionContext {
-	public abstract fun mutation (Lviaduct/api/select/SelectionSet;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun mutation (Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class viaduct/api/context/MutationFieldExecutionContext$DefaultImpls {
+	public static synthetic fun mutation$default (Lviaduct/api/context/MutationFieldExecutionContext;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public abstract interface class viaduct/api/context/NodeExecutionContext : viaduct/api/context/ResolverExecutionContext {
 	public abstract fun getId ()Lviaduct/api/globalid/GlobalID;
-	public abstract fun selections ()Lviaduct/api/select/SelectionSet;
 }
 
 public abstract interface class viaduct/api/context/ResolverExecutionContext : viaduct/api/context/ExecutionContext {
 	public abstract fun globalIDStringFor (Lviaduct/api/reflect/Type;Ljava/lang/String;)Ljava/lang/String;
 	public abstract fun nodeFor (Lviaduct/api/globalid/GlobalID;)Lviaduct/api/types/NodeObject;
-	public abstract fun query (Lviaduct/api/select/SelectionSet;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun query (Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun selectionsFor (Lviaduct/api/reflect/Type;Ljava/lang/String;Ljava/util/Map;)Lviaduct/api/select/SelectionSet;
 }
 
 public final class viaduct/api/context/ResolverExecutionContext$DefaultImpls {
+	public static synthetic fun query$default (Lviaduct/api/context/ResolverExecutionContext;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun selectionsFor$default (Lviaduct/api/context/ResolverExecutionContext;Lviaduct/api/reflect/Type;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lviaduct/api/select/SelectionSet;
 }
 
-public final class viaduct/api/context/ResolverExecutionContextExtensionsKt {
-	public static final fun publishedGeneratedType (Ljava/lang/Class;)Lviaduct/api/reflect/Type;
+public abstract interface class viaduct/api/context/SelectiveNodeExecutionContext : viaduct/api/context/NodeExecutionContext {
+	public abstract fun selections ()Lviaduct/api/select/SelectionSet;
 }
 
 public abstract interface class viaduct/api/context/VariablesProviderContext : viaduct/api/context/ExecutionContext {
@@ -139,326 +146,9 @@ public abstract interface class viaduct/api/globalid/GlobalIDCodec {
 	public abstract fun serialize (Lviaduct/api/globalid/GlobalID;)Ljava/lang/String;
 }
 
-public final class viaduct/api/globalid/GlobalIDImpl : viaduct/api/globalid/GlobalID {
-	public fun <init> (Lviaduct/api/reflect/Type;Ljava/lang/String;)V
-	public final fun component1 ()Lviaduct/api/reflect/Type;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun copy (Lviaduct/api/reflect/Type;Ljava/lang/String;)Lviaduct/api/globalid/GlobalIDImpl;
-	public static synthetic fun copy$default (Lviaduct/api/globalid/GlobalIDImpl;Lviaduct/api/reflect/Type;Ljava/lang/String;ILjava/lang/Object;)Lviaduct/api/globalid/GlobalIDImpl;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun getInternalID ()Ljava/lang/String;
-	public fun getType ()Lviaduct/api/reflect/Type;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class viaduct/api/internal/CompositeFieldImpl : viaduct/api/reflect/CompositeField {
-	public fun <init> (Ljava/lang/String;Lviaduct/api/reflect/Type;Lviaduct/api/reflect/Type;)V
-	public fun getContainingType ()Lviaduct/api/reflect/Type;
-	public fun getName ()Ljava/lang/String;
-	public fun getType ()Lviaduct/api/reflect/Type;
-}
-
-public abstract interface class viaduct/api/internal/DynamicOutputValueBuilder {
-	public abstract fun build ()Ljava/lang/Object;
-	public abstract fun put (Ljava/lang/String;Ljava/lang/Object;)Lviaduct/api/internal/DynamicOutputValueBuilder;
-}
-
-public final class viaduct/api/internal/DynamicValueBuilderTypeChecker {
-	public static final synthetic fun box-impl (Lviaduct/api/internal/InternalContext;)Lviaduct/api/internal/DynamicValueBuilderTypeChecker;
-	public static final fun checkType-impl (Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLType;Ljava/lang/Object;Lviaduct/api/internal/DynamicValueBuilderTypeChecker$FieldContext;)V
-	public static fun constructor-impl (Lviaduct/api/internal/InternalContext;)Lviaduct/api/internal/InternalContext;
-	public fun equals (Ljava/lang/Object;)Z
-	public static fun equals-impl (Lviaduct/api/internal/InternalContext;Ljava/lang/Object;)Z
-	public static final fun equals-impl0 (Lviaduct/api/internal/InternalContext;Lviaduct/api/internal/InternalContext;)Z
-	public final fun getCtx ()Lviaduct/api/internal/InternalContext;
-	public fun hashCode ()I
-	public static fun hashCode-impl (Lviaduct/api/internal/InternalContext;)I
-	public static final fun isValidObjectType-impl (Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLType;Lgraphql/schema/GraphQLObjectType;)Z
-	public fun toString ()Ljava/lang/String;
-	public static fun toString-impl (Lviaduct/api/internal/InternalContext;)Ljava/lang/String;
-	public final synthetic fun unbox-impl ()Lviaduct/api/internal/InternalContext;
-}
-
-public final class viaduct/api/internal/DynamicValueBuilderTypeChecker$FieldContext {
-	public fun <init> (Lgraphql/schema/GraphQLFieldDefinition;Lgraphql/schema/GraphQLObjectType;)V
-	public final fun component1 ()Lgraphql/schema/GraphQLFieldDefinition;
-	public final fun component2 ()Lgraphql/schema/GraphQLObjectType;
-	public final fun copy (Lgraphql/schema/GraphQLFieldDefinition;Lgraphql/schema/GraphQLObjectType;)Lviaduct/api/internal/DynamicValueBuilderTypeChecker$FieldContext;
-	public static synthetic fun copy$default (Lviaduct/api/internal/DynamicValueBuilderTypeChecker$FieldContext;Lgraphql/schema/GraphQLFieldDefinition;Lgraphql/schema/GraphQLObjectType;ILjava/lang/Object;)Lviaduct/api/internal/DynamicValueBuilderTypeChecker$FieldContext;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getFieldDefinition ()Lgraphql/schema/GraphQLFieldDefinition;
-	public final fun getParentType ()Lgraphql/schema/GraphQLObjectType;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class viaduct/api/internal/EngineValueConv {
-	public static final field INSTANCE Lviaduct/api/internal/EngineValueConv;
-	public final fun invoke (Lviaduct/engine/api/ViaductSchema;Lgraphql/schema/GraphQLType;Lviaduct/engine/api/RawSelectionSet;)Lviaduct/mapping/graphql/Conv;
-}
-
-public final class viaduct/api/internal/FieldImpl : viaduct/api/reflect/Field {
-	public fun <init> (Ljava/lang/String;Lviaduct/api/reflect/Type;)V
-	public fun getContainingType ()Lviaduct/api/reflect/Type;
-	public fun getName ()Ljava/lang/String;
-}
-
-public final class viaduct/api/internal/GRTConv {
-	public static final field INSTANCE Lviaduct/api/internal/GRTConv;
-	public final fun invoke (Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLFieldDefinition;Lgraphql/schema/GraphQLCompositeType;Lviaduct/engine/api/RawSelectionSet;Lviaduct/api/internal/KeyMapping;)Lviaduct/mapping/graphql/Conv;
-	public final fun invoke (Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLInputObjectField;)Lviaduct/mapping/graphql/Conv;
-	public final fun invoke (Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLType;Lviaduct/engine/api/RawSelectionSet;Lviaduct/api/internal/KeyMapping;)Lviaduct/mapping/graphql/Conv;
-	public static synthetic fun invoke$default (Lviaduct/api/internal/GRTConv;Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLFieldDefinition;Lgraphql/schema/GraphQLCompositeType;Lviaduct/engine/api/RawSelectionSet;Lviaduct/api/internal/KeyMapping;ILjava/lang/Object;)Lviaduct/mapping/graphql/Conv;
-	public static synthetic fun invoke$default (Lviaduct/api/internal/GRTConv;Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLType;Lviaduct/engine/api/RawSelectionSet;Lviaduct/api/internal/KeyMapping;ILjava/lang/Object;)Lviaduct/mapping/graphql/Conv;
-}
-
-public final class viaduct/api/internal/GlobalIDCodec : viaduct/api/globalid/GlobalIDCodec {
-	public fun <init> (Lviaduct/service/api/spi/GlobalIDCodec;Lviaduct/api/internal/ReflectionLoader;)V
-	public fun deserialize (Ljava/lang/String;)Lviaduct/api/globalid/GlobalID;
-	public fun serialize (Lviaduct/api/globalid/GlobalID;)Ljava/lang/String;
-}
-
-public abstract class viaduct/api/internal/InputLikeBase : viaduct/api/types/InputLike {
-	public fun <init> ()V
-	public fun equals (Ljava/lang/Object;)Z
-	protected final fun get (Ljava/lang/String;)Ljava/lang/Object;
-	protected abstract fun getContext ()Lviaduct/api/internal/InternalContext;
-	public abstract fun getGraphQLInputObjectType ()Lgraphql/schema/GraphQLInputObjectType;
-	public abstract fun getInputData ()Ljava/util/Map;
-	public fun hashCode ()I
-	public final fun isPresent (Ljava/lang/String;)Z
-	protected final fun validateInputDataAndThrowAsFrameworkError ()V
-}
-
-public abstract class viaduct/api/internal/InputLikeBase$Builder {
-	public fun <init> ()V
-	protected abstract fun getContext ()Lviaduct/api/internal/InternalContext;
-	protected abstract fun getGraphQLInputObjectType ()Lgraphql/schema/GraphQLInputObjectType;
-	protected abstract fun getInputData ()Ljava/util/Map;
-	protected final fun put (Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/Object;
-	protected final fun validateInputDataAndThrowAsTenantError ()V
-}
-
-public final class viaduct/api/internal/InputTypeFactory {
-	public static final field INSTANCE Lviaduct/api/internal/InputTypeFactory;
-	public static final fun argumentsInputType (Ljava/lang/String;Lviaduct/engine/api/ViaductSchema;)Lgraphql/schema/GraphQLInputObjectType;
-	public static final fun inputObjectInputType (Ljava/lang/String;Lviaduct/engine/api/ViaductSchema;)Lgraphql/schema/GraphQLInputObjectType;
-}
-
-public abstract interface class viaduct/api/internal/InternalContext {
-	public abstract fun deserializeGlobalID (Ljava/lang/String;)Lviaduct/api/globalid/GlobalID;
-	public abstract fun getGlobalIDCodec ()Lviaduct/service/api/spi/GlobalIDCodec;
-	public abstract fun getReflectionLoader ()Lviaduct/api/internal/ReflectionLoader;
-	public abstract fun getSchema ()Lviaduct/engine/api/ViaductSchema;
-}
-
-public final class viaduct/api/internal/InternalContextKt {
-	public static final fun getInternal (Lviaduct/api/context/ExecutionContext;)Lviaduct/api/internal/InternalContext;
-}
-
-public abstract interface class viaduct/api/internal/InternalSelectionSet {
-	public abstract fun getRawSelectionSet ()Lviaduct/engine/api/RawSelectionSet;
-}
-
-public final class viaduct/api/internal/JsonConv {
-	public static final field INSTANCE Lviaduct/api/internal/JsonConv;
-	public final fun invoke (Lviaduct/engine/api/ViaductSchema;Lgraphql/schema/GraphQLType;Lviaduct/engine/api/RawSelectionSet;Lviaduct/api/internal/JsonConv$AddJsonTypenameField;)Lviaduct/mapping/graphql/Conv;
-	public static synthetic fun invoke$default (Lviaduct/api/internal/JsonConv;Lviaduct/engine/api/ViaductSchema;Lgraphql/schema/GraphQLType;Lviaduct/engine/api/RawSelectionSet;Lviaduct/api/internal/JsonConv$AddJsonTypenameField;ILjava/lang/Object;)Lviaduct/mapping/graphql/Conv;
-}
-
-public final class viaduct/api/internal/JsonConv$AddJsonTypenameField : java/lang/Enum {
-	public static final field Always Lviaduct/api/internal/JsonConv$AddJsonTypenameField;
-	public static final field Never Lviaduct/api/internal/JsonConv$AddJsonTypenameField;
-	public static fun valueOf (Ljava/lang/String;)Lviaduct/api/internal/JsonConv$AddJsonTypenameField;
-	public static fun values ()[Lviaduct/api/internal/JsonConv$AddJsonTypenameField;
-}
-
-public final class viaduct/api/internal/KeyMapping {
-	public static final field Companion Lviaduct/api/internal/KeyMapping$Companion;
-	public fun <init> (Lviaduct/api/internal/KeyMapping$KeyType;Lviaduct/api/internal/KeyMapping$KeyType;)V
-	public final fun component1 ()Lviaduct/api/internal/KeyMapping$KeyType;
-	public final fun component2 ()Lviaduct/api/internal/KeyMapping$KeyType;
-	public final fun copy (Lviaduct/api/internal/KeyMapping$KeyType;Lviaduct/api/internal/KeyMapping$KeyType;)Lviaduct/api/internal/KeyMapping;
-	public static synthetic fun copy$default (Lviaduct/api/internal/KeyMapping;Lviaduct/api/internal/KeyMapping$KeyType;Lviaduct/api/internal/KeyMapping$KeyType;ILjava/lang/Object;)Lviaduct/api/internal/KeyMapping;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getFromType ()Lviaduct/api/internal/KeyMapping$KeyType;
-	public final fun getToType ()Lviaduct/api/internal/KeyMapping$KeyType;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class viaduct/api/internal/KeyMapping$Companion {
-	public final fun defaultKeyMapping (Lviaduct/engine/api/RawSelectionSet;)Lviaduct/api/internal/KeyMapping;
-	public final fun getFieldNameToFieldName ()Lviaduct/api/internal/KeyMapping;
-	public final fun getFieldNameToSelection ()Lviaduct/api/internal/KeyMapping;
-	public final fun getSelectionToSelection ()Lviaduct/api/internal/KeyMapping;
-	public final fun map (Lviaduct/api/internal/KeyMapping;Lviaduct/engine/api/RawSelectionSet;)Lviaduct/api/internal/KeyMapping$Map;
-}
-
-public final class viaduct/api/internal/KeyMapping$KeyType : java/lang/Enum {
-	public static final field FieldName Lviaduct/api/internal/KeyMapping$KeyType;
-	public static final field Selection Lviaduct/api/internal/KeyMapping$KeyType;
-	public static fun valueOf (Ljava/lang/String;)Lviaduct/api/internal/KeyMapping$KeyType;
-	public static fun values ()[Lviaduct/api/internal/KeyMapping$KeyType;
-}
-
-public abstract interface class viaduct/api/internal/KeyMapping$Map {
-	public static final field Companion Lviaduct/api/internal/KeyMapping$Map$Companion;
-	public abstract fun forward (Ljava/lang/String;)Ljava/util/List;
-	public abstract fun invert (Ljava/lang/String;)Ljava/util/List;
-}
-
-public final class viaduct/api/internal/KeyMapping$Map$Companion {
-	public final fun fromMaps (Ljava/util/Map;Ljava/util/Map;)Lviaduct/api/internal/KeyMapping$Map;
-}
-
-public final class viaduct/api/internal/KeyMapping$Map$Identity : viaduct/api/internal/KeyMapping$Map {
-	public static final field INSTANCE Lviaduct/api/internal/KeyMapping$Map$Identity;
-	public fun forward (Ljava/lang/String;)Ljava/util/List;
-	public fun invert (Ljava/lang/String;)Ljava/util/List;
-}
-
-public final class viaduct/api/internal/MissingReflection : java/lang/Exception {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun getMessage ()Ljava/lang/String;
-	public final fun getName ()Ljava/lang/String;
-	public final fun getReason ()Ljava/lang/String;
-}
-
-public abstract interface class viaduct/api/internal/NodeReferenceGRTFactory {
-	public abstract fun nodeFor (Lviaduct/api/globalid/GlobalID;Lviaduct/api/internal/InternalContext;)Lviaduct/api/types/NodeObject;
-}
-
-public abstract interface class viaduct/api/internal/NodeResolverBase {
-}
-
-public abstract interface annotation class viaduct/api/internal/NodeResolverFor : java/lang/annotation/Annotation {
-	public abstract fun typeName ()Ljava/lang/String;
-}
-
-public abstract class viaduct/api/internal/ObjectBase : viaduct/api/types/Object {
-	public static final field Companion Lviaduct/api/internal/ObjectBase$Companion;
-	public fun <init> (Lviaduct/api/internal/InternalContext;Lviaduct/engine/api/EngineObject;)V
-	protected final fun fetch (Ljava/lang/String;Lkotlin/reflect/KClass;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun fetch$default (Lviaduct/api/internal/ObjectBase;Ljava/lang/String;Lkotlin/reflect/KClass;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public final fun get (Ljava/lang/String;Lkotlin/reflect/KClass;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun get$default (Lviaduct/api/internal/ObjectBase;Ljava/lang/String;Lkotlin/reflect/KClass;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	protected final fun getContext ()Lviaduct/api/internal/InternalContext;
-	public final fun getEngineObject ()Lviaduct/engine/api/EngineObject;
-	protected final fun toBuilderEOD ()Lviaduct/engine/api/EngineObjectData;
-}
-
-public abstract class viaduct/api/internal/ObjectBase$Builder : viaduct/api/internal/DynamicOutputValueBuilder {
-	public fun <init> (Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLObjectType;Lviaduct/engine/api/EngineObjectData;)V
-	protected final fun buildEngineObjectData ()Lviaduct/engine/api/EngineObjectData;
-	protected final fun getContext ()Lviaduct/api/internal/InternalContext;
-	public synthetic fun put (Ljava/lang/String;Ljava/lang/Object;)Lviaduct/api/internal/DynamicOutputValueBuilder;
-	public final fun put (Ljava/lang/String;Ljava/lang/Object;)Lviaduct/api/internal/ObjectBase$Builder;
-	protected final fun putInternal (Ljava/lang/String;Ljava/lang/Object;)V
-}
-
-public final class viaduct/api/internal/ObjectBase$Companion {
-}
-
-public final class viaduct/api/internal/ObjectBaseTestHelpers {
-	public static final field INSTANCE Lviaduct/api/internal/ObjectBaseTestHelpers;
-	public final fun putWithAlias (Lviaduct/api/internal/ObjectBase$Builder;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;)Lviaduct/api/internal/ObjectBase$Builder;
-}
-
-public final class viaduct/api/internal/ObjectBaseTestHelpersKt {
-	public static final fun putWithAlias (Lviaduct/api/internal/ObjectBase$Builder;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;)Lviaduct/api/internal/ObjectBase$Builder;
-}
-
-public final class viaduct/api/internal/OverlayEngineObjectData : viaduct/engine/api/EngineObjectData {
-	public fun <init> (Lviaduct/engine/api/EngineObjectData;Lviaduct/engine/api/EngineObjectData;)V
-	public fun fetch (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun fetchOrNull (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun fetchSelections (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun getGraphQLObjectType ()Lgraphql/schema/GraphQLObjectType;
-}
-
 public abstract interface class viaduct/api/internal/ReflectionLoader {
 	public abstract fun getGRTKClassFor (Ljava/lang/String;)Lkotlin/reflect/KClass;
 	public abstract fun reflectionFor (Ljava/lang/String;)Lviaduct/api/reflect/Type;
-}
-
-public abstract interface class viaduct/api/internal/ResolverBase {
-}
-
-public abstract interface annotation class viaduct/api/internal/ResolverFor : java/lang/annotation/Annotation {
-	public abstract fun fieldName ()Ljava/lang/String;
-	public abstract fun typeName ()Ljava/lang/String;
-}
-
-public final class viaduct/api/internal/ViaductObjectBuilder : viaduct/api/internal/DynamicOutputValueBuilder {
-	public static final field Companion Lviaduct/api/internal/ViaductObjectBuilder$Companion;
-	public synthetic fun <init> (Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLObjectType;Lkotlin/reflect/KClass;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun build ()Ljava/lang/Object;
-	public fun build ()Lviaduct/api/types/GRT;
-	public final fun getContext ()Lviaduct/api/internal/InternalContext;
-	public final fun getGraphqlType ()Lgraphql/schema/GraphQLObjectType;
-	public synthetic fun put (Ljava/lang/String;Ljava/lang/Object;)Lviaduct/api/internal/DynamicOutputValueBuilder;
-	public fun put (Ljava/lang/String;Ljava/lang/Object;)Lviaduct/api/internal/ViaductObjectBuilder;
-}
-
-public final class viaduct/api/internal/ViaductObjectBuilder$Companion {
-	public final fun dynamicBuilderFor (Lviaduct/api/context/ExecutionContext;Lkotlin/reflect/KClass;)Lviaduct/api/internal/ViaductObjectBuilder;
-	public final fun dynamicBuilderFor (Lviaduct/api/internal/InternalContext;Lkotlin/reflect/KClass;)Lviaduct/api/internal/ViaductObjectBuilder;
-}
-
-public final class viaduct/api/internal/WrapUtilsKt {
-	public static final fun getAsAnyConv (Lviaduct/mapping/graphql/Conv;)Lviaduct/mapping/graphql/Conv;
-	public static final fun isGlobalID (Lgraphql/schema/GraphQLFieldDefinition;Lgraphql/schema/GraphQLObjectType;)Z
-	public static final fun isGlobalID (Lgraphql/schema/GraphQLInputObjectField;)Z
-	public static final fun wrapEnum (Lviaduct/api/internal/InternalContext;Lgraphql/schema/GraphQLEnumType;Ljava/lang/Object;)Ljava/lang/Enum;
-	public static final fun wrapInputObject (Lviaduct/api/internal/InternalContext;Lviaduct/api/reflect/Type;Lgraphql/schema/GraphQLInputObjectType;Ljava/util/Map;)Lviaduct/api/types/Input;
-	public static final fun wrapOutputObject (Lviaduct/api/internal/InternalContext;Lviaduct/api/reflect/Type;Lviaduct/engine/api/EngineObject;)Lviaduct/api/types/Object;
-}
-
-public abstract interface class viaduct/api/internal/select/SelectionSetFactory {
-	public abstract fun selectionsOn (Lviaduct/api/reflect/Type;Ljava/lang/String;Ljava/util/Map;)Lviaduct/api/select/SelectionSet;
-}
-
-public final class viaduct/api/internal/select/SelectionSetFactory$DefaultImpls {
-	public static synthetic fun selectionsOn$default (Lviaduct/api/internal/select/SelectionSetFactory;Lviaduct/api/reflect/Type;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lviaduct/api/select/SelectionSet;
-}
-
-public abstract interface class viaduct/api/internal/select/SelectionsLoader {
-	public static final field Companion Lviaduct/api/internal/select/SelectionsLoader$Companion;
-	public abstract fun load (Lviaduct/api/context/ExecutionContext;Lviaduct/api/select/SelectionSet;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class viaduct/api/internal/select/SelectionsLoader$Companion {
-	public final fun const (Lviaduct/api/types/Object;)Lviaduct/api/internal/select/SelectionsLoader;
-}
-
-public abstract interface class viaduct/api/internal/select/SelectionsLoader$Factory {
-	public abstract fun forMutation (Ljava/lang/String;)Lviaduct/api/internal/select/SelectionsLoader;
-	public abstract fun forQuery (Ljava/lang/String;)Lviaduct/api/internal/select/SelectionsLoader;
-}
-
-public final class viaduct/api/mapping/GRTDomain : viaduct/mapping/graphql/Domain {
-	public static final field Companion Lviaduct/api/mapping/GRTDomain$Companion;
-	public synthetic fun <init> (Lviaduct/api/internal/InternalContext;Lviaduct/engine/api/RawSelectionSet;Lviaduct/api/internal/KeyMapping;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun getConv ()Lviaduct/mapping/graphql/Conv;
-	public fun mapperTo (Lviaduct/mapping/graphql/Domain;)Lviaduct/mapping/graphql/Conv;
-}
-
-public final class viaduct/api/mapping/GRTDomain$Companion {
-	public final fun forSelectionSet (Lviaduct/api/context/ExecutionContext;Lviaduct/api/select/SelectionSet;Lviaduct/api/internal/KeyMapping;)Lviaduct/mapping/graphql/Domain;
-	public static synthetic fun forSelectionSet$default (Lviaduct/api/mapping/GRTDomain$Companion;Lviaduct/api/context/ExecutionContext;Lviaduct/api/select/SelectionSet;Lviaduct/api/internal/KeyMapping;ILjava/lang/Object;)Lviaduct/mapping/graphql/Domain;
-	public final fun forType (Lviaduct/api/context/ExecutionContext;)Lviaduct/mapping/graphql/Domain;
-	public final fun invoke (Lviaduct/api/context/ExecutionContext;)Lviaduct/mapping/graphql/Domain;
-}
-
-public final class viaduct/api/mapping/JsonDomain {
-	public static final field INSTANCE Lviaduct/api/mapping/JsonDomain;
-	public final fun forInputType (Lviaduct/api/context/ExecutionContext;Lviaduct/api/reflect/Type;)Lviaduct/mapping/graphql/Domain;
-	public final fun forObjectType (Lviaduct/api/context/ExecutionContext;Lviaduct/api/reflect/Type;)Lviaduct/mapping/graphql/Domain;
-	public final fun forSelectionSet (Lviaduct/api/context/ExecutionContext;Lviaduct/api/select/SelectionSet;)Lviaduct/mapping/graphql/Domain;
-	public final fun invoke (Lviaduct/api/context/ExecutionContext;)Lviaduct/mapping/graphql/Domain;
 }
 
 public abstract interface class viaduct/api/reflect/CompositeField : viaduct/api/reflect/Field {
@@ -478,6 +168,9 @@ public abstract interface class viaduct/api/reflect/Type {
 
 public final class viaduct/api/reflect/Type$Companion {
 	public final fun ofClass (Lkotlin/reflect/KClass;)Lviaduct/api/reflect/Type;
+}
+
+public abstract interface class viaduct/api/reflect/TypeFields {
 }
 
 public abstract interface class viaduct/api/select/SelectionSet {

@@ -12,16 +12,14 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.ExecuteSelectionSetOptions
 import viaduct.engine.api.RawSelectionSet
+import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvironment
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.executeAccessChecksInModstrat
-import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldScopeSupplier
 import viaduct.engine.runtime.EngineExecutionContextExtensions.hasResolver
-import viaduct.engine.runtime.EngineExecutionContextExtensions.resolverInstrumentation
 import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandle
 import viaduct.engine.runtime.execution.ExecutionTestHelpers
 import viaduct.engine.runtime.mocks.ContextMocks
@@ -222,17 +220,16 @@ class EngineExecutionContextExtensionsTest {
             override val scopedSchema: ViaductSchema get() = mockk()
             override val activeSchema: ViaductSchema get() = mockk()
             override val rawSelectionSetFactory get() = mockk<viaduct.engine.api.RawSelectionSet.Factory>()
-            override val rawSelectionsLoaderFactory get() = mockk<viaduct.engine.api.RawSelectionsLoader.Factory>()
             override val globalIDCodec: GlobalIDCodec get() = mockk<GlobalIDCodec>()
             override val requestContext: Any? get() = null
             override val engine get() = mockk<viaduct.engine.api.Engine>()
             override val executionHandle: EngineExecutionContext.ExecutionHandle? get() = null
             override val fieldScope get() = mockk<EngineExecutionContext.FieldExecutionScope>()
 
-            override suspend fun executeSelectionSet(
+            override suspend fun resolveSelectionSet(
                 resolverId: String,
                 selectionSet: RawSelectionSet,
-                options: ExecuteSelectionSetOptions
+                options: ResolveSelectionSetOptions
             ): EngineObjectData = mockk()
 
             override fun createNodeReference(

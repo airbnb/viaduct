@@ -33,7 +33,7 @@ class NodeDataLoader(
     override fun shouldUseImmediateDispatch(): Boolean = !resolver.isBatching
 
     override val cacheKeyMatchFn get() = { newKey: NodeResolverExecutor.Selector, cachedKey: NodeResolverExecutor.Selector ->
-        cachedKey.covers(newKey)
+        cachedKey.covers(newKey, resolver.isSelective)
     }
 }
 
@@ -41,16 +41,23 @@ class NodeDataLoader(
  * Returns true if the receiver covers [other], such its value can be used instead of executing the
  * resolver with the [other] selector.
  *
- * TODO:
- *   1. Introduce a way to determine if a resolver is non-selective, and only match ID for those
- *   2. Intersect the selection set we pass to resolvers with its responsibility selection set,
- *      and expand this check to the entire ss rather than just the immediate children
+ * @param isSelective Whether the resolver varies its response based on the selection set.
+ *   When false (non-selective), only ID matching is required for cache hits.
+ *   When true (selective), selection set coverage must also be checked.
  */
-internal fun NodeResolverExecutor.Selector.covers(other: NodeResolverExecutor.Selector): Boolean {
+internal fun NodeResolverExecutor.Selector.covers(
+    other: NodeResolverExecutor.Selector,
+    isSelective: Boolean
+): Boolean {
     if (other.id != this.id) return false
+
+    // Non-selective resolvers always return their full output selection set,
+    // so ID match is sufficient for cache hits
+    if (!isSelective) return true
+
+    // Selective resolvers may vary their response based on requested fields,
+    // so we need to verify the cached entry covers all requested fields
     // Consider "id" to be part of the selection set if it isn't already
-    val selectedFields = mutableSetOf("id").also { fields ->
-        this.selections.selections().forEach { fields.add(it.fieldName) }
-    }
-    return other.selections.selections().all { selectedFields.contains(it.fieldName) }
+    val selectedFields = this.selections.selections().mapTo(mutableSetOf("id")) { it.fieldName }
+    return other.selections.selections().all { it.fieldName in selectedFields }
 }

@@ -3,17 +3,22 @@ package detekt
 import io.gitlab.arturbosch.detekt.Detekt
 import viaduct.gradle.internal.repoRoot
 
+// Only run custom detekt from the root build where build-logic:common exists.
+// Included builds (like included-builds/core) don't have access to this project.
+val isRootBuild = gradle.parent == null
+
 // Only register the detektCustomRules task once across all subprojects
 // Use a root project extra property to track if already registered
 val taskRegisteredKey = "detektCustomRulesRegistered"
-val isFirstRegistration = !rootProject.extra.has(taskRegisteredKey)
+val isFirstRegistration = isRootBuild && !rootProject.extra.has(taskRegisteredKey)
 if (isFirstRegistration) {
     rootProject.extra.set(taskRegisteredKey, true)
 }
 
 val detektPluginsCfg = configurations.maybeCreate("detektPlugins")
-val selfJar = files(javaClass.protectionDomain.codeSource.location)
-dependencies { add(detektPluginsCfg.name, selfJar) }
+if (isRootBuild) {
+    dependencies { add(detektPluginsCfg.name, "com.airbnb.viaduct:common") }
+}
 
 if (isFirstRegistration) {
     tasks.register<Detekt>("detektCustomRules") {

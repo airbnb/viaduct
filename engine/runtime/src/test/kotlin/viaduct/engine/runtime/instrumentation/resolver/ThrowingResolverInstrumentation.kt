@@ -3,6 +3,7 @@ package viaduct.engine.runtime.instrumentation.resolver
 import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
+import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 
 /**
@@ -14,6 +15,7 @@ class ThrowingResolverInstrumentation(
     private val throwOnCreateState: Boolean = false,
     private val throwOnInstrumentExecute: Boolean = false,
     private val throwOnInstrumentFetch: Boolean = false,
+    private val throwOnInstrumentSyncFetch: Boolean = false,
     private val throwOnInstrumentChecker: Boolean = false
 ) : ViaductResolverInstrumentation {
     override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
@@ -40,6 +42,17 @@ class ThrowingResolverInstrumentation(
         state: ViaductResolverInstrumentation.InstrumentationState?,
     ): FetchFunction<T> {
         if (throwOnInstrumentFetch) {
+            throw RuntimeException(exceptionMessage)
+        }
+        return fetchFn
+    }
+
+    override fun <T> instrumentSyncFetchSelection(
+        fetchFn: SyncFetchFunction<T>,
+        parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): SyncFetchFunction<T> {
+        if (throwOnInstrumentSyncFetch) {
             throw RuntimeException(exceptionMessage)
         }
         return fetchFn

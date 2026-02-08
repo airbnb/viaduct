@@ -378,8 +378,8 @@ class ResolverExecutionContextFactoryTest {
 
     private class FakeMutationResolverBase : ResolverBase<CompositeOutput> {
         @Suppress("UNCHECKED_CAST")
-        class Context(ctx: MutationFieldExecutionContext<*, *, *>) :
-            MutationFieldExecutionContext<Query, Arguments, CompositeOutput> by (ctx as MutationFieldExecutionContext<Query, Arguments, CompositeOutput>),
+        class Context(ctx: MutationFieldExecutionContext<*, *, *, *>) :
+            MutationFieldExecutionContext<Query, Mutation, Arguments, CompositeOutput> by (ctx as MutationFieldExecutionContext<Query, Mutation, Arguments, CompositeOutput>),
             InternalContext by (ctx as InternalContext)
     }
 }

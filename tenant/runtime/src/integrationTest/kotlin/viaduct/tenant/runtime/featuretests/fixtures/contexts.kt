@@ -5,6 +5,7 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
+import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
@@ -13,7 +14,7 @@ import viaduct.api.types.Query
 typealias UntypedFieldContext = FieldExecutionContext<Object, Query, Arguments, CompositeOutput>
 
 /** An alias for [MutationFieldExecution] that allows a mutation resolver to read non-GRT data and write either GRT or non-GRT data */
-typealias UntypedMutationFieldContext = MutationFieldExecutionContext<Query, Arguments, CompositeOutput>
+typealias UntypedMutationFieldContext = MutationFieldExecutionContext<Query, Mutation, Arguments, CompositeOutput>
 
 /** An alias for [NodeExecutionContext] that allows a node resolver to read non-GRT data and write either GRT or non-GRT data */
 typealias UntypedNodeContext = NodeExecutionContext<NodeObject>

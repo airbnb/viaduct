@@ -57,7 +57,7 @@ interface InternalDataLoader<K : Any, V, C : Any> {
                 override suspend fun load(
                     keys: List<K>,
                     env: BatchLoaderEnvironment<K>
-                ): List<Try<V?>> {
+                ): List<Try<V>> {
                     @Suppress("TooGenericExceptionCaught")
                     return try {
                         baseLoadFn.load(keys.toSet(), env).let { resultMap -> keys.map { resultMap[it] } }.map { Try(it) }
@@ -114,7 +114,7 @@ fun interface GenericBatchLoadFn<K, V> {
     suspend fun load(
         keys: List<K>,
         env: BatchLoaderEnvironment<K>
-    ): List<Try<V?>>
+    ): List<Try<V>>
 }
 
 data class BatchLoaderEnvironment<K>(
@@ -130,8 +130,20 @@ data class Try<V>(
     val error: Throwable? = null
 )
 
+/**
+ * Converts a Kotlin [Result] to a [Try].
+ */
+fun <V> Result<V>.toTry(): Try<V> = Try(value = getOrNull(), error = exceptionOrNull())
+
 data class DataLoaderOptions(
-    val maxBatchSize: Int = 1000
+    val maxBatchSize: Int = 1000,
+    /**
+     * When true (default), exceptions returned per-key via [Try.error] are cached like successful results.
+     * When false, per-key exceptions are not cached and subsequent loads will re-fetch from the batch loader.
+     *
+     * This is useful for transient errors (e.g., cancellation exceptions) that should not poison the cache.
+     */
+    val cachingExceptionsEnabled: Boolean = true
 )
 
 interface BatchLoadFn<K, V> {
@@ -145,7 +157,7 @@ interface BatchLoadWithTryFn<K, V> {
     suspend fun load(
         keys: List<K>,
         env: BatchLoaderEnvironment<K>
-    ): List<Try<V?>>
+    ): List<Try<V>>
 }
 
 interface MappedBatchLoadFn<K, V> {
@@ -159,7 +171,7 @@ interface MappedBatchLoadWithTryFn<K, V> {
     suspend fun load(
         keys: Set<K>,
         env: BatchLoaderEnvironment<K>
-    ): Map<K, Try<V?>>
+    ): Map<K, Try<V>>
 }
 
 interface DispatchingContext

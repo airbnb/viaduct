@@ -36,13 +36,38 @@ abstract class AssembleCentralSchemaTask
             description = "Collect schema files from all modules into a single directory."
         }
 
+        /** Schema partition files from individual viaduct-module projects. */
         @get:InputFiles
         @get:PathSensitive(PathSensitivity.RELATIVE)
         abstract val schemaPartitions: ConfigurableFileCollection
 
+        /**
+         * Base schema files from src/main/viaduct/schemabase directory.
+         * These typically contain shared directives, interfaces, and common types
+         * used across the application.
+         */
         @get:InputFiles
         @get:PathSensitive(PathSensitivity.RELATIVE)
         abstract val baseSchemaFiles: ConfigurableFileCollection
+
+        /**
+         * Common Schema files from src/viaduct/schema directory.
+         * These contain global schema declarations including extensions to Query, Mutation,
+         * and Subscription types that apply to the entire project, also shared comm
+         *
+         * Use this to define project-wide GraphQL schema definitions that are not specific to any module,
+         * such as:
+         * schema {
+         *      query: CustomQuery
+         *      mutation: CustomMutation
+         *      subscription: CustomSubscription
+         * }
+         *
+         * directive @common
+         */
+        @get:InputFiles
+        @get:PathSensitive(PathSensitivity.RELATIVE)
+        abstract val commonSchemaFiles: ConfigurableFileCollection
 
         @get:OutputDirectory
         abstract val outputDirectory: DirectoryProperty
@@ -57,6 +82,11 @@ abstract class AssembleCentralSchemaTask
 
                 from(baseSchemaFiles) {
                     into("schemabase")
+                    include("**/*.graphqls")
+                }
+
+                from(commonSchemaFiles) {
+                    into("common")
                     include("**/*.graphqls")
                 }
 

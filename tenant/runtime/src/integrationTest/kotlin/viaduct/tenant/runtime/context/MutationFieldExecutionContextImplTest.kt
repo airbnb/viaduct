@@ -8,27 +8,36 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.mocks.MockInternalContext
+import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.select.SelectionSet
+import viaduct.api.types.Query as QueryType
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.select.Mutation
+import viaduct.tenant.runtime.select.Query
 import viaduct.tenant.runtime.select.SelectTestFeatureAppTest
 
 class MutationFieldExecutionContextImplTest : ContextTestBase() {
     private val mutationObject = mockk<Mutation>()
 
-    private fun mk(): MutationFieldExecutionContextImpl {
+    private fun mk(): MutationFieldExecutionContextImpl<QueryType, Mutation> {
         val wrapper = createMockingWrapper(
             schema = SelectTestFeatureAppTest.schema,
             mutationMock = mutationObject
         )
 
         return MutationFieldExecutionContextImpl(
-            MockInternalContext(SelectTestFeatureAppTest.schema, GlobalIDCodecDefault),
+            MockInternalContext(
+                SelectTestFeatureAppTest.schema,
+                GlobalIDCodecDefault,
+                MockReflectionLoader(Query.Reflection, Mutation.Reflection)
+            ),
             wrapper,
             noSelections,
             null, // requestContext
             Args,
             Q,
+            syncQueryValueGetter = null,
+            queryCls = QueryType::class,
         )
     }
 
@@ -36,7 +45,7 @@ class MutationFieldExecutionContextImplTest : ContextTestBase() {
     fun mutation() =
         runBlockingTest {
             val ctx = mk()
-            assertEquals(mutationObject, ctx.mutation(SelectionSet.empty(Mutation.Reflection)))
+            assertEquals(mutationObject, ctx.mutation("__typename"))
         }
 
     @Test

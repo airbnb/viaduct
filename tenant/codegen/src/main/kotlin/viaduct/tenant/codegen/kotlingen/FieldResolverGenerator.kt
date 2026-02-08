@@ -21,6 +21,7 @@ fun ViaductSchema.generateFieldResolvers(args: Args) {
         args.grtPackage,
         args.isFeatureAppTest,
         args.baseTypeMapper,
+        queryTypeName = this.queryTypeDef?.name,
         mutationTypeName = this.mutationTypeDef?.name
     ).generate()
 }
@@ -33,6 +34,7 @@ private class FieldResolverGenerator(
     private val grtPackage: String,
     private val isFeatureAppTest: Boolean = false,
     private val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+    private val queryTypeName: String?,
     private val mutationTypeName: String?
 ) {
     fun generate() {
@@ -43,7 +45,7 @@ private class FieldResolverGenerator(
         for ((typeName, fields) in typeToFields) {
             if (fields.isNullOrEmpty()) continue
 
-            val contents = genResolver(typeName, fields, tenantPackage, grtPackage, baseTypeMapper, mutationTypeName)
+            val contents = genResolver(typeName, fields, tenantPackage, grtPackage, baseTypeMapper, queryTypeName, mutationTypeName)
             val file = File(resolverGeneratedDir, "${typeName}Resolvers.kt")
             contents.write(file)
         }
@@ -73,8 +75,9 @@ internal fun genResolver(
     tenantPackage: String,
     grtPackage: String,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+    queryTypeName: String? = "Query",
     mutationTypeName: String? = "Mutation"
-): STContents = STContents(stGroup, ResolversModelImpl(tenantPackage, grtPackage, typeName, fields, baseTypeMapper, mutationTypeName))
+): STContents = STContents(stGroup, ResolversModelImpl(tenantPackage, grtPackage, typeName, fields, baseTypeMapper, queryTypeName, mutationTypeName))
 
 private interface ResolversModel {
     val pkg: String
@@ -97,22 +100,25 @@ private class ResolversModelImpl(
     override val typeName: String,
     fields: Collection<ViaductSchema.Field>,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+    queryTypeName: String?,
     mutationTypeName: String?
 ) : ResolversModel {
     override val pkg: String = tenantPackage
-    override val resolvers: List<ResolverModel> = fields.map { ResolverModelImpl(it, grtPackage, baseTypeMapper, mutationTypeName) }
+    override val resolvers: List<ResolverModel> = fields.map { ResolverModelImpl(it, grtPackage, baseTypeMapper, queryTypeName, mutationTypeName) }
 }
 
 private class ResolverModelImpl(
     val field: ViaductSchema.Field,
     val grtPackage: String,
     val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+    val queryTypeName: String?,
     val mutationTypeName: String?
 ) : ResolverModel {
     override val gqlTypeName: String = this.field.containingDef.name
     override val gqlFieldName: String = this.field.name
     override val resolverName: String = gqlFieldName.capitalize()
-    private val queryGrtTypeName: String = "$grtPackage.Query"
+    private val queryGrtTypeName: String = "$grtPackage.${queryTypeName ?: "Query"}"
+    private val mutationGrtTypeName: String = if (mutationTypeName != null) "$grtPackage.$mutationTypeName" else "viaduct.api.types.Mutation"
     private val grtTypeName: String = "$grtPackage.$gqlTypeName"
     private val grtArgsName: String =
         if (field.hasArgs) {
@@ -131,7 +137,7 @@ private class ResolverModelImpl(
     override val ctxInterface: String
         get() =
             if (mutationTypeName != null && this.field.containingDef.name == mutationTypeName) {
-                "viaduct.api.context.MutationFieldExecutionContext<$queryGrtTypeName, $grtArgsName, $grtOutputName>"
+                "viaduct.api.context.MutationFieldExecutionContext<$queryGrtTypeName, $mutationGrtTypeName, $grtArgsName, $grtOutputName>"
             } else {
                 "viaduct.api.context.FieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
             }

@@ -20,7 +20,6 @@ import viaduct.api.internal.ObjectBaseTestHelpers
 import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.internal
 import viaduct.api.internal.select.SelectionSetFactory
-import viaduct.api.internal.select.SelectionsLoader
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.mocks.MockFieldExecutionContext
 import viaduct.api.mocks.MockInternalContext
@@ -37,14 +36,11 @@ import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.apiannotations.TestingApi
-import viaduct.engine.api.FragmentLoader
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.runtime.RawSelectionsLoaderImpl
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
-import viaduct.tenant.runtime.select.SelectionsLoaderImpl
 
 /**
  * Base class for Viaduct resolver tests. Use [runFieldResolver] for non-mutation resolvers
@@ -139,14 +135,6 @@ interface ResolverTestBase {
      * to load the schema in their preferred way (e.g., from resources, test data, etc.)
      */
     fun getSchema(): ViaductSchema
-
-    /**
-     * Subclasses must provide a FragmentLoader instance. This allows different implementations
-     * to integrate with their dependency injection framework.
-     */
-    fun getFragmentLoader(): FragmentLoader = mockk()
-
-    val selectionsLoaderFactory: SelectionsLoader.Factory
 
     val ossSelectionSetFactory: SelectionSetFactory
 
@@ -421,14 +409,14 @@ interface ResolverTestBase {
     }
 
     fun ResolverTestBase.createMutationFieldResolverContext(
-        ctxKClass: KClass<out MutationFieldExecutionContext<*, *, *>>,
+        ctxKClass: KClass<out MutationFieldExecutionContext<*, *, *, *>>,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
         requestContext: Any? = null,
         selections: SelectionSet<*> = SelectionSet.NoSelections,
         contextQueries: List<Query> = emptyList(),
         contextMutations: List<Mutation> = emptyList()
-    ): MutationFieldExecutionContext<*, *, *> {
+    ): MutationFieldExecutionContext<*, *, *, *> {
         val innerCtx = mkMutationFieldExecutionContext(
             queryValue,
             arguments,
@@ -446,14 +434,6 @@ interface ResolverTestBase {
         val internal = MockInternalContext(getSchema(), GlobalIDCodecDefault, rl)
         return MockExecutionContext(internal)
     }
-
-    fun mkSelectionsLoaderFactory(): SelectionsLoader.Factory =
-        SelectionsLoaderImpl.Factory(
-            RawSelectionsLoaderImpl.Factory(
-                getFragmentLoader(),
-                getSchema()
-            )
-        )
 
     fun mkSelectionSetFactory(): SelectionSetFactory =
         SelectionSetFactoryImpl(
@@ -528,7 +508,7 @@ private inline fun <T, reified C : Any> getResolverContextKClass(resolver: Resol
 
 private fun <T> getFieldResolverContextKClass(resolver: ResolverBase<T>): KClass<out FieldExecutionContext<*, *, *, *>> = getResolverContextKClass(resolver)
 
-private fun <T> getMutationFieldResolverContextKClass(resolver: ResolverBase<T>): KClass<out MutationFieldExecutionContext<*, *, *>> = getResolverContextKClass(resolver)
+private fun <T> getMutationFieldResolverContextKClass(resolver: ResolverBase<T>): KClass<out MutationFieldExecutionContext<*, *, *, *>> = getResolverContextKClass(resolver)
 
 /**
  * Creates a Context class for a specific node resolver. We suggest using [runNodeResolver] to test the
@@ -587,6 +567,7 @@ private fun ResolverTestBase.mkFieldExecutionContext(
     )
 }
 
+@Suppress("UNCHECKED_CAST")
 private fun ResolverTestBase.mkMutationFieldExecutionContext(
     queryValue: Query,
     arguments: Arguments,
@@ -594,16 +575,16 @@ private fun ResolverTestBase.mkMutationFieldExecutionContext(
     selections: SelectionSet<*>,
     contextQueryValues: List<Query> = emptyList(),
     contextMutationValues: List<Mutation> = emptyList()
-): MutationFieldExecutionContext<*, *, *> {
+): MutationFieldExecutionContext<*, *, *, *> {
     val internalContext = context.internal
     val queryResultsMap = buildContextQueryMap(contextQueryValues)
     val mutationResultsMap = buildContextMutationMap(contextMutationValues)
 
-    return MockMutationFieldExecutionContext(
+    return MockMutationFieldExecutionContext<Query, Mutation, Arguments, CompositeOutput>(
         queryValue = queryValue,
         arguments = arguments,
         requestContext = requestContext,
-        selectionsValue = selections,
+        selectionsValue = selections as SelectionSet<CompositeOutput>,
         internalContext = internalContext,
         queryResults = queryResultsMap,
         mutationResults = mutationResultsMap,

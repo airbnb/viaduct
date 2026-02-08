@@ -81,6 +81,7 @@ private interface NodeModel {
     val grtPackage: String
     val typeName: String
     val ctxInterface: String
+    val selectiveCtxInterface: String
 }
 
 private class NodesModelImpl(override val tenantPackage: String, grtPackage: String, typeNames: List<String>) : NodesModel {
@@ -88,18 +89,20 @@ private class NodesModelImpl(override val tenantPackage: String, grtPackage: Str
 }
 
 private class NodeModelImpl(override val typeName: String, override val grtPackage: String) : NodeModel {
-    override val ctxInterface: String
-        get() = "viaduct.api.context.NodeExecutionContext"
+    override val ctxInterface: String = "viaduct.api.context.NodeExecutionContext"
+    override val selectiveCtxInterface: String = "viaduct.api.context.SelectiveNodeExecutionContext"
 }
 
 private val nodesSt = stTemplate(
     """
         package <mdl.tenantPackage>
 
+        import viaduct.api.FieldValue
+        import viaduct.api.SelectiveResolver
         import viaduct.api.internal.InternalContext
         import viaduct.api.internal.NodeResolverBase
         import viaduct.api.internal.NodeResolverFor
-        import viaduct.api.FieldValue
+        import viaduct.api.select.SelectionSet
 
         object NodeResolvers {
             <mdl.nodes:node(); separator="\n">
@@ -119,8 +122,11 @@ private val nodeSt = stTemplate(
                 throw NotImplementedError("Nodes.<mdl.typeName>.batchResolve not implemented")
 
             class Context(
-                private val inner: <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>
-            ) : <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\> by inner, InternalContext by (inner as InternalContext)
+                private val inner: <mdl.selectiveCtxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>
+            ) : <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\> by inner, InternalContext by (inner as InternalContext) {
+                context(SelectiveResolver)
+                fun selections(): SelectionSet\<<mdl.grtPackage>.<mdl.typeName>\> = inner.selections()
+            }
         }
     """.trimIndent()
 )

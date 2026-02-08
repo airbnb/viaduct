@@ -21,7 +21,6 @@ logback = "1.5.21"
 javax-inject = "1"
 jmh = "1.37"
 junit5 = "5.11.3"
-konsist = "0.16.1"
 kotest = "5.9.1"
 kotlin = "1.9.24"
 kotlinx = "1.5.2"
@@ -37,7 +36,7 @@ micrometer = "1.10.8"
 # Plugins
 ktlintPluginVersion = "12.1.2"
 ktlintVersion = "1.2.1"
-detekt = "1.23.7"
+detekt = "1.23.6"
 jacoco = "0.8.12"
 dokka = "2.0.0"
 gradle-maven-publish = "0.34.0"
@@ -155,5 +154,4 @@ strikt-core = { module = "io.strikt:strikt-core", version.ref = "strikt" }
 checker-qual = { module = "org.checkerframework:checker-qual", version.ref = "checker" }
 
 # Linting
-konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }

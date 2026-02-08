@@ -26,6 +26,8 @@ class InstrumentedFieldResolverDispatcher(
         arguments: Map<String, Any?>,
         objectValue: EngineObjectData,
         queryValue: EngineObjectData,
+        syncObjectValueGetter: suspend () -> EngineObjectData.Sync,
+        syncQueryValueGetter: suspend () -> EngineObjectData.Sync,
         selections: RawSelectionSet?,
         context: EngineExecutionContext
     ): Any? {
@@ -38,10 +40,24 @@ class InstrumentedFieldResolverDispatcher(
 
         val instrumentedObjectValue = InstrumentedEngineObjectData(objectValue, instrumentation, state)
         val instrumentedQueryValue = InstrumentedEngineObjectData(queryValue, instrumentation, state)
+        val instrumentedSyncObjectValue: suspend () -> EngineObjectData.Sync = {
+            InstrumentedEngineObjectData.Sync(syncObjectValueGetter(), instrumentation, state)
+        }
+        val instrumentedSyncQueryValue: suspend () -> EngineObjectData.Sync = {
+            InstrumentedEngineObjectData.Sync(syncQueryValueGetter(), instrumentation, state)
+        }
 
         return instrumentation.instrumentResolverExecution(
             ResolverFunction {
-                dispatcher.resolve(arguments, instrumentedObjectValue, instrumentedQueryValue, selections, context)
+                dispatcher.resolve(
+                    arguments,
+                    instrumentedObjectValue,
+                    instrumentedQueryValue,
+                    instrumentedSyncObjectValue,
+                    instrumentedSyncQueryValue,
+                    selections,
+                    context
+                )
             },
             resolverExecuteParam,
             state

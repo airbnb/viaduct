@@ -691,6 +691,182 @@ class InternalDataLoaderTest {
         }
     }
 
+    /**
+     * Tests for [DataLoaderOptions.cachingExceptionsEnabled]
+     */
+    @Nested
+    inner class CachingExceptionsEnabledTests {
+        @ParameterizedTest
+        @EnumSource(TestDispatchStrategy::class)
+        fun testPerKeyErrorsCachedByDefault(testDispatchStrategy: TestDispatchStrategy) {
+            runBlocking(singleThreadedNextTickDispatcher()) {
+                val loadCallCount = AtomicInteger(0)
+                val errorKey = "ERROR"
+
+                val dispatchStrategy = createDispatchStrategyWithTryFn<String, String>(
+                    testDispatchStrategy,
+                    GenericBatchLoadFn { keys, _ ->
+                        loadCallCount.incrementAndGet()
+                        keys.map { key ->
+                            if (key == errorKey) {
+                                Try(error = RuntimeException("Error for $key"))
+                            } else {
+                                Try(value = key)
+                            }
+                        }
+                    },
+                    DataLoaderOptions(cachingExceptionsEnabled = true),
+                    object : DataLoaderInstrumentation {}
+                )
+
+                val loader = InternalDataLoader.newLoader<String, String, String>(dispatchStrategy)
+
+                // First load - should fail for ERROR key
+                supervisorScope {
+                    val errorResult = runCatching { loader.load(errorKey) }
+                    assertTrue(errorResult.isFailure)
+                    assertEquals("Error for $errorKey", errorResult.exceptionOrNull()?.message)
+                }
+
+                // Second load - should return cached error (no new load call)
+                val loadCountBeforeSecondCall = loadCallCount.get()
+                supervisorScope {
+                    val errorResult2 = runCatching { loader.load(errorKey) }
+                    assertTrue(errorResult2.isFailure)
+                }
+
+                assertEquals(loadCountBeforeSecondCall, loadCallCount.get())
+            }
+        }
+
+        @ParameterizedTest
+        @EnumSource(TestDispatchStrategy::class)
+        fun testPerKeyErrorsNotCachedWhenDisabled(testDispatchStrategy: TestDispatchStrategy) {
+            runBlocking(singleThreadedNextTickDispatcher()) {
+                val loadCallCount = AtomicInteger(0)
+                val errorKey = "ERROR"
+
+                val dispatchStrategy = createDispatchStrategyWithTryFn<String, String>(
+                    testDispatchStrategy,
+                    GenericBatchLoadFn { keys, _ ->
+                        loadCallCount.incrementAndGet()
+                        keys.map { key ->
+                            if (key == errorKey) {
+                                Try(error = RuntimeException("Error for $key - call ${loadCallCount.get()}"))
+                            } else {
+                                Try(value = key)
+                            }
+                        }
+                    },
+                    DataLoaderOptions(cachingExceptionsEnabled = false),
+                    object : DataLoaderInstrumentation {}
+                )
+
+                val loader = InternalDataLoader.newLoader<String, String, String>(dispatchStrategy)
+
+                // First load - should fail
+                supervisorScope {
+                    val errorResult = runCatching { loader.load(errorKey) }
+                    assertTrue(errorResult.isFailure)
+                    assertTrue(errorResult.exceptionOrNull()?.message?.contains("call 1") == true)
+                }
+
+                assertEquals(1, loadCallCount.get())
+
+                // Second load - should make a new load call (error was NOT cached)
+                supervisorScope {
+                    val errorResult2 = runCatching { loader.load(errorKey) }
+                    assertTrue(errorResult2.isFailure)
+                    assertTrue(errorResult2.exceptionOrNull()?.message?.contains("call 2") == true)
+                }
+
+                assertEquals(2, loadCallCount.get())
+            }
+        }
+
+        @Test
+        fun testSuccessfulResultsStillCachedWhenExceptionCachingDisabled() {
+            runBlocking(singleThreadedNextTickDispatcher()) {
+                val loadCallCount = AtomicInteger(0)
+
+                val dispatchStrategy = createDispatchStrategyWithTryFn<String, String>(
+                    TestDispatchStrategy.BATCH,
+                    GenericBatchLoadFn { keys, _ ->
+                        loadCallCount.incrementAndGet()
+                        keys.map { Try(value = it) }
+                    },
+                    DataLoaderOptions(cachingExceptionsEnabled = false),
+                    object : DataLoaderInstrumentation {}
+                )
+
+                val loader = InternalDataLoader.newLoader<String, String, String>(dispatchStrategy)
+
+                val result1 = loader.load("A")
+                assertEquals("A", result1)
+                assertEquals(1, loadCallCount.get())
+
+                // Second load should use cache
+                val result2 = loader.load("A")
+                assertEquals("A", result2)
+                assertEquals(1, loadCallCount.get())
+            }
+        }
+
+        @Test
+        fun testMixedBatchCachingWithExceptionCachingDisabled() {
+            runBlocking(singleThreadedNextTickDispatcher()) {
+                val loadCalls = CopyOnWriteArrayList<List<String>>()
+                val errorKey = "ERROR"
+                val successKey = "SUCCESS"
+
+                val dispatchStrategy = createDispatchStrategyWithTryFn<String, String>(
+                    TestDispatchStrategy.BATCH,
+                    GenericBatchLoadFn { keys, _ ->
+                        loadCalls.add(keys)
+                        keys.map { key ->
+                            if (key == errorKey) {
+                                Try(error = RuntimeException("Error for $key"))
+                            } else {
+                                Try(value = key)
+                            }
+                        }
+                    },
+                    DataLoaderOptions(cachingExceptionsEnabled = false),
+                    object : DataLoaderInstrumentation {}
+                )
+
+                val loader = InternalDataLoader.newLoader<String, String, String>(dispatchStrategy)
+
+                // Load both keys in same batch
+                supervisorScope {
+                    val (successResult, errorResult) = listOf(
+                        async { runCatching { loader.load(successKey) } },
+                        async { runCatching { loader.load(errorKey) } }
+                    ).awaitAll()
+
+                    assertTrue(successResult.isSuccess)
+                    assertEquals(successKey, successResult.getOrNull())
+                    assertTrue(errorResult.isFailure)
+                }
+
+                assertEquals(1, loadCalls.size)
+                assertTrue(loadCalls[0].containsAll(listOf(successKey, errorKey)))
+
+                // Success key should still be cached
+                val result2 = loader.load(successKey)
+                assertEquals(successKey, result2)
+                assertEquals(1, loadCalls.size)
+
+                // Error key should NOT be cached, triggers new load
+                supervisorScope {
+                    runCatching { loader.load(errorKey) }
+                }
+                assertEquals(2, loadCalls.size)
+                assertEquals(listOf(errorKey), loadCalls[1])
+            }
+        }
+    }
+
     private suspend fun <K : Any, V> createLoader(
         testDispatchStrategy: TestDispatchStrategy,
         maxBatchSize: Int = 1000,
@@ -774,6 +950,28 @@ class InternalDataLoaderTest {
             TestDispatchStrategy.IMMEDIATE -> InternalDispatchStrategy.immediateDispatchStrategy(
                 loadFn.genericBatchLoadFn(),
                 instrumentation,
+                dataLoaderOptions,
+            )
+        }
+
+    private fun <K, V> createDispatchStrategyWithTryFn(
+        testDispatchStrategy: TestDispatchStrategy,
+        loadFn: GenericBatchLoadFn<K, V>,
+        dataLoaderOptions: DataLoaderOptions,
+        instrumentation: DataLoaderInstrumentation
+    ): InternalDispatchStrategy<K, V> =
+        when (testDispatchStrategy) {
+            TestDispatchStrategy.BATCH -> InternalDispatchStrategy.batchDispatchStrategy(
+                loadFn,
+                NextTickScheduleFn,
+                dataLoaderOptions,
+                instrumentation,
+            )
+
+            TestDispatchStrategy.IMMEDIATE -> InternalDispatchStrategy.immediateDispatchStrategy(
+                loadFn,
+                instrumentation,
+                dataLoaderOptions,
             )
         }
 }

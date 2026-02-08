@@ -46,6 +46,8 @@ dependencies {
     runtimeOnly(project(":modules:filmography"))
     runtimeOnly(project(":modules:universe"))
 
+    // Import JUnit BOM to control all JUnit versions consistently
+    testImplementation(enforcedPlatform(libs.junit.bom))
     testImplementation(libs.micronaut.test.kotest5)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.assertj.core)

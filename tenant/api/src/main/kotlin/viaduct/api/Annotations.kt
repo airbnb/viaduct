@@ -172,6 +172,7 @@ annotation class Variable(
     val fromQueryField: String = UNSET_STRING_VALUE,
     val fromArgument: String = UNSET_STRING_VALUE
 ) {
+    @StableApi
     companion object {
         const val UNSET_STRING_VALUE = "XY!#* N0T S3T!"
     }

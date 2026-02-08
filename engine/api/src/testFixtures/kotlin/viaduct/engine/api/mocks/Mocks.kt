@@ -32,6 +32,7 @@ import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.ParsedSelections
+import viaduct.engine.api.QueryPlanExecutionCondition
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
@@ -90,8 +91,9 @@ fun mkRSS(
     selectionString: String,
     variableProviders: List<VariablesResolver> = emptyList(),
     forChecker: Boolean = false,
-    attribution: ExecutionAttribution = ExecutionAttribution.DEFAULT
-) = RequiredSelectionSet(SelectionsParser.parse(typeName, selectionString), variableProviders, forChecker, attribution)
+    attribution: ExecutionAttribution = ExecutionAttribution.DEFAULT,
+    executionCondition: QueryPlanExecutionCondition = QueryPlanExecutionCondition.ALWAYS_EXECUTE
+) = RequiredSelectionSet(SelectionsParser.parse(typeName, selectionString), variableProviders, forChecker, attribution, executionCondition)
 
 class MockVariablesResolver(
     vararg names: String,
@@ -253,6 +255,7 @@ class MockCheckerExecutor(
 
 class MockNodeUnbatchedResolverExecutor(
     override val typeName: String = "MockNode",
+    override val isSelective: Boolean = false,
     val unbatchedResolveFn: NodeUnbatchedResolverFn = { _, _, _ -> throw NotImplementedError() }
 ) : NodeResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forMock("Node:$typeName")
@@ -274,6 +277,7 @@ class MockNodeUnbatchedResolverExecutor(
 
 class MockNodeBatchResolverExecutor(
     override val typeName: String,
+    override val isSelective: Boolean = false,
     val batchResolveFn: NodeBatchResolverFn = { _, _ -> throw NotImplementedError() }
 ) : NodeResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forMock("Node:$typeName")

@@ -1,0 +1,4 @@
+- rule:
+    name: LINK001
+    message: "Broken link to API documentation"
+    python_module: plugins.check_api_links

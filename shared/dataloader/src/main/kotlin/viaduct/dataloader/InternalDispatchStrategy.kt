@@ -24,10 +24,12 @@ interface InternalDispatchStrategy<K, V> {
         fun <K, V> immediateDispatchStrategy(
             batchLoadFn: GenericBatchLoadFn<K, V>,
             instrumentation: DataLoaderInstrumentation,
+            dataLoaderOptions: DataLoaderOptions = DataLoaderOptions(),
         ): InternalDispatchStrategy<K, V> =
             ImmediateDispatchStrategy(
                 batchLoadFn,
-                instrumentation
+                instrumentation,
+                dataLoaderOptions
             )
     }
 
@@ -76,7 +78,8 @@ internal class BatchDispatchStrategy<K, V>(
             // otherwise, create a new batch
             val newBatch = MutexBatch<K, V>(
                 instrumentation = instrumentation,
-                maxBatchSize = dataLoaderOptions.maxBatchSize
+                maxBatchSize = dataLoaderOptions.maxBatchSize,
+                cachingExceptionsEnabled = dataLoaderOptions.cachingExceptionsEnabled
             )
 
             @Suppress("UNCHECKED_CAST")
@@ -109,7 +112,8 @@ internal class BatchDispatchStrategy<K, V>(
      */
     internal open class MutexBatch<K, V>(
         private val instrumentation: DataLoaderInstrumentation,
-        private val maxBatchSize: Int
+        private val maxBatchSize: Int,
+        private val cachingExceptionsEnabled: Boolean = true
     ) : InternalDataLoader.Batch<K, V, MutexBatch.BatchEntry<K, V>> {
         // entries to be loaded
         val entriesToBeLoaded: MutableList<BatchEntry<K, V>> = mutableListOf()
@@ -173,6 +177,10 @@ internal class BatchDispatchStrategy<K, V>(
                     val value = values[index]
                     if (value.error != null) {
                         entry.result.completeExceptionally(value.error)
+                        // Clear cache for this specific key if exception caching is disabled
+                        if (!cachingExceptionsEnabled) {
+                            onFailedDispatch(listOf(entry.key), value.error)
+                        }
                     } else {
                         entry.result.complete(value.value)
                     }
@@ -204,6 +212,7 @@ internal class BatchDispatchStrategy<K, V>(
 internal class ImmediateDispatchStrategy<K, V>(
     private val batchLoadFn: GenericBatchLoadFn<K, V>,
     override val instrumentation: DataLoaderInstrumentation,
+    private val dataLoaderOptions: DataLoaderOptions = DataLoaderOptions(),
 ) : InternalDispatchStrategy<K, V> {
     override suspend fun scheduleResult(
         key: K,
@@ -231,6 +240,10 @@ internal class ImmediateDispatchStrategy<K, V>(
             } else {
                 if (loadResult.error != null) {
                     result.completeExceptionally(loadResult.error)
+                    // Clear cache for this key if exception caching is disabled
+                    if (!dataLoaderOptions.cachingExceptionsEnabled) {
+                        onFailedDispatch(listOf(key), loadResult.error)
+                    }
                 } else {
                     result.complete(loadResult.value)
                 }

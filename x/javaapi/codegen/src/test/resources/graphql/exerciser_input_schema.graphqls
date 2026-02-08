@@ -1,0 +1,46 @@
+# GraphQL Schema for Input Type Exerciser Tests
+# This schema defines input types that will be used to test the code generator.
+# The generated input types will be compared against manually built expected classes.
+
+"""
+A simple input with basic fields.
+"""
+input SimpleInput {
+  name: String
+  count: Int
+}
+
+"""
+An input with a description to test Javadoc generation.
+"""
+input InputWithDescription {
+  value: String
+}
+
+"""
+An input with enum and list fields.
+"""
+input ComplexInput {
+  status: StatusEnum
+  tags: [String]
+}
+
+"""
+An input with all field types.
+"""
+input AllFieldTypesInput {
+  stringField: String
+  intField: Int
+  floatField: Float
+  boolField: Boolean
+  listField: [String]
+}
+
+"""
+Enum for use in ComplexInput.
+"""
+enum StatusEnum {
+  PENDING
+  ACTIVE
+  COMPLETED
+}

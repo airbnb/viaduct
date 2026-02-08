@@ -22,7 +22,7 @@ def create_demoapp_workflow(demoapp_name):
             ref = SOURCE_REF,
         ),
         destination = git.destination(
-            url = "https://github.com/viaduct-graphql/" + demoapp_name + ".git",
+            url = "https://github.com/viaduct-dev/" + demoapp_name + ".git",
             fetch = "main",
             push = "main",
         ),

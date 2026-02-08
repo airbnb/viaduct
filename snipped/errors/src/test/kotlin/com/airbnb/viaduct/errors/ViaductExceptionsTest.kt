@@ -1,6 +1,7 @@
 package com.airbnb.viaduct.errors
 
 import graphql.ErrorType
+import graphql.GraphqlErrorBuilder
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ResultPath
 import graphql.language.Field
@@ -9,6 +10,7 @@ import graphql.schema.DataFetchingEnvironment
 import io.mockk.every
 import io.mockk.mockk
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -99,5 +101,37 @@ class ViaductExceptionsTest {
         assertEquals(ViaductErrorType.Internal.value, graphQLError.extensions["errorType"])
         assertEquals(ViaductErrorType.Internal.fatal, graphQLError.extensions["fatal"])
         assertEquals("anotherValue", graphQLError.extensions["test"])
+    }
+
+    @Test
+    fun testViaductDelegationExceptionGetFullyQualifiedErrorClass() {
+        val fullyQualifiedClassName = "com.airbnb.trust.TrustInspectionException"
+        val graphQLError = GraphqlErrorBuilder.newError()
+            .message("delegation error")
+            .extensions(mapOf("fullyQualifiedErrorClass" to fullyQualifiedClassName))
+            .build()
+
+        val exception = ViaductDelegationException(listOf(graphQLError))
+
+        assertEquals(fullyQualifiedClassName, exception.getFullyQualifiedErrorClass())
+    }
+
+    @Test
+    fun testViaductDelegationExceptionGetFullyQualifiedErrorClassReturnsNullWhenMissing() {
+        val graphQLError = GraphqlErrorBuilder.newError()
+            .message("delegation error without fullyQualifiedErrorClass")
+            .extensions(mapOf("errorType" to "DELEGATION_ERROR"))
+            .build()
+
+        val exception = ViaductDelegationException(listOf(graphQLError))
+
+        assertNull(exception.getFullyQualifiedErrorClass())
+    }
+
+    @Test
+    fun testViaductDelegationExceptionGetFullyQualifiedErrorClassReturnsNullWhenEmpty() {
+        val exception = ViaductDelegationException(emptyList())
+
+        assertNull(exception.getFullyQualifiedErrorClass())
     }
 }

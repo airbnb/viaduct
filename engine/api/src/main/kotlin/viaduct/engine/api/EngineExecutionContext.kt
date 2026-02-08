@@ -20,7 +20,6 @@ interface EngineExecutionContext {
     val scopedSchema: ViaductSchema
     val activeSchema: ViaductSchema
     val rawSelectionSetFactory: RawSelectionSet.Factory
-    val rawSelectionsLoaderFactory: RawSelectionsLoader.Factory
 
     /**
      * The GlobalIDCodec shared across all tenant-API implementations in this Viaduct instance.
@@ -42,7 +41,7 @@ interface EngineExecutionContext {
      *
      * This handle is set automatically by the engine when execution begins. It allows
      * the engine to associate this context with the correct execution state when
-     * [executeSelectionSet] is called.
+     * [resolveSelectionSet] is called.
      *
      * ## Lifecycle
      *
@@ -126,7 +125,7 @@ interface EngineExecutionContext {
     /**
      * Interface representing an opaque handle representing an ongoing execution.
      *
-     * This handle enables subquery execution (via [executeSelectionSet]) without tenant runtime
+     * This handle enables subquery execution (via [resolveSelectionSet]) without tenant runtime
      * code needing to understand execution internals. The engine uses this handle to:
      * - Access the current execution's coroutine scope and error accumulator
      * - Maintain parent-child relationships for error attribution
@@ -146,35 +145,26 @@ interface EngineExecutionContext {
      *
      * This method is the Engine API layer in the three-tier architecture:
      * - **Tenant**: `ctx.query(SelectionSet<T>)` / `ctx.mutation(SelectionSet<T>)` - typed, simple
-     * - **Engine API**: `EEC.executeSelectionSet(...)` - flexible, for shims and engine internals
-     * - **Wiring**: `Engine.executeSelectionSet(...)` - implementation detail, only called by EEC
+     * - **Engine API**: `EEC.resolveSelectionSet(...)` - flexible, for shims and engine internals
+     * - **Wiring**: `Engine.resolveSelectionSet(...)` - implementation detail, only called by EEC
      *
      * ## Execution Handle Requirements
      *
-     * If [ExecuteSelectionSetOptions.targetResult] is set, this method requires:
-     * - a non-null [executionHandle], and
-     * - the `ENABLE_SUBQUERY_EXECUTION_VIA_HANDLE` flag to be enabled.
-     *
-     * If these conditions are not met, it will **fail fast** with [SubqueryExecutionException]
-     * rather than silently degrading behavior.
-     *
-     * For basic execution (default options with [ExecuteSelectionSetOptions.targetResult] == null),
-     * this method may fall back to the legacy [RawSelectionsLoader] path when the handle-based
-     * path is unavailable.
+     * This method requires a non-null [executionHandle]. If the handle is null (e.g., because
+     * execution hasn't started yet), it will throw [SubqueryExecutionException].
      *
      * @param resolverId Identifier for instrumentation and tracing
      * @param selectionSet The [RawSelectionSet] containing the fields to resolve
      * @param options Execution options controlling behavior. Default executes as a Query.
      * @return The resolved [EngineObjectData]
-     * @throws SubqueryExecutionException if [ExecuteSelectionSetOptions.targetResult] is requested
-     *         but handle-based execution is not available, the schema doesn't support the
+     * @throws SubqueryExecutionException if [executionHandle] is null, the schema doesn't support the
      *         requested operation type, or field resolution fails
-     * @see ExecuteSelectionSetOptions For available options
+     * @see ResolveSelectionSetOptions For available options
      */
-    suspend fun executeSelectionSet(
+    suspend fun resolveSelectionSet(
         resolverId: String,
         selectionSet: RawSelectionSet,
-        options: ExecuteSelectionSetOptions = ExecuteSelectionSetOptions.DEFAULT,
+        options: ResolveSelectionSetOptions = ResolveSelectionSetOptions.DEFAULT,
     ): EngineObjectData
 
     fun createNodeReference(

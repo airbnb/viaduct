@@ -18,6 +18,7 @@ sealed interface FieldValue<out T> {
      */
     val isError: Boolean
 
+    @StableApi
     companion object {
         /**
          * Constructs a FieldValue that resolved without an error

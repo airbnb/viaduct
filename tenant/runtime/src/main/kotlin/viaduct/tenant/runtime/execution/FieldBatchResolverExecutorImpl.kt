@@ -53,6 +53,8 @@ class FieldBatchResolverExecutorImpl(
                 rawArguments = key.arguments,
                 rawObjectValue = key.objectValue,
                 rawQueryValue = key.queryValue,
+                syncObjectValueGetter = key.syncObjectValueGetter,
+                syncQueryValueGetter = key.syncQueryValueGetter,
             )
         }
         val resolver = resolver.get()

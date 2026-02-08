@@ -32,6 +32,8 @@ class FieldResolverDispatcherImpl(
         arguments: Map<String, Any?>,
         objectValue: EngineObjectData,
         queryValue: EngineObjectData,
+        syncObjectValueGetter: suspend () -> EngineObjectData.Sync,
+        syncQueryValueGetter: suspend () -> EngineObjectData.Sync,
         selections: RawSelectionSet?,
         context: EngineExecutionContext,
     ): Any? {
@@ -39,6 +41,16 @@ class FieldResolverDispatcherImpl(
             "Expected EngineExecutionContextImpl, got ${context::class.qualifiedName}"
         )
         val loader = context.fieldDataLoader(resolver)
-        return loader.loadByKey(FieldResolverExecutor.Selector(arguments, objectValue, queryValue, selections), context).getOrThrow()
+
+        val selector = FieldResolverExecutor.Selector(
+            arguments = arguments,
+            objectValue = objectValue,
+            queryValue = queryValue,
+            selections = selections,
+            syncObjectValueGetter = syncObjectValueGetter,
+            syncQueryValueGetter = syncQueryValueGetter,
+        )
+
+        return loader.loadByKey(selector, context).getOrThrow()
     }
 }

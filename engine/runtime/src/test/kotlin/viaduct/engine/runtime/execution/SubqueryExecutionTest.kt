@@ -1087,7 +1087,7 @@ class SubqueryExecutionTest {
     }
 
     @Test
-    fun `subquery execution emits metric for handle path`() {
+    fun `subquery execution emits metric`() {
         val meterRegistry = SimpleMeterRegistry()
         val engineConfig = EngineConfiguration.featureTestDefault.copy(
             meterRegistry = meterRegistry
@@ -1136,14 +1136,12 @@ class SubqueryExecutionTest {
                 .assertJson("""{"data": {"container": {"derivedFromQuery": 84}}}""")
 
             val counter = meterRegistry.find(EngineExecutionContextImpl.SUBQUERY_EXECUTION_METER_NAME)
-                .tag("path", "handle")
                 .tag("success", "true")
                 .counter()
-            assertNotNull(counter, "Expected subquery execution counter with path=handle, success=true to be present")
-            assertEquals(1.0, counter.count(), "Expected exactly one successful subquery execution via handle path")
+            assertNotNull(counter, "Expected subquery execution counter with success=true to be present")
+            assertEquals(1.0, counter.count(), "Expected exactly one successful subquery execution")
 
             val failureCounter = meterRegistry.find(EngineExecutionContextImpl.SUBQUERY_EXECUTION_METER_NAME)
-                .tag("path", "handle")
                 .tag("success", "false")
                 .counter()
             assertTrue(failureCounter == null || failureCounter.count() == 0.0, "Expected no failed subquery executions")

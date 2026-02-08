@@ -8,14 +8,14 @@ This guide walks you through getting started with Viaduct by cloning one of our 
 
 ## Getting Started
 
-To get you started with Viaduct, we have created a number of small demonstration applications to illustrate what a Viaduct application is and how you write and build one. You can find these at [github.com/viaduct-graphql](https://github.com/viaduct-graphql). In particular, in order of complexity, we have a CLI starter, a Spring starter, and a more full-featured StarWars application.
+To get you started with Viaduct, we have created a number of small demonstration applications to illustrate what a Viaduct application is and how you write and build one. You can find these at [github.com/viaduct-dev](https://github.com/viaduct-dev). In particular, in order of complexity, we have a CLI starter, a Spring starter, and a more full-featured StarWars application.
 
 ### Running the Application
 
-Start by making a local clone of the [CLI starter](https://github.com/viaduct-graphql/cli-starter):
+Start by making a local clone of the [CLI starter](https://github.com/viaduct-dev/cli-starter):
 
 ```shell
-git clone https://github.com/viaduct-graphql/cli-starter.git
+git clone https://github.com/viaduct-dev/cli-starter.git
 ```
 
 Next, `cd` into that clone and test that your environment is ready by typing:

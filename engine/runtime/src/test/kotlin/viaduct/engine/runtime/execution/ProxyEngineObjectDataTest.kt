@@ -2,11 +2,14 @@
 
 package viaduct.engine.runtime.execution
 
+import graphql.GraphQLError
+import graphql.schema.GraphQLObjectType
 import graphql.validation.ValidationError
 import kotlin.test.assertContains
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -18,8 +21,10 @@ import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.FieldErrorsException
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.newCell
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setRawValue
+import viaduct.engine.runtime.ObjectEngineResultTestHelper
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
@@ -41,7 +46,7 @@ class ProxyEngineObjectDataTest {
             variables: Map<String, Any?> = emptyMap(),
             selections: String = "id"
         ): ObjectEngineResultImpl =
-            ObjectEngineResultImpl.newFromMap(
+            ObjectEngineResultTestHelper.newFromMap(
                 schema.schema.getObjectType(typename),
                 resultMap,
                 errors.toMutableList(),
@@ -61,7 +66,7 @@ class ProxyEngineObjectDataTest {
                 fragment?.let {
                     selectionSetFactory.rawSelectionSet(typename, fragment, variables)
                 }
-            val oer = ObjectEngineResultImpl.newFromMap(
+            val oer = ObjectEngineResultTestHelper.newFromMap(
                 schema.schema.getObjectType(typename),
                 resultMap,
                 errors.toMutableList(),
@@ -84,7 +89,7 @@ class ProxyEngineObjectDataTest {
                 fragment?.let {
                     selectionSetFactory.rawSelectionSet(typename, fragment, variables)
                 }
-            val oer = ObjectEngineResultImpl.newFromMap(
+            val oer = ObjectEngineResultTestHelper.newFromMap(
                 schema.schema.getObjectType(typename),
                 resultMap,
                 errors.toMutableList(),
@@ -550,6 +555,122 @@ class ProxyEngineObjectDataTest {
             val proxy = mkProxy("stringField", oer, applyAccessChecks = false)
             // If fetch were called on the access check slot, this would throw
             assertEquals("foo", proxy.fetch("stringField"))
+        }
+    }
+
+    @Test
+    fun `fetch list throws on first element error`() {
+        Fixture("type Query { listField: [String] }") {
+            val (oer, err) = mkOerWithListFieldError(schema.schema.getObjectType("Query"))
+
+            val proxy = mkProxy("listField", oer)
+            val exc = assertThrows<FieldErrorsException> {
+                proxy.fetch("listField")
+            }
+            assertEquals(listOf(err), exc.graphQLErrors)
+        }
+    }
+
+    @Test
+    fun `regression -- can fetch introspection fields`() {
+        Fixture("type Query { x:Int }") {
+            // __typename
+            mkProxy(
+                "__typename, a:__typename",
+                "Query",
+                mapOf(
+                    ObjectEngineResult.Key("__typename") to "Query",
+                    ObjectEngineResult.Key("__typename", "a") to "Query",
+                )
+            ).let { proxy ->
+                assertEquals("Query", proxy.fetch("__typename"))
+                assertEquals("Query", proxy.fetch("a"))
+            }
+
+            // __schema
+            mkProxy(
+                "__schema { __typename }, a:__schema { __typename }",
+                "Query",
+                mapOf(
+                    ObjectEngineResult.Key("__schema") to emptyMap<String, Any?>(),
+                    ObjectEngineResult.Key("__schema", "a") to emptyMap<String, Any?>()
+                )
+            ).let { proxy ->
+                assertInstanceOf(ProxyEngineObjectData::class.java, proxy.fetch("__schema"))
+                assertInstanceOf(ProxyEngineObjectData::class.java, proxy.fetch("a"))
+            }
+
+            // __type
+            mkProxy(
+                "__type(name:\"__Schema\") { __typename  }, a:__type(name:\"__Schema\") { __typename  }",
+                "Query",
+                mapOf(
+                    ObjectEngineResult.Key("__type", arguments = mapOf("name" to "__Schema")) to emptyMap<String, Any?>(),
+                    ObjectEngineResult.Key("__type", "a", mapOf("name" to "__Schema")) to emptyMap<String, Any?>()
+                )
+            ).let { proxy ->
+                assertInstanceOf(ProxyEngineObjectData::class.java, proxy.fetch("__type"))
+            }
+        }
+    }
+
+    companion object {
+        /**
+         * Test data for list-with-error tests. Contains an OER with a "listField" where
+         * element 1 (middle element) has a FieldResolutionResult error.
+         */
+        data class OerWithListFieldError(
+            val oer: ObjectEngineResultImpl,
+            val error: GraphQLError,
+        )
+
+        /**
+         * Creates an OER with a "listField" containing 3 elements where the middle
+         * element has an error. Used to verify that both ProxyEngineObjectData and
+         * SyncEngineObjectDataFactory handle list element errors identically.
+         */
+        fun mkOerWithListFieldError(queryType: GraphQLObjectType): OerWithListFieldError {
+            val oer = ObjectEngineResultImpl.newForType(queryType)
+            val err = ValidationError.newValidationError().build()
+
+            // Create a list where element 1 (the middle one) has an error
+            val listWithError = listOf(
+                newCell { slotSetter ->
+                    slotSetter.setRawValue(
+                        Value.fromValue(
+                            FieldResolutionResult("ok", emptyList(), CompositeLocalContext.empty, emptyMap(), "ok")
+                        )
+                    )
+                    slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+                },
+                newCell { slotSetter ->
+                    slotSetter.setRawValue(
+                        Value.fromValue(
+                            FieldResolutionResult(null, listOf(err), CompositeLocalContext.empty, emptyMap(), "error")
+                        )
+                    )
+                    slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+                },
+                newCell { slotSetter ->
+                    slotSetter.setRawValue(
+                        Value.fromValue(
+                            FieldResolutionResult("also ok", emptyList(), CompositeLocalContext.empty, emptyMap(), "also ok")
+                        )
+                    )
+                    slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+                }
+            )
+
+            oer.computeIfAbsent(ObjectEngineResult.Key("listField")) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(listWithError, emptyList(), CompositeLocalContext.empty, emptyMap(), "listField")
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            return OerWithListFieldError(oer, err)
         }
     }
 }

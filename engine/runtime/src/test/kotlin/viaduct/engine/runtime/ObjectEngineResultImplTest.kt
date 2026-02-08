@@ -733,7 +733,7 @@ class ObjectEngineResultImplTest {
                     "posts" to RuntimeException("Posts not accessible")
                 )
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     userType,
                     data,
                     errors,
@@ -789,7 +789,7 @@ class ObjectEngineResultImplTest {
                     "socialMedia" to "https://example.com"
                 )
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     userType,
                     data,
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -845,7 +845,7 @@ class ObjectEngineResultImplTest {
                     "b2" to mapOf("b" to 21)
                 )
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     fooType,
                     data,
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -875,7 +875,7 @@ class ObjectEngineResultImplTest {
             runBlocking {
                 val schema = mkSchema("type Query { x:Int }")
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
                     mapOf("__typename" to "Query"),
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -906,7 +906,7 @@ class ObjectEngineResultImplTest {
                 val fooType = schema.schema.getObjectType("Foo")
                 val data = mapOf("x" to 42)
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     fooType,
                     data,
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -938,7 +938,7 @@ class ObjectEngineResultImplTest {
                 val fooType = schema.schema.getObjectType("Foo")
                 val data = mapOf("y" to 42)
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     fooType,
                     data,
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -968,7 +968,7 @@ class ObjectEngineResultImplTest {
                     """
                 )
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
                     mapOf("i" to mapOf("__typename" to "Foo", "y" to 42)),
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -1001,7 +1001,7 @@ class ObjectEngineResultImplTest {
                     """
                 )
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
                     mapOf("u" to listOf(mapOf("__typename" to "Foo", "x" to 42))),
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -1035,7 +1035,7 @@ class ObjectEngineResultImplTest {
                     """
                 )
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
                     mapOf("u" to mapOf("__typename" to "Foo", "bar" to mapOf("x" to 42))),
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -1069,7 +1069,7 @@ class ObjectEngineResultImplTest {
                     """
                 )
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
                     mapOf("i" to mapOf("__typename" to "Foo", "x" to 42)),
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -1099,7 +1099,7 @@ class ObjectEngineResultImplTest {
                     """
                 )
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
                     mapOf("u" to mapOf("__typename" to "Foo", "x" to 42)),
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -1133,7 +1133,7 @@ class ObjectEngineResultImplTest {
                 val fooType = schema.schema.getObjectType("Foo")
                 val data = mapOf("x" to 42)
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     fooType,
                     data,
                     emptyList<Pair<String, Throwable>>().toMutableList(),
@@ -1163,7 +1163,7 @@ class ObjectEngineResultImplTest {
 
                 val data = mapOf("__typename" to "Query", "x" to 1)
 
-                val result = ObjectEngineResultImpl.newFromMap(
+                val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
                     data,
                     mutableListOf(),

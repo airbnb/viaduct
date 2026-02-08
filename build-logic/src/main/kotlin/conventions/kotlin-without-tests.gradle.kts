@@ -17,5 +17,6 @@ tasks.withType<KotlinCompile>().configureEach {
     compilerOptions {
         apiVersion = KotlinVersion.KOTLIN_1_8
         languageVersion = KotlinVersion.KOTLIN_1_8
+        freeCompilerArgs.add("-Xcontext-receivers")
     }
 }

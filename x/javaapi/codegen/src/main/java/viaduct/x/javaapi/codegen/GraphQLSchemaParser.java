@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import viaduct.graphql.schema.ViaductSchema;
@@ -214,6 +215,110 @@ public class GraphQLSchemaParser {
     return unions;
   }
 
+  /**
+   * Extracts resolver models from a ViaductSchema by finding fields with @resolver directive.
+   *
+   * <p>Groups resolvers by their containing type name. Each type with resolver fields will have an
+   * entry in the returned map.
+   *
+   * @param schema the ViaductSchema
+   * @param grtPackage the package name for GRT types
+   * @param mutationTypeName the name of the mutation type (or null if none)
+   * @return a map from type name to list of resolver models for that type
+   */
+  public Map<String, List<ResolverModel>> extractResolvers(
+      ViaductSchema schema, String grtPackage, String mutationTypeName) {
+    TypeMapper typeMapper = new TypeMapper();
+    Map<String, List<ResolverModel>> result = new java.util.LinkedHashMap<>();
+
+    for (ViaductSchema.TypeDef typeDef : schema.getTypes().values()) {
+      if (!(typeDef instanceof ViaductSchema.Object objectDef)) {
+        continue;
+      }
+
+      String typeName = objectDef.getName();
+      List<ResolverModel> resolvers = new java.util.ArrayList<>();
+
+      // Look for fields with @resolver directive in extensions
+      for (ViaductSchema.Extension<?, ?> extension : objectDef.getExtensions()) {
+        for (Object member : extension.getMembers()) {
+          if (member instanceof ViaductSchema.Field field) {
+            if (field.hasAppliedDirective("resolver")) {
+              ResolverModel model =
+                  createResolverModel(field, typeName, grtPackage, typeMapper, mutationTypeName);
+              resolvers.add(model);
+            }
+          }
+        }
+      }
+
+      if (!resolvers.isEmpty()) {
+        result.put(typeName, resolvers);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Creates a ResolverModel from a ViaductSchema.Field.
+   *
+   * @param field the field with @resolver directive
+   * @param typeName the containing type name
+   * @param grtPackage the GRT package name
+   * @param typeMapper the type mapper
+   * @param mutationTypeName the mutation type name
+   * @return the resolver model
+   */
+  private ResolverModel createResolverModel(
+      ViaductSchema.Field field,
+      String typeName,
+      String grtPackage,
+      TypeMapper typeMapper,
+      String mutationTypeName) {
+    String fieldName = field.getName();
+    String resolverClassName = capitalize(fieldName);
+
+    // Determine return type
+    String returnType = typeMapper.toJavaType(field.getType());
+
+    // Object type (the type containing this field)
+    String objectType = grtPackage + "." + typeName;
+
+    // Query type is always the Query GRT
+    String queryType = grtPackage + ".Query";
+
+    // Arguments type - use NoArguments if field has no arguments
+    boolean hasArguments = field.getHasArgs();
+    String argumentsType =
+        hasArguments
+            ? grtPackage + "." + typeName + "_" + resolverClassName + "_Arguments"
+            : "Arguments.NoArguments";
+
+    // Selections type - use NotComposite if output is not a composite type
+    boolean isCompositeOutput = field.getType().getBaseTypeDef().isComposite();
+    String selectionsType =
+        isCompositeOutput
+            ? grtPackage + "." + field.getType().getBaseTypeDef().getName()
+            : "CompositeOutput.NotComposite";
+
+    // Exclude batchResolve for Mutation fields
+    boolean includeBatchResolve = !typeName.equals(mutationTypeName);
+
+    return new ResolverModel(
+        typeName,
+        fieldName,
+        resolverClassName,
+        returnType,
+        objectType,
+        queryType,
+        argumentsType,
+        selectionsType,
+        hasArguments,
+        isCompositeOutput,
+        includeBatchResolve);
+  }
+
   // ===== Helper methods =====
 
   /** Reads all content from a Reader into a String. */
@@ -240,5 +345,13 @@ public class GraphQLSchemaParser {
     // ViaductSchema doesn't expose description directly in the interface.
     // Description could be accessed through the underlying data if needed.
     return null;
+  }
+
+  /** Capitalizes the first character of a string. */
+  private static String capitalize(String s) {
+    if (s == null || s.isEmpty()) {
+      return s;
+    }
+    return Character.toUpperCase(s.charAt(0)) + s.substring(1);
   }
 }

@@ -38,6 +38,7 @@ import viaduct.utils.slf4j.logger
 /**
  * Provides default schema components (directives and root types) for Viaduct schemas,
  * adding core Viaduct directives and intelligently creating root types only when needed.
+ * Now supports includeRootTypes flag to control whether root types are generated.
  */
 object DefaultSchemaProvider {
     const val SDL_FILENAME: String = "@@viaduct_default_schema.graphqls"
@@ -138,6 +139,40 @@ object DefaultSchemaProvider {
                     .sourceLocation(sourceLocation)
                     .build()
             }
+        },
+
+        CONNECTION("connection") {
+            override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
+                val description = Description(
+                    "Marks an object type as a Relay Connection type",
+                    sourceLocation,
+                    false
+                )
+                return DirectiveDefinition
+                    .newDirectiveDefinition()
+                    .name(directiveName)
+                    .description(description)
+                    .directiveLocation(DirectiveLocation("OBJECT"))
+                    .sourceLocation(sourceLocation)
+                    .build()
+            }
+        },
+
+        EDGE("edge") {
+            override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
+                val description = Description(
+                    "Marks an object type as a Relay Edge type",
+                    sourceLocation,
+                    false
+                )
+                return DirectiveDefinition
+                    .newDirectiveDefinition()
+                    .name(directiveName)
+                    .description(description)
+                    .directiveLocation(DirectiveLocation("OBJECT"))
+                    .sourceLocation(sourceLocation)
+                    .build()
+            }
         };
 
         /**
@@ -180,7 +215,9 @@ object DefaultSchemaProvider {
     fun getDefaultSDL(
         includeNodeDefinition: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
         includeNodeQueries: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
-        existingSDLFiles: List<File> = emptyList()
+        existingSDLFiles: List<File> = emptyList(),
+        includePageInfo: Boolean = true,
+        includeRootTypes: Boolean = true
     ): String {
         val extantRegistry = if (existingSDLFiles.isNotEmpty()) {
             val reader = MultiSourceReader.newMultiSourceReader().let { readerBuilder ->
@@ -201,8 +238,10 @@ object DefaultSchemaProvider {
             builder = builder,
             includeNodeDefinition = includeNodeDefinition,
             includeNodeQueries = includeNodeQueries,
-            forceAddRootTypes = true,
-            allowExisting = false
+            forceAddRootTypes = includeRootTypes,
+            allowExisting = existingSDLFiles.isNotEmpty(),
+            includePageInfo = includePageInfo,
+            includeRootTypes = includeRootTypes
         )
         return builder.building.toSDL()
     }
@@ -240,10 +279,15 @@ object DefaultSchemaProvider {
         includeNodeDefinition: IncludeNodeSchema,
         includeNodeQueries: IncludeNodeSchema,
         forceAddRootTypes: Boolean,
-        allowExisting: Boolean
+        allowExisting: Boolean,
+        includePageInfo: Boolean = true,
+        includeRootTypes: Boolean = true
     ): RegistryBuilder {
         addDefaultDirectives(builder, allowExisting)
         addStandardScalars(builder, allowExisting)
+        if (includePageInfo) {
+            addPageInfoType(builder)
+        }
 
         val hasNodeTypeReference by lazy {
             includeNodeDefinition == IncludeNodeSchema.Always ||
@@ -273,7 +317,9 @@ object DefaultSchemaProvider {
             }
         }
 
-        addRootTypes(builder, forceAddRootTypes, allowExisting)
+        if (includeRootTypes) {
+            addRootTypes(builder, forceAddRootTypes, allowExisting)
+        }
         return builder
     }
 
@@ -312,6 +358,151 @@ object DefaultSchemaProvider {
             val definition = directive.createDefinition(sourceLocation)
             builder.add(definition)
             log.debug("Added default @{} directive", directive.directiveName)
+        }
+    }
+
+    /**
+     * Adds the standard PageInfo type to the schema if it doesn't already exist.
+     * This provides the Relay Connection specification PageInfo type for pagination.
+     *
+     * @param builder the RegistryBuilder to enhance with the PageInfo type
+     * @param includeScopeDirective whether to add the @scope directive to the PageInfo type
+     */
+    private fun addPageInfoType(
+        builder: RegistryBuilder,
+        includeScopeDirective: Boolean = true
+    ) {
+        val existingPageInfo = builder.getType("PageInfo")
+        if (existingPageInfo.isPresent) {
+            validatePageInfoType(existingPageInfo.get() as ObjectTypeDefinition)
+            return
+        }
+
+        val pageInfoBuilder = ObjectTypeDefinition
+            .newObjectTypeDefinition()
+            .name("PageInfo")
+            .description(
+                Description(
+                    "Information about pagination in a connection.\n" +
+                        "Part of the Relay Connection specification.",
+                    null,
+                    true
+                )
+            )
+            .fieldDefinition(
+                FieldDefinition
+                    .newFieldDefinition()
+                    .name("hasNextPage")
+                    .type(NonNullType(TypeName("Boolean")))
+                    .description(Description("When paginating forwards, are there more items?", null, false))
+                    .sourceLocation(sourceLocation)
+                    .build()
+            )
+            .fieldDefinition(
+                FieldDefinition
+                    .newFieldDefinition()
+                    .name("hasPreviousPage")
+                    .type(NonNullType(TypeName("Boolean")))
+                    .description(Description("When paginating backwards, are there more items?", null, false))
+                    .sourceLocation(sourceLocation)
+                    .build()
+            )
+            .fieldDefinition(
+                FieldDefinition
+                    .newFieldDefinition()
+                    .name("startCursor")
+                    .type(TypeName("String"))
+                    .description(Description("When paginating backwards, the cursor to continue.", null, false))
+                    .sourceLocation(sourceLocation)
+                    .build()
+            )
+            .fieldDefinition(
+                FieldDefinition
+                    .newFieldDefinition()
+                    .name("endCursor")
+                    .type(TypeName("String"))
+                    .description(Description("When paginating forwards, the cursor to continue.", null, false))
+                    .sourceLocation(sourceLocation)
+                    .build()
+            )
+            .sourceLocation(sourceLocation)
+
+        if (includeScopeDirective) {
+            pageInfoBuilder.directive(createScopeDirective(listOf("*")))
+        }
+
+        val pageInfo = pageInfoBuilder.build()
+
+        builder.add(pageInfo)
+        log.debug("Added default PageInfo type")
+    }
+
+    /**
+     * Validates that an existing PageInfo type conforms to the Relay Connection specification.
+     *
+     * Required fields per Relay spec:
+     * - hasNextPage: Boolean! (non-nullable)
+     * - hasPreviousPage: Boolean! (non-nullable)
+     * - startCursor: String (nullable)
+     * - endCursor: String (nullable)
+     *
+     * Additional fields are allowed (e.g., totalCount) as long as the required fields are present.
+     *
+     * @param pageInfo the existing PageInfo type definition to validate
+     * @throws IllegalStateException if PageInfo does not conform to Relay spec
+     */
+    private fun validatePageInfoType(pageInfo: ObjectTypeDefinition) {
+        val errors = mutableListOf<String>()
+        val fields = pageInfo.fieldDefinitions.associateBy { it.name }
+
+        validatePageInfoField(fields, "hasNextPage", "Boolean", nullable = false, errors)
+        validatePageInfoField(fields, "hasPreviousPage", "Boolean", nullable = false, errors)
+        validatePageInfoField(fields, "startCursor", "String", nullable = true, errors)
+        validatePageInfoField(fields, "endCursor", "String", nullable = true, errors)
+
+        if (errors.isNotEmpty()) {
+            throw IllegalStateException(
+                "PageInfo type does not conform to Relay Connection specification:\n" +
+                    errors.joinToString("\n") { "  - $it" }
+            )
+        }
+    }
+
+    /**
+     * Validates a single field in the PageInfo type.
+     *
+     * @param fields map of field name to field definition
+     * @param fieldName the name of the field to validate
+     * @param expectedType the expected base type name (e.g., "Boolean", "String")
+     * @param nullable whether the field is allowed to be nullable
+     * @param errors list to accumulate validation errors
+     */
+    private fun validatePageInfoField(
+        fields: Map<String, FieldDefinition>,
+        fieldName: String,
+        expectedType: String,
+        nullable: Boolean,
+        errors: MutableList<String>
+    ) {
+        val field = fields[fieldName]
+        if (field == null) {
+            errors.add("Missing required field '$fieldName'")
+            return
+        }
+
+        val fieldType = field.type
+        val (baseType, isNullable) = when (fieldType) {
+            is NonNullType -> (fieldType.type as? TypeName)?.name to false
+            is TypeName -> fieldType.name to true
+            else -> null to true
+        }
+
+        if (baseType != expectedType) {
+            errors.add("Field '$fieldName' must be of type $expectedType, found: ${baseType ?: "unknown"}")
+        }
+
+        if (!nullable && isNullable) {
+            errors.add("Field '$fieldName' must be non-nullable ($expectedType!)")
         }
     }
 

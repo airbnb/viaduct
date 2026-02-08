@@ -60,9 +60,25 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("org.slf4j", "viaduct.shaded.slf4j")
 }
 
-// Make shadowJar replace the default jar
+// Make the default jar task produce the shadow jar output
 tasks.named<Jar>("jar") {
-    archiveClassifier.set("thin")  // Move default jar out of the way
+    enabled = false
+}
+
+// Configure apiElements and runtimeElements to use shadow jar
+configurations {
+    named("apiElements") {
+        outgoing {
+            artifacts.clear()
+            artifact(tasks.shadowJar)
+        }
+    }
+    named("runtimeElements") {
+        outgoing {
+            artifacts.clear()
+            artifact(tasks.shadowJar)
+        }
+    }
 }
 
 tasks.named("assemble") {

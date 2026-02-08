@@ -9,6 +9,7 @@ import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.internal
 import viaduct.api.reflect.Type
+import viaduct.api.reflect.TypeFields
 import viaduct.api.types.Arguments
 import viaduct.api.types.Enum
 import viaduct.api.types.Input
@@ -87,7 +88,7 @@ class ObjectV2(
         override val kcls = ObjectV2::class
         override val name = "ObjectV2"
 
-        object Fields {
+        object Fields : TypeFields<ObjectV2> {
             val __typename = FieldImpl("__typename", Reflection)
             val intField = FieldImpl("intField", Reflection)
             val stringField = FieldImpl("stringField", Reflection)
@@ -254,7 +255,7 @@ class InputV2 internal constructor(
         override val name: String = "InputV2"
         override val kcls: KClass<out InputV2> = InputV2::class
 
-        object Fields {
+        object Fields : TypeFields<InputV2> {
             val __typename = FieldImpl("__typename", Reflection)
             val stringField = FieldImpl("stringField", Reflection)
             val intField = FieldImpl("intField", Reflection)

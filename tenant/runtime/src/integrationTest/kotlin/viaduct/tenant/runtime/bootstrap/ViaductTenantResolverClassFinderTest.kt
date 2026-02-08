@@ -14,7 +14,7 @@ class ViaductTenantResolverClassFinderTest {
     @BeforeEach
     fun setUp() {
         tenantResolverClassFinder = ViaductTenantResolverClassFinder(
-            packageName = PACKAGE_NAME,
+            tenantPackage = PACKAGE_NAME,
             grtPackagePrefix = "$PACKAGE_NAME.grts"
         )
     }
@@ -51,25 +51,25 @@ class ViaductTenantResolverClassFinderTest {
             setOf(
                 "viaduct.api.bootstrap.test.TestNodeResolver"
             ),
-            tenantResolverClassFinder.getSubTypesOf("viaduct.api.bootstrap.test.TestNodeResolverBase").map {
-                it.name
-            }.toSet()
+            tenantResolverClassFinder.getSubTypesOf(
+                Class.forName("viaduct.api.bootstrap.test.TestNodeResolverBase")
+            ).map { it.name }.toSet()
         )
         assertEquals(
             setOf(
                 "viaduct.api.bootstrap.test.TestBatchNodeResolver"
             ),
-            tenantResolverClassFinder.getSubTypesOf("viaduct.api.bootstrap.test.TestBatchNodeResolverBase").map {
-                it.name
-            }.toSet()
+            tenantResolverClassFinder.getSubTypesOf(
+                Class.forName("viaduct.api.bootstrap.test.TestBatchNodeResolverBase")
+            ).map { it.name }.toSet()
         )
         assertEquals(
             setOf(
                 "viaduct.api.bootstrap.test.AFieldResolver"
             ),
-            tenantResolverClassFinder.getSubTypesOf("viaduct.api.bootstrap.test.TestTypeModernResolvers\$AField").map {
-                it.name
-            }.toSet()
+            tenantResolverClassFinder.getSubTypesOf(
+                Class.forName("viaduct.api.bootstrap.test.TestTypeModernResolvers\$AField")
+            ).map { it.name }.toSet()
         )
     }
 

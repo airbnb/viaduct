@@ -11,11 +11,24 @@ import viaduct.apiannotations.StableApi
 
 /** A generic context for resolving fields or types */
 @StableApi
-interface ResolverExecutionContext : ExecutionContext {
+interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
     /**
-     * Loads the provided [SelectionSet] on the root Query type, and return the response
+     * Loads the provided selections on the root Query type, and returns the response typed as [Q].
+     * This is a convenience method that combines [selectionsFor] and [query].
+     *
+     * Example usage:
+     * ```
+     * val result = ctx.query("{ user { id name } }")
+     * ```
+     *
+     * @param selections The selections to load on the root Query type
+     * @param variables Optional variables to use in the selections
+     * @return The query result typed as [Q]
      */
-    suspend fun <T : QueryType> query(selections: SelectionSet<T>): T
+    suspend fun query(
+        selections: @Selections String,
+        variables: Map<String, Any?> = emptyMap()
+    ): Q
 
     /**
      * Creates a [SelectionSet] on a provided type from the provided [Selections] String
