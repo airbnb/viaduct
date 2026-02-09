@@ -8,6 +8,7 @@ dependencies {
     // Viaduct dependencies
     implementation(libs.viaduct.service.api)
     implementation(libs.viaduct.service.wiring)
+    implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.tenant.api)
 
     // GraphQL

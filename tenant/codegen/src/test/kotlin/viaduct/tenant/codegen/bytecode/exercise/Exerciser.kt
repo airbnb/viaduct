@@ -2,6 +2,7 @@
 
 package viaduct.tenant.codegen.bytecode.exercise
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
@@ -16,6 +17,7 @@ internal val logger = LoggerFactory.getLogger(Exerciser::class.java)
 // consistent that as one of those assumptions it assumes their
 // package memberships.
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class Exerciser(
     internal val check: InvariantChecker,
     internal val classResolver: ClassResolver,

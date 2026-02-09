@@ -11,6 +11,7 @@ dependencies {
     testImplementation(libs.guice)
     testImplementation(libs.javax.inject)
 
+    testImplementation(libs.viaduct.shared.apiannotations)
     testImplementation(libs.viaduct.engine.api)
     testImplementation(libs.viaduct.service.api)
     testImplementation(libs.viaduct.service.runtime)

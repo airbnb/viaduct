@@ -6,12 +6,12 @@ plugins {
 
 dependencies {
     api(libs.graphql.java)
+    api(libs.viaduct.shared.apiannotations)
 
     implementation(libs.caffeine)
     implementation(libs.classgraph)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.slf4j.api)
-    implementation(libs.viaduct.shared.apiannotations)
 
     testImplementation(libs.kotest.assertions.shared)
     testImplementation(libs.guava.testlib)

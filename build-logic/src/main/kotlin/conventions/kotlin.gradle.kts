@@ -1,6 +1,7 @@
 package conventions
 
 plugins {
+    id("conventions.kotlin-compile-config")
     id("conventions.kotlin-without-tests")
     id("conventions.jacoco")
 }

@@ -27,7 +27,10 @@ private val unionSTGroup = stTemplate(
     @file:Suppress("warnings")
 
     package <mdl.pkg>
+    
+    import viaduct.apiannotations.InternalApi
 
+    @OptIn(InternalApi::class)
     interface <mdl.className> : ${cfg.UNION_GRT} {
       <mdl.reflection>
     }

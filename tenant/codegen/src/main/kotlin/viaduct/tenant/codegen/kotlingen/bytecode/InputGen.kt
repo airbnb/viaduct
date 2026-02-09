@@ -69,6 +69,7 @@ private val inputSTGroup =
     package <mdl.pkg>
 
     import graphql.schema.GraphQLInputObjectType
+    import viaduct.apiannotations.InternalApi
     import viaduct.api.context.ExecutionContext
     import viaduct.api.internal.InputTypeFactory
     import viaduct.api.internal.InternalContext
@@ -76,6 +77,7 @@ private val inputSTGroup =
     import viaduct.api.internal.InputLikeBase
     import viaduct.api.types.Input
 
+    @OptIn(InternalApi::class)
     class <mdl.className> internal constructor(
         override val context: InternalContext,
         override val inputData: Map\<String, Any?>,

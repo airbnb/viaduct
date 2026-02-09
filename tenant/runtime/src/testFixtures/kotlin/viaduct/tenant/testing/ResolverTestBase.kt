@@ -35,12 +35,21 @@ import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.TestingApi
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
+
+// This typealias avoids @InternalApi be controlled by ERROR OptIn level in parameters
+@StableApi
+typealias TestNodeResolver<T> = NodeResolverBase<T>
+
+// This typealias avoids @InternalApi be controlled by ERROR OptIn level in parameters
+@StableApi
+typealias TestResolverBase<T> = ResolverBase<T>
 
 /**
  * Base class for Viaduct resolver tests. Use [runFieldResolver] for non-mutation resolvers
@@ -151,7 +160,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.resolve()
      */
     suspend fun <T> runFieldResolver(
-        resolver: ResolverBase<T>,
+        resolver: TestResolverBase<T>,
         objectValue: Object = NullObject,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
@@ -182,7 +191,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.resolve()
      */
     suspend fun <T> runMutationFieldResolver(
-        resolver: ResolverBase<T>,
+        resolver: TestResolverBase<T>,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
         requestContext: Any? = null,
@@ -212,7 +221,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.resolve()
      */
     suspend fun <T> runFieldBatchResolver(
-        resolver: ResolverBase<T>,
+        resolver: TestResolverBase<T>,
         objectValues: List<Object> = listOf<Object>(),
         queryValues: List<Query> = objectValues.map { NullQuery },
         requestContext: ExecutionContext? = null,
@@ -251,7 +260,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.resolve()
      */
     suspend fun <T : NodeObject> runNodeResolver(
-        resolver: NodeResolverBase<T>,
+        resolver: TestNodeResolver<T>,
         id: GlobalID<T>,
         requestContext: Any? = null,
         selections: SelectionSet<T>? = null,
@@ -277,7 +286,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.batchResolve()
      */
     suspend fun <T : NodeObject> runNodeBatchResolver(
-        resolver: NodeResolverBase<T>,
+        resolver: TestNodeResolver<T>,
         ids: List<GlobalID<T>>,
         requestContext: Any? = null,
         selections: SelectionSet<T>? = null,
@@ -461,7 +470,7 @@ interface ResolverTestBase {
 // Internal helper functions and values
 private const val BLANK_CONTEXT_QUERY_SELECTION_KEY = "NoSelections"
 
-private fun <T : NodeObject> getNodeResolverContextKClass(resolver: NodeResolverBase<T>): KClass<out NodeExecutionContext<T>> {
+private fun <T : NodeObject> getNodeResolverContextKClass(resolver: TestNodeResolver<T>): KClass<out NodeExecutionContext<T>> {
     val nestedClasses = resolver.javaClass.classes
     val contextClass = nestedClasses.firstOrNull { it.simpleName == "Context" }
         ?: throw IllegalArgumentException(

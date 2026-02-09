@@ -81,12 +81,14 @@ private val objectSTGroup =
 
     package <mdl.pkg>
 
+    import viaduct.apiannotations.InternalApi
     import viaduct.api.context.ExecutionContext
     import viaduct.api.internal.InternalContext
     import viaduct.api.internal.ObjectBase
     import viaduct.engine.api.EngineObject
     import viaduct.engine.api.EngineObjectData
 
+    @OptIn(InternalApi::class)
     class <mdl.className>(context: InternalContext, engineObject: EngineObject)
         : ObjectBase(context, engineObject), <mdl.superTypes>
     {

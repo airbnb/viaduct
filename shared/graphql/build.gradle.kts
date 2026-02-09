@@ -8,7 +8,6 @@ dependencies {
     api(libs.graphql.java)
 
     implementation(libs.viaduct.shared.utils)
-    implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.graphql.java.extension)
     implementation(libs.slf4j.api)
     implementation(libs.kotlin.reflect)

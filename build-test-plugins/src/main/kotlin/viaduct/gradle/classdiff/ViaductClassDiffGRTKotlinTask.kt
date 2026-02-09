@@ -12,6 +12,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
+import viaduct.apiannotations.TestingApi
 import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.common.DefaultSchemaUtil
 import viaduct.graphql.schema.ViaductSchema
@@ -30,6 +31,7 @@ import viaduct.tenant.codegen.cli.KotlinGRTsGenerator
  * ClassDiff test naming convention, allowing for isolated testing of different
  * GraphQL schemas without conflicts.
  */
+@OptIn(TestingApi::class)
 abstract class ViaductClassDiffGRTKotlinTask : DefaultTask() {
     @get:Inject
     abstract val projectLayout: ProjectLayout

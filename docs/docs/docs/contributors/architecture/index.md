@@ -14,7 +14,7 @@ This document provides a high-level description of Viaduct’s software architec
 
 The following diagram illustrates the layers that make up the Viaduct architecture and the personas responsible for each layer:
 
-
+![Viaduct architecture diagram](image2.png)
 
 * Overall a Viaduct application consists of two layers, the Viaduct Framework, i.e., the open-source software found in [github.com/airbnb/viaduct](https://github.com/airbnb/viaduct), plus the application software that sits on top of that.  In addition, it’s organized into two “stacks,” the service stack and the application stack.
 
@@ -45,7 +45,7 @@ The other two personas work on applications running on top of the framework.  Ap
 
 The following sequence diagram follows the lifecycle of an operation, highlighting the respective roles of the API and SPI:
 
-
+![Request Sequence Diagram](image1.png)
 
 The text in each of the “participant” boxes consists of two lines: the first
 line names the “API” abstractions, where the second line names the “SPI” abstractions (in every participant *except* for Main/SPI, the names given are the names of actual types in the Viaduct source code).  In this diagram, solid-line arrows represent API calls as defined above, and dotted-lines represent SPI calls.
@@ -60,7 +60,7 @@ Once this chain of SPI enters into tenant module code, that tenant module code i
 
 As implied above, the source code for the Viaduct Framework is divided into three Gradle projects: `engine`, `service`, and `tenant`.  Each of these projects is organized into three Gradle subprojects: `api`, `runtime`, and `wiring`.  The `api` subproject (which defines, e.g., the `viaduct.engine.api` package hierarchy) defines the API for the project (the engine API in this example).  The SPI for the project is also in the `api` subproject (`viaduct.engine.api.spi` in the case of the engine).  The `api` packages typically define Kotlin interfaces rather than classes.  The `runtime` subproject (which defines, e.g., `viaduct.engine.runtime`) contains the implementation of that project's API.  This code structure relates to our architecture as follows:
 
-
+![Viaduct source code modules](image3.png)
 
 (Note that, to reduce possible confusion by tenant developers, who use the tenant domain’s `api` package directly, types defined by the tenant `api` project are in the `viaduct.api` package hierarchy rather than in `viaduct.tenant.api`.)
 
@@ -70,6 +70,6 @@ The tenant module domain is a little different.  Tenant developers never instant
 
 Detailed dependencies:
 
-
+![Dependencies between Viaduct source modules](image4.png)
 
 The dotted lines represent an indirect dependency accomplished via the `wiring` project.  The idea is that the three `api` projects are leaves in our dependency tree; the service and tenant domains access the engine implementation through its `wiring` project.  The engine gets passed implementations of `viaduct.service.api.spi` interfaces via the `viaduct.services.api.Viaduct` builder, and it in turn passes those into the tenant runtime via the engine’s SPI classes.  (This is where we *want* to be, it’s not where we are today \- there are quite a few violations that we are working to clean up.)
