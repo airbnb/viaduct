@@ -1,5 +1,6 @@
 package viaduct.tenant.codegen.bytecode.exercise
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -47,6 +48,7 @@ class ObjectC(
 }
 
 // Also tests createGenericValue
+@OptIn(ExperimentalCoroutinesApi::class)
 class CreateValueTests {
     companion object {
         fun mkDef(schema: String): ViaductGraphQLSchema.Input = mkSchema("enum E { ONE } input Nest { e: E! } $schema").types["Subject"]!! as ViaductGraphQLSchema.Input

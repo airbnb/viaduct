@@ -7,6 +7,8 @@ plugins {
 
 dependencies {
     api(gradleApi())
+    compileOnly(libs.viaduct.shared.apiannotations)
+
     implementation(libs.idea.gradle.plugin)
 }
 

@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     api(libs.graphql.java)
+    api(libs.viaduct.shared.apiannotations)
     api(libs.viaduct.shared.invariants)
     api(libs.viaduct.shared.viaductschema)
 

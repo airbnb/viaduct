@@ -149,6 +149,7 @@ private val resolversST = stTemplate(
     package <mdl.pkg>.resolverbases
 
     import graphql.schema.GraphQLSchema
+    import viaduct.apiannotations.InternalApi
     import viaduct.api.context.FieldExecutionContext
     import viaduct.api.internal.InternalContext
     import viaduct.api.internal.ResolverBase
@@ -157,7 +158,8 @@ private val resolversST = stTemplate(
     import viaduct.api.types.CompositeOutput
     import viaduct.api.FieldValue
     <mdl.nativeTypeImports; separator="\n">
-
+    
+    @OptIn(InternalApi::class)
     object <mdl.typeName>Resolvers {
         <mdl.resolvers:resolver(); separator="\n">
     }

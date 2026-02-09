@@ -12,6 +12,7 @@ dependencies {
     api(libs.kotlinx.metadata.jvm)
     api(libs.viaduct.shared.invariants)
     api(libs.viaduct.shared.utils)
+    api(libs.viaduct.shared.apiannotations)
 
     implementation(libs.antlr.st4)
     implementation(libs.kotlinx.coroutines.core)

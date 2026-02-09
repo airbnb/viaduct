@@ -5,4 +5,5 @@ plugins {
 
 dependencies {
     implementation(libs.kotlinx.coroutines.core)
+    api(libs.viaduct.shared.apiannotations)
 }

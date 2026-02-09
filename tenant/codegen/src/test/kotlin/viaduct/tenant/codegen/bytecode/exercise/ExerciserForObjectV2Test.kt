@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.bytecode.exercise
 
 import kotlin.reflect.KClass
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.MissingBuilderObjectV2
@@ -16,6 +17,7 @@ import viaduct.graphql.schema.test.mkGraphQLSchema
 import viaduct.graphql.schema.test.mkSchema
 import viaduct.invariants.InvariantChecker
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ExerciserForObjectV2Test {
     private class Fixture(
         sdl: String = "",

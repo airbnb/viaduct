@@ -59,6 +59,7 @@ private interface ReflectedFieldModel {
 private val typeST =
     stTemplate(
         """
+    @OptIn(viaduct.apiannotations.InternalApi::class)
     object ${cfg.REFLECTION_NAME} : ${cfg.REFLECTED_TYPE}\<<mdl.grtFqName>\> {
         override final val name = "<mdl.name>"
         override final val kcls = <mdl.grtFqName>::class

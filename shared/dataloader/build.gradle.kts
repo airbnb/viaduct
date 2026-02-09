@@ -8,6 +8,7 @@ dependencies {
     api(libs.javax.inject)
     api(libs.guice)
     api(libs.viaduct.service.api)
+    api(libs.viaduct.shared.apiannotations)
 
     implementation(libs.kotlinx.coroutines.core)
 
