@@ -73,6 +73,14 @@ jobs:
           echo "✅ Dependencies downloaded successfully"
         shell: bash
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r docs/requirements.txt
+
       - name: Build project (without tests)
         run: |
           echo "🔨 Building project..."
@@ -83,6 +91,11 @@ jobs:
 
       - name: Verify Dokka output
         run: |
+          echo "🔨 Building Dokka documentation..."
+          cd docs
+          mkdocs build
+          cd ..
+
           echo "🔨 Building Dokka documentation..."
           ./gradlew :core:tenant:tenant-api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:x-javaapi-api:dokkaGenerate || { echo "❌ Dokka failed"; exit 1; }
 
