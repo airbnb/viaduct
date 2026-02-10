@@ -229,14 +229,26 @@ def define_env(env):
             # Unknown module, return plain code
             return f"`{display_text}`"
 
-        # Build package path (all parts except class name)
-        package = ".".join(parts[:-1])
+        # Separate package parts from class parts.
+        # Package parts start with a lowercase letter; class parts start
+        # with an uppercase letter.  Walk from the end to find where the
+        # class names begin.
+        first_class_idx = len(parts)
+        for i, part in enumerate(parts):
+            if part[0].isupper():
+                first_class_idx = i
+                break
 
-        # Convert class name to URL slug (CamelCase -> kebab-case)
-        # e.g., NodeObject -> -node-object -> node-object
-        class_slug = re.sub(r'([A-Z])', r'-\1', class_name).lower()
+        package = ".".join(parts[:first_class_idx])
+        class_parts = parts[first_class_idx:]
+
+        # Convert each class name to a Dokka URL slug (CamelCase -> kebab-case)
+        # e.g., ErrorReporter -> -error-reporter, Metadata -> -metadata
+        class_slugs = "/".join(
+            re.sub(r'([A-Z])', r'-\1', c).lower() for c in class_parts
+        )
 
         # Build the documentation URL
-        doc_url = f"/apis/{module}/{package}/{class_slug}/"
+        doc_url = f"/apis/{module}/{package}/{class_slugs}/"
 
         return f"[`{display_text}`]({doc_url})"
