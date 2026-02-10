@@ -1,4 +1,5 @@
 @file:Suppress("ForbiddenImport")
+// tag::ktor-main[14] Ktor application entry point
 
 package com.example.viadapp
 

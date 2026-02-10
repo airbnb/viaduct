@@ -19,6 +19,9 @@ dependencies {
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.viaductschema)
 
+    // StringTemplate utilities for scaffolding (includes ST4 transitively)
+    implementation(libs.viaduct.shared.codegen)
+
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)
 

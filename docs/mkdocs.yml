@@ -96,6 +96,7 @@ nav:
         - Setup:
             - getting_started/setup/index.md
             - Clone Existing Tenant: getting_started/setup/clone/index.md
+            - Scaffold: getting_started/setup/scaffold/index.md
             - From Scratch: getting_started/setup/from_scratch/index.md
         - Tour: getting_started/tour/index.md
         - Tutorial: tutorials/index.md

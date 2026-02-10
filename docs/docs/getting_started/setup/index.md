@@ -23,13 +23,19 @@ Viaduct is compatible with the following versions:
 
 ## Choose Your Approach
 
-There are two ways to set up your first Viaduct application based on your preference:
+There are three ways to set up your first Viaduct application based on your preference:
 
 ### [Quick Start - Clone Approach](clone/index.md)
 
-Perfect if you want to get up and running quickly. Clone one of our starter applications and start building immediately.
+Clone one of our starter applications and start building immediately.
 
 **Best for:** Getting familiar with Viaduct quickly, exploring examples
+
+### [Scaffold Approach](scaffold/index.md)
+
+Generate a complete Ktor + Viaduct project with a single Gradle command. The fastest way to get a production-ready project structure.
+
+**Best for:** Starting new projects, getting a complete Ktor-based application
 
 ### [Build From Scratch](from_scratch/index.md)
 
@@ -39,4 +45,4 @@ Build a Viaduct application from the ground up to understand how all the pieces 
 
 ---
 
-Both approaches will result in the same working application. After completing either setup path, continue to [Touring the Application](../tour/index.md) to understand the structure.
+All approaches will result in a working application. After completing any setup path, continue to [Touring the Application](../tour/index.md) to understand the structure.

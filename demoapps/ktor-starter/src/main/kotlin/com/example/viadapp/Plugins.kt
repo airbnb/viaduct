@@ -1,3 +1,4 @@
+// tag::ktor-content-negotiation[18] Ktor ContentNegotiation plugin setup
 package com.example.viadapp
 
 import com.fasterxml.jackson.databind.SerializationFeature

@@ -1,0 +1,23 @@
+# $projectName$
+
+This is a Viaduct GraphQL service.
+
+<!-- VIADUCT-AGENTS-MD-START -->
+[Viaduct Docs]|root: ./.viaduct/agents
+
+## Viaduct Framework
+
+**⚠️ MANDATORY: Read the relevant doc before implementing.**
+
+| Task | Read First |
+|------|------------|
+| Any mutation | mutations.md |
+| Any query with ID argument | query-resolver.md |
+| Field with @resolver | field-resolver.md |
+| Type with `implements Node` | node-type.md |
+| List field, N+1 prevention | batch.md |
+| Field returning another Node (createdBy, owner) | relationships.md |
+| Scope/visibility | scopes.md |
+
+**⚠️ @idOf CHECK:** Before implementing, scan schema for `id: ID!` in input types and query args. If missing `@idOf`, add it first. See mutations.md or query-resolver.md.
+<!-- VIADUCT-AGENTS-MD-END -->

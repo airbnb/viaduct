@@ -1,3 +1,4 @@
+// tag::ktor-graphql-routing[55] Ktor GraphQL and GraphiQL routing setup
 package com.example.viadapp
 
 import com.example.viadapp.injector.ViaductConfiguration

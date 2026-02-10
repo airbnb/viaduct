@@ -41,10 +41,10 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
@@ -53,7 +53,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -142,7 +142,7 @@ jobs:
           find build/package -type f -maxdepth 2 -print
         shell: bash
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: build-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/
@@ -160,15 +160,15 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: build-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/
 
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
@@ -177,7 +177,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -210,28 +210,28 @@ jobs:
 
       - name: Upload JUnit test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: junit-results-java-${{ matrix.java }}-${{ matrix.os }}
           path: '**/build/test-results/test/*.xml'
 
       - name: Upload JaCoCo coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-reports-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/reports/jacoco
 
       - name: Upload all reports (for debugging)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: all-reports-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/reports
 
       - name: Setup Python
         if: always()
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
@@ -259,10 +259,10 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
@@ -271,7 +271,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -293,7 +293,7 @@ jobs:
 
       - name: Upload Detekt reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: detekt-reports-java-${{ matrix.java }}-${{ matrix.os }}
           path: '**/build/reports/detekt/**/*'
@@ -311,10 +311,10 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
@@ -323,7 +323,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -357,10 +357,10 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
@@ -369,7 +369,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
