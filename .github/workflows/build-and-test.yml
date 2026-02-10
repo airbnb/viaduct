@@ -126,7 +126,7 @@ jobs:
           fi
           echo "✅ service docs contain aggregated modules (service-api, service-wiring)"
 
-          PYTHONPATH=.:$PYTHONPATH djlint site/ --lint \
+          PYTHONPATH=.:$PYTHONPATH djlint docs/site/ --lint \
             --ignore "H005,H006,H013,H014,H021,H023,H025,H030,H031" \
             --include "LINK001" || { echo "❌ Site contains broken links"; exit 1; }
 
