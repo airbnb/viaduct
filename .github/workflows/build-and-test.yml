@@ -89,25 +89,25 @@ jobs:
           echo "📖 Verifying Dokka documentation output..."
 
           # Check tenant-api docs
-          if [ ! -f "docs/docs/apis/tenant-api/index.html" ]; then
-            echo "❌ Missing tenant-api Dokka output: docs/docs/apis/tenant-api/index.html"
+          if [ ! -f "docs/site/apis/tenant-api/index.html" ]; then
+            echo "❌ Missing tenant-api Dokka output: docs/site/apis/tenant-api/index.html"
             exit 1
           fi
           echo "✅ tenant-api docs present"
 
           # Check service aggregated docs
-          if [ ! -f "docs/docs/apis/service/index.html" ]; then
-            echo "❌ Missing service Dokka output: docs/docs/apis/service/index.html"
+          if [ ! -f "docs/site/apis/service/index.html" ]; then
+            echo "❌ Missing service Dokka output: docs/site/apis/service/index.html"
             exit 1
           fi
           echo "✅ service docs present"
 
           # Verify service docs contain aggregated modules
-          if [ ! -d "docs/docs/apis/service/service/service-api" ]; then
+          if [ ! -d "docs/site/apis/service/service/service-api" ]; then
             echo "❌ Missing aggregated service-api module in service docs"
             exit 1
           fi
-          if [ ! -d "docs/docs/apis/service/service/service-wiring" ]; then
+          if [ ! -d "docs/site/apis/service/service/service-wiring" ]; then
             echo "❌ Missing aggregated service-wiring module in service docs"
             exit 1
           fi
@@ -410,10 +410,6 @@ jobs:
         run: |
           cd docs
           mkdocs build
-
-      - name: Copy Dokka API docs to site
-        run: |
-          cp -r docs/docs/apis/* docs/site/apis/
 
       - name: Run API link validation
         run: |
