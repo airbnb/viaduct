@@ -78,12 +78,14 @@ jobs:
           echo "🔨 Building project..."
           ./gradlew clean || { echo "❌ Clean failed"; exit 1; }
           ./gradlew assemble || { echo "❌ Assemble failed"; exit 1; }
-          ./gradlew :core:tenant:tenant-api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:x-javaapi-api:dokkaGenerate || { echo "❌ Dokka failed"; exit 1; }
           echo "✅ Project built successfully"
         shell: bash
 
       - name: Verify Dokka output
         run: |
+          echo "🔨 Building Dokka documentation..."
+          ./gradlew :core:tenant:tenant-api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:x-javaapi-api:dokkaGenerate || { echo "❌ Dokka failed"; exit 1; }
+
           echo "📖 Verifying Dokka documentation output..."
 
           # Check tenant-api docs
