@@ -13,7 +13,7 @@ dependencies {
 
 dokka {
     dokkaPublications.html {
-        outputDirectory.set(repoRoot().dir("docs/docs/apis/service"))
+        outputDirectory.set(repoRoot().dir("docs/site/apis/service"))
         includes.from(layout.projectDirectory.file("module.md"))
     }
     pluginsConfiguration.html {

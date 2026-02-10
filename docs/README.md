@@ -66,7 +66,7 @@ These are generated via Gradle:
 ./gradlew :core:service:dokkaGenerate
 ```
 
-That task outputs HTML files to `docs/docs/apis/` and from there they are automatically included in the MkDocs build.
+That task outputs HTML files to `docs/site/apis/` and from there they are automatically included in the MkDocs build.
 
 ### Dokka module documentation
 
