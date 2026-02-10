@@ -44,6 +44,7 @@ claude --settings '{
 
 Copy and paste this prompt into Claude Code to execute automated IDE testing:
 
+<!-- djlint:off -->
 ```text
 Execute automated IDE compatibility testing for the Viaduct GraphQL code generation plugins.
 
@@ -79,13 +80,14 @@ Execute automated IDE compatibility testing for the Viaduct GraphQL code generat
 
 Generate a detailed test report showing what was tested, results achieved, and any limitations encountered.
 ```
+<!-- djlint:on -->
 
 ### Prerequisites
 
 Before running the automated tests, ensure:
 
 - IntelliJ IDEA is open with the viaduct project loaded (not individual demo apps)
-- IntelliJ MCP server is running at `http://localhost:64342/sse`
+- IntelliJ MCP server is running at <!-- djlint:off --> `http://localhost:64342/sse` <!-- djlint:on -->
 - Playwright MCP is available for browser testing
 
 ## Test Procedures
@@ -100,7 +102,7 @@ Each of these tests should be performed with **both the native/standard compiler
 
 - **Main class**: `src/main/kotlin/viaduct/demoapp/starwars/Application.kt`
 - **Run command**: `./gradlew bootRun`
-- **Test URL**: [http://localhost:8080/graphiql](http://localhost:8080/graphiql)
+- **Test URL**: <!-- djlint:off -->[http://localhost:8080/graphiql](http://localhost:8080/graphiql)<!-- djlint:on -->
 - **Key schema files**:
   - `modules/starwars/src/main/viaduct/schema/Character.graphqls`
   - `modules/starships/src/main/viaduct/schema/Starship.graphqls`
@@ -122,8 +124,8 @@ This test verifies the IDE's ability to run the application directly, detect cha
 ### For starwars Application
 
 - **Step 1:** Open the starwars project (<https://github.com/viaduct-dev/starwars>) in the target IDE.
-- **Step 2:** Locate and run the `main` function in `src/main/kotlin/viaduct/demoapp/starwars/Application.kt`. The application should start on <http://localhost:8080>.
-- **Step 3:** Open [http://localhost:8080/graphiql](http://localhost:8080/graphiql) in your browser to verify the application is working. Try the basic query:
+- **Step 2:** Locate and run the `main` function in `src/main/kotlin/viaduct/demoapp/starwars/Application.kt`. The application should start on <!-- djlint:off --> <http://localhost:8080>. <!-- djlint:on -->
+- **Step 3:** Open <!-- djlint:off -->[http://localhost:8080/graphiql](http://localhost:8080/graphiql)<!-- djlint:on --> in your browser to verify the application is working. Try the basic query:
 
   ```graphql
   query {
