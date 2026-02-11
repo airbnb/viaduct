@@ -28,6 +28,9 @@ on:
     branches:
       - main
 
+permissions:
+  pull-requests: write
+
 jobs:
   build:
     strategy:
@@ -207,7 +210,7 @@ jobs:
       - name: Run tests
         run: |
           echo "🧪 Running tests..."
-          ./gradlew test --continue || {
+          ./gradlew test --scan --continue || {
             echo "⚠️ Some tests failed, but continuing"
             echo "Test failures are not blocking the pipeline"
           }
