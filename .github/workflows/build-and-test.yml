@@ -167,6 +167,8 @@ jobs:
 
   test:
     runs-on: ${{ matrix.os }}
+    permissions:
+      pull-requests: write
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
