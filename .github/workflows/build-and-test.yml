@@ -171,6 +171,7 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     permissions:
+      contents: read
       pull-requests: write
       statuses: write
     strategy:
