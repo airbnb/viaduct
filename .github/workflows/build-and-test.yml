@@ -30,6 +30,7 @@ on:
 
 permissions:
   pull-requests: write
+  statuses: write
 
 jobs:
   build:
@@ -169,6 +170,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       pull-requests: write
+      statuses: write
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
