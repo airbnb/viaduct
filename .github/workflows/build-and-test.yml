@@ -191,7 +191,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
         with:
-          add-job-summary-as-pr-comment: 'on-failure' # Valid values are 'never' (default), 'always', and 'on-failure'
+          add-job-summary-as-pr-comment: 'always' # Valid values are 'never' (default), 'always', and 'on-failure'
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v5
