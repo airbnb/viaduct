@@ -170,11 +170,11 @@ jobs:
 
   test:
     runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
-      pull-requests: write
-      statuses: write
-      issues: write
+    permissions: write-all
+#      contents: read
+#      pull-requests: write
+#      statuses: write
+#      issues: write
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest","macos-latest"]') }}
