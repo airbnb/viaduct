@@ -264,6 +264,7 @@ object DefaultSchemaProvider {
         includeNodeQueries: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
         forceAddRootTypes: Boolean = false,
         allowExisting: Boolean = false,
+        airbnbModeEnabled: Boolean = false,
     ) {
         addDefaults(
             builder = RegistryBuilder(registry, TypeDefinitionRegistry()),
@@ -271,6 +272,7 @@ object DefaultSchemaProvider {
             includeNodeQueries = includeNodeQueries,
             forceAddRootTypes = forceAddRootTypes,
             allowExisting = allowExisting,
+            airbnbModeEnabled = airbnbModeEnabled,
         )
     }
 
@@ -281,12 +283,13 @@ object DefaultSchemaProvider {
         forceAddRootTypes: Boolean,
         allowExisting: Boolean,
         includePageInfo: Boolean = true,
-        includeRootTypes: Boolean = true
+        includeRootTypes: Boolean = true,
+        airbnbModeEnabled: Boolean = false
     ): RegistryBuilder {
         addDefaultDirectives(builder, allowExisting)
         addStandardScalars(builder, allowExisting)
         if (includePageInfo) {
-            addPageInfoType(builder)
+            addPageInfoType(builder, airbnbModeEnabled = airbnbModeEnabled)
         }
 
         val hasNodeTypeReference by lazy {
@@ -370,11 +373,12 @@ object DefaultSchemaProvider {
      */
     private fun addPageInfoType(
         builder: RegistryBuilder,
-        includeScopeDirective: Boolean = true
+        includeScopeDirective: Boolean = true,
+        airbnbModeEnabled: Boolean = false
     ) {
         val existingPageInfo = builder.getType("PageInfo")
         if (existingPageInfo.isPresent) {
-            validatePageInfoType(existingPageInfo.get() as ObjectTypeDefinition)
+            validatePageInfoType(existingPageInfo.get() as ObjectTypeDefinition, airbnbModeEnabled)
             return
         }
 
@@ -446,12 +450,13 @@ object DefaultSchemaProvider {
      * - startCursor: String (nullable)
      * - endCursor: String (nullable)
      *
-     * Additional fields are allowed (e.g., totalCount) as long as the required fields are present.
-     *
      * @param pageInfo the existing PageInfo type definition to validate
      * @throws IllegalStateException if PageInfo does not conform to Relay spec
      */
-    private fun validatePageInfoType(pageInfo: ObjectTypeDefinition) {
+    private fun validatePageInfoType(
+        pageInfo: ObjectTypeDefinition,
+        airbnbModeEnabled: Boolean = false
+    ) {
         val errors = mutableListOf<String>()
         val fields = pageInfo.fieldDefinitions.associateBy { it.name }
 
@@ -459,6 +464,18 @@ object DefaultSchemaProvider {
         validatePageInfoField(fields, "hasPreviousPage", "Boolean", nullable = false, errors)
         validatePageInfoField(fields, "startCursor", "String", nullable = true, errors)
         validatePageInfoField(fields, "endCursor", "String", nullable = true, errors)
+
+        if (!airbnbModeEnabled) {
+            // Disallow extra fields
+            val allowedFields = setOf("hasNextPage", "hasPreviousPage", "startCursor", "endCursor")
+            val extraFields = fields.keys - allowedFields
+            if (extraFields.isNotEmpty()) {
+                errors.add(
+                    "PageInfo type cannot have custom fields. " +
+                        "Found extra fields: ${extraFields.joinToString(", ") { "'$it'" }}."
+                )
+            }
+        }
 
         if (errors.isNotEmpty()) {
             throw IllegalStateException(

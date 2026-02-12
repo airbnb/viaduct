@@ -8,6 +8,7 @@ import io.kotest.matchers.string.shouldContain
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
+import viaduct.graphql.schema.validation.GraphQLBuiltIns
 import viaduct.graphql.schema.validation.SchemaValidator
 import viaduct.graphql.schema.validation.ValidationErrorCodes
 
@@ -93,7 +94,7 @@ class NoCustomScalarsRuleTest {
             type Query { createdAt: DateTime }
         """.trimIndent()
         val schema = ViaductSchema.fromTypeDefinitionRegistry(sdl)
-        val customBuiltInScalars = NoCustomScalarsRule.DEFAULT_BUILT_IN_SCALARS + "DateTime"
+        val customBuiltInScalars = GraphQLBuiltIns.SCALARS + "DateTime"
         val validator = SchemaValidator(listOf(listOf(NoCustomScalarsRule(builtInScalars = customBuiltInScalars))))
 
         val errors = validator.validate(schema)

@@ -843,7 +843,7 @@ class DefaultSchemaProviderTest {
     }
 
     @Test
-    fun `addDefaults with allowExisting=true should preserve existing PageInfo`() {
+    fun `addDefaults with allowExisting=true should reject PageInfo with extra fields`() {
         val sdl = """
             type PageInfo {
                 hasNextPage: Boolean!
@@ -855,13 +855,15 @@ class DefaultSchemaProviderTest {
         """.trimIndent()
         val registry = SchemaParser().parse(sdl)
 
-        DefaultSchemaProvider.addDefaults(registry, allowExisting = true)
+        val exception = assertThrows<IllegalStateException> {
+            DefaultSchemaProvider.addDefaults(registry, allowExisting = true)
+        }
 
-        // Verify existing PageInfo is preserved with extra field
-        val pageInfo = registry.getType("PageInfo").get() as ObjectTypeDefinition
-        val fields = pageInfo.fieldDefinitions.map { it.name }
-        assertTrue(fields.contains("extraField"), "Should preserve extra field from user's PageInfo")
-        assertEquals(5, fields.size, "Should preserve all fields from user's PageInfo")
+        assertAll(
+            { assertContains(exception.message ?: "", "PageInfo", message = "Should mention PageInfo") },
+            { assertContains(exception.message ?: "", "extra", message = "Should mention extra fields") },
+            { assertContains(exception.message ?: "", "extraField", message = "Should mention the specific field") }
+        )
     }
 
     @Test
@@ -875,30 +877,6 @@ class DefaultSchemaProviderTest {
             }
         """.trimIndent()
         val registry = SchemaParser().parse(relayCompliantPageInfoSdl)
-
-        assertDoesNotThrow {
-            DefaultSchemaProvider.addDefaults(registry, allowExisting = true)
-        }
-    }
-
-    @Test
-    fun `addDefaults with allowExisting should accept PageInfo implementing IPageInfo`() {
-        val airbnbIPageInfoSdl = """
-            interface IPageInfo {
-                hasNextPage: Boolean!
-                hasPreviousPage: Boolean!
-                startCursor: String
-                endCursor: String
-            }
-            type PageInfo implements IPageInfo {
-                hasNextPage: Boolean!
-                hasPreviousPage: Boolean!
-                startCursor: String
-                endCursor: String
-                totalCount: Int
-            }
-        """.trimIndent()
-        val registry = SchemaParser().parse(airbnbIPageInfoSdl)
 
         assertDoesNotThrow {
             DefaultSchemaProvider.addDefaults(registry, allowExisting = true)
@@ -1086,6 +1064,42 @@ class DefaultSchemaProviderTest {
         assertDoesNotThrow {
             DefaultSchemaProvider.addDefaults(registry, allowExisting = true)
         }
+    }
+
+    @Test
+    fun `addDefaults with airbnbModeEnabled should allow PageInfo with extra fields`() {
+        val sdl = """
+            type PageInfo {
+                hasNextPage: Boolean!
+                hasPreviousPage: Boolean!
+                startCursor: String
+                endCursor: String
+                totalCount: Int
+            }
+        """.trimIndent()
+        val registry = SchemaParser().parse(sdl)
+
+        assertDoesNotThrow {
+            DefaultSchemaProvider.addDefaults(registry, allowExisting = true, airbnbModeEnabled = true)
+        }
+    }
+
+    @Test
+    fun `addDefaults with airbnbModeEnabled should still validate required fields`() {
+        val sdl = """
+            type PageInfo {
+                hasPreviousPage: Boolean!
+                startCursor: String
+                endCursor: String
+            }
+        """.trimIndent()
+        val registry = SchemaParser().parse(sdl)
+
+        val exception = assertThrows<IllegalStateException> {
+            DefaultSchemaProvider.addDefaults(registry, allowExisting = true, airbnbModeEnabled = true)
+        }
+
+        assertContains(exception.message ?: "", "hasNextPage", message = "Should mention missing field")
     }
 
     // ---- helpers ----
