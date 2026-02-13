@@ -24,12 +24,12 @@ on:
           - macos-13
           - macos-14
         default: ubuntu-latest
-  pull_request:
-    branches:
-      - main
+#  pull_request:
+#    branches:
+#      - main
   pull_request_target:
-    branches:
-      - main
+    types: [opened, synchronize, reopened] # Trigger when a PR is opened, updated, or reopened
+
 
 
 permissions: write-all
