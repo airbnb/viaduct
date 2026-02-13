@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.reflect.Type
 import viaduct.api.types.CompositeOutput
-import viaduct.engine.api.mocks.mkRawSelectionSet
+import viaduct.engine.api.mocks.createRawSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 
 @ExperimentalCoroutinesApi
@@ -19,7 +19,7 @@ class SelectionSetImplTest {
     ): SelectionSetImpl<T> =
         SelectionSetImpl(
             type,
-            mkRawSelectionSet(
+            createRawSelectionSet(
                 SelectionsParser.parse(type.name, selections),
                 SelectTestFeatureAppTest.schema,
                 variables,

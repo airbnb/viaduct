@@ -28,14 +28,14 @@ import viaduct.engine.runtime.ObjectEngineResultTestHelper
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
-import viaduct.engine.runtime.mkRss
-import viaduct.engine.runtime.mkSchema
+import viaduct.engine.runtime.createRss
+import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProxyEngineObjectDataTest {
     private inner class Fixture(sdl: String, test: suspend Fixture.() -> Unit) {
-        val schema = mkSchema(sdl)
+        val schema = createSchema(sdl)
 
         private val selectionSetFactory = RawSelectionSetFactoryImpl(schema)
 
@@ -52,7 +52,7 @@ class ProxyEngineObjectDataTest {
                 errors.toMutableList(),
                 emptyList(),
                 schema,
-                mkRss(typename, selections, variables, schema)
+                createRss(typename, selections, variables, schema)
             )
 
         fun mkProxy(
@@ -72,7 +72,7 @@ class ProxyEngineObjectDataTest {
                 errors.toMutableList(),
                 emptyList(),
                 schema,
-                selectionSet ?: mkRss(typename, "id", emptyMap(), schema)
+                selectionSet ?: createRss(typename, "id", emptyMap(), schema)
             )
             return ProxyEngineObjectData(oer, "error msg", selectionSet)
         }
@@ -95,7 +95,7 @@ class ProxyEngineObjectDataTest {
                 errors.toMutableList(),
                 emptyList(),
                 schema,
-                selectionSet ?: mkRss(typename, "id", emptyMap(), schema)
+                selectionSet ?: createRss(typename, "id", emptyMap(), schema)
             )
             return ProxyEngineObjectData(oer, "error", selectionSet)
         }

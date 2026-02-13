@@ -22,13 +22,13 @@ import viaduct.engine.api.mocks.MockSchema
 class MocksTest {
     @Test
     fun InternalContext_executionContext() {
-        val ec = MockExecutionContext.mk()
+        val ec = MockExecutionContext.create()
         assertSame(ec, ec.internal.executionContext)
     }
 
     @Test
     fun InternalContext_resolverExecutionContext() {
-        val ec = MockResolverExecutionContext.mk()
+        val ec = MockResolverExecutionContext.create()
         assertSame(ec, ec.internal.resolverExecutionContext)
     }
 

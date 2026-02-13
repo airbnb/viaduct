@@ -88,7 +88,7 @@ private fun Exerciser.exerciseBuilderRoundtrip(
     check.isNotNull(buildFunc, "INPUT_BUILDER_BUILD_EXISTS")
     buildFunc ?: return
 
-    val context = MockExecutionContext.mk(schema, classLoader)
+    val context = MockExecutionContext.create(schema, classLoader)
 
     // 1. get builder
     val builder = builderCtor.newInstance(context, graphQLInputObjectType, java.util.LinkedHashMap<String, Any?>())

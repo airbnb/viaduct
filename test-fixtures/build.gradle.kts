@@ -13,6 +13,9 @@ viaductPublishing {
     description.set("Convenience module for testing Viaduct tenants")
 }
 
+val isPublishing = gradle.startParameter.taskNames.any { it.contains("publish") || it.contains("MavenCentral") }
+val isCompositeBuild = gradle.includedBuilds.any { it.name.contains("starter") || it.name == "starwars" } && !isPublishing
+
 dependencies {
     api(testFixtures(libs.viaduct.tenant.api))
     implementation(testFixtures(libs.viaduct.tenant.runtime))
@@ -25,6 +28,18 @@ tasks.named<ShadowJar>("shadowJar") {
 
     // Package all dependencies (test fixtures from core modules)
     configurations = listOf(project.configurations.runtimeClasspath.get())
+
+    // In composite builds, exclude non-relocated third-party classes to avoid version conflicts
+    // with consumers' own dependency versions. These are resolved normally via api() dependencies.
+    if (isCompositeBuild) {
+        exclude("kotlinx/**")
+        exclude("kotlin/**")
+        exclude("io/kotest/**")
+        exclude("org/jetbrains/**")
+        exclude("org/reactivestreams/**")
+        exclude("reactor/**")
+        exclude("io/projectreactor/**")
+    }
 
     // Relocate common dependencies to avoid conflicts
     relocate("com.google.common", "viaduct.shaded.guava")

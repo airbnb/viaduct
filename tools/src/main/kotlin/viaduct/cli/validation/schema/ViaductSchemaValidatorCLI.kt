@@ -17,9 +17,9 @@ import java.io.Reader
 import java.io.StringReader
 import java.nio.charset.StandardCharsets
 import kotlin.system.exitProcess
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
-@TestingApi
+@VisibleForTest
 class ViaductSchemaValidatorCLI : CliktCommand() {
     private val schemaPath: File by option("--schema").file(mustExist = true).required()
 
@@ -34,10 +34,10 @@ class ViaductSchemaValidatorCLI : CliktCommand() {
     }
 }
 
-@TestingApi
+@VisibleForTest
 fun main(args: Array<String>) = ViaductSchemaValidatorCLI().main(args)
 
-@TestingApi
+@VisibleForTest
 fun validateSchema(schemaPath: File): List<GraphQLError> {
     println("Resolving from absolute path: ${schemaPath.absolutePath}")
 

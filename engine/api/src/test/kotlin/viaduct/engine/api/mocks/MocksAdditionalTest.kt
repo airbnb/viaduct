@@ -11,12 +11,12 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.runtime.mocks.mkDispatcherRegistry
+import viaduct.engine.runtime.mocks.createDispatcherRegistry
 
 class MocksAdditionalTest {
     @Test
     fun `MockFieldUnbatchedResolverExecutor with selection set`() {
-        val selectionSet = mkRSS("TestType", "aField bIntField")
+        val selectionSet = createRSS("TestType", "aField bIntField")
         val resolverId = "TestType.field1"
         val executor = MockFieldUnbatchedResolverExecutor(objectSelectionSet = selectionSet, resolverId = resolverId)
 
@@ -58,7 +58,7 @@ class MocksAdditionalTest {
 
     @Test
     fun `MockCheckerExecutor with custom requiredSelectionSets`() {
-        val selectionSets = mapOf("TestType" to mkRSS("TestType", "aField"))
+        val selectionSets = mapOf("TestType" to createRSS("TestType", "aField"))
         val executor = MockCheckerExecutor(requiredSelectionSets = selectionSets)
 
         assertEquals(selectionSets, executor.requiredSelectionSets)
@@ -125,7 +125,7 @@ class MocksAdditionalTest {
         val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), mapOf("id" to id))
+                    createEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), mapOf("id" to id))
                 }
             }
         }
@@ -143,7 +143,7 @@ class MocksAdditionalTest {
         val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             type("TestBatchNode") {
                 nodeBatchedExecutor { selectors, _ ->
-                    selectors.associateWith { Result.success(mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap())) }
+                    selectors.associateWith { Result.success(createEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap())) }
                 }
             }
         }
@@ -170,11 +170,11 @@ class MocksAdditionalTest {
                 }
             }
             type("Node1") {
-                nodeUnbatchedExecutor { _, _, _ -> mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap()) }
+                nodeUnbatchedExecutor { _, _, _ -> createEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap()) }
             }
             type("BatchNode1") {
                 nodeBatchedExecutor { selectors, _ ->
-                    selectors.associateWith { Result.success(mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap())) }
+                    selectors.associateWith { Result.success(createEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap())) }
                 }
             }
         }
@@ -239,12 +239,12 @@ class MocksAdditionalTest {
 
     @Test
     fun `mkRSS helper function`() {
-        val rss = mkRSS("TestType", "aField bIntField")
+        val rss = createRSS("TestType", "aField bIntField")
         assertNotNull(rss.selections)
         assertEquals(emptyList<Any>(), rss.variablesResolvers)
 
         val variablesResolver = VariablesResolver.Empty
-        val rssWithVars = mkRSS("TestType", "aField", listOf(variablesResolver))
+        val rssWithVars = createRSS("TestType", "aField", listOf(variablesResolver))
         assertEquals(listOf(variablesResolver), rssWithVars.variablesResolvers)
     }
 
@@ -256,7 +256,7 @@ class MocksAdditionalTest {
         val nodeBatchResolverExecutor = MockNodeBatchResolverExecutor(typeName = "TestNodeBatch")
         val checker = MockCheckerExecutor()
 
-        val registry = mkDispatcherRegistry(
+        val registry = createDispatcherRegistry(
             fieldResolverExecutors = mapOf(Coordinate("Test", "field") to fieldUnbatchedResolverExecutor, Coordinate("Test", "fieldBatch") to fieldBatchResolverExecutor),
             nodeResolverExecutors = mapOf("TestNode" to nodeUnbatchedResolverExecutor, "TestNodeBatch" to nodeBatchResolverExecutor),
             fieldCheckerExecutors = mapOf(Coordinate("Test", "field") to checker),
@@ -272,7 +272,7 @@ class MocksAdditionalTest {
     fun `mkEngineObjectData basic properties`() {
         val objectType = Samples.testSchema.schema.getObjectType("TestType")
         val data = mapOf("aField" to "fieldValue", "bIntField" to 42)
-        val mockData = mkEngineObjectData(objectType, data)
+        val mockData = createEngineObjectData(objectType, data)
 
         assertEquals(objectType, mockData.graphQLObjectType)
         data.forEach { (key, value) -> assertEquals(value, mockData.get(key)) }

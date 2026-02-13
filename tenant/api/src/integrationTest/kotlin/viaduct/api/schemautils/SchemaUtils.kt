@@ -18,10 +18,10 @@ object SchemaUtils {
             .map { it.trimMargin("|") }
             .joinToString("\n")
             .trim()
-        return mkSchema(schemaContent)
+        return createSchema(schemaContent)
     }
 
-    fun mkSchema(sdl: String): ViaductSchema {
+    fun createSchema(sdl: String): ViaductSchema {
         val tdr = SchemaParser().parse(sdl)
         DefaultSchemaProvider.addDefaults(tdr, allowExisting = true)
         return ViaductSchema(SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING))

@@ -5,7 +5,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.graphql.schema.test.mkSchemaWithSourceLocations
+import viaduct.graphql.schema.test.createSchemaWithSourceLocations
 
 class TenantExtractorTest {
     // ========== extractTenant() tests ==========
@@ -89,7 +89,7 @@ class TenantExtractorTest {
 
     @Test
     fun `TypeDef tenant returns extracted module path from source location`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 """
                 type Foo {
@@ -109,7 +109,7 @@ class TenantExtractorTest {
 
     @Test
     fun `TypeDef tenant returns NO_TENANT when source location has no src path`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 """
                 type Foo {
@@ -131,7 +131,7 @@ class TenantExtractorTest {
 
     @Test
     fun `Field fieldTenant returns module path from field's containing extension`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 """
                 type Foo {
@@ -154,7 +154,7 @@ class TenantExtractorTest {
 
     @Test
     fun `Field inExtension returns false when field and type are in same module`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 """
                 type Foo {
@@ -174,7 +174,7 @@ class TenantExtractorTest {
 
     @Test
     fun `Field inExtension returns true when field is in different module than type`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 """
                 type Foo {
@@ -202,7 +202,7 @@ class TenantExtractorTest {
 
     @Test
     fun `Field inExtension returns false when extension is in same module as type`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 """
                 type Foo {
@@ -230,7 +230,7 @@ class TenantExtractorTest {
 
     @Test
     fun `Field hasExternalType returns false when field type is in same module`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 """
                 type Foo {
@@ -254,7 +254,7 @@ class TenantExtractorTest {
 
     @Test
     fun `Field hasExternalType returns true when field type is in different module`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 """
                 type Foo {
@@ -280,7 +280,7 @@ class TenantExtractorTest {
 
     @Test
     fun `Field hasExternalType handles wrapped types correctly`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 """
                 type Foo {

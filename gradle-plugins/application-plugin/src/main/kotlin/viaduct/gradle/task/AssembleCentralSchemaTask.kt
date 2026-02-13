@@ -16,7 +16,7 @@ import org.gradle.api.tasks.TaskAction
 import org.slf4j.LoggerFactory
 import viaduct.gradle.ViaductApplicationPlugin
 import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
-import viaduct.gradle.ViaductBasicSchemaValidator
+import viaduct.gradle.ViaductSchemaValidator
 import viaduct.graphql.utils.DefaultSchemaProvider
 
 /**
@@ -98,13 +98,19 @@ abstract class AssembleCentralSchemaTask
             val sdlFile = outputDirectory.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
             sdlFile.writeText(sdl)
 
-            validateCompleteSchema(allSchemaFiles + sdlFile)
+            validateCompleteSchema(
+                schemaFiles = allSchemaFiles + sdlFile,
+                excludeFromViaductValidation = listOf(sdlFile)
+            )
         }
 
-        private fun validateCompleteSchema(schemaFiles: Collection<File>) {
+        private fun validateCompleteSchema(
+            schemaFiles: Collection<File>,
+            excludeFromViaductValidation: Collection<File> = emptyList()
+        ) {
             val logger = LoggerFactory.getLogger(ViaductApplicationPlugin::class.java)
-            val validator = ViaductBasicSchemaValidator(logger)
-            val errors = validator.validateSchema(schemaFiles)
+            val validator = ViaductSchemaValidator(logger)
+            val errors = validator.validateSchema(schemaFiles, excludeFromViaductValidation)
             if (errors.isNotEmpty()) {
                 errors.forEach { logger.error(it.message ?: it.toString()) }
                 throw GradleException("GraphQL schema validation failed. See errors above.")

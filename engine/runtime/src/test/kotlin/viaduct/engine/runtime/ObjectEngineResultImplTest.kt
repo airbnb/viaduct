@@ -699,7 +699,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with nested data and errors`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { user: User }
                         type User {
@@ -739,7 +739,7 @@ class ObjectEngineResultImplTest {
                     errors,
                     emptyList(),
                     schema,
-                    mkRss("User", "id name friends { id name } posts { id title }", emptyMap(), schema)
+                    createRss("User", "id name friends { id name } posts { id title }", emptyMap(), schema)
                 )
 
                 // Test successful fields
@@ -765,7 +765,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with aliases, variables, and arguments from both selection and schema`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { user: User }
                         type User {
@@ -795,7 +795,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "User",
                         """
                             id
@@ -832,7 +832,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with multiple fields selected with aliases`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { foo: Foo }
                         type Foo { bar(id:Int):Bar }
@@ -851,7 +851,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "Foo",
                         """
                             b1: bar(id: 1) { a }
@@ -873,7 +873,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap converts __typename selection`() {
             runBlocking {
-                val schema = mkSchema("type Query { x:Int }")
+                val schema = createSchema("type Query { x:Int }")
 
                 val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
@@ -881,7 +881,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "Query",
                         "__typename",
                         emptyMap(),
@@ -896,7 +896,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with a widening spread`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { foo: Foo }
                         interface I { x: Int }
@@ -912,7 +912,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "Foo",
                         "... on I { x }",
                         emptyMap(),
@@ -928,7 +928,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with a narrowing spread`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { i:I }
                         interface I { x:Int }
@@ -944,7 +944,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "I",
                         "... on Foo { y }",
                         emptyMap(),
@@ -960,7 +960,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with a nested narrowing spread`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { i:I }
                         interface I { x:Int }
@@ -974,7 +974,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "Query",
                         "i { ... on Foo { y } }",
                         emptyMap(),
@@ -993,7 +993,7 @@ class ObjectEngineResultImplTest {
         @Suppress("UNCHECKED_CAST")
         fun `newFromMap with list of objects`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { u:[U] }
                         union U = Foo
@@ -1007,7 +1007,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "Query",
                         "u { ... on Foo { x } }",
                         emptyMap(),
@@ -1026,7 +1026,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with nested objects`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { u:U }
                         union U = Foo
@@ -1041,7 +1041,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "Query",
                         "u { ... on Foo { bar { x } } }",
                         emptyMap(),
@@ -1060,7 +1060,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with a nested narrowing spread -- unselected type`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { i:I }
                         interface I { x:Int }
@@ -1075,7 +1075,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "Query",
                         "i { ... on Bar { x } }",
                         emptyMap(),
@@ -1091,7 +1091,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with a nested narrowing spread -- abstract selections only`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { u:U }
                         union U = Foo
@@ -1105,7 +1105,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "Query",
                         "u { __typename }",
                         emptyMap(),
@@ -1122,7 +1122,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `newFromMap with an abstract abstract spread`() {
             runBlocking {
-                val schema = mkSchema(
+                val schema = createSchema(
                     """
                         type Query { foo: Foo }
                         type Foo { x:Int }
@@ -1139,7 +1139,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    mkRss(
+                    createRss(
                         "Foo",
                         """
                             ... on U2 {
@@ -1159,7 +1159,7 @@ class ObjectEngineResultImplTest {
         @Test
         fun `regression -- newFromMap ignores unselected data`() {
             runBlocking {
-                val schema = mkSchema("type Query { x:Int }")
+                val schema = createSchema("type Query { x:Int }")
 
                 val data = mapOf("__typename" to "Query", "x" to 1)
 
@@ -1169,7 +1169,7 @@ class ObjectEngineResultImplTest {
                     mutableListOf(),
                     emptyList(),
                     schema,
-                    mkRss("Query", "x", emptyMap(), schema)
+                    createRss("Query", "x", emptyMap(), schema)
                 )
 
                 // Test the selected field

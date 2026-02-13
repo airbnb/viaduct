@@ -219,7 +219,7 @@ class EngineImpl(
 
         executionInput.operationName?.let { executionInputBuilder.operationName(it) }
         executionInputBuilder.variables(executionInput.variables)
-        val localContext = CompositeLocalContext.withContexts(mkEngineExecutionContext(executionInput.requestContext))
+        val localContext = CompositeLocalContext.withContexts(createEngineExecutionContext(executionInput.requestContext))
 
         @Suppress("DEPRECATION")
         return executionInputBuilder
@@ -233,7 +233,7 @@ class EngineImpl(
      * Creates an instance of EngineExecutionContext. This should be called exactly once
      * per request and set in the graphql-java execution input's local context.
      */
-    fun mkEngineExecutionContext(requestContext: Any?): EngineExecutionContext {
+    fun createEngineExecutionContext(requestContext: Any?): EngineExecutionContext {
         return engineExecutionContextFactory.create(schema, requestContext)
     }
 }

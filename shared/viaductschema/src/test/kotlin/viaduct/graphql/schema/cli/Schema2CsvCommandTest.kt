@@ -7,8 +7,8 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.graphql.schema.test.mkSchema
-import viaduct.graphql.schema.test.mkSchemaWithSourceLocations
+import viaduct.graphql.schema.test.createSchema
+import viaduct.graphql.schema.test.createSchemaWithSourceLocations
 
 /**
  * End-to-end tests for CSV generation from GraphQL schemas.
@@ -35,7 +35,7 @@ class Schema2CsvCommandTest {
      * Basic schema with various type kinds.
      */
     private fun basicTypesSchema() =
-        mkSchema(
+        createSchema(
             """
         interface Node {
             id: ID!
@@ -61,7 +61,7 @@ class Schema2CsvCommandTest {
      * Schema with repeatable directives.
      */
     private fun repeatableDirectivesSchema() =
-        mkSchema(
+        createSchema(
             """
         directive @tag(name: String!) repeatable on OBJECT
         directive @owner(team: String!) repeatable on FIELD_DEFINITION
@@ -76,7 +76,7 @@ class Schema2CsvCommandTest {
      * Schema with various type wrappers (nullable, non-null, lists).
      */
     private fun typeWrappersSchema() =
-        mkSchema(
+        createSchema(
             """
         type User {
             id: ID!
@@ -92,7 +92,7 @@ class Schema2CsvCommandTest {
      * Schema with module path information (source locations).
      */
     private fun tenantSchema() =
-        mkSchemaWithSourceLocations(
+        createSchemaWithSourceLocations(
             listOf(
                 """
             type User {
@@ -121,7 +121,7 @@ class Schema2CsvCommandTest {
      * Schema demonstrating root field detection through singletons.
      */
     private fun rootFieldsSchema() =
-        mkSchema(
+        createSchema(
             """
         directive @singleton on OBJECT
         type Viewer @singleton {
@@ -394,7 +394,7 @@ class Schema2CsvCommandTest {
     @Test
     fun `escapes quotes in directive arguments`() {
         // Test with a string containing a quote - in GraphQL SDL, quotes are escaped with backslash
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             directive @doc(text: String!) on OBJECT
             type User @doc(text: "User's data") {

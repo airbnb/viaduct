@@ -14,14 +14,14 @@ import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.context.isIntrospective
-import viaduct.engine.runtime.mkSchema
+import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.FlagManager
 
 internal class ScopeInstrumentationTest {
     private val mockExecutionContext: ExecutionContext = mockk(relaxed = true)
 
-    private val fullSchema = mkSchema(
+    private val fullSchema = createSchema(
         """
         type Query {
             helloWorld: String!
@@ -29,7 +29,7 @@ internal class ScopeInstrumentationTest {
         """
     )
 
-    private val scopedSchema = mkSchema(
+    private val scopedSchema = createSchema(
         """
         type Query {
             helloWorld: String!

@@ -15,7 +15,7 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockNodeExecutionContext
 import viaduct.api.mocks.MockSelectionSetFactory
 import viaduct.api.mocks.PrebakedResults
-import viaduct.api.mocks.mkSchema
+import viaduct.api.mocks.createSchema
 import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.NodeObject
@@ -32,7 +32,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 internal class NodeResolverTesterImpl<T : NodeObject>(
     override val config: ResolverTester.TesterConfig
 ) : NodeResolverTester<T> {
-    private val schema = ViaductSchema(mkSchema(config.schemaSDL))
+    private val schema = ViaductSchema(createSchema(config.schemaSDL))
     private val reflectionLoader = mockReflectionLoader(config.grtPackage, config.classLoader)
     private val internalContext = MockInternalContext(schema, GlobalIDCodecDefault, reflectionLoader)
 

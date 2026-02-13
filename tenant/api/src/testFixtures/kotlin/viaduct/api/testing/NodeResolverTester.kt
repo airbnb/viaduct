@@ -7,7 +7,7 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
 import viaduct.apiannotations.StableApi
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
 /**
  * Type-safe tester for node resolvers.
@@ -54,7 +54,7 @@ import viaduct.apiannotations.TestingApi
  * @since 1.0
  */
 @StableApi
-@TestingApi
+@VisibleForTest
 interface NodeResolverTester<T : NodeObject> : ResolverTester {
     /**
      * Test a node resolver with the provided configuration.

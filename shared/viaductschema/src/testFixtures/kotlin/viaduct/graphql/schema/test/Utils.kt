@@ -25,9 +25,9 @@ private val MIN_SCHEMA: String = """
 
 """.trimIndent()
 
-fun mkSchema(schema: String): ViaductSchema = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(MIN_SCHEMA + schema))
+fun createSchema(schema: String): ViaductSchema = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(MIN_SCHEMA + schema))
 
-fun mkGraphQLSchema(schema: String): GraphQLSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(MIN_SCHEMA + schema))
+fun createGraphQLSchema(schema: String): GraphQLSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(MIN_SCHEMA + schema))
 
 fun loadGraphQLSchema(schemaResourcePath: String? = null): ViaductSchema {
     val packageWithSchema = System.getenv()["PACKAGE_WITH_SCHEMA"] ?: "graphql"
@@ -90,7 +90,7 @@ val BUILTIN_SCALARS: String =
  * @param sdlWithNoLocation Optional SDL to parse without source location and merge in
  * @return A ViaductSchema with source locations populated
  */
-fun mkSchemaWithSourceLocations(
+fun createSchemaWithSourceLocations(
     sdlAndSourceNames: List<Pair<String, String>>,
     sdlWithNoLocation: String? = null
 ): ViaductSchema {
@@ -125,8 +125,8 @@ fun mkSchemaWithSourceLocations(
  * @param sdlWithNoLocation Optional SDL to parse without source location and merge in
  * @return A ViaductSchema with source locations populated
  */
-fun mkSchemaWithSourceLocation(
+fun createSchemaWithSourceLocation(
     sdl: String,
     sourceName: String,
     sdlWithNoLocation: String? = null
-): ViaductSchema = mkSchemaWithSourceLocations(listOf(sdl to sourceName), sdlWithNoLocation)
+): ViaductSchema = createSchemaWithSourceLocations(listOf(sdl to sourceName), sdlWithNoLocation)

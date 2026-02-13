@@ -9,7 +9,7 @@ class MockFlagManager(
     override fun isEnabled(flag: Flag): Boolean = enabled.contains(flag)
 
     companion object {
-        fun mk(vararg flag: Flag): MockFlagManager = MockFlagManager(flag.toSet())
+        fun create(vararg flag: Flag): MockFlagManager = MockFlagManager(flag.toSet())
 
         fun const(enabled: Boolean): FlagManager =
             object : FlagManager {

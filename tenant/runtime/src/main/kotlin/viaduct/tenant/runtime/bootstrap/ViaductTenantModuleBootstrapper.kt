@@ -124,7 +124,7 @@ class ViaductTenantModuleBootstrapper(
                 fieldName = fieldName,
             )
 
-            val (objectSelectionSet, querySelectionSet) = requiredSelectionSetFactory.mkRequiredSelectionSets(
+            val (objectSelectionSet, querySelectionSet) = requiredSelectionSetFactory.createRequiredSelectionSets(
                 schema,
                 tenantCodeInjector,
                 resolverKClass,

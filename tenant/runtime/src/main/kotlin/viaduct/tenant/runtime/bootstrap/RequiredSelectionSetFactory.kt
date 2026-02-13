@@ -40,7 +40,7 @@ class RequiredSelectionSetFactory(
      * Classes and objects provided to this method are expected to be well-formed objects
      * that match what the viaduct code generator produces.
      */
-    fun mkRequiredSelectionSets(
+    fun createRequiredSelectionSets(
         schema: ViaductSchema,
         injector: TenantCodeInjector,
         resolverCls: KClass<out ResolverBase<*>>,
@@ -64,7 +64,7 @@ class RequiredSelectionSetFactory(
             null
         }
 
-        return mkRequiredSelectionSets(
+        return createRequiredSelectionSets(
             variablesProvider = resolverCls.variablesProvider(injector),
             objectSelections = objectSelections,
             querySelections = querySelections,
@@ -79,7 +79,7 @@ class RequiredSelectionSetFactory(
      * This method performs validation that ensures VariablesProvider variables are used across both
      * object and query selection sets.
      */
-    fun mkRequiredSelectionSets(
+    fun createRequiredSelectionSets(
         variablesProvider: VariablesProviderInfo?,
         objectSelections: ParsedSelections?,
         querySelections: ParsedSelections?,

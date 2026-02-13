@@ -41,7 +41,7 @@ import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.context.getLocalContextForType
-import viaduct.engine.runtime.mkSchema
+import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
@@ -64,7 +64,7 @@ class ResolverDataFetcherTest {
         val testType: String = "TestType",
         val testField: String = "testField"
     ) {
-        val schema: ViaductSchema = mkSchema(
+        val schema: ViaductSchema = createSchema(
             """
             type Query { placeholder: Int }
             type $testType {

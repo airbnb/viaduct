@@ -13,7 +13,7 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockMutationFieldExecutionContext
 import viaduct.api.mocks.MockSelectionSetFactory
 import viaduct.api.mocks.PrebakedResults
-import viaduct.api.mocks.mkSchema
+import viaduct.api.mocks.createSchema
 import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
@@ -32,7 +32,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 internal class MutationResolverTesterImpl<Q : Query, M : Mutation, A : Arguments, O : CompositeOutput>(
     override val config: ResolverTester.TesterConfig
 ) : MutationResolverTester<Q, M, A, O> {
-    private val schema = ViaductSchema(mkSchema(config.schemaSDL))
+    private val schema = ViaductSchema(createSchema(config.schemaSDL))
     private val reflectionLoader = mockReflectionLoader(config.grtPackage, config.classLoader)
     private val internalContext = MockInternalContext(schema, GlobalIDCodecDefault, reflectionLoader)
 

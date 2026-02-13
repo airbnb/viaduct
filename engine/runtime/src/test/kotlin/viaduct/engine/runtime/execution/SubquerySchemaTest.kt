@@ -3,9 +3,9 @@ package viaduct.engine.runtime.execution
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.fetchAs
-import viaduct.engine.api.mocks.mkEngineObjectData
-import viaduct.engine.api.mocks.mkSchemaWithWiring
 import viaduct.engine.api.mocks.runFeatureTest
 
 /**
@@ -54,7 +54,7 @@ class SubquerySchemaTest {
                 internalField: String
                 container: Container
             }
-            
+
             type Container {
                 derivedFromInternal: String
             }
@@ -65,14 +65,14 @@ class SubquerySchemaTest {
                 publicField: String
                 container: Container
             }
-            
+
             type Container {
                 derivedFromInternal: String
             }
         """.trimIndent()
 
-        val fullSchema = mkSchemaWithWiring(fullSchemaSDL)
-        val scopedSchema = mkSchemaWithWiring(scopedSchemaSDL)
+        val fullSchema = createSchemaWithWiring(fullSchemaSDL)
+        val scopedSchema = createSchemaWithWiring(scopedSchemaSDL)
 
         MockTenantModuleBootstrapper(fullSchema) {
             fieldWithValue("Query" to "publicField", "public value")
@@ -81,7 +81,7 @@ class SubquerySchemaTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -121,12 +121,12 @@ class SubquerySchemaTest {
             extend type Query {
                 container: Container
             }
-            
+
             extend type Mutation {
                 publicMutation: Int
                 internalMutation: Int
             }
-            
+
             type Container {
                 triggerInternalMutation: Int
             }
@@ -136,18 +136,18 @@ class SubquerySchemaTest {
             extend type Query {
                 container: Container
             }
-            
+
             extend type Mutation {
                 publicMutation: Int
             }
-            
+
             type Container {
                 triggerInternalMutation: Int
             }
         """.trimIndent()
 
-        val fullSchema = mkSchemaWithWiring(fullSchemaSDL)
-        val scopedSchema = mkSchemaWithWiring(scopedSchemaSDL)
+        val fullSchema = createSchemaWithWiring(fullSchemaSDL)
+        val scopedSchema = createSchemaWithWiring(scopedSchemaSDL)
 
         var internalCounter = 0
 
@@ -169,7 +169,7 @@ class SubquerySchemaTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -223,7 +223,7 @@ class SubquerySchemaTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )

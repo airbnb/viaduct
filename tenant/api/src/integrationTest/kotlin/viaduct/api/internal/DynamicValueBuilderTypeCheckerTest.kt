@@ -16,7 +16,7 @@ import viaduct.api.testschema.TestUser
 
 class DynamicValueBuilderTypeCheckerTest {
     private val graphqlSchema = SchemaUtils.getSchema()
-    private val context = MockInternalContext.mk(graphqlSchema, "viaduct.api.testschema")
+    private val context = MockInternalContext.create(graphqlSchema, "viaduct.api.testschema")
     private val checker = DynamicValueBuilderTypeChecker(context)
     private val o1Type = graphqlSchema.schema.getObjectType(O1.Reflection.name)
     private val o2Type = graphqlSchema.schema.getObjectType(O2.Reflection.name)
@@ -185,7 +185,7 @@ class DynamicValueBuilderTypeCheckerTest {
         //    even though conversion to Java enum E1.valueOf("C") would fail
 
         // Create a schema with enum E1 having an additional value "C" not in compiled enum
-        val schemaWithNewEnumValue = SchemaUtils.mkSchema(
+        val schemaWithNewEnumValue = SchemaUtils.createSchema(
             """
             enum E1 {
               A
@@ -197,7 +197,7 @@ class DynamicValueBuilderTypeCheckerTest {
             }
             """.trimIndent()
         )
-        val contextWithNewEnum = MockInternalContext.mk(schemaWithNewEnumValue, "viaduct.api.testschema")
+        val contextWithNewEnum = MockInternalContext.create(schemaWithNewEnumValue, "viaduct.api.testschema")
         val checkerWithNewEnum = DynamicValueBuilderTypeChecker(contextWithNewEnum)
         val o1TypeWithNewEnum = schemaWithNewEnumValue.schema.getObjectType("O1")
         val enumFieldWithNewEnum = o1TypeWithNewEnum.getField("enumField")

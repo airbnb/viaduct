@@ -4,7 +4,7 @@ import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.CompositeOutput
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.mocks.mkRawSelectionSet
+import viaduct.engine.api.mocks.createRawSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.tenant.runtime.select.SelectionSetImpl
 
@@ -16,7 +16,7 @@ internal fun <T : CompositeOutput> mkSelectionSet(
 ): SelectionSet<T> =
     SelectionSetImpl(
         type,
-        mkRawSelectionSet(
+        createRawSelectionSet(
             SelectionsParser.parse(type.name, selections),
             schema,
             variables

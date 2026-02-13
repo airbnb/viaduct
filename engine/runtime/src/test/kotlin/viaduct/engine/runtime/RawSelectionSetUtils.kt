@@ -7,17 +7,17 @@ import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 
 /** Creates a [RawSelectionSet] from a type name, selections string, variables and schema. */
-fun mkRss(
+fun createRss(
     type: String,
     selections: String,
     variables: Map<String, Any?> = emptyMap(),
     schema: GraphQLSchema
 ): RawSelectionSet {
-    return mkRss(type, selections, variables, ViaductSchema(schema))
+    return createRss(type, selections, variables, ViaductSchema(schema))
 }
 
 /** Creates a [RawSelectionSet] from a type name, selections string, variables and schema. */
-fun mkRss(
+fun createRss(
     type: String,
     selections: String,
     variables: Map<String, Any?> = emptyMap(),

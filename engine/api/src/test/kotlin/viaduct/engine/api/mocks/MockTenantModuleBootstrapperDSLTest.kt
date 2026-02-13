@@ -180,8 +180,8 @@ class MockTenantModuleBootstrapperDSLTest {
 
         // Execute the resolver and verify it works
         val (ctx, reg) = module.contextMocks.run { Pair(engineExecutionContext, dispatcherRegistry) }
-        val testObject = mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestType"), emptyMap())
-        val testQuery = mkEngineObjectData(Samples.testSchema.schema.getObjectType("Query"), emptyMap())
+        val testObject = createEngineObjectData(Samples.testSchema.schema.getObjectType("TestType"), emptyMap())
+        val testQuery = createEngineObjectData(Samples.testSchema.schema.getObjectType("Query"), emptyMap())
         runBlocking {
             val result = reg.getFieldResolverDispatcher("TestType", "aField")!!.resolve(
                 emptyArgs,
@@ -218,8 +218,8 @@ class MockTenantModuleBootstrapperDSLTest {
 
         // Execute the resolver and verify it works
         val (ctx, reg) = module.contextMocks.run { Pair(engineExecutionContext, dispatcherRegistry) }
-        val testObject = mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestType"), emptyMap())
-        val testQuery = mkEngineObjectData(Samples.testSchema.schema.getObjectType("Query"), emptyMap())
+        val testObject = createEngineObjectData(Samples.testSchema.schema.getObjectType("TestType"), emptyMap())
+        val testQuery = createEngineObjectData(Samples.testSchema.schema.getObjectType("Query"), emptyMap())
         runBlocking {
             val result = reg.getFieldResolverDispatcher("TestType", "aField")!!.resolve(
                 mapOf("input" to "test-input"),
@@ -263,10 +263,10 @@ class MockTenantModuleBootstrapperDSLTest {
         assertThrows(IllegalArgumentException::class.java) {
             MockTenantModuleBootstrapper(Samples.testSchema) {
                 type("TestNode") {
-                    nodeUnbatchedExecutor { _, _, _ -> mkEngineObjectData(objectType, emptyMap()) }
+                    nodeUnbatchedExecutor { _, _, _ -> createEngineObjectData(objectType, emptyMap()) }
                 }
                 type("TestNode") {
-                    nodeUnbatchedExecutor { _, _, _ -> mkEngineObjectData(objectType, emptyMap()) }
+                    nodeUnbatchedExecutor { _, _, _ -> createEngineObjectData(objectType, emptyMap()) }
                 }
             }
         }
@@ -278,12 +278,12 @@ class MockTenantModuleBootstrapperDSLTest {
             MockTenantModuleBootstrapper(Samples.testSchema) {
                 type("TestNode") {
                     nodeBatchedExecutor { selectors, _ ->
-                        selectors.associateWith { Result.success(mkEngineObjectData(objectType, emptyMap())) }
+                        selectors.associateWith { Result.success(createEngineObjectData(objectType, emptyMap())) }
                     }
                 }
                 type("TestNode") {
                     nodeBatchedExecutor { selectors, _ ->
-                        selectors.associateWith { Result.success(mkEngineObjectData(objectType, emptyMap())) }
+                        selectors.associateWith { Result.success(createEngineObjectData(objectType, emptyMap())) }
                     }
                 }
             }
@@ -362,7 +362,7 @@ class MockTenantModuleBootstrapperDSLTest {
         val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(objectType, mapOf("id" to id))
+                    createEngineObjectData(objectType, mapOf("id" to id))
                 }
                 checker {
                     fn { _, _ -> /* validation logic */ }
@@ -405,8 +405,8 @@ class MockTenantModuleBootstrapperDSLTest {
 
         // Execute the resolver and verify it works
         val (ctx, reg) = module.contextMocks.run { Pair(engineExecutionContext, dispatcherRegistry) }
-        val testObject = mkEngineObjectData(Samples.testSchema.schema.getObjectType("TestType"), emptyMap())
-        val testQuery = mkEngineObjectData(Samples.testSchema.schema.getObjectType("Query"), emptyMap())
+        val testObject = createEngineObjectData(Samples.testSchema.schema.getObjectType("TestType"), emptyMap())
+        val testQuery = createEngineObjectData(Samples.testSchema.schema.getObjectType("Query"), emptyMap())
         runBlocking {
             val result = reg.getFieldResolverDispatcher("TestType", "aField")!!.resolve(
                 emptyArgs,
@@ -445,14 +445,14 @@ class MockTenantModuleBootstrapperDSLTest {
             // Node with resolver
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(objectType, mapOf("id" to id))
+                    createEngineObjectData(objectType, mapOf("id" to id))
                 }
             }
 
             // Node with batch resolver and checker
             type("BatchNode") {
                 nodeBatchedExecutor { selectors, _ ->
-                    selectors.associateWith { selector -> Result.success(mkEngineObjectData(objectType, mapOf("id" to selector.id))) }
+                    selectors.associateWith { selector -> Result.success(createEngineObjectData(objectType, mapOf("id" to selector.id))) }
                 }
                 checker {
                     objectSelections("batch", "fragment _ on BatchNode { id }")
@@ -473,7 +473,7 @@ class MockTenantModuleBootstrapperDSLTest {
     @Test
     fun `schema is copied to ContextMocks`() {
         val sdl = "extend type Query {x:Int}"
-        val schema = mkSchema(sdl)
+        val schema = createSchema(sdl)
 
         MockTenantModuleBootstrapper(schema) {}
             .contextMocks

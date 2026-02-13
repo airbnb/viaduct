@@ -46,7 +46,7 @@ import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.mocks.ContextMocks
-import viaduct.engine.runtime.mocks.mkDispatcherRegistry
+import viaduct.engine.runtime.mocks.createDispatcherRegistry
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.RawSelectionSetImpl
 import viaduct.graphql.utils.DefaultSchemaProvider
@@ -65,15 +65,15 @@ typealias FieldUnbatchedResolverFn = suspend (
 typealias FieldBatchResolverFn = suspend (selectors: List<FieldResolverExecutor.Selector>, context: EngineExecutionContext) -> Map<FieldResolverExecutor.Selector, Result<Any?>>
 typealias VariablesResolverFn = suspend (ctx: VariablesResolver.ResolveCtx) -> Map<String, Any?>
 
-fun mkCoroutineInterop(): CoroutineInterop = DefaultCoroutineInterop
+fun createCoroutineInterop(): CoroutineInterop = DefaultCoroutineInterop
 
-fun mkExecutionStrategy(): ExecutionStrategy = AsyncExecutionStrategy(SimpleDataFetcherExceptionHandler())
+fun createExecutionStrategy(): ExecutionStrategy = AsyncExecutionStrategy(SimpleDataFetcherExceptionHandler())
 
-fun mkInstrumentation(): Instrumentation = ChainedInstrumentation(listOf<Instrumentation>())
+fun createInstrumentation(): Instrumentation = ChainedInstrumentation(listOf<Instrumentation>())
 
 fun RawSelectionSet.variables() = (this as RawSelectionSetImpl).ctx.variables
 
-fun mkRawSelectionSet(
+fun createRawSelectionSet(
     parsedSelections: ParsedSelections,
     viaductSchema: ViaductSchema,
     variables: Map<String, Any?>
@@ -84,9 +84,9 @@ fun mkRawSelectionSet(
         viaductSchema
     )
 
-fun mkRawSelectionSetFactory(viaductSchema: ViaductSchema) = RawSelectionSetFactoryImpl(viaductSchema)
+fun createRawSelectionSetFactory(viaductSchema: ViaductSchema) = RawSelectionSetFactoryImpl(viaductSchema)
 
-fun mkRSS(
+fun createRSS(
     typeName: String,
     selectionString: String,
     variableProviders: List<VariablesResolver> = emptyList(),
@@ -112,7 +112,7 @@ class MockVariablesResolver(
  *
  * @param sdl The SDL string to parse and create the schema.
  */
-fun mkSchema(sdl: String): ViaductSchema {
+fun createSchema(sdl: String): ViaductSchema {
     val tdr = SchemaParser().parse(sdl).apply {
         DefaultSchemaProvider.addDefaults(this)
     }
@@ -125,7 +125,7 @@ fun mkSchema(sdl: String): ViaductSchema {
  *
  * @param sdl The SDL string to parse and create the schema.
  */
-fun mkSchemaWithWiring(sdl: String): ViaductSchema {
+fun createSchemaWithWiring(sdl: String): ViaductSchema {
     val tdr = SchemaParser().parse(sdl)
     try {
         DefaultSchemaProvider.addDefaults(tdr)
@@ -145,9 +145,9 @@ fun mkSchemaWithWiring(sdl: String): ViaductSchema {
 }
 
 object MockSchema {
-    val minimal: ViaductSchema = mkSchema("extend type Query { empty: Int }")
+    val minimal: ViaductSchema = createSchema("extend type Query { empty: Int }")
 
-    fun mk(sdl: String) = mkSchema(sdl)
+    fun mk(sdl: String) = createSchema(sdl)
 }
 
 open class MockFieldUnbatchedResolverExecutor(
@@ -203,8 +203,8 @@ fun FieldResolverExecutor.invoke(
 ) = runBlocking(MockNextTickDispatcher()) {
     val selector = FieldResolverExecutor.Selector(
         arguments = arguments,
-        objectValue = mkEngineObjectData(fullSchema.schema.getObjectType(coord.first), objectValue),
-        queryValue = mkEngineObjectData(fullSchema.schema.queryType, queryValue),
+        objectValue = createEngineObjectData(fullSchema.schema.getObjectType(coord.first), objectValue),
+        queryValue = createEngineObjectData(fullSchema.schema.queryType, queryValue),
         selections = selections,
     )
     batchResolve(listOf(selector), context)[selector]?.getOrNull()
@@ -220,7 +220,7 @@ fun CheckerExecutor.invoke(
     checkerType: CheckerExecutor.CheckerType = CheckerExecutor.CheckerType.FIELD
 ) = runBlocking(MockNextTickDispatcher()) {
     val objectType = fullSchema.schema.getObjectType(coord.first)!!
-    val objectMap = objectDataMap.mapValues { (_, it) -> mkEngineObjectData(objectType, it) }
+    val objectMap = objectDataMap.mapValues { (_, it) -> createEngineObjectData(objectType, it) }
     execute(arguments, objectMap, context, checkerType)
 }
 
@@ -318,7 +318,7 @@ class MockTenantModuleBootstrapper(
         operator fun invoke(
             schemaSDL: String,
             block: MockTenantModuleBootstrapperDSL<Unit>.() -> Unit
-        ) = invoke(mkSchemaWithWiring(schemaSDL), block)
+        ) = invoke(createSchemaWithWiring(schemaSDL), block)
 
         /**
          * Create a [MockTenantModuleBootstrapper] with the provided [ViaductSchema].
@@ -351,7 +351,7 @@ class MockTenantModuleBootstrapper(
         checkerExecutors: Map<Coordinate, CheckerExecutor>? = null,
         typeCheckerExecutors: Map<String, CheckerExecutor>? = null
     ): DispatcherRegistry =
-        mkDispatcherRegistry(
+        createDispatcherRegistry(
             fieldResolverExecutors.toMap(),
             nodeResolverExecutors.toMap(),
             checkerExecutors ?: this.checkerExecutors,
@@ -366,7 +366,7 @@ class MockTenantModuleBootstrapper(
     }
 }
 
-fun mkEngineObjectData(
+fun createEngineObjectData(
     graphQLObjectType: GraphQLObjectType,
     data: Map<String, Any?>,
 ): ResolvedEngineObjectData {
@@ -381,7 +381,7 @@ fun mkEngineObjectData(
                 cvt(type.wrappedType as GraphQLOutputType, it)
             }
 
-            is GraphQLObjectType -> (value as Map<String, Any?>?)?.let { mkEngineObjectData(type, it) }
+            is GraphQLObjectType -> (value as Map<String, Any?>?)?.let { createEngineObjectData(type, it) }
             is GraphQLCompositeType -> throw IllegalArgumentException("don't know how to wrap type $type with value $value")
             else -> value
         }
@@ -417,7 +417,7 @@ class MockCheckerExecutorFactory(
 }
 
 object Samples {
-    val testSchema = mkSchemaWithWiring(
+    val testSchema = createSchemaWithWiring(
         """
         extend type Query {
             foo: String
@@ -491,7 +491,7 @@ object Samples {
         // Add node resolver for TestNode
         type("TestNode") {
             nodeUnbatchedExecutor { id, _, _ ->
-                mkEngineObjectData(
+                createEngineObjectData(
                     testSchema.schema.getObjectType("TestNode"),
                     mapOf("id" to id)
                 )
@@ -503,7 +503,7 @@ object Samples {
             nodeBatchedExecutor { selectors, _ ->
                 selectors.associateWith { selector ->
                     Result.success(
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             testSchema.schema.getObjectType("TestBatchNode"),
                             mapOf("id" to selector.id)
                         )

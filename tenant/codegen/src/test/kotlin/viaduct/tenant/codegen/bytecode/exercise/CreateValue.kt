@@ -233,7 +233,7 @@ internal fun ViaductGraphQLSchema.HasDefaultValue.valueV2FromGenericValue(
                 null
             } else {
                 baseValue as RecordValue
-                val context = MockExecutionContext.mk(schema, classLoader)
+                val context = MockExecutionContext.create(schema, classLoader)
                 val data = genericValueToEngineObjectData(classResolver, schema, baseValue)
                 if (asEngineObjectData) {
                     data
@@ -249,7 +249,7 @@ internal fun ViaductGraphQLSchema.HasDefaultValue.valueV2FromGenericValue(
             val concreteTypeDef = recordValue.concreteTypeDef
             val graphqlInputType = schema.schema.getTypeAs<GraphQLInputObjectType>(concreteTypeDef.name)
             val clazz = classResolver.mainClassFor(concreteTypeDef.name)
-            val context = MockExecutionContext.mk(schema, classLoader)
+            val context = MockExecutionContext.create(schema, classLoader)
             clazz.constructors[0].newInstance(context, recordValue.asGenericMap, graphqlInputType)
         }
 

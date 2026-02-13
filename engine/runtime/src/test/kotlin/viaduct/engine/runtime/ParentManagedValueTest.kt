@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
-import viaduct.engine.api.mocks.mkSchemaWithWiring
+import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.runFeatureTest
 
 @ExperimentalCoroutinesApi
@@ -41,7 +41,7 @@ class ParentManagedValueTest {
             }
         """.trimIndent()
 
-        private val schema = mkSchemaWithWiring(SDL)
+        private val schema = createSchemaWithWiring(SDL)
     }
 
     @Test

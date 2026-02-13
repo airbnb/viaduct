@@ -8,10 +8,10 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.mocks.mkCoroutineInterop
+import viaduct.engine.api.mocks.createCoroutineInterop
 
 class SchemaFactoryTest {
-    private val schemaFactory = SchemaFactory(mkCoroutineInterop())
+    private val schemaFactory = SchemaFactory(createCoroutineInterop())
 
     @Nested
     inner class PositiveTests {

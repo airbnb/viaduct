@@ -17,7 +17,7 @@ import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
 import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.parse.CachedDocumentParser.parseDocument
-import viaduct.engine.runtime.mkSchema
+import viaduct.engine.runtime.createSchema
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -27,7 +27,7 @@ import viaduct.engine.runtime.mkSchema
 @Measurement(iterations = 5)
 open class QueryPlanBenchmark {
     private class Fixture(data: TestData) {
-        val schema = mkSchema(data.sdl)
+        val schema = createSchema(data.sdl)
         val document = parseDocument(data.query)
 
         val parameters = QueryPlan.Parameters(

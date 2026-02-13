@@ -4,9 +4,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
-import viaduct.graphql.test.assertJson
 
 @ExperimentalCoroutinesApi
 class FieldDataLoaderTest {
@@ -34,7 +33,7 @@ class FieldDataLoaderTest {
                     fn { _, _, _, _, _ ->
                         // Return three items with different IDs to ensure batching
                         (1..3).map { i ->
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 schema.schema.getObjectType("Item"),
                                 mapOf("id" to i.toString())
                             )

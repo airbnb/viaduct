@@ -53,6 +53,18 @@ tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")  // Replace the main jar
     mergeServiceFiles()
 
+    // In composite builds, exclude non-relocated third-party classes to avoid version conflicts
+    // with consumers' own dependency versions. These are resolved normally via api() dependencies.
+    if (isCompositeBuild) {
+        exclude("kotlinx/**")
+        exclude("kotlin/**")
+        exclude("io/kotest/**")
+        exclude("org/jetbrains/**")
+        exclude("org/reactivestreams/**")
+        exclude("reactor/**")
+        exclude("io/projectreactor/**")
+    }
+
     // Relocate common dependencies to avoid conflicts
     relocate("com.google.common", "viaduct.shaded.guava")
     relocate("com.google.guava", "viaduct.shaded.guava")

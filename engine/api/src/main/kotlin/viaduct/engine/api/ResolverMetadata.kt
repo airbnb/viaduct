@@ -1,6 +1,6 @@
 package viaduct.engine.api
 
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
 /**
  * Metadata for a resolver.
@@ -16,7 +16,7 @@ data class ResolverMetadata(
     companion object {
         fun forModern(name: String): ResolverMetadata = ResolverMetadata("modern", name)
 
-        @TestingApi
+        @VisibleForTest
         fun forMock(name: String): ResolverMetadata = ResolverMetadata("mock", name)
     }
 }

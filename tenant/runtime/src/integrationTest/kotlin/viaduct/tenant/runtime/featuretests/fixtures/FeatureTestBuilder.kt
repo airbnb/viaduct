@@ -375,7 +375,7 @@ class FeatureTestBuilder(
         val standardViaduct = StandardViaduct.Builder()
             .withTenantAPIBootstrapperBuilders(builders)
             .withFlagManager(
-                MockFlagManager.mk(
+                MockFlagManager.create(
                     Flags.EXECUTE_ACCESS_CHECKS
                 )
             )

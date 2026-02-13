@@ -43,49 +43,49 @@ class MkEngineObjectDataTest {
     @Test
     fun `empty top-level map`() {
         val data = emptyMap<String, Any?>()
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
     @Test
     fun `single null field`() {
         val data = mapOf<String, Any?>("string" to null)
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
     @Test
     fun `single non-null integer field`() {
         val data = mapOf<String, Any?>("int" to 42)
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
     @Test
     fun `null and non-null integer field`() {
         val data = mapOf<String, Any?>("string" to "hello", "int" to null)
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
     @Test
     fun `single field that's an empty list`() {
         val data = mapOf<String, Any?>("listInt" to emptyList<Int>())
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
     @Test
     fun `single field that's a list of mixed nulls and non-nulls`() {
         val data = mapOf<String, Any?>("listInt" to listOf(1, null, 2, null, 3))
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
     @Test
     fun `nested field with no subfield set`() {
         val data = mapOf<String, Any?>("nested" to emptyMap<String, Any?>())
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
@@ -96,7 +96,7 @@ class MkEngineObjectDataTest {
             "listInt" to listOf(1, null, 2)
         )
         val data = mapOf<String, Any?>("nested" to nestedData)
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
@@ -105,7 +105,7 @@ class MkEngineObjectDataTest {
         val nestedData1 = mapOf<String, Any?>("int" to 1)
         val nestedData2 = mapOf<String, Any?>("int" to 2, "listInt" to listOf(10, 20))
         val data = mapOf<String, Any?>("listNested" to listOf(nestedData1, null, nestedData2))
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
@@ -114,14 +114,14 @@ class MkEngineObjectDataTest {
         val leafData = mapOf<String, Any?>("int" to 99)
         val nestedData = mapOf<String, Any?>("leaf" to leafData)
         val data = mapOf<String, Any?>("nested" to nestedData)
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         test(data, result)
     }
 
     @Test
     fun `accessing unset field fails`() {
         val data = mapOf<String, Any?>("int" to 1)
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         assertThrows<UnsetSelectionException> {
             result.get("foo")
         }
@@ -130,7 +130,7 @@ class MkEngineObjectDataTest {
     @Test
     fun `accessing unset field in nested object fails`() {
         val data = mapOf<String, Any?>("nested" to emptyMap<String, Any?>())
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         assertThrows<UnsetSelectionException> {
             (result.get("nested") as ResolvedEngineObjectData).get("unsetField")
         }
@@ -140,7 +140,7 @@ class MkEngineObjectDataTest {
     fun `accessing unset field in leaf object fails`() {
         val nestedData = mapOf<String, Any?>("leaf" to emptyMap<String, Any?>())
         val data = mapOf<String, Any?>("nested" to nestedData)
-        val result = mkEngineObjectData(type("Test"), data)
+        val result = createEngineObjectData(type("Test"), data)
         assertThrows<UnsetSelectionException> {
             ((result.get("nested") as ResolvedEngineObjectData).get("leaf") as ResolvedEngineObjectData).get("nonExistentField")
         }

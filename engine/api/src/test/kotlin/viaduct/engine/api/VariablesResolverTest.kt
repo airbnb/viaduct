@@ -15,14 +15,14 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockVariablesResolver
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.select.SelectionsParser
 
 @ExperimentalCoroutinesApi
 class VariablesResolverTest {
     private val engineCtx = mockk<EngineExecutionContext>()
     private val schema = MockSchema.mk("extend type Query { a:Int, b:Int }")
-    private val objectData = mkEngineObjectData(
+    private val objectData = createEngineObjectData(
         schema.schema.queryType,
         mapOf("a" to 1, "b" to 2)
     )

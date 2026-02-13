@@ -23,8 +23,8 @@ import viaduct.api.types.InputLike
 import viaduct.api.types.Object
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.mocks.mkEngineObjectData
-import viaduct.engine.api.mocks.mkSchema
+import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.mocks.createSchema
 
 @Suppress("UNUSED_PARAMETER")
 class GRTConstructorExtensionsTest {
@@ -188,7 +188,7 @@ class GRTConstructorExtensionsTest {
     }
 
     // Test toXyzGRT requires a schema
-    val schema = mkSchema(
+    val schema = createSchema(
         """
         input InputType {
             i: Int
@@ -202,7 +202,7 @@ class GRTConstructorExtensionsTest {
     )
     val ictx = MockInternalContext(schema)
     val typeType = schema.schema.getObjectType("Type")
-    val fakeEOD = mkEngineObjectData(typeType, mapOf("i" to 42, "s" to true))
+    val fakeEOD = createEngineObjectData(typeType, mapOf("i" to 42, "s" to true))
 
     // Test toXyzGRT
     // Can test normal case for FakeObject and FakeQuery

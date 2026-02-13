@@ -15,9 +15,9 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
 import viaduct.api.types.Query
 import viaduct.apiannotations.InternalApi
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
-@OptIn(TestingApi::class, InternalApi::class)
+@OptIn(VisibleForTest::class, InternalApi::class)
 class MutationResolverTesterTest {
     companion object {
         private const val TEST_SCHEMA_SDL = """

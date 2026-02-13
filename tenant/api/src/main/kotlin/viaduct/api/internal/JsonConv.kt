@@ -272,7 +272,7 @@ object JsonConv {
 
                 is GraphQLObjectType -> {
                     convMemo.memoizeIf(type.name, selectionSet == null) {
-                        val selectionConvs = mkSelectionConvs(schema, type, selectionSet, ::mk)
+                        val selectionConvs = createSelectionConvs(schema, type, selectionSet, ::mk)
                         obj(type.name, selectionConvs, addJsonTypenameField)
                     }
                 }

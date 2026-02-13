@@ -30,7 +30,7 @@ private val STABILITY_ANNOTATION_SIMPLE_NAMES = setOf(
     "StableApi",
     "ExperimentalApi",
     "InternalApi",
-    "TestingApi",
+    "VisibleForTest",
 )
 
 /**

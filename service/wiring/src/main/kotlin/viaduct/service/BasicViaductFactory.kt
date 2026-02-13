@@ -1,7 +1,7 @@
 package viaduct.service
 
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.TenantCodeInjector
@@ -48,7 +48,7 @@ object BasicViaductFactory {
      * @param grtPackagePrefix package prefix for GRT schema file discovery (test override only).
      * @param grtResourcesIncluded regex pattern for GRT schema files (test override only).
      */
-    @TestingApi
+    @VisibleForTest
     fun createForTesting(
         scopes: List<SchemaScopeInfo> = listOf(),
         tenantRegistrationInfo: TenantRegistrationInfo,

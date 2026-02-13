@@ -16,7 +16,8 @@ class ViaductRuleSetProvider : RuleSetProvider {
             listOf(
                 NoPrintlnInGradleRule(config),
                 NoStringDependenciesInGradleRule(config),
-                ApiStabilityAnnotationRequiredRule(config)
+                ApiStabilityAnnotationRequiredRule(config),
+                FactoryMethodNamingRule(config)
             )
         )
 }

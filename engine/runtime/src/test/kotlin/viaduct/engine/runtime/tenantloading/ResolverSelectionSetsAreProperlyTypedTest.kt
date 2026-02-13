@@ -7,7 +7,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.mkRSS
+import viaduct.engine.api.mocks.createRSS
 
 class ResolverSelectionSetsAreProperlyTypedTest {
     @Test
@@ -17,39 +17,39 @@ class ResolverSelectionSetsAreProperlyTypedTest {
 
     @Test
     fun `valid -- object selection set with correct type`() {
-        val objectRSS = mkRSS("User", "id name")
+        val objectRSS = createRSS("User", "id name")
         assertValid("User", "name", objectRSS, null)
     }
 
     @Test
     fun `valid -- query selection set with correct type`() {
-        val queryRSS = mkRSS("Query", "currentUser")
+        val queryRSS = createRSS("Query", "currentUser")
         assertValid("User", "name", null, queryRSS)
     }
 
     @Test
     fun `valid -- both selection sets with correct types`() {
-        val objectRSS = mkRSS("User", "id")
-        val queryRSS = mkRSS("Query", "currentUser")
+        val objectRSS = createRSS("User", "id")
+        val queryRSS = createRSS("Query", "currentUser")
         assertValid("User", "name", objectRSS, queryRSS)
     }
 
     @Test
     fun `invalid -- object selection set with wrong type`() {
-        val objectRSS = mkRSS("Query", "currentUser") // Wrong! Should be "User"
+        val objectRSS = createRSS("Query", "currentUser") // Wrong! Should be "User"
         assertInvalid("User", "name", objectRSS, null, "Query")
     }
 
     @Test
     fun `invalid -- query selection set with wrong type`() {
-        val queryRSS = mkRSS("User", "id name") // Wrong! Should be "Query"
+        val queryRSS = createRSS("User", "id name") // Wrong! Should be "Query"
         assertInvalid("User", "name", null, queryRSS, "User")
     }
 
     @Test
     fun `invalid -- both selection sets with wrong types`() {
-        val objectRSS = mkRSS("Query", "currentUser") // Wrong! Should be "User"
-        val queryRSS = mkRSS("User", "id") // Wrong! Should be "Query"
+        val objectRSS = createRSS("Query", "currentUser") // Wrong! Should be "User"
+        val queryRSS = createRSS("User", "id") // Wrong! Should be "Query"
         assertInvalid("User", "name", objectRSS, queryRSS, "Query", "User")
     }
 

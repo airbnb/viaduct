@@ -21,7 +21,7 @@ import viaduct.api.types.Arguments
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.VariablesProviderContextImpl
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
@@ -34,7 +34,7 @@ class VariablesProviderExecutorTest {
         val b: Int = args["b"] as Int
     }
 
-    private val objectData = mkEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap())
+    private val objectData = createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap())
     private val reflectionLoader = MockReflectionLoader()
     private val globalIDCodec = GlobalIDCodecDefault
 

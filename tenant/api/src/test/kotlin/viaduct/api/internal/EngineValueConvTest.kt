@@ -29,15 +29,15 @@ import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.engineObjectsAreEquivalent
-import viaduct.engine.api.mocks.mkRawSelectionSet
-import viaduct.engine.api.mocks.mkSchema
+import viaduct.engine.api.mocks.createRawSelectionSet
+import viaduct.engine.api.mocks.createSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.ir
 
 class EngineValueConvTest : KotestPropertyBase() {
-    private val emptySchema: ViaductSchema = mkSchema("extend type Query { x:Int }")
+    private val emptySchema: ViaductSchema = createSchema("extend type Query { x:Int }")
 
     @Test
     fun `roundtrips arbitrary ir for arbitrary schemas`(): Unit =
@@ -202,7 +202,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `enum -- simple`() {
-        val schema = mkSchema("enum E { A, B }")
+        val schema = createSchema("enum E { A, B }")
         val conv = EngineValueConv(schema, schema.schema.getType("E")!!, null)
 
         assertRoundtrip(conv, "A", IR.Value.String("A"))
@@ -213,7 +213,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `input object -- simple`() {
-        val schema = mkSchema("input Inp { x:Int }")
+        val schema = createSchema("input Inp { x:Int }")
         val conv = EngineValueConv(schema, schema.schema.getType("Inp")!!, null)
 
         assertRoundtrip(
@@ -225,7 +225,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `input object -- cyclic`() {
-        val schema = mkSchema("input Inp { inp:Inp }")
+        val schema = createSchema("input Inp { inp:Inp }")
         val conv = EngineValueConv(schema, schema.schema.getType("Inp")!!, null)
 
         assertRoundtrip(
@@ -240,7 +240,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `object -- simple`() {
-        val schema = mkSchema("type Obj { x:Int }")
+        val schema = createSchema("type Obj { x:Int }")
         val obj = schema.schema.getObjectType("Obj")
         val conv = EngineValueConv(schema, schema.schema.getType("Obj")!!, null)
 
@@ -253,7 +253,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `object -- __typename`() {
-        val schema = mkSchema("type Obj { x:Int }")
+        val schema = createSchema("type Obj { x:Int }")
         val obj = schema.schema.getObjectType("Obj")
         val conv = EngineValueConv(schema, schema.schema.getObjectType("Obj"), null)
 
@@ -266,7 +266,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `object -- cyclic`() {
-        val schema = mkSchema("type Obj { obj:Obj }")
+        val schema = createSchema("type Obj { obj:Obj }")
         val obj = schema.schema.getObjectType("Obj")
         val conv = EngineValueConv(schema, obj, null)
 
@@ -285,7 +285,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `object with selections -- simple`() {
-        val schema = mkSchema("type Obj { x:Int }")
+        val schema = createSchema("type Obj { x:Int }")
         val obj = schema.schema.getObjectType("Obj")
         val conv = EngineValueConv(
             schema,
@@ -302,7 +302,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `object with selections -- the same type can be selected multiple times with different selections`() {
-        val schema = mkSchema("type Obj { x:Int, obj:Obj }")
+        val schema = createSchema("type Obj { x:Int, obj:Obj }")
         val obj = schema.schema.getObjectType("Obj")
         val conv = EngineValueConv(
             schema,
@@ -336,7 +336,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `object with selections -- a field can be selected multiple times`() {
-        val schema = mkSchema("type Obj { x:Int }")
+        val schema = createSchema("type Obj { x:Int }")
         val obj = schema.schema.getObjectType("Obj")
         val conv = EngineValueConv(schema, obj, mkRawSelectionSet(schema, "Obj", "a:x, b:x"))
 
@@ -349,7 +349,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `union -- simple`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
                 type Obj { x:Int }
                 union U = Obj
@@ -376,7 +376,7 @@ class EngineValueConvTest : KotestPropertyBase() {
 
     @Test
     fun `interface -- simple`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
                 interface I { x:Int }
                 type Obj implements I { x:Int }
@@ -428,7 +428,7 @@ private fun mkRawSelectionSet(
     selections: String,
     variables: Map<String, Any?> = emptyMap()
 ): RawSelectionSet =
-    mkRawSelectionSet(
+    createRawSelectionSet(
         SelectionsParser.parse(selectionsType, selections),
         schema,
         variables

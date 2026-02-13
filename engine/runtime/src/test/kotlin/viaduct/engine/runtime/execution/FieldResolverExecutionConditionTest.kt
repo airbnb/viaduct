@@ -6,9 +6,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
-import viaduct.graphql.test.assertJson
 
 /**
  * Unit tests for FieldResolver's ExecutionCondition handling.
@@ -38,7 +37,7 @@ class FieldResolverExecutionConditionTest {
             field("Query" to "parent") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Parent"),
                             mapOf("x" to 1)
                         )

@@ -24,7 +24,7 @@ import viaduct.mapping.test.DomainValidator
 
 class JsonDomainTest : KotestPropertyBase() {
     private val schema = SchemaUtils.getSchema()
-    private val internal = MockInternalContext.mk(schema, grtPackage = "viaduct.api.testschema")
+    private val internal = MockInternalContext.create(schema, grtPackage = "viaduct.api.testschema")
     private val executionContext = MockExecutionContext(internal)
     private val domain = JsonDomain(executionContext)
     private val validator = DomainValidator(domain, schema.schema)

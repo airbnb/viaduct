@@ -23,14 +23,14 @@ import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.SyncProxyEngineObjectData
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.createRss
+import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.execution.ProxyEngineObjectDataTest.Companion.mkOerWithListFieldError
-import viaduct.engine.runtime.mkRss
-import viaduct.engine.runtime.mkSchema
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 
 class SyncEngineObjectDataFactoryTest {
     private inner class Fixture(sdl: String, test: suspend Fixture.() -> Unit) {
-        val schema = mkSchema(sdl)
+        val schema = createSchema(sdl)
         private val selectionSetFactory = RawSelectionSetFactoryImpl(schema)
 
         fun mkSelectionSet(
@@ -52,7 +52,7 @@ class SyncEngineObjectDataFactoryTest {
                 errors.toMutableList(),
                 emptyList(),
                 schema,
-                mkRss(typename, selections, variables, schema)
+                createRss(typename, selections, variables, schema)
             )
 
         init {

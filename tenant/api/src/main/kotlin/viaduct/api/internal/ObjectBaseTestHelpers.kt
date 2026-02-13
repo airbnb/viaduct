@@ -1,11 +1,11 @@
 package viaduct.api.internal
 
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
 /**
  * Utility class for testing purposes, used to expose otherwise-internal methods to test code.
  */
-@TestingApi
+@VisibleForTest
 object ObjectBaseTestHelpers {
     /**
      * Similar to [ObjectBase.Builder.put], but allows setting an alias for the field.
@@ -23,7 +23,7 @@ object ObjectBaseTestHelpers {
 }
 
 /** @see [ObjectBaseTestHelpers.putWithAlias] */
-@TestingApi
+@VisibleForTest
 fun <T, Builder : ObjectBase.Builder<T>> Builder.putWithAlias(
     name: String,
     alias: String,

@@ -11,7 +11,7 @@ import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
-import viaduct.graphql.schema.test.mkSchema
+import viaduct.graphql.schema.test.createSchema
 import viaduct.tenant.codegen.bytecode.util.assertKotlinTypeString
 import viaduct.tenant.codegen.bytecode.util.field
 import viaduct.tenant.codegen.bytecode.util.typedef
@@ -31,10 +31,10 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `isNode -- object`() {
-        assertFalse(mkSchema("type Obj { empty: Int }").typedef("Obj").isNode)
-        assertFalse(mkSchema("type Node { empty: Int }").typedef("Node").isNode)
+        assertFalse(createSchema("type Obj { empty: Int }").typedef("Obj").isNode)
+        assertFalse(createSchema("type Node { empty: Int }").typedef("Node").isNode)
 
-        mkSchema(
+        createSchema(
             """
             interface I { empty: Int }
             type O implements I { empty: Int }
@@ -43,7 +43,7 @@ class ViaductSchemaExtensionsTest {
             assertFalse(typedef("O").isNode)
         }
 
-        mkSchema(
+        createSchema(
             """
                 interface Node { empty: Int }
                 type O implements Node { empty: Int }
@@ -55,21 +55,21 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `isNode -- scalar`() {
-        assertFalse(mkSchema("scalar Scalar").typedef("Scalar").isNode)
-        assertFalse(mkSchema("scalar Node").typedef("Node").isNode)
+        assertFalse(createSchema("scalar Scalar").typedef("Scalar").isNode)
+        assertFalse(createSchema("scalar Node").typedef("Node").isNode)
     }
 
     @Test
     fun `isNode -- enum`() {
-        assertFalse(mkSchema("enum E { empty }").typedef("E").isNode)
-        assertFalse(mkSchema("enum Node { empty }").typedef("Node").isNode)
+        assertFalse(createSchema("enum E { empty }").typedef("E").isNode)
+        assertFalse(createSchema("enum Node { empty }").typedef("Node").isNode)
     }
 
     @Test
     fun `isNode -- interface`() {
-        assertFalse(mkSchema("interface I { empty: Int }").typedef("I").isNode)
+        assertFalse(createSchema("interface I { empty: Int }").typedef("I").isNode)
 
-        mkSchema(
+        createSchema(
             """
                 interface Super { empty: Int }
                 interface I implements Super { empty: Int }
@@ -79,10 +79,10 @@ class ViaductSchemaExtensionsTest {
         }
 
         assertTrue(
-            mkSchema("interface Node { empty: Int }").typedef("Node").isNode
+            createSchema("interface Node { empty: Int }").typedef("Node").isNode
         )
 
-        mkSchema(
+        createSchema(
             """
                 interface Node { empty: Int }
                 interface I implements Node { empty: Int }
@@ -95,20 +95,20 @@ class ViaductSchemaExtensionsTest {
     @Test
     fun `isNode -- input`() {
         assertFalse(
-            mkSchema("input I { empty: Int }").typedef("I").isNode
+            createSchema("input I { empty: Int }").typedef("I").isNode
         )
     }
 
     @Test
     fun `isConnection -- object`() {
         assertFalse(
-            mkSchema("type O { empty: Int }").typedef("O").isConnection
+            createSchema("type O { empty: Int }").typedef("O").isConnection
         )
         assertFalse(
-            mkSchema("type PagedConnection { empty: Int }").typedef("PagedConnection").isConnection
+            createSchema("type PagedConnection { empty: Int }").typedef("PagedConnection").isConnection
         )
 
-        mkSchema(
+        createSchema(
             """
             interface Super { empty: Int }
             interface O implements Super { empty: Int }
@@ -117,7 +117,7 @@ class ViaductSchemaExtensionsTest {
             assertFalse(typedef("O").isConnection)
         }
 
-        mkSchema(
+        createSchema(
             """
             interface PagedConnection { empty: Int }
             interface O implements PagedConnection { empty: Int }
@@ -129,27 +129,27 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `isConnection -- scalar`() {
-        assertFalse(mkSchema("scalar S").typedef("S").isConnection)
+        assertFalse(createSchema("scalar S").typedef("S").isConnection)
         assertFalse(
-            mkSchema("scalar PagedConnection").typedef("PagedConnection").isConnection
+            createSchema("scalar PagedConnection").typedef("PagedConnection").isConnection
         )
     }
 
     @Test
     fun `isConnection -- enum`() {
-        assertFalse(mkSchema("enum E").typedef("E").isConnection)
+        assertFalse(createSchema("enum E").typedef("E").isConnection)
         assertFalse(
-            mkSchema("enum PagedConnection").typedef("PagedConnection").isConnection
+            createSchema("enum PagedConnection").typedef("PagedConnection").isConnection
         )
     }
 
     @Test
     fun `isConnection -- interface`() {
         assertFalse(
-            mkSchema("interface I { empty: Int }").typedef("I").isConnection
+            createSchema("interface I { empty: Int }").typedef("I").isConnection
         )
 
-        mkSchema(
+        createSchema(
             """
                 interface Super { empty: Int }
                 interface I implements Super { empty: Int }
@@ -159,10 +159,10 @@ class ViaductSchemaExtensionsTest {
         }
 
         assertTrue(
-            mkSchema("interface PagedConnection { empty: Int }").typedef("PagedConnection").isConnection
+            createSchema("interface PagedConnection { empty: Int }").typedef("PagedConnection").isConnection
         )
 
-        mkSchema(
+        createSchema(
             """
             interface PagedConnection { empty: Int }
             interface I implements PagedConnection { empty: Int }
@@ -174,12 +174,12 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `isConnection -- input`() {
-        assertFalse(mkSchema("input I { empty: Int }").typedef("I").isConnection)
+        assertFalse(createSchema("input I { empty: Int }").typedef("I").isConnection)
     }
 
     @Test
     fun `hasReflectedType`() {
-        mkSchema(
+        createSchema(
             """
                 type Obj { empty: Int }
                 input Inp { empty: Int }
@@ -201,7 +201,7 @@ class ViaductSchemaExtensionsTest {
     @Test
     fun `kotlinTypeString -- lists and nulls`() {
         // lists and nulls
-        mkSchema(
+        createSchema(
             """
                 type Obj {
                     f1: Int
@@ -223,7 +223,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `kotlinTypeString -- scalars`() {
-        mkSchema(
+        createSchema(
             """
                 scalar JSON
                 scalar Date
@@ -249,7 +249,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `ViaductBaseTypeMapper provides default OSS behavior`() {
-        val schema = mkSchema("type TestType { field: String }")
+        val schema = createSchema("type TestType { field: String }")
         // In OSS context, ViaductBaseTypeMapper should provide standard behavior
         val viaductMapper = ViaductBaseTypeMapper(schema)
 
@@ -292,7 +292,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `ViaductBaseTypeMapper addSchemaGRTReference handles Object types`() {
-        val schema = mkSchema("type TestObject { field: String }")
+        val schema = createSchema("type TestObject { field: String }")
         val mapper = ViaductBaseTypeMapper(schema)
         val builder = KmClassFilesBuilder()
         val objectDef = schema.typedef("TestObject") as ViaductSchema.Object
@@ -304,7 +304,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `ViaductBaseTypeMapper addSchemaGRTReference handles Interface types`() {
-        val schema = mkSchema("interface TestInterface { field: String }")
+        val schema = createSchema("interface TestInterface { field: String }")
         val mapper = ViaductBaseTypeMapper(schema)
         val builder = KmClassFilesBuilder()
         val interfaceDef = schema.typedef("TestInterface") as ViaductSchema.Interface
@@ -316,7 +316,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `ViaductBaseTypeMapper addSchemaGRTReference handles Union types`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             type TypeA { field: String }
             type TypeB { field: Int }
@@ -334,7 +334,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `ViaductBaseTypeMapper addSchemaGRTReference handles Input types`() {
-        val schema = mkSchema("input TestInput { field: String }")
+        val schema = createSchema("input TestInput { field: String }")
         val mapper = ViaductBaseTypeMapper(schema)
         val builder = KmClassFilesBuilder()
         val inputDef = schema.typedef("TestInput") as ViaductSchema.Input
@@ -346,7 +346,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `ViaductBaseTypeMapper addSchemaGRTReference handles Enum types`() {
-        val schema = mkSchema("enum TestEnum { VALUE_A, VALUE_B }")
+        val schema = createSchema("enum TestEnum { VALUE_A, VALUE_B }")
         val mapper = ViaductBaseTypeMapper(schema)
         val builder = KmClassFilesBuilder()
         val enumDef = schema.typedef("TestEnum") as ViaductSchema.Enum
@@ -358,7 +358,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `hashForSharding returns non-negative hash`() {
-        val schema = mkSchema("type TestType { field: String }")
+        val schema = createSchema("type TestType { field: String }")
         val typeDef = schema.typedef("TestType")
 
         val hash = typeDef.hashForSharding()
@@ -367,7 +367,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `hashForSharding handles negative hash codes`() {
-        val schema = mkSchema("type TestType { field: String }")
+        val schema = createSchema("type TestType { field: String }")
         val typeDef = schema.typedef("TestType")
 
         // Test that negative hash codes are made positive
@@ -381,7 +381,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `Object isEligible returns true for Query and Mutation`() {
-        val schema = mkSchema("type TestQuery { field: String }")
+        val schema = createSchema("type TestQuery { field: String }")
 
         // Manually create objects to test the logic since mkSchema creates default Query/Mutation
         val testObj = schema.typedef("TestQuery") as ViaductSchema.Object
@@ -392,7 +392,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `Object isEligible returns false for PagedConnection types`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             interface PagedConnection { edges: [String] }
             type TestConnection implements PagedConnection { edges: [String] }
@@ -405,7 +405,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `Interface noArgsAnywhere returns true when no args in interface or implementations`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             interface TestInterface { field: String }
             type TestObj implements TestInterface { field: String }
@@ -418,7 +418,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `Interface noArgsAnywhere returns false when interface field has args`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             interface TestInterface { field(arg: String): String }
             type TestObj implements TestInterface { field(arg: String): String }
@@ -431,7 +431,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `Interface noArgsAnywhere returns false when implementation adds args`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             interface TestInterface { field: String }
             type TestObj implements TestInterface { field(arg: String): String }
@@ -444,7 +444,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `hasViaductDefaultValue returns true for nullable fields`() {
-        val schema = mkSchema("type TestType { nullableField: String }")
+        val schema = createSchema("type TestType { nullableField: String }")
         val field = schema.field("TestType", "nullableField")
 
         assertTrue(field.hasViaductDefaultValue)
@@ -452,7 +452,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `hasViaductDefaultValue returns false for non-nullable fields`() {
-        val schema = mkSchema("type TestType { nonNullField: String! }")
+        val schema = createSchema("type TestType { nonNullField: String! }")
         val field = schema.field("TestType", "nonNullField")
 
         assertFalse(field.hasViaductDefaultValue)
@@ -460,7 +460,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `viaductDefaultValue returns null for nullable non-list fields`() {
-        val schema = mkSchema("type TestType { nullableField: String }")
+        val schema = createSchema("type TestType { nullableField: String }")
         val field = schema.field("TestType", "nullableField")
 
         assertNull(field.viaductDefaultValue)
@@ -468,7 +468,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `viaductDefaultValue returns empty list for nullable list fields in Object types`() {
-        val schema = mkSchema("type TestType { listField: [String] }")
+        val schema = createSchema("type TestType { listField: [String] }")
         val field = schema.field("TestType", "listField")
 
         val defaultValue = field.viaductDefaultValue
@@ -478,7 +478,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `viaductDefaultValue throws exception for non-nullable fields`() {
-        val schema = mkSchema("type TestType { nonNullField: String! }")
+        val schema = createSchema("type TestType { nonNullField: String! }")
         val field = schema.field("TestType", "nonNullField")
 
         assertThrows<NoSuchElementException> {
@@ -488,7 +488,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `viaductDefaultValue returns null for nullable fields in Input types`() {
-        val schema = mkSchema("input TestInput { nullableField: String }")
+        val schema = createSchema("input TestInput { nullableField: String }")
         val field = schema.field("TestInput", "nullableField")
 
         assertNull(field.viaductDefaultValue)
@@ -496,7 +496,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `kmType with useSchemaValueType returns Value class for eligible objects`() {
-        val schema = mkSchema("type TestObject { field: String }")
+        val schema = createSchema("type TestObject { field: String }")
         val field = schema.field("TestObject", "field")
 
         val kmType = field.kmType(KmName("pkg"), ViaductBaseTypeMapper(schema), isInput = false, useSchemaValueType = true)
@@ -507,7 +507,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `Object isEligible returns true for regular objects`() {
-        val schema = mkSchema("type RegularObject { field: String }")
+        val schema = createSchema("type RegularObject { field: String }")
         val obj = schema.typedef("RegularObject") as ViaductSchema.Object
 
         assertTrue(obj.isEligible(ViaductBaseTypeMapper(schema)))
@@ -517,7 +517,7 @@ class ViaductSchemaExtensionsTest {
     fun `Object isEligible returns false for objects in nativeGraphQLTypeToKmName`() {
         // This test would need to configure cfg.nativeGraphQLTypeToKmName
         // but since that's more complex, we'll test the PagedConnection case which is simpler
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             interface PagedConnection { edges: [String] }
             type TestConnection implements PagedConnection { edges: [String] }
@@ -530,7 +530,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `isPagedConnection returns true for objects implementing PagedConnection`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             interface PagedConnection { edges: [String] }
             type TestConnection implements PagedConnection { edges: [String] }
@@ -543,7 +543,7 @@ class ViaductSchemaExtensionsTest {
 
     @Test
     fun `isPagedConnection returns false for regular objects`() {
-        val schema = mkSchema("type RegularObject { field: String }")
+        val schema = createSchema("type RegularObject { field: String }")
         val obj = schema.typedef("RegularObject") as ViaductSchema.Object
 
         assertFalse(obj.isPagedConnection)

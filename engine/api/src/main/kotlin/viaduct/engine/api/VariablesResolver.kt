@@ -94,14 +94,14 @@ interface VariablesResolver {
                 if (extant != null) return extant
 
                 val vr = when (v) {
-                    is FromArgumentVariable -> mkFromArgument(v)
-                    is FromObjectFieldVariable -> mkFromField(
+                    is FromArgumentVariable -> createFromArgument(v)
+                    is FromObjectFieldVariable -> createFromField(
                         building,
                         v,
                         objectSelections ?: throw IllegalStateException("No object selections provided, can't resolve variable `${v.name}` from object field `${v.valueFromPath}`")
                     )
 
-                    is FromQueryFieldVariable -> mkFromField(
+                    is FromQueryFieldVariable -> createFromField(
                         building,
                         v,
                         querySelections ?: throw IllegalStateException("No query selections provided, can't resolve variable `${v.name}` from query field `${v.valueFromPath}`")
@@ -111,12 +111,12 @@ interface VariablesResolver {
                 return vr
             }
 
-            private fun mkFromArgument(v: FromArgumentVariable): VariablesResolver {
+            private fun createFromArgument(v: FromArgumentVariable): VariablesResolver {
                 val path = v.valueFromPath.split(".")
                 return FromArgument(v.name, path)
             }
 
-            private fun mkFromField(
+            private fun createFromField(
                 building: Set<String>,
                 v: FromFieldVariable,
                 selections: ParsedSelections

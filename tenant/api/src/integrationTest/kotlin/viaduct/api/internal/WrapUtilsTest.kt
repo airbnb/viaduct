@@ -20,7 +20,7 @@ import viaduct.engine.api.gj
 
 class WrapUtilsTest {
     private val schema = SchemaUtils.getSchema()
-    private val internalContext = MockInternalContext.mk(schema, "viaduct.api.testschema")
+    private val internalContext = MockInternalContext.create(schema, "viaduct.api.testschema")
 
     @Test
     fun `wrapEnum -- simple`() {

@@ -272,7 +272,7 @@ class MockTenantModuleBootstrapperDSL<F : Any>(
                 variableProviders.add(MockVariablesResolver(*names, requiredSelectionSet = rss, resolveFn = resolveFn))
             }
 
-            internal fun toRSS() = mkRSS(typeName, objectSelectionsText, variableProviders, forChecker = forChecker)
+            internal fun toRSS() = createRSS(typeName, objectSelectionsText, variableProviders, forChecker = forChecker)
         }
 
         @TenantModuleBootstrapperDsl
@@ -414,7 +414,7 @@ class MockTenantModuleBootstrapperDSL<F : Any>(
                 variableProviders.add(MockVariablesResolver(*names, resolveFn = resolveFn))
             }
 
-            internal fun toRSS() = mkRSS(typeName, objectSelectionsText, variableProviders, forChecker)
+            internal fun toRSS() = createRSS(typeName, objectSelectionsText, variableProviders, forChecker)
         }
 
         @TenantModuleBootstrapperDsl

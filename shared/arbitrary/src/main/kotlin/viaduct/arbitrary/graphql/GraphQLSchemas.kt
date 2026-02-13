@@ -49,7 +49,7 @@ internal object SchemaGenerator {
     }
 
     /** Generate a GraphQLSchema from a GraphQLTypes */
-    fun mkSchema(types: GraphQLTypes): Result<GraphQLSchema> =
+    fun createSchema(types: GraphQLTypes): Result<GraphQLSchema> =
         Result.runCatching {
             GraphQLSchema
                 .newSchema()
@@ -68,7 +68,7 @@ internal object SchemaGenerator {
                 .build()
         }
 
-    fun mkSchema(sdl: String): GraphQLSchema {
+    fun createSchema(sdl: String): GraphQLSchema {
         val tdr = SchemaParser().parse(sdl)
         return graphql.schema.idl
             .SchemaGenerator()
@@ -86,5 +86,5 @@ fun Arb.Companion.graphQLSchema(cfg: Config = Config.default): Arb<GraphQLSchema
 @JvmName("arbGraphQLSchema")
 fun Arb.Companion.graphQLSchema(types: Arb<GraphQLTypes>): Arb<GraphQLSchema> =
     types.map {
-        SchemaGenerator.mkSchema(it).getOrThrow()
+        SchemaGenerator.createSchema(it).getOrThrow()
     }

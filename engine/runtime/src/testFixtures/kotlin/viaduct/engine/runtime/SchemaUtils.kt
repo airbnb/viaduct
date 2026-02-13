@@ -6,7 +6,7 @@ import graphql.schema.idl.SchemaParser
 import org.intellij.lang.annotations.Language
 import viaduct.engine.api.ViaductSchema
 
-fun mkSchema(
+fun createSchema(
     @Language("GraphQL") sdl: String
 ): ViaductSchema {
     val tdr = SchemaParser().parse(sdl)

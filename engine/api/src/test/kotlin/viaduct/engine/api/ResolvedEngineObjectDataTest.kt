@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.mocks.mkSchema
+import viaduct.engine.api.mocks.createSchema
 
 class ResolvedEngineObjectDataTest {
-    private val schema = mkSchema(
+    private val schema = createSchema(
         """
             type Obj { x:Int }
             extend type Query { x:Int }

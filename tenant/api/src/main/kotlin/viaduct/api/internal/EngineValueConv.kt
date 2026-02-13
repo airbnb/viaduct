@@ -306,7 +306,7 @@ object EngineValueConv {
 
                 is GraphQLObjectType ->
                     memo.memoizeIf(type.name, selectionSet == null) {
-                        val selectionConvs = mkSelectionConvs(schema, type, selectionSet, ::mk)
+                        val selectionConvs = createSelectionConvs(schema, type, selectionSet, ::mk)
                         engineObjectData(
                             type,
                             obj(type.name, selectionConvs)

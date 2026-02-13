@@ -15,7 +15,7 @@ import kotlin.annotation.AnnotationTarget.TYPEALIAS
  *
  * To use testing code, annotate the test file or element with:
  *
- * @file:OptIn(TestingApi::class)
+ * @file:OptIn(VisibleForTest::class)
  */
 @RequiresOptIn(
     message = "This API is intended for testing only. Do not use it from production code.",
@@ -31,4 +31,4 @@ import kotlin.annotation.AnnotationTarget.TYPEALIAS
     PROPERTY_GETTER,
     PROPERTY_SETTER,
 )
-annotation class TestingApi
+annotation class VisibleForTest

@@ -3,7 +3,7 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
 import getEscapedFieldName
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
@@ -13,7 +13,7 @@ import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.hasReflectedType
 import viaduct.tenant.codegen.bytecode.config.kmType
 
-@TestingApi
+@VisibleForTest
 fun KotlinGRTFilesBuilder.reflectedTypeGen(def: ViaductSchema.TypeDef): STContents = STContents(stGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper))
 
 private interface ReflectedTypeModel {

@@ -5,5 +5,5 @@ import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.test.ViaductSchemaContract
 
 class GJSchemaRawViaductExtendedContractTest : ViaductSchemaContract {
-    override fun makeSchema(schema: String): ViaductSchema = ViaductSchema.fromTypeDefinitionRegistry(readTypes(schema))
+    override fun createSchema(schema: String): ViaductSchema = ViaductSchema.fromTypeDefinitionRegistry(readTypes(schema))
 }

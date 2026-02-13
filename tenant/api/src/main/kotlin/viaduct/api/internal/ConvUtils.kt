@@ -49,7 +49,7 @@ internal val GraphQLCompositeType.mappableFields: List<GraphQLFieldDefinition> g
  *   If [selectionSet] is null, the returned Map will be keyed by field name
  *   If [selectionSet] is not null, the returned Map will be keyed by selection name
  */
-internal fun <From, To> mkSelectionConvs(
+internal fun <From, To> createSelectionConvs(
     schema: ViaductSchema,
     type: GraphQLObjectType,
     selectionSet: RawSelectionSet?,

@@ -6,6 +6,6 @@ tasks.withType<KotlinCompile>().configureEach {
     compilerOptions {
         optIn.add("viaduct.apiannotations.ExperimentalApi")
         optIn.add("viaduct.apiannotations.InternalApi")
-        optIn.add("viaduct.apiannotations.TestingApi")
+        optIn.add("viaduct.apiannotations.VisibleForTest")
     }
 }

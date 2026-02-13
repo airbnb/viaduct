@@ -8,7 +8,7 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.apiannotations.StableApi
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
 /**
  * Type-safe tester for field resolvers.
@@ -65,7 +65,7 @@ import viaduct.apiannotations.TestingApi
  * @since 1.0
  */
 @StableApi
-@TestingApi
+@VisibleForTest
 interface FieldResolverTester<T : Object, Q : Query, A : Arguments, O : CompositeOutput> : ResolverTester {
     /**
      * Test a field resolver with the provided configuration.

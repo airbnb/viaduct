@@ -7,7 +7,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.mkRSS
+import viaduct.engine.api.mocks.createRSS
 
 class CheckerSelectionSetsAreProperlyTypedTest {
     @Test
@@ -163,5 +163,5 @@ class CheckerSelectionSetsAreProperlyTypedTest {
     private fun mkCheckerRSS(
         typeName: String,
         selectionString: String
-    ): RequiredSelectionSet = mkRSS(typeName, selectionString, forChecker = true)
+    ): RequiredSelectionSet = createRSS(typeName, selectionString, forChecker = true)
 }

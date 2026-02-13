@@ -15,9 +15,9 @@ import viaduct.api.internal.NodeResolverBase
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.InternalApi
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
-@OptIn(TestingApi::class, InternalApi::class)
+@OptIn(VisibleForTest::class, InternalApi::class)
 class NodeResolverTesterTest {
     companion object {
         private const val TEST_SCHEMA_SDL = """

@@ -18,7 +18,7 @@ typealias NSE = NoSuchElementException
  *
  * This interface provides a comprehensive set of JUnit 5 tests that verify
  * the behavioral correctness of any [ViaductSchema] implementation. Implementers
- * need only provide a [makeSchema] factory method, and they receive extensive
+ * need only provide a [createSchema] factory method, and they receive extensive
  * test coverage for:
  *
  * - Default value handling for fields and arguments
@@ -102,18 +102,18 @@ interface ViaductSchemaContract {
      * @param schema A valid GraphQL SDL string
      * @return A [ViaductSchema] parsed from the SDL
      */
-    fun makeSchema(schema: String): ViaductSchema
+    fun createSchema(schema: String): ViaductSchema
 
     @Test
     fun `Effective default funs should throw on fields of output types`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            type Query {
-                foo: String
-            }
-            interface F {
-                foo: String
-            }
+                type Query {
+                    foo: String
+                }
+                interface F {
+                    foo: String
+                }
             """.trimIndent()
         ).apply {
             withField("Query", "foo") {
@@ -129,14 +129,14 @@ interface ViaductSchemaContract {
 
     @Test
     fun `Effective default funs should throw on has-defaults with no default`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            type Query {
-                foo(bar: String!): String
-            }
-            input I {
-                foo: String!
-            }
+                type Query {
+                    foo(bar: String!): String
+                }
+                input I {
+                    foo: String!
+                }
             """.trimIndent()
         ).apply {
             withArg("Query", "foo", "bar") {
@@ -152,15 +152,15 @@ interface ViaductSchemaContract {
 
     @Test
     fun `Effective default funs shouldn't throw on has-defaults not from output types`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            type Query {
-                foo(a: String, b: Int! = 1): String
-            }
-            input I {
-                a: String
-                b: Int! = 1
-            }
+                type Query {
+                    foo(a: String, b: Int! = 1): String
+                }
+                input I {
+                    a: String
+                    b: Int! = 1
+                }
             """.trimIndent()
         ).apply {
             withArg("Query", "foo", "a") {
@@ -184,20 +184,20 @@ interface ViaductSchemaContract {
 
     @Test
     fun `Test the fields getter that takes a path`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            type Query {
-                a: A
-            }
-            interface A {
-                b: B
-            }
-            interface B {
-                c: C
-            }
-            type C {
-                d: String
-            }
+                type Query {
+                    a: A
+                }
+                interface A {
+                    b: B
+                }
+                interface B {
+                    c: C
+                }
+                type C {
+                    d: String
+                }
             """.trimIndent()
         ).apply {
             val query = this.types["Query"]!! as ViaductSchema.Object
@@ -212,12 +212,12 @@ interface ViaductSchemaContract {
 
     @Test
     fun `isOverride is computed correctly`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            type Query { foo: String }
-            interface A { a: String }
-            interface B implements A { a: String! b: String }
-            interface C implements A&B { a: String! b: String c: Int }
+                type Query { foo: String }
+                interface A { a: String }
+                interface B implements A { a: String! b: String }
+                interface C implements A&B { a: String! b: String c: Int }
             """.trimIndent()
         ).apply {
             withField("A", "a") {
@@ -243,14 +243,14 @@ interface ViaductSchemaContract {
 
     @Test
     fun `Descriptions are descriptive`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            type Query { foo(a: Int): String }
-            enum E { A }
-            input I { a: Int }
-            interface A { a(b: [String]): Int }
-            scalar S
-            union U = Query
+                type Query { foo(a: Int): String }
+                enum E { A }
+                input I { a: Int }
+                interface A { a(b: [String]): Int }
+                scalar S
+                union U = Query
             """.trimIndent()
         ).apply {
             withType("Query") { assertToStingContains("Query", it, "Object") }
@@ -270,24 +270,24 @@ interface ViaductSchemaContract {
 
     @Test
     fun `asTypeExpr works`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            enum E { A }
-            input I { a: Int }
-            interface A { a(b: [String]): Int }
-            union U = Query
-            type Query {
-              e0: E
-              e1: E!
-              e2: [E]
-              i0(i:I): String
-              a0: A
-              s0: String
-              s1: String!
-              s2: [String]
-              q0: Query
-              u0: U
-            }
+                enum E { A }
+                input I { a: Int }
+                interface A { a(b: [String]): Int }
+                union U = Query
+                type Query {
+                  e0: E
+                  e1: E!
+                  e2: [E]
+                  i0(i:I): String
+                  a0: A
+                  s0: String
+                  s1: String!
+                  s2: [String]
+                  q0: Query
+                  u0: U
+                }
             """.trimIndent()
         ).apply {
             withField("Query", "e0") {
@@ -350,11 +350,11 @@ interface ViaductSchemaContract {
     @Test
     fun `oneOf directive application`() {
         fun mkSchema(sdl: String) =
-            makeSchema(
+            this@ViaductSchemaContract.createSchema(
                 """
-                schema { query: Query }
-                type Query { placeholder: Int }
-                $sdl
+                        schema { query: Query }
+                        type Query { placeholder: Int }
+                        $sdl
                 """.trimIndent()
             )
 
@@ -389,22 +389,22 @@ interface ViaductSchemaContract {
 
     @Test
     fun `test extension lists are properly constructed`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            directive @d1 on UNION
-            type Query { f1: String }
-            extend type Query { f2: Int }
-            interface A { f1: String }
-            extend interface A { f2: Int }
-            enum E { V1 }
-            extend enum E { V2 }
-            input I { f1: String }
-            extend input I { f2: Int }
-            type T1 { f1: String }
-            type T2 { f2: Int }
-            union U = T1
-            extend union U = T2
-            extend union U @d1
+                directive @d1 on UNION
+                type Query { f1: String }
+                extend type Query { f2: Int }
+                interface A { f1: String }
+                extend interface A { f2: Int }
+                enum E { V1 }
+                extend enum E { V2 }
+                input I { f1: String }
+                extend input I { f2: Int }
+                type T1 { f1: String }
+                type T2 { f2: Int }
+                union U = T1
+                extend union U = T2
+                extend union U @d1
             """.trimIndent()
         ).apply {
             withExtensions("Query") {
@@ -442,50 +442,50 @@ interface ViaductSchemaContract {
 
     @Test
     fun `test appliedDirectives returns the right list of directive names`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            directive @d1 on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
-            directive @d2 on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
-            directive @d3 on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
-            directive @d4 on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
-            directive @d5 on ARGUMENT_DEFINITION
-            directive @d6 on ARGUMENT_DEFINITION
-            directive @d7 on SCALAR
-            directive @d8 on SCALAR
-            scalar CustomScalar @d7
-            extend scalar CustomScalar @d8
-            type Query @d1 {
-                f1: String @d3
-                f3(arg1: String @d5): Int
-            }
-            extend type Query @d2 {
-                f2: Int @d3 @d4
-                f4(arg2: Int @d5 @d6): String
-            }
-            enum Enum @d1 {
-                V1 @d3
-            }
-            extend enum Enum @d2 {
-                V2 @d3 @d4
-            }
-            input Input @d1 {
-                f1: Boolean @d3
-            }
-            extend input Input @d2 {
-                f2: Float @d3 @d4
-            }
-            interface Interface @d1 {
-                f1: Enum @d3
-                f3(arg3: Boolean @d5): String
-            }
-            extend interface Interface @d2 {
-                f2: String @d3 @d4
-            }
-            type Object {
-                f1: String
-            }
-            union Union @d1 = Query
-            extend union Union @d2 = Object
+                directive @d1 on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+                directive @d2 on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+                directive @d3 on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
+                directive @d4 on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ENUM_VALUE
+                directive @d5 on ARGUMENT_DEFINITION
+                directive @d6 on ARGUMENT_DEFINITION
+                directive @d7 on SCALAR
+                directive @d8 on SCALAR
+                scalar CustomScalar @d7
+                extend scalar CustomScalar @d8
+                type Query @d1 {
+                    f1: String @d3
+                    f3(arg1: String @d5): Int
+                }
+                extend type Query @d2 {
+                    f2: Int @d3 @d4
+                    f4(arg2: Int @d5 @d6): String
+                }
+                enum Enum @d1 {
+                    V1 @d3
+                }
+                extend enum Enum @d2 {
+                    V2 @d3 @d4
+                }
+                input Input @d1 {
+                    f1: Boolean @d3
+                }
+                extend input Input @d2 {
+                    f2: Float @d3 @d4
+                }
+                interface Interface @d1 {
+                    f1: Enum @d3
+                    f3(arg3: Boolean @d5): String
+                }
+                extend interface Interface @d2 {
+                    f2: String @d3 @d4
+                }
+                type Object {
+                    f1: String
+                }
+                union Union @d1 = Query
+                extend union Union @d2 = Object
             """.trimIndent()
         ).apply {
             listOf("Query", "Enum", "Input", "Interface", "Union").forEach {
@@ -545,33 +545,33 @@ interface ViaductSchemaContract {
             assertInstanceOf(ViaductSchema.StringLiteral::class.java, argValue)
             assertEquals(a1Value, (argValue as ViaductSchema.StringLiteral).value)
         }
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            directive @d1(a1: String) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
-            type Query @d1(a1: "obj1") {
-                f1: String
-            }
-            extend type Query @d1(a1: "obj2") {
-                f2: Int
-            }
-            enum Enum @d1(a1: "enum1") {
-                V1
-            }
-            extend enum Enum @d1(a1: "enum2") {
-                V2
-            }
-            input Input @d1(a1: "input1") {
-                f1: Int
-            }
-            extend input Input @d1(a1: "input2") {
-                f2: Boolean
-            }
-            interface Interface @d1(a1: "interf1") {
-                f1: Enum
-            }
-            extend interface Interface @d1(a1: "interf2") {
-                f2: String
-            }
+                directive @d1(a1: String) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+                type Query @d1(a1: "obj1") {
+                    f1: String
+                }
+                extend type Query @d1(a1: "obj2") {
+                    f2: Int
+                }
+                enum Enum @d1(a1: "enum1") {
+                    V1
+                }
+                extend enum Enum @d1(a1: "enum2") {
+                    V2
+                }
+                input Input @d1(a1: "input1") {
+                    f1: Int
+                }
+                extend input Input @d1(a1: "input2") {
+                    f2: Boolean
+                }
+                interface Interface @d1(a1: "interf1") {
+                    f1: Enum
+                }
+                extend interface Interface @d1(a1: "interf2") {
+                    f2: String
+                }
             """.trimIndent()
         ).apply {
             withEnumValue("Enum", "V1") { assertions(it.containingExtension.appliedDirectives, "enum1") }
@@ -590,16 +590,16 @@ interface ViaductSchemaContract {
 
     @Test
     fun `test root referential integrity`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            schema {
-               query: Foo
-               mutation: Bar
-               subscription: Baz
-            }
-            type Foo { blank: String }
-            type Bar { blank: String }
-            type Baz { blank: String }
+                schema {
+                   query: Foo
+                   mutation: Bar
+                   subscription: Baz
+                }
+                type Foo { blank: String }
+                type Bar { blank: String }
+                type Baz { blank: String }
             """.trimIndent()
         ).apply {
             assertSame(this.types["Foo"], this.queryTypeDef)
@@ -610,12 +610,12 @@ interface ViaductSchemaContract {
 
     @Test
     fun `test null roots are null`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            schema {
-               query: Query
-            }
-            type Query { blank: String }
+                schema {
+                   query: Query
+                }
+                type Query { blank: String }
             """.trimIndent()
         ).apply {
             assertNull(this.mutationTypeDef)
@@ -625,16 +625,16 @@ interface ViaductSchemaContract {
 
     @Test
     fun `test containingSchema referential integrity`() {
-        makeSchema(
+        this@ViaductSchemaContract.createSchema(
             """
-            directive @d1 on OBJECT
-            type Query { foo: String }
-            enum E { A }
-            input I { a: Int }
-            interface A { a: String }
-            scalar S
-            type T implements A { a: String }
-            union U = Query | T
+                directive @d1 on OBJECT
+                type Query { foo: String }
+                enum E { A }
+                input I { a: Int }
+                interface A { a: String }
+                scalar S
+                type T implements A { a: String }
+                union U = Query | T
             """.trimIndent()
         ).apply {
             // Every TypeDef's containingSchema should be this schema

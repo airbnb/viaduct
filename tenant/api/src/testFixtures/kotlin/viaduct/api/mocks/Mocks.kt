@@ -14,7 +14,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
-fun mkSchema(sdl: String): GraphQLSchema {
+fun createSchema(sdl: String): GraphQLSchema {
     val tdr = SchemaParser().parse(sdl)
     return SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING)
 }

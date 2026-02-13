@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.internal.EODBuilderWrapper
-import viaduct.api.mocks.mkSchema
+import viaduct.api.mocks.createSchema
 import viaduct.engine.api.EngineObjectData
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -23,7 +23,7 @@ class EODBuilderWrapperTest {
         VALUE_B
     }
 
-    private val testSchema = mkSchema(
+    private val testSchema = createSchema(
         """
         type Query {
             placeholder: String
@@ -93,7 +93,7 @@ class EODBuilderWrapperTest {
     @Test
     fun `unwrapEnum rejects null for non-null enum field`() {
         // Create schema with non-null enum field
-        val schemaWithNonNull = mkSchema(
+        val schemaWithNonNull = createSchema(
             """
             type Query {
                 placeholder: String
@@ -161,7 +161,7 @@ class EODBuilderWrapperTest {
 
     @Test
     fun `unwrapEnum handles list of enum values`() {
-        val schemaWithList = mkSchema(
+        val schemaWithList = createSchema(
             """
             type Query {
                 placeholder: String
@@ -190,7 +190,7 @@ class EODBuilderWrapperTest {
 
     @Test
     fun `unwrapEnum handles list with null values`() {
-        val schemaWithList = mkSchema(
+        val schemaWithList = createSchema(
             """
             type Query {
                 placeholder: String
@@ -217,7 +217,7 @@ class EODBuilderWrapperTest {
 
     @Test
     fun `unwrapEnum rejects invalid type in list`() {
-        val schemaWithList = mkSchema(
+        val schemaWithList = createSchema(
             """
             type Query {
                 placeholder: String

@@ -14,8 +14,8 @@ import viaduct.api.grts.TestArgObject
 import viaduct.codegen.utils.JavaName
 import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.graphql.schema.test.mkGraphQLSchema
-import viaduct.graphql.schema.test.mkSchema
+import viaduct.graphql.schema.test.createGraphQLSchema
+import viaduct.graphql.schema.test.createSchema
 import viaduct.invariants.InvariantChecker
 
 class ExerciserForInputV2Test {
@@ -23,8 +23,8 @@ class ExerciserForInputV2Test {
         sdl: String = "",
         val dataClass: KClass<*>,
     ) {
-        val schema = mkSchema(sdl)
-        val graphqlSchema = ViaductGraphQLSchema(mkGraphQLSchema(sdl))
+        val schema = createSchema(sdl)
+        val graphqlSchema = ViaductGraphQLSchema(createGraphQLSchema(sdl))
 
         fun exerciseInputV2(check: InvariantChecker = InvariantChecker()): InvariantChecker =
             check.also {

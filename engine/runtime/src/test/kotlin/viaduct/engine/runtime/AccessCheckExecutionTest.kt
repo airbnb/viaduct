@@ -11,10 +11,10 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.mocks.createRSS
+import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.featureTestDefault
-import viaduct.engine.api.mocks.mkEngineObjectData
-import viaduct.engine.api.mocks.mkRSS
-import viaduct.engine.api.mocks.mkSchemaWithWiring
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.service.api.spi.ErrorBuilder
@@ -56,7 +56,7 @@ class AccessCheckExecutionTest {
             }
         """.trimIndent()
 
-        private val schema = mkSchemaWithWiring(SDL)
+        private val schema = createSchemaWithWiring(SDL)
         private val booType = schema.schema.getObjectType("Boo")
         private val bazType = schema.schema.getObjectType("Baz")
         private val barType = schema.schema.getObjectType("Bar")
@@ -65,7 +65,7 @@ class AccessCheckExecutionTest {
     @Test
     fun `no checkers`() {
         MockTenantModuleBootstrapper(schema) {
-            fieldWithValue("Query" to "boo", mkEngineObjectData(booType, mapOf("value" to 5)))
+            fieldWithValue("Query" to "boo", createEngineObjectData(booType, mapOf("value" to 5)))
         }.runFeatureTest {
             runQuery("{ boo { value } }")
                 .assertJson("{data: {boo: {value: 5}}}")
@@ -78,7 +78,7 @@ class AccessCheckExecutionTest {
         var syncFieldCheckerRan = false
 
         MockTenantModuleBootstrapper(schema) {
-            fieldWithValue("Query" to "boo", mkEngineObjectData(booType, mapOf("value" to 5)))
+            fieldWithValue("Query" to "boo", createEngineObjectData(booType, mapOf("value" to 5)))
             field("Query" to "boo") {
                 checker {
                     fn { _, _ -> asyncFieldCheckerRan = true }
@@ -101,7 +101,7 @@ class AccessCheckExecutionTest {
     @Test
     fun `async field successful, checker throws`() {
         MockTenantModuleBootstrapper(schema) {
-            fieldWithValue("Query" to "boo", mkEngineObjectData(booType, mapOf("value" to 5)))
+            fieldWithValue("Query" to "boo", createEngineObjectData(booType, mapOf("value" to 5)))
             field("Query" to "boo") {
                 checker {
                     fn { _, _ -> throw RuntimeException("permission denied") }
@@ -120,7 +120,7 @@ class AccessCheckExecutionTest {
     @Test
     fun `sync field successful, checker throws`() {
         MockTenantModuleBootstrapper(SDL) {
-            fieldWithValue("Query" to "boo", mkEngineObjectData(booType, mapOf("value" to 5)))
+            fieldWithValue("Query" to "boo", createEngineObjectData(booType, mapOf("value" to 5)))
             field("Boo" to "value") {
                 checker {
                     fn { _, _ -> throw RuntimeException("permission denied") }
@@ -317,7 +317,7 @@ class AccessCheckExecutionTest {
                 value("foo")
                 checker {
                     objectSelections("key", "fragment _ on Query { plusOne(value: \$var) }") {
-                        variables("var", rss = mkRSS("Query", "string2", forChecker = true)) { ctx ->
+                        variables("var", rss = createRSS("Query", "string2", forChecker = true)) { ctx ->
                             val string2 = ctx.objectData.fetch("string2") as String
                             mapOf("var" to string2.toInt())
                         }
@@ -399,7 +399,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     fn { _, _ -> throw RuntimeException("type checker failed") }
@@ -420,7 +420,7 @@ class AccessCheckExecutionTest {
         MockTenantModuleBootstrapper(schema) {
             field("Query" to "boo") {
                 resolver {
-                    fn { _, _, _, _, _ -> mkEngineObjectData(booType, mapOf("value" to 2)) }
+                    fn { _, _, _, _, _ -> createEngineObjectData(booType, mapOf("value" to 2)) }
                 }
                 checker {
                     fn { _, _ -> /* access granted */ }
@@ -454,7 +454,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     fn { _, _ -> /* access granted */ }
@@ -477,7 +477,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     fn { _, _ -> throw RuntimeException("type checker failed") }
@@ -503,7 +503,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     fn { _, _ -> throw RuntimeException("type checker failed") }
@@ -529,7 +529,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     fn { _, _ -> throw RuntimeException("type checker failed") }
@@ -555,7 +555,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     fn { _, _ -> /* access granted */ }
@@ -585,7 +585,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     objectSelections("key", "fragment _ on Baz { y }")
@@ -629,7 +629,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     objectSelections("key", "fragment _ on Baz { y }")
@@ -673,7 +673,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     objectSelections("key", "fragment _ on Baz { y }")
@@ -728,7 +728,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     objectSelections("key", "fragment _ on Baz { y }")
@@ -780,7 +780,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     objectSelections("key", "fragment _ on Baz { y }")
@@ -795,7 +795,7 @@ class AccessCheckExecutionTest {
             }
             type("Bar") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(barType, mapOf("id" to id, "z" to id.toInt()))
+                    createEngineObjectData(barType, mapOf("id" to id, "z" to id.toInt()))
                 }
                 checker {
                     objectSelections("key", "fragment _ on Bar { z }")
@@ -864,7 +864,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     querySelections("key", "fragment _ on Query { string2 }")
@@ -928,7 +928,7 @@ class AccessCheckExecutionTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
+                    createEngineObjectData(bazType, mapOf("id" to id, "x" to id.toInt(), "y" to id))
                 }
                 checker {
                     querySelections("key", "fragment _ on Query { plusMany(value: \$var) }") {
@@ -989,8 +989,8 @@ class AccessCheckExecutionTest {
                 resolver {
                     fn { _, _, _, _, _ ->
                         listOf(
-                            mkEngineObjectData(bazType, mapOf("id" to 1)),
-                            mkEngineObjectData(bazType, mapOf("id" to 2)),
+                            createEngineObjectData(bazType, mapOf("id" to 1)),
+                            createEngineObjectData(bazType, mapOf("id" to 2)),
                         )
                     }
                 }

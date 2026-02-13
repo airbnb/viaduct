@@ -33,7 +33,7 @@ class MockRequiredSelectionSetRegistry(
         override val variablesResolvers: List<VariablesResolver>
     ) : FieldEntry(coord) {
         override val rss: RequiredSelectionSet by lazy {
-            mkRSS(selectionsType, selectionsString, variablesResolvers, forChecker = false)
+            createRSS(selectionsType, selectionsString, variablesResolvers, forChecker = false)
         }
     }
 
@@ -47,7 +47,7 @@ class MockRequiredSelectionSetRegistry(
         override val variablesResolvers: List<VariablesResolver>
     ) : FieldEntry(coord) {
         override val rss: RequiredSelectionSet by lazy {
-            mkRSS(selectionsType, selectionsString, variablesResolvers, forChecker = true)
+            createRSS(selectionsType, selectionsString, variablesResolvers, forChecker = true)
         }
     }
 
@@ -61,7 +61,7 @@ class MockRequiredSelectionSetRegistry(
         override val variablesResolvers: List<VariablesResolver>
     ) : RequiredSelectionSetEntry() {
         override val rss: RequiredSelectionSet by lazy {
-            mkRSS(selectionsType, selectionsString, variablesResolvers, forChecker = true)
+            createRSS(selectionsType, selectionsString, variablesResolvers, forChecker = true)
         }
     }
 

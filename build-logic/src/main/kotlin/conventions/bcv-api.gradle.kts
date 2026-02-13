@@ -21,7 +21,7 @@ configure<ApiValidationExtension> {
     publicMarkers.add("viaduct.apiannotations.StableApi")
     nonPublicMarkers.add("viaduct.apiannotations.ExperimentalApi")
     nonPublicMarkers.add("viaduct.apiannotations.InternalApi")
-    nonPublicMarkers.add("viaduct.apiannotations.TestingApi")
+    nonPublicMarkers.add("viaduct.apiannotations.VisibleForTest")
 }
 
 // We need to control apiCheck execution

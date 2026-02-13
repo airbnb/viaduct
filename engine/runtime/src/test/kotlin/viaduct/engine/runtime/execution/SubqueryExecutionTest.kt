@@ -9,10 +9,10 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
-import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.EngineExecutionContextImpl
 
@@ -60,7 +60,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -114,7 +114,7 @@ class SubqueryExecutionTest {
             field("Query" to "user") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("User"),
                             mapOf()
                         )
@@ -171,7 +171,7 @@ class SubqueryExecutionTest {
             field("Query" to "calculator") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Calculator"),
                             mapOf()
                         )
@@ -228,7 +228,7 @@ class SubqueryExecutionTest {
             field("Query" to "calculator") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Calculator"),
                             mapOf()
                         )
@@ -291,7 +291,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -355,7 +355,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -469,7 +469,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -533,7 +533,7 @@ class SubqueryExecutionTest {
             field("Query" to "level1") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Level1"),
                             mapOf()
                         )
@@ -544,7 +544,7 @@ class SubqueryExecutionTest {
             field("Level1" to "level2") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Level2"),
                             mapOf()
                         )
@@ -600,7 +600,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -661,7 +661,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -718,7 +718,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -800,7 +800,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -822,7 +822,7 @@ class SubqueryExecutionTest {
                         val result1 = mutationResult.fetchAs<Int>("field1")
                         val result2 = mutationResult.fetchAs<Int>("field2")
 
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("MutationResult"),
                             mapOf("result1" to result1, "result2" to result2)
                         )
@@ -867,7 +867,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -937,7 +937,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )
@@ -998,7 +998,7 @@ class SubqueryExecutionTest {
                 resolver {
                     fn { args, _, _, _, _ ->
                         val id = args.getAs<String>("id")
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("User"),
                             mapOf(
                                 "id" to id,
@@ -1014,7 +1014,7 @@ class SubqueryExecutionTest {
             field("Query" to "aggregator") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Aggregator"),
                             mapOf()
                         )
@@ -1053,7 +1053,7 @@ class SubqueryExecutionTest {
 
                         // Fetch the nested EngineObjectData and extract fields
                         val user = queryResult.fetchAs<EngineObjectData>("user")
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("UserSummary"),
                             mapOf(
                                 "userId" to user.fetch("id"),
@@ -1110,7 +1110,7 @@ class SubqueryExecutionTest {
             field("Query" to "container") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        mkEngineObjectData(
+                        createEngineObjectData(
                             schema.schema.getObjectType("Container"),
                             mapOf()
                         )

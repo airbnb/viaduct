@@ -80,7 +80,7 @@ class GraphQLTypesTest : KotestPropertyBase() {
     fun `Arb-graphQLTypes can be used to generate a valid schema`(): Unit =
         runBlocking {
             Arb.graphQLTypes(minimalConfig).checkAll(iterCount) {
-                SchemaGenerator.mkSchema(it).getOrThrow()
+                SchemaGenerator.createSchema(it).getOrThrow()
                 markSuccess()
             }
         }

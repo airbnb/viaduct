@@ -10,10 +10,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.UnsetSelectionException
-import viaduct.engine.api.mocks.mkSchema
+import viaduct.engine.api.mocks.createSchema
 
 class SyncProxyEngineObjectDataTest {
-    private val schema = mkSchema(
+    private val schema = createSchema(
         """
             type Obj { x: Int, y: String }
             extend type Query { x: Int }

@@ -202,7 +202,7 @@ class ViaductExecutionStrategy internal constructor(
     ): CompletableFuture<ExecutionResult> =
         coroutineInterop.scopedFuture {
             withRequestSupervisor { supervisorScopeFactory ->
-                val parameters = mkExecutionParameters(executionContext, gjParameters, supervisorScopeFactory)
+                val parameters = createExecutionParameters(executionContext, gjParameters, supervisorScopeFactory)
                 val objType = parameters.executionStepInfo.type as GraphQLObjectType
 
                 // return early if the query accesses the introspection schema when not allowed
@@ -249,7 +249,7 @@ class ViaductExecutionStrategy internal constructor(
         }
 
     /** Creates an ExecutionParameters configured with an ObjectEngineResult */
-    private suspend fun mkExecutionParameters(
+    private suspend fun createExecutionParameters(
         executionContext: ExecutionContext,
         gjParameters: ExecutionStrategyParameters,
         supervisorScopeFactory: (CoroutineContext) -> CoroutineScope

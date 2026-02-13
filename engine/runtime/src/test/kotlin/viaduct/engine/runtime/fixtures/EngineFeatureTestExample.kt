@@ -5,9 +5,9 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
-import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 
@@ -56,7 +56,7 @@ class EngineFeatureTestExample {
             """.trimIndent()
         ) {
             fieldWithValue("Query" to "one", 1)
-            fieldWithValue("Query" to "twoContainer", mkEngineObjectData(queryType, mapOf()))
+            fieldWithValue("Query" to "twoContainer", createEngineObjectData(queryType, mapOf()))
             field("TwoContainer" to "two") {
                 resolver {
                     querySelections("one")
@@ -149,7 +149,7 @@ class EngineFeatureTestExample {
             }
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(
+                    createEngineObjectData(
                         objectType,
                         mapOf("id" to id, "name" to "Test Node $id")
                     )

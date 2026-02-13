@@ -1,6 +1,6 @@
 package viaduct.engine.api
 
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
 /**
  * Represents the result of CheckerExecutor.execute, which will be stored into the checker slot
@@ -54,7 +54,7 @@ sealed interface CheckerResult {
     /**
      * Represents a successful check result that grants access.
      */
-    @TestingApi
+    @VisibleForTest
     object Success : CheckerResult {
         override val asError: Nothing? get() = null
     }

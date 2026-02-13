@@ -12,7 +12,7 @@ import viaduct.tenant.codegen.bytecode.util.typedef
 
 class BackingDataTest {
     private fun mkSchema(sdl: String = ""): ViaductSchema =
-        viaduct.graphql.schema.test.mkSchema(
+        viaduct.graphql.schema.test.createSchema(
             """
                 scalar BackingData
                 directive @backingData(class: String) on FIELD_DEFINITION

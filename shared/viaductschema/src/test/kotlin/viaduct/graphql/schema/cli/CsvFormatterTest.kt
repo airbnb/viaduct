@@ -4,7 +4,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.graphql.schema.test.mkSchema
+import viaduct.graphql.schema.test.createSchema
 
 class CsvFormatterTest {
     // ========== escapeForCsv() tests ==========
@@ -38,7 +38,7 @@ class CsvFormatterTest {
 
     @Test
     fun `formatDirectiveForCsv formats simple directive`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             directive @deprecated on FIELD_DEFINITION
             type Foo @deprecated {
@@ -57,7 +57,7 @@ class CsvFormatterTest {
 
     @Test
     fun `formatDirectiveForCsv formats directive with string argument`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             directive @doc(text: String!) on OBJECT
             type Foo @doc(text: "hello world") {
@@ -79,7 +79,7 @@ class CsvFormatterTest {
 
     @Test
     fun `formatDirectiveForCsv formats directive with list argument`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             directive @owners(teams: [String!]!) on OBJECT
             type Foo @owners(teams: ["team-a", "team-b"]) {
@@ -99,7 +99,7 @@ class CsvFormatterTest {
 
     @Test
     fun `formatDirectiveForCsv formats directive with boolean argument`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             directive @privacy(delegateToParent: Boolean!) on FIELD_DEFINITION
             type Foo {
@@ -130,7 +130,7 @@ class CsvFormatterTest {
 
     @Test
     fun `formatDirectivesForCsv returns one entry per directive`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             directive @a on OBJECT
             directive @b on OBJECT
@@ -152,7 +152,7 @@ class CsvFormatterTest {
 
     @Test
     fun `formatDirectivesForCsv handles repeatable directive`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             directive @tag(name: String!) repeatable on OBJECT
             type Foo @tag(name: "one") @tag(name: "two") {
@@ -170,7 +170,7 @@ class CsvFormatterTest {
 
     @Test
     fun `formatDirectivesForCsv preserves directive order`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             directive @first on OBJECT
             directive @second on OBJECT

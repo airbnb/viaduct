@@ -28,7 +28,7 @@ class MockFlagManagerTest {
         }
 
     @Test
-    fun mk(): Unit =
+    fun create(): Unit =
         runBlocking {
             val allFlags = Flags.values().toList()
             val enabledFlags = allFlags.take(1).toSet()

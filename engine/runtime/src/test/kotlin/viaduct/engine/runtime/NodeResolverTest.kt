@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
 @ExperimentalCoroutinesApi
@@ -44,7 +44,7 @@ class NodeResolverTest {
             }
             type("Baz") {
                 nodeUnbatchedExecutor { _, _, _ ->
-                    mkEngineObjectData(
+                    createEngineObjectData(
                         objectType,
                         mapOf("x" to 42)
                     )
@@ -70,7 +70,7 @@ class NodeResolverTest {
             type("Baz") {
                 nodeUnbatchedExecutor { _, _, _ ->
                     invoked = true
-                    mkEngineObjectData(objectType, mapOf())
+                    createEngineObjectData(objectType, mapOf())
                 }
             }
         }.runFeatureTest {
@@ -151,7 +151,7 @@ class NodeResolverTest {
                         delay(50)
                         throw RuntimeException("expected err")
                     } else {
-                        mkEngineObjectData(objectType, mapOf("x" to 1))
+                        createEngineObjectData(objectType, mapOf("x" to 1))
                     }
                 }
             }
@@ -201,7 +201,7 @@ class NodeResolverTest {
                     if (internalId % 2 == 0) {
                         throw RuntimeException("msg")
                     } else {
-                        mkEngineObjectData(objectType, mapOf("x" to internalId))
+                        createEngineObjectData(objectType, mapOf("x" to internalId))
                     }
                 }
             }
@@ -238,7 +238,7 @@ class NodeResolverTest {
                 nodeUnbatchedExecutor { id, _, _ ->
                     val internalId = id
                     execCounts.computeIfAbsent(internalId) { AtomicInteger(0) }.incrementAndGet()
-                    mkEngineObjectData(objectType, mapOf("x" to internalId.toInt()))
+                    createEngineObjectData(objectType, mapOf("x" to internalId.toInt()))
                 }
             }
         }.runFeatureTest {
@@ -284,7 +284,7 @@ class NodeResolverTest {
                 nodeUnbatchedExecutor { id, _, _ ->
                     val internalId = id
                     execCounts.computeIfAbsent(internalId) { AtomicInteger(0) }.incrementAndGet()
-                    mkEngineObjectData(objectType, mapOf("x" to 2))
+                    createEngineObjectData(objectType, mapOf("x" to 2))
                 }
             }
         }.runFeatureTest {
@@ -318,7 +318,7 @@ class NodeResolverTest {
             type("Baz") {
                 nodeUnbatchedExecutor { id, _, _ ->
                     execCounts.computeIfAbsent(id) { AtomicInteger(0) }.incrementAndGet()
-                    mkEngineObjectData(objectType, mapOf("x" to 2, "x2" to "foo"))
+                    createEngineObjectData(objectType, mapOf("x" to 2, "x2" to "foo"))
                 }
             }
         }.runFeatureTest {
@@ -353,7 +353,7 @@ class NodeResolverTest {
             type("Baz") {
                 nodeUnbatchedExecutor(selective = true) { id, _, _ ->
                     execCounts.computeIfAbsent(id) { AtomicInteger(0) }.incrementAndGet()
-                    mkEngineObjectData(objectType, mapOf("x" to 2, "x2" to "foo"))
+                    createEngineObjectData(objectType, mapOf("x" to 2, "x2" to "foo"))
                 }
             }
         }.runFeatureTest {
@@ -381,7 +381,7 @@ class NodeResolverTest {
             type("Baz") {
                 nodeUnbatchedExecutor { _, _, _ ->
                     execCount.incrementAndGet()
-                    mkEngineObjectData(objectType, mapOf("x" to 10))
+                    createEngineObjectData(objectType, mapOf("x" to 10))
                 }
             }
             field("Baz" to "x2") {

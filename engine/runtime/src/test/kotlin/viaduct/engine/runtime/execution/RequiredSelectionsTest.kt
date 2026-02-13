@@ -8,9 +8,9 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
-import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.graphql.scopes.ScopedSchemaBuilder
@@ -412,7 +412,7 @@ class RequiredSelectionsTest {
     fun `resolve field with queryValueFragment and objectValueFragment together`() =
         MockTenantModuleBootstrapper("extend type Query { globalConfig: String, baz: Baz } type Baz { x: Int, y: String }") {
             fieldWithValue("Query" to "globalConfig", "Premium")
-            fieldWithValue("Query" to "baz", mkEngineObjectData(schema.schema.getObjectType("Baz"), mapOf("x" to 100)))
+            fieldWithValue("Query" to "baz", createEngineObjectData(schema.schema.getObjectType("Baz"), mapOf("x" to 100)))
             field("Baz" to "y") {
                 resolver {
                     objectSelections("x")
@@ -554,9 +554,9 @@ class RequiredSelectionsTest {
     @Test
     fun `resolve field with queryValueFragment - nested object access`() =
         MockTenantModuleBootstrapper("extend type Query { bar: Bar, baz: Baz } type Bar { value: String } type Baz { x: Int, y: String }") {
-            fieldWithValue("Query" to "bar", mkEngineObjectData(schema.schema.getObjectType("Bar"), mapOf()))
+            fieldWithValue("Query" to "bar", createEngineObjectData(schema.schema.getObjectType("Bar"), mapOf()))
             fieldWithValue("Bar" to "value", "BarValue")
-            fieldWithValue("Query" to "baz", mkEngineObjectData(schema.schema.getObjectType("Baz"), mapOf()))
+            fieldWithValue("Query" to "baz", createEngineObjectData(schema.schema.getObjectType("Baz"), mapOf()))
             field("Baz" to "y") {
                 resolver {
                     querySelections("bar { value }")

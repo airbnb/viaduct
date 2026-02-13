@@ -10,12 +10,12 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.Mutation
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.EngineObjectData
 
 @Retention(AnnotationRetention.RUNTIME)
 @Target(AnnotationTarget.CLASS)
-@TestingApi
+@VisibleForTest
 annotation class FakeGRT
 
 /**

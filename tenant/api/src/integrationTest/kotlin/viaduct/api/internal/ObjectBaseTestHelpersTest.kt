@@ -12,12 +12,12 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.api.schemautils.SchemaUtils
 import viaduct.api.testschema.O1
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
-@OptIn(ExperimentalCoroutinesApi::class, TestingApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, VisibleForTest::class)
 class ObjectBaseTestHelpersTest {
     private val gqlSchema = SchemaUtils.getSchema()
-    private val internalContext = MockInternalContext.mk(gqlSchema, "viaduct.api.testschema")
+    private val internalContext = MockInternalContext.create(gqlSchema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 
     @Test

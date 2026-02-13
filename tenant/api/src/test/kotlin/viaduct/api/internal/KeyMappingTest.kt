@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.mkRawSelectionSet
+import viaduct.engine.api.mocks.createRawSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 
 class KeyMappingTest {
@@ -40,7 +40,7 @@ class KeyMappingTest {
 
     @Test
     fun `KeyMapping_map -- generates maps for selections`() {
-        val ss = mkRawSelectionSet(
+        val ss = createRawSelectionSet(
             SelectionsParser.parse("Obj", "a, b1:b, b2:b"),
             MockSchema.mk("type Obj { a:Int, b: Int, c: Obj }"),
             emptyMap()

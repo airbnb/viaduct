@@ -105,10 +105,10 @@ private class GJTypeCtx private constructor(
         return fn(type as GraphQLList)
     }
 
-    fun traverse(type: GraphQLType): GJTypeCtx = mk(type, resolver)
+    fun traverse(type: GraphQLType): GJTypeCtx = create(type, resolver)
 
     companion object {
-        fun mk(
+        fun create(
             type: GraphQLType,
             resolver: TypeReferenceResolver
         ): GJTypeCtx {
@@ -241,7 +241,7 @@ class GJRawToGJ(
     override fun invoke(
         type: GraphQLInputType,
         value: RawValue
-    ): Value<*> = toGJ(GJTypeCtx.mk(type, resolver), value)
+    ): Value<*> = toGJ(GJTypeCtx.create(type, resolver), value)
 
     private fun toGJ(
         ctx: GJTypeCtx,
@@ -281,7 +281,7 @@ class GJGJToRaw(
     override fun invoke(
         type: GraphQLInputType,
         value: Value<*>
-    ): RawValue = toRaw(GJTypeCtx.mk(type, resolver), value)
+    ): RawValue = toRaw(GJTypeCtx.create(type, resolver), value)
 
     private fun toRaw(
         ctx: GJTypeCtx,
@@ -354,7 +354,7 @@ class GJKotlinToRaw(
     override fun invoke(
         type: GraphQLInputType,
         value: Any?
-    ): RawValue = toRaw(GJTypeCtx.mk(type, resolver), value)
+    ): RawValue = toRaw(GJTypeCtx.create(type, resolver), value)
 
     private fun toRaw(
         ctx: GJTypeCtx,

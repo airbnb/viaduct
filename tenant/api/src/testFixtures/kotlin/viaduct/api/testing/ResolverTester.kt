@@ -5,7 +5,7 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.StableApi
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
 /**
  * Base interface for all resolver testers.
@@ -35,7 +35,7 @@ import viaduct.apiannotations.TestingApi
  * @since 1.0
  */
 @StableApi
-@TestingApi
+@VisibleForTest
 interface ResolverTester {
     /**
      * The execution context used to build test objects.

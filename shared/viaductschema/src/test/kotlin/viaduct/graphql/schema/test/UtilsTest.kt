@@ -16,13 +16,13 @@ internal class UtilsTest {
 
     @Test
     fun testMkSchema() {
-        val viaductExtendedSchema = mkSchema(sdl)
+        val viaductExtendedSchema = createSchema(sdl)
         assertEquals(ViaductSchema.TypeDefKind.OBJECT, viaductExtendedSchema.types["Foo"]?.kind)
     }
 
     @Test
     fun testMkGraphqlSchema() {
-        val graphqlSchema = mkGraphQLSchema(sdl)
+        val graphqlSchema = createGraphQLSchema(sdl)
         val namedElement = graphqlSchema.getTypes<GraphQLObjectType>(listOf("Foo"))
         assertTrue(namedElement.isNotEmpty())
     }

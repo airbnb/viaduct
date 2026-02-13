@@ -20,7 +20,7 @@ import viaduct.graphql.schema.test.ViaductSchemaContract
  * incorrectly reject valid GraphQL SDL.
  */
 class BSchemaRoundTripContractTest : ViaductSchemaContract {
-    override fun makeSchema(schema: String): ViaductSchema {
+    override fun createSchema(schema: String): ViaductSchema {
         val registry = SchemaParser().parse(schema)
         val original = ViaductSchema.fromTypeDefinitionRegistry(registry)
 

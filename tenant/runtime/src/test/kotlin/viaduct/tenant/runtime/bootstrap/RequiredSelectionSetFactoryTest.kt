@@ -131,8 +131,8 @@ class RequiredSelectionSetFactoryTest {
     // ============================================================================
 
     @Test
-    fun `mkRequiredSelectionSets -- via injector`() {
-        val rss = mkFactory().mkRequiredSelectionSets(
+    fun `createRequiredSelectionSets -- via injector`() {
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = MyResolverBase::class,
@@ -147,8 +147,8 @@ class RequiredSelectionSetFactoryTest {
     class EmptyAnnotationResolver : ResolverBase<Unit>
 
     @Test
-    fun `mkRequiredSelectionSets -- injector handles empty annotation`() {
-        val rss = mkFactory().mkRequiredSelectionSets(
+    fun `createRequiredSelectionSets -- injector handles empty annotation`() {
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = EmptyAnnotationResolver::class,
@@ -165,9 +165,9 @@ class RequiredSelectionSetFactoryTest {
     class VariableWithoutFragmentResolver : ResolverBase<Unit>
 
     @Test
-    fun `mkRequiredSelectionSets -- injector validates variable requires fragment`() {
+    fun `createRequiredSelectionSets -- injector validates variable requires fragment`() {
         assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = VariableWithoutFragmentResolver::class,
@@ -182,9 +182,9 @@ class RequiredSelectionSetFactoryTest {
     class VariableWithoutSourceResolver : ResolverBase<Unit>
 
     @Test
-    fun `mkRequiredSelectionSets -- injector validates variable requires source`() {
+    fun `createRequiredSelectionSets -- injector validates variable requires source`() {
         assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = VariableWithoutSourceResolver::class,
@@ -202,9 +202,9 @@ class RequiredSelectionSetFactoryTest {
     class VariableWithBothSourcesResolver : ResolverBase<Unit>
 
     @Test
-    fun `mkRequiredSelectionSets -- injector validates variable cannot have both sources`() {
+    fun `createRequiredSelectionSets -- injector validates variable cannot have both sources`() {
         assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = VariableWithBothSourcesResolver::class,
@@ -222,8 +222,8 @@ class RequiredSelectionSetFactoryTest {
     class ValidFromFieldResolver : ResolverBase<Unit>
 
     @Test
-    fun `mkRequiredSelectionSets -- injector handles valid fromField variable`() {
-        val rss = mkFactory().mkRequiredSelectionSets(
+    fun `createRequiredSelectionSets -- injector handles valid fromField variable`() {
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = ValidFromFieldResolver::class,
@@ -242,8 +242,8 @@ class RequiredSelectionSetFactoryTest {
     class ValidFromArgumentResolver : ResolverBase<Unit>
 
     @Test
-    fun `mkRequiredSelectionSets -- injector handles valid fromArgument variable`() {
-        val rss = mkFactory().mkRequiredSelectionSets(
+    fun `createRequiredSelectionSets -- injector handles valid fromArgument variable`() {
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = ValidFromArgumentResolver::class,
@@ -256,9 +256,9 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- injector validates @Variables class implements VariablesProvider`() {
+    fun `createRequiredSelectionSets -- injector validates @Variables class implements VariablesProvider`() {
         assertThrows<IllegalArgumentException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = InvalidVariablesClassResolver::class,
@@ -274,11 +274,11 @@ class RequiredSelectionSetFactoryTest {
     // ============================================================================
 
     @Test
-    fun `mkRequiredSelectionSets -- conflicting variable names should throw at bootstrap time`() {
+    fun `createRequiredSelectionSets -- conflicting variable names should throw at bootstrap time`() {
         // Test that variable conflicts are detected (VariablesProvider variable conflicts with fromArgument variable)
         val objectSelections = SelectionsParser.parse("Query", "foo(x:\$x)")
         val exception = assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(setOf("x")) { MockVariablesProvider(mapOf("x" to 1)) },
                 objectSelections = objectSelections,
                 querySelections = null,
@@ -294,10 +294,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- VariablesProvider variable with unbound field argument should be allowed`() {
+    fun `createRequiredSelectionSets -- VariablesProvider variable with unbound field argument should be allowed`() {
         // VariablesProvider can declare variables that match field argument names as long as they're not bound with fromArgument
         val objectSelections = SelectionsParser.parse("Query", "bar(x:\$boundX, y:\$y, z:\$z) baz")
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             variablesProvider = VariablesProviderInfo(setOf("y")) { MockVariablesProvider(mapOf("y" to 2)) },
             objectSelections = objectSelections,
             querySelections = null,
@@ -318,9 +318,9 @@ class RequiredSelectionSetFactoryTest {
     // ============================================================================
 
     @Test
-    fun `mkRequiredSelectionSets -- no variables`() {
+    fun `createRequiredSelectionSets -- no variables`() {
         val objectSelections = SelectionsParser.parse("Query", "__typename")
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = null,
@@ -333,9 +333,9 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- from argument`() {
+    fun `createRequiredSelectionSets -- from argument`() {
         val objectSelections = SelectionsParser.parse("Query", "x(arg:\$x)")
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = null,
@@ -350,9 +350,9 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- variables from selections`() {
+    fun `createRequiredSelectionSets -- variables from selections`() {
         val objectSelections = SelectionsParser.parse("Query", "x(arg:\$y), baz")
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = null,
@@ -367,9 +367,9 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- variables from VariablesProvider`() {
+    fun `createRequiredSelectionSets -- variables from VariablesProvider`() {
         val objectSelections = SelectionsParser.parse("Query", "foo(x: \$y)")
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             variablesProvider = VariablesProviderInfo(setOf("y")) { MockVariablesProvider() },
             objectSelections = objectSelections,
             querySelections = null,
@@ -382,12 +382,12 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- duplicate variable bindings`() {
+    fun `createRequiredSelectionSets -- duplicate variable bindings`() {
         val objectSelections = SelectionsParser.parse("Query", "field(arg: \$x)")
 
         // multiple from-argument variables with same name
         assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 variablesProvider = null,
                 objectSelections = objectSelections,
                 querySelections = null,
@@ -401,7 +401,7 @@ class RequiredSelectionSetFactoryTest {
 
         // multiple from-field variables with same name
         assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 variablesProvider = null,
                 objectSelections = objectSelections,
                 querySelections = null,
@@ -415,7 +415,7 @@ class RequiredSelectionSetFactoryTest {
 
         // hybrid
         assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 variablesProvider = null,
                 objectSelections = objectSelections,
                 querySelections = null,
@@ -429,12 +429,12 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- VariablesProvider declares unused variable -- should throw at bootstrap time`() {
+    fun `createRequiredSelectionSets -- VariablesProvider declares unused variable -- should throw at bootstrap time`() {
         // VariablesProvider declares variable 'undeclaredVar' that is not used in the selection set
         // and not declared in @Variable annotations
         val exception = assertThrows<IllegalArgumentException> {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: 123)") // no variables referenced
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(
                     setOf("undeclaredVar"), // declares a variable not used anywhere
                     { MockVariablesProvider() }
@@ -454,10 +454,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- VariablesProvider declares variable used in selection set -- should be allowed`() {
+    fun `createRequiredSelectionSets -- VariablesProvider declares variable used in selection set -- should be allowed`() {
         // VariablesProvider declares variable 'x' that is actually used in the GraphQL selection
         val objectSelections = SelectionsParser.parse("Query", "foo(x: \$x)")
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             variablesProvider = VariablesProviderInfo(
                 setOf("x"),
                 { MockVariablesProvider() }
@@ -473,11 +473,11 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- annotation variables and VariablesProvider variables both validated for usage`() {
+    fun `createRequiredSelectionSets -- annotation variables and VariablesProvider variables both validated for usage`() {
         // Test that both annotation variables and VariablesProvider variables are validated for usage
         val exception = assertThrows<IllegalArgumentException> {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: \$usedVar)") // only usedVar is referenced
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(
                     setOf("unusedProviderVar"), // VariablesProvider declares unused variable
                     { MockVariablesProvider() }
@@ -501,11 +501,11 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- VariablesProvider with annotation variable -- should be allowed`() {
+    fun `createRequiredSelectionSets -- VariablesProvider with annotation variable -- should be allowed`() {
         // Test that VariablesProvider variables are allowed if they match annotation variables
         // Scenario 1: VariablesProvider provides variable used in GraphQL, annotation provides different variable
         val objectSelections = SelectionsParser.parse("Query", "foo(y:\$y, z:\$z)") // uses variables
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             variablesProvider = VariablesProviderInfo(
                 setOf("z"), // declares variable z used in GraphQL
                 { MockVariablesProvider() }
@@ -594,7 +594,7 @@ class RequiredSelectionSetFactoryTest {
     @Test
     fun `@Variables string is empty -- should be allowed at bootstrap time`() {
         // Empty @Variables strings are valid and result in no variables being declared
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = EmptyVariablesResolver::class,
@@ -610,7 +610,7 @@ class RequiredSelectionSetFactoryTest {
     @Test
     fun `@Variables string is all commas -- should be allowed at bootstrap time`() {
         // Comma-only @Variables strings are valid and result in no variables being declared
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = CommasOnlyVariablesResolver::class,
@@ -628,7 +628,7 @@ class RequiredSelectionSetFactoryTest {
     @Test
     fun `@Variables string is syntactically invalid -- should throw at bootstrap time`() {
         val exception = assertThrows<IllegalArgumentException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = InvalidSyntaxVariablesResolver::class,
@@ -687,7 +687,7 @@ class RequiredSelectionSetFactoryTest {
         // If type validation is needed at bootstrap time, additional schema validation would be required.
 
         // For now, we test that the resolver can be created successfully (no bootstrap-time type validation)
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = NonExistentTypeVariablesResolver::class,
@@ -705,7 +705,7 @@ class RequiredSelectionSetFactoryTest {
     fun `@Variables string refers to union type -- should throw at bootstrap time`() {
         // Union types are not valid as GraphQL variable types and should throw at bootstrap time
         assertThrows<IllegalArgumentException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = UnionTypeVariablesResolver::class,
@@ -721,7 +721,7 @@ class RequiredSelectionSetFactoryTest {
     fun `@Variables string refers to interface type -- should throw at bootstrap time`() {
         // Interface types are not valid as GraphQL variable types and should throw at bootstrap time
         assertThrows<IllegalArgumentException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = InterfaceTypeVariablesResolver::class,
@@ -737,7 +737,7 @@ class RequiredSelectionSetFactoryTest {
     fun `@Variables string refers to object type -- should throw at bootstrap time`() {
         // Object types are not valid as GraphQL variable types and should throw at bootstrap time
         assertThrows<IllegalArgumentException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 schema = defaultSchema,
                 injector = injector,
                 resolverCls = ObjectTypeVariablesResolver::class,
@@ -751,7 +751,7 @@ class RequiredSelectionSetFactoryTest {
     @Test
     fun `@Variables string refers to valid input type -- should be allowed at bootstrap time`() {
         // Input types are valid as GraphQL variable types and should be allowed
-        val rss = mkFactory().mkRequiredSelectionSets(
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = ValidInputTypeVariablesResolver::class,
@@ -769,8 +769,8 @@ class RequiredSelectionSetFactoryTest {
     // ============================================================================
 
     @Test
-    fun `mkRequiredSelectionSets -- injector handles queryValueFragment only`() {
-        val rss = mkFactory().mkRequiredSelectionSets(
+    fun `createRequiredSelectionSets -- injector handles queryValueFragment only`() {
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = QueryOnlyResolver::class,
@@ -784,8 +784,8 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- injector handles both objectValueFragment and queryValueFragment`() {
-        val rss = mkFactory().mkRequiredSelectionSets(
+    fun `createRequiredSelectionSets -- injector handles both objectValueFragment and queryValueFragment`() {
+        val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
             resolverCls = DualFragmentResolver::class,
@@ -799,10 +799,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- dual selection sets with query selections`() {
+    fun `createRequiredSelectionSets -- dual selection sets with query selections`() {
         val objectSelections = SelectionsParser.parse("Foo", "foo(x: \$objVar)")
         val querySelections = SelectionsParser.parse("Query", "bar(y: \$queryVar) baz")
-        val selections = mkFactory().mkRequiredSelectionSets(
+        val selections = mkFactory().createRequiredSelectionSets(
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = querySelections,
@@ -844,10 +844,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- shared variables across both selection sets`() {
+    fun `createRequiredSelectionSets -- shared variables across both selection sets`() {
         val objectSelections = SelectionsParser.parse("Query", "foo(x: \$shared)")
         val querySelections = SelectionsParser.parse("Query", "bar(y: \$shared)")
-        val selections = mkFactory().mkRequiredSelectionSets(
+        val selections = mkFactory().createRequiredSelectionSets(
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = querySelections,
@@ -863,10 +863,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- query selections with VariablesProvider`() {
+    fun `createRequiredSelectionSets -- query selections with VariablesProvider`() {
         val objectSelections = SelectionsParser.parse("Query", "foo(x: \$objVar)")
         val querySelections = SelectionsParser.parse("Query", "bar(y: \$queryVar)")
-        val selections = mkFactory().mkRequiredSelectionSets(
+        val selections = mkFactory().createRequiredSelectionSets(
             variablesProvider = VariablesProviderInfo(setOf("objVar", "queryVar")) {
                 MockVariablesProvider(
                     mapOf(
@@ -888,10 +888,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- fromQueryField variables`() {
+    fun `createRequiredSelectionSets -- fromQueryField variables`() {
         val objectSelections = SelectionsParser.parse("Query", "obj(x: \$objVar)")
         val querySelections = SelectionsParser.parse("Query", "query(y: \$queryVar), queryData")
-        val selections = mkFactory().mkRequiredSelectionSets(
+        val selections = mkFactory().createRequiredSelectionSets(
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = querySelections,
@@ -908,12 +908,12 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- mixed variable sources integration test`() {
+    fun `createRequiredSelectionSets -- mixed variable sources integration test`() {
         val objectSelections = SelectionsParser.parse("Query", "obj(x: \$objVar, z: \$argVar), objData")
         val querySelections = SelectionsParser.parse("Query", "query(y: \$queryVar, z: \$argVar), queryData")
 
         // Test integration of all three variable types together
-        val selections = mkFactory().mkRequiredSelectionSets(
+        val selections = mkFactory().createRequiredSelectionSets(
             variablesProvider = null,
             objectSelections = objectSelections,
             querySelections = querySelections,
@@ -931,10 +931,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- validation error for multiple field sources`() {
+    fun `createRequiredSelectionSets -- validation error for multiple field sources`() {
         // This will test the validation indirectly through the factory method
         assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 defaultSchema,
                 injector,
                 BadMultipleFieldsResolver::class,
@@ -951,10 +951,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- validation error for no field sources`() {
+    fun `createRequiredSelectionSets -- validation error for no field sources`() {
         // This will test the validation indirectly through the factory method
         assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 defaultSchema,
                 injector,
                 BadNoFieldsResolver::class,
@@ -997,9 +997,9 @@ class RequiredSelectionSetFactoryTest {
     class EmptyQueryFieldPathResolver : ResolverBase<Unit>
 
     @Test
-    fun `mkRequiredSelectionSets -- validation error for empty fromQueryField path`() {
+    fun `createRequiredSelectionSets -- validation error for empty fromQueryField path`() {
         assertThrows<IllegalArgumentException>("Path for variable `emptyVar` is empty") {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 defaultSchema,
                 injector,
                 EmptyQueryFieldPathResolver::class,
@@ -1017,9 +1017,9 @@ class RequiredSelectionSetFactoryTest {
     class InvalidQueryFieldPathResolver : ResolverBase<Unit>
 
     @Test
-    fun `mkRequiredSelectionSets -- validation error for invalid fromQueryField path`() {
+    fun `createRequiredSelectionSets -- validation error for invalid fromQueryField path`() {
         assertThrows<IllegalArgumentException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 defaultSchema,
                 injector,
                 InvalidQueryFieldPathResolver::class,
@@ -1037,10 +1037,10 @@ class RequiredSelectionSetFactoryTest {
     class QueryFieldToObjectTypeResolver : ResolverBase<Unit>
 
     @Test
-    fun `mkRequiredSelectionSets -- validation allows scalar query field paths`() {
+    fun `createRequiredSelectionSets -- validation allows scalar query field paths`() {
         // Should work fine - testField returns String which is a valid scalar type
         assertDoesNotThrow {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 defaultSchema,
                 injector,
                 QueryFieldToObjectTypeResolver::class,
@@ -1052,13 +1052,13 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- fromQueryField and fromArgument combination validation`() {
+    fun `createRequiredSelectionSets -- fromQueryField and fromArgument combination validation`() {
         // Test that we can have variables with different sources in the same resolver
         val objectSelections = SelectionsParser.parse("Query", "obj(x: \$argVar)")
         val querySelections = SelectionsParser.parse("Query", "query(y: \$queryVar), baz")
 
         assertDoesNotThrow {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 variablesProvider = null,
                 objectSelections = objectSelections,
                 querySelections = querySelections,
@@ -1072,10 +1072,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- fromQueryField without queryValueFragment should fail`() {
+    fun `createRequiredSelectionSets -- fromQueryField without queryValueFragment should fail`() {
         // Variable depends on query field but no queryValueFragment is provided
         assertThrows<IllegalStateException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 variablesProvider = null,
                 objectSelections = SelectionsParser.parse("Query", "obj(x: \$queryVar)"),
                 querySelections = null, // No query selections provided
@@ -1088,10 +1088,10 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `mkRequiredSelectionSets -- fromQueryField path not in queryValueFragment should fail`() {
+    fun `createRequiredSelectionSets -- fromQueryField path not in queryValueFragment should fail`() {
         // Variable depends on 'baz' but queryValueFragment only selects 'foo'
         assertThrows<IllegalArgumentException> {
-            mkFactory().mkRequiredSelectionSets(
+            mkFactory().createRequiredSelectionSets(
                 variablesProvider = null,
                 objectSelections = SelectionsParser.parse("Query", "obj(x: \$queryVar)"),
                 querySelections = SelectionsParser.parse("Query", "foo"), // Only selects 'foo', not 'baz'

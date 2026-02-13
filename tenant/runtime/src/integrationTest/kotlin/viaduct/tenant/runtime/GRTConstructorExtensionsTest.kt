@@ -15,7 +15,7 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.testGlobalId
 import viaduct.engine.api.UnsetSelectionException
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.globalid.CreateUserInput
 import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
@@ -34,7 +34,7 @@ class GRTConstructorExtensionsTest {
         MockReflectionLoader(User.Reflection)
     )
     val userType = schema.schema.getObjectType("User")
-    val emptyUserEOD = mkEngineObjectData(userType, emptyMap())
+    val emptyUserEOD = createEngineObjectData(userType, emptyMap())
 
     // Test [KClass.getGRTConstructor] on code-generated GRTs
 
@@ -66,7 +66,7 @@ class GRTConstructorExtensionsTest {
             "name" to "John Doe",
         )
         val gqlType = schema.schema.getObjectType("User")
-        val eod = mkEngineObjectData(gqlType, data)
+        val eod = createEngineObjectData(gqlType, data)
         val user = eod.toObjectGRT(internalContext, User::class)
 
         assertInstanceOf(User::class.java, user)
@@ -115,7 +115,7 @@ class GRTConstructorExtensionsTest {
             // Intentionally not providing email to test UnsetSelectionException
         )
         val gqlType = schema.schema.getObjectType("User")
-        val eod = mkEngineObjectData(gqlType, data)
+        val eod = createEngineObjectData(gqlType, data)
         val user = eod.toObjectGRT(internalContext, User::class)
 
         // TODO (https://app.asana.com/1/150975571430/project/1207604899751448/task/1211682054265230?focus=true)

@@ -12,8 +12,8 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.ViaductSchema.Object
 import viaduct.graphql.schema.ViaductSchema.TypeDef
 import viaduct.graphql.schema.ViaductSchema.TypeDefKind
+import viaduct.graphql.schema.test.createSchema
 import viaduct.graphql.schema.test.loadGraphQLSchema
-import viaduct.graphql.schema.test.mkSchema
 import viaduct.invariants.InvariantChecker
 import viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
@@ -68,7 +68,7 @@ data class Packages(val expected: String, val actual: String) {
 
 object ClassNames {
     val NoScalars: Predicate<TypeDef> = Predicate { it.kind != TypeDefKind.SCALAR }
-    val IsEligible: Predicate<TypeDef> = Predicate { (it as? Object)?.isEligible(ViaductBaseTypeMapper(mkSchema(""))) ?: true }
+    val IsEligible: Predicate<TypeDef> = Predicate { (it as? Object)?.isEligible(ViaductBaseTypeMapper(createSchema(""))) ?: true }
 
     fun isEligibleWith(baseTypeMapper: BaseTypeMapper): Predicate<TypeDef> = Predicate { (it as? Object)?.isEligible(baseTypeMapper) ?: true }
 
@@ -251,7 +251,7 @@ private class ClassfileDiffSanityTest {
     @Test
     fun `ClassNames -- fromSchema`() {
         val names = ClassNames.fromSchema(
-            mkSchema(
+            createSchema(
                 """
                 type Sentinel { x: Int }
                 type Foo { x: Int }
@@ -269,7 +269,7 @@ private class ClassfileDiffSanityTest {
     @Test
     fun `ClassNames -- NoScalars`() {
         val names = ClassNames.fromSchema(
-            mkSchema(
+            createSchema(
                 """
                     type Sentinel { x: Int }
                     scalar A
@@ -285,7 +285,7 @@ private class ClassfileDiffSanityTest {
     @Test
     fun `ClassNames -- IsEligible`() {
         val names = ClassNames.fromSchema(
-            mkSchema(
+            createSchema(
                 """
                     type Sentinel { x: Int }
                     interface PagedConnection { x: Int }
@@ -309,7 +309,7 @@ private class ClassfileDiffSanityTest {
         }
 
         // with def
-        mkSchema("type Foo { x: Int }").types["Foo"]!!.let { foo ->
+        createSchema("type Foo { x: Int }").types["Foo"]!!.let { foo ->
             Packages("a", "b").format("Foo", foo).let {
                 assertEquals(Names("a.Foo", "b.Foo", foo), it)
             }

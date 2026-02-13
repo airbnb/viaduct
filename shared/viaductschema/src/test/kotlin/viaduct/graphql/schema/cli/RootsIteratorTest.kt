@@ -5,7 +5,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.graphql.schema.test.mkSchema
+import viaduct.graphql.schema.test.createSchema
 
 class RootsIteratorTest {
     companion object {
@@ -17,21 +17,21 @@ class RootsIteratorTest {
 
     @Test
     fun `rootTypeDef returns Query type for QUERY`() {
-        val schema = mkSchema(SINGLETON_DIRECTIVE)
+        val schema = createSchema(SINGLETON_DIRECTIVE)
         val queryDef = schema.rootTypeDef(RootTypeEnum.QUERY)
         assertEquals("Query", queryDef?.name)
     }
 
     @Test
     fun `rootTypeDef returns Mutation type for MUTATION`() {
-        val schema = mkSchema(SINGLETON_DIRECTIVE)
+        val schema = createSchema(SINGLETON_DIRECTIVE)
         val mutationDef = schema.rootTypeDef(RootTypeEnum.MUTATION)
         assertEquals("Mutation", mutationDef?.name)
     }
 
     @Test
     fun `rootTypeDef returns null for SUBSCRIPTION when not defined`() {
-        val schema = mkSchema(SINGLETON_DIRECTIVE)
+        val schema = createSchema(SINGLETON_DIRECTIVE)
         val subscriptionDef = schema.rootTypeDef(RootTypeEnum.SUBSCRIPTION)
         assertEquals(null, subscriptionDef)
     }
@@ -40,7 +40,7 @@ class RootsIteratorTest {
 
     @Test
     fun `singleton directive is properly recognized`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type Viewer @singleton {
@@ -64,7 +64,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots returns direct fields when no singletons`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type User {
@@ -84,7 +84,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots traverses one level of singleton`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type Viewer @singleton {
@@ -108,7 +108,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots traverses two levels of singletons`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type Viewer @singleton {
@@ -133,7 +133,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots returns multiple roots at same singleton level`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type Viewer @singleton {
@@ -160,7 +160,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots handles mixed singleton and non-singleton fields`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type Viewer @singleton {
@@ -187,7 +187,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots skips Query self-reference`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type Viewer @singleton {
@@ -211,7 +211,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots skips Viewer self-reference`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type Viewer @singleton {
@@ -237,7 +237,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots returns empty iterator when root type is null`() {
-        val schema = mkSchema(SINGLETON_DIRECTIVE)
+        val schema = createSchema(SINGLETON_DIRECTIVE)
 
         val roots = schema.roots(RootTypeEnum.SUBSCRIPTION).asSequence().toList()
 
@@ -246,7 +246,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots works with Mutation type`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type User {
@@ -267,7 +267,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots handles singleton with no fields gracefully`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type EmptySingleton @singleton {
@@ -287,7 +287,7 @@ class RootsIteratorTest {
 
     @Test
     fun `roots throws on recursive singleton cycle`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type A @singleton {
@@ -310,7 +310,7 @@ class RootsIteratorTest {
     @Test
     fun `roots handles interface type fields correctly`() {
         // Interface types are not Records, so traversal should stop at them
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             interface Node {
@@ -334,7 +334,7 @@ class RootsIteratorTest {
 
     @Test
     fun `collectAllRootFields returns fields from Query`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type User {
@@ -354,7 +354,7 @@ class RootsIteratorTest {
 
     @Test
     fun `collectAllRootFields returns fields from Query and Mutation`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type User {
@@ -378,7 +378,7 @@ class RootsIteratorTest {
 
     @Test
     fun `collectAllRootFields returns nested fields through singletons`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type Viewer @singleton {
@@ -402,7 +402,7 @@ class RootsIteratorTest {
 
     @Test
     fun `collectAllRootFields returns actual Field objects`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
             $SINGLETON_DIRECTIVE
             type User {
@@ -425,7 +425,7 @@ class RootsIteratorTest {
 
     @Test
     fun `collectAllRootFields handles empty schema gracefully`() {
-        val schema = mkSchema(SINGLETON_DIRECTIVE)
+        val schema = createSchema(SINGLETON_DIRECTIVE)
 
         val rootFields = schema.collectAllRootFields()
 

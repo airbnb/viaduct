@@ -14,7 +14,7 @@ import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.types.Arguments
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.resolve
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
@@ -52,7 +52,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
         """.trimIndent()
     )
 
-    private val objectData = mkEngineObjectData(defaultSchema.schema.queryType, emptyMap())
+    private val objectData = createEngineObjectData(defaultSchema.schema.queryType, emptyMap())
     private val vresolveCtx = VariablesResolver.ResolveCtx(
         objectData,
         emptyMap(),
@@ -103,7 +103,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
     fun `mkRequiredSelectionSets -- VariablesProvider that does not return declared variable should throw at request time`(): Unit =
         runBlocking {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: \$requiredVar)")
-            val rss = mkFactory().mkRequiredSelectionSets(
+            val rss = mkFactory().createRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(setOf("requiredVar")) { MockVariablesProvider(emptyMap()) }, // Declares but doesn't provide
                 objectSelections = objectSelections,
                 querySelections = null,
@@ -121,7 +121,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
         runBlocking {
             // Test that all VariablesProvider values are passed through as-is without GraphQL type validation
             val objectSelections = SelectionsParser.parse("Query", "testField(nonNullableInt: \$nullVar, intList: \$mixedList, stringList: \$singleItem)")
-            val rss = mkFactory().mkRequiredSelectionSets(
+            val rss = mkFactory().createRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(setOf("nullVar", "mixedList", "singleItem")) {
                     MockVariablesProvider(
                         mapOf(
@@ -153,7 +153,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
     fun `mkRequiredSelectionSets -- VariablesProvider throwing exception should propagate`(): Unit =
         runBlocking {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: \$testVar)")
-            val rss = mkFactory().mkRequiredSelectionSets(
+            val rss = mkFactory().createRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(setOf("testVar")) {
                     ThrowingVariablesProvider(RuntimeException("Test exception from VariablesProvider"))
                 },
@@ -176,7 +176,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
     fun `mkRequiredSelectionSets -- VariablesProvider returning undeclared variables should throw at request time`(): Unit =
         runBlocking {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: \$declaredVar)")
-            val rss = mkFactory().mkRequiredSelectionSets(
+            val rss = mkFactory().createRequiredSelectionSets(
                 variablesProvider = VariablesProviderInfo(setOf("declaredVar")) {
                     MockVariablesProvider(
                         mapOf(

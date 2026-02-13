@@ -31,6 +31,7 @@ dependencies {
     // Testing
     testImplementation(libs.kotlin.test)
     testImplementation(libs.junit)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testRuntimeOnly(libs.junit.engine)
 }
 

@@ -7,7 +7,7 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
 import viaduct.api.types.Query
 import viaduct.apiannotations.StableApi
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 
 /**
  * Type-safe tester for mutation field resolvers.
@@ -62,7 +62,7 @@ import viaduct.apiannotations.TestingApi
  * @since 1.0
  */
 @StableApi
-@TestingApi
+@VisibleForTest
 interface MutationResolverTester<Q : Query, M : Mutation, A : Arguments, O : CompositeOutput> : ResolverTester {
     /**
      * Test a mutation resolver with the provided configuration.

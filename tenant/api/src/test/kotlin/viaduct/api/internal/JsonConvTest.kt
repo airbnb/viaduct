@@ -32,15 +32,15 @@ import viaduct.arbitrary.graphql.TypenameValueWeight
 import viaduct.arbitrary.graphql.graphQLSchema
 import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.mocks.mkRawSelectionSet
-import viaduct.engine.api.mocks.mkSchema
+import viaduct.engine.api.mocks.createRawSelectionSet
+import viaduct.engine.api.mocks.createSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.ir
 import viaduct.mapping.test.objectIR
 
 class JsonConvTest : KotestPropertyBase() {
-    private val emptySchema = mkSchema(
+    private val emptySchema = createSchema(
         """
             extend type Query {
                 float:Float
@@ -217,7 +217,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `Enum -- simple`() {
-        val schema = mkSchema("enum Enum { A, B }")
+        val schema = createSchema("enum Enum { A, B }")
         val conv = JsonConv(schema, schema.schema.getType("Enum")!!)
         assertEquals(IR.Value.String("A"), conv("\"A\""))
         assertEquals("\"A\"", conv.invert(IR.Value.String("A")))
@@ -225,7 +225,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `Enum -- arb`() {
-        checkAll(mkSchema("enum Enum { A, B }"), "Enum")
+        checkAll(createSchema("enum Enum { A, B }"), "Enum")
     }
 
     @Test
@@ -268,7 +268,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `input objects`() {
-        val schema = mkSchema("input Input { x:Int }")
+        val schema = createSchema("input Input { x:Int }")
         val conv = JsonConv(schema, schema.schema.getType("Input")!!)
 
         val str = """{"x":1,"__typename":"Input"}"""
@@ -280,7 +280,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `input objects -- unknown fields`() {
-        val schema = mkSchema("input Input { x:Int }")
+        val schema = createSchema("input Input { x:Int }")
         val conv = JsonConv(schema, schema.schema.getType("Input")!!)
 
         // forward conversion ignores unknown fields
@@ -295,7 +295,7 @@ class JsonConvTest : KotestPropertyBase() {
     @Test
     fun `input objects -- AddJsonTypeNameField`(): Unit =
         runBlocking {
-            val schema = mkSchema("input Input { x:Int }")
+            val schema = createSchema("input Input { x:Int }")
             val type = schema.schema.getType("Input")!!
 
             Arb.enum<JsonConv.AddJsonTypenameField>().forAll { addJsonTypenameField ->
@@ -329,7 +329,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `output objects -- simple`() {
-        val schema = mkSchema("type Obj { x:Int }")
+        val schema = createSchema("type Obj { x:Int }")
         val conv = JsonConv(schema, schema.schema.getType("Obj")!!)
 
         val str = """{"x":1,"__typename":"Obj"}"""
@@ -350,7 +350,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `output objects -- unknown fields`() {
-        val schema = mkSchema("type Obj { x:Int }")
+        val schema = createSchema("type Obj { x:Int }")
         val conv = JsonConv(schema, schema.schema.getType("Obj")!!)
 
         // forward conversion ignores unknown fields
@@ -364,7 +364,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `output objects -- cyclic`() {
-        val schema = mkSchema("type Obj { x:Obj }")
+        val schema = createSchema("type Obj { x:Obj }")
         val conv = JsonConv(schema, schema.schema.getType("Obj")!!)
 
         val str = """{"x":{"x":null,"__typename":"Obj"},"__typename":"Obj"}"""
@@ -392,7 +392,7 @@ class JsonConvTest : KotestPropertyBase() {
     @Test
     fun `output objects -- AddJsonTypeNameField`(): Unit =
         runBlocking {
-            val schema = mkSchema("type Obj { x:Int }")
+            val schema = createSchema("type Obj { x:Int }")
             val type = schema.schema.getType("Obj")!!
 
             Arb.enum<JsonConv.AddJsonTypenameField>().forAll { addJsonTypenameField ->
@@ -501,7 +501,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `unions`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
                 type A { x:Int }
                 type B { y:Int }
@@ -525,7 +525,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `unions -- throws when missing __typename`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
                 type A { x:Int }
                 union U = A
@@ -561,7 +561,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `interfaces`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
                 type A implements I { x:Int }
                 interface I { x:Int }
@@ -584,7 +584,7 @@ class JsonConvTest : KotestPropertyBase() {
 
     @Test
     fun `interfaces -- throws when missing __typename`() {
-        val schema = mkSchema(
+        val schema = createSchema(
             """
                 type A implements I { x:Int }
                 interface I { x:Int }
@@ -621,7 +621,7 @@ class JsonConvTest : KotestPropertyBase() {
     @Test
     fun `roundtrips arb ir for simple objects`(): Unit =
         runBlocking {
-            val schema = mkSchema("type Obj { x:Int }")
+            val schema = createSchema("type Obj { x:Int }")
             val cfg = Config.default + (TypenameValueWeight to 1.0)
             Arb.objectIR(schema.schema, cfg).forAll { ir ->
                 val type = schema.schema.getObjectType(ir.name)
@@ -684,7 +684,7 @@ class JsonConvTest : KotestPropertyBase() {
         }
 
     private class Fixture(sdl: String, fn: Fixture.() -> Unit) {
-        val schema = mkSchema(sdl)
+        val schema = createSchema(sdl)
 
         init {
             fn(this)
@@ -697,7 +697,7 @@ class JsonConvTest : KotestPropertyBase() {
             selections: String,
             variables: Map<String, Any?> = emptyMap()
         ): RawSelectionSet =
-            mkRawSelectionSet(
+            createRawSelectionSet(
                 SelectionsParser.parse(selectionsType, selections),
                 schema,
                 variables

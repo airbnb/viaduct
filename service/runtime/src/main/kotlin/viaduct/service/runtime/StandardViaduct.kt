@@ -362,7 +362,7 @@ class StandardViaduct
             }
         }
 
-        private fun mkSchemaNotFoundError(schemaId: SchemaId): CompletableFuture<ExecutionResult> {
+        private fun createSchemaNotFoundError(schemaId: SchemaId): CompletableFuture<ExecutionResult> {
             val error: GJGraphQLError = GraphqlErrorBuilder.newError()
                 .message("Schema not found for schemaId=$schemaId")
                 .build()
@@ -389,7 +389,7 @@ class StandardViaduct
             val engine = try {
                 engineRegistry.getEngine(schemaId)
             } catch (_: EngineRegistry.SchemaNotFoundException) {
-                return mkSchemaNotFoundError(schemaId)
+                return createSchemaNotFoundError(schemaId)
             }
             return coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
                 val executionResult = engine.execute(executionInput.toEngineExecutionInput())
@@ -482,11 +482,11 @@ class StandardViaduct
             message = "Airbnb use only. Internal API for direct engine access.",
             level = DeprecationLevel.WARNING
         )
-        fun mkEngineExecutionContext(
+        fun createEngineExecutionContext(
             schemaId: SchemaId,
             requestContext: Any?
         ): EngineExecutionContext {
             val engine = engineRegistry.getEngine(schemaId) as? EngineImpl ?: throw IllegalStateException("Engine is not EngineImpl")
-            return engine.mkEngineExecutionContext(requestContext)
+            return engine.createEngineExecutionContext(requestContext)
         }
     }

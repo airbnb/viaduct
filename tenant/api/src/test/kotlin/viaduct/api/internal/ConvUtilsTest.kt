@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.mkRawSelectionSet
+import viaduct.engine.api.mocks.createRawSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.ConvMemo
@@ -126,7 +126,7 @@ class ConvUtilsTest {
     @Test
     fun `mkSelectionConvs -- map is keyed by field name when selectionSet is null`() {
         val schema = MockSchema.mk("type Obj { x:Int }")
-        val map = mkSelectionConvs(
+        val map = createSelectionConvs(
             schema,
             schema.schema.getObjectType("Obj"),
             null
@@ -139,10 +139,10 @@ class ConvUtilsTest {
     @Test
     fun `mkSelectionConvs -- map is keyed by selection name when selectionSet is non-null`() {
         val schema = MockSchema.mk("type Obj { x:Int }")
-        val map = mkSelectionConvs(
+        val map = createSelectionConvs(
             schema,
             schema.schema.getObjectType("Obj"),
-            mkRawSelectionSet(
+            createRawSelectionSet(
                 SelectionsParser.parse(
                     "Obj",
                     "x1:x, x2:x, type1:__typename, type2:__typename"

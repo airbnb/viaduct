@@ -585,7 +585,7 @@ class QueryPlanTest {
                 "type Query {x:Int}",
                 resolvers = emptyMap(),
                 "{__typename}",
-                flagManager = MockFlagManager.mk(Flags.DISABLE_QUERY_PLAN_CACHE)
+                flagManager = MockFlagManager.create(Flags.DISABLE_QUERY_PLAN_CACHE)
             )
         }
         assertEquals(0, QueryPlan.cacheSize)

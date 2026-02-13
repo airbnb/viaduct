@@ -20,7 +20,7 @@ import viaduct.api.testschema.TestUser
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ViaductObjectBuilderTest {
-    private val context = MockInternalContext.mk(SchemaUtils.getSchema(), "viaduct.api.testschema")
+    private val context = MockInternalContext.create(SchemaUtils.getSchema(), "viaduct.api.testschema")
 
     @Test
     fun testBasicBuild(): Unit =

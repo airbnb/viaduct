@@ -6,15 +6,14 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
-import viaduct.graphql.test.assertJson
 
 class NodeDataLoaderTest {
     private val id1 = "1"
     private val id2 = "2"
-    val schema = mkSchema(
+    val schema = createSchema(
         """
         type Query { test: Test }
         interface Node { id: ID! }
@@ -152,7 +151,7 @@ class NodeDataLoaderTest {
                     }
                     selectors.associateWith { selector ->
                         Result.success(
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 objectType,
                                 mapOf(
                                     "id" to selector.id,

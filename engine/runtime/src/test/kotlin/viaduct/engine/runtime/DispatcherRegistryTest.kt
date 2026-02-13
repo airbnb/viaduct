@@ -42,8 +42,8 @@ import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.Samples
 import viaduct.engine.api.mocks.assertRequiredSelectionSetListEquals
-import viaduct.engine.api.mocks.mkEngineObjectData
-import viaduct.engine.api.mocks.mkSchemaWithWiring
+import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedNodeResolverDispatcher
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
@@ -281,7 +281,7 @@ class DispatcherRegistryTest {
     @Suppress("DEPRECATION")
     fun `errors when schema mismatches tenants`() {
         val expectedSchema = Samples.testSchema
-        val mismatchedSchema = mkSchemaWithWiring(
+        val mismatchedSchema = createSchemaWithWiring(
             """
                 extend type Query {
                     q: String
@@ -469,7 +469,7 @@ class DispatcherRegistryTest {
             }
             type("NodeType1") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(
+                    createEngineObjectData(
                         Samples.testSchema.schema.getObjectType("TestNode"),
                         mapOf("id" to id)
                     )
@@ -487,7 +487,7 @@ class DispatcherRegistryTest {
                 nodeBatchedExecutor { selectors, _ ->
                     selectors.associateWith { selector ->
                         Result.success(
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 Samples.testSchema.schema.getObjectType("TestNode"),
                                 mapOf("id" to selector.id)
                             )
@@ -523,7 +523,7 @@ class DispatcherRegistryTest {
             // Regular node resolver
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(
+                    createEngineObjectData(
                         Samples.testSchema.schema.getObjectType("TestNode"),
                         mapOf("id" to id, "type" to "regular")
                     )
@@ -534,7 +534,7 @@ class DispatcherRegistryTest {
                 nodeBatchedExecutor { selectors, _ ->
                     selectors.associateWith { selector ->
                         Result.success(
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 Samples.testSchema.schema.getObjectType("TestNode"),
                                 mapOf("id" to selector.id, "type" to "batch")
                             )

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.api.ViaductTenantUsageException
 import viaduct.api.mocks.MockInternalContext
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 
 @ExperimentalCoroutinesApi
 class FakeObjectTest {
@@ -20,7 +20,7 @@ class FakeObjectTest {
         MockSchema.mk(sdl).let { schema ->
             FakeObject(
                 MockInternalContext(schema),
-                mkEngineObjectData(schema.schema.getObjectType(type), values.toMap())
+                createEngineObjectData(schema.schema.getObjectType(type), values.toMap())
             )
         }
 

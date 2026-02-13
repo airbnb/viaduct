@@ -19,7 +19,7 @@ import viaduct.graphql.schema.checkViaductSchemaInvariants
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.test.BUILTIN_SCALARS
 import viaduct.graphql.schema.test.SchemaDiff
-import viaduct.graphql.schema.test.mkSchemaWithSourceLocations
+import viaduct.graphql.schema.test.createSchemaWithSourceLocations
 import viaduct.invariants.InvariantChecker
 
 /** Alias for backward compatibility with existing tests in this package. */
@@ -89,7 +89,7 @@ internal fun assertRoundTrip(
     sdlWithNoLocation: String? = null
 ) {
     try {
-        val schema = mkSchemaWithSourceLocations(sdlAndSourceNames, sdlWithNoLocation)
+        val schema = createSchemaWithSourceLocations(sdlAndSourceNames, sdlWithNoLocation)
         assertRoundTrip(schema)
     } catch (e: Exception) {
         throw AssertionError("Failed to parse schema with source locations", e)

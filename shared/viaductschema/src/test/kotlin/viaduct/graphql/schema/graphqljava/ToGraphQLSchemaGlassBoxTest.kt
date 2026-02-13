@@ -9,7 +9,7 @@ import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.test.BUILTIN_SCALARS
 import viaduct.graphql.schema.test.SchemaDiff
-import viaduct.graphql.schema.test.mkSchemaWithSourceLocations
+import viaduct.graphql.schema.test.createSchemaWithSourceLocations
 
 /**
  * Glass-box tests for ToGraphQLSchema conversion.
@@ -415,7 +415,7 @@ class ToGraphQLSchemaGlassBoxTest {
         ) {
             // Create ViaductSchema with source locations
             val viaductSchema: ViaductSchema = try {
-                mkSchemaWithSourceLocations(
+                createSchemaWithSourceLocations(
                     listOf(sdl to sourceName),
                     sdlWithNoLocation = BUILTIN_SCALARS
                 )

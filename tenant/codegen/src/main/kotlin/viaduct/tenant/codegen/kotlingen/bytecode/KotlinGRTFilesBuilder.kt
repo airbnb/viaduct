@@ -1,6 +1,6 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.graphql.schema.ViaductSchema
 
 /** This class represents the public API to the Kotlin code generator.  Everything
@@ -19,7 +19,7 @@ import viaduct.graphql.schema.ViaductSchema
  *  [com.airbnb.viaduct.cli.bytecode.kotlingrts.classic.KotlinGRTFilesBuilderImp]
  *  for a sample implementation.
  */
-@TestingApi
+@VisibleForTest
 abstract class KotlinGRTFilesBuilder protected constructor(
     protected val args: KotlinCodeGenArgs,
 ) {

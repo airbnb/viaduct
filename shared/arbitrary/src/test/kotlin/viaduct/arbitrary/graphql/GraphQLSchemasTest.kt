@@ -80,7 +80,7 @@ class GraphQLSchemasTest : KotestPropertyBase() {
              */
             Arb.graphQLSchema().forAll(1) { schema ->
                 val sdl = SchemaPrinter().print(schema)
-                val schema2 = SchemaGenerator.mkSchema(sdl)
+                val schema2 = SchemaGenerator.createSchema(sdl)
                 CapturingReporter().let { reporter ->
                     SchemaDiff().diffSchema(SchemaDiffSet.diffSetFromIntrospection(schema, schema2), reporter)
 

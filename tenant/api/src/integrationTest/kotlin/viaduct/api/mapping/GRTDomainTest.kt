@@ -26,7 +26,7 @@ import viaduct.mapping.test.DomainValidator
 
 class GRTDomainTest : KotestPropertyBase() {
     private val schema = SchemaUtils.getSchema()
-    private val internalContext = MockInternalContext.mk(schema, "viaduct.api.testschema")
+    private val internalContext = MockInternalContext.create(schema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 
     private val domain = GRTDomain(executionContext)

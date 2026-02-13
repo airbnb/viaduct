@@ -22,17 +22,17 @@ import viaduct.api.testschema.E1
 import viaduct.api.testschema.I1
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.UnsetSelectionException
 
-@OptIn(ExperimentalCoroutinesApi::class, TestingApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, VisibleForTest::class)
 class ObjectBaseTest {
     private val gqlSchema = SchemaUtils.getSchema()
-    private val internalContext = MockInternalContext.mk(gqlSchema, "viaduct.api.testschema")
+    private val internalContext = MockInternalContext.create(gqlSchema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 
     // Use viaduct.api.testschema.E1 for the actual E1 value. This is for a regression test and represents a different version (classic)
@@ -276,7 +276,7 @@ class ObjectBaseTest {
             //    because it's valid in runtime schema, even though E1.valueOf("C") would fail
 
             // Create a schema with enum E1 having additional value "C" not in compiled enum
-            val schemaWithNewEnumValue = SchemaUtils.mkSchema(
+            val schemaWithNewEnumValue = SchemaUtils.createSchema(
                 """
                 enum E1 {
                   A
@@ -289,7 +289,7 @@ class ObjectBaseTest {
                 }
                 """.trimIndent()
             )
-            val contextWithNewEnum = MockInternalContext.mk(schemaWithNewEnumValue, "viaduct.api.testschema")
+            val contextWithNewEnum = MockInternalContext.create(schemaWithNewEnumValue, "viaduct.api.testschema")
 
             // Test that string value "C" is accepted via dynamic builder API
             // The value exists in runtime schema but not in compiled E1 enum

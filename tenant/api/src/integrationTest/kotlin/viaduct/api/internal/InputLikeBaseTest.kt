@@ -32,7 +32,7 @@ import viaduct.engine.api.gj
 
 class InputLikeBaseTest {
     private val gqlSchema = SchemaUtils.getSchema()
-    private val internalContext = MockInternalContext.mk(gqlSchema, "viaduct.api.testschema")
+    private val internalContext = MockInternalContext.create(gqlSchema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 
     private inline fun <reified T : InputLikeBase> mk(

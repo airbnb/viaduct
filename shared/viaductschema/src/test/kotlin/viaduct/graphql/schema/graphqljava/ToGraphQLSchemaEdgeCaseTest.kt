@@ -16,7 +16,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 import viaduct.graphql.schema.test.BUILTIN_SCALARS
 import viaduct.graphql.schema.test.SchemaDiff
-import viaduct.graphql.schema.test.mkSchemaWithSourceLocations
+import viaduct.graphql.schema.test.createSchemaWithSourceLocations
 
 /**
  * Tests for edge cases in ToGraphQLSchema conversion.
@@ -75,7 +75,7 @@ class ToGraphQLSchemaEdgeCaseTest {
 
     @Test
     fun `object type preserves source location`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf("type Query { foo: String }" to "query.graphqls"),
             sdlWithNoLocation = BUILTIN_SCALARS
         )
@@ -86,7 +86,7 @@ class ToGraphQLSchemaEdgeCaseTest {
 
     @Test
     fun `enum type preserves source location`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 "enum Status { ACTIVE }" to "enums.graphqls",
                 "type Query { s: Status }" to "query.graphqls"
@@ -100,7 +100,7 @@ class ToGraphQLSchemaEdgeCaseTest {
 
     @Test
     fun `input type preserves source location`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 "input Filter { name: String }" to "inputs.graphqls",
                 "type Query { search(f: Filter): String }" to "query.graphqls"
@@ -114,7 +114,7 @@ class ToGraphQLSchemaEdgeCaseTest {
 
     @Test
     fun `interface type preserves source location`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 "interface Node { id: String }" to "interfaces.graphqls",
                 "type Query { n: Node }" to "query.graphqls"
@@ -128,7 +128,7 @@ class ToGraphQLSchemaEdgeCaseTest {
 
     @Test
     fun `union type preserves source location`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 "type A { a: String }" to "types.graphqls",
                 "type B { b: String }" to "types.graphqls",
@@ -144,7 +144,7 @@ class ToGraphQLSchemaEdgeCaseTest {
 
     @Test
     fun `custom scalar preserves source location`() {
-        val schema = mkSchemaWithSourceLocations(
+        val schema = createSchemaWithSourceLocations(
             listOf(
                 "scalar DateTime" to "scalars.graphqls",
                 "type Query { ts: DateTime }" to "query.graphqls"

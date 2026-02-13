@@ -15,8 +15,8 @@ import viaduct.codegen.utils.JavaName
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.schema.ViaductSchema as ViaductGraphQLSchema
-import viaduct.graphql.schema.test.mkGraphQLSchema
-import viaduct.graphql.schema.test.mkSchema
+import viaduct.graphql.schema.test.createGraphQLSchema
+import viaduct.graphql.schema.test.createSchema
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
 
@@ -51,7 +51,7 @@ class ObjectC(
 @OptIn(ExperimentalCoroutinesApi::class)
 class CreateValueTests {
     companion object {
-        fun mkDef(schema: String): ViaductGraphQLSchema.Input = mkSchema("enum E { ONE } input Nest { e: E! } $schema").types["Subject"]!! as ViaductGraphQLSchema.Input
+        fun mkDef(schema: String): ViaductGraphQLSchema.Input = createSchema("enum E { ONE } input Nest { e: E! } $schema").types["Subject"]!! as ViaductGraphQLSchema.Input
 
         fun assertMultipleValues(schema: String) {
             val def = mkDef(schema)
@@ -86,8 +86,8 @@ class CreateValueTests {
             type ObjectB { b: ObjectA! }
             type ObjectC { c: [[ObjectA]]! }
         """.trimIndent()
-        private val schemaForV2 = mkSchema(sdlForV2)
-        private val graphqlSchemaForV2 = ViaductSchema(mkGraphQLSchema(sdlForV2))
+        private val schemaForV2 = createSchema(sdlForV2)
+        private val graphqlSchemaForV2 = ViaductSchema(createGraphQLSchema(sdlForV2))
         private val defForObjectB = schemaForV2.types["ObjectB"]!! as ViaductGraphQLSchema.Object
         private val defForObjectC = schemaForV2.types["ObjectC"]!! as ViaductGraphQLSchema.Object
         private val classResolverForV2 = ClassResolver.fromSystemClassLoader(

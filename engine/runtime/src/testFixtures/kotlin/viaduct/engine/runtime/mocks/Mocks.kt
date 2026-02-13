@@ -9,7 +9,7 @@ import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.NodeResolverDispatcherImpl
 
-fun mkDispatcherRegistry(
+fun createDispatcherRegistry(
     fieldResolverExecutors: Map<Coordinate, FieldResolverExecutor> = emptyMap(),
     nodeResolverExecutors: Map<String, NodeResolverExecutor> = emptyMap(),
     fieldCheckerExecutors: Map<Coordinate, CheckerExecutor> = emptyMap(),

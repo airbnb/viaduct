@@ -43,7 +43,7 @@ import viaduct.engine.api.RawSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.engineObjectsAreEquivalent
 import viaduct.engine.api.gj
-import viaduct.engine.api.mocks.mkRawSelectionSet
+import viaduct.engine.api.mocks.createRawSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.IR
@@ -54,7 +54,7 @@ import viaduct.mapping.test.objectIR
 
 class GRTConvTest : KotestPropertyBase() {
     private val schema = SchemaUtils.getSchema()
-    private val internalContext = MockInternalContext.mk(schema, "viaduct.api.testschema")
+    private val internalContext = MockInternalContext.create(schema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 
     @Test
@@ -647,7 +647,7 @@ class GRTConvTest : KotestPropertyBase() {
         selections: String,
         variables: Map<String, Any?> = emptyMap()
     ): RawSelectionSet =
-        mkRawSelectionSet(
+        createRawSelectionSet(
             SelectionsParser.parse(selectionsType, selections),
             schema,
             variables

@@ -1,10 +1,10 @@
 package viaduct.graphql.schema.graphqljava
 
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.graphql.schema.SchemaFilter
 import viaduct.graphql.schema.ViaductSchema
 
-@TestingApi
+@VisibleForTest
 class NoopSchemaFilter : SchemaFilter {
     override fun includeTypeDef(typeDef: ViaductSchema.TypeDef) = true
 

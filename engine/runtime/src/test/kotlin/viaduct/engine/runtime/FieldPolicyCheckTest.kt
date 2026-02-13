@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.getAs
-import viaduct.engine.api.mocks.mkEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.graphql.test.assertEquals
 
@@ -60,7 +60,7 @@ class FieldPolicyCheckTest {
 
             type("CanAccessPerson") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(
+                    createEngineObjectData(
                         canAccessPersonType,
                         mapOf(
                             "id" to id,
@@ -106,7 +106,7 @@ class FieldPolicyCheckTest {
 
             type("CanNotAccessPerson") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(
+                    createEngineObjectData(
                         canNotAccessPersonType,
                         mapOf(
                             "id" to id,
@@ -148,7 +148,7 @@ class FieldPolicyCheckTest {
 
             type("CanAccessPerson") {
                 nodeUnbatchedExecutor { id, _, _ ->
-                    mkEngineObjectData(
+                    createEngineObjectData(
                         canAccessPersonType,
                         mapOf(
                             "id" to id,

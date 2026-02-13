@@ -24,7 +24,7 @@ import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.FakeMutation
@@ -166,8 +166,8 @@ class ResolverExecutionContextFactoryTest {
             rawSelections = null,
             requestContext = null,
             rawArguments = emptyMap(),
-            rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
-            rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
+            rawObjectValue = createEngineObjectData(queryType, emptyMap()),
+            rawQueryValue = createEngineObjectData(queryType, emptyMap()),
         )
         assertInstanceOf(FieldExecutionContext::class.java, result)
     }
@@ -194,8 +194,8 @@ class ResolverExecutionContextFactoryTest {
             rawSelections = null,
             requestContext = null,
             rawArguments = emptyMap(),
-            rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
-            rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
+            rawObjectValue = createEngineObjectData(queryType, emptyMap()),
+            rawQueryValue = createEngineObjectData(queryType, emptyMap()),
         )
         assertInstanceOf(MutationFieldExecutionContext::class.java, result)
     }
@@ -273,8 +273,8 @@ class ResolverExecutionContextFactoryTest {
             rawSelections = null,
             requestContext = null,
             rawArguments = emptyMap(),
-            rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
-            rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
+            rawObjectValue = createEngineObjectData(queryType, emptyMap()),
+            rawQueryValue = createEngineObjectData(queryType, emptyMap()),
         )
         assertInstanceOf(FieldExecutionContext::class.java, result)
     }
@@ -302,8 +302,8 @@ class ResolverExecutionContextFactoryTest {
             rawSelections = null,
             requestContext = null,
             rawArguments = emptyMap(),
-            rawObjectValue = mkEngineObjectData(queryType, emptyMap()),
-            rawQueryValue = mkEngineObjectData(queryType, emptyMap()),
+            rawObjectValue = createEngineObjectData(queryType, emptyMap()),
+            rawQueryValue = createEngineObjectData(queryType, emptyMap()),
         )
         assertInstanceOf(MutationFieldExecutionContext::class.java, result)
     }

@@ -1,7 +1,7 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
 import getEscapedFieldName
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
@@ -10,7 +10,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.InputTypeFactoryConfig
 import viaduct.tenant.codegen.bytecode.config.kmType
 
-@TestingApi
+@VisibleForTest
 fun KotlinGRTFilesBuilder.inputKotlinGen(
     desc: InputTypeDescriptor,
     taggingInterface: String

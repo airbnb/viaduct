@@ -13,7 +13,7 @@ Viaduct uses the following annotations as part of its stability model:
 - `@StableApi`
 - `@ExperimentalApi`
 - `@InternalApi`
-- `@TestingApi`
+- `@VisibleForTest`
 - `@Deprecated` (standard Kotlin annotation with Viaduct-specific lifecycle rules)
 
 These annotations sit on top of normal Kotlin visibility and act as **semantic
@@ -26,7 +26,7 @@ markers**. They serve three purposes:
 At a high level, our BCV configuration treats:
 
 - `@StableApi` and `@Deprecated` symbols as **public, tracked** API.
-- `@InternalApi`, `@TestingApi`, and `@ExperimentalApi` as **non-public markers**
+- `@InternalApi`, `@VisibleForTest`, and `@ExperimentalApi` as **non-public markers**
   that are **excluded** from `.api` baselines. Changes to these do not cause BCV
   failures.
 
@@ -39,7 +39,7 @@ At a high level, our BCV configuration treats:
   - `@ExperimentalApi` for public-but-evolving surfaces, excluded from BCV until
     they mature.
   - `@InternalApi` for framework internals that happen to be visible.
-  - `@TestingApi` for test/diagnostic/tooling hooks, visible but not part of the
+  - `@VisibleForTest` for test/diagnostic/tooling hooks, visible but not part of the
     public surface.
   - `@Deprecated` for previously stable APIs that are being phased out.
 
@@ -157,11 +157,11 @@ class SelectionSetFactory(
 }
 ```
 
-## `@TestingApi`
+## `@VisibleForTest`
 
 ### Purpose
 
-`@TestingApi` marks symbols that exist primarily to support **Viaduct’s own
+`@VisibleForTest` marks symbols that exist primarily to support **Viaduct’s own
 tests, diagnostics, or related tooling**.
 
 These symbols often live in `src/main` instead of `src/test` because:
@@ -170,18 +170,18 @@ These symbols often live in `src/main` instead of `src/test` because:
 - They act as shared fixtures or hooks for integration-style tests.
 
 However, they are **not meant for tenant use**, even if they are technically
-`public`. From the perspective of Viaduct consumers, `@TestingApi` should be
+`public`. From the perspective of Viaduct consumers, `@VisibleForTest` should be
 treated as internal-only.
 
 In BCV configuration:
 
-- `@TestingApi` is a **non-public marker**.
-- `@TestingApi` symbols are **excluded** from `.api` baselines.
+- `@VisibleForTest` is a **non-public marker**.
+- `@VisibleForTest` symbols are **excluded** from `.api` baselines.
 - Changing or removing them does not impact BCV.
 
 ### Usage guidelines
 
-Use `@TestingApi` when:
+Use `@VisibleForTest` when:
 
 - The element exists only to support Viaduct tests, diagnostics, or tooling.
 - It is not a candidate for the external public surface, even if it must ship
@@ -190,13 +190,13 @@ Use `@TestingApi` when:
 Guidelines for Viaduct developers:
 
 - Prefer moving test helpers into dedicated test-only modules when practical.
-- If a testing helper must ship in a main artifact, annotate it `@TestingApi`
+- If a testing helper must ship in a main artifact, annotate it `@VisibleForTest`
   to make that intent explicit.
-- External consumers should not rely on `@TestingApi` APIs; for them, the
+- External consumers should not rely on `@VisibleForTest` APIs; for them, the
   relevant stability levels are `@StableApi`, `@ExperimentalApi`,
   `@InternalApi`, and `@Deprecated`.
 
-Conceptually, `@TestingApi` is similar to JetBrains’ `@TestOnly`, but integrated
+Conceptually, `@VisibleForTest` is similar to JetBrains’ `@TestOnly`, but integrated
 into Viaduct’s stability vocabulary.
 
 ### Example
@@ -205,7 +205,7 @@ into Viaduct’s stability vocabulary.
 /**
  * Utility class for testing purposes, used to expose otherwise-internal methods to test code.
  */
-@TestingApi
+@VisibleForTest
 object ObjectBaseTestHelpers {
   /**
    * Similar to [ObjectBase.Builder.put], but allows setting an alias for the field.
@@ -347,7 +347,7 @@ gap for Viaduct developers.
 In BCV-participating modules:
 
 - Public symbols that are **not** marked with a non-public marker
-  (`@InternalApi`, `@TestingApi`, `@ExperimentalApi`) are candidates for
+  (`@InternalApi`, `@VisibleForTest`, `@ExperimentalApi`) are candidates for
   inclusion in `.api` baselines.
 - In practice, the public, stable surface consists of:
   - `@StableApi` APIs.
@@ -364,7 +364,7 @@ Any structural change to these symbols:
 Symbols marked with:
 
 - `@InternalApi`
-- `@TestingApi`
+- `@VisibleForTest`
 - `@ExperimentalApi`
 
 are configured as **non-public** for BCV purposes and are excluded from

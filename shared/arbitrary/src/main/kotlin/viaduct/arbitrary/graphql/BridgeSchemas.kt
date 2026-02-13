@@ -5,7 +5,7 @@ import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.filter
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.Config
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
@@ -14,7 +14,7 @@ import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 fun Arb.Companion.viaductExtendedSchema(config: Config = Config.default,): Arb<ViaductSchema> = Arb.graphQLSchema(config).map { schema -> ViaductSchema.fromGraphQLSchema(schema) }
 
 /** Generate an arbitrary [ViaductSchema.TypeExpr] */
-@TestingApi
+@VisibleForTest
 fun Arb.Companion.typeExpr(config: Config = Config.default,): Arb<ViaductSchema.TypeExpr<*>> =
     viaductExtendedSchema(config)
         .filter { it.types.values.isNotEmpty() }

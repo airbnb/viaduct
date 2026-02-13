@@ -2,13 +2,13 @@ package viaduct.tenant.codegen.kotlingen.bytecode
 
 // See README.md for the patterns that guided this file
 
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 
-@TestingApi
+@VisibleForTest
 fun KotlinGRTFilesBuilder.enumKotlinGen(typeDef: ViaductSchema.Enum) = STContents(enumSTGroup, EnumModelImpl(typeDef, pkg, reflectedTypeGen(typeDef)))
 
 interface EnumModel {

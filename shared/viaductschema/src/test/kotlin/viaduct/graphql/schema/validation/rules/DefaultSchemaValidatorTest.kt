@@ -1,7 +1,6 @@
 package viaduct.graphql.schema.validation.rules
 
 import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
@@ -60,21 +59,5 @@ class DefaultSchemaValidatorTest {
         val codes = errors.map { it.code }
         codes.count { it == ValidationErrorCodes.DIRECTIVE_DEFINED_IN_MODULE } shouldBe 1
         codes.count { it == ValidationErrorCodes.SCALAR_DEFINED_IN_MODULE } shouldBe 1
-    }
-
-    @Test
-    fun `create should return a functional SchemaValidator`() {
-        val validator = DefaultSchemaValidator.create()
-        val schema = ViaductSchema.fromTypeDefinitionRegistry(
-            """
-            scalar Custom
-            type Query { data: Custom }
-            """.trimIndent()
-        )
-
-        val errors = validator.validate(schema)
-
-        errors shouldHaveSize 1
-        errors[0].code shouldBe ValidationErrorCodes.CUSTOM_SCALAR_NOT_ALLOWED
     }
 }

@@ -3,7 +3,7 @@ package viaduct.engine.runtime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import viaduct.apiannotations.TestingApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.deferred.cancelledDeferred
 import viaduct.deferred.completedDeferred
 import viaduct.deferred.exceptionalDeferred
@@ -223,7 +223,7 @@ sealed interface Value<T> {
             }
 
         /** Create a [Value] from the provided [Result] */
-        @TestingApi
+        @VisibleForTest
         fun <T> fromResult(result: Result<T>): Value<T> =
             if (result.isSuccess) {
                 fromValue(result.getOrThrow())

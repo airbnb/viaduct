@@ -4,7 +4,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.graphql.schema.test.mkSchema
+import viaduct.graphql.schema.test.createSchema
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.utils.timer.Timer
 
@@ -39,7 +39,7 @@ class GRTClassFilesBuilderBaseTest {
     @Test
     fun `isQueryType returns true for query root type`() {
         // mkSchema already includes type Query { nop: Int }
-        val schema = mkSchema("")
+        val schema = createSchema("")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
@@ -51,7 +51,7 @@ class GRTClassFilesBuilderBaseTest {
 
     @Test
     fun `isQueryType returns false for non-query type`() {
-        val schema = mkSchema("type User { name: String }")
+        val schema = createSchema("type User { name: String }")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
@@ -64,7 +64,7 @@ class GRTClassFilesBuilderBaseTest {
     @Test
     fun `isMutationType returns true for mutation root type`() {
         // mkSchema already includes type Mutation { nop: Int }
-        val schema = mkSchema("")
+        val schema = createSchema("")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
@@ -76,7 +76,7 @@ class GRTClassFilesBuilderBaseTest {
 
     @Test
     fun `isMutationType returns false for non-mutation type`() {
-        val schema = mkSchema("type User { name: String }")
+        val schema = createSchema("type User { name: String }")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
@@ -89,7 +89,7 @@ class GRTClassFilesBuilderBaseTest {
     @Test
     fun `isSubscriptionType returns false when no subscription defined`() {
         // mkSchema includes Query and Mutation but no Subscription
-        val schema = mkSchema("type User { name: String }")
+        val schema = createSchema("type User { name: String }")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
@@ -101,7 +101,7 @@ class GRTClassFilesBuilderBaseTest {
 
     @Test
     fun `isRootType returns true for query type`() {
-        val schema = mkSchema("")
+        val schema = createSchema("")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
@@ -113,7 +113,7 @@ class GRTClassFilesBuilderBaseTest {
 
     @Test
     fun `isRootType returns true for mutation type`() {
-        val schema = mkSchema("")
+        val schema = createSchema("")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
@@ -125,7 +125,7 @@ class GRTClassFilesBuilderBaseTest {
 
     @Test
     fun `isRootType returns false for non-root types`() {
-        val schema = mkSchema("type User { name: String }")
+        val schema = createSchema("type User { name: String }")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
@@ -137,7 +137,7 @@ class GRTClassFilesBuilderBaseTest {
 
     @Test
     fun `initSchemaForTest sets schema correctly`() {
-        val schema = mkSchema("")
+        val schema = createSchema("")
         val builder = createBuilder(schema)
 
         builder.initSchemaForTest(schema)
@@ -150,7 +150,7 @@ class GRTClassFilesBuilderBaseTest {
 
     @Test
     fun `Query is not mutation or subscription type`() {
-        val schema = mkSchema("")
+        val schema = createSchema("")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
@@ -164,7 +164,7 @@ class GRTClassFilesBuilderBaseTest {
 
     @Test
     fun `Mutation is not query or subscription type`() {
-        val schema = mkSchema("")
+        val schema = createSchema("")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 

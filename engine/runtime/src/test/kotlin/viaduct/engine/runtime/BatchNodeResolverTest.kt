@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
-import viaduct.engine.api.mocks.mkEngineObjectData
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
 @ExperimentalCoroutinesApi
@@ -43,7 +43,7 @@ class BatchNodeResolverTest {
                     assert(selectors.size == 1) { "Expected exactly 1 ctx" }
                     selectors.associateWith { selector ->
                         Result.success(
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 objectType,
                                 mapOf("id" to selector.id, "x" to 20)
                             )
@@ -73,7 +73,7 @@ class BatchNodeResolverTest {
                 nodeBatchedExecutor { selectors, _ ->
                     selectors.associateWith { selector ->
                         Result.success(
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 objectType,
                                 mapOf(
                                     "id" to selector.id,
@@ -139,7 +139,7 @@ class BatchNodeResolverTest {
                             Result.failure(IllegalArgumentException("Odd idx for ID: ${selector.id}"))
                         } else {
                             Result.success(
-                                mkEngineObjectData(
+                                createEngineObjectData(
                                     objectType,
                                     mapOf("id" to selector.id)
                                 )
@@ -186,7 +186,7 @@ class BatchNodeResolverTest {
                         val internalId = selector.id
                         execCounts.computeIfAbsent(internalId) { AtomicInteger(0) }.incrementAndGet()
                         Result.success(
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 objectType,
                                 mapOf("id" to selector.id, "x" to 2)
                             )
@@ -231,7 +231,7 @@ class BatchNodeResolverTest {
                         val internalId = selector.id
                         execCounts.computeIfAbsent(internalId) { AtomicInteger(0) }.incrementAndGet()
                         Result.success(
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 objectType,
                                 mapOf("id" to selector.id, "x" to 2, "x2" to "foo")
                             )
@@ -277,7 +277,7 @@ class BatchNodeResolverTest {
                         val internalId = selector.id
                         execCounts.computeIfAbsent(internalId) { AtomicInteger(0) }.incrementAndGet()
                         Result.success(
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 objectType,
                                 mapOf("id" to selector.id, "x" to 2, "x2" to "foo")
                             )
@@ -322,7 +322,7 @@ class BatchNodeResolverTest {
                         val internalId = selector.id
                         execCounts.computeIfAbsent(internalId) { AtomicInteger(0) }.incrementAndGet()
                         Result.success(
-                            mkEngineObjectData(
+                            createEngineObjectData(
                                 objectType,
                                 mapOf("id" to selector.id, "x" to 2)
                             )

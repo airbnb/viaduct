@@ -79,7 +79,7 @@ class FieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContext<*, *, *>>(
         val variablesProviderContextFactory = resolverFactory(ViaductSchema(schema), reflectionLoader)
 
         val factory = RequiredSelectionSetFactory(GlobalIDCodecDefault, reflectionLoader)
-        return factory.mkRequiredSelectionSets(
+        return factory.createRequiredSelectionSets(
             variablesProvider = variablesProvider,
             objectSelections = objectSelections,
             querySelections = querySelections,

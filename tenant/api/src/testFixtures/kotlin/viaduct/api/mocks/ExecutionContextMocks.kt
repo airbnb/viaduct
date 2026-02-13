@@ -91,7 +91,7 @@ class MockInternalContext(
     }
 
     companion object {
-        fun mk(
+        fun create(
             schema: ViaductSchema,
             grtPackage: String = "viaduct.api.grts",
             classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
@@ -111,10 +111,10 @@ open class MockExecutionContext(
     }
 
     companion object {
-        fun mk(
+        fun create(
             schema: ViaductSchema = MockSchema.minimal,
             classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
-        ): MockResolverExecutionContext<Query> = MockResolverExecutionContext(MockInternalContext.mk(schema, classLoader = classLoader))
+        ): MockResolverExecutionContext<Query> = MockResolverExecutionContext(MockInternalContext.create(schema, classLoader = classLoader))
     }
 }
 
@@ -168,10 +168,10 @@ open class MockResolverExecutionContext<Q : Query>(
     }
 
     companion object {
-        fun mk(
+        fun create(
             schema: ViaductSchema = MockSchema.minimal,
             classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
-        ): MockResolverExecutionContext<Query> = MockResolverExecutionContext(MockInternalContext.mk(schema, classLoader = classLoader))
+        ): MockResolverExecutionContext<Query> = MockResolverExecutionContext(MockInternalContext.create(schema, classLoader = classLoader))
     }
 }
 
