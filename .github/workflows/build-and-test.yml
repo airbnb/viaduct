@@ -94,7 +94,7 @@ jobs:
       - name: Add Gradle Scan as PR Comment
         uses: actions/github-script@v8
         with:
-          github-token: ${{ secrets.PR_COMMENT_TOKEN }}
+          token: ${{ secrets.PR_COMMENT_TOKEN }}
           script: |
             github.rest.issues.createComment({
               issue_number: context.issue.number,
