@@ -91,18 +91,13 @@ jobs:
           echo "✅ Project built successfully"
         shell: bash
 
-      - name: Add Gradle Scan as PR Comment
-        uses: actions/github-script@v8
-        with:
-          token: ${{ secrets.PR_COMMENT_TOKEN }}
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '[Gradle Build Scan](${{steps.build_project.outputs.build-scan-url}})'
-            })
-
+      - name: Save build scan URL
+        if: always()
+        run: |
+          mkdir -p build-scan-urls
+          echo "${{ steps.build_project.outputs.build-scan-url }}" > build-scan-urls/build-assemble.txt
+          echo "${{ github.event.pull_request.number }}" > build-scan-urls/pr-number.txt
+        shell: bash
 
       - name: Verify Dokka output
         run: |
@@ -176,6 +171,13 @@ jobs:
           name: build-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/
 
+      - name: Upload build scan URLs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-scan-urls-build-${{ matrix.java }}-${{ matrix.os }}
+          path: build-scan-urls/
+
   test:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -217,6 +219,7 @@ jobs:
             gradle-${{ runner.os }}-
 
       - name: Run tests
+        id: run_tests
         run: |
           echo "🧪 Running tests..."
           ./gradlew test --scan --continue || {
@@ -224,6 +227,14 @@ jobs:
             echo "Test failures are not blocking the pipeline"
           }
           echo "✅ Test execution completed"
+        shell: bash
+
+      - name: Save test build scan URL
+        if: always()
+        run: |
+          mkdir -p build-scan-urls
+          echo "${{ steps.run_tests.outputs.build-scan-url }}" > build-scan-urls/test.txt
+          echo "${{ github.event.pull_request.number }}" > build-scan-urls/pr-number.txt
         shell: bash
 
       - name: Generate coverage and test reports
@@ -275,6 +286,13 @@ jobs:
           python3 -m unittest discover
         shell: bash
 
+      - name: Upload build scan URLs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-scan-urls-test-${{ matrix.java }}-${{ matrix.os }}
+          path: build-scan-urls/
+
   detekt:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -311,6 +329,7 @@ jobs:
             gradle-${{ runner.os }}-
 
       - name: Run Detekt Static Analysis
+        id: run_detekt
         run: |
           echo "🧹 Running Detekt static analysis..."
           ./gradlew detekt --no-daemon --max-workers=1 || {
@@ -320,12 +339,27 @@ jobs:
           echo "✅ Detekt analysis passed"
         shell: bash
 
+      - name: Save detekt build scan URL
+        if: always()
+        run: |
+          mkdir -p build-scan-urls
+          echo "${{ steps.run_detekt.outputs.build-scan-url }}" > build-scan-urls/detekt.txt
+          echo "${{ github.event.pull_request.number }}" > build-scan-urls/pr-number.txt
+        shell: bash
+
       - name: Upload Detekt reports
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: detekt-reports-java-${{ matrix.java }}-${{ matrix.os }}
           path: '**/build/reports/detekt/**/*'
+
+      - name: Upload build scan URLs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-scan-urls-detekt-${{ matrix.java }}-${{ matrix.os }}
+          path: build-scan-urls/
 
   ktlint:
     runs-on: ${{ matrix.os }}
@@ -363,6 +397,7 @@ jobs:
             gradle-${{ runner.os }}-
 
       - name: Run Ktlint Code Formatting Check
+        id: run_ktlint
         run: |
           echo "🧹 Running Ktlint code formatting check..."
           ./gradlew ktlintCheck --no-daemon --max-workers=1 || {
@@ -371,6 +406,21 @@ jobs:
           }
           echo "✅ Ktlint formatting check passed"
         shell: bash
+
+      - name: Save ktlint build scan URL
+        if: always()
+        run: |
+          mkdir -p build-scan-urls
+          echo "${{ steps.run_ktlint.outputs.build-scan-url }}" > build-scan-urls/ktlint.txt
+          echo "${{ github.event.pull_request.number }}" > build-scan-urls/pr-number.txt
+        shell: bash
+
+      - name: Upload build scan URLs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-scan-urls-ktlint-${{ matrix.java }}-${{ matrix.os }}
+          path: build-scan-urls/
 
   coverage-verification:
     runs-on: ${{ matrix.os }}
@@ -409,6 +459,7 @@ jobs:
             gradle-${{ runner.os }}-
 
       - name: Verify coverage thresholds
+        id: verify_coverage
         run: |
           echo "🎯 Verifying coverage thresholds..."
           ./gradlew testCodeCoverageVerification --no-configuration-cache -x testCodeCoverageReport || {
@@ -418,6 +469,21 @@ jobs:
           }
           echo "✅ Coverage thresholds met successfully"
         shell: bash
+
+      - name: Save coverage build scan URL
+        if: always()
+        run: |
+          mkdir -p build-scan-urls
+          echo "${{ steps.verify_coverage.outputs.build-scan-url }}" > build-scan-urls/coverage-verification.txt
+          echo "${{ github.event.pull_request.number }}" > build-scan-urls/pr-number.txt
+        shell: bash
+
+      - name: Upload build scan URLs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-scan-urls-coverage-${{ matrix.java }}-${{ matrix.os }}
+          path: build-scan-urls/
 
   slack-alerts:
     runs-on: ubuntu-latest
