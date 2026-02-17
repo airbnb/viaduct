@@ -36,7 +36,7 @@ class GRTDomain<T : GRT> private constructor(
                     )
                     is ObjectBase -> GRTConv(
                         internalCtx = ctx,
-                        type = it.engineObject.graphQLObjectType,
+                        type = it.engineObject.type,
                         selectionSet = selectionSet,
                         keyMapping = keyMapping
                     )

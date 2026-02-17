@@ -85,8 +85,8 @@ fun <T : Object> wrapOutputObject(
     type: Type<T>,
     value: EngineObject
 ): T {
-    require(type.name == value.graphQLObjectType.name) {
-        "Expected value with GraphQL type ${type.name}, got ${value.graphQLObjectType.name}"
+    require(type.name == value.type.name) {
+        "Expected value with GraphQL type ${type.name}, got ${value.type.name}"
     }
 
     val cls = type.kcls

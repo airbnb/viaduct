@@ -26,7 +26,7 @@ open class ProxyEngineObjectData(
     private val errorMessage: String,
     private val selectionSet: RawSelectionSet? = null,
 ) : EngineObjectData {
-    override val graphQLObjectType = objectEngineResult.graphQLObjectType
+    override val type = objectEngineResult.type
 
     protected open fun createInstance(
         objectEngineResult: ObjectEngineResult,
@@ -52,7 +52,7 @@ open class ProxyEngineObjectData(
      * @param selection A field or alias name
      */
     override suspend fun fetchOrNull(selection: String): Any? {
-        val selections = if (selectionSet == null || !selectionSet.containsSelection(graphQLObjectType.name, selection)) {
+        val selections = if (selectionSet == null || !selectionSet.containsSelection(type.name, selection)) {
             return null
         } else {
             selectionSet
@@ -69,7 +69,7 @@ open class ProxyEngineObjectData(
             emptyList()
         } else {
             selectionSet
-                .selectionSetForType(graphQLObjectType.name)
+                .selectionSetForType(type.name)
                 .selections()
                 .map { it.selectionName }
         }
@@ -82,7 +82,7 @@ open class ProxyEngineObjectData(
         selection: String,
         selections: RawSelectionSet
     ): ObjectEngineResult.Key {
-        val rawSelection = selections.resolveSelection(objectEngineResult.graphQLObjectType.name, selection)
+        val rawSelection = selections.resolveSelection(objectEngineResult.type.name, selection)
         val args = selections.argumentsOfSelection(rawSelection.typeCondition, rawSelection.selectionName)
             ?: emptyMap()
         return ObjectEngineResult.Key(rawSelection.fieldName, rawSelection.selectionName, args)
@@ -90,10 +90,10 @@ open class ProxyEngineObjectData(
 
     /** @throws UnsetSelectionException if the field is not in the selection set */
     private fun checkSelectionIsInSelectionSet(selection: String): RawSelectionSet {
-        if (selectionSet == null || !selectionSet.containsSelection(graphQLObjectType.name, selection)) {
+        if (selectionSet == null || !selectionSet.containsSelection(type.name, selection)) {
             throw UnsetSelectionException(
                 selection,
-                graphQLObjectType,
+                type,
                 errorMessage
             )
         }
@@ -108,10 +108,10 @@ open class ProxyEngineObjectData(
         resultKey: String,
         selections: RawSelectionSet
     ): RawSelectionSet? {
-        val rawSelection = selections.resolveSelection(objectEngineResult.graphQLObjectType.name, resultKey)
-        val field = requireNotNull(objectEngineResult.graphQLObjectType.getField(rawSelection.fieldName) ?: introspectionFields[rawSelection.fieldName])
+        val rawSelection = selections.resolveSelection(objectEngineResult.type.name, resultKey)
+        val field = requireNotNull(objectEngineResult.type.getField(rawSelection.fieldName) ?: introspectionFields[rawSelection.fieldName])
         return if (GraphQLTypeUtil.unwrapAll(field.type) is GraphQLCompositeType) {
-            selections.selectionSetForSelection(objectEngineResult.graphQLObjectType.name, resultKey)
+            selections.selectionSetForSelection(objectEngineResult.type.name, resultKey)
         } else {
             null
         }

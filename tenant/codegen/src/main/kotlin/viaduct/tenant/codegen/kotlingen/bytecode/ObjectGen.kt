@@ -98,7 +98,7 @@ private val objectSTGroup =
         }; separator="\n">
 
         fun toBuilder(): Builder =
-            Builder(context, engineObject.graphQLObjectType, toBuilderEOD())
+            Builder(context, engineObject.type, toBuilderEOD())
 
         class Builder : ObjectBase.Builder\<<mdl.className>\> {
             constructor(context: ExecutionContext)
@@ -110,9 +110,9 @@ private val objectSTGroup =
 
             internal constructor(
                 context: InternalContext,
-                graphQLObjectType: graphql.schema.GraphQLObjectType,
+                type: graphql.schema.GraphQLObjectType,
                 baseEngineObjectData: EngineObjectData
-            ) : super(context, graphQLObjectType, baseEngineObjectData)
+            ) : super(context, type, baseEngineObjectData)
 
             <mdl.fields: { f |
               fun <f.escapedName>(value: <f.kotlinType>): Builder = TODO()

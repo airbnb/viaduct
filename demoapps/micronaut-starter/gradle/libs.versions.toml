@@ -4,6 +4,8 @@ ksp = "2.1.0-1.0.29"
 micronaut = "4.7.4"
 micronautCore = "4.7.4"
 kotest = "5.8.0"
+junit5 = "5.11.3"
+junitPlatform = "1.11.3"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -15,6 +17,8 @@ viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref =
 [libraries]
 # Common libraries
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
+viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viaduct" }
+viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
 viaduct-serve = { group = "com.airbnb.viaduct", name = "serve", version.ref = "viaduct" }
 
 # Micronaut
@@ -23,8 +27,9 @@ micronaut-inject-kotlin = { module = "io.micronaut:micronaut-inject-kotlin", ver
 micronaut-context = { module = "io.micronaut:micronaut-context", version.ref = "micronautCore" }
 
 # Testing
-junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit5" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junitPlatform" }
 kotlin-test-junit = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
-junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit5" }
 kotest-runner-junit = { group = "io.kotest", name = "kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { group = "io.kotest", name = "kotest-assertions-core", version.ref = "kotest" }

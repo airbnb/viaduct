@@ -42,7 +42,7 @@ object SyncEngineObjectDataFactory {
     ): SyncProxyEngineObjectData {
         if (selectionSet == null) {
             return SyncProxyEngineObjectData(
-                objectEngineResult.graphQLObjectType,
+                objectEngineResult.type,
                 emptyMap(),
                 errorMessage
             )
@@ -67,14 +67,14 @@ object SyncEngineObjectDataFactory {
         val data = mutableMapOf<String, Any?>()
 
         val selections = selectionSet
-            .selectionSetForType(objectEngineResult.graphQLObjectType.name)
+            .selectionSetForType(objectEngineResult.type.name)
             .selections()
 
         for (selection in selections) {
             val selectionName = selection.selectionName
 
             val rawSelection = selectionSet.resolveSelection(
-                objectEngineResult.graphQLObjectType.name,
+                objectEngineResult.type.name,
                 selectionName
             )
 
@@ -90,7 +90,7 @@ object SyncEngineObjectDataFactory {
         }
 
         return SyncProxyEngineObjectData(
-            objectEngineResult.graphQLObjectType,
+            objectEngineResult.type,
             data,
             errorMessage
         )
@@ -202,10 +202,10 @@ object SyncEngineObjectDataFactory {
         fieldName: String,
         selectionName: String,
     ): RawSelectionSet? {
-        val field = objectEngineResult.graphQLObjectType.getField(fieldName)
+        val field = objectEngineResult.type.getField(fieldName)
         return if (GraphQLTypeUtil.unwrapAll(field.type) is GraphQLCompositeType) {
             selectionSet.selectionSetForSelection(
-                objectEngineResult.graphQLObjectType.name,
+                objectEngineResult.type.name,
                 selectionName
             )
         } else {

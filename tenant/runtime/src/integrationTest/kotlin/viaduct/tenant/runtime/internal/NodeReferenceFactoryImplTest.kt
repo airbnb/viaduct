@@ -34,7 +34,7 @@ class NodeReferenceFactoryImplTest {
             val globalId = GlobalIDImpl(User.Reflection, "123")
             val factory = NodeReferenceGRTFactoryImpl { _: String, objectType: GraphQLObjectType ->
                 mockk {
-                    every { graphQLObjectType } returns objectType
+                    every { type } returns objectType
                 }
             }
 
@@ -59,7 +59,7 @@ class NodeReferenceFactoryImplTest {
             override val id: String
                 get() = globalIDCodec.serialize(globalIDImpl.type.name, globalIDImpl.internalID)
 
-            override val graphQLObjectType: GraphQLObjectType
+            override val type: GraphQLObjectType
                 get() = graphqlObjectType
         }
     }

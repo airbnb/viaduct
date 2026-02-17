@@ -1,6 +1,6 @@
 package viaduct.api.testing
 
-import viaduct.api.internal.ResolverBase
+import viaduct.api.ResolverBase
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput

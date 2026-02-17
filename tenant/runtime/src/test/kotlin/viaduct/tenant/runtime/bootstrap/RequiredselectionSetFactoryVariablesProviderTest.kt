@@ -109,7 +109,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
                 querySelections = null,
                 variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = emptyList(),
-            ).objectSelections
+            ).first
 
             assertThrows<IllegalStateException> {
                 rss!!.variablesResolvers.resolve(vresolveCtx)
@@ -135,7 +135,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
                 querySelections = null,
                 variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = emptyList(),
-            ).objectSelections
+            ).first
 
             // All values pass through - validation happens at GraphQL execution level
             val result = rss!!.variablesResolvers.resolve(vresolveCtx)
@@ -161,7 +161,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
                 querySelections = null,
                 variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = emptyList(),
-            ).objectSelections
+            ).first
 
             // The exception should be propagated up from the resolve call
             val thrownException = assertThrows<RuntimeException> {
@@ -189,7 +189,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
                 querySelections = null,
                 variablesProviderContextFactory = variablesProviderContextFactory,
                 variables = emptyList(),
-            ).objectSelections
+            ).first
 
             // Should throw IllegalStateException because VariablesProvider returns extra variables
             assertThrows<IllegalStateException> {

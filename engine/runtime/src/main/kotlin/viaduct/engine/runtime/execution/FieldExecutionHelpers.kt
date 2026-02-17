@@ -143,7 +143,7 @@ object FieldExecutionHelpers {
             .mergedField(mergedField)
             .fieldType(fieldDef.type)
             .executionStepInfo(execStepInfoSupplier)
-            .parentType(parentOER.graphQLObjectType)
+            .parentType(parentOER.type)
             .selectionSet(fieldCollector)
             .queryDirectives(queryDirectives)
             .build()
@@ -334,8 +334,8 @@ object FieldExecutionHelpers {
                 val engineResult = if (vrss.selections.typeName == engineExecutionContext.fullSchema.schema.queryType.name) {
                     queryEngineData
                 } else {
-                    assert(currentEngineData.graphQLObjectType.name == vrss.selections.typeName) {
-                        "Expected current engine data type to match variable resolver selection set type `${vrss.selections.typeName}`, but instead found `${currentEngineData.graphQLObjectType.name}`"
+                    assert(currentEngineData.type.name == vrss.selections.typeName) {
+                        "Expected current engine data type to match variable resolver selection set type `${vrss.selections.typeName}`, but instead found `${currentEngineData.type.name}`"
                     }
                     currentEngineData
                 }

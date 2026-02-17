@@ -101,7 +101,7 @@ private val nodesSt = stTemplate(
         import viaduct.api.SelectiveResolver
         import viaduct.apiannotations.InternalApi
         import viaduct.api.internal.InternalContext
-        import viaduct.api.internal.NodeResolverBase
+        import viaduct.api.NodeResolverBase
         import viaduct.api.internal.NodeResolverFor
         import viaduct.api.select.SelectionSet
 

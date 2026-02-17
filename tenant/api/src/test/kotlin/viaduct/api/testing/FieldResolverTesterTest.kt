@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
+import viaduct.api.ResolverBase
 import viaduct.api.context.FieldExecutionContext
-import viaduct.api.internal.ResolverBase
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object

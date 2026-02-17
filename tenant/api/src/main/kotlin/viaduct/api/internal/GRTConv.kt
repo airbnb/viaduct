@@ -103,7 +103,7 @@ object GRTConv {
         Conv(
             forward = {
                 it as ObjectBase
-                val impl = requireNotNull(impls[it.engineObject.graphQLObjectType.name])
+                val impl = requireNotNull(impls[it.engineObject.type.name])
                 impl(it)
             },
             inverse = {

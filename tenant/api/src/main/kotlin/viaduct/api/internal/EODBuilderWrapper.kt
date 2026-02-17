@@ -22,10 +22,10 @@ import viaduct.service.api.spi.GlobalIDCodec
  * unwrapping from the GRT to the EngineObjectData for GraphQLCompositeType fields.
  */
 internal class EODBuilderWrapper(
-    private val graphQLObjectType: GraphQLObjectType,
+    private val type: GraphQLObjectType,
     private val globalIDCodec: GlobalIDCodec
 ) {
-    private val engineObjectDataBuilder = EngineObjectDataBuilder.from(graphQLObjectType)
+    private val engineObjectDataBuilder = EngineObjectDataBuilder.from(type)
 
     fun getEngineObjectData() = engineObjectDataBuilder.build()
 
@@ -44,30 +44,30 @@ internal class EODBuilderWrapper(
         value: Any?,
         alias: String? = null
     ) {
-        val field = graphQLObjectType.getField(fieldName)
-        val type = field.type ?: throw IllegalArgumentException(
-            "Field ${field.name} not found on type ${graphQLObjectType.name}"
+        val field = type.getField(fieldName)
+        val fieldType = field.type ?: throw IllegalArgumentException(
+            "Field ${field.name} not found on type ${type.name}"
         )
-        engineObjectDataBuilder.put(alias ?: fieldName, unwrap(field, type, value))
+        engineObjectDataBuilder.put(alias ?: fieldName, unwrap(field, fieldType, value))
     }
 
     private fun unwrap(
         field: GraphQLFieldDefinition,
-        type: GraphQLType,
+        fieldType: GraphQLType,
         value: Any?
     ): Any? {
         if (value == null) {
-            if (GraphQLTypeUtil.isNonNull(type)) {
+            if (GraphQLTypeUtil.isNonNull(fieldType)) {
                 throw IllegalArgumentException(
-                    "Got null builder value for non-null type ${GraphQLTypeUtil.simplePrint(type)}"
+                    "Got null builder value for non-null type ${GraphQLTypeUtil.simplePrint(fieldType)}"
                 )
             }
             return null
         }
 
-        return when (val unwrappedType = GraphQLTypeUtil.unwrapNonNull(type)) {
+        return when (val unwrappedType = GraphQLTypeUtil.unwrapNonNull(fieldType)) {
             is GraphQLScalarType ->
-                if (isGlobalID(field, graphQLObjectType)) {
+                if (isGlobalID(field, type)) {
                     unwrapGlobalID(value)
                 } else {
                     value
@@ -95,14 +95,14 @@ internal class EODBuilderWrapper(
 
     private fun unwrapList(
         field: GraphQLFieldDefinition,
-        type: GraphQLList,
+        listType: GraphQLList,
         value: Any
     ): List<*> {
         if (value !is List<*>) {
             throw IllegalArgumentException("Got non-list builder value $value for list type")
         }
         return value.map {
-            unwrap(field, GraphQLTypeUtil.unwrapOne(type), it)
+            unwrap(field, GraphQLTypeUtil.unwrapOne(listType), it)
         }
     }
 

@@ -9,11 +9,11 @@ import org.junit.jupiter.api.assertThrows
 import strikt.api.expectThat
 import strikt.assertions.isNotNull
 import strikt.assertions.startsWith
+import viaduct.api.NodeResolverBase
+import viaduct.api.ResolverBase
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.NodeResolverBase
-import viaduct.api.internal.ResolverBase
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.testGlobalId
 import viaduct.api.reflect.Type

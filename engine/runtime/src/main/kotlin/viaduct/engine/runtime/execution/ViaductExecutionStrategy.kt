@@ -34,7 +34,7 @@ import viaduct.engine.runtime.RequestScopeCancellationException
 import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.execution.CompletionErrors.FieldCompletionException
 import viaduct.engine.runtime.execution.CompletionErrors.NonNullableFieldWithErrorException
-import viaduct.logging.ifDebug
+import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
 /**

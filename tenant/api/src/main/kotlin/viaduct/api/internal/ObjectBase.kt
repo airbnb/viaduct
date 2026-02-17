@@ -57,7 +57,7 @@ abstract class ObjectBase(
             when (ex) {
                 is ViaductTenantException -> throw ex
                 is EngineObjectDataFetchException -> throw ex.cause!!
-                else -> throw ViaductFrameworkException("ObjectBase.fetch failed for ${engineObject.graphQLObjectType.name}.$fieldName. ($ex)", ex)
+                else -> throw ViaductFrameworkException("ObjectBase.fetch failed for ${engineObject.type.name}.$fieldName. ($ex)", ex)
             }
         }
     }
@@ -78,7 +78,7 @@ abstract class ObjectBase(
     ): T {
         val selection = alias ?: fieldName
         val result = fieldCache.getOrPut(selection) {
-            val objectType = engineObject.graphQLObjectType
+            val objectType = engineObject.type
             val fieldDefinition = objectType.getField(fieldName) ?: throw ViaductFrameworkException(
                 "Field $fieldName not found on type ${objectType.name}"
             )
@@ -184,11 +184,11 @@ abstract class ObjectBase(
             throw IllegalArgumentException("Expected value to be an instance of EngineObjectData, got $value")
         }
 
-        val valueType = context.reflectionLoader.reflectionFor(value.graphQLObjectType.name)
+        val valueType = context.reflectionLoader.reflectionFor(value.type.name)
 
         if (type is GraphQLObjectType) {
-            require(type.name == value.graphQLObjectType.name) {
-                "Expected value with GraphQL type ${type.name}, got ${value.graphQLObjectType.name}"
+            require(type.name == value.type.name) {
+                "Expected value with GraphQL type ${type.name}, got ${value.type.name}"
             }
         } else {
             // type is an interface or union
@@ -230,10 +230,10 @@ abstract class ObjectBase(
      */
     abstract class Builder<T>(
         protected val context: InternalContext,
-        private val graphQLObjectType: GraphQLObjectType,
+        private val type: GraphQLObjectType,
         private val baseEngineObjectData: EngineObjectData?
     ) : DynamicOutputValueBuilder<T> {
-        private val wrapper = EODBuilderWrapper(graphQLObjectType, context.globalIDCodec)
+        private val wrapper = EODBuilderWrapper(type, context.globalIDCodec)
 
         protected fun buildEngineObjectData(): EngineObjectData =
             handleTenantAPIErrors("ObjectBase.Builder.buildEngineObjectData failed") {
@@ -287,9 +287,9 @@ abstract class ObjectBase(
             fieldName: String,
             value: Any?
         ) {
-            val fieldDefinition = graphQLObjectType.getField(fieldName)
-                ?: throw IllegalArgumentException("Field $fieldName not found on type ${graphQLObjectType.name}")
-            val fieldContext = DynamicValueBuilderTypeChecker.FieldContext(fieldDefinition, graphQLObjectType)
+            val fieldDefinition = type.getField(fieldName)
+                ?: throw IllegalArgumentException("Field $fieldName not found on type ${type.name}")
+            val fieldContext = DynamicValueBuilderTypeChecker.FieldContext(fieldDefinition, type)
             DynamicValueBuilderTypeChecker(context).checkType(fieldDefinition.type, value, fieldContext)
         }
     }

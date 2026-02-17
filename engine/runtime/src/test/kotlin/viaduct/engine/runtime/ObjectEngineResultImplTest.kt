@@ -1051,7 +1051,7 @@ class ObjectEngineResultImplTest {
 
                 // Test successful fields
                 val foo = result.fetch(ObjectEngineResult.Key("u"), RAW_VALUE_SLOT) as ObjectEngineResultImpl
-                assertEquals("Foo", foo.graphQLObjectType.name)
+                assertEquals("Foo", foo.type.name)
                 val bar = foo.fetch(ObjectEngineResult.Key("bar"), RAW_VALUE_SLOT) as ObjectEngineResultImpl
                 assertEquals(42, bar.fetch(ObjectEngineResult.Key("x"), RAW_VALUE_SLOT))
             }

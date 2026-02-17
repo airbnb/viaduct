@@ -44,7 +44,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingE
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.collectFields
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoFactory
-import viaduct.logging.ifDebug
+import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
 /**
@@ -566,7 +566,7 @@ class FieldResolver(
                 // if engineResult is a scalar or simple value, then no nesting is possible and we can return
                 val oer = fieldResolutionResult.engineResult as? ObjectEngineResultImpl ?: return Value.fromValue(Unit)
                 fetchObject(
-                    oer.graphQLObjectType,
+                    oer.type,
                     parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource, fieldResolutionResult.resolutionPolicy)
                 )
             }

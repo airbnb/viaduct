@@ -18,10 +18,16 @@ public final class viaduct/api/FieldValue$Companion {
 	public final fun ofValue (Ljava/lang/Object;)Lviaduct/api/FieldValue;
 }
 
+public abstract interface class viaduct/api/NodeResolverBase {
+}
+
 public abstract interface annotation class viaduct/api/Resolver : java/lang/annotation/Annotation {
 	public abstract fun objectValueFragment ()Ljava/lang/String;
 	public abstract fun queryValueFragment ()Ljava/lang/String;
 	public abstract fun variables ()[Lviaduct/api/Variable;
+}
+
+public abstract interface class viaduct/api/ResolverBase {
 }
 
 public abstract interface class viaduct/api/SelectiveResolver {

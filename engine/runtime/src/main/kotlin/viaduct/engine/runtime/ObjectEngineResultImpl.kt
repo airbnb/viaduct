@@ -42,7 +42,7 @@ import viaduct.engine.api.ObjectEngineResult
  * @see computeIfAbsent For the combined claim/compute/complete operation
  */
 class ObjectEngineResultImpl private constructor(
-    override val graphQLObjectType: GraphQLObjectType,
+    override val type: GraphQLObjectType,
     val pending: Boolean = false,
 ) : ObjectEngineResult {
     private val storage = ConcurrentHashMap<ObjectEngineResult.Key, Cell>()

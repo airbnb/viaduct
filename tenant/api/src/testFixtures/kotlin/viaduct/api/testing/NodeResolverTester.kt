@@ -1,8 +1,8 @@
 package viaduct.api.testing
 
 import viaduct.api.FieldValue
+import viaduct.api.NodeResolverBase
 import viaduct.api.globalid.GlobalID
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Query

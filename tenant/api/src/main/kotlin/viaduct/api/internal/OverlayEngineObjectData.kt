@@ -18,7 +18,7 @@ class OverlayEngineObjectData(
     private val overlay: EngineObjectData,
     private val base: EngineObjectData
 ) : EngineObjectData {
-    override val graphQLObjectType: GraphQLObjectType = base.graphQLObjectType
+    override val type: GraphQLObjectType = base.type
 
     override suspend fun fetch(selection: String): Any? {
         val overlaySelections = overlay.fetchSelections()

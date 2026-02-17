@@ -102,7 +102,7 @@ private class ObjectBuilderGenV2(
                     KmValueParameter("context").also {
                         it.type = cfg.INTERNAL_CONTEXT.asKmName.asType()
                     },
-                    KmValueParameter("graphQLObjectType").also {
+                    KmValueParameter("type").also {
                         it.type = cfg.GRAPHQL_OBJECT_TYPE.asKmName.asType()
                     },
                     KmValueParameter("baseEngineObjectData").also {
@@ -118,7 +118,7 @@ private class ObjectBuilderGenV2(
             body = buildString {
                 append("{\n")
                 append(checkNotNullParameterExpression(cfg.INTERNAL_CONTEXT.asKmName.asType(), 1, "context"))
-                append(checkNotNullParameterExpression(cfg.GRAPHQL_OBJECT_TYPE.asKmName.asType(), 2, "graphQLObjectType"))
+                append(checkNotNullParameterExpression(cfg.GRAPHQL_OBJECT_TYPE.asKmName.asType(), 2, "type"))
                 append(checkNotNullParameterExpression(cfg.ENGINE_OBJECT_DATA.asKmName.asType(), 3, "baseEngineObjectData"))
                 append("}")
             }

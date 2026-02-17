@@ -18,7 +18,7 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.executeAccessChec
 
 class NodeEngineObjectDataImpl(
     override val id: String,
-    override val graphQLObjectType: GraphQLObjectType,
+    override val type: GraphQLObjectType,
     private val dispatcherRegistry: DispatcherRegistry
 ) : NodeEngineObjectData, NodeReference, LazyEngineObjectData {
     private lateinit var resolvedEngineObjectData: EngineObjectData
@@ -56,11 +56,11 @@ class NodeEngineObjectDataImpl(
         }
 
         try {
-            val nodeResolver = dispatcherRegistry.getNodeResolverDispatcher(graphQLObjectType.name)
-                ?: throw IllegalStateException("No node resolver found for type ${graphQLObjectType.name}")
+            val nodeResolver = dispatcherRegistry.getNodeResolverDispatcher(type.name)
+                ?: throw IllegalStateException("No node resolver found for type ${type.name}")
 
             if (!context.executeAccessChecksInModstrat) {
-                val nodeChecker = dispatcherRegistry.getTypeCheckerDispatcher(graphQLObjectType.name)
+                val nodeChecker = dispatcherRegistry.getTypeCheckerDispatcher(type.name)
                 if (nodeChecker == null) {
                     resolvedEngineObjectData = nodeResolver.resolve(id, selections, context)
                     resolving.complete(Unit)
@@ -72,7 +72,7 @@ class NodeEngineObjectDataImpl(
                                 emptyMap(),
                                 mapOf(
                                     "key" to CheckerProxyEngineObjectData(
-                                        ObjectEngineResultImpl.newForType(graphQLObjectType),
+                                        ObjectEngineResultImpl.newForType(type),
                                         "missing from checker RSS"
                                     )
                                 ),

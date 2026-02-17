@@ -3,11 +3,11 @@ package viaduct.tenant.runtime.bootstrap
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberFunctions
+import viaduct.api.NodeResolverBase
 import viaduct.api.Resolver
+import viaduct.api.ResolverBase
 import viaduct.api.Variables
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.NodeResolverFor
-import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.ResolverFor
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject

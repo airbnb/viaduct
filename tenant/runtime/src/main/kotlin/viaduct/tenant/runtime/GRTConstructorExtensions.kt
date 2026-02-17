@@ -49,8 +49,8 @@ fun <T : Object> EngineObject.toObjectGRT(
     internalContext: InternalContext,
     kcls: KClass<T>
 ): T {
-    require(kcls.hasAnnotation<FakeGRT>() || kcls.simpleName == this.graphQLObjectType.name) {
-        "KClass name (${kcls.simpleName}) does not match object-type name (${this.graphQLObjectType.name})."
+    require(kcls.hasAnnotation<FakeGRT>() || kcls.simpleName == this.type.name) {
+        "KClass name (${kcls.simpleName}) does not match object-type name (${this.type.name})."
     }
     require(kcls.isSubclassOf(Object::class)) {
         "KClass $kcls is not in { Object }."

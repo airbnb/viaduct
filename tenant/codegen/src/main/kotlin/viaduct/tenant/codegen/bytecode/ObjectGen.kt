@@ -181,7 +181,7 @@ private class ObjectClassGenV2(
                 append("{\n")
                 append("return new ${builderName.asJavaName}(\n")
                 append("    this.getContext(),\n")
-                append("    this.getEngineObject().getGraphQLObjectType(),\n")
+                append("    this.getEngineObject().getType(),\n")
                 append("    this.toBuilderEOD()\n")
                 append(");\n")
                 append("}")

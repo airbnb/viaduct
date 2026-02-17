@@ -6,6 +6,8 @@ import java.util.Locale.getDefault
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.primaryConstructor
+import viaduct.api.NodeResolverBase
+import viaduct.api.ResolverBase
 import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
@@ -14,9 +16,7 @@ import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ReflectionLoader
-import viaduct.api.internal.ResolverBase
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments

@@ -21,7 +21,7 @@ dependencies {
     implementation(libs.graphql.java)
 
     /** Viaduct dependencies **/
-    implementation(libs.viaduct.shared.apiannotations)
+    api(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.shared.graphql)
 
     /** Test fixtures dependencies **/

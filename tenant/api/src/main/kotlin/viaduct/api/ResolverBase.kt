@@ -1,11 +1,11 @@
-package viaduct.api.internal
+package viaduct.api
 
-import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.StableApi
 
 /**
  * Base interface for field resolver classes
  *
  * @param T the return type of the resolve function
  */
-@InternalApi
+@StableApi
 interface ResolverBase<T>

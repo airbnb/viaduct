@@ -30,7 +30,6 @@ dependencies {
         api("com.airbnb.viaduct:shared-arbitrary:${version}")
         api("com.airbnb.viaduct:shared-dataloader:${version}")
         api("com.airbnb.viaduct:shared-utils:${version}")
-        api("com.airbnb.viaduct:shared-logging:${version}")
         api("com.airbnb.viaduct:shared-deferred:${version}")
         api("com.airbnb.viaduct:shared-graphql:${version}")
         api("com.airbnb.viaduct:shared-viaductschema:${version}")

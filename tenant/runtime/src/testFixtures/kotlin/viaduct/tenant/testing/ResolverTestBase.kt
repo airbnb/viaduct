@@ -7,6 +7,8 @@ import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.primaryConstructor
 import viaduct.api.FieldValue
+import viaduct.api.NodeResolverBase
+import viaduct.api.ResolverBase
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
@@ -14,10 +16,8 @@ import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ObjectBaseTestHelpers
-import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.internal
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.mocks.MockExecutionContext
@@ -35,21 +35,13 @@ import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.StableApi
+import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.select.RawSelectionSetFactoryImpl
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.select.SelectionSetFactoryImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
-
-// This typealias avoids @InternalApi be controlled by ERROR OptIn level in parameters
-@StableApi
-typealias TestNodeResolver<T> = NodeResolverBase<T>
-
-// This typealias avoids @InternalApi be controlled by ERROR OptIn level in parameters
-@StableApi
-typealias TestResolverBase<T> = ResolverBase<T>
 
 /**
  * Base class for Viaduct resolver tests. Use [runFieldResolver] for non-mutation resolvers
@@ -130,7 +122,7 @@ typealias TestResolverBase<T> = ResolverBase<T>
         "See FieldResolverTester, MutationResolverTester, or NodeResolverTester for the new API.",
     level = DeprecationLevel.WARNING
 )
-@OptIn(VisibleForTest::class)
+@OptIn(VisibleForTest::class, InternalApi::class)
 interface ResolverTestBase {
     /**
      * An ExecutionContext that can be used to construct a builder, e.g. Foo.Builder(context).
@@ -160,7 +152,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.resolve()
      */
     suspend fun <T> runFieldResolver(
-        resolver: TestResolverBase<T>,
+        resolver: ResolverBase<T>,
         objectValue: Object = NullObject,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
@@ -191,7 +183,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.resolve()
      */
     suspend fun <T> runMutationFieldResolver(
-        resolver: TestResolverBase<T>,
+        resolver: ResolverBase<T>,
         queryValue: Query = NullQuery,
         arguments: Arguments = Arguments.NoArguments,
         requestContext: Any? = null,
@@ -221,7 +213,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.resolve()
      */
     suspend fun <T> runFieldBatchResolver(
-        resolver: TestResolverBase<T>,
+        resolver: ResolverBase<T>,
         objectValues: List<Object> = listOf<Object>(),
         queryValues: List<Query> = objectValues.map { NullQuery },
         requestContext: ExecutionContext? = null,
@@ -260,7 +252,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.resolve()
      */
     suspend fun <T : NodeObject> runNodeResolver(
-        resolver: TestNodeResolver<T>,
+        resolver: NodeResolverBase<T>,
         id: GlobalID<T>,
         requestContext: Any? = null,
         selections: SelectionSet<T>? = null,
@@ -286,7 +278,7 @@ interface ResolverTestBase {
      * @return The return value of resolver.batchResolve()
      */
     suspend fun <T : NodeObject> runNodeBatchResolver(
-        resolver: TestNodeResolver<T>,
+        resolver: NodeResolverBase<T>,
         ids: List<GlobalID<T>>,
         requestContext: Any? = null,
         selections: SelectionSet<T>? = null,
@@ -470,7 +462,8 @@ interface ResolverTestBase {
 // Internal helper functions and values
 private const val BLANK_CONTEXT_QUERY_SELECTION_KEY = "NoSelections"
 
-private fun <T : NodeObject> getNodeResolverContextKClass(resolver: TestNodeResolver<T>): KClass<out NodeExecutionContext<T>> {
+@OptIn(InternalApi::class)
+private fun <T : NodeObject> getNodeResolverContextKClass(resolver: NodeResolverBase<T>): KClass<out NodeExecutionContext<T>> {
     val nestedClasses = resolver.javaClass.classes
     val contextClass = nestedClasses.firstOrNull { it.simpleName == "Context" }
         ?: throw IllegalArgumentException(
@@ -483,6 +476,7 @@ private fun <T : NodeObject> getNodeResolverContextKClass(resolver: TestNodeReso
         )
 }
 
+@OptIn(InternalApi::class)
 private fun <T : NodeObject> ResolverTestBase.createNodeExecutionContext(
     id: GlobalID<T>,
     selections: SelectionSet<T>,
@@ -501,6 +495,7 @@ private fun <T : NodeObject> ResolverTestBase.createNodeExecutionContext(
     )
 }
 
+@OptIn(InternalApi::class)
 private inline fun <T, reified C : Any> getResolverContextKClass(resolver: ResolverBase<T>): KClass<out C> {
     val nestedClasses = resolver.javaClass.classes
     val contextClass = nestedClasses.firstOrNull { it.simpleName == "Context" }
@@ -515,8 +510,10 @@ private inline fun <T, reified C : Any> getResolverContextKClass(resolver: Resol
         )
 }
 
+@OptIn(InternalApi::class)
 private fun <T> getFieldResolverContextKClass(resolver: ResolverBase<T>): KClass<out FieldExecutionContext<*, *, *, *>> = getResolverContextKClass(resolver)
 
+@OptIn(InternalApi::class)
 private fun <T> getMutationFieldResolverContextKClass(resolver: ResolverBase<T>): KClass<out MutationFieldExecutionContext<*, *, *, *>> = getResolverContextKClass(resolver)
 
 /**
@@ -553,6 +550,7 @@ inline fun <reified ctx : FieldExecutionContext<*, *, *, *>> ResolverTestBase.cr
     contextQueries: List<Query> = emptyList()
 ): ctx = createFieldResolverContext(ctx::class, objectValue, queryValue, arguments, requestContext, selections, contextQueries) as ctx
 
+@OptIn(InternalApi::class)
 private fun ResolverTestBase.createNodeExecutionContext(
     objectValue: Object,
     queryValue: Query,
@@ -577,6 +575,7 @@ private fun ResolverTestBase.createNodeExecutionContext(
 }
 
 @Suppress("UNCHECKED_CAST")
+@OptIn(InternalApi::class)
 private fun ResolverTestBase.createMutationFieldExecutionContext(
     queryValue: Query,
     arguments: Arguments,

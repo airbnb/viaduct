@@ -5,8 +5,8 @@ import kotlin.reflect.KClass
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.api.NodeResolverBase
 import viaduct.api.context.FieldExecutionContext
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.mocks.MockType
 import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.types.Arguments

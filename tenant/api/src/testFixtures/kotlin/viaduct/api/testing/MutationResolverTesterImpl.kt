@@ -4,9 +4,9 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.primaryConstructor
+import viaduct.api.ResolverBase
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
-import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.mocks.MockInternalContext

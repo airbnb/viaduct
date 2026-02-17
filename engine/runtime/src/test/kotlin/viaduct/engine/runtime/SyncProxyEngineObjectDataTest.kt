@@ -106,13 +106,13 @@ class SyncProxyEngineObjectDataTest {
     }
 
     @Test
-    fun `graphQLObjectType -- returns the object type`() {
+    fun `type -- returns the object type`() {
         val eod = SyncProxyEngineObjectData(
             obj,
             mapOf("x" to 1)
         )
 
-        assertSame(obj, eod.graphQLObjectType)
+        assertSame(obj, eod.type)
     }
 
     // ============================================================================

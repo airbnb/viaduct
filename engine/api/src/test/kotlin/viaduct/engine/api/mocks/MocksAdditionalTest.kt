@@ -274,7 +274,7 @@ class MocksAdditionalTest {
         val data = mapOf("aField" to "fieldValue", "bIntField" to 42)
         val mockData = createEngineObjectData(objectType, data)
 
-        assertEquals(objectType, mockData.graphQLObjectType)
+        assertEquals(objectType, mockData.type)
         data.forEach { (key, value) -> assertEquals(value, mockData.get(key)) }
     }
 

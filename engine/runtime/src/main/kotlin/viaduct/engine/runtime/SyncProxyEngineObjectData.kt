@@ -16,13 +16,13 @@ import viaduct.engine.api.UnsetSelectionException
  * This is the synchronous counterpart to [ProxyEngineObjectData], created by
  * [SyncEngineObjectDataFactory].
  *
- * @param graphQLObjectType the concrete GraphQL object type that this data describes
+ * @param type the concrete GraphQL object type that this data describes
  * @param data a map of data keyed by selection name; values may be [Exception] to indicate
  *        a field-level error that should be thrown when accessed
  * @param errorMessageTemplate optional custom error message template for [UnsetSelectionException]
  */
 class SyncProxyEngineObjectData(
-    override val graphQLObjectType: GraphQLObjectType,
+    override val type: GraphQLObjectType,
     private val data: Map<String, Any?>,
     private val errorMessageTemplate: String? = null,
 ) : EngineObjectData.Sync {
@@ -37,10 +37,10 @@ class SyncProxyEngineObjectData(
     override fun get(selection: String): Any? {
         if (!data.containsKey(selection)) {
             val message = errorMessageTemplate
-                ?: "Please set a value for $selection using the builder for ${graphQLObjectType.name}"
+                ?: "Please set a value for $selection using the builder for ${type.name}"
             throw UnsetSelectionException(
                 selection,
-                graphQLObjectType,
+                type,
                 message
             )
         }
@@ -59,5 +59,5 @@ class SyncProxyEngineObjectData(
         return value
     }
 
-    override fun toString(): String = "SyncProxyEngineObjectData(type=${graphQLObjectType.name}, data=$data)"
+    override fun toString(): String = "SyncProxyEngineObjectData(type=${type.name}, data=$data)"
 }

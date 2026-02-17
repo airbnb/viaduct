@@ -1,12 +1,12 @@
-package viaduct.api.internal
+package viaduct.api
 
 import viaduct.api.types.NodeObject
-import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.StableApi
 
 /**
  * Base interface for node resolver classes
  *
  * @param T the return type of the resolve function
  */
-@InternalApi
+@StableApi
 interface NodeResolverBase<T : NodeObject>

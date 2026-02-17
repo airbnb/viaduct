@@ -8,7 +8,7 @@ import viaduct.engine.api.ResolverMetadata
 
 /**
  * Initialized via DispatcherRegistry and resolves a single node for a node type whose
- * tenant-written node resolver implements resolve or batch resolve function.
+ * tenant-written node resolver implements a resolve function.
  *
  * If tenant implements the resolve function, it delegates to a dataloader that only
  * does caching and no batching, which dispatches immediately;

@@ -109,7 +109,7 @@ class ProxyEngineObjectDataTest {
         ): ProxyEngineObjectData {
             val selectionSet =
                 fragment?.let {
-                    selectionSetFactory.rawSelectionSet(oer.graphQLObjectType.name, fragment, variables)
+                    selectionSetFactory.rawSelectionSet(oer.type.name, fragment, variables)
                 }
             if (!applyAccessChecks) {
                 return CheckerProxyEngineObjectData(oer, "error", selectionSet)

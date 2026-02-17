@@ -197,7 +197,7 @@ class ResolverDataFetcher(
         val engineLoaderContext = environment.findLocalContextForType<EngineResultLocalContext>()
         val queryEngineResult = engineLoaderContext.queryEngineResult
         val parentEngineResult = engineLoaderContext.parentEngineResult
-        assert(parentEngineResult.graphQLObjectType.name == typeName)
+        assert(parentEngineResult.type.name == typeName)
         return EngineResults(parentEngineResult, queryEngineResult)
     }
 

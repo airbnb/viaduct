@@ -7,10 +7,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import viaduct.api.FieldValue
+import viaduct.api.ResolverBase
 import viaduct.api.ViaductFrameworkException
 import viaduct.api.ViaductTenantResolverException
 import viaduct.api.internal.ReflectionLoader
-import viaduct.api.internal.ResolverBase
 import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.FieldResolverExecutor

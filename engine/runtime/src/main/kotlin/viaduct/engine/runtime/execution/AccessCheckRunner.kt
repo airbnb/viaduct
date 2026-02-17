@@ -20,7 +20,7 @@ import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveQueryPlanVariables
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
-import viaduct.logging.ifDebug
+import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
 /**
@@ -73,13 +73,13 @@ class AccessCheckRunner(
         val engineExecutionContext = parameters.engineExecutionContext
         if (!engineExecutionContext.executeAccessChecksInModstrat) return Value.nullValue
 
-        val typeName = objectEngineResult.graphQLObjectType.name
+        val typeName = objectEngineResult.type.name
         val checkerDispatcher = engineExecutionContext.dispatcherRegistry.getTypeCheckerDispatcher(typeName)
             // No access check for this field, return immediately
             ?: return Value.nullValue
 
         // fetch the selection sets of any child plans for this type
-        val fieldTypeChildPlans = field.fieldTypeChildPlans[objectEngineResult.graphQLObjectType]?.value ?: emptyList()
+        val fieldTypeChildPlans = field.fieldTypeChildPlans[objectEngineResult.type]?.value ?: emptyList()
         if (fieldTypeChildPlans.isNotEmpty()) {
             val env = dataFetchingEnvironmentSupplier.get()
             fieldTypeChildPlans.forEach { childPlan ->
@@ -218,7 +218,7 @@ class AccessCheckRunner(
                 val fieldCoord = if (checkerType == CheckerExecutor.CheckerType.FIELD) {
                     "${parameters.executionStepInfo.objectType.name}.${parameters.field!!.fieldName}"
                 } else {
-                    "${objectEngineResult.graphQLObjectType.name}"
+                    "${objectEngineResult.type.name}"
                 }
                 debug("[AccessCheck] Executing ${checkerType.name} access check for '$fieldCoord' at path '${parameters.path}', checker name: '${dispatcher.checkerMetadata?.checkerName}'")
             }

@@ -33,7 +33,7 @@ package viaduct.engine.api
  *
  * Implementations of EODs interfaces generally do _not_ do any
  * checking that either the names or types of values conform to the
- * schema of [graphQLObjectType].  In passing these objects in, the
+ * schema of [type].  In passing these objects in, the
  * engine _will_ ensure such conformance, and when passing them out,
  * Tenant API implementations _must_ ensure conformance.  (Tenant APIs
  * must _not_ assume that application code is correct and instead must

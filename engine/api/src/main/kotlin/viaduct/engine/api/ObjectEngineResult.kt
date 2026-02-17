@@ -62,7 +62,7 @@ interface ObjectEngineResult {
         }
     }
 
-    val graphQLObjectType: GraphQLObjectType
+    val type: GraphQLObjectType
 
     /**
      * Fetch a value in the given [slotNo] using the provided [key]. The value will contain an ObjectEngineResult

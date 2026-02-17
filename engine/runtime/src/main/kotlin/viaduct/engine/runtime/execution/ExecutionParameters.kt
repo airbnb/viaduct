@@ -460,7 +460,7 @@ data class ExecutionParameters(
             coercedVariables = coercedVariables,
             // ExecutionStepInfo.type is initially set to an abstract type like Node
             // It can be refined during execution as abstract types become resolved
-            executionStepInfo = executionStepInfo.changeTypeWithPreservedNonNull(engineResult.graphQLObjectType),
+            executionStepInfo = executionStepInfo.changeTypeWithPreservedNonNull(engineResult.type),
             localContext = localContext,
             source = source,
             selectionSet = checkNotNull(field.selectionSet) { "Expected selection set to be non-null." },

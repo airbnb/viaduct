@@ -34,7 +34,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingE
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.collectFields
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoFactory
-import viaduct.logging.ifDebug
+import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
 /**
@@ -133,11 +133,11 @@ class FieldCompleter(
     @Suppress("UNCHECKED_CAST")
     private fun objectFieldMap(parameters: ExecutionParameters): Value<Map<String, Any?>> {
         val parentOER = parameters.parentEngineResult
-        val fields = collectFields(parentOER.graphQLObjectType, parameters).selections
+        val fields = collectFields(parentOER.type, parameters).selections
         val fieldValues = fields.map { field ->
             field as QueryPlan.CollectedField
 
-            val newParams = parameters.forField(parentOER.graphQLObjectType, field)
+            val newParams = parameters.forField(parentOER.type, field)
             val fieldKey = buildOERKeyForField(newParams, field)
             val bypassChecker = temporaryBypassAccessCheck.shouldBypassCheck(field.mergedField.singleField, parameters.bypassChecksDuringCompletion)
 

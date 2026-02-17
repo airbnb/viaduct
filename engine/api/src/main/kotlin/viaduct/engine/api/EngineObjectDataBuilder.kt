@@ -3,7 +3,7 @@ package viaduct.engine.api
 import graphql.schema.GraphQLObjectType
 
 interface EngineObjectDataBuilder {
-    val graphQLObjectType: GraphQLObjectType
+    val type: GraphQLObjectType
 
     /**
      * Store a value with the provided [selection] and [value].

@@ -7,3 +7,7 @@ plugins {
 viaductModule {
     modulePackageSuffix.set("viadapp")
 }
+
+dependencies {
+    api(libs.viaduct.api)
+}

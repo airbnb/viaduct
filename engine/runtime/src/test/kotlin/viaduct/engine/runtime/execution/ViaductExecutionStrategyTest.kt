@@ -191,9 +191,9 @@ class ViaductExecutionStrategyTest {
                 )
 
                 executeViaductModernGraphQL(sdl, resolvers, query)
-                assertEquals("Query", ctx?.rootEngineResult?.graphQLObjectType?.name)
-                assertEquals("Query", ctx?.parentEngineResult?.graphQLObjectType?.name)
-                assertEquals("Query", ctx?.queryEngineResult?.graphQLObjectType?.name)
+                assertEquals("Query", ctx?.rootEngineResult?.type?.name)
+                assertEquals("Query", ctx?.parentEngineResult?.type?.name)
+                assertEquals("Query", ctx?.queryEngineResult?.type?.name)
                 // For Query operations, queryEngineResult should be the same instance as rootEngineResult
                 assertSame(ctx!!.rootEngineResult, ctx!!.queryEngineResult)
             }
@@ -223,9 +223,9 @@ class ViaductExecutionStrategyTest {
                 )
 
                 executeViaductModernGraphQL(sdl, resolvers, query)
-                assertEquals("Mutation", ctx?.rootEngineResult?.graphQLObjectType?.name)
-                assertEquals("Mutation", ctx?.parentEngineResult?.graphQLObjectType?.name)
-                assertEquals("Query", ctx?.queryEngineResult?.graphQLObjectType?.name)
+                assertEquals("Mutation", ctx?.rootEngineResult?.type?.name)
+                assertEquals("Mutation", ctx?.parentEngineResult?.type?.name)
+                assertEquals("Query", ctx?.queryEngineResult?.type?.name)
                 // For Mutation operations, queryEngineResult should be a separate Query-type instance
                 assertNotSame(ctx!!.rootEngineResult, ctx!!.queryEngineResult)
             }

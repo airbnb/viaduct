@@ -43,7 +43,7 @@ class ViaductWiringFactory(private val coroutineInterop: CoroutineInterop) : Wir
                     "Invariant: expected engine result to be an `EngineObjectData` for interface" +
                         " named `${environment.interfaceTypeDefinition.name}`."
                 )
-            oer.graphQLObjectType
+            oer.type
         }
 
     override fun providesTypeResolver(environment: UnionWiringEnvironment?) = true
@@ -55,7 +55,7 @@ class ViaductWiringFactory(private val coroutineInterop: CoroutineInterop) : Wir
                     "Invariant: expected engine result to be an `EngineObjectData` for union " +
                         " named `${environment.unionTypeDefinition.name}`. "
                 )
-            oed.graphQLObjectType
+            oed.type
         }
 
     companion object {

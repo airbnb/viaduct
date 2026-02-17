@@ -152,7 +152,7 @@ private val resolversST = stTemplate(
     import viaduct.apiannotations.InternalApi
     import viaduct.api.context.FieldExecutionContext
     import viaduct.api.internal.InternalContext
-    import viaduct.api.internal.ResolverBase
+    import viaduct.api.ResolverBase
     import viaduct.api.internal.ResolverFor
     import viaduct.api.types.Arguments.NoArguments
     import viaduct.api.types.CompositeOutput

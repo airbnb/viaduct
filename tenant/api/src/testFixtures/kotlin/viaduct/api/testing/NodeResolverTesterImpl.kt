@@ -5,10 +5,10 @@ import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.primaryConstructor
 import viaduct.api.FieldValue
+import viaduct.api.NodeResolverBase
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.globalid.GlobalID
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.mocks.MockInternalContext

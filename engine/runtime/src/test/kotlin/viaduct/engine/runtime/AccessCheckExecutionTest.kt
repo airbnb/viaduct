@@ -165,7 +165,7 @@ class AccessCheckExecutionTest {
                 resolver {
                     fn { _, _, _, _, _ ->
                         object : EngineObjectData {
-                            override val graphQLObjectType = booType
+                            override val type = booType
 
                             override suspend fun fetch(selection: String): Any? {
                                 if (selection == "value") {

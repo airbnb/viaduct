@@ -8,9 +8,9 @@ import graphql.schema.idl.SchemaParser
 import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import viaduct.api.ResolverBase
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.ResolverFor
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput

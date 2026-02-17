@@ -22,7 +22,7 @@ class ResolvedEngineObjectDataTest {
             .put("y", null)
             .build()
 
-        assertSame(obj, eod.graphQLObjectType)
+        assertSame(obj, eod.type)
         assertEquals(1, eod.get("x"))
         assertEquals(null, eod.get("y"))
         assertThrows<UnsetSelectionException> {

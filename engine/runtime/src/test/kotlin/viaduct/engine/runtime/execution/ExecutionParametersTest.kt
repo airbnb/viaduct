@@ -308,7 +308,7 @@ class ExecutionParametersTest {
         assertEquals(childSource, result.source)
         assertSame(collectedField.selectionSet, result.selectionSet)
         assertEquals(fieldParameters.executionStepInfo.path, result.executionStepInfo.path)
-        assertEquals(nextEngineResult.graphQLObjectType, unwrapNonNull(result.executionStepInfo.type))
+        assertEquals(nextEngineResult.type, unwrapNonNull(result.executionStepInfo.type))
     }
 
     @Test

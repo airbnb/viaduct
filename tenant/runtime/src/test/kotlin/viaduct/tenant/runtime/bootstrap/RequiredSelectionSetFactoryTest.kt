@@ -14,11 +14,11 @@ import strikt.assertions.isNotNull
 import strikt.assertions.isTrue
 import strikt.assertions.startsWith
 import viaduct.api.Resolver
+import viaduct.api.ResolverBase
 import viaduct.api.Variable
 import viaduct.api.Variables
 import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
-import viaduct.api.internal.ResolverBase
 import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.types.Arguments
 import viaduct.engine.api.FromArgumentVariable
@@ -139,7 +139,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = MyResolverBase::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
-        ).objectSelections
+        ).first
         assertEquals(setOf("x", "y", "z"), rss?.variablesResolvers?.variableNames)
     }
 
@@ -157,8 +157,8 @@ class RequiredSelectionSetFactoryTest {
             resolverForType = "Query",
         )
         // Should create empty result for no fragments
-        assertEquals(null, rss.objectSelections)
-        assertEquals(null, rss.querySelections)
+        assertEquals(null, rss.first)
+        assertEquals(null, rss.second)
     }
 
     @Resolver(variables = [Variable("x", "baz")]) // Variable without fragment should throw
@@ -232,7 +232,7 @@ class RequiredSelectionSetFactoryTest {
             resolverForType = "Query",
         )
         // Should successfully create selection set with fromField variable
-        assertEquals(setOf("z"), rss.objectSelections?.variablesResolvers?.variableNames)
+        assertEquals(setOf("z"), rss.first?.variablesResolvers?.variableNames)
     }
 
     @Resolver(
@@ -252,7 +252,7 @@ class RequiredSelectionSetFactoryTest {
             resolverForType = "Query",
         )
         // Should successfully create selection set with fromArgument variable
-        assertEquals(setOf("x"), rss.objectSelections?.variablesResolvers?.variableNames)
+        assertEquals(setOf("x"), rss.first?.variablesResolvers?.variableNames)
     }
 
     @Test
@@ -307,7 +307,7 @@ class RequiredSelectionSetFactoryTest {
                 FromObjectFieldVariable("z", "baz") // z is bound to field baz
                 // y is provided by VariablesProvider - no conflict since y is not bound to anything
             ),
-        ).objectSelections
+        ).first
 
         // Verify the RequiredSelectionSet was created successfully with all three variables
         assertEquals(setOf("boundX", "y", "z"), rss?.variablesResolvers?.variableNames)
@@ -327,9 +327,9 @@ class RequiredSelectionSetFactoryTest {
             variablesProviderContextFactory = variablesProviderContextFactory,
             variables = emptyList(),
         )
-        assertEquals(objectSelections, rss.objectSelections?.selections)
-        assertEquals(emptyList<VariablesResolver>(), rss.objectSelections?.variablesResolvers)
-        assertNull(rss.querySelections)
+        assertEquals(objectSelections, rss.first?.selections)
+        assertEquals(emptyList<VariablesResolver>(), rss.first?.variablesResolvers)
+        assertNull(rss.second)
     }
 
     @Test
@@ -344,9 +344,9 @@ class RequiredSelectionSetFactoryTest {
                 FromArgumentVariable("x", "x")
             ),
         )
-        assertEquals(objectSelections, rss.objectSelections?.selections)
-        assertEquals(setOf("x"), rss.objectSelections?.variablesResolvers?.variableNames)
-        assertNull(rss.querySelections)
+        assertEquals(objectSelections, rss.first?.selections)
+        assertEquals(setOf("x"), rss.first?.variablesResolvers?.variableNames)
+        assertNull(rss.second)
     }
 
     @Test
@@ -361,9 +361,9 @@ class RequiredSelectionSetFactoryTest {
                 FromObjectFieldVariable("y", "baz")
             ),
         )
-        assertEquals(objectSelections, rss.objectSelections?.selections)
-        assertEquals(setOf("y"), rss.objectSelections?.variablesResolvers?.variableNames)
-        assertNull(rss.querySelections)
+        assertEquals(objectSelections, rss.first?.selections)
+        assertEquals(setOf("y"), rss.first?.variablesResolvers?.variableNames)
+        assertNull(rss.second)
     }
 
     @Test
@@ -376,9 +376,9 @@ class RequiredSelectionSetFactoryTest {
             variablesProviderContextFactory = variablesProviderContextFactory,
             variables = emptyList(),
         )
-        assertEquals(objectSelections, rss.objectSelections?.selections)
-        assertEquals(setOf("y"), rss.objectSelections?.variablesResolvers?.variableNames)
-        assertNull(rss.querySelections)
+        assertEquals(objectSelections, rss.first?.selections)
+        assertEquals(setOf("y"), rss.first?.variablesResolvers?.variableNames)
+        assertNull(rss.second)
     }
 
     @Test
@@ -449,7 +449,7 @@ class RequiredSelectionSetFactoryTest {
         // Verify the error message describes the issue with unused variables
         expectThat(exception.message)
             .isNotNull()
-            .startsWith("Cannot build RequiredSelectionSets: found declarations for unused variables:")
+            .startsWith("Cannot build required selection sets: found declarations for unused variables:")
         expectThat(exception.message!!.contains("undeclaredVar")).isTrue()
     }
 
@@ -468,8 +468,8 @@ class RequiredSelectionSetFactoryTest {
             variables = emptyList(),
         )
 
-        assertEquals(setOf("x"), rss.objectSelections?.variablesResolvers?.variableNames)
-        assertNull(rss.querySelections)
+        assertEquals(setOf("x"), rss.first?.variablesResolvers?.variableNames)
+        assertNull(rss.second)
     }
 
     @Test
@@ -495,7 +495,7 @@ class RequiredSelectionSetFactoryTest {
         // Verify both unused variables are mentioned in the error
         expectThat(exception.message)
             .isNotNull()
-            .startsWith("Cannot build RequiredSelectionSets: found declarations for unused variables:")
+            .startsWith("Cannot build required selection sets: found declarations for unused variables:")
         expectThat(exception.message!!.contains("unusedProviderVar")).isTrue()
         expectThat(exception.message!!.contains("unusedAnnotationVar")).isTrue()
     }
@@ -517,8 +517,8 @@ class RequiredSelectionSetFactoryTest {
         )
 
         // Both variables should be present
-        assertEquals(setOf("y", "z"), rss.objectSelections?.variablesResolvers?.variableNames)
-        assertNull(rss.querySelections)
+        assertEquals(setOf("y", "z"), rss.first?.variablesResolvers?.variableNames)
+        assertNull(rss.second)
     }
 
     // Test basic @Variables syntax validation
@@ -601,7 +601,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = EmptyVariablesResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
-        ).objectSelections
+        ).first
 
         // Should create RequiredSelectionSet successfully with no variables
         assertEquals(emptySet<String>(), rss?.variablesResolvers?.variableNames)
@@ -617,7 +617,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = CommasOnlyVariablesResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
-        ).objectSelections
+        ).first
 
         // Should create RequiredSelectionSet successfully with no variables
         assertEquals(emptySet<String>(), rss?.variablesResolvers?.variableNames)
@@ -694,7 +694,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = NonExistentTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
-        ).objectSelections
+        ).first
 
         // The RequiredSelectionSet should be created successfully
         assertEquals(setOf("testVar"), rss?.variablesResolvers?.variableNames)
@@ -758,7 +758,7 @@ class RequiredSelectionSetFactoryTest {
             variablesProviderContextFactory = variablesProviderContextFactory,
             annotation = ValidInputTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
-        ).objectSelections
+        ).first
 
         // Should successfully create RequiredSelectionSet with valid input type
         assertEquals(setOf("testVar"), rss?.variablesResolvers?.variableNames)
@@ -779,8 +779,8 @@ class RequiredSelectionSetFactoryTest {
             resolverForType = "Query",
         )
         // Should create query selections but no object selections
-        assertNull(rss.objectSelections)
-        assertEquals(setOf("y"), rss.querySelections?.variablesResolvers?.variableNames)
+        assertNull(rss.first)
+        assertEquals(setOf("y"), rss.second?.variablesResolvers?.variableNames)
     }
 
     @Test
@@ -794,8 +794,8 @@ class RequiredSelectionSetFactoryTest {
             resolverForType = "Query",
         )
         // Should create both object and query selection sets with shared variables
-        assertEquals(setOf("x", "y"), rss.objectSelections?.variablesResolvers?.variableNames)
-        assertEquals(setOf("x", "y"), rss.querySelections?.variablesResolvers?.variableNames)
+        assertEquals(setOf("x", "y"), rss.first?.variablesResolvers?.variableNames)
+        assertEquals(setOf("x", "y"), rss.second?.variablesResolvers?.variableNames)
     }
 
     @Test
@@ -815,8 +815,8 @@ class RequiredSelectionSetFactoryTest {
 
         // Should create both object and query selection sets
         // Variables are shared across both selection sets since they come from the same resolver
-        assertEquals(setOf("objVar", "queryVar"), selections.objectSelections?.variablesResolvers?.variableNames)
-        assertEquals(setOf("objVar", "queryVar"), selections.querySelections?.variablesResolvers?.variableNames)
+        assertEquals(setOf("objVar", "queryVar"), selections.first?.variablesResolvers?.variableNames)
+        assertEquals(setOf("objVar", "queryVar"), selections.second?.variablesResolvers?.variableNames)
     }
 
     @Resolver(
@@ -858,8 +858,8 @@ class RequiredSelectionSetFactoryTest {
         )
 
         // Both selection sets should have the same shared variable
-        assertEquals(setOf("shared"), selections.objectSelections?.variablesResolvers?.variableNames)
-        assertEquals(setOf("shared"), selections.querySelections?.variablesResolvers?.variableNames)
+        assertEquals(setOf("shared"), selections.first?.variablesResolvers?.variableNames)
+        assertEquals(setOf("shared"), selections.second?.variablesResolvers?.variableNames)
     }
 
     @Test
@@ -883,8 +883,8 @@ class RequiredSelectionSetFactoryTest {
 
         // Variables should be resolved from VariablesProvider for both selection sets
         // Each selection set gets all VariablesProvider variables (not filtered by usage)
-        assertEquals(setOf("objVar", "queryVar"), selections.objectSelections?.variablesResolvers?.variableNames)
-        assertEquals(setOf("objVar", "queryVar"), selections.querySelections?.variablesResolvers?.variableNames)
+        assertEquals(setOf("objVar", "queryVar"), selections.first?.variablesResolvers?.variableNames)
+        assertEquals(setOf("objVar", "queryVar"), selections.second?.variablesResolvers?.variableNames)
     }
 
     @Test
@@ -903,8 +903,8 @@ class RequiredSelectionSetFactoryTest {
         )
 
         // Should create both selection sets with shared variables
-        assertEquals(setOf("objVar", "queryVar"), selections.objectSelections?.variablesResolvers?.variableNames)
-        assertEquals(setOf("objVar", "queryVar"), selections.querySelections?.variablesResolvers?.variableNames)
+        assertEquals(setOf("objVar", "queryVar"), selections.first?.variablesResolvers?.variableNames)
+        assertEquals(setOf("objVar", "queryVar"), selections.second?.variablesResolvers?.variableNames)
     }
 
     @Test
@@ -926,8 +926,8 @@ class RequiredSelectionSetFactoryTest {
         )
 
         // All variables should be available to both selection sets
-        assertEquals(setOf("objVar", "queryVar", "argVar"), selections.objectSelections?.variablesResolvers?.variableNames)
-        assertEquals(setOf("objVar", "queryVar", "argVar"), selections.querySelections?.variablesResolvers?.variableNames)
+        assertEquals(setOf("objVar", "queryVar", "argVar"), selections.first?.variablesResolvers?.variableNames)
+        assertEquals(setOf("objVar", "queryVar", "argVar"), selections.second?.variablesResolvers?.variableNames)
     }
 
     @Test

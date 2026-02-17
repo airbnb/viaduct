@@ -52,7 +52,7 @@ class ViaductWiringFactoryTest {
         val actualObjectType = interfaceResolver.getType(
             mockk<TypeResolutionEnvironment> {
                 every { getObject<Any>() } returns mockk<ResolvedEngineObjectData> {
-                    every { graphQLObjectType } returns expectedObjectType
+                    every { type } returns expectedObjectType
                 }
             }
         )
@@ -68,7 +68,7 @@ class ViaductWiringFactoryTest {
         val actualObjectType = interfaceResolver.getType(
             mockk<TypeResolutionEnvironment> {
                 every { getObject<Any>() } returns mockk<ResolvedEngineObjectData> {
-                    every { graphQLObjectType } returns expectedObjectType
+                    every { type } returns expectedObjectType
                 }
             }
         )

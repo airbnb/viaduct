@@ -261,7 +261,7 @@ class MockNodeUnbatchedResolverExecutor(
     override val metadata: ResolverMetadata = ResolverMetadata.forMock("Node:$typeName")
     override val isBatching: Boolean = false
 
-    override suspend fun batchResolve(
+    override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
@@ -283,7 +283,7 @@ class MockNodeBatchResolverExecutor(
     override val metadata: ResolverMetadata = ResolverMetadata.forMock("Node:$typeName")
     override val isBatching: Boolean = true
 
-    override suspend fun batchResolve(
+    override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> = batchResolveFn(selectors, context)

@@ -3,10 +3,10 @@ package viaduct.tenant.runtime.execution
 import javax.inject.Provider
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
+import viaduct.api.ResolverBase
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
-import viaduct.api.internal.ResolverBase
 import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.FieldResolverExecutor

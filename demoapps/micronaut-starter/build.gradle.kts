@@ -33,6 +33,9 @@ dependencies {
     implementation(libs.micronaut.inject)
     implementation(libs.micronaut.context)
 
+    implementation(libs.viaduct.api)
+    implementation(libs.viaduct.runtime)
+
     implementation(libs.kotlin.reflect)
 
     implementation(project(":viadapp"))
@@ -40,6 +43,7 @@ dependencies {
     // Development-only: serve dependency for ViaductServer integration
     devImplementation(libs.viaduct.serve)
 
+    testImplementation(enforcedPlatform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.junit.jupiter)
 

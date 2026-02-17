@@ -3,8 +3,8 @@ package viaduct.tenant.runtime.execution
 import javax.inject.Provider
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
+import viaduct.api.NodeResolverBase
 import viaduct.api.ViaductTenantUsageException
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.wrapResolveException
@@ -30,7 +30,7 @@ class NodeUnbatchedResolverExecutorImpl(
     override val metadata = ResolverMetadata.forModern(resolverName)
     override val isBatching = false
 
-    override suspend fun batchResolve(
+    override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {

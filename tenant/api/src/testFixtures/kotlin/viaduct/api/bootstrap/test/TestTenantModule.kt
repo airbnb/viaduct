@@ -1,6 +1,8 @@
 package viaduct.api.bootstrap.test
 
+import viaduct.api.NodeResolverBase
 import viaduct.api.Resolver
+import viaduct.api.ResolverBase
 import viaduct.api.TenantModule
 import viaduct.api.Variable
 import viaduct.api.Variables
@@ -13,9 +15,7 @@ import viaduct.api.bootstrap.test.grts.TestType_ParameterizedField_Arguments
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.VariablesProviderContext
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.NodeResolverFor
-import viaduct.api.internal.ResolverBase
 import viaduct.api.internal.ResolverFor
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput

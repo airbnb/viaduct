@@ -581,7 +581,7 @@ class ObjectBaseTest {
         }
 
     private abstract inner class NR : NodeReference {
-        override val graphQLObjectType = gqlSchema.schema.getObjectType("O1")
+        override val type = gqlSchema.schema.getObjectType("O1")
     }
 
     @Test
@@ -663,15 +663,15 @@ class ObjectBaseTest {
         fun toBuilder(): Builder =
             Builder(
                 context,
-                engineObject.graphQLObjectType,
+                engineObject.type,
                 toBuilderEOD()
             )
 
         class Builder(
             context: InternalContext,
-            graphQLObjectType: GraphQLObjectType,
+            type: GraphQLObjectType,
             baseEngineObjectData: EngineObjectData? = null
-        ) : ObjectBase.Builder<TestObject>(context, graphQLObjectType, baseEngineObjectData) {
+        ) : ObjectBase.Builder<TestObject>(context, type, baseEngineObjectData) {
             constructor(context: viaduct.api.context.ExecutionContext) : this(
                 context.internal,
                 context.internal.schema.schema.getObjectType("O2"), // Use existing O2 type
@@ -730,7 +730,7 @@ class ObjectBaseTest {
         @Test
         fun `toBuilder throws on NodeReference`() {
             val nodeRef = object : NodeReference {
-                override val graphQLObjectType = gqlSchema.schema.getObjectType("O2")
+                override val type = gqlSchema.schema.getObjectType("O2")
                 override val id = "O2:test-id"
             }
             val testObject = TestObject(internalContext, nodeRef)

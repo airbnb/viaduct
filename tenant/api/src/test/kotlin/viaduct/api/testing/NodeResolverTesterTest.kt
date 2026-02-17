@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
+import viaduct.api.NodeResolverBase
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.globalid.GlobalID
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.InternalApi

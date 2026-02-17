@@ -8,11 +8,11 @@ import graphql.schema.GraphQLObjectType
  * to the type-invariants described in [EngineObjectData].
  * Deviations from these invariants are likely to cause failures in other parts of Viaduct.
  *
- * @param graphQLObjectType the concrete GraphQL object type that this data describes
+ * @param type the concrete GraphQL object type that this data describes
  * @param data a map of data, keyed by selection name.
  */
 class ResolvedEngineObjectData(
-    override val graphQLObjectType: GraphQLObjectType,
+    override val type: GraphQLObjectType,
     private val data: Map<String, Any?>
 ) : EngineObjectData.Sync {
     override suspend fun fetch(selection: String) = get(selection)
@@ -27,8 +27,8 @@ class ResolvedEngineObjectData(
         if (!data.containsKey(selection)) {
             throw UnsetSelectionException(
                 selection,
-                graphQLObjectType,
-                "Please set a value for $selection using the builder for ${graphQLObjectType.name}"
+                type,
+                "Please set a value for $selection using the builder for ${type.name}"
             )
         }
         return data[selection]
@@ -36,10 +36,10 @@ class ResolvedEngineObjectData(
 
     override fun getOrNull(selection: String): Any? = data[selection]
 
-    override fun toString(): String = "type=${graphQLObjectType.name} $data=$data"
+    override fun toString(): String = "type=${type.name} $data=$data"
 
     /** Construct a Builder for [ResolvedEngineObjectData] */
-    class Builder(override val graphQLObjectType: GraphQLObjectType) : EngineObjectDataBuilder {
+    class Builder(override val type: GraphQLObjectType) : EngineObjectDataBuilder {
         private val data = mutableMapOf<String, Any?>()
 
         /**
@@ -60,6 +60,6 @@ class ResolvedEngineObjectData(
             return this
         }
 
-        override fun build() = ResolvedEngineObjectData(graphQLObjectType, data.toMap())
+        override fun build() = ResolvedEngineObjectData(type, data.toMap())
     }
 }

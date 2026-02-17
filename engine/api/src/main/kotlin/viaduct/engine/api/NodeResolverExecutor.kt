@@ -1,7 +1,7 @@
 package viaduct.engine.api
 
 /**
- * Executes tenant-written node resolver or batch resolver function.
+ * Executes tenant-written node resolver function.
  */
 interface NodeResolverExecutor {
     /**
@@ -37,10 +37,10 @@ interface NodeResolverExecutor {
     val isSelective: Boolean
 
     /**
-     * Executes the tenant-written resolver or batch resolver function, and unwraps
+     * Executes the tenant-written resolver function, and unwraps
      * the result into a map of `Result<EngineObjectData>`.
      */
-    suspend fun batchResolve(
+    suspend fun resolve(
         selectors: List<Selector>,
         context: EngineExecutionContext
     ): Map<Selector, Result<EngineObjectData>>

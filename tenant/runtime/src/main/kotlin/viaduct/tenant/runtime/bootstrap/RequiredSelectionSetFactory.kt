@@ -5,11 +5,11 @@ import kotlin.reflect.full.findAnnotations
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.isSubclassOf
 import viaduct.api.Resolver
+import viaduct.api.ResolverBase
 import viaduct.api.Variable
 import viaduct.api.Variables
 import viaduct.api.VariablesProvider
 import viaduct.api.internal.ReflectionLoader
-import viaduct.api.internal.ResolverBase
 import viaduct.api.types.Arguments
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromArgumentVariable
@@ -17,7 +17,6 @@ import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.RequiredSelectionSets
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
@@ -47,7 +46,7 @@ class RequiredSelectionSetFactory(
         variablesProviderContextFactory: VariablesProviderContextFactory,
         annotation: Resolver,
         resolverForType: String,
-    ): RequiredSelectionSets {
+    ): Pair<RequiredSelectionSet?, RequiredSelectionSet?> {
         val objectValueFragment = annotation.objectValueFragment
         val queryValueFragment = annotation.queryValueFragment
 
@@ -75,7 +74,7 @@ class RequiredSelectionSetFactory(
     }
 
     /**
-     * Create a [RequiredSelectionSets] for the provided parameters with cross-selection-set validation.
+     * Create a [Pair] of [RequiredSelectionSet]s for the provided parameters with cross-selection-set validation.
      * This method performs validation that ensures VariablesProvider variables are used across both
      * object and query selection sets.
      */
@@ -86,9 +85,9 @@ class RequiredSelectionSetFactory(
         variablesProviderContextFactory: VariablesProviderContextFactory,
         variables: List<SelectionSetVariable>,
         attribution: ExecutionAttribution? = null,
-    ): RequiredSelectionSets {
+    ): Pair<RequiredSelectionSet?, RequiredSelectionSet?> {
         if (objectSelections == null && querySelections == null) {
-            return RequiredSelectionSets.empty()
+            return Pair(null, null)
         }
 
         // Perform cross-selection-set validation for all variables
@@ -102,7 +101,7 @@ class RequiredSelectionSetFactory(
         }
         val unusedVariables = variableProducers - variableConsumers
         require(unusedVariables.isEmpty()) {
-            "Cannot build RequiredSelectionSets: found declarations for unused variables: ${unusedVariables.joinToString(", ")}"
+            "Cannot build required selection sets: found declarations for unused variables: ${unusedVariables.joinToString(", ")}"
         }
 
         val allVariableResolvers = listOf(
@@ -117,8 +116,8 @@ class RequiredSelectionSetFactory(
             .also { it.checkDisjoint() }
             .map { it.validated() }
 
-        return RequiredSelectionSets(
-            objectSelections = objectSelections?.let {
+        return Pair(
+            objectSelections?.let {
                 RequiredSelectionSet(
                     it,
                     allVariableResolvers,
@@ -126,7 +125,7 @@ class RequiredSelectionSetFactory(
                     attribution,
                 )
             },
-            querySelections = querySelections?.let {
+            querySelections?.let {
                 RequiredSelectionSet(
                     it,
                     allVariableResolvers,

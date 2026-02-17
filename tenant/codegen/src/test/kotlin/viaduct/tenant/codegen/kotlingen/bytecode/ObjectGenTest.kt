@@ -31,7 +31,7 @@ class ObjectGenTest {
         """.trimIndent()
         val result = genObject(sdl, "User").toString()
         assertTrue(result.contains("fun toBuilder(): Builder ="))
-        assertTrue(result.contains("Builder(context, engineObject.graphQLObjectType, toBuilderEOD())"))
+        assertTrue(result.contains("Builder(context, engineObject.type, toBuilderEOD())"))
     }
 
     @Test
@@ -47,7 +47,7 @@ class ObjectGenTest {
         // Internal constructor for toBuilder
         assertTrue(result.contains("internal constructor("))
         assertTrue(result.contains("context: InternalContext"))
-        assertTrue(result.contains("graphQLObjectType: graphql.schema.GraphQLObjectType"))
+        assertTrue(result.contains("type: graphql.schema.GraphQLObjectType"))
         assertTrue(result.contains("baseEngineObjectData: EngineObjectData"))
     }
 }

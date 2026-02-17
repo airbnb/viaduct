@@ -1,4 +1,4 @@
-package viaduct.logging
+package viaduct.utils.slf4j
 
 import org.slf4j.Logger
 

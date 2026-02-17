@@ -256,7 +256,7 @@ object EngineValueConv {
     ): Conv<EngineObjectData.Sync, IR.Value.Object> =
         Conv(
             forward = {
-                val concrete = it.graphQLObjectType.name
+                val concrete = it.type.name
                 val concreteConv = requireNotNull(concreteConvs[concrete])
                 concreteConv(it)
             },

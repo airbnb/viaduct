@@ -3,14 +3,14 @@ package viaduct.tenant.runtime.featuretests.fixtures
 import graphql.schema.GraphQLSchema
 import javax.inject.Provider
 import viaduct.api.FieldValue
+import viaduct.api.NodeResolverBase
+import viaduct.api.ResolverBase
 import viaduct.api.VariablesProvider
 import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.NodeResolverBase
 import viaduct.api.internal.ReflectionLoader
-import viaduct.api.internal.ResolverBase
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
@@ -25,7 +25,6 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.RequiredSelectionSets
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockCheckerErrorResult
@@ -75,7 +74,7 @@ class FieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContext<*, *, *>>(
         coord: Coordinate,
         schema: GraphQLSchema,
         reflectionLoader: ReflectionLoader
-    ): RequiredSelectionSets {
+    ): Pair<RequiredSelectionSet?, RequiredSelectionSet?> {
         val variablesProviderContextFactory = resolverFactory(ViaductSchema(schema), reflectionLoader)
 
         val factory = RequiredSelectionSetFactory(GlobalIDCodecDefault, reflectionLoader)

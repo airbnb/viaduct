@@ -8,7 +8,7 @@ import viaduct.engine.api.NodeResolverExecutor
 
 /**
  * If the resolver is a batch resolver, then the data loader handles batching together calls to
- * the `batchResolve` function of a node resolver, and caching the results.
+ * the `resolve` function of a node resolver, and caching the results.
  * If the resolver is a non-batch resolver, then the data loader only caches the results and no
  * batching is done.
  * There should be exactly one instance of this data loader per node type per request.
@@ -27,7 +27,7 @@ class NodeDataLoader(
         keys: Set<NodeResolverExecutor.Selector>,
         environment: BatchLoaderEnvironment<NodeResolverExecutor.Selector>
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>?> {
-        return resolver.batchResolve(keys.toList(), executionContextForBatchLoadFromKeys(keys, environment))
+        return resolver.resolve(keys.toList(), executionContextForBatchLoadFromKeys(keys, environment))
     }
 
     override fun shouldUseImmediateDispatch(): Boolean = !resolver.isBatching

@@ -27,22 +27,6 @@ class RequiredSelectionSet(
     }
 }
 
-/**
- * Represents the required selection sets for a field, which includes selections for both objects and queries.
- *
- * @property objectSelections The required selection set for objects, or null if not applicable.
- * @property querySelections The required selection set for queries, or null if not applicable.
- */
-data class RequiredSelectionSets(
-    val objectSelections: RequiredSelectionSet?,
-    val querySelections: RequiredSelectionSet?,
-) {
-    companion object {
-        /** An empty [RequiredSelectionSets] */
-        fun empty(): RequiredSelectionSets = RequiredSelectionSets(null, null)
-    }
-}
-
 class UnboundVariablesException(selections: ParsedSelections, missing: Set<String>) : Exception() {
     override val message: String by lazy {
         val selectionsStr = AstPrinter.printAst(selections.selections)

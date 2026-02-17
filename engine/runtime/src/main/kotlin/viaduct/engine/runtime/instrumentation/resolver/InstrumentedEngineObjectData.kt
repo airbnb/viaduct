@@ -16,7 +16,7 @@ class InstrumentedEngineObjectData(
     val resolverInstrumentation: ViaductResolverInstrumentation,
     val instrumentationState: ViaductResolverInstrumentation.InstrumentationState
 ) : EngineObjectData {
-    override val graphQLObjectType get() = engineObjectData.graphQLObjectType
+    override val type get() = engineObjectData.type
 
     override suspend fun fetch(selection: String): Any? = instrumentedFetch(selection) { engineObjectData.fetch(selection) }
 
@@ -47,7 +47,7 @@ class InstrumentedEngineObjectData(
         val resolverInstrumentation: ViaductResolverInstrumentation,
         val instrumentationState: ViaductResolverInstrumentation.InstrumentationState
     ) : EngineObjectData.Sync {
-        override val graphQLObjectType get() = engineObjectData.graphQLObjectType
+        override val type get() = engineObjectData.type
 
         override fun get(selection: String): Any? = instrumentedGet(selection) { engineObjectData.get(selection) }
 

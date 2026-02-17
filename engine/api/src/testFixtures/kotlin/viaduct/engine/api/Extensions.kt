@@ -4,7 +4,7 @@ package viaduct.engine.api
 fun engineObjectsAreEquivalent(
     a: EngineObjectData.Sync,
     b: EngineObjectData.Sync
-): Boolean = a.graphQLObjectType === b.graphQLObjectType && a.asMap == b.asMap
+): Boolean = a.type === b.type && a.asMap == b.asMap
 
 private val Any?.asComparableValue: Any? get() =
     when (this) {

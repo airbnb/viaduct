@@ -40,7 +40,7 @@ private class EmptyPrebakedResults<T : CompositeOutput> : PrebakedResults<T> {
 
 class MockNodeEngineObjectData(
     override val id: String,
-    override val graphQLObjectType: GraphQLObjectType,
+    override val type: GraphQLObjectType,
 ) : NodeEngineObjectData, NodeReference {
     override suspend fun fetch(selection: String): Any = idOrThrow(selection)
 
