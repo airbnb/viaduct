@@ -1,0 +1,112 @@
+name: Post Build Scan Comments
+
+on:
+  workflow_run:
+    workflows: ["Build and Test (Gradle)"]
+    types:
+      - completed
+
+concurrency:
+  group: build-scan-comment-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  post-comment:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Download all build scan URL artifacts
+        uses: actions/download-artifact@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+          pattern: build-scan-urls-*
+          path: build-scan-urls
+          merge-multiple: false
+
+      - name: Collect scan URLs and post PR comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const baseDir = 'build-scan-urls';
+            if (!fs.existsSync(baseDir)) {
+              console.log('No build scan URL artifacts found');
+              return;
+            }
+
+            // Find the PR number from any artifact directory
+            let prNumber = null;
+            const artifactDirs = fs.readdirSync(baseDir);
+            for (const dir of artifactDirs) {
+              const prFile = path.join(baseDir, dir, 'pr-number.txt');
+              if (fs.existsSync(prFile)) {
+                const num = fs.readFileSync(prFile, 'utf8').trim();
+                if (num && num !== '' && num !== 'null') {
+                  prNumber = parseInt(num, 10);
+                  break;
+                }
+              }
+            }
+
+            if (!prNumber) {
+              console.log('No PR number found in artifacts, skipping comment');
+              return;
+            }
+
+            console.log(`Found PR number: ${prNumber}`);
+
+            // Collect all scan URLs grouped by job type
+            const scansByJob = {};
+            for (const dir of artifactDirs) {
+              const dirPath = path.join(baseDir, dir);
+              if (!fs.statSync(dirPath).isDirectory()) continue;
+
+              const files = fs.readdirSync(dirPath);
+              for (const file of files) {
+                if (file === 'pr-number.txt') continue;
+                if (!file.endsWith('.txt')) continue;
+
+                const url = fs.readFileSync(path.join(dirPath, file), 'utf8').trim();
+                if (!url || url === '' || url === 'null') continue;
+
+                // Extract job name from the file name (e.g., "build-assemble.txt" -> "build-assemble")
+                const jobName = file.replace('.txt', '');
+                // Extract matrix info from directory name (e.g., "build-scan-urls-build-21-ubuntu-latest")
+                const matrixInfo = dir.replace('build-scan-urls-', '').replace(`${jobName}-`, '');
+
+                const key = `${jobName} (${matrixInfo})`;
+                scansByJob[key] = url;
+              }
+            }
+
+            if (Object.keys(scansByJob).length === 0) {
+              console.log('No build scan URLs found in artifacts');
+              return;
+            }
+
+            // Build the comment body
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.payload.workflow_run.id}`;
+            let body = `## Gradle Build Scan URLs\n\n`;
+            body += `The [Build and Test workflow](${runUrl}) failed. Here are the build scan links for debugging:\n\n`;
+            body += `| Job | Build Scan |\n`;
+            body += `|-----|------------|\n`;
+            for (const [job, url] of Object.entries(scansByJob).sort()) {
+              body += `| ${job} | [View Build Scan](${url}) |\n`;
+            }
+            body += `\n---\n*Posted automatically by the post-build-scan-comments workflow.*`;
+
+            console.log('Posting comment:', body);
+
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+            console.log('Comment posted successfully');
