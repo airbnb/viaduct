@@ -92,7 +92,8 @@ jobs:
         shell: bash
 
       - name: Save build scan URL
-        if: always()
+        id: save_build_scan_url
+        if: ${{ failure() && steps.build_project.conclusion == 'failure' }}
         run: |
           mkdir -p build-scan-urls
           echo "${{ steps.build_project.outputs.build-scan-url }}" > build-scan-urls/build-assemble.txt
@@ -172,7 +173,7 @@ jobs:
           path: build/
 
       - name: Upload build scan URLs
-        if: always()
+        if: ${{ steps.save_build_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-build-${{ matrix.java }}-${{ matrix.os }}
@@ -230,7 +231,8 @@ jobs:
         shell: bash
 
       - name: Save test build scan URL
-        if: always()
+        id: save_test_scan_url
+        if: ${{ failure() && steps.run_tests.conclusion == 'failure' }}
         run: |
           mkdir -p build-scan-urls
           echo "${{ steps.run_tests.outputs.build-scan-url }}" > build-scan-urls/test.txt
@@ -287,7 +289,7 @@ jobs:
         shell: bash
 
       - name: Upload build scan URLs
-        if: always()
+        if: ${{ steps.save_test_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-test-${{ matrix.java }}-${{ matrix.os }}
@@ -340,7 +342,8 @@ jobs:
         shell: bash
 
       - name: Save detekt build scan URL
-        if: always()
+        id: save_detekt_scan_url
+        if: ${{ failure() && steps.run_detekt.conclusion == 'failure' }}
         run: |
           mkdir -p build-scan-urls
           echo "${{ steps.run_detekt.outputs.build-scan-url }}" > build-scan-urls/detekt.txt
@@ -355,7 +358,7 @@ jobs:
           path: '**/build/reports/detekt/**/*'
 
       - name: Upload build scan URLs
-        if: always()
+        if: ${{ steps.save_detekt_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-detekt-${{ matrix.java }}-${{ matrix.os }}
@@ -408,7 +411,8 @@ jobs:
         shell: bash
 
       - name: Save ktlint build scan URL
-        if: always()
+        id: save_ktlint_scan_url
+        if: ${{ failure() && steps.run_ktlint.conclusion == 'failure' }}
         run: |
           mkdir -p build-scan-urls
           echo "${{ steps.run_ktlint.outputs.build-scan-url }}" > build-scan-urls/ktlint.txt
@@ -416,7 +420,7 @@ jobs:
         shell: bash
 
       - name: Upload build scan URLs
-        if: always()
+        if: ${{ steps.save_ktlint_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-ktlint-${{ matrix.java }}-${{ matrix.os }}
@@ -471,7 +475,8 @@ jobs:
         shell: bash
 
       - name: Save coverage build scan URL
-        if: always()
+        id: save_coverage_scan_url
+        if: ${{ failure() && steps.verify_coverage.conclusion == 'failure' }}
         run: |
           mkdir -p build-scan-urls
           echo "${{ steps.verify_coverage.outputs.build-scan-url }}" > build-scan-urls/coverage-verification.txt
@@ -479,7 +484,7 @@ jobs:
         shell: bash
 
       - name: Upload build scan URLs
-        if: always()
+        if: ${{ steps.save_coverage_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-coverage-${{ matrix.java }}-${{ matrix.os }}

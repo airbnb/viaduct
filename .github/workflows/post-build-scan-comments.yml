@@ -92,7 +92,7 @@ jobs:
             // Build the comment body
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.payload.workflow_run.id}`;
             let body = `## Gradle Build Scan URLs\n\n`;
-            body += `The [Build and Test workflow](${runUrl}) failed. Here are the build scan links for debugging:\n\n`;
+            body += `The [Build and Test workflow](${runUrl}) produced Gradle build scans. Here are the build scan links for debugging:\n\n`;
             body += `| Job | Build Scan |\n`;
             body += `|-----|------------|\n`;
             for (const [job, url] of Object.entries(scansByJob).sort()) {
