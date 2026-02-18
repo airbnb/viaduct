@@ -47,10 +47,12 @@ Viaduct emits three primary metric types, all implemented as <a href="https://mi
 Full execution lifecycle metric measuring end-to-end execution time for the entire GraphQL request, from parsing through response serialization.
 
 **Measurements:**
+
 * Duration (timer) with percentiles: p50, p75, p90, p95
 * Count (number of executions)
 
 **Tags:**
+
 * `operation_name` - GraphQL operation name from the query (e.g., `GetUser`, `SearchProducts`)
   * Only present if the operation is named in the query
 * `success` - Execution success indicator
@@ -58,6 +60,7 @@ Full execution lifecycle metric measuring end-to-end execution time for the enti
   * `false` - Exception occurred OR no data in response (even if partial data exists)
 
 **Use cases:**
+
 * Monitor overall API health and performance
 * Track SLAs at the operation level
 * Identify operations with high error rates
@@ -67,10 +70,12 @@ Full execution lifecycle metric measuring end-to-end execution time for the enti
 Operation-level metric measuring the time to execute the specific GraphQL operation after parsing and validation.
 
 **Measurements:**
+
 * Duration (timer) with percentiles: p50, p75, p90, p95
 * Count (number of executions)
 
 **Tags:**
+
 * `operation_name` - GraphQL operation definition name from the query document
   * Only present if the operation definition includes a name
 * `success` - Execution success indicator
@@ -78,6 +83,7 @@ Operation-level metric measuring the time to execute the specific GraphQL operat
   * `"false"` - Exception occurred OR no data in response
 
 **Use cases:**
+
 * Measure execution performance excluding parsing/validation overhead
 * Compare performance across different operations
 * Identify slow operations for optimization
@@ -87,10 +93,12 @@ Operation-level metric measuring the time to execute the specific GraphQL operat
 Field-level metric measuring the time to fetch/resolve individual GraphQL fields. This is the most granular metric and helps identify specific bottlenecks.
 
 **Measurements:**
+
 * Duration (timer) with percentiles: p50, p75, p90, p95
 * Count (number of field resolutions)
 
 **Tags:**
+
 * `operation_name` - GraphQL operation name (if available)
 * `field` - Fully qualified field path
   * Format: `ParentType.fieldName` (e.g., `User.email`, `Query.searchProducts`)
@@ -100,6 +108,7 @@ Field-level metric measuring the time to fetch/resolve individual GraphQL fields
   * `false` - Exception thrown during field resolution
 
 **Use cases:**
+
 * Identify slow fields and resolvers
 * Monitor error rates for specific fields
 * Understand which fields contribute most to overall latency
