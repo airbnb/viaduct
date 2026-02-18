@@ -27,8 +27,6 @@ interface BaseFieldExecutionContext<
      */
     val queryValue: Q
 
-    val fooBar: String
-
     /**
      * Returns a synchronously-accessible version of [queryValue] where all selections have
      * been eagerly resolved.
