@@ -38,7 +38,7 @@ class FieldExecutionContextImpl<Q : Query>(
     private val objectCls: KClass<Object>,
     queryCls: KClass<Q>,
 ) : FieldExecutionContext<Object, Q, Arguments, CompositeOutput>,
-    BaseFieldExecutionContextImpl<Q>(
+    BaseFieldExecutionContextImpl<Q, Arguments, CompositeOutput>(
         baseData,
         engineExecutionContextWrapper,
         selections,

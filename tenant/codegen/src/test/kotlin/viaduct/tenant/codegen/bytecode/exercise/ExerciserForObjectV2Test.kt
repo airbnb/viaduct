@@ -15,7 +15,7 @@ import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.test.createGraphQLSchema
 import viaduct.graphql.schema.test.createSchema
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ExerciserForObjectV2Test {
@@ -26,7 +26,7 @@ class ExerciserForObjectV2Test {
         val schema = createSchema(sdl)
         val graphqlSchema = ViaductGraphQLSchema(createGraphQLSchema(sdl))
 
-        suspend fun exerciseV2(check: InvariantChecker = InvariantChecker()): InvariantChecker =
+        suspend fun exerciseV2(check: FailureCollector = FailureCollector()): FailureCollector =
             check.also {
                 val dataName = dataClass.simpleName!!
                 val type = schema.types[dataName]!! as ViaductSchema.Object

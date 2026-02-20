@@ -13,7 +13,7 @@ import viaduct.graphql.schema.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.graphqljava.readTypes
 import viaduct.graphql.utils.DefaultSchemaProvider
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 import viaduct.tenant.codegen.bytecode.CodeGenArgs
 import viaduct.tenant.codegen.bytecode.GRTClassFilesBuilder
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
@@ -43,7 +43,7 @@ class SchemaDrivenTests {
     @Test
     fun reflectionDrivenExercisesV2() =
         runBlockingTest {
-            val failures = InvariantChecker()
+            val failures = FailureCollector()
 
             val sdl = DefaultSchemaProvider.getDefaultSDL(
                 existingSDLFiles = prepareSchemaFiles(),

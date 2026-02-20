@@ -4,7 +4,7 @@ import graphql.ExecutionResult as GJExecutionResult
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 import viaduct.service.api.ExecutionResult
 
 /**
@@ -153,15 +153,15 @@ class QueryResultMapBuilder {
 }
 
 // Public for testing
-fun Map<*, *>.findFailedMatches(templateFn: QueryResultBuilderFn) = InvariantChecker().routeMatcher(queryResultMap(templateFn), this)
+fun Map<*, *>.findFailedMatches(templateFn: QueryResultBuilderFn) = FailureCollector().routeMatcher(queryResultMap(templateFn), this)
 
 // Public for testing
 fun Map<*, *>.assertMatches(templateFn: QueryResultBuilderFn) = this.findFailedMatches(templateFn).assertEmpty()
 
-private fun InvariantChecker.routeMatcher(
+private fun FailureCollector.routeMatcher(
     template: Any?,
     actual: Any?
-): InvariantChecker =
+): FailureCollector =
     apply {
         when (template) {
             null -> isNull(actual, "Expecting a null value")
@@ -172,11 +172,11 @@ private fun InvariantChecker.routeMatcher(
         }
     }
 
-private fun InvariantChecker.matches(
+private fun FailureCollector.matches(
     template: Map<*, *>,
     actual: Any?,
-    collector: InvariantChecker
-): InvariantChecker {
+    collector: FailureCollector
+): FailureCollector {
     collector.isInstanceOf<Map<*, *>>(actual) { actualMap ->
         for ((fieldName, subTemplate) in template.entries) {
             fieldName as String
@@ -190,11 +190,11 @@ private fun InvariantChecker.matches(
     return this
 }
 
-private fun InvariantChecker.matchesList(
+private fun FailureCollector.matchesList(
     template: List<*>,
     actual: Any?,
-    collector: InvariantChecker
-): InvariantChecker =
+    collector: FailureCollector
+): FailureCollector =
     apply {
         collector.isInstanceOf<Iterable<*>>(actual) { actualList ->
             collector.isEqualTo(template.size, actualList.count(), "Template and actuals lists not same length")
@@ -207,11 +207,11 @@ private fun InvariantChecker.matchesList(
         }
     }
 
-private fun InvariantChecker.matchesRegex(
+private fun FailureCollector.matchesRegex(
     regEx: String,
     actual: Any?,
-    collector: InvariantChecker
-): InvariantChecker =
+    collector: FailureCollector
+): FailureCollector =
     apply {
         if (collector.isNotNull(actual, "Unexpected null value")) {
             val actualString = actual!!.toString()

@@ -101,6 +101,7 @@ class BatchResolverErrorHandlingFeatureAppTest : FeatureAppTestBase() {
                         "parentType" to "Foo"
                         "isFrameworkError" to "false"
                         "resolvers" to "Foo"
+                        "fullyQualifiedErrorClass" to "java.lang.IllegalStateException"
                         "classification" to "DataFetchingException"
                     }
                 },
@@ -118,6 +119,7 @@ class BatchResolverErrorHandlingFeatureAppTest : FeatureAppTestBase() {
                         "parentType" to "Foo"
                         "isFrameworkError" to "false"
                         "resolvers" to "Foo"
+                        "fullyQualifiedErrorClass" to "java.lang.IllegalStateException"
                         "classification" to "DataFetchingException"
                     }
                 }

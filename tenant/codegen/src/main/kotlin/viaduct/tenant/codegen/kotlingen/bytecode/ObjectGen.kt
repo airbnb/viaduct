@@ -9,8 +9,10 @@ import viaduct.codegen.st.stTemplate
 import viaduct.codegen.utils.JavaName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
+import viaduct.tenant.codegen.bytecode.config.hasEdgeDirective
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
+import viaduct.tenant.codegen.bytecode.config.typeOfNodeField
 
 @VisibleForTest
 fun KotlinGRTFilesBuilder.objectKotlinGen(typeDef: ViaductSchema.Object) =
@@ -146,6 +148,10 @@ private class ObjectModelImpl(
         if (typeDef.isNode) result.add(cfg.NODE_OBJECT_GRT.toString())
         if (isQueryType) result.add(cfg.QUERY_OBJECT_GRT.toString())
         if (isMutationType) result.add(cfg.MUTATION_OBJECT_GRT.toString())
+        if (typeDef.hasEdgeDirective) {
+            val nodeTypeName = typeDef.typeOfNodeField
+            result.add("${cfg.EDGE_GRT}<$pkg.$nodeTypeName>")
+        }
         result.joinToString(",")
     }
 

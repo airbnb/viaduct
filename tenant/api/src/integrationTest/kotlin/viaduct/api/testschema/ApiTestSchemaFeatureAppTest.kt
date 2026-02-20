@@ -121,14 +121,6 @@ class ApiTestSchemaFeatureAppTest {
     |    int: Int
     |    nested: RecursiveObject
     | }
-    |
-    | type PageInfo {
-    |    hasNextPage: Boolean!
-    |    hasPreviousPage: Boolean!
-    |    startCursor: String
-    |    endCursor: String
-    | }
-    |
 #END_SCHEMA
     """
 }

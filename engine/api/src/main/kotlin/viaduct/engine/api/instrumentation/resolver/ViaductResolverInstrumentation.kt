@@ -79,7 +79,8 @@ interface ViaductResolverInstrumentation {
     ): ResolverFunction<T> = resolver
 
     data class InstrumentFetchSelectionParameters(
-        val selection: String
+        val selection: String,
+        val parentTypeName: String? = null
     )
 
     /**

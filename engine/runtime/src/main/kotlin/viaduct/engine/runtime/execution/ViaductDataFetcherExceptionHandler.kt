@@ -126,7 +126,11 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
                         GraphqlErrorBuilder.newError(env)
                             .message(exception.javaClass.name + ": " + exception.message)
                             .path(env.executionStepInfo.path)
-                            .extensions(metadata.toMap())
+                            .extensions(
+                                metadata.toMap() + mapOf(
+                                    "fullyQualifiedErrorClass" to exception.javaClass.name
+                                )
+                            )
                             .build()
                     )
             }

@@ -58,5 +58,6 @@ interface FlagManager {
 
         /** Killswitch for non-blocking enqueue flush in the coroutine dispatcher. */
         KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH("common.kotlin.nextTickDispatcher.killswitch.nonBlockingEnqueueFlush"),
+        ENABLE_SYNC_VALUE_COMPUTATION("enable_sync_value_computation"),
     }
 }

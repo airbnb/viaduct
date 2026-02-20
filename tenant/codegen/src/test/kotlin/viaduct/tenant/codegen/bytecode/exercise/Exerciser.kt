@@ -7,7 +7,7 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 internal val logger = LoggerFactory.getLogger(Exerciser::class.java)
 
@@ -19,20 +19,20 @@ internal val logger = LoggerFactory.getLogger(Exerciser::class.java)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class Exerciser(
-    internal val check: InvariantChecker,
+    internal val check: FailureCollector,
     internal val classResolver: ClassResolver,
     val schema: ViaductSchema,
     private val graphqlSchema: ViaductGraphQLSchema,
     internal val classLoader: ClassLoader = ClassLoader.getSystemClassLoader(),
 ) {
     // limit checks to 500 failures
-    private val InvariantChecker.full: Boolean get() = this.size > 500
+    private val FailureCollector.full: Boolean get() = this.size > 500
 
     private fun maybeCheck(fn: () -> Unit) {
         if (!check.full) fn()
     }
 
-    suspend fun exerciseGeneratedCodeV2(): InvariantChecker {
+    suspend fun exerciseGeneratedCodeV2(): FailureCollector {
         for (def in schema.types.values) {
             if (def.name.startsWith("__")) continue
             check.withContext(def.name) {

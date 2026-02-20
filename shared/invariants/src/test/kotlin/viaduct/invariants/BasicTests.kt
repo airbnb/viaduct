@@ -4,12 +4,12 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.string.shouldBeEmpty
 import org.junit.jupiter.api.Test
-import viaduct.invariants.InvariantChecker.Companion.EMPTY_ARGS
+import viaduct.invariants.FailureCollector.Companion.EMPTY_ARGS
 
 class BasicTests {
     @Test
     fun basicTest() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.assertEmptyMultiline("Invariant Checker was not empty")
         for (i in 1..10) {
             subject.addFailure(null, "f$i", EMPTY_ARGS)
@@ -21,7 +21,7 @@ class BasicTests {
 
     @Test
     fun noContextTest() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.addFailure(null, "msg", EMPTY_ARGS)
         val f = subject.iterator().next()
         f.context.shouldBeEmpty()
@@ -29,7 +29,7 @@ class BasicTests {
 
     @Test
     fun contextTest() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.pushContext("c1")
         subject.addFailure(null, "m1", EMPTY_ARGS)
         subject.pushContext("c2")
@@ -48,7 +48,7 @@ class BasicTests {
 
     @Test
     fun withContextTest() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.withContext("c1") {
             subject.addFailure(
                 null,
@@ -68,7 +68,7 @@ class BasicTests {
 
     @Test
     fun labelTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.addFailure(null, "L1", EMPTY_ARGS)
         subject.addFailure(null, "L-2", EMPTY_ARGS)
         subject.addFailure(null, "L3: additional explanation", EMPTY_ARGS)

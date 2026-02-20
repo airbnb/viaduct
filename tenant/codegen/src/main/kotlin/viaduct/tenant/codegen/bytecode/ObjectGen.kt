@@ -3,7 +3,9 @@ package viaduct.tenant.codegen.bytecode
 import kotlinx.metadata.ClassKind
 import kotlinx.metadata.KmConstructor
 import kotlinx.metadata.KmFunction
+import kotlinx.metadata.KmTypeProjection
 import kotlinx.metadata.KmValueParameter
+import kotlinx.metadata.KmVariance
 import kotlinx.metadata.Modality
 import kotlinx.metadata.Visibility
 import kotlinx.metadata.hasAnnotations
@@ -15,12 +17,15 @@ import viaduct.codegen.km.boxedJavaName
 import viaduct.codegen.km.checkNotNullParameterExpression
 import viaduct.codegen.km.getterName
 import viaduct.codegen.utils.Km
+import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
+import viaduct.tenant.codegen.bytecode.config.hasEdgeDirective
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
+import viaduct.tenant.codegen.bytecode.config.typeOfNodeField
 
 internal fun GRTClassFilesBuilder.objectGenV2(def: ViaductSchema.Object) {
     val builder = this.kmClassFilesBuilder.customClassBuilder(
@@ -64,12 +69,32 @@ private class ObjectClassGenV2(
             }
         }
 
+        // Add Edge<N> marker interface for @edge directive types
+        if (def.hasEdgeDirective) {
+            addEdgeInterface()
+        }
+
         objectClass
             .addSupertype(cfg.OBJECT_BASE.asKmName.asType())
             .addSupertype(cfg.OBJECT_GRT.asKmName.asType())
             .addPrimaryConstructor()
             .addFieldGetters()
             .addToBuilderFun()
+    }
+
+    /**
+     * Add Edge<NodeType> interface to the class.
+     * The node type is extracted from the 'node' field.
+     */
+    private fun addEdgeInterface() {
+        val nodeTypeName = def.typeOfNodeField
+
+        val nodeKmType = KmName("$pkg/$nodeTypeName").asType()
+
+        val edgeType = cfg.EDGE_GRT.asKmName.asType().also {
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, nodeKmType)
+        }
+        objectClass.addSupertype(edgeType)
     }
 
     private fun CustomClassBuilder.addPrimaryConstructor(): CustomClassBuilder {

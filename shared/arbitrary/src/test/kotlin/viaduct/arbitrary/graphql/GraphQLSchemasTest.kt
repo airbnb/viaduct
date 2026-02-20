@@ -3,6 +3,9 @@
 package viaduct.arbitrary.graphql
 
 import graphql.introspection.Introspection
+import graphql.language.ArrayValue
+import graphql.language.ObjectValue
+import graphql.language.Value
 import graphql.schema.GraphQLAppliedDirective
 import graphql.schema.GraphQLArgument
 import graphql.schema.GraphQLDirective
@@ -12,6 +15,7 @@ import graphql.schema.GraphQLInputType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLNonNull
+import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLSchemaElement
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.GraphQLTypeVisitorStub
@@ -85,7 +89,7 @@ class GraphQLSchemasTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb-viaductSchema can generate schemass`(): Unit =
+    fun `Arb-viaductSchema can generate schemas`(): Unit =
         runBlocking {
             Arb.viaductSchema().checkAll {
                 markSuccess()
@@ -218,6 +222,54 @@ class GraphQLSchemasTest : KotestPropertyBase() {
                         .mapNotNull { it as? GraphQLInputObjectType }
                         .all(::isInhabited)
                 }
+        }
+
+    @Test
+    fun `generated schemas do not have cyclic default values`(): Unit =
+        runBlocking {
+            // see https://spec.graphql.org/draft/#sec-Input-Object-Default-Value-Has-Cycle
+            fun checkDefaultValueCycle(schema: GraphQLSchema): Boolean {
+                val inputTypes = schema.allTypesAsList.filterIsInstance<GraphQLInputObjectType>()
+
+                // InputObjectDefaultValueHasCycle(inputObject, defaultValue, visitedFields)
+                fun checkObject(
+                    inputObject: GraphQLInputObjectType,
+                    defaultValue: Value<*>?,
+                    visitedFields: Set<GraphQLInputObjectField>
+                ): Boolean {
+                    if (defaultValue is ArrayValue) {
+                        return defaultValue.values.any { checkObject(inputObject, it, visitedFields) }
+                    }
+                    val presentFields: Map<String, Value<*>> = when (defaultValue) {
+                        null -> emptyMap() // initial call: treat as empty map
+                        is ObjectValue -> defaultValue.objectFields.associate { it.name to it.value }
+                        else -> return false // not a map or list — no cycle possible
+                    }
+                    for (field in inputObject.fields) {
+                        val namedFieldType =
+                            GraphQLTypeUtil.unwrapAll(field.type) as? GraphQLInputObjectType ?: continue
+                        val fieldValue = presentFields[field.name]
+                        if (fieldValue != null) {
+                            // Field present in the default value — recurse without cycle tracking
+                            if (checkObject(namedFieldType, fieldValue, visitedFields)) return true
+                        } else {
+                            // Field absent — fall through to its schema default
+                            if (!field.hasSetDefaultValue()) continue
+                            val schemaDefault = field.inputFieldDefaultValue.value as? Value<*> ?: continue
+                            if (field in visitedFields) return true
+                            if (checkObject(namedFieldType, schemaDefault, visitedFields + field)) return true
+                        }
+                    }
+                    return false
+                }
+
+                return inputTypes.any { checkObject(it, null, emptySet()) }
+            }
+
+            val cfg = Config.default + (DefaultValueWeight to 1.0)
+            Arb.graphQLSchema(cfg).forAll(100) { schema ->
+                !checkDefaultValueCycle(schema)
+            }
         }
 
     private class CollectAppliedDirectives : GraphQLTypeVisitorStub() {

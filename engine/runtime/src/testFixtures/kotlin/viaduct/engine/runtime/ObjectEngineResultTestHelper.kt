@@ -17,7 +17,7 @@ import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
-import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ENGINE_VALUE_SLOT
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.newCell
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.newForType
 
@@ -107,8 +107,8 @@ object ObjectEngineResultTestHelper {
                     }
 
                 // This function is actually used for completed values, which we'll
-                // store in the engine slot
-                slotSetter.set(ENGINE_VALUE_SLOT, rawValue)
+                // store in the raw slot
+                slotSetter.set(RAW_VALUE_SLOT, rawValue)
                 slotSetter.set(ACCESS_CHECK_SLOT, Value.fromValue(null))
             }
         }
@@ -149,7 +149,7 @@ object ObjectEngineResultTestHelper {
                         )
                     )
                     newCell { slotSetter ->
-                        slotSetter.set(ENGINE_VALUE_SLOT, rawValue)
+                        slotSetter.set(RAW_VALUE_SLOT, rawValue)
                         slotSetter.set(ACCESS_CHECK_SLOT, Value.fromValue(null))
                     }
                 }

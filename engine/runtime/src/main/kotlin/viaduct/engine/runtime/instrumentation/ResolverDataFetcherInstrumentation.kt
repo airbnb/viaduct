@@ -1,25 +1,42 @@
 package viaduct.engine.runtime.instrumentation
 
 import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.parameters.InstrumentationCreateStateParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.schema.DataFetcher
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcher
+import viaduct.engine.runtime.SyncFieldResolverDispatcher
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ResolverDataFetcher
+import viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher
 import viaduct.graphql.utils.asNamedElement
+import viaduct.service.api.spi.FlagManager
+
+private data class ResolverDataFetcherState(
+    val enableSyncValueComputation: Boolean
+) : InstrumentationState
 
 /**
  * Instrumentation that executes @Resolver classes for Viaduct Modern
  */
 class ResolverDataFetcherInstrumentation(
     private val dispatcherRegistry: DispatcherRegistry, // Modern resolvers
+    private val flagManager: FlagManager,
+    private val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop
 ) : ViaductModernGJInstrumentation {
+    override fun createState(parameters: InstrumentationCreateStateParameters): InstrumentationState {
+        return ResolverDataFetcherState(
+            enableSyncValueComputation = flagManager.isEnabled(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION)
+        )
+    }
+
     override fun instrumentDataFetcher(
         dataFetcher: DataFetcher<*>,
         parameters: InstrumentationFieldFetchParameters,
@@ -37,10 +54,19 @@ class ResolverDataFetcherInstrumentation(
 
         val resolverDispatcher = resolverDispatcher(typeName, fieldName) ?: return dataFetcher
         val checkerDispatcher = dispatcherRegistry.getFieldCheckerDispatcher(typeName, fieldName)
+
+        val enableSync = (state as? ResolverDataFetcherState)?.enableSyncValueComputation == true
+        val innerDispatcher = if (enableSync) {
+            SyncFieldResolverDispatcher(resolverDispatcher)
+        } else {
+            resolverDispatcher
+        }
+        val instrumentedDispatcher = InstrumentedFieldResolverDispatcher(innerDispatcher, resolverInstrumentation)
+
         return ResolverDataFetcher(
             typeName = typeName,
             fieldName = fieldName,
-            fieldResolverDispatcher = resolverDispatcher,
+            fieldResolverDispatcher = instrumentedDispatcher,
             checkerDispatcher = checkerDispatcher,
             coroutineInterop = coroutineInterop
         )

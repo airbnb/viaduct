@@ -140,7 +140,7 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forFieldTypeChildPlan switches to field engine result for object plans`() {
+    fun `forChildPlan with FieldType target switches to field engine result for object plans`() {
         val parentSource = mapOf("viewer" to "parent")
         val childSelection = selectionSet("name")
         val childPlan = queryPlanFor(
@@ -162,7 +162,11 @@ class ExecutionParametersTest {
             parentEngineResult = ObjectEngineResultImpl.newForType(fooType)
         )
 
-        val result = parameters.forFieldTypeChildPlan(childPlan, emptyVariables, fieldResolutionResult.originalSource, fieldResolutionResult.engineResult)
+        val result = parameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            ExecutionParameters.ChildPlanTarget.FieldType(fieldEngineResult, fieldResolutionResult.originalSource),
+        )
 
         assertSame(fieldEngineResult, result.parentEngineResult)
         assertEquals(fieldResolutionResult.originalSource, result.source)
@@ -224,7 +228,7 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forFieldTypeChildPlan uses query engine result for root query plans`() {
+    fun `forChildPlan with FieldType target uses query engine result for root query plans`() {
         val parentSource = mapOf("viewer" to "parent")
         val childPlan = queryPlanFor(
             type = queryType,
@@ -244,7 +248,16 @@ class ExecutionParametersTest {
             originalSource = Any()
         )
 
-        val result = parameters.forFieldTypeChildPlan(childPlan, emptyVariables, fieldResolutionResult.originalSource, fieldResolutionResult.engineResult)
+        // For Query-typed plans, the FieldType target's OER and source are ignored —
+        // the engine always uses queryEngineResult and the execution root.
+        val result = parameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            ExecutionParameters.ChildPlanTarget.FieldType(
+                ObjectEngineResultImpl.newForType(queryType),
+                fieldResolutionResult.originalSource,
+            ),
+        )
 
         assertSame(parameters.constants.queryEngineResult, result.parentEngineResult)
         assertEquals(defaultRootValue, result.source)
@@ -334,31 +347,7 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forFieldTypeChildPlan throws when field result lacks object engine result`() {
-        val childPlan = queryPlanFor(
-            type = fooType,
-            astSelectionSet = selectionSet("name")
-        )
-        val invalidFieldResult = FieldResolutionResult(
-            engineResult = null,
-            errors = emptyList(),
-            localContext = CompositeLocalContext.empty,
-            extensions = emptyMap(),
-            originalSource = Any()
-        )
-        val parameters = createExecutionParameters(
-            source = defaultRootValue,
-            executionStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id"))),
-            queryPlan = childPlan
-        )
-
-        assertThrows<IllegalStateException> {
-            parameters.forFieldTypeChildPlan(childPlan, emptyVariables, invalidFieldResult.originalSource, invalidFieldResult.engineResult)
-        }
-    }
-
-    @Test
-    fun `forFieldTypeChildPlan throws when plan type is not an object`() {
+    fun `forChildPlan with FieldType throws when plan type is not an object`() {
         val interfacePlan = queryPlanFor(
             type = GraphQLInterfaceType.newInterface()
                 .name("Node")
@@ -379,7 +368,14 @@ class ExecutionParametersTest {
         )
 
         assertThrows<IllegalArgumentException> {
-            parameters.forFieldTypeChildPlan(interfacePlan, emptyVariables, fieldResolutionResult.originalSource, fieldResolutionResult.engineResult)
+            parameters.forChildPlan(
+                interfacePlan,
+                emptyVariables,
+                ExecutionParameters.ChildPlanTarget.FieldType(
+                    fieldResolutionResult.engineResult as ObjectEngineResultImpl,
+                    fieldResolutionResult.originalSource,
+                ),
+            )
         }
     }
 

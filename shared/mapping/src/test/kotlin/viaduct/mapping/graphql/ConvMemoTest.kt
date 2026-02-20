@@ -32,7 +32,7 @@ class ConvMemoTest {
         }
         val conv = memo
             .buildIfAbsent("str2Int", ::mkStr2Int)
-            .also { memo.finalize() }
+            .also { memo.resolveRefs() }
 
         assertEquals(123, conv("123"))
         assertEquals("123", conv.invert(123))
@@ -103,7 +103,7 @@ class ConvMemoTest {
             }
 
         val conv = mkObj()
-        cb.finalize()
+        cb.resolveRefs()
 
         val inp = mapOf("x" to mapOf("x" to null, "y" to 2), "y" to null)
         val inp2 = conv.invert(conv(inp))
@@ -122,7 +122,7 @@ class ConvMemoTest {
     }
 
     @Test
-    fun `buildIfAbsent -- cyclic convs throw if finalize is not called`() {
+    fun `buildIfAbsent -- cyclic convs throw if resolveRefs is not called`() {
         val builder = ConvMemo()
 
         fun conv(inner: Conv<Any, Any>): Conv<Any, Any> = Conv(forward = inner::invoke, inverse = inner::invert)
@@ -135,32 +135,32 @@ class ConvMemoTest {
 
         assertThrows<IllegalStateException> { conv(1) }
             .let {
-                assertTrue(it.message?.contains("finalize") == true)
+                assertTrue(it.message?.contains("resolveRefs") == true)
             }
         assertThrows<IllegalStateException> { conv.invert(1) }
             .let {
-                assertTrue(it.message?.contains("finalize") == true)
+                assertTrue(it.message?.contains("resolveRefs") == true)
             }
     }
 
     @Test
-    fun `buildIfAbsent -- throws when called after finalize`() {
+    fun `buildIfAbsent -- throws when called after resolveRefs`() {
         val builder = ConvMemo()
-        builder.finalize()
+        builder.resolveRefs()
 
         assertThrows<IllegalStateException> {
             builder.buildIfAbsent("Conv") { Conv.identity<Any>() }
         }.let {
-            assertTrue(it.message?.contains("after being finalized") == true)
+            assertTrue(it.message?.contains("after resolveRefs") == true)
         }
     }
 
     @Test
-    fun `finalize -- throws if called multiple times`() {
+    fun `resolveRefs -- throws if called multiple times`() {
         val builder = ConvMemo()
-        builder.finalize()
+        builder.resolveRefs()
         assertThrows<IllegalStateException> {
-            builder.finalize()
+            builder.resolveRefs()
         }.let {
             assertTrue(it.message?.contains("once") == true)
         }

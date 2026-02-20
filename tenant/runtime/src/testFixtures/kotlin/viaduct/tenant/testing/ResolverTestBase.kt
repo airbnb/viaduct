@@ -384,7 +384,7 @@ interface ResolverTestBase {
         selections: SelectionSet<T> = mockk<SelectionSet<T>>(),
         contextQueryValues: List<Query> = emptyList()
     ): NodeExecutionContext<T> {
-        val innerCtx = createNodeExecutionContext(id, selections, contextQueryValues)
+        val innerCtx = createNodeExecutionContext(id, selections, requestContext = requestContext, contextQueryValues = contextQueryValues)
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
 

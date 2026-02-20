@@ -12,9 +12,24 @@ dependencies {
     // Viaduct engine API (Kotlin)
     api(libs.viaduct.engine.api)
 
+    // Viaduct service API (for TenantCodeInjector)
+    api(libs.viaduct.service.api)
+
     // Kotlin coroutines for async bridging
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.jdk8)  // For CompletableFuture integration
+    implementation(libs.kotlinx.coroutines.jdk8) // For CompletableFuture integration
+
+    // Shared ClassGraph scanner utility for classpath scanning
+    implementation(libs.viaduct.shared.utils)
+
+    // javax.inject for Provider interface
+    implementation(libs.javax.inject)
+
+    // Logging
+    implementation(libs.slf4j.api)
+
+    // GraphQL schema types
+    implementation(libs.graphql.java)
 
     // Testing
     testImplementation(libs.assertj.core)

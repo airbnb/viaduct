@@ -1,8 +1,7 @@
 package viaduct.java.runtime.bridge
 
-import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.EngineSelectionSet
 import viaduct.java.api.context.FieldExecutionContext
+import viaduct.java.api.resolvers.FieldResolverBase
 
 // Internal marker types for the context implementation
 object AnyQuery : viaduct.java.api.types.Query
@@ -20,12 +19,9 @@ object AnySelections : viaduct.java.api.types.CompositeOutput
  */
 @Suppress("UNCHECKED_CAST", "TooManyFunctions")
 class SimpleFieldExecutionContext(
-    private val arguments: Map<String, Any?>,
-    private val objectValue: EngineObjectData,
-    private val queryValue: EngineObjectData,
-    private val selections: EngineSelectionSet?,
     private val requestContext: Any?
-) : FieldExecutionContext<AnyQuery, AnyQuery, AnyArguments, AnySelections> {
+) : FieldExecutionContext<AnyQuery, AnyQuery, AnyArguments, AnySelections>,
+    FieldResolverBase.Context<AnyQuery, AnyQuery, AnyArguments, AnySelections> {
     override fun getObjectValue(): AnyQuery {
         throw UnsupportedOperationException(
             "Object value access not yet implemented for Java resolvers"

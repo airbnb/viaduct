@@ -187,7 +187,7 @@ object GJValueConv {
     private class Builder {
         private val memo = ConvMemo()
 
-        fun build(type: GraphQLType): Conv<Value<*>, IR.Value> = mk(type).also { memo.finalize() }
+        fun build(type: GraphQLType): Conv<Value<*>, IR.Value> = mk(type).also { memo.resolveRefs() }
 
         private fun mk(
             type: GraphQLType,

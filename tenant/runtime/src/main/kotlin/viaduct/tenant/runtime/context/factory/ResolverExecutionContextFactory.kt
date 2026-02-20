@@ -9,6 +9,7 @@ import kotlin.reflect.full.primaryConstructor
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
 import viaduct.api.context.BaseFieldExecutionContext
+import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
@@ -21,6 +22,8 @@ import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
+import viaduct.api.types.Connection
+import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
@@ -31,6 +34,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.tenant.runtime.context.ConnectionFieldExecutionContextImpl
 import viaduct.tenant.runtime.context.EngineExecutionContextWrapperImpl
 import viaduct.tenant.runtime.context.FieldExecutionContextImpl
 import viaduct.tenant.runtime.context.MutationFieldExecutionContextImpl
@@ -137,6 +141,7 @@ class FieldExecutionContextFactory internal constructor(
         expectedContextInterface,
         resultType
     ) {
+    @Suppress("UNCHECKED_CAST")
     operator fun invoke(
         engineExecutionContext: EngineExecutionContext,
         engineSelections: EngineSelectionSet?,
@@ -149,8 +154,23 @@ class FieldExecutionContextFactory internal constructor(
     ): BaseFieldExecutionContext<*, *, *> {
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
         val engineExecutionContextWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext)
+
         val wrappedContext = when (expectedContextInterface) {
-            FieldExecutionContext::class.java -> FieldExecutionContextImpl<Query>(
+            ConnectionFieldExecutionContext::class.java -> ConnectionFieldExecutionContextImpl(
+                internalContext,
+                engineExecutionContextWrapper,
+                this.toSelectionSet(engineSelections) as SelectionSet<Connection<*, *>>,
+                requestContext,
+                rawArguments.toInputLikeGRT(internalContext, argumentsCls) as ConnectionArguments,
+                rawObjectValue.toObjectGRT(internalContext, objectCls),
+                rawQueryValue.toObjectGRT(internalContext, queryCls),
+                syncObjectValueGetter,
+                syncQueryValueGetter,
+                objectCls,
+                queryCls,
+            )
+
+            FieldExecutionContext::class.java -> FieldExecutionContextImpl(
                 internalContext,
                 engineExecutionContextWrapper,
                 this.toSelectionSet(engineSelections),
@@ -163,6 +183,7 @@ class FieldExecutionContextFactory internal constructor(
                 objectCls,
                 queryCls,
             )
+
             MutationFieldExecutionContext::class.java -> MutationFieldExecutionContextImpl<Query, Mutation>(
                 internalContext,
                 engineExecutionContextWrapper,
@@ -173,7 +194,10 @@ class FieldExecutionContextFactory internal constructor(
                 syncQueryValueGetter,
                 queryCls,
             )
-            else -> throw IllegalArgumentException("Expected context interface must be one of `FieldExecutionContext` or `MutationFieldExecutionContext` ($expectedContextInterface).")
+
+            else -> throw IllegalArgumentException(
+                "Expected context interface must be one of `ConnectionFieldExecutionContext`, `FieldExecutionContext`, or `MutationFieldExecutionContext` ($expectedContextInterface)."
+            )
         }
         return wrap(wrappedContext)
     }
@@ -221,10 +245,15 @@ class FieldExecutionContextFactory internal constructor(
                     ?: throw IllegalArgumentException("No nested Context class found in ${resolverBaseClass.name}")
 
             val expectedContextInterface: Class<out BaseFieldExecutionContext<*, *, *>> =
-                if (contextKClass.isSubclassOf(MutationFieldExecutionContext::class)) {
-                    MutationFieldExecutionContext::class.java
-                } else {
-                    FieldExecutionContext::class.java
+                when {
+                    contextKClass.isSubclassOf(MutationFieldExecutionContext::class) ->
+                        MutationFieldExecutionContext::class.java
+
+                    contextKClass.isSubclassOf(ConnectionFieldExecutionContext::class) ->
+                        ConnectionFieldExecutionContext::class.java
+
+                    else ->
+                        FieldExecutionContext::class.java
                 }
 
             val queryCls = reflectionLoader.reflectionFor(schema.schema.queryType.name).kcls as KClass<Query>

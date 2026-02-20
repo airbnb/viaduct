@@ -2,13 +2,17 @@ package viaduct.engine.runtime
 
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLTypeUtil
+import kotlin.coroutines.coroutineContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ObjectEngineResult
+import viaduct.engine.api.instrumentation.resolver.FetchFunction
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
-import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ENGINE_VALUE_SLOT
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 
 /**
  * Factory for creating [SyncProxyEngineObjectData] by eagerly resolving all selections
@@ -58,6 +62,11 @@ object SyncEngineObjectDataFactory {
     /**
      * Internal implementation that resolves selections from a non-null selection set.
      * Called from [resolve] for the top-level case and from [unwrap] for nested objects.
+     *
+     * If a [ResolverInstrumentationContext] is present in the coroutine context, each selection
+     * is wrapped with [ViaductResolverInstrumentation.instrumentFetchSelection] for observability.
+     * This context is set by [viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher]
+     * when invoking sync value getters. Without it, selections resolve without instrumentation.
      */
     private suspend fun resolveImpl(
         objectEngineResult: ObjectEngineResultImpl,
@@ -65,6 +74,7 @@ object SyncEngineObjectDataFactory {
         selectionSet: EngineSelectionSet,
     ): SyncProxyEngineObjectData {
         val data = mutableMapOf<String, Any?>()
+        val instrumentationCtx = coroutineContext[ResolverInstrumentationContext]
 
         val selections = selectionSet
             .selectionSetForType(objectEngineResult.type.name)
@@ -86,7 +96,19 @@ object SyncEngineObjectDataFactory {
             )
 
             val cell = objectEngineResult.getCellOptimistically(oerKey(selectionSet, engineSelection))
-            data[selectionName] = unwrap(cell, subselections, errorMessage)
+            data[selectionName] = if (instrumentationCtx != null) {
+                val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
+                    selection = selectionName,
+                    parentTypeName = objectEngineResult.type.name
+                )
+                instrumentationCtx.instrumentation.instrumentFetchSelection(
+                    FetchFunction { unwrap(cell, subselections, errorMessage) },
+                    params,
+                    instrumentationCtx.state
+                ).fetch()
+            } else {
+                unwrap(cell, subselections, errorMessage)
+            }
         }
 
         return SyncProxyEngineObjectData(
@@ -145,7 +167,7 @@ object SyncEngineObjectDataFactory {
             }
 
             is Cell -> {
-                val cellRaw = value.fetch(ENGINE_VALUE_SLOT)
+                val cellRaw = value.fetch(RAW_VALUE_SLOT)
                 val cellChecker = value.fetch(ACCESS_CHECK_SLOT)
                 val checkerException = extractCheckerException(cellChecker)
                 if (checkerException != null) {
@@ -163,7 +185,7 @@ object SyncEngineObjectDataFactory {
         // To understand why the above is correct:
         //
         // During query execution, field resolvers run and their results are wrapped
-        // in FieldResolutionResult before being stored in the ENGINE_VALUE_SLOT of a Cell.
+        // in FieldResolutionResult before being stored in the RAW_VALUE_SLOT of a Cell.
         // The FieldResolutionResult contains:
         //    - engineResult - the actual value (which could be an ObjectEngineResultImpl
         //      for nested objects)

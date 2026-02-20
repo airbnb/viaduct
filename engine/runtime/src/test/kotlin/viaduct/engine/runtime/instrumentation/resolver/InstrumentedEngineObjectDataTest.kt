@@ -2,6 +2,7 @@
 
 package viaduct.engine.runtime.instrumentation.resolver
 
+import graphql.schema.GraphQLObjectType
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -16,6 +17,8 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
 
 internal class InstrumentedEngineObjectDataTest {
+    private val testGraphQLObjectType = GraphQLObjectType.newObject().name("TestType").build()
+
     @Test
     @ExperimentalCoroutinesApi
     fun `fetch calls instrumentation during execution`() =
@@ -30,6 +33,7 @@ internal class InstrumentedEngineObjectDataTest {
             val selection = "testField"
             val expectedResult = "testValue"
 
+            every { mockEngineObjectData.type } returns testGraphQLObjectType
             coEvery { mockEngineObjectData.fetch(selection) } returns expectedResult
 
             val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
@@ -42,6 +46,7 @@ internal class InstrumentedEngineObjectDataTest {
             assertEquals(1, instrumentation.fetchSelectionContexts.size)
             val context = instrumentation.fetchSelectionContexts.first()
             assertEquals(selection, context.parameters.selection)
+            assertEquals("TestType", context.parameters.parentTypeName)
             assertEquals(expectedResult, context.result)
             assertNull(context.error)
         }
@@ -59,6 +64,7 @@ internal class InstrumentedEngineObjectDataTest {
 
             val selection = "testField"
 
+            every { mockEngineObjectData.type } returns testGraphQLObjectType
             coEvery { mockEngineObjectData.fetchOrNull(selection) } returns null
 
             val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
@@ -86,6 +92,7 @@ internal class InstrumentedEngineObjectDataTest {
                 parameters = mockk()
             )
 
+            every { mockEngineObjectData.type } returns testGraphQLObjectType
             val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
 
             // When / Then
@@ -108,6 +115,7 @@ internal class InstrumentedEngineObjectDataTest {
             val selection = "testField"
             val fetchException = RuntimeException("Fetch failed")
 
+            every { mockEngineObjectData.type } returns testGraphQLObjectType
             coEvery { mockEngineObjectData.fetch(selection) } throws fetchException
 
             val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
@@ -139,6 +147,7 @@ internal class InstrumentedEngineObjectDataTest {
             val selection = "testField"
             val expectedResult = "testValue"
 
+            every { mockEngineObjectData.type } returns testGraphQLObjectType
             every { mockEngineObjectData.get(selection) } returns expectedResult
 
             val testClass = InstrumentedEngineObjectData.Sync(mockEngineObjectData, instrumentation, state)
@@ -151,6 +160,7 @@ internal class InstrumentedEngineObjectDataTest {
             assertEquals(1, instrumentation.syncFetchSelectionContexts.size)
             val context = instrumentation.syncFetchSelectionContexts.first()
             assertEquals(selection, context.parameters.selection)
+            assertEquals("TestType", context.parameters.parentTypeName)
             assertEquals(expectedResult, context.result)
             assertNull(context.error)
         }
@@ -166,6 +176,7 @@ internal class InstrumentedEngineObjectDataTest {
 
             val selection = "testField"
 
+            every { mockEngineObjectData.type } returns testGraphQLObjectType
             every { mockEngineObjectData.getOrNull(selection) } returns null
 
             val testClass = InstrumentedEngineObjectData.Sync(mockEngineObjectData, instrumentation, state)
@@ -191,6 +202,7 @@ internal class InstrumentedEngineObjectDataTest {
                 parameters = mockk()
             )
 
+            every { mockEngineObjectData.type } returns testGraphQLObjectType
             val testClass = InstrumentedEngineObjectData.Sync(mockEngineObjectData, instrumentation, state)
 
             // When / Then
@@ -211,6 +223,7 @@ internal class InstrumentedEngineObjectDataTest {
             val selection = "testField"
             val getException = RuntimeException("Get failed")
 
+            every { mockEngineObjectData.type } returns testGraphQLObjectType
             every { mockEngineObjectData.get(selection) } throws getException
 
             val testClass = InstrumentedEngineObjectData.Sync(mockEngineObjectData, instrumentation, state)
@@ -242,6 +255,7 @@ internal class InstrumentedEngineObjectDataTest {
                 val selection = "testField"
                 val expectedResult = "testValue"
 
+                every { mockEngineObjectData.type } returns testGraphQLObjectType
                 every { mockEngineObjectData.get(selection) } returns expectedResult
 
                 val testClass = InstrumentedEngineObjectData.Sync(mockEngineObjectData, instrumentation, state)
@@ -270,6 +284,7 @@ internal class InstrumentedEngineObjectDataTest {
 
                 val selection = "testField"
 
+                every { mockEngineObjectData.type } returns testGraphQLObjectType
                 every { mockEngineObjectData.getOrNull(selection) } returns null
 
                 val testClass = InstrumentedEngineObjectData.Sync(mockEngineObjectData, instrumentation, state)

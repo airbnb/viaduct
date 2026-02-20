@@ -9,7 +9,7 @@ import org.junit.jupiter.api.function.Executable
 import viaduct.graphql.schema.checkViaductSchemaInvariants
 import viaduct.graphql.schema.test.SchemaDiff
 import viaduct.graphql.schema.test.TestSchemas
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /**
  * Black-box tests comparing GJSchema and GJSchemaRaw implementations.
@@ -37,7 +37,7 @@ class BlackBoxGJComparisonTest {
         val gjSchema = gjSchemaFromSchema(graphQLSchema)
 
         // Both should produce equivalent ViaductSchema views
-        val checker = InvariantChecker()
+        val checker = FailureCollector()
         checkViaductSchemaInvariants(gjSchemaRaw, checker)
         GJSchemaCheck(gjSchema, graphQLSchema, checker)
         SchemaDiff(gjSchemaRaw, gjSchema, checker).diff()

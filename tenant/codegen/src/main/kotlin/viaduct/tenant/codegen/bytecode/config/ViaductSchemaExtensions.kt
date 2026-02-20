@@ -236,3 +236,22 @@ val ViaductSchema.SourceLocation.tenantModule: String?
     get() = this.sourceName.let {
         cfg.moduleExtractor.find(it)?.groups?.get(1)?.value
     }?.substringBefore("/src/")
+
+/**
+ * True if this type has the @edge directive applied.
+ */
+val ViaductSchema.TypeDef.hasEdgeDirective: Boolean
+    get() = this is ViaductSchema.Object && hasAppliedDirective("edge")
+
+/**
+ * For an Edge type, returns the type of the node field.
+ * @return The name of the Node type or will throw error if it doesn't exist.
+ */
+val ViaductSchema.Object.typeOfNodeField: String
+    get() {
+        val field: ViaductSchema.Field? = field("node")
+        val typeDef: ViaductSchema.TypeDef? = field?.type?.baseTypeDef
+        return checkNotNull(typeDef?.name) {
+            "@edge type ${this.name} has no `node` field."
+        }
+    }

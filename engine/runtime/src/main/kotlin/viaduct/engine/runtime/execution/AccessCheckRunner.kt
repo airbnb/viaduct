@@ -106,11 +106,13 @@ class AccessCheckRunner(
                         parameters.executionContext.graphQLContext,
                         parameters.executionContext.locale
                     )
-                    val planParameters = parameters.forFieldTypeChildPlan(
+                    val planParameters = parameters.forChildPlan(
                         childPlan,
                         variables,
-                        fieldResolutionResult.originalSource,
-                        fieldResolutionResult.engineResult,
+                        ExecutionParameters.ChildPlanTarget.FieldType(
+                            parentOER = fieldResolutionResult.engineResult as ObjectEngineResultImpl,
+                            source = fieldResolutionResult.originalSource,
+                        ),
                     )
                     fieldResolver.fetchObject(childPlan.parentType as GraphQLObjectType, planParameters)
                 }

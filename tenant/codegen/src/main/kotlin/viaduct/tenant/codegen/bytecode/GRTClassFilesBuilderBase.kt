@@ -6,7 +6,7 @@ import viaduct.codegen.km.KmClassFilesBuilder
 import viaduct.codegen.utils.JavaName
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 import viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
 import viaduct.tenant.codegen.bytecode.config.hashForSharding
 
@@ -164,9 +164,9 @@ abstract class GRTClassFilesBuilderBase protected constructor(
 
     @VisibleForTest
     fun checkInvariants(
-        check: InvariantChecker = InvariantChecker(),
+        check: FailureCollector = FailureCollector(),
         allowedSuperTypes: Set<KmName>
-    ): InvariantChecker = kmClassFilesBuilder.checkInvariants(check = check, allowedSuperTypes = allowedSuperTypes)
+    ): FailureCollector = kmClassFilesBuilder.checkInvariants(check = check, allowedSuperTypes = allowedSuperTypes)
 
     companion object {
         fun builderFrom(args: CodeGenArgs): GRTClassFilesBuilderBase = GRTClassFilesBuilder(args)

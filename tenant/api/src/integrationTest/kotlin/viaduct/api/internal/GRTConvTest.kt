@@ -606,6 +606,187 @@ class GRTConvTest : KotestPropertyBase() {
             }
         }
 
+    @Test
+    fun `mutually recursive types -- roundtrip`() {
+        // O1.objectField -> O2, O2.objectField -> O1
+        // Exercises mutual cycle handling via type-level memoization.
+        val conv = GRTConv(
+            internalContext,
+            schema.type("O1"),
+            null,
+            KeyMapping.FieldNameToFieldName
+        )
+
+        assertRoundtrip(
+            conv,
+            O1.Builder(executionContext)
+                .objectField(
+                    O2.Builder(executionContext)
+                        .intField(42)
+                        .objectField(
+                            O1.Builder(executionContext)
+                                .stringField("leaf")
+                                .build()
+                        )
+                        .build()
+                )
+                .build(),
+            IR.Value.Object(
+                "O1",
+                mapOf(
+                    "objectField" to IR.Value.Object(
+                        "O2",
+                        mapOf(
+                            "intField" to IR.Value.Number(42),
+                            "objectField" to IR.Value.Object(
+                                "O1",
+                                mapOf("stringField" to IR.Value.String("leaf"))
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `self-recursive type -- roundtrip`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("RecursiveObject"),
+            null,
+            KeyMapping.FieldNameToFieldName
+        )
+
+        assertRoundtrip(
+            conv,
+            RecursiveObject.Builder(executionContext)
+                .int(1)
+                .nested(
+                    RecursiveObject.Builder(executionContext)
+                        .int(2)
+                        .nested(
+                            RecursiveObject.Builder(executionContext)
+                                .int(3)
+                                .build()
+                        )
+                        .build()
+                )
+                .build(),
+            IR.Value.Object(
+                "RecursiveObject",
+                mapOf(
+                    "int" to IR.Value.Number(1),
+                    "nested" to IR.Value.Object(
+                        "RecursiveObject",
+                        mapOf(
+                            "int" to IR.Value.Number(2),
+                            "nested" to IR.Value.Object(
+                                "RecursiveObject",
+                                mapOf("int" to IR.Value.Number(3))
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `interface field in nested position -- roundtrip`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("O1"),
+            null,
+            KeyMapping.FieldNameToFieldName
+        )
+
+        assertRoundtrip(
+            conv,
+            O1.Builder(executionContext)
+                .interfaceField(
+                    I1.Builder(executionContext)
+                        .commonField("hello")
+                        .build()
+                )
+                .build(),
+            IR.Value.Object(
+                "O1",
+                mapOf(
+                    "interfaceField" to IR.Value.Object(
+                        "I1",
+                        mapOf("commonField" to IR.Value.String("hello"))
+                    )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `union field in nested position -- roundtrip`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("HasAbstractField"),
+            null,
+            KeyMapping.FieldNameToFieldName
+        )
+
+        assertRoundtrip(
+            conv,
+            HasAbstractField.Builder(executionContext)
+                .u2(Concrete.Builder(executionContext).x(99).build())
+                .build(),
+            IR.Value.Object(
+                "HasAbstractField",
+                mapOf(
+                    "u2" to IR.Value.Object(
+                        "Concrete",
+                        mapOf("x" to IR.Value.Number(99))
+                    )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `enum field in nested position -- unbounded roundtrip`() {
+        val conv = GRTConv(
+            internalContext,
+            schema.type("O1"),
+            null,
+            KeyMapping.FieldNameToFieldName
+        )
+
+        assertRoundtrip(
+            conv,
+            O1.Builder(executionContext)
+                .enumField(E1.B)
+                .build(),
+            IR.Value.Object(
+                "O1",
+                mapOf("enumField" to IR.Value.String("B"))
+            )
+        )
+    }
+
+    @Test
+    fun `engine path equivalence -- GRTConv and EngineValueConv produce same IR`(): Unit =
+        runBlocking {
+            val cfg = Config.default +
+                (InputObjectValueWeight to 0.0) +
+                (TypenameValueWeight to 1.0)
+
+            Arb.objectIR(schema, cfg).forAll { ir ->
+                val grtConv = GRTConv(internalContext, schema.type(ir.name))
+                val engineConv = EngineValueConv(schema, schema.type(ir.name), null)
+
+                val grtRoundtrip = grtConv(grtConv.invert(ir))
+                val engineRoundtrip = engineConv(engineConv.invert(ir))
+
+                grtRoundtrip == engineRoundtrip
+            }
+        }
+
     private fun <From, To> assertRoundtrip(
         conv: Conv<Any?, To>,
         from: From,

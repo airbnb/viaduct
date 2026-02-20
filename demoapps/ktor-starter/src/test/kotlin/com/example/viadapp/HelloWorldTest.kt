@@ -205,6 +205,7 @@ class HelloWorldTest {
                     "fieldName": "throwException",
                     "parentType": "Query",
                     "operationName": "ThrowException",
+                    "fullyQualifiedErrorClass": "java.lang.IllegalStateException",
                     "classification": "DataFetchingException"
                   }
                 }

@@ -24,6 +24,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
@@ -456,6 +457,40 @@ class ArbIRTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `generates input object values -- cyclic input objects with defaults`(): Unit =
+        /**
+         * NB: this test case will start failing in the next version of graphql-java, after this PR is landed:
+         *   https://github.com/graphql-java/graphql-java/pull/4253
+         *
+         * If this test is failing during a graphql-java upgrade, then it can be removed without replacement,
+         * coverage will be handled automatically by the test cases in [GraphQLSchemasTest] that generate
+         * arbitrary schemas.
+         */
+        runBlocking {
+            val schema = """
+                input Inp { inp:Inp = {} }
+
+                input A { b:B = {} }
+                input B { a:A = {} }
+            """.asViaductSchema
+
+            val cfg = Config.default + (ImplicitNullValueWeight to 1.0)
+
+            // self-recursing input
+            Arb
+                .ir(schema, schema.schema.getType("Inp").nonNullable, cfg)
+                .forAll { it is IR.Value.Object && "inp" in it.fields }
+
+            // co-recursive inputs
+            Arb
+                .ir(schema, schema.schema.getType("A").nonNullable, cfg)
+                .forAll { it is IR.Value.Object && "b" in it.fields }
+            Arb
+                .ir(schema, schema.schema.getType("B").nonNullable, cfg)
+                .forAll { it is IR.Value.Object && "a" in it.fields }
+        }
+
+    @Test
     fun `generates input object values -- unset fields when field has default value`(): Unit =
         runBlocking {
             val schema = "input Inp { x:Int! = 0 }".asViaductSchema
@@ -507,6 +542,71 @@ class ArbIRTest : KotestPropertyBase() {
                     schema.schema.getType(it.name) is GraphQLInputObjectType
                 }
         }
+
+    @Test
+    fun `mkCyclicInputSCCs -- empty`() {
+        assertTrue(mkCyclicInputSCCs(emptySchema.schema).isEmpty())
+    }
+
+    @Test
+    fun `mkCyclicInputSCCs -- acyclic input types`() {
+        val schema = """
+            input A { x: Int }
+            input B { a: A }
+        """.asViaductSchema.schema
+
+        assertTrue(mkCyclicInputSCCs(schema).isEmpty())
+    }
+
+    @Test
+    fun `mkCyclicInputSCCs -- self-loop`() {
+        val schema = "input Inp { inp: Inp }".asViaductSchema.schema
+        val result = mkCyclicInputSCCs(schema)
+
+        assertEquals(mapOf("Inp" to setOf("Inp")), result)
+    }
+
+    @Test
+    fun `mkCyclicInputSCCs -- two-type cycle`() {
+        val schema = """
+            input A { b: B }
+            input B { a: A }
+        """.asViaductSchema.schema
+        val result = mkCyclicInputSCCs(schema)
+
+        assertEquals(
+            mapOf("A" to setOf("A", "B"), "B" to setOf("A", "B")),
+            result
+        )
+    }
+
+    @Test
+    fun `mkCyclicInputSCCs -- cycle with acyclic type`() {
+        val schema = """
+            input A { b: B }
+            input B { a: A }
+            input C { a: A }
+        """.asViaductSchema.schema
+        val result = mkCyclicInputSCCs(schema)
+
+        assertEquals(
+            mapOf("A" to setOf("A", "B"), "B" to setOf("A", "B")),
+            result
+        )
+    }
+
+    @Test
+    fun `mkCyclicInputSCCs -- wrapped types are unwrapped`() {
+        val schema = """
+            input A { b: [B!]! }
+            input B { a: A }
+        """.asViaductSchema.schema
+        val result = mkCyclicInputSCCs(schema)
+        assertEquals(
+            mapOf("A" to setOf("A", "B"), "B" to setOf("A", "B")),
+            result
+        )
+    }
 }
 
 internal val GraphQLType.nonNullable: GraphQLType get() =

@@ -4,9 +4,9 @@ import java.lang.reflect.InvocationTargetException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import viaduct.invariants.InvariantChecker.Companion.EMPTY_ARGS
+import viaduct.invariants.FailureCollector.Companion.EMPTY_ARGS
 
-suspend fun <T> InvariantChecker.doesThrowSuspendVersion(
+suspend fun <T> FailureCollector.doesThrowSuspendVersion(
     expectedClass: Class<T>,
     message: String,
     body: suspend () -> Unit

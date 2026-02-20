@@ -4,7 +4,7 @@ import graphql.execution.ResultPath
 import graphql.schema.GraphQLObjectType
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
-import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ENGINE_VALUE_SLOT
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 
 fun objectEngineResult(init: ObjectEngineResultBuilder.() -> Unit): ObjectEngineResultImpl {
     val builder = ObjectEngineResultBuilder()
@@ -29,7 +29,7 @@ class ObjectEngineResultBuilder {
                 } else {
                     Value.fromValue(value)
                 }
-                setter.set(ENGINE_VALUE_SLOT, v)
+                setter.set(RAW_VALUE_SLOT, v)
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(null))
             }
         }
@@ -45,7 +45,7 @@ suspend fun ObjectEngineResultImpl.dataAtPath(path: ResultPath): Any? {
     for (segment in path.toList()) {
         if (segment is String) {
             if (current is ObjectEngineResultImpl) {
-                current = current.fetch(ObjectEngineResult.Key(segment), ObjectEngineResultImpl.ENGINE_VALUE_SLOT)
+                current = current.fetch(ObjectEngineResult.Key(segment), ObjectEngineResultImpl.RAW_VALUE_SLOT)
             } else {
                 throw IllegalStateException(
                     "Invariant: expected $segment to be a key in an OER. Found $current instead."
@@ -53,7 +53,7 @@ suspend fun ObjectEngineResultImpl.dataAtPath(path: ResultPath): Any? {
             }
         } else if (segment is Int) {
             if (current is List<*>) {
-                current = (current[segment] as Cell).fetch(ObjectEngineResultImpl.ENGINE_VALUE_SLOT)
+                current = (current[segment] as Cell).fetch(ObjectEngineResultImpl.RAW_VALUE_SLOT)
             } else {
                 throw IllegalStateException(
                     "Invariant: expected $segment to point to an index in a list. Found $current instead."

@@ -10,12 +10,12 @@ import graphql.schema.GraphQLSchema
 import viaduct.graphql.schema.SchemaWithData
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.checkViaductSchemaInvariants
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 class GJSchemaCheck(
     viaductSchema: ViaductSchema,
     private val gjSchema: GraphQLSchema,
-    private val check: InvariantChecker = InvariantChecker(),
+    private val check: FailureCollector = FailureCollector(),
 ) {
     private val schema: SchemaWithData
 
@@ -181,7 +181,7 @@ class GJSchemaCheck(
 
     private fun checkDefaultValue(
         actual: ViaductSchema.HasDefaultValue,
-        check: InvariantChecker
+        check: FailureCollector
     ) {
         if (!actual.hasDefault) {
             check.doesThrow<NoSuchElementException>("HAS_NO_DEFAULT") {

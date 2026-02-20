@@ -164,6 +164,7 @@ public abstract interface class viaduct/service/api/spi/FlagManager$Flag {
 
 public final class viaduct/service/api/spi/FlagManager$Flags : java/lang/Enum, viaduct/service/api/spi/FlagManager$Flag {
 	public static final field DISABLE_QUERY_PLAN_CACHE Lviaduct/service/api/spi/FlagManager$Flags;
+	public static final field ENABLE_SYNC_VALUE_COMPUTATION Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field EXECUTE_ACCESS_CHECKS Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH Lviaduct/service/api/spi/FlagManager$Flags;
 	public fun getFlagName ()Ljava/lang/String;

@@ -79,6 +79,7 @@ class ViaductExceptionsTest {
         assertEquals(ViaductErrorType.Internal.value, graphQLError.extensions["errorType"])
         assertEquals(ViaductErrorType.Internal.fatal, graphQLError.extensions["fatal"])
         assertEquals(DEFAULT_LOCALIZED_MESSAGE_MAP["localizedMessage"], graphQLError.extensions["localizedMessage"])
+        assertEquals("com.airbnb.viaduct.errors.ViaductException", graphQLError.extensions["fullyQualifiedErrorClass"])
         assertEquals(
             SourceLocation(6, 10),
             graphQLError.locations.first()
@@ -101,6 +102,19 @@ class ViaductExceptionsTest {
         assertEquals(ViaductErrorType.Internal.value, graphQLError.extensions["errorType"])
         assertEquals(ViaductErrorType.Internal.fatal, graphQLError.extensions["fatal"])
         assertEquals("anotherValue", graphQLError.extensions["test"])
+        assertEquals("com.airbnb.viaduct.errors.ViaductException", graphQLError.extensions["fullyQualifiedErrorClass"])
+    }
+
+    @Test
+    fun testViaductClientInputExceptionToGraphQLErrorHasCorrectClassName() {
+        val testException = ViaductClientInputException("Bad input")
+
+        val graphQLError = testException.toGraphQLError(dataFetchingEnvironmentMock)
+
+        assertEquals("com.airbnb.viaduct.errors.ViaductClientInputException", graphQLError.extensions["fullyQualifiedErrorClass"])
+        // errorClass should NOT be set by ViaductException — only fullyQualifiedErrorClass
+        assertNull(graphQLError.extensions["errorClass"])
+        assertEquals(ViaductErrorType.ClientInput.value, graphQLError.extensions["errorType"])
     }
 
     @Test

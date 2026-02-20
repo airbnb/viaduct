@@ -71,7 +71,6 @@ object EngineValueConv {
                     inner.invert(it)
                 }
             },
-            "nullable-$inner"
         )
 
     internal fun nonNull(inner: Conv<Any?, IR.Value>): Conv<Any?, IR.Value> =
@@ -84,7 +83,6 @@ object EngineValueConv {
                 require(it != IR.Value.Null)
                 inner.invert(it)
             },
-            "nonNull-$inner"
         )
 
     internal fun list(inner: Conv<Any?, IR.Value>): Conv<Any?, IR.Value> =
@@ -96,7 +94,6 @@ object EngineValueConv {
             inverse = {
                 (it as IR.Value.List).value.map(inner::invert)
             },
-            "list-$inner"
         )
 
     internal val byte: Conv<Any?, IR.Value> =
@@ -196,7 +193,6 @@ object EngineValueConv {
                 val data = engineDataConv.invert(ir)
                 ResolvedEngineObjectData(gqlType, data)
             },
-            "engineObjectData-${gqlType.name}"
         )
 
     /**
@@ -240,20 +236,15 @@ object EngineValueConv {
                     }
                 }.toMap()
             },
-            "obj-$name"
         )
 
-    internal fun enum(typeName: String): Conv<Any?, IR.Value> =
+    internal val enum: Conv<Any?, IR.Value> =
         Conv(
             forward = { IR.Value.String(it as String) },
             inverse = { (it as IR.Value.String).value },
-            "enum-$typeName"
         )
 
-    internal fun abstract(
-        typeName: String,
-        concreteConvs: Map<String, Conv<EngineObjectData.Sync, IR.Value.Object>>
-    ): Conv<EngineObjectData.Sync, IR.Value.Object> =
+    internal fun abstract(concreteConvs: Map<String, Conv<EngineObjectData.Sync, IR.Value.Object>>): Conv<EngineObjectData.Sync, IR.Value.Object> =
         Conv(
             forward = {
                 val concrete = it.type.name
@@ -264,7 +255,6 @@ object EngineValueConv {
                 val concreteConv = requireNotNull(concreteConvs[it.name])
                 concreteConv.invert(it)
             },
-            "abstract-$typeName"
         )
 
     private class Builder(val schema: ViaductSchema) {
@@ -273,7 +263,7 @@ object EngineValueConv {
         fun build(
             type: GraphQLType,
             selectionSet: EngineSelectionSet?
-        ): Conv<Any?, IR.Value> = mk(type, selectionSet).also { memo.finalize() }
+        ): Conv<Any?, IR.Value> = mk(type, selectionSet).also { memo.resolveRefs() }
 
         private fun mk(
             type: GraphQLType,
@@ -323,7 +313,7 @@ object EngineValueConv {
                             val concrete = mk(type, typedSelections) as Conv<EngineObjectData.Sync, IR.Value.Object>
                             type.name to concrete
                         }
-                        abstract(type.name, concretes)
+                        abstract(concretes)
                     }.asAnyConv
 
                 is GraphQLInputObjectType ->
@@ -332,7 +322,7 @@ object EngineValueConv {
                         obj(type.name, fieldConvs).asAnyConv
                     }
 
-                is GraphQLEnumType -> enum(type.name)
+                is GraphQLEnumType -> enum
 
                 else -> throwUnsupported(type)
             }

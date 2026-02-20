@@ -134,7 +134,7 @@ class ObjectEngineResultImpl private constructor(
      *
      * @param key The key to compute or fetch
      * @param block A function that sets each slot with the computed [Value]
-     * @return A [Value] containing either the computed or existing value in the ENGINE_VALUE_SLOT
+     * @return A [Value] containing either the computed or existing value in the RAW_VALUE_SLOT
      */
     internal fun computeIfAbsent(
         key: ObjectEngineResult.Key,
@@ -142,7 +142,7 @@ class ObjectEngineResultImpl private constructor(
     ): Value<*> {
         return maybeInitializeKey(key)
             .computeIfAbsent(block)
-            .getValue(ENGINE_VALUE_SLOT)
+            .getValue(RAW_VALUE_SLOT)
     }
 
     /**
@@ -205,15 +205,15 @@ class ObjectEngineResultImpl private constructor(
 
     companion object {
         private val DEFAULT_SLOT_COUNT = 2
-        val ENGINE_VALUE_SLOT: Int = 0
+        val RAW_VALUE_SLOT: Int = 0
         val ACCESS_CHECK_SLOT: Int = 1
 
         internal fun newCell() = Cell.create(DEFAULT_SLOT_COUNT)
 
         internal fun newCell(block: (SlotSetter) -> Unit) = Cell.create(DEFAULT_SLOT_COUNT, block)
 
-        internal fun SlotSetter.setEngineValue(value: Value<FieldResolutionResult>) {
-            this.set(ENGINE_VALUE_SLOT, value)
+        internal fun SlotSetter.setRawValue(value: Value<FieldResolutionResult>) {
+            this.set(RAW_VALUE_SLOT, value)
         }
 
         internal fun SlotSetter.setCheckerValue(value: Value<out CheckerResult?>) {

@@ -1,6 +1,8 @@
 package viaduct.engine.runtime
 
+import graphql.ExecutionResult
 import graphql.schema.DataFetchingEnvironment
+import graphql.schema.GraphQLObjectType
 import io.mockk.mockk
 import java.util.function.Supplier
 import kotlin.test.assertEquals
@@ -10,9 +12,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.CompleteSelectionSetOptions
+import viaduct.engine.api.Coordinate
+import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.NodeReference
+import viaduct.engine.api.ObjectEngineResult
+import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
@@ -201,7 +209,7 @@ class EngineExecutionContextExtensionsTest {
         val mockResolver = mockk<FieldResolverDispatcher>(relaxed = true)
         val registry = DispatcherRegistry.Impl(
             fieldResolverDispatchers = mapOf(
-                viaduct.engine.api.Coordinate("Query", "foo") to mockResolver
+                Coordinate("Query", "foo") to mockResolver
             ),
             nodeResolverDispatchers = emptyMap(),
             fieldCheckerDispatchers = emptyMap(),
@@ -219,10 +227,10 @@ class EngineExecutionContextExtensionsTest {
             override val fullSchema: ViaductSchema get() = mockk()
             override val scopedSchema: ViaductSchema get() = mockk()
             override val activeSchema: ViaductSchema get() = mockk()
-            override val engineSelectionSetFactory get() = mockk<viaduct.engine.api.EngineSelectionSet.Factory>()
+            override val engineSelectionSetFactory get() = mockk<EngineSelectionSet.Factory>()
             override val globalIDCodec: GlobalIDCodec get() = mockk<GlobalIDCodec>()
             override val requestContext: Any? get() = null
-            override val engine get() = mockk<viaduct.engine.api.Engine>()
+            override val engine get() = mockk<Engine>()
             override val executionHandle: EngineExecutionContext.ExecutionHandle? get() = null
             override val fieldScope get() = mockk<EngineExecutionContext.FieldExecutionScope>()
 
@@ -232,10 +240,23 @@ class EngineExecutionContextExtensionsTest {
                 options: ResolveSelectionSetOptions
             ): EngineObjectData = mockk()
 
+            override suspend fun completeSelectionSet(
+                selectionSet: RequiredSelectionSet,
+                arguments: Map<String, Any?>,
+                options: CompleteSelectionSetOptions
+            ): ExecutionResult = mockk()
+
+            override suspend fun completeSelectionSet(
+                selectionSet: RequiredSelectionSet,
+                targetResult: ObjectEngineResult,
+                arguments: Map<String, Any?>,
+                options: CompleteSelectionSetOptions
+            ): ExecutionResult = mockk()
+
             override fun createNodeReference(
                 id: String,
-                graphQLObjectType: graphql.schema.GraphQLObjectType
-            ) = mockk<viaduct.engine.api.NodeReference>()
+                graphQLObjectType: GraphQLObjectType
+            ) = mockk<NodeReference>()
 
             override fun hasModernNodeResolver(typeName: String) = false
         }

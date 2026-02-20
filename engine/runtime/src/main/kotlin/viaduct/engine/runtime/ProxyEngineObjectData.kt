@@ -11,7 +11,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.UnsetFieldException
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
-import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ENGINE_VALUE_SLOT
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 
 /**
  * A proxy that handles projecting the given tenant selection set onto an unprojected EngineObjectData.
@@ -144,18 +144,18 @@ open class ProxyEngineObjectData(
 
     protected open suspend fun ObjectEngineResult.fetchCheckedValue(key: ObjectEngineResult.Key): Any? {
         // Prioritize field fetch errors
-        val engineValue = this.fetch(key, ENGINE_VALUE_SLOT)
+        val rawValue = this.fetch(key, RAW_VALUE_SLOT)
 
         throwCheckerError(this.fetch(key, ACCESS_CHECK_SLOT))
-        return engineValue
+        return rawValue
     }
 
     protected open suspend fun Cell.fetchCheckedValue(): Any? {
         // Prioritize field fetch errors
-        val engineValue = this.fetch(ENGINE_VALUE_SLOT)
+        val rawValue = this.fetch(RAW_VALUE_SLOT)
 
         throwCheckerError(this.fetch(ACCESS_CHECK_SLOT))
-        return engineValue
+        return rawValue
     }
 
     private fun throwCheckerError(checkerResult: Any?) {

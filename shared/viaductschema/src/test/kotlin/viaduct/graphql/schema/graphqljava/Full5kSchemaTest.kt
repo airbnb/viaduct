@@ -12,7 +12,7 @@ import viaduct.graphql.schema.checkViaductSchemaInvariants
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.test.SchemaDiff
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /**
  * Runs a fairly complete test of GJSchema using the 5k randomly generated schema.
@@ -67,7 +67,7 @@ class Full5kSchemaTest {
 
     @Test
     fun `run schema invariant checks on GJSchemaRaw`() {
-        InvariantChecker().also { check ->
+        FailureCollector().also { check ->
             checkViaductSchemaInvariants(schemaraw, check)
         }.assertEmpty("\n")
     }

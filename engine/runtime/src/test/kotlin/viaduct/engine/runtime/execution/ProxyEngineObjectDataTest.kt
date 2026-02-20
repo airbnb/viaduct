@@ -23,7 +23,7 @@ import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.newCell
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
-import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setEngineValue
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setRawValue
 import viaduct.engine.runtime.ObjectEngineResultTestHelper
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.Value
@@ -428,7 +428,7 @@ class ProxyEngineObjectDataTest {
             val oer = mkOER("Query")
             ObjectEngineResult.Key("x").also { key ->
                 oer.computeIfAbsent(key) { slotSetter ->
-                    slotSetter.setEngineValue(
+                    slotSetter.setRawValue(
                         Value.fromValue(
                             FieldResolutionResult("foo", emptyList(), CompositeLocalContext.empty, emptyMap(), "foo")
                         )
@@ -454,7 +454,7 @@ class ProxyEngineObjectDataTest {
 
             ObjectEngineResult.Key("object2").also { key ->
                 oer.computeIfAbsent(key) { slotSetter ->
-                    slotSetter.setEngineValue(
+                    slotSetter.setRawValue(
                         Value.fromValue(
                             FieldResolutionResult(
                                 mkOER(
@@ -487,7 +487,7 @@ class ProxyEngineObjectDataTest {
 
             ObjectEngineResult.Key("stringField").also { key ->
                 oer.computeIfAbsent(key) { slotSetter ->
-                    slotSetter.setEngineValue(
+                    slotSetter.setRawValue(
                         Value.fromValue(
                             FieldResolutionResult(
                                 null,
@@ -514,7 +514,7 @@ class ProxyEngineObjectDataTest {
         Fixture("type Query { stringField: String }") {
             val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
             oer.computeIfAbsent(ObjectEngineResult.Key("stringField")) { slotSetter ->
-                slotSetter.setEngineValue(
+                slotSetter.setRawValue(
                     Value.fromValue(
                         FieldResolutionResult(
                             "foo",
@@ -539,7 +539,7 @@ class ProxyEngineObjectDataTest {
         Fixture("type Query { stringField: String intField: Int }") {
             val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
             oer.computeIfAbsent(ObjectEngineResult.Key("stringField")) { slotSetter ->
-                slotSetter.setEngineValue(
+                slotSetter.setRawValue(
                     Value.fromValue(
                         FieldResolutionResult(
                             "foo",
@@ -636,7 +636,7 @@ class ProxyEngineObjectDataTest {
             // Create a list where element 1 (the middle one) has an error
             val listWithError = listOf(
                 newCell { slotSetter ->
-                    slotSetter.setEngineValue(
+                    slotSetter.setRawValue(
                         Value.fromValue(
                             FieldResolutionResult("ok", emptyList(), CompositeLocalContext.empty, emptyMap(), "ok")
                         )
@@ -644,7 +644,7 @@ class ProxyEngineObjectDataTest {
                     slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
                 },
                 newCell { slotSetter ->
-                    slotSetter.setEngineValue(
+                    slotSetter.setRawValue(
                         Value.fromValue(
                             FieldResolutionResult(null, listOf(err), CompositeLocalContext.empty, emptyMap(), "error")
                         )
@@ -652,7 +652,7 @@ class ProxyEngineObjectDataTest {
                     slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
                 },
                 newCell { slotSetter ->
-                    slotSetter.setEngineValue(
+                    slotSetter.setRawValue(
                         Value.fromValue(
                             FieldResolutionResult("also ok", emptyList(), CompositeLocalContext.empty, emptyMap(), "also ok")
                         )
@@ -662,7 +662,7 @@ class ProxyEngineObjectDataTest {
             )
 
             oer.computeIfAbsent(ObjectEngineResult.Key("listField")) { slotSetter ->
-                slotSetter.setEngineValue(
+                slotSetter.setRawValue(
                     Value.fromValue(
                         FieldResolutionResult(listWithError, emptyList(), CompositeLocalContext.empty, emptyMap(), "listField")
                     )

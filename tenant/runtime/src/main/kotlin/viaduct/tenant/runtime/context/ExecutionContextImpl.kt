@@ -28,7 +28,7 @@ import viaduct.tenant.runtime.globalid.GlobalIDImpl
  * The hierarchy:
  *
  * ExecutionContextImpl (sealed)
- *     VariableProviderContextImpl
+ *     VariablesProviderContextImpl
  *     ResolverExecutionContextImpl (sealed)
  *         NodeExecutionContextImpl
  *         SealedFieldExecutionContextImpl (sealed)

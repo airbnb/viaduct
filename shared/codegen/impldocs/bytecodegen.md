@@ -125,18 +125,18 @@ The first way is to invoke the "legacy" code generator, i.e., the generator that
 We'll be phasing out this legacy Kotlin code generator in favor of what we call the test Kotlin code generator.  This is an easier-to-maintain Kotlin code generator that generates only the structure of our GRTs (e.g., classes, subclass relationship, property and function signatures), not working function bodies.  Over time we will be replacing legacy codegen with this test codegen.  Where you see "kotlin_grt" in Bazel files, that's referring to this test codegen.
 
 
-## InvariantChecker Class
+## FailureCollector Class
 
-The integration testing described below uses a class called [`InvariantChecker`](../../invariants/src/main/kotlin/viaduct/invariants/InvariantChecker.kt) to accumulate errors encountered during integration testing.  `InvariantChecker` has testing functions similar to the assertion functions found in Junit and Google truth.  However, instead of raising an exception when they fail, the failures are collected into a log of failures that can be inspected after a testing run.
+The integration testing described below uses a class called [`FailureCollector`](../../invariants/src/main/kotlin/viaduct/invariants/FailureCollector.kt) to accumulate errors encountered during integration testing.  `FailureCollector` has testing functions similar to the assertion functions found in Junit and Google truth.  However, instead of raising an exception when they fail, the failures are collected into a log of failures that can be inspected after a testing run.
 
-We use this accumulator because our integration tests perform over 100K tests in total.  It's not scalable to make each of those an individual Junit test.  Also, for this kind of testing we want "continue on failure" semantics (ie, an entire test run should not terminate on the first error).  The `InvariantChecker` class is meant to support use-cases like this.
+We use this accumulator because our integration tests perform over 100K tests in total.  It's not scalable to make each of those an individual Junit test.  Also, for this kind of testing we want "continue on failure" semantics (ie, an entire test run should not terminate on the first error).  The `FailureCollector` class is meant to support use-cases like this.
 
 
 ## Structural testing
 
 *Structural integration tests* ensure that the "structure" of our byte code is correct, e.g., that classes have the right methods with the right names, parameters and return types.
 
-One form of integration testing we do is ["invariant checking"](../src/main/kotlin/viaduct/codegen/km/KmClassFilesBuilder.kt) (not to be confused with `InvariantChecker`, which is the class used to accumulate errors found during the process of "invariant checker").
+One form of integration testing we do is ["invariant checking"](../src/main/kotlin/viaduct/codegen/km/KmClassFilesBuilder.kt) (not to be confused with `FailureCollector`, which is the class used to accumulate errors found during the process of "invariant checker").
 
 Invariant checking (along with assertions sprinkled throughout our code base) is how we help ensure that we stay out of the "red zone" mentioned above.  We run invariant checking on both the test and central schemas.
 

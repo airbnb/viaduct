@@ -17,6 +17,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
+import viaduct.service.api.spi.FlagManager
 
 internal class ResolverDataFetcherInstrumentationTest {
     private val mockDispatcherRegistry: DispatcherRegistry = mockk()
@@ -30,6 +31,7 @@ internal class ResolverDataFetcherInstrumentationTest {
         clearMocks(mockDispatcherRegistry, mockSchema)
         testClass = ResolverDataFetcherInstrumentation(
             dispatcherRegistry = mockDispatcherRegistry,
+            flagManager = FlagManager.disabled,
         )
     }
 

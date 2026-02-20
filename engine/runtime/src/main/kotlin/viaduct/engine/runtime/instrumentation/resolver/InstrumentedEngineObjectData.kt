@@ -28,7 +28,10 @@ class InstrumentedEngineObjectData(
         selection: String,
         fetchBlock: suspend () -> Any?
     ): Any? {
-        val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(selection = selection)
+        val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
+            selection = selection,
+            parentTypeName = engineObjectData.type.name
+        )
         return resolverInstrumentation.instrumentFetchSelection(
             FetchFunction { fetchBlock() },
             params,
@@ -65,7 +68,10 @@ class InstrumentedEngineObjectData(
             selection: String,
             getBlock: () -> Any?
         ): Any? {
-            val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(selection = selection)
+            val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
+                selection = selection,
+                parentTypeName = engineObjectData.type.name
+            )
             return resolverInstrumentation.instrumentSyncFetchSelection(
                 SyncFetchFunction { getBlock() },
                 params,

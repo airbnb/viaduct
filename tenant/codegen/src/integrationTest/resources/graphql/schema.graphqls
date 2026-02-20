@@ -42,6 +42,21 @@ type ConcreteProduct implements Product & Node @scope(to: ["starwars"]) {
   price: Int
 }
 
+type TestNode {
+  id: ID!
+  name: String
+}
+
+type TestEdge @edge {
+  node: TestNode
+  cursor: String!
+}
+
+type TestConnection @connection {
+  edges: [TestEdge!]!
+  pageInfo: PageInfo!
+}
+
 extend type Query @scope(to: ["starwars"]) {
   hero(episode: Episode): Character @resolver
   human(id: String!): Human @resolver
@@ -50,4 +65,5 @@ extend type Query @scope(to: ["starwars"]) {
   allDroids: [Droid] @resolver
   product(id: ID!): Product @resolver
   concreteProduct(id: ID!): ConcreteProduct @resolver
+  testConnection(first: Int, after: String): TestConnection
 }

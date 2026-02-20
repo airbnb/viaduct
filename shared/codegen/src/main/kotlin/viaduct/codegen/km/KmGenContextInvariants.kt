@@ -21,12 +21,12 @@ import viaduct.codegen.ct.javaTypeName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 internal fun checkKmClassInvariants(
     kmOuter: KmClass?,
     kmClass: KmClass,
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     val nestedNames = kmClass.name.split(".")
     if (1 < nestedNames.size) {
@@ -127,7 +127,7 @@ internal fun checkKmClassInvariants(
 internal fun checkKmConstructorInvariants(
     kmClass: KmClass,
     kmCons: KmConstructor,
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     check.isEqualTo("<init>", kmCons.signature?.name, "CONSTRUCTOR_NAME_IS_INIT")
     val unsupportedParamTypes = listOf(Ct.BYTE, Ct.CHAR, Ct.FLOAT)

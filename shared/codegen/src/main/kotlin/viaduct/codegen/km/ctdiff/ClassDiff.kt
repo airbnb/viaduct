@@ -4,7 +4,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 import javassist.ClassPool
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /**
  * Compares two classes, checking that they have the same structure.
@@ -15,7 +15,7 @@ class ClassDiff(
     /** Cannot be a prefix of [actualPkg]! */
     val expectedPkg: String,
     val actualPkg: String,
-    val diffs: InvariantChecker = InvariantChecker(),
+    val diffs: FailureCollector = FailureCollector(),
     private val classFinder: ClassFinder = JavassistClassFinder()
 ) {
     /**
@@ -24,7 +24,7 @@ class ClassDiff(
     constructor(
         expectedPkg: String,
         actualPkg: String,
-        diffs: InvariantChecker,
+        diffs: FailureCollector,
         javassistPool: ClassPool
     ) : this(
         expectedPkg,
@@ -43,7 +43,7 @@ class ClassDiff(
     ) : this(
         expectedPkg,
         actualPkg,
-        InvariantChecker(),
+        FailureCollector(),
         JavassistClassFinder(javassistPool, ClassLoader.getSystemClassLoader())
     )
 
@@ -306,7 +306,7 @@ class ClassDiff(
         }
     }
 
-    private fun InvariantChecker.typeNamesAreEqual(
+    private fun FailureCollector.typeNamesAreEqual(
         expected: Type,
         actual: Type,
         msg: String
@@ -315,7 +315,7 @@ class ClassDiff(
         this.isEqualTo(expTypeName, actual.typeName, msg)
     }
 
-    private fun InvariantChecker.modifiersAreSame(
+    private fun FailureCollector.modifiersAreSame(
         expectedModifiers: Int,
         actualModifiers: Int,
         msg: String

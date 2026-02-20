@@ -1,17 +1,17 @@
 package viaduct.graphql.schema.test
 
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 class SchemaDiff(
     private val expected: ViaductSchema,
     private val actual: ViaductSchema,
-    private val checker: InvariantChecker = InvariantChecker(),
+    private val checker: FailureCollector = FailureCollector(),
     private val includeIntrospectiveTypes: Boolean = false
 ) {
     private var done = false
 
-    fun diff(): InvariantChecker {
+    fun diff(): FailureCollector {
         if (!done) {
             // Exclude introspective types from the comparison (not all ViaductSchema impls support them)
             visit(

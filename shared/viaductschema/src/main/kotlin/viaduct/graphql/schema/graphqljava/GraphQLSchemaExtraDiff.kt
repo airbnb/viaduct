@@ -11,7 +11,7 @@ import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /**
  * Compares graphql-java-specific runtime properties that aren't captured in ViaductSchema.
@@ -26,11 +26,11 @@ import viaduct.invariants.InvariantChecker
 internal class GraphQLSchemaExtraDiff(
     private val expected: GraphQLSchema,
     private val actual: GraphQLSchema,
-    private val checker: InvariantChecker = InvariantChecker()
+    private val checker: FailureCollector = FailureCollector()
 ) {
     private var done = false
 
-    fun diff(): InvariantChecker {
+    fun diff(): FailureCollector {
         if (!done) {
             compareTypes()
             done = true

@@ -3,8 +3,6 @@ package viaduct.java.runtime.bridge
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.future.await
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
@@ -15,8 +13,12 @@ import viaduct.java.api.context.FieldExecutionContext
  * for the Viaduct engine.
  *
  * This bridge converts between:
- * - Java CompletableFuture ↔ Kotlin suspend functions
- * - Java FieldExecutionContext ↔ Kotlin EngineExecutionContext
+ * - Java CompletableFuture <-> Kotlin suspend functions
+ * - Java FieldExecutionContext <-> Kotlin EngineExecutionContext
+ *
+ * The context provided to resolvers is a [SimpleFieldExecutionContext] which throws
+ * [UnsupportedOperationException] for type-dependent methods (getObjectValue, getArguments).
+ * Full type support will be added in later vertical slices.
  *
  * @param resolveFunction A function that takes a FieldExecutionContext and returns a CompletableFuture
  * @param resolverId Unique identifier for this resolver (e.g., "Query.greeting")
@@ -43,31 +45,14 @@ class JavaFieldResolverExecutor(
 
         val selector = selectors.first()
         val result = runCatching {
-            resolveOne(
-                arguments = selector.arguments,
-                objectValue = selector.objectValue,
-                queryValue = selector.queryValue,
-                selections = selector.selections,
-                context = context
-            )
+            resolveOne(context = context)
         }
 
         return mapOf(selector to result)
     }
 
-    private suspend fun resolveOne(
-        arguments: Map<String, Any?>,
-        objectValue: EngineObjectData,
-        queryValue: EngineObjectData,
-        selections: EngineSelectionSet?,
-        context: EngineExecutionContext,
-    ): Any? {
-        // Create a minimal Java context adapter
+    private suspend fun resolveOne(context: EngineExecutionContext): Any? {
         val javaContext = SimpleFieldExecutionContext(
-            arguments = arguments,
-            objectValue = objectValue,
-            queryValue = queryValue,
-            selections = selections,
             requestContext = context.requestContext
         )
 

@@ -22,6 +22,7 @@ import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLScalarType
+import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import io.kotest.property.Arb
@@ -184,6 +185,7 @@ private class IRGen(
 ) {
     private val enumGen = EnumValueGen(rs)
     private val scalarGen = ScalarValueGen(cfg, rs)
+    private val cyclicInputSCCs: Map<String, Set<String>> = mkCyclicInputSCCs(schema.schema)
 
     private data class Ctx(
         val tc: TypeCtx,
@@ -282,10 +284,28 @@ private class IRGen(
                 }
 
                 tc.type is GraphQLInputObjectType -> {
+                    val scc = cyclicInputSCCs[tc.type.name]
                     val nameValuePairs = tc.type.fields
-                        .filterNot { f ->
-                            val canInull = f.hasSetDefaultValue() || GraphQLTypeUtil.isNullable(f.type)
-                            canInull && rs.sampleWeight(cfg[ImplicitNullValueWeight])
+                        .filter { f ->
+                            val fieldTypeName = (GraphQLTypeUtil.unwrapAll(f.type) as? GraphQLInputObjectType)?.name
+
+                            if (scc != null && fieldTypeName != null && fieldTypeName in scc) {
+                                // if the type of this field is in the SCC of the current input object type, then
+                                // there is a cyclic relationship between the the fields type and the current input object type.
+                                // To comply with the spec rule 'InputObjectDefaultValueHasCycle', we cannot omit a value for
+                                // these fields
+                                // Returning true here ensures that these fields are kept in the set of fields for which we will
+                                // generate values
+                                true
+                            } else if (!f.hasSetDefaultValue() && GraphQLTypeUtil.isNonNull(f.type)) {
+                                // field is non-nullable and has no default.
+                                // Keep the field to ensure that a value is generated
+                                true
+                            } else {
+                                // If we get to this case, the field either has a default value or it is nullable.
+                                // Sample ImplicitNullValueWeight to either keep or drop
+                                !rs.sampleWeight(cfg[ImplicitNullValueWeight])
+                            }
                         }.map { f ->
                             f.name to genValue(traverse(f))
                         }
@@ -525,4 +545,84 @@ private class ScalarValueGen(
             else -> throw UnsupportedOperationException("Unsupported scalar type: ${type.name}")
         }
     }
+}
+
+/**
+ * Build the strongly connected components graph for input objects in the provided schema.
+ * Returns a map from type name to the set of type names in its SCC,
+ * but only for types in cyclic SCCs (size > 1 or has a self-loop).
+ * Types not in any cycle are omitted from the map.
+ */
+internal fun mkCyclicInputSCCs(schema: GraphQLSchema): Map<String, Set<String>> {
+    val inputTypes = schema.allTypesAsList.filterIsInstance<GraphQLInputObjectType>()
+    if (inputTypes.isEmpty()) return emptyMap()
+
+    // Build adjacency list: edge from A to B if A has a field whose unwrapped type is input type B
+    val adj = mutableMapOf<String, MutableSet<String>>()
+    val selfLoops = mutableSetOf<String>()
+    for (type in inputTypes) {
+        val neighbors = mutableSetOf<String>()
+        for (field in type.fields) {
+            val unwrapped = GraphQLTypeUtil.unwrapAll(field.type)
+            if (unwrapped is GraphQLInputObjectType) {
+                if (unwrapped.name == type.name) {
+                    selfLoops.add(type.name)
+                }
+                neighbors.add(unwrapped.name)
+            }
+        }
+        adj[type.name] = neighbors
+    }
+
+    // Tarjan's SCC algorithm
+    var index = 0
+    val indices = mutableMapOf<String, Int>()
+    val lowlinks = mutableMapOf<String, Int>()
+    val onStack = mutableSetOf<String>()
+    val stack = ArrayDeque<String>()
+    val sccs = mutableListOf<Set<String>>()
+
+    fun strongconnect(v: String) {
+        indices[v] = index
+        lowlinks[v] = index
+        index++
+        stack.addLast(v)
+        onStack.add(v)
+
+        for (w in adj[v] ?: emptySet()) {
+            if (w !in indices) {
+                strongconnect(w)
+                lowlinks[v] = minOf(lowlinks[v]!!, lowlinks[w]!!)
+            } else if (w in onStack) {
+                lowlinks[v] = minOf(lowlinks[v]!!, indices[w]!!)
+            }
+        }
+
+        if (lowlinks[v] == indices[v]) {
+            val scc = mutableSetOf<String>()
+            do {
+                val w = stack.removeLast()
+                onStack.remove(w)
+                scc.add(w)
+            } while (w != v)
+            sccs.add(scc)
+        }
+    }
+
+    for (v in adj.keys) {
+        if (v !in indices) {
+            strongconnect(v)
+        }
+    }
+
+    // Only keep cyclic SCCs: size > 1, or size 1 with self-loop
+    val result = mutableMapOf<String, Set<String>>()
+    for (scc in sccs) {
+        if (scc.size > 1 || (scc.size == 1 && scc.first() in selfLoops)) {
+            for (name in scc) {
+                result[name] = scc
+            }
+        }
+    }
+    return result
 }

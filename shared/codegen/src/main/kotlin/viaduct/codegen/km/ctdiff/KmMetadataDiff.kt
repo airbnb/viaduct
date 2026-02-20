@@ -42,12 +42,12 @@ import kotlinx.metadata.jvm.signature
 import kotlinx.metadata.kind
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 class KmMetadataDiff(
     val expectedPkg: String,
     val actualPkg: String,
-    val diffs: InvariantChecker = InvariantChecker()
+    val diffs: FailureCollector = FailureCollector()
 ) {
     val expectedPkgKm = expectedPkg.replace(".", "/")
     val actualPkgKm = actualPkg.replace(".", "/")

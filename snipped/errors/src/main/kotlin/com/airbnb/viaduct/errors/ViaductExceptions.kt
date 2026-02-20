@@ -88,10 +88,7 @@ open class ViaductException(
         return GraphqlErrorBuilder.newError(dataFetchingEnvironment)
             .message(getGraphQLMessage())
             .extensions(
-                mapOf(
-                    "errorType" to getErrorType().value,
-                    "fatal" to getErrorType().fatal
-                ) + DEFAULT_LOCALIZED_MESSAGE_MAP + getExtensions() + additionalExtensions
+                baseExtensions() + getExtensions() + additionalExtensions
             )
             .build()
     }
@@ -100,12 +97,17 @@ open class ViaductException(
         return GraphqlErrorBuilder.newError()
             .message(getGraphQLMessage())
             .extensions(
-                mapOf(
-                    "errorType" to getErrorType().value,
-                    "fatal" to getErrorType().fatal
-                ) + DEFAULT_LOCALIZED_MESSAGE_MAP + getExtensions() + additionalExtensions
+                baseExtensions() + getExtensions() + additionalExtensions
             )
             .build()
+    }
+
+    private fun baseExtensions(): Map<String, Any> {
+        return mapOf(
+            "errorType" to getErrorType().value,
+            "fatal" to getErrorType().fatal,
+            "fullyQualifiedErrorClass" to javaClass.name
+        ) + DEFAULT_LOCALIZED_MESSAGE_MAP
     }
 
     protected open fun getGraphQLMessage(): String {

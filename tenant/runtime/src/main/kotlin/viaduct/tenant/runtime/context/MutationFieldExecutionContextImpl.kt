@@ -34,7 +34,7 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     queryCls: KClass<Q>,
 ) : MutationFieldExecutionContext<Q, M, Arguments, CompositeOutput>,
-    BaseFieldExecutionContextImpl<Q>(
+    BaseFieldExecutionContextImpl<Q, Arguments, CompositeOutput>(
         baseData,
         engineExecutionContextWrapper,
         selections,

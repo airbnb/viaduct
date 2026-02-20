@@ -43,6 +43,7 @@ class FieldResolverTest {
                         extensions: {
                             fieldName: "x",
                             parentType: "Query",
+                            fullyQualifiedErrorClass: "java.lang.RuntimeException",
                             classification: "DataFetchingException"
                         }
                     }]
@@ -67,6 +68,7 @@ class FieldResolverTest {
                         extensions: {
                             fieldName: "x",
                             parentType: "Subscription",
+                            fullyQualifiedErrorClass: "java.lang.RuntimeException",
                             classification: "DataFetchingException"
                         }
                     }]

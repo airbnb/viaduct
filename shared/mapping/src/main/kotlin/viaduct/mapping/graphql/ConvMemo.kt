@@ -35,7 +35,7 @@ package viaduct.mapping.graphql
  *         )
  *     }
  *     val conv = memo.buildIfAbsent("str2Int", ::mkStr2Int)
- *         .also { memo.finalize() }
+ *         .also { memo.resolveRefs() }
  *     assertEquals(123, conv("123"))
  *     assertEquals("123", conv.invert(123))
  *```
@@ -63,7 +63,7 @@ class ConvMemo {
 
         private fun checkState(): Conv<Any?, Any?> =
             checkNotNull(inner) {
-                "Conv was invoked before calling `finalize` on CyclicConvBuilder"
+                "Conv was invoked before calling `resolveRefs` on ConvMemo"
             }
     }
 
@@ -76,10 +76,10 @@ class ConvMemo {
      *
      * In the event that [memoKey] label was seen in the same stack as the current call
      * (eg, [buildIfAbsent] is being used to construct a Conv for a recursive object), then
-     * the returned [Conv] will be a reference to a Conv, and [finalize] must be called before
+     * the returned [Conv] will be a reference to a Conv, and [resolveRefs] must be called before
      * that [Conv] can be used.
      *
-     * @see finalize
+     * @see resolveRefs
      */
     @Suppress("UNCHECKED_CAST")
     fun <From, To> buildIfAbsent(
@@ -87,7 +87,7 @@ class ConvMemo {
         fn: () -> Conv<From, To>
     ): Conv<From, To> {
         if (finalized) {
-            throw IllegalStateException("CyclicConvBuilder cannot be used after being finalized")
+            throw IllegalStateException("CyclicConvBuilder cannot be used after resolveRefs is called")
         }
 
         if (memoKey in building) {
@@ -120,9 +120,12 @@ class ConvMemo {
      * This method should be called exactly once at the end of building a potentially cyclic tree of Conv's
      * This will initialize all pending references to cyclic convs returned by [buildIfAbsent],
      * making them operational.
+     *
+     * Note: this method was previously named `finalize`, which shadowed [Object.finalize] and
+     * caused the GC finalizer thread to throw [IllegalStateException] on every collected instance.
      */
-    fun finalize() {
-        check(!finalized) { "finalize should only be called once" }
+    fun resolveRefs() {
+        check(!finalized) { "resolveRefs should only be called once" }
         finalized = true
 
         refs.forEach { ref ->

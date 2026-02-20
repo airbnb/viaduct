@@ -14,7 +14,7 @@ import org.junit.jupiter.api.TestInfo
 class AssertionTests {
     @Test
     fun isTrueTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isTrue(true, "T1")
         subject.isTrue(false, "T2")
         subject.assertContainsExactly(
@@ -24,7 +24,7 @@ class AssertionTests {
 
     @Test
     fun isFalseTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isFalse(true, "T1")
         subject.isFalse(false, "T2")
         subject shouldContainExactly listOf(Failure("", "T1", null))
@@ -32,7 +32,7 @@ class AssertionTests {
 
     @Test
     fun isSameInstanceAsTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         val testValue = "test-value"
         subject.isSameInstanceAs(subject, subject, "T1")
         subject.isSameInstanceAs(subject, testValue, "T2")
@@ -51,7 +51,7 @@ class AssertionTests {
 
     @Test
     fun testIsNotSameInstanceAs() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         val o = Any()
         subject.isNotSameInstanceAs(o, o, "f0")
         subject.isNotSameInstanceAs(null, null, "f1")
@@ -63,7 +63,7 @@ class AssertionTests {
 
     @Test
     fun isIntEqualToTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isSameInstanceAs(1, 1, "T1")
         subject.isSameInstanceAs(0, 1, "T2")
 
@@ -74,7 +74,7 @@ class AssertionTests {
 
     @Test
     fun isEqualToTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isEqualTo(null, null, "N1")
         subject.isEqualTo(null, subject, "N2")
         subject.isEqualTo(subject, null, "N3")
@@ -97,7 +97,7 @@ class AssertionTests {
 
     @Test
     fun isNotEqualToTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isNotEqualTo(null, null, "N1")
         subject.isNotEqualTo(null, subject, "N2")
         subject.isNotEqualTo(subject, null, "N3")
@@ -124,7 +124,7 @@ class AssertionTests {
 
     @Test
     fun isNullTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isNull(null, "T0")
         subject.isNull(subject, "T1")
         subject.assertContainsExactly(
@@ -134,7 +134,7 @@ class AssertionTests {
 
     @Test
     fun isNotNullTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isNotNull(null, "T0")
         subject.isNotNull(subject, "T1")
         subject.assertContainsExactly(
@@ -144,7 +144,7 @@ class AssertionTests {
 
     @Test
     fun isEmptyTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isEmpty(subject, "T0")
         subject.isEmpty(listOf<Any?>(), "T1")
         subject.isEmpty(listOf<String?>("Howdy"), "T2")
@@ -163,7 +163,7 @@ class AssertionTests {
 
     @Test
     fun isNotEmptyTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isNotEmpty(subject, "T0")
         subject.isNotEmpty(listOf<Any?>(), "T1")
         subject.isNotEmpty(listOf<String?>("Howdy"), "T2")
@@ -182,7 +182,7 @@ class AssertionTests {
 
     @Test
     fun containsTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.contains(null, listOf<String?>(), "T1")
         subject.contains(null, listOf(*arrayOfNulls<String>(1)), "T2")
         subject.contains(null, listOf<String?>("a", "b"), "T3")
@@ -199,7 +199,7 @@ class AssertionTests {
 
     @Test
     fun isInOrderTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isInOrder(listOf<String>(), "T1")
         subject.isInOrder(listOf("a"), "T2")
         subject.isInOrder(listOf(1, 2), "T3")
@@ -215,7 +215,7 @@ class AssertionTests {
 
     @Test
     fun containsNoDuplicatesTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.containsNoDuplicates(listOf<String>(), "T1")
         subject.containsNoDuplicates(listOf("a"), "T2")
         subject.containsNoDuplicates(listOf(1, 2), "T3")
@@ -233,7 +233,7 @@ class AssertionTests {
 
     @Test
     fun containsExactlyGoodTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.containsExactlyElementsIn(listOf(), listOf<Int>(), "f0")
         subject.containsExactlyElementsIn(listOf("a"), listOf("a"), "f1")
         subject.containsExactlyElementsIn(listOf("a", "b"), listOf("a", "b"), "f2")
@@ -246,7 +246,7 @@ class AssertionTests {
 
     @Test
     fun containsExactlyUnequalSizeTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.containsExactlyElementsIn(listOf(), listOf("a"), "f0")
         subject.containsExactlyElementsIn(listOf(), listOf("a", "b"), "f1")
         subject.containsExactlyElementsIn(listOf(), listOf("a", "b", "c"), "f2")
@@ -281,7 +281,7 @@ class AssertionTests {
 
     @Test
     fun containsExactlyInexactContentTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.containsExactlyElementsIn(listOf("a"), listOf("b"), "f0")
         subject.containsExactlyElementsIn(listOf("a", "b"), listOf("a", "c"), "f1")
         subject.containsExactlyElementsIn(listOf("a", "b"), listOf("c", "a"), "f2")
@@ -314,7 +314,7 @@ class AssertionTests {
 
     @Test
     fun containsAtLeastPassTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.containsAtLeastElementsIn(listOf(), listOf<Int>(), "f0")
         subject.containsAtLeastElementsIn(listOf(), listOf("a"), "f1")
         subject.containsAtLeastElementsIn(listOf(1), listOf(1), "f2")
@@ -332,7 +332,7 @@ class AssertionTests {
 
     @Test
     fun containsAtLeastFailTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.containsAtLeastElementsIn(listOf("a"), listOf(), "f0")
         subject.containsAtLeastElementsIn(listOf("b"), listOf("a"), "f1")
         subject.containsAtLeastElementsIn(listOf(3), listOf(1, 2), "f2")
@@ -343,7 +343,7 @@ class AssertionTests {
 
     @Test
     fun containsAtMostPassTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.containsAtMostElementsIn(listOf(), listOf<Int>(), "f0")
         subject.containsAtMostElementsIn(listOf("a"), listOf(), "f1")
         subject.containsAtMostElementsIn(listOf(1), listOf(1), "f2")
@@ -361,7 +361,7 @@ class AssertionTests {
 
     @Test
     fun containsAtMostFailTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.containsAtMostElementsIn(listOf(), listOf("a"), "f0")
         subject.containsAtMostElementsIn(listOf("a"), listOf("b"), "f1")
         subject.containsAtMostElementsIn(listOf(1, 2), listOf(3), "f2")
@@ -373,7 +373,7 @@ class AssertionTests {
     /** Test for doesThrow()  */
     @Test
     fun doesThrowPassTests() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.doesThrow<IllegalArgumentException>("f0") {
             throw IllegalArgumentException("foo")
         }
@@ -385,7 +385,7 @@ class AssertionTests {
 
     @Test
     fun doesNotThrowDoesNotThrow() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject
             .doesNotThrow("IGNORE", arrayOfNulls(0)) { 1 }
             .ifNoThrow { arg: Int? -> assert(arg == 1) }
@@ -401,7 +401,7 @@ class AssertionTests {
 
     @Test
     fun doesNotThrowThrows(testInfo: TestInfo) {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject
             .doesNotThrow("f0") { throw NullPointerException() }
             .ifNoThrow { _ -> fail<Any>("Does not throw called its consumer.") }
@@ -416,7 +416,7 @@ class AssertionTests {
 
     @Test
     fun testIsInstanceOfPassCases() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
 
         listOf(
             Boolean::class to true,
@@ -449,7 +449,7 @@ class AssertionTests {
 
     @Test
     fun testIsInstanceOfNullPrimitive() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isInstanceOf(Boolean::class, null, "f0")
         subject.isInstanceOf(Byte::class, null, "f1")
         subject.isInstanceOf(Char::class, null, "f2")
@@ -463,7 +463,7 @@ class AssertionTests {
 
     @Test
     fun testIsInstanceOfNullNonPrimitive() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         subject.isInstanceOf(Boolean::class.javaObjectType.kotlin, null, "f0")
         subject.isInstanceOf(Byte::class.javaObjectType.kotlin, null, "f1")
         subject.isInstanceOf(Char::class.javaObjectType.kotlin, null, "f2")
@@ -478,7 +478,7 @@ class AssertionTests {
 
     @Test
     fun testIsInstanceOfWrongTypePrimitive() {
-        val subject = InvariantChecker()
+        val subject = FailureCollector()
         val o = Any()
         var m = 0
         subject.isInstanceOf(Boolean::class.javaObjectType.kotlin, o, "f" + m++)
@@ -521,7 +521,7 @@ class AssertionTests {
             return Pattern.matches(expected.details.toString(), this.details)
         }
 
-        fun InvariantChecker.assertContainsExactly(vararg failures: Failure) {
+        fun FailureCollector.assertContainsExactly(vararg failures: Failure) {
             this.forEachIndexed { index, actual ->
                 val expected = failures[index]
                 withClue("Expected Value is $expected and Actual value is $actual") {

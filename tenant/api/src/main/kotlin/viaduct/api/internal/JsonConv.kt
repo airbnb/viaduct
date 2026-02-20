@@ -255,7 +255,7 @@ object JsonConv {
             selectionSet: EngineSelectionSet?
         ): Conv<String, IR.Value> =
             json(mk(type, selectionSet)).also {
-                convMemo.finalize()
+                convMemo.resolveRefs()
             }
 
         private fun mk(

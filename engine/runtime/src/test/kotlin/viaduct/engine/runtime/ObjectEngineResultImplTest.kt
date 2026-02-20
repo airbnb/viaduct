@@ -37,7 +37,7 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
-import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ENGINE_VALUE_SLOT
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 
 class ObjectEngineResultImplTest {
     private val testScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -52,12 +52,12 @@ class ObjectEngineResultImplTest {
             val key = ObjectEngineResult.Key("test")
 
             engine.computeIfAbsent(key) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
             }
 
-            assertEquals("value", engine.fetch(key, ENGINE_VALUE_SLOT))
-            assertEquals("value", engine.getValue(key, ENGINE_VALUE_SLOT).await())
+            assertEquals("value", engine.fetch(key, RAW_VALUE_SLOT))
+            assertEquals("value", engine.getValue(key, RAW_VALUE_SLOT).await())
             assertEquals(CheckerResult.Success, engine.fetch(key, ACCESS_CHECK_SLOT))
         }
     }
@@ -70,7 +70,7 @@ class ObjectEngineResultImplTest {
 
             // Start a fetch operation that will initially suspend
             val deferred = testScope.async {
-                engine.fetch(key, ENGINE_VALUE_SLOT)
+                engine.fetch(key, RAW_VALUE_SLOT)
             }
 
             // Give the fetch a chance to start
@@ -78,7 +78,7 @@ class ObjectEngineResultImplTest {
 
             // Now write the value
             engine.computeIfAbsent(key) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
             }
 
@@ -101,7 +101,7 @@ class ObjectEngineResultImplTest {
                 testScope.launch {
                     engine.computeIfAbsent(key) { setter ->
                         successfulComputes.incrementAndGet()
-                        setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value"))
+                        setter.set(RAW_VALUE_SLOT, Value.fromValue("value"))
                         setter.set(ACCESS_CHECK_SLOT, Value.fromValue(null))
                     }
                 }
@@ -123,14 +123,14 @@ class ObjectEngineResultImplTest {
 
             // Start a read
             val deferred = testScope.async {
-                engine.fetch(key, ENGINE_VALUE_SLOT)
+                engine.fetch(key, RAW_VALUE_SLOT)
             }
 
             delay(100)
 
             // Complete with error
             engine.computeIfAbsent(key) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromThrowable<Nothing>(testException))
+                setter.set(RAW_VALUE_SLOT, Value.fromThrowable<Nothing>(testException))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(null))
             }
 
@@ -151,17 +151,17 @@ class ObjectEngineResultImplTest {
 
             // Write different values for different arguments
             engine.computeIfAbsent(key1) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value1"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value1"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
             }
             engine.computeIfAbsent(key2) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value2"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value2"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(MockCheckerErrorResult(IllegalAccessException("no access"))))
             }
 
             // Verify correct values are returned
-            assertEquals("value1", engine.fetch(key1, ENGINE_VALUE_SLOT))
-            assertEquals("value2", engine.fetch(key2, ENGINE_VALUE_SLOT))
+            assertEquals("value1", engine.fetch(key1, RAW_VALUE_SLOT))
+            assertEquals("value2", engine.fetch(key2, RAW_VALUE_SLOT))
             val checkerResult1 = engine.fetch(key1, ACCESS_CHECK_SLOT)
             val checkerResult2 = engine.fetch(key2, ACCESS_CHECK_SLOT)
             assertTrue(checkerResult1 is CheckerResult.Success)
@@ -178,17 +178,17 @@ class ObjectEngineResultImplTest {
 
             // Write different values for different arguments
             engine.computeIfAbsent(key1) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value1"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value1"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
             }
             engine.computeIfAbsent(key2) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value2"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value2"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(MockCheckerErrorResult(IllegalAccessException("no access"))))
             }
 
             // Verify correct values are returned
-            assertEquals("value1", engine.fetch(key1, ENGINE_VALUE_SLOT))
-            assertEquals("value2", engine.fetch(key2, ENGINE_VALUE_SLOT))
+            assertEquals("value1", engine.fetch(key1, RAW_VALUE_SLOT))
+            assertEquals("value2", engine.fetch(key2, RAW_VALUE_SLOT))
             val checkerResult1 = engine.fetch(key1, ACCESS_CHECK_SLOT)
             val checkerResult2 = engine.fetch(key2, ACCESS_CHECK_SLOT)
             assertTrue(checkerResult1 is CheckerResult.Success)
@@ -204,18 +204,18 @@ class ObjectEngineResultImplTest {
             val key2 = ObjectEngineResult.Key("test", "test")
 
             engine.computeIfAbsent(key1) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value1"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value1"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
             }
             // This compute should not execute
             engine.computeIfAbsent(key2) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value2"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value2"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(null))
             }
 
             // Verify correct values are returned
-            assertEquals("value1", engine.fetch(key1, ENGINE_VALUE_SLOT))
-            assertEquals("value1", engine.fetch(key2, ENGINE_VALUE_SLOT))
+            assertEquals("value1", engine.fetch(key1, RAW_VALUE_SLOT))
+            assertEquals("value1", engine.fetch(key2, RAW_VALUE_SLOT))
             assertEquals(CheckerResult.Success, engine.fetch(key1, ACCESS_CHECK_SLOT))
             assertEquals(CheckerResult.Success, engine.fetch(key2, ACCESS_CHECK_SLOT))
         }
@@ -233,7 +233,7 @@ class ObjectEngineResultImplTest {
             val readJobs = keys.flatMap { key ->
                 List(50) {
                     testScope.launch {
-                        val value = engine.fetch(key, ENGINE_VALUE_SLOT)
+                        val value = engine.fetch(key, RAW_VALUE_SLOT)
                         engine.fetch(key, ACCESS_CHECK_SLOT)
                         readResults.computeIfAbsent(key.name) {
                             ConcurrentHashMap.newKeySet()
@@ -247,7 +247,7 @@ class ObjectEngineResultImplTest {
                 writeJobs.add(
                     testScope.launch {
                         engine.computeIfAbsent(key) { setter ->
-                            setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value-${key.name}"))
+                            setter.set(RAW_VALUE_SLOT, Value.fromValue("value-${key.name}"))
                             setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
                         }
                     }
@@ -285,7 +285,7 @@ class ObjectEngineResultImplTest {
 
                     engine.computeIfAbsent(key) { setter ->
                         successfulComputes.incrementAndGet()
-                        setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value-$routineNum"))
+                        setter.set(RAW_VALUE_SLOT, Value.fromValue("value-$routineNum"))
                         setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
                     }
                 }
@@ -320,7 +320,7 @@ class ObjectEngineResultImplTest {
                 testScope.launch {
                     barrier.withLock { }
                     readersStarted.complete(Unit)
-                    val value = engine.fetch(key, ENGINE_VALUE_SLOT)
+                    val value = engine.fetch(key, RAW_VALUE_SLOT)
                     val checkerValue = engine.fetch(key, ACCESS_CHECK_SLOT)
                     allValues[value as String] = true
                     allCheckerValues[checkerValue as CheckerResult] = true
@@ -334,7 +334,7 @@ class ObjectEngineResultImplTest {
                 delay(100) // Give readers a chance to get going
 
                 engine.computeIfAbsent(key) { setter ->
-                    setter.set(ENGINE_VALUE_SLOT, Value.fromValue("final-value"))
+                    setter.set(RAW_VALUE_SLOT, Value.fromValue("final-value"))
                     setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
                 }
             }
@@ -368,7 +368,7 @@ class ObjectEngineResultImplTest {
             val readerJob = testScope.launch {
                 readerStarted.complete(Unit)
                 writerStarted.await()
-                valueRead.set(engine.fetch(key, ENGINE_VALUE_SLOT))
+                valueRead.set(engine.fetch(key, RAW_VALUE_SLOT))
             }
 
             // Start a writer coroutine
@@ -376,7 +376,7 @@ class ObjectEngineResultImplTest {
                 readerStarted.await()
                 writerStarted.complete(Unit)
                 engine.computeIfAbsent(key) { setter ->
-                    setter.set(ENGINE_VALUE_SLOT, Value.fromValue("test-value"))
+                    setter.set(RAW_VALUE_SLOT, Value.fromValue("test-value"))
                     setter.set(ACCESS_CHECK_SLOT, Value.fromValue("test-value"))
                 }
             }
@@ -440,7 +440,7 @@ class ObjectEngineResultImplTest {
             val computations = AtomicInteger(0)
 
             val result = engine.computeIfAbsent(key) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value-${computations.incrementAndGet()}"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value-${computations.incrementAndGet()}"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
             }
             val value = result.await()
@@ -449,7 +449,7 @@ class ObjectEngineResultImplTest {
 
             // Second call should return cached value
             val result2 = engine.computeIfAbsent(key) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("value-${computations.incrementAndGet()}"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value-${computations.incrementAndGet()}"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(null))
             }
             val value2 = result2.await()
@@ -482,7 +482,7 @@ class ObjectEngineResultImplTest {
             // The second call should return an error
             val result2 = runCatching {
                 engine.computeIfAbsent(key) { setter ->
-                    setter.set(ENGINE_VALUE_SLOT, Value.fromValue("shouldn't get here"))
+                    setter.set(RAW_VALUE_SLOT, Value.fromValue("shouldn't get here"))
                     setter.set(ACCESS_CHECK_SLOT, Value.fromValue(null))
                 }.await()
             }
@@ -504,7 +504,7 @@ class ObjectEngineResultImplTest {
                     barrier.withLock { }
                     engine.computeIfAbsent(key) { setter ->
                         setter.set(
-                            ENGINE_VALUE_SLOT,
+                            RAW_VALUE_SLOT,
                             Value.fromDeferred(
                                 async {
                                     delay(100) // Simulate work
@@ -540,7 +540,7 @@ class ObjectEngineResultImplTest {
                 engine.computeIfAbsent(key) { setter ->
                     computationStarted.complete(Unit)
                     setter.set(
-                        ENGINE_VALUE_SLOT,
+                        RAW_VALUE_SLOT,
                         Value.fromDeferred(
                             async {
                                 computationShouldFinish.await()
@@ -556,7 +556,7 @@ class ObjectEngineResultImplTest {
             val fetchDeferred = testScope.async {
                 computationStarted.await()
                 engine.computeIfAbsent(key) { setter ->
-                    setter.set(ENGINE_VALUE_SLOT, Value.fromValue("shouldn't-get-here"))
+                    setter.set(RAW_VALUE_SLOT, Value.fromValue("shouldn't-get-here"))
                     setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
                 }
             }
@@ -587,7 +587,7 @@ class ObjectEngineResultImplTest {
                     engine.computeIfAbsent(key) { setter ->
                         computeStarted.complete(Unit)
                         setter.set(
-                            ENGINE_VALUE_SLOT,
+                            RAW_VALUE_SLOT,
                             Value.fromDeferred(
                                 async {
                                     delay(Long.MAX_VALUE) // Will be canceled
@@ -609,7 +609,7 @@ class ObjectEngineResultImplTest {
 
             // Verify the field is now in the error state
             assertFailsWith<CancellationException> {
-                engine.fetch(key, ENGINE_VALUE_SLOT)
+                engine.fetch(key, RAW_VALUE_SLOT)
             }
         }
     }
@@ -627,7 +627,7 @@ class ObjectEngineResultImplTest {
             val readJobs = List(readers) { index ->
                 testScope.launch {
                     writeStarted.await() // Wait for write to start
-                    val result = engine.fetch(key, ENGINE_VALUE_SLOT)
+                    val result = engine.fetch(key, RAW_VALUE_SLOT)
                     val checkerResult = engine.fetch(key, ACCESS_CHECK_SLOT)
                     results[index] = (result as String) to (checkerResult as CheckerResult)
                 }
@@ -638,7 +638,7 @@ class ObjectEngineResultImplTest {
                 delay(100) // Give readers a chance to queue up
                 writeStarted.complete(Unit)
                 engine.computeIfAbsent(key) { setter ->
-                    setter.set(ENGINE_VALUE_SLOT, Value.fromValue("test-value"))
+                    setter.set(RAW_VALUE_SLOT, Value.fromValue("test-value"))
                     setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
                 }
             }
@@ -659,14 +659,14 @@ class ObjectEngineResultImplTest {
             val engine = ObjectEngineResultImpl.newPendingForType(graphQLObjectType)
             val key = ObjectEngineResult.Key("test")
             engine.computeIfAbsent(key) { setter ->
-                setter.set(ENGINE_VALUE_SLOT, Value.fromValue("test-value"))
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("test-value"))
                 setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
             }
-            assertEquals("test-value", engine.fetch(key, ENGINE_VALUE_SLOT))
+            assertEquals("test-value", engine.fetch(key, RAW_VALUE_SLOT))
             assertEquals(CheckerResult.Success, engine.fetch(key, ACCESS_CHECK_SLOT))
 
             engine.resolveExceptionally(RuntimeException("failed"))
-            assertThrows<RuntimeException> { engine.fetch(key, ENGINE_VALUE_SLOT) }
+            assertThrows<RuntimeException> { engine.fetch(key, RAW_VALUE_SLOT) }
             assertThrows<RuntimeException> { engine.fetch(key, ACCESS_CHECK_SLOT) }
         }
     }
@@ -743,21 +743,21 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test successful fields
-                assertEquals("123", result.fetch(ObjectEngineResult.Key("id"), ENGINE_VALUE_SLOT))
-                assertEquals("Alice", result.fetch(ObjectEngineResult.Key("name"), ENGINE_VALUE_SLOT))
+                assertEquals("123", result.fetch(ObjectEngineResult.Key("id"), RAW_VALUE_SLOT))
+                assertEquals("Alice", result.fetch(ObjectEngineResult.Key("name"), RAW_VALUE_SLOT))
 
                 // Test nested ObjectEngineResult
-                val friends = result.fetch(ObjectEngineResult.Key("friends"), ENGINE_VALUE_SLOT) as List<*>
-                val friend = (friends[0] as Cell).fetch(ENGINE_VALUE_SLOT) as ObjectEngineResultImpl
-                assertEquals("456", friend.fetch(ObjectEngineResult.Key("id"), ENGINE_VALUE_SLOT))
+                val friends = result.fetch(ObjectEngineResult.Key("friends"), RAW_VALUE_SLOT) as List<*>
+                val friend = (friends[0] as Cell).fetch(RAW_VALUE_SLOT) as ObjectEngineResultImpl
+                assertEquals("456", friend.fetch(ObjectEngineResult.Key("id"), RAW_VALUE_SLOT))
 
                 // Test error propagation
                 assertFailsWith<RuntimeException>("Name not available") {
-                    friend.fetch(ObjectEngineResult.Key("name"), ENGINE_VALUE_SLOT)
+                    friend.fetch(ObjectEngineResult.Key("name"), RAW_VALUE_SLOT)
                 }
 
                 assertFailsWith<RuntimeException>("Posts not accessible") {
-                    result.fetch(ObjectEngineResult.Key("posts"), ENGINE_VALUE_SLOT)
+                    result.fetch(ObjectEngineResult.Key("posts"), RAW_VALUE_SLOT)
                 }
             }
         }
@@ -813,19 +813,19 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test successful fields
-                assertEquals("123", result.fetch(ObjectEngineResult.Key("id"), ENGINE_VALUE_SLOT))
-                assertEquals("Alice", result.fetch(ObjectEngineResult.Key("name", "nickname"), ENGINE_VALUE_SLOT))
+                assertEquals("123", result.fetch(ObjectEngineResult.Key("id"), RAW_VALUE_SLOT))
+                assertEquals("Alice", result.fetch(ObjectEngineResult.Key("name", "nickname"), RAW_VALUE_SLOT))
 
                 // Test nested ObjectEngineResult with argument explicit specified
-                val friends = result.fetch(ObjectEngineResult.Key("friends", null, mapOf("onlyDirect" to true)), ENGINE_VALUE_SLOT) as List<*>
-                val friend = (friends[0] as Cell).fetch(ENGINE_VALUE_SLOT) as ObjectEngineResultImpl
-                assertEquals("456", friend.fetch(ObjectEngineResult.Key("id"), ENGINE_VALUE_SLOT))
+                val friends = result.fetch(ObjectEngineResult.Key("friends", null, mapOf("onlyDirect" to true)), RAW_VALUE_SLOT) as List<*>
+                val friend = (friends[0] as Cell).fetch(RAW_VALUE_SLOT) as ObjectEngineResultImpl
+                assertEquals("456", friend.fetch(ObjectEngineResult.Key("id"), RAW_VALUE_SLOT))
 
                 // Test ObjectEngineResult with argument implicit from schema
-                assertEquals(10, result.fetch(ObjectEngineResult.Key("friendCount", null, mapOf("onlyDirect" to false)), ENGINE_VALUE_SLOT))
+                assertEquals(10, result.fetch(ObjectEngineResult.Key("friendCount", null, mapOf("onlyDirect" to false)), RAW_VALUE_SLOT))
 
                 // Test variable references
-                assertEquals("https://example.com", result.fetch(ObjectEngineResult.Key("socialMedia", null, mapOf("siteName" to "example")), ENGINE_VALUE_SLOT))
+                assertEquals("https://example.com", result.fetch(ObjectEngineResult.Key("socialMedia", null, mapOf("siteName" to "example")), RAW_VALUE_SLOT))
             }
         }
 
@@ -863,10 +863,10 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test successful fields
-                val b1 = result.fetch(ObjectEngineResult.Key("bar", "b1", mapOf("id" to 1)), ENGINE_VALUE_SLOT) as ObjectEngineResultImpl
-                val b2 = result.fetch(ObjectEngineResult.Key("bar", "b2", mapOf("id" to 2)), ENGINE_VALUE_SLOT) as ObjectEngineResultImpl
-                assertEquals(12, b1.fetch(ObjectEngineResult.Key("a"), ENGINE_VALUE_SLOT))
-                assertEquals(21, b2.fetch(ObjectEngineResult.Key("b"), ENGINE_VALUE_SLOT))
+                val b1 = result.fetch(ObjectEngineResult.Key("bar", "b1", mapOf("id" to 1)), RAW_VALUE_SLOT) as ObjectEngineResultImpl
+                val b2 = result.fetch(ObjectEngineResult.Key("bar", "b2", mapOf("id" to 2)), RAW_VALUE_SLOT) as ObjectEngineResultImpl
+                assertEquals(12, b1.fetch(ObjectEngineResult.Key("a"), RAW_VALUE_SLOT))
+                assertEquals(21, b2.fetch(ObjectEngineResult.Key("b"), RAW_VALUE_SLOT))
             }
         }
 
@@ -889,7 +889,7 @@ class ObjectEngineResultImplTest {
                     )
                 )
 
-                assertEquals("Query", result.fetch(ObjectEngineResult.Key("__typename"), ENGINE_VALUE_SLOT))
+                assertEquals("Query", result.fetch(ObjectEngineResult.Key("__typename"), RAW_VALUE_SLOT))
             }
         }
 
@@ -921,7 +921,7 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test successful fields
-                assertEquals(42, result.fetch(ObjectEngineResult.Key("x"), ENGINE_VALUE_SLOT))
+                assertEquals(42, result.fetch(ObjectEngineResult.Key("x"), RAW_VALUE_SLOT))
             }
         }
 
@@ -953,7 +953,7 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test successful fields
-                assertEquals(42, result.fetch(ObjectEngineResult.Key("y"), ENGINE_VALUE_SLOT))
+                assertEquals(42, result.fetch(ObjectEngineResult.Key("y"), RAW_VALUE_SLOT))
             }
         }
 
@@ -983,8 +983,8 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test successful fields
-                val i = result.fetch(ObjectEngineResult.Key("i"), ENGINE_VALUE_SLOT) as ObjectEngineResult
-                val y = i.fetch(ObjectEngineResult.Key("y"), ENGINE_VALUE_SLOT)
+                val i = result.fetch(ObjectEngineResult.Key("i"), RAW_VALUE_SLOT) as ObjectEngineResult
+                val y = i.fetch(ObjectEngineResult.Key("y"), RAW_VALUE_SLOT)
                 assertEquals(42, y)
             }
         }
@@ -1016,10 +1016,10 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test successful fields
-                val us = result.fetch(ObjectEngineResult.Key("u"), ENGINE_VALUE_SLOT) as List<Cell>
+                val us = result.fetch(ObjectEngineResult.Key("u"), RAW_VALUE_SLOT) as List<Cell>
                 assertEquals(1, us.size)
-                val u = us[0].fetch(ENGINE_VALUE_SLOT) as ObjectEngineResultImpl
-                assertEquals(42, u.fetch(ObjectEngineResult.Key("x"), ENGINE_VALUE_SLOT))
+                val u = us[0].fetch(RAW_VALUE_SLOT) as ObjectEngineResultImpl
+                assertEquals(42, u.fetch(ObjectEngineResult.Key("x"), RAW_VALUE_SLOT))
             }
         }
 
@@ -1050,10 +1050,10 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test successful fields
-                val foo = result.fetch(ObjectEngineResult.Key("u"), ENGINE_VALUE_SLOT) as ObjectEngineResultImpl
+                val foo = result.fetch(ObjectEngineResult.Key("u"), RAW_VALUE_SLOT) as ObjectEngineResultImpl
                 assertEquals("Foo", foo.type.name)
-                val bar = foo.fetch(ObjectEngineResult.Key("bar"), ENGINE_VALUE_SLOT) as ObjectEngineResultImpl
-                assertEquals(42, bar.fetch(ObjectEngineResult.Key("x"), ENGINE_VALUE_SLOT))
+                val bar = foo.fetch(ObjectEngineResult.Key("bar"), RAW_VALUE_SLOT) as ObjectEngineResultImpl
+                assertEquals(42, bar.fetch(ObjectEngineResult.Key("x"), RAW_VALUE_SLOT))
             }
         }
 
@@ -1083,7 +1083,7 @@ class ObjectEngineResultImplTest {
                     )
                 )
 
-                val i = result.fetch(ObjectEngineResult.Key("i"), ENGINE_VALUE_SLOT)
+                val i = result.fetch(ObjectEngineResult.Key("i"), RAW_VALUE_SLOT)
                 assertNotNull(i)
             }
         }
@@ -1113,9 +1113,9 @@ class ObjectEngineResultImplTest {
                     )
                 )
 
-                val u = result.fetch(ObjectEngineResult.Key("u"), ENGINE_VALUE_SLOT)
+                val u = result.fetch(ObjectEngineResult.Key("u"), RAW_VALUE_SLOT)
                 u as ObjectEngineResultImpl
-                assertEquals("Foo", u.fetch(ObjectEngineResult.Key("__typename"), ENGINE_VALUE_SLOT))
+                assertEquals("Foo", u.fetch(ObjectEngineResult.Key("__typename"), RAW_VALUE_SLOT))
             }
         }
 
@@ -1152,7 +1152,7 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test successful fields
-                assertEquals(42, result.fetch(ObjectEngineResult.Key("x"), ENGINE_VALUE_SLOT))
+                assertEquals(42, result.fetch(ObjectEngineResult.Key("x"), RAW_VALUE_SLOT))
             }
         }
 
@@ -1173,7 +1173,7 @@ class ObjectEngineResultImplTest {
                 )
 
                 // Test the selected field
-                assertEquals(1, result.fetch(ObjectEngineResult.Key("x"), ENGINE_VALUE_SLOT))
+                assertEquals(1, result.fetch(ObjectEngineResult.Key("x"), RAW_VALUE_SLOT))
 
                 // Assert that the unselected field was not stored in the OER.
                 // We can do this by trying to compute a value for the key we suspect this would have been populated under

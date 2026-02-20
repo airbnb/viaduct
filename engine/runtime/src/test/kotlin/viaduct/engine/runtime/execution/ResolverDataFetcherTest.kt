@@ -26,6 +26,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.FromArgumentVariable
+import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
@@ -38,8 +39,14 @@ import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.CheckerDispatcherImpl
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
+import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.ProxyEngineObjectData
+import viaduct.engine.runtime.SyncFieldResolverDispatcher
+import viaduct.engine.runtime.SyncProxyEngineObjectData
+import viaduct.engine.runtime.Value
+import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.mocks.ContextMocks
@@ -50,9 +57,10 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 class ResolverDataFetcherTest {
     private val allDisabledFlags = MockFlagManager()
     private val allEnabledFlags = MockFlagManager.Enabled
+    private val executeAccessChecksEnabled = MockFlagManager.create(FlagManager.Flags.EXECUTE_ACCESS_CHECKS)
     private val allFlagSets = listOf(
         allDisabledFlags,
-        allEnabledFlags,
+        executeAccessChecksEnabled,
     )
 
     private class Fixture(
@@ -85,6 +93,7 @@ class ResolverDataFetcherTest {
             .fieldContainer(testTypeObject)
             .build()
         var resolverRan = false
+        var lastReceivedObjectValue: Any? = null
         val resolverId = "$testType.$testField"
         val objectValue = EngineObjectDataBuilder.from(testTypeObject).put(testField, expectedResult).build()
         val checkerDispatcher = if (checkerExecutor == null) null else CheckerDispatcherImpl(checkerExecutor)
@@ -98,8 +107,9 @@ class ResolverDataFetcherTest {
             TestFieldUnbatchedResolverExecutor(
                 objectSelectionSet = requiredSelectionSet,
                 resolverId = resolverId,
-                unbatchedResolveFn = { _, _, _, _, _ ->
+                unbatchedResolveFn = { _, receivedObjectValue, _, _, _ ->
                     resolverRan = true
+                    lastReceivedObjectValue = receivedObjectValue
                     expectedResult
                 },
             )
@@ -107,7 +117,11 @@ class ResolverDataFetcherTest {
         val resolverDataFetcher = ResolverDataFetcher(
             typeName = testType,
             fieldName = testField,
-            fieldResolverDispatcher = FieldResolverDispatcherImpl(executor),
+            fieldResolverDispatcher = if (flagManager.isEnabled(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION)) {
+                SyncFieldResolverDispatcher(FieldResolverDispatcherImpl(executor))
+            } else {
+                FieldResolverDispatcherImpl(executor)
+            },
             checkerDispatcher = checkerDispatcher,
         )
 
@@ -174,13 +188,74 @@ class ResolverDataFetcherTest {
                         emptyList(),
                         forChecker = false
                     ),
-                    flagManager = allEnabledFlags
+                    flagManager = executeAccessChecksEnabled
                 ).apply {
                     val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
                     assertEquals(expectedResult, receivedResult)
 
                     // verify that localContext has dataFetchingEnvironment copied
                     assertEquals(dataFetchingEnvironment, executor.lastReceivedLocalContext?.dataFetchingEnvironment)
+                }
+            }
+        }
+
+    @Test
+    fun `test sync value computation enabled passes SyncProxyEngineObjectData to resolver`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
+            withThreadLocalCoroutineContext {
+                Fixture(
+                    expectedResult = "test fetched result",
+                    requiredSelectionSet = RequiredSelectionSet(
+                        SelectionsParser.parse("TestType", "testField"),
+                        emptyList(),
+                        forChecker = false
+                    ),
+                    flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION),
+                ).apply {
+                    // Populate the parent engine result so sync resolution can complete
+                    engineResultLocalContext.parentEngineResult.computeIfAbsent(
+                        ObjectEngineResult.Key("testField", "testField", emptyMap())
+                    ) { setter ->
+                        setter.set(
+                            ObjectEngineResultImpl.RAW_VALUE_SLOT,
+                            Value.fromValue(
+                                FieldResolutionResult(
+                                    engineResult = expectedResult,
+                                    errors = emptyList(),
+                                    localContext = CompositeLocalContext.empty,
+                                    extensions = emptyMap(),
+                                    originalSource = null
+                                )
+                            )
+                        )
+                        setter.set(ObjectEngineResultImpl.ACCESS_CHECK_SLOT, Value.fromValue(null))
+                    }
+
+                    val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
+                    assertEquals(expectedResult, receivedResult)
+                    assertTrue(resolverRan)
+                    assertTrue(lastReceivedObjectValue is SyncProxyEngineObjectData)
+                }
+            }
+        }
+
+    @Test
+    fun `test sync value computation disabled passes ProxyEngineObjectData to resolver`(): Unit =
+        runBlocking(TestCoroutineDispatcher()) {
+            withThreadLocalCoroutineContext {
+                Fixture(
+                    expectedResult = "test fetched result",
+                    requiredSelectionSet = RequiredSelectionSet(
+                        SelectionsParser.parse("TestType", "testField"),
+                        emptyList(),
+                        forChecker = false
+                    ),
+                    flagManager = allDisabledFlags,
+                ).apply {
+                    val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
+                    assertEquals(expectedResult, receivedResult)
+                    assertTrue(resolverRan)
+                    assertTrue(lastReceivedObjectValue is ProxyEngineObjectData)
                 }
             }
         }

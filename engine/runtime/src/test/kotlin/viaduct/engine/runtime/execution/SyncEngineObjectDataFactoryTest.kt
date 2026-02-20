@@ -3,6 +3,7 @@
 package viaduct.engine.runtime.execution
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
@@ -12,12 +13,15 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ObjectEngineResult
+import viaduct.engine.api.instrumentation.resolver.FetchFunction
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.runtime.FieldErrorsException
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
-import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setEngineValue
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setRawValue
 import viaduct.engine.runtime.ObjectEngineResultTestHelper
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.SyncProxyEngineObjectData
@@ -204,7 +208,7 @@ class SyncEngineObjectDataFactoryTest {
             val accessError = IllegalAccessException("no access")
 
             oer.computeIfAbsent(ObjectEngineResult.Key("stringField")) { slotSetter ->
-                slotSetter.setEngineValue(
+                slotSetter.setRawValue(
                     Value.fromValue(
                         FieldResolutionResult(
                             "foo",
@@ -238,7 +242,7 @@ class SyncEngineObjectDataFactoryTest {
             val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
 
             oer.computeIfAbsent(ObjectEngineResult.Key("stringField")) { slotSetter ->
-                slotSetter.setEngineValue(
+                slotSetter.setRawValue(
                     Value.fromValue(
                         FieldResolutionResult(
                             "allowed",
@@ -269,7 +273,7 @@ class SyncEngineObjectDataFactoryTest {
             val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
 
             oer.computeIfAbsent(ObjectEngineResult.Key("field", null, mapOf("x" to 1))) { slotSetter ->
-                slotSetter.setEngineValue(
+                slotSetter.setRawValue(
                     Value.fromValue(
                         FieldResolutionResult(
                             42,
@@ -296,7 +300,7 @@ class SyncEngineObjectDataFactoryTest {
             val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
 
             oer.computeIfAbsent(ObjectEngineResult.Key("field", "f1", mapOf("x" to 1))) { slotSetter ->
-                slotSetter.setEngineValue(
+                slotSetter.setRawValue(
                     Value.fromValue(
                         FieldResolutionResult(
                             11,
@@ -310,7 +314,7 @@ class SyncEngineObjectDataFactoryTest {
                 slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
             }
             oer.computeIfAbsent(ObjectEngineResult.Key("field", "f2", mapOf("x" to 2))) { slotSetter ->
-                slotSetter.setEngineValue(
+                slotSetter.setRawValue(
                     Value.fromValue(
                         FieldResolutionResult(
                             22,
@@ -339,7 +343,7 @@ class SyncEngineObjectDataFactoryTest {
             val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
 
             oer.computeIfAbsent(ObjectEngineResult.Key("field", null, mapOf("x" to 99))) { slotSetter ->
-                slotSetter.setEngineValue(
+                slotSetter.setRawValue(
                     Value.fromValue(
                         FieldResolutionResult(
                             99,
@@ -357,6 +361,100 @@ class SyncEngineObjectDataFactoryTest {
             val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
 
             assertEquals(99, syncData.get("field"))
+        }
+    }
+
+    // ============================================================================
+    // Instrumentation context tests
+    // ============================================================================
+
+    @Test
+    fun `resolveImpl instruments each selection when context is present`() {
+        Fixture("type Query { x: Int, y: String }") {
+            val oer = mkOER("Query", mapOf("x" to 42, "y" to "hello"), selections = "x y")
+            val selectionSet = mkSelectionSet("Query", "x y")
+
+            val recordedSelections = mutableListOf<String>()
+            val state = object : ViaductResolverInstrumentation.InstrumentationState {}
+            val instrumentation = object : ViaductResolverInstrumentation {
+                override fun <T> instrumentFetchSelection(
+                    fetchFn: FetchFunction<T>,
+                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+                    state: ViaductResolverInstrumentation.InstrumentationState?,
+                ): FetchFunction<T> {
+                    recordedSelections.add(parameters.selection)
+                    return fetchFn
+                }
+            }
+
+            val ctx = ResolverInstrumentationContext(instrumentation, state)
+            val syncData = withContext(ctx) {
+                SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            }
+
+            assertEquals(42, syncData.get("x"))
+            assertEquals("hello", syncData.get("y"))
+            assertEquals(setOf("x", "y"), recordedSelections.toSet())
+        }
+    }
+
+    @Test
+    fun `resolveImpl works without instrumentation context`() {
+        Fixture("type Query { x: Int, y: String }") {
+            val oer = mkOER("Query", mapOf("x" to 42, "y" to "hello"), selections = "x y")
+            val selectionSet = mkSelectionSet("Query", "x y")
+
+            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+
+            assertEquals(42, syncData.get("x"))
+            assertEquals("hello", syncData.get("y"))
+        }
+    }
+
+    @Test
+    fun `resolveImpl instruments nested object selections`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { stringField: String, object2: O2 }
+                type O2 { intField: Int }
+            """.trimIndent()
+        ) {
+            val oer = mkOER(
+                "O1",
+                mapOf(
+                    "stringField" to "hello",
+                    "object2" to mapOf("intField" to 42)
+                ),
+                selections = "stringField object2 { intField }"
+            )
+            val selectionSet = mkSelectionSet("O1", "stringField object2 { intField }")
+
+            val recordedSelections = mutableListOf<String>()
+            val state = object : ViaductResolverInstrumentation.InstrumentationState {}
+            val instrumentation = object : ViaductResolverInstrumentation {
+                override fun <T> instrumentFetchSelection(
+                    fetchFn: FetchFunction<T>,
+                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+                    state: ViaductResolverInstrumentation.InstrumentationState?,
+                ): FetchFunction<T> {
+                    recordedSelections.add(parameters.selection)
+                    return fetchFn
+                }
+            }
+
+            val ctx = ResolverInstrumentationContext(instrumentation, state)
+            val syncData = withContext(ctx) {
+                SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            }
+
+            assertEquals("hello", syncData.get("stringField"))
+            val nested = syncData.get("object2") as EngineObjectData.Sync
+            assertEquals(42, nested.get("intField"))
+            // Should record selections at both levels: top-level and nested
+            assertTrue(recordedSelections.contains("stringField"))
+            assertTrue(recordedSelections.contains("object2"))
+            assertTrue(recordedSelections.contains("intField"))
         }
     }
 }

@@ -24,8 +24,10 @@ Selection execution uses a three-tier API architecture:
 | Tier | API | Purpose | Consumers |
 |------|-----|---------|-----------|
 | **Tenant** | `ctx.query(SelectionSet<T>)` / `ctx.mutation(SelectionSet<T>)` | Typed, simple, opinionated | Resolver code |
-| **Engine API** | `EEC.resolveSelectionSet(resolverId, selectionSet, options)` | Flexible, configurable | Advanced tenant runtime integrations, engine internals |
+| **Engine API** | `EEC.resolveSelectionSet(resolverId, selectionSet, options)` | Flexible, configurable, triggers resolution | Advanced tenant runtime integrations, engine internals |
+| **Engine API** | `EEC.completeSelectionSet(selectionSet, arguments, options)` | Complete already-resolved fields | Classic-on-Modern shims path |
 | **Wiring** | `Engine.resolveSelectionSet(handle, selectionSet, options)` | Implementation detail | Only called by EEC |
+| **Wiring** | `Engine.completeSelectionSet(handle, selectionSet, ...)` | Implementation detail | Only called by EEC |
 
 This layering provides:
 - Simple APIs for common cases (tenant layer)
@@ -73,7 +75,7 @@ For declarative, static sibling/root fields known at registration time, prefer `
                   ▼
 ┌─────────────────────────────────────┐
 │ Step 5: Build Child Parameters      │
-│ ExecutionParameters.forSubquery()   │
+│ ExecutionParameters.forResolution()   │
 │ QueryPlan.buildFromSelections()     │
 └─────────────────┬───────────────────┘
                   │
@@ -149,7 +151,7 @@ This method:
 
 1. Recovers the parent `ExecutionParameters` from the handle via `asExecutionParameters()`
 2. Looks up the root type (`queryType` or `mutationType`) from `fullSchema`
-3. Calls `parentParams.forSubquery(selectionSet, targetOER)` to build child execution parameters
+3. Calls `parentParams.forResolution(selectionSet, targetOER)` to build child execution parameters
 4. Runs the field-resolution pipeline and wraps the result
 
 The `ExecutionHandle` is deliberately opaque -- tenant code sees `EngineExecutionContext.ExecutionHandle`, not `ExecutionParameters`. A handle is tied to the engine instance and request that created it; it cannot be reused across requests or engine instances.
@@ -163,7 +165,7 @@ Inside the runtime module, `asExecutionParameters()` bridges that gap. If someon
 
 ## Step 5: Building Child Execution Parameters
 
-The core of subquery execution is `ExecutionParameters.forSubquery()`. This method builds `QueryPlan.Parameters` using `fullSchema`, calls `QueryPlan.buildFromSelections()` to create the plan, then delegates to `forChildPlan()`.
+The core of subquery execution is `ExecutionParameters.forResolution()`. This method builds `QueryPlan.Parameters` using `fullSchema`, calls `QueryPlan.buildFromSelections()` to create the plan, then delegates to `forChildPlan()`.
 
 ### Schema Choice
 
@@ -194,12 +196,12 @@ Subqueries don't start from a full GraphQL document—they start from an `Engine
 Plan caching keys on selection text, document key, schema hash, and `executeAccessChecksInModstrat`. Variables are not part of the cache key—the plan only depends on field/argument structure, not specific values.
 
 **Key files:**
-- `engine/runtime/.../execution/ExecutionParameters.kt` — `forSubquery()` method
+- `engine/runtime/.../execution/ExecutionParameters.kt` — `forResolution()` method
 - `engine/runtime/.../execution/QueryPlan.kt` — `buildFromSelections()`
 
 ## Step 6: Field Resolution
 
-Once `forSubquery()` produces child `ExecutionParameters` and a `QueryPlan`, the wiring layer runs the standard field-resolution pipeline:
+Once `forResolution()` produces child `ExecutionParameters` and a `QueryPlan`, the wiring layer runs the standard field-resolution pipeline:
 
 - `fieldResolver.fetchObject()` for queries
 - `fieldResolver.fetchObjectSerially()` for mutations
@@ -235,8 +237,62 @@ Each `ExecutionParameters` has its own `ErrorAccumulator`, so selection errors f
 | `querySelections("field")` | Declarative sibling/root fields | Registered as child plans, executed with root query plan |
 | `ctx.query(selections)` | Dynamic selections | Executes via ExecutionHandle |
 | `EEC.resolveSelectionSet(options)` | Advanced use cases | Configurable execution options |
+| `EEC.completeSelectionSet(...)` | Completing already-resolved fields | No field resolution, just completion |
 
 Use `querySelections` when fields are known at registration time—it's simpler and more efficient. Use `ctx.query()` when selections depend on runtime data. Use `EEC.resolveSelectionSet()` with custom options for advanced tenant runtime integrations.
+
+## resolveSelectionSet vs completeSelectionSet
+
+The engine provides two methods for selection set execution with different purposes:
+
+| Aspect | `resolveSelectionSet` | `completeSelectionSet` |
+|--------|----------------------|------------------------|
+| **Purpose** | Trigger field resolution for new data | Complete already-resolved fields into ExecutionResult |
+| **When to use** | New subquery from resolver | Shims completing RSS data from Classic-on-Modern path |
+| **Field resolution** | Triggers via FieldResolver | Waits for existing resolution in the OER |
+| **Returns** | `EngineObjectData` (OER wrapper) | `ExecutionResult` (completed Map + errors) |
+| **Variables** | Passed via RawSelectionSet | Resolved internally from RSS + arguments |
+
+### When to Use Each API
+
+**Use `resolveSelectionSet` when:**
+- You need to fetch new data that hasn't been resolved yet
+- You're implementing a resolver that needs to issue subqueries
+- You want the full field resolution pipeline (access checks, data loaders, etc.)
+
+```kotlin
+// Use resolveSelectionSet when you need to trigger new resolution
+val data = eec.resolveSelectionSet(resolverId, selectionSet, options)
+```
+
+**Use `completeSelectionSet` when:**
+- Fields have already been resolved and stored in an ObjectEngineResult
+- You need to complete the data into a final ExecutionResult with proper error handling
+- You're working in the Classic-on-Modern shims path where RSS data has been resolved elsewhere
+
+```kotlin
+// Use completeSelectionSet when fields are already resolved (e.g., via RSS)
+val result = eec.completeSelectionSet(selectionSet, arguments, options)
+```
+
+### completeSelectionSet Internals
+
+The `completeSelectionSet` method performs these steps:
+
+1. **Determine target OER**: Uses the provided `targetResult` or falls back to the parent from the execution handle
+2. **Resolve RSS variables**: Calls `FieldExecutionHelpers.resolveRSSVariables()` using the provided arguments and engine data
+3. **Build QueryPlan**: Converts the RequiredSelectionSet to a RawSelectionSet and builds a QueryPlan
+4. **Create child parameters**: Builds child ExecutionParameters for the completion
+5. **Complete and build result**: Calls `FieldCompleter.completeObject()` and builds the final ExecutionResult
+
+### CompleteSelectionSetOptions
+
+The `CompleteSelectionSetOptions` class provides configuration:
+
+- `bypassAccessChecks` — Skip access checks during completion (used when completing fields for checker execution)
+- `isFieldTypePlan` — Flag indicating if the query plan is for a field type
+
+**Key file:** `engine/api/.../CompleteSelectionSetOptions.kt`
 
 ## Testing
 

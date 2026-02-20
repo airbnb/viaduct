@@ -22,7 +22,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.gj
@@ -34,7 +33,6 @@ import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.updateCompositeLocalContext
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
-import viaduct.engine.runtime.select.EngineSelectionSetImpl
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.FlagManager.Flags
 import viaduct.utils.slf4j.logger
@@ -186,119 +184,95 @@ data class ExecutionParameters(
     }
 
     /**
-     * Creates ExecutionParameters for executing a child plan (Query or Object type).
+     * Determines how a child plan selects its OER, source, and step info
+     * when the plan's parent type is a non-Query object type.
      *
-     * For Query-type child plans: Uses the queryEngineResult as the root with root
-     * as source.
-     * For Object-type child plans: Uses the current field's parent engine result
-     * with current source.
+     * For Query-typed plans, these are always ignored — the engine uses
+     * queryEngineResult, the execution root, and a fresh ExecutionStepInfo.
+     */
+    sealed interface ChildPlanTarget {
+        /**
+         * Inherit from the current execution context. Uses the current parentEngineResult
+         * as the OER, current source, and the parent's ExecutionStepInfo.
+         * This is the standard path for RSS child plans during normal field resolution.
+         */
+        object FromContext : ChildPlanTarget
+
+        /**
+         * Override the OER only, inheriting source and step info from context.
+         * Used by completeSelectionSet when an explicit targetResult is provided.
+         */
+        data class WithOER(val parentOER: ObjectEngineResultImpl) : ChildPlanTarget
+
+        /**
+         * Provide explicit OER and source for field-type child plans. Uses the current
+         * ExecutionStepInfo (not the parent's) since the plan operates at the field's type level.
+         * Used by checker execution for type-level RSS.
+         */
+        data class FieldType(
+            val parentOER: ObjectEngineResultImpl,
+            val source: Any?,
+        ) : ChildPlanTarget
+    }
+
+    /**
+     * Creates ExecutionParameters for executing a child plan.
+     *
+     * The [target] controls how the child plan's OER, source, and ExecutionStepInfo
+     * are selected for non-Query object types. For Query-typed plans, the engine always
+     * uses queryEngineResult, the execution root, and a fresh ExecutionStepInfo regardless
+     * of the target.
      *
      * @param childPlan The child QueryPlan to execute
      * @param variables Resolved variables for the child plan
+     * @param target Controls OER/source/stepInfo selection for non-Query plans
      * @return New ExecutionParameters configured for child plan execution
      */
     fun forChildPlan(
         childPlan: QueryPlan,
-        variables: CoercedVariables
+        variables: CoercedVariables,
+        target: ChildPlanTarget = ChildPlanTarget.FromContext,
     ): ExecutionParameters {
         val objectType = childPlan.parentType as? GraphQLObjectType
             ?: throw IllegalArgumentException("Child plan must have a parent type of GraphQLObjectType")
         val isRootQueryQueryPlan = objectType == executionContext.graphQLSchema.queryType
 
-        val newParentOER = if (isRootQueryQueryPlan) {
-            // For root query plans, we use the query engine result
-            constants.queryEngineResult
-        } else {
-            // For object plans, we use the current parent engine result
-            parentEngineResult
+        // WithOER always honors the explicit OER (used by resolveSelectionSet/completeSelectionSet
+        // which provide their own target OER even for Query-typed plans).
+        // FromContext and FieldType fall back to queryEngineResult for Query plans.
+        val newParentOER = when {
+            target is ChildPlanTarget.WithOER -> target.parentOER
+            isRootQueryQueryPlan -> constants.queryEngineResult
+            target is ChildPlanTarget.FieldType -> target.parentOER
+            else -> parentEngineResult
         }
 
-        val source = if (isRootQueryQueryPlan) {
+        val childSource = if (isRootQueryQueryPlan) {
             executionContext.getRoot()
         } else {
-            // For object plans, we use the current source
-            source
-        }
-
-        return forChildPlan(
-            childPlan,
-            variables,
-            isRootQueryQueryPlan,
-            objectType,
-            newParentOER,
-            source,
-            executionStepInfo.parent, // for object plans, inherit the parent of the current field
-        )
-    }
-
-    /**
-     * Creates ExecutionParameters for executing a field type child plan (Query or Object type).
-     * This is used when the child plan is for a field type.
-     *
-     * For Query-type child plans: Uses the queryEngineResult as the root with root
-     * as source.
-     * For Object-type child plans: Uses the field's engine result as the new parent OER
-     * with field's original source to continue fetching field's type RSS.
-     *
-     * @param childPlan The child QueryPlan to execute
-     * @param variables Resolved variables for the child plan
-     * @param inputSource The source object for the field
-     * @param engineResult The engine result for the field
-     * @return new [ExecutionParameters] configured for field's type child plan execution
-     */
-    fun forFieldTypeChildPlan(
-        childPlan: QueryPlan,
-        variables: CoercedVariables,
-        inputSource: Any?,
-        engineResult: Any?,
-    ): ExecutionParameters {
-        val objectType = childPlan.parentType as? GraphQLObjectType
-            ?: throw IllegalArgumentException("Child plan must have a parent type of GraphQLObjectType")
-        val isRootQueryQueryPlan = objectType == executionContext.graphQLSchema.queryType
-
-        val newParentOER = if (isRootQueryQueryPlan) {
-            // For root query plans, we use the query engine result
-            constants.queryEngineResult
-        } else {
-            // For object plans, we use the field's engine result as the containing OER
-            // to continue fetching field's type RSS. Hence it is expected to be a non-null
-            // ObjectEngineResultImpl.
-            checkNotNull(engineResult as? ObjectEngineResultImpl) {
-                "Expected ObjectEngineResultImpl but got $engineResult"
+            when (target) {
+                is ChildPlanTarget.FieldType -> target.source
+                else -> source
             }
         }
 
-        val childPlanSource = if (isRootQueryQueryPlan) {
-            executionContext.getRoot()
-        } else {
-            // For object plans, we use field's original source to continue fetching
-            // field's type RSS.
-            inputSource
+        val parentStepInfo = when (target) {
+            is ChildPlanTarget.FieldType -> executionStepInfo
+            else -> executionStepInfo.parent
         }
 
-        return forChildPlan(
+        return buildChildParams(
             childPlan,
             variables,
             isRootQueryQueryPlan,
             objectType,
             newParentOER,
-            childPlanSource,
-            executionStepInfo, // for field type object plans, we keep current execution step info as the parent
+            childSource,
+            parentStepInfo,
         )
     }
 
-    /**
-     * Internal helper to create ExecutionParameters for a child plan.
-     *
-     * @param childPlan The child QueryPlan to execute
-     * @param variables Resolved variables for the child plan
-     * @param isRootQueryQueryPlan True if the child plan is for the root query type
-     * @param objectType The GraphQLObjectType that owns the child plan
-     * @param newParentOER The ObjectEngineResult to use as parent for the child plan
-     * @param source The source object for the child plan execution
-     * @return New ExecutionParameters configured for child plan execution
-     */
-    private fun forChildPlan(
+    private fun buildChildParams(
         childPlan: QueryPlan,
         variables: CoercedVariables,
         isRootQueryQueryPlan: Boolean,
@@ -381,61 +355,6 @@ data class ExecutionParameters(
             localContext = localContext,
             source = source,
             resolutionPolicy = resolutionPolicy,
-        )
-    }
-
-    /**
-     * Creates ExecutionParameters for executing a subquery from within a resolver.
-     *
-     * This method builds a QueryPlan from the provided EngineSelectionSet and creates
-     * child execution parameters suitable for subquery execution via ctx.query() or ctx.mutation().
-     *
-     * The caller controls memoization behavior by choosing which [ObjectEngineResultImpl] to provide:
-     * - Pass a fresh [ObjectEngineResultImpl] for isolated execution (no memoization reuse)
-     * - Pass an existing [ObjectEngineResultImpl] (e.g., from the parent context) to reuse memoized results
-     *
-     * @param rss The EngineSelectionSet containing the selections to execute
-     * @param targetOER The [ObjectEngineResultImpl] to populate with resolved field results
-     * @param attribution Attribution for this subquery execution
-     * @return New ExecutionParameters configured for subquery execution
-     */
-    suspend fun forSubquery(
-        rss: EngineSelectionSet,
-        targetOER: ObjectEngineResultImpl,
-        attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
-    ): ExecutionParameters {
-        val eecImpl = engineExecutionContext as EngineExecutionContextImpl
-        val rssImpl = rss as EngineSelectionSetImpl
-
-        // Subqueries always use fullSchema, not activeSchema.
-        // activeSchema may be a scoped/subset schema (e.g., for introspection),
-        // but subqueries are internal server-side calls that should see the complete schema.
-        // This is consistent with EngineSelectionSetFactoryImpl which builds RSS with fullSchema.
-        val queryPlanParams = QueryPlan.Parameters(
-            query = rss.printAsFieldSet(),
-            schema = eecImpl.fullSchema,
-            registry = eecImpl.dispatcherRegistry,
-            executeAccessChecksInModstrat = eecImpl.executeAccessChecksInModstrat,
-            dispatcherRegistry = eecImpl.dispatcherRegistry,
-        )
-
-        val queryPlan = QueryPlan.buildFromSelections(
-            parameters = queryPlanParams,
-            rss = rss,
-            attribution = attribution,
-        )
-
-        val objectType = queryPlan.parentType as? GraphQLObjectType
-            ?: throw IllegalArgumentException("Subquery plan must have a parent type of GraphQLObjectType")
-
-        return forChildPlan(
-            childPlan = queryPlan,
-            variables = rssImpl.ctx.coercedVariables,
-            isRootQueryQueryPlan = true, // Subqueries always start from root
-            objectType = objectType,
-            newParentOER = targetOER,
-            source = executionContext.getRoot(),
-            parentFieldStepInfo = null, // Subqueries start fresh without parent field context
         )
     }
 

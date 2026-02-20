@@ -2,7 +2,7 @@
 
 package viaduct.graphql.schema
 
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /**
  * Flags to turn on and off invariance checks.  Right
@@ -29,7 +29,7 @@ data class SchemaInvariantOptions(
  */
 fun checkViaductSchemaInvariants(
     schema: ViaductSchema,
-    check: InvariantChecker,
+    check: FailureCollector,
     options: SchemaInvariantOptions = SchemaInvariantOptions.DEFAULT
 ) {
     check.isEqualTo(schema.types.values.size, schema.types.size, "TYPE_DEFS_SIZE")
@@ -81,7 +81,7 @@ fun checkViaductSchemaInvariants(
 
 private fun checkBackPointerInvariants(
     def: ViaductSchema.TypeDef,
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     when (def) {
         is ViaductSchema.Directive ->
@@ -119,7 +119,7 @@ private fun checkBackPointerInvariants(
 fun checkTypeExprReferentialIntegrity(
     schema: ViaductSchema,
     type: ViaductSchema.TypeExpr<*>,
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     val n = type.baseTypeDef.name
     check.isSameInstanceAs(schema.types[n]!!, type.baseTypeDef, "TYPE_EXPR_BASE_INTEGRITY")
@@ -131,7 +131,7 @@ fun checkExtensionReferentialIntegrity(
     containingDef: ViaductSchema.TypeDef,
     allExpectedMembers: Iterable<*>,
     allExpectedSupers: Iterable<ViaductSchema.Interface>?,
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     for (ext in containingDef.extensions) {
         check.withContext(ext.members.joinToString("::") { it.name }) {
@@ -160,7 +160,7 @@ fun checkExtensionReferentialIntegrity(
 private fun checkReferentialIntegrity(
     schema: ViaductSchema,
     def: ViaductSchema.TypeDef,
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     check.isSameInstanceAs(schema.types[def.name]!!, def, "DEF_INTEGRITY")
     checkTypeExprReferentialIntegrity(schema, def.asTypeExpr(), check)
@@ -222,7 +222,7 @@ private fun checkReferentialIntegrity(
 private fun checkEmptyListInvariants(
     def: ViaductSchema.TypeDef,
     @Suppress("UNUSED_PARAMETER") // Keep for parallism with other checkXyzInvariants functions
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     when (def) {
         is ViaductSchema.Enum -> { }
@@ -240,7 +240,7 @@ private fun checkEmptyListInvariants(
 
 private fun checkExtensionsInvariants(
     def: ViaductSchema.TypeDef,
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     check.isNotEmpty(def.extensions, "EXTENSIONS_NOT_EMPTY")
     val exts = def.extensions.iterator()
@@ -253,7 +253,7 @@ private fun checkExtensionsInvariants(
 
 private fun checkToTypeExprInvariants(
     def: ViaductSchema.TypeDef,
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     check.isEqualTo("?", def.asTypeExpr().unparseWrappers(), "TO_TYPE_EXPR_NOT_NULLABLE")
     check.isSameInstanceAs(def, def.asTypeExpr().baseTypeDef, "TO_TYPE_EXPR_BASETYPE")
@@ -261,7 +261,7 @@ private fun checkToTypeExprInvariants(
 
 private fun checkValidSchemaInvariants(
     def: ViaductSchema.TypeDef,
-    check: InvariantChecker,
+    check: FailureCollector,
     options: SchemaInvariantOptions
 ) {
     when (def) {
@@ -291,7 +291,7 @@ private fun checkValidSchemaInvariants(
 
 private fun checkMiscInvariants(
     def: ViaductSchema.Def,
-    check: InvariantChecker
+    check: FailureCollector
 ) {
     if (def is ViaductSchema.TypeDef) {
         val isSimple = def is ViaductSchema.Scalar || def is ViaductSchema.Enum

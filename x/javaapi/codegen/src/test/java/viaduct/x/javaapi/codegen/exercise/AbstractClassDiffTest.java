@@ -21,7 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 import viaduct.codegen.km.ctdiff.ClassDiff;
 import viaduct.codegen.km.ctdiff.ClassFinder;
 import viaduct.codegen.km.ctdiff.JavaClassLoaderClassFinder;
-import viaduct.invariants.InvariantChecker;
+import viaduct.invariants.FailureCollector;
 import viaduct.x.javaapi.codegen.JavaGRTsCodegen;
 
 /**
@@ -48,7 +48,7 @@ abstract class AbstractClassDiffTest {
   @TempDir Path tempDir;
 
   protected JavaGRTsCodegen codegen;
-  protected InvariantChecker diffs;
+  protected FailureCollector diffs;
 
   /** Returns the classpath resource path for the GraphQL schema file. */
   protected abstract String getSchemaResource();
@@ -56,7 +56,7 @@ abstract class AbstractClassDiffTest {
   @BeforeEach
   void setUp() {
     codegen = new JavaGRTsCodegen();
-    diffs = new InvariantChecker();
+    diffs = new FailureCollector();
   }
 
   /**

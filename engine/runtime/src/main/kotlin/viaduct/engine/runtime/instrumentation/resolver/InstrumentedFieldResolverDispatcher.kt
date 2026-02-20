@@ -1,9 +1,11 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
+import kotlinx.coroutines.withContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.FieldResolverDispatcher
 
@@ -40,11 +42,16 @@ class InstrumentedFieldResolverDispatcher(
 
         val instrumentedObjectValue = InstrumentedEngineObjectData(objectValue, instrumentation, state)
         val instrumentedQueryValue = InstrumentedEngineObjectData(queryValue, instrumentation, state)
+        val instrumentationContext = ResolverInstrumentationContext(instrumentation, state)
         val instrumentedSyncObjectValue: suspend () -> EngineObjectData.Sync = {
-            InstrumentedEngineObjectData.Sync(syncObjectValueGetter(), instrumentation, state)
+            withContext(instrumentationContext) {
+                InstrumentedEngineObjectData.Sync(syncObjectValueGetter(), instrumentation, state)
+            }
         }
         val instrumentedSyncQueryValue: suspend () -> EngineObjectData.Sync = {
-            InstrumentedEngineObjectData.Sync(syncQueryValueGetter(), instrumentation, state)
+            withContext(instrumentationContext) {
+                InstrumentedEngineObjectData.Sync(syncQueryValueGetter(), instrumentation, state)
+            }
         }
 
         return instrumentation.instrumentResolverExecution(

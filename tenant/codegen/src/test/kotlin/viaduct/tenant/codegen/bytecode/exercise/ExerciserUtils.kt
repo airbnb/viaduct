@@ -12,10 +12,10 @@ import org.reflections.util.ConfigurationBuilder
 import viaduct.api.internal.ReflectionLoader
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.schema.graphqljava.readTypesFromURLs
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 import viaduct.schema.base.ValueBase
 
-internal fun InvariantChecker.tryResolveClass(
+internal fun FailureCollector.tryResolveClass(
     msg: String,
     classResolver: ClassResolver,
     fn: ClassResolver.() -> Class<*>
@@ -27,7 +27,7 @@ internal fun InvariantChecker.tryResolveClass(
     return c
 }
 
-internal fun InvariantChecker.hasMethod(
+internal fun FailureCollector.hasMethod(
     msg: String,
     actualClass: Class<*>,
     methodFilter: (Method) -> Boolean
@@ -40,7 +40,7 @@ internal fun InvariantChecker.hasMethod(
     }
 }
 
-internal fun InvariantChecker.areInstancesOf(
+internal fun FailureCollector.areInstancesOf(
     msg: String,
     expectedClasses: Array<Class<*>>,
     vararg actuals: Any?
@@ -67,7 +67,7 @@ internal fun InvariantChecker.areInstancesOf(
  * Check that the `outer` class nests a class with the provided name.
  * The provided `fn` will be run on the nested class if it exists
  */
-internal fun InvariantChecker.withNestedClass(
+internal fun FailureCollector.withNestedClass(
     outer: KClass<*>,
     nestedSimpleName: String,
     checkLabel: String,
@@ -83,7 +83,7 @@ internal fun InvariantChecker.withNestedClass(
  * Check that the given class has an object instance.
  * The provided `fn` will be run on the object instance if it exists
  */
-internal fun <T : Any> InvariantChecker.withObjectInstance(
+internal fun <T : Any> FailureCollector.withObjectInstance(
     cls: KClass<T>,
     checkLabel: String,
     fn: (T) -> Unit = {}
@@ -98,7 +98,7 @@ internal fun <T : Any> InvariantChecker.withObjectInstance(
  * Check that the provided instance has a property with the provided name.
  * The provided `fn` will be run on the property if it exists
  */
-internal inline fun <reified T> InvariantChecker.withProperty(
+internal inline fun <reified T> FailureCollector.withProperty(
     instance: Any,
     propName: String,
     checkLabel: String,

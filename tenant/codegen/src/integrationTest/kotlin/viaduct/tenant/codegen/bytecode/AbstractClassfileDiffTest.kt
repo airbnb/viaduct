@@ -14,7 +14,7 @@ import viaduct.graphql.schema.ViaductSchema.TypeDef
 import viaduct.graphql.schema.ViaductSchema.TypeDefKind
 import viaduct.graphql.schema.test.createSchema
 import viaduct.graphql.schema.test.loadGraphQLSchema
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 import viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.tenant.codegen.bytecode.config.cfg
@@ -33,7 +33,7 @@ abstract class AbstractClassfileDiffTest(val args: Args = Args.fromEnv()) {
         }
     }
 
-    fun compareAll(): InvariantChecker {
+    fun compareAll(): FailureCollector {
         args.classes.forEach {
             args.classDiff.compare(it.expected, it.actual)
         }

@@ -7,6 +7,7 @@ plugins {
     id("conventions.dokka")
     id("conventions.bcv-api")
     id("jacoco-integration-base")
+    id("me.champeau.jmh").version("0.7.3")
 }
 
 viaductPublishing {
@@ -45,4 +46,9 @@ dependencies {
     testImplementation(libs.graphql.java.extension)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    /** JMH dependencies **/
+    jmh(libs.jmh.annotation.processor)
+    jmhAnnotationProcessor(libs.jmh.annotation.processor)
+    jmhApi(libs.jmh.core)
 }

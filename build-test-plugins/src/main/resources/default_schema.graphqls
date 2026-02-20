@@ -58,3 +58,11 @@ scalar Short
 
 "An RFC-3339 compliant Full Time Scalar"
 scalar Time
+
+"PageInfo for Relay-style connection types"
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}

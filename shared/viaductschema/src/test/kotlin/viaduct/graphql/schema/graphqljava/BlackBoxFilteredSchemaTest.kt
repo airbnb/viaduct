@@ -10,7 +10,7 @@ import viaduct.graphql.schema.checkViaductSchemaInvariants
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.test.SchemaDiff
 import viaduct.graphql.schema.test.TestSchemas
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /**
  * Black-box tests for FilteredSchema with identity filter.
@@ -30,7 +30,7 @@ class BlackBoxFilteredSchemaTest {
         val filtered = original.filter(NoopSchemaFilter())
 
         // Verify invariants on the filtered schema
-        val checker = InvariantChecker()
+        val checker = FailureCollector()
         checkViaductSchemaInvariants(filtered, checker)
 
         // Compare filtered schema with original

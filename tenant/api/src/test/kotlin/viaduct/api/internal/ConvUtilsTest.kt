@@ -31,7 +31,7 @@ class ConvUtilsTest {
         val conv2 = memo.memoizeIf("foo", false) {
             Conv(Int::toString, String::toInt)
         }
-        memo.finalize()
+        memo.resolveRefs()
 
         assertFalse(conv1 === conv2)
     }
@@ -46,7 +46,7 @@ class ConvUtilsTest {
         val conv2 = memo.memoizeIf("foo", true) {
             Conv(Int::toString, String::toInt)
         }
-        memo.finalize()
+        memo.resolveRefs()
 
         assertSame(conv1, conv2)
     }

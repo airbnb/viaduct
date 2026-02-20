@@ -10,7 +10,7 @@ import viaduct.graphql.schema.graphqljava.extensions.TypeDefinitionRegistryOptio
 import viaduct.graphql.schema.graphqljava.extensions.toRegistry
 import viaduct.graphql.schema.test.SchemaDiff
 import viaduct.graphql.schema.test.TestSchemas
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /**
  * Black-box tests for toRegistry round-trip.
@@ -39,7 +39,7 @@ class BlackBoxToRegistryTest {
         val roundTrippedSchema = gjSchemaRawFromRegistry(roundTrippedRegistry)
 
         // Compare original vs round-tripped
-        val checker = InvariantChecker()
+        val checker = FailureCollector()
         checkViaductSchemaInvariants(originalSchema, checker)
         checkViaductSchemaInvariants(roundTrippedSchema, checker)
         SchemaDiff(originalSchema, roundTrippedSchema, checker).diff()

@@ -6,7 +6,7 @@ import java.lang.reflect.InvocationTargetException
 import java.text.MessageFormat
 import kotlin.reflect.KClass
 
-class InvariantChecker : Iterable<Failure> {
+class FailureCollector : Iterable<Failure> {
     private val context = ArrayList<String>()
     private val failures = ArrayList<Failure>()
 

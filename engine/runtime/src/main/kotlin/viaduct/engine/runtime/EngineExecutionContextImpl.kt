@@ -8,12 +8,15 @@ import graphql.util.FpKit
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Supplier
+import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.NodeResolverExecutor
+import viaduct.engine.api.ObjectEngineResult
+import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.SubqueryExecutionException
@@ -149,6 +152,35 @@ class EngineExecutionContextImpl(
         return executeWithMetrics {
             engine.resolveSelectionSet(handle, selectionSet, options)
         }
+    }
+
+    override suspend fun completeSelectionSet(
+        selectionSet: RequiredSelectionSet,
+        arguments: Map<String, Any?>,
+        options: CompleteSelectionSetOptions,
+    ): graphql.ExecutionResult {
+        val handle = executionHandle
+            ?: throw SubqueryExecutionException(
+                "completeSelectionSet requires an executionHandle. " +
+                    "This typically means completeSelectionSet was called before execution started " +
+                    "or from a context that doesn't have access to the current execution."
+            )
+        return engine.completeSelectionSet(handle, selectionSet, null, arguments, options)
+    }
+
+    override suspend fun completeSelectionSet(
+        selectionSet: RequiredSelectionSet,
+        targetResult: ObjectEngineResult,
+        arguments: Map<String, Any?>,
+        options: CompleteSelectionSetOptions,
+    ): graphql.ExecutionResult {
+        val handle = executionHandle
+            ?: throw SubqueryExecutionException(
+                "completeSelectionSet requires an executionHandle. " +
+                    "This typically means completeSelectionSet was called before execution started " +
+                    "or from a context that doesn't have access to the current execution."
+            )
+        return engine.completeSelectionSet(handle, selectionSet, targetResult, arguments, options)
     }
 
     private suspend inline fun executeWithMetrics(block: () -> EngineObjectData): EngineObjectData {

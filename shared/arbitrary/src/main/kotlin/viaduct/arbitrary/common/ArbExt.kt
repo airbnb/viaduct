@@ -17,7 +17,7 @@ import java.lang.AssertionError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import viaduct.apiannotations.VisibleForTest
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /** Convert an arb to an infinite [kotlin.sequences.Sequence] */
 @VisibleForTest
@@ -46,11 +46,11 @@ fun <T> Gen<T>.minViolation(
 @VisibleForTest
 fun <T> Gen<T>.checkInvariants(
     iter: Int? = null,
-    fn: PropertyContext.(T, InvariantChecker) -> Unit
+    fn: PropertyContext.(T, FailureCollector) -> Unit
 ) = runBlocking {
     val cfg = PropTestConfig(iterations = iter)
     checkAll(cfg) {
-        val check = InvariantChecker()
+        val check = FailureCollector()
         this.fn(it, check)
         check.assertEmpty("\n")
         markSuccess()

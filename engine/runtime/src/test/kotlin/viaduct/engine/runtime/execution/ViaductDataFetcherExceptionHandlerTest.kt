@@ -196,6 +196,7 @@ class ViaductDataFetcherExceptionHandlerTest {
         assertEquals("true", result.errors.first().extensions["isFrameworkError"])
         assertEquals(capturedMetadata[0].fieldName, result.errors[0].extensions["fieldName"])
         assertEquals(capturedMetadata[0].operationName, result.errors[0].extensions["operationName"])
+        assertTrue(result.errors.first().extensions.containsKey("fullyQualifiedErrorClass"))
     }
 
     @Test
@@ -224,6 +225,9 @@ class ViaductDataFetcherExceptionHandlerTest {
         // The actual unwrapped error should be the IllegalStateException
         assertEquals(actualException, capturedThrowables.first())
         assertEquals("java.lang.IllegalStateException: actual error", result.errors.first().message)
+
+        // The extensions should include the original exception's class info
+        assertEquals("java.lang.IllegalStateException", result.errors.first().extensions["fullyQualifiedErrorClass"])
 
         // For metadata, only concurrency exceptions are unwrapped, so we preserve the top-most
         // Viaduct exception (FieldFetchingException), which doesn't have a resolver chain

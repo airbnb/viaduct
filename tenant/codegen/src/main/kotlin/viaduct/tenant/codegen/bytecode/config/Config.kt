@@ -182,4 +182,5 @@ object cfg {
         JavaBinaryName("viaduct.api.internal.CompositeFieldImpl")
     val REFLECTED_TYPE_FIELDS =
         JavaBinaryName("viaduct.api.reflect.TypeFields")
+    val EDGE_GRT = JavaBinaryName("viaduct.api.types.Edge")
 }

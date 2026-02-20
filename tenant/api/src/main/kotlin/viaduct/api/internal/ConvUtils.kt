@@ -7,6 +7,7 @@ import graphql.schema.GraphQLFieldsContainer
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
+import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
@@ -32,13 +33,21 @@ internal fun <From, To> ConvMemo.memoizeIf(
 internal val GraphQLType.supportsSelections: Boolean get() =
     GraphQLTypeUtil.unwrapAllAs<GraphQLType>(this) is GraphQLCompositeType
 
-/** return a list of all [GraphQLFieldDefinition]s under this object that can be mapped */
+/**
+ * Return a list of all [GraphQLFieldDefinition]s under this object that can be mapped.
+ * Results are cached per type instance to avoid repeated list allocations.
+ */
 internal val GraphQLCompositeType.mappableFields: List<GraphQLFieldDefinition> get() =
-    if (this is GraphQLFieldsContainer) {
-        this.fields + Introspection.TypeNameMetaFieldDef
-    } else {
-        listOf(Introspection.TypeNameMetaFieldDef)
+    mappableFieldsCache.getOrPut(this) {
+        if (this is GraphQLFieldsContainer) {
+            this.fields + Introspection.TypeNameMetaFieldDef
+        } else {
+            listOf(Introspection.TypeNameMetaFieldDef)
+        }
     }
+
+private val mappableFieldsCache =
+    ConcurrentHashMap<GraphQLCompositeType, List<GraphQLFieldDefinition>>()
 
 /**
  * Create a Map of [Conv]'s that describe the mapping of [type]

@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 private val `schema def plus alternatives` = """
     schema {
@@ -113,7 +113,7 @@ interface RootTypeFactoryContractForRaw : RootTypeFactoryContractForBoth {
 
     @Test
     fun `missing names from schema def fail`() {
-        val check = InvariantChecker()
+        val check = FailureCollector()
         check.doesThrow<IllegalArgumentException>("") {
             makeSchema(`schema def with missing names`)
         }
@@ -122,7 +122,7 @@ interface RootTypeFactoryContractForRaw : RootTypeFactoryContractForBoth {
 
     @Test
     fun `non object type from schema def fail`() {
-        val check = InvariantChecker()
+        val check = FailureCollector()
         check.doesThrow<IllegalArgumentException>("") {
             makeSchema(`schema def with non object types`)
         }

@@ -25,6 +25,7 @@ import kotlinx.coroutines.future.await
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.QueryPlanExecutionCondition
 import viaduct.engine.api.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
 import viaduct.engine.api.RequiredSelectionSet
@@ -32,6 +33,7 @@ import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
+import viaduct.engine.api.select.ParsedSelectionsImpl
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.execution.QueryPlan.Field
 import viaduct.graphql.utils.asNamedElement
@@ -44,9 +46,15 @@ import viaduct.utils.collections.MaskedSet
  * It includes models of viaduct-specific concepts, including required selection sets
  * and their variables.
  *
- * @param childPlans child QueryPlan objects. These will be resolved before any
- * selections in this QueryPlan are resolved.
- * @param variableDefinitions Pre-computed variable definitions for this plan.
+ * @property selectionSet The collected fields and selections for this plan level.
+ * @property fragments Named fragment definitions available during plan execution.
+ * @property variablesResolvers Resolvers that produce variable values at execution time.
+ * @property parentType The GraphQL type that owns the fields in this plan.
+ * @property childPlans Child QueryPlan objects resolved before any selections in this plan.
+ * @property astSelectionSet The original graphql-java AST selection set this plan was built from.
+ * @property attribution Execution attribution for tracing and instrumentation.
+ * @property executionCondition Condition that controls whether this plan executes at runtime.
+ * @property variableDefinitions Pre-computed variable definitions for this plan.
  */
 data class QueryPlan(
     val selectionSet: SelectionSet,
@@ -62,10 +70,19 @@ data class QueryPlan(
     /**
      * Configuration for building a QueryPlan.
      *
-     * @property schema GraphQL schema used for type verification and field resolution
+     * @property query The query text used as part of the cache key. For top-level operations
+     *   this is the client's query string. For [buildFromSelections] and [buildFromParsedSelections],
+     *   this is computed internally from the selection set — callers can omit it.
+     * @property schema GraphQL schema used for type verification and field resolution.
+     * @property registry Registry for looking up RequiredSelectionSets declared by resolvers and checkers.
+     * @property executeAccessChecksInModstrat Whether access checks should be executed in modstrat.
+     *   Affects which RequiredSelectionSets are included in the plan.
+     * @property dispatcherRegistry Registry for looking up resolver and checker dispatchers.
+     * @property executionCondition Condition under which QueryPlans built with these parameters
+     *   should execute at runtime. Defaults to always execute.
      */
     data class Parameters(
-        val query: String,
+        val query: String = "",
         val schema: ViaductSchema,
         val registry: RequiredSelectionSetRegistry,
         val executeAccessChecksInModstrat: Boolean,
@@ -302,36 +319,61 @@ data class QueryPlan(
         }
 
         /**
-         * Builds a [QueryPlan] from a [EngineSelectionSet] for subquery execution.
+         * Convenience overload that extracts [ParsedSelections]-equivalent data from
+         * an [EngineSelectionSet] and delegates to [buildFromParsedSelections].
          *
-         * This method extracts the graphql-java AST directly from the EngineSelectionSet
-         * without re-parsing. The [EngineSelectionSet.toSelectionSet] method inlines all
-         * fragment spreads, so no fragment definitions are needed.
-         *
-         * @param parameters The parameters containing the schema and registry.
-         * @param rss The EngineSelectionSet containing the selections to execute.
-         * @param attribution Attribution for this query plan execution.
-         * @param executionCondition Condition under which this plan should execute.
-         * @return A new [QueryPlan] instance.
-         * @throws IllegalArgumentException if rss is empty
+         * Note: the RSS's @skip/@include pre-processing is redundant since the
+         * QueryPlanBuilder evaluates conditional directives internally.
          */
         suspend fun buildFromSelections(
             parameters: Parameters,
             rss: EngineSelectionSet,
             attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
-            executionCondition: QueryPlanExecutionCondition = ALWAYS_EXECUTE
+            executionCondition: QueryPlanExecutionCondition = ALWAYS_EXECUTE,
+            fragmentsByName: Map<String, GJFragmentDefinition> = emptyMap()
         ): QueryPlan {
             if (rss.isEmpty()) {
                 throw IllegalArgumentException("EngineSelectionSet.Empty is not supported for subquery execution")
             }
+            return buildFromParsedSelections(
+                parameters = parameters,
+                parsedSelections = ParsedSelectionsImpl(
+                    typeName = rss.type,
+                    selections = rss.toSelectionSet(),
+                    fragmentMap = fragmentsByName,
+                ),
+                attribution = attribution,
+                executionCondition = executionCondition,
+            )
+        }
 
-            val gjSelectionSet = rss.toSelectionSet()
-            val parentType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(rss.type)
+        /**
+         * Builds a [QueryPlan] from [ParsedSelections] for subquery execution and
+         * selection set completion.
+         *
+         * The QueryPlanBuilder handles @skip/@include directive evaluation internally,
+         * so callers do not need to pre-process selections.
+         *
+         * @param parameters The parameters containing the schema and registry.
+         * @param parsedSelections The parsed selections to build a plan from.
+         * @param attribution Attribution for this query plan execution.
+         * @param executionCondition Condition under which this plan should execute.
+         * @return A new [QueryPlan] instance.
+         * @throws IllegalArgumentException if selections are empty
+         */
+        suspend fun buildFromParsedSelections(
+            parameters: Parameters,
+            parsedSelections: ParsedSelections,
+            attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
+            executionCondition: QueryPlanExecutionCondition = ALWAYS_EXECUTE,
+        ): QueryPlan {
+            val gjSelectionSet = parsedSelections.selections
+            require(gjSelectionSet.selections.isNotEmpty()) {
+                "Empty selections are not supported for completeSelectionSet execution"
+            }
+            val parentType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(parsedSelections.typeName)
 
-            val queryText = rss.printAsFieldSet()
-            // DocumentKey is part of the cache key alongside queryText, so we just need
-            // a stable identifier that distinguishes subqueries from regular operations.
-            // The parentType name provides useful context for debugging.
+            val queryText = parsedSelections.printAsFieldSet()
             val documentKey = DocumentKey.Fragment("subquery:${parentType.name}")
 
             return build(
@@ -339,13 +381,15 @@ data class QueryPlan(
                 selectionSet = gjSelectionSet,
                 documentKey = documentKey,
                 parentType = parentType,
-                fragmentsByName = emptyMap(),
+                fragmentsByName = parsedSelections.fragmentMap,
                 useCache = true,
                 attribution = attribution
             )
         }
     }
 }
+
+private fun ParsedSelections.printAsFieldSet(): String = selections.selections.joinToString("\n") { AstPrinter.printAstCompact(it) }
 
 /**
  * A stateful builder for QueryPlan. Instances of [QueryPlanBuilder] should only be used to build

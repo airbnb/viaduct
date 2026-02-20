@@ -1,6 +1,6 @@
 package viaduct.graphql.schema
 
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /**
  * Creates a filtered schema from the given schema entries.
@@ -113,7 +113,7 @@ internal fun <T : ViaductSchema.TypeDef> filteredSchema(
         rootDef(subscriptionTypeNameFromBaseSchema)
     )
 
-    val violations = InvariantChecker()
+    val violations = FailureCollector()
     checkViaductSchemaInvariants(schema, violations, schemaInvariantOptions)
     violations.assertEmptyMultiline("FilteredSchema failed the following invariant checks:\n")
 

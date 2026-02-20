@@ -124,8 +124,8 @@ This test verifies the IDE's ability to run the application directly, detect cha
 ### For starwars Application
 
 - **Step 1:** Open the starwars project (<https://github.com/viaduct-dev/starwars>) in the target IDE.
-- **Step 2:** Locate and run the `main` function in `src/main/kotlin/viaduct/demoapp/starwars/Application.kt`. The application should start on <!-- djlint:off --> <http://localhost:8080>. <!-- djlint:on -->
-- **Step 3:** Open <!-- djlint:off -->[http://localhost:8080/graphiql](http://localhost:8080/graphiql)<!-- djlint:on --> in your browser to verify the application is working. Try the basic query:
+- **Step 2:** Locate and run the `main` function in `src/main/kotlin/viaduct/demoapp/starwars/Application.kt`. The application should start on <http://localhost:8080>.
+- **Step 3:** Open [http://localhost:8080/graphiql](http://localhost:8080/graphiql) in your browser to verify the application is working. Try the basic query:
 
   ```graphql
   query {

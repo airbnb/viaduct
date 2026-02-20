@@ -20,14 +20,14 @@ import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.test.BUILTIN_SCALARS
 import viaduct.graphql.schema.test.SchemaDiff
 import viaduct.graphql.schema.test.createSchemaWithSourceLocations
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 /** Alias for backward compatibility with existing tests in this package. */
 internal val builtins = BUILTIN_SCALARS
 
 internal fun checkRoundTrip(
     expectedSchema: ViaductSchema,
-    checker: InvariantChecker
+    checker: FailureCollector
 ) {
     // Check invariants on input schema
     checkViaductSchemaInvariants(expectedSchema, checker)
@@ -52,7 +52,7 @@ internal fun checkRoundTrip(
  * schemas satisfy all ViaductSchema invariants.
  */
 internal fun assertRoundTrip(expectedSchema: ViaductSchema) {
-    val checker = InvariantChecker()
+    val checker = FailureCollector()
     checkRoundTrip(expectedSchema, checker)
     checker.assertEmpty("\n")
 }

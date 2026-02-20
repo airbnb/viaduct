@@ -145,5 +145,6 @@ val viaduct = ViaductBuilder()
 ```
 
 Both error handlers are optional. If not provided, Viaduct uses sensible defaults:
+
 - `ResolverErrorBuilder.NOOP` - Returns `null`, allowing framework default handling
 - `ErrorReporter.NOOP` - Does nothing (no external reporting)

@@ -2,7 +2,7 @@ package viaduct.tenant.codegen.bytecode.exercise
 
 import org.junit.jupiter.api.Assertions.assertTrue
 import viaduct.codegen.utils.JavaName
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 internal const val pkg = "pkg"
 internal val pkgName = JavaName(pkg)
@@ -24,7 +24,7 @@ internal val pkgName = JavaName(pkg)
 //         .addAll(this)
 //         .buildClassLoader()
 
-internal fun InvariantChecker.assertContainsLabels(vararg labels: String): InvariantChecker {
+internal fun FailureCollector.assertContainsLabels(vararg labels: String): FailureCollector {
     val exp = labels.toSet()
     val allLabels = map { it.label }.toSet()
     assertTrue(allLabels.containsAll(exp)) {

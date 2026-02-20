@@ -18,7 +18,7 @@ import viaduct.codegen.utils.JavaName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 import viaduct.utils.timer.Timer
 
 /** This class is the entry point into the code generator.  Through an instance
@@ -131,9 +131,9 @@ class KmClassFilesBuilder(
 
     @VisibleForTest
     fun checkInvariants(
-        check: InvariantChecker = InvariantChecker(),
+        check: FailureCollector = FailureCollector(),
         allowedSuperTypes: Set<KmName> = setOf(Km.ANY)
-    ): InvariantChecker {
+    ): FailureCollector {
         val kmClassMap =
             classTrees
                 .flatten()

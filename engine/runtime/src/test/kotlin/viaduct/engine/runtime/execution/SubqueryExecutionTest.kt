@@ -1147,4 +1147,55 @@ class SubqueryExecutionTest {
             assertTrue(failureCounter == null || failureCounter.count() == 0.0, "Expected no failed subquery executions")
         }
     }
+
+    @Test
+    fun `ctx query wraps QueryPlan build failures in SubqueryExecutionException`() {
+        MockTenantModuleBootstrapper(
+            """
+            extend type Query {
+                container: Container
+            }
+
+            type Container {
+                result: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "result") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        // Selection references a field that doesn't exist on Query
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "nonExistentField", emptyMap())
+
+                        ctx.query(
+                            resolverId = "Container.result",
+                            selectionSet = rss
+                        )
+
+                        0
+                    }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ container { result } }")
+
+            assertEquals(1, result.errors.size)
+            assertTrue(
+                result.errors.first().message.contains("Failed to build QueryPlan"),
+                "Expected queryPlanBuildFailed error, got: ${result.errors.first().message}"
+            )
+        }
+    }
 }

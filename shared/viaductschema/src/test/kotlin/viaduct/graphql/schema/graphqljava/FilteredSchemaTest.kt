@@ -16,7 +16,7 @@ import viaduct.graphql.schema.checkViaductSchemaInvariants
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 import viaduct.graphql.schema.test.SchemaDiff
 import viaduct.graphql.schema.unfilteredDef
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 // TODO - Gradle doesn't seem to like this -- strange!!
 // import org.junit.jupiter.api.condition.EnabledIf
@@ -154,7 +154,7 @@ class FilteredSchemaTest {
 
         // Verify with an ALLOW_EMPTY_TYPES option disabled
         try {
-            InvariantChecker()
+            FailureCollector()
                 .also { check ->
                     checkViaductSchemaInvariants(filterSchema(unfilteredTestSchema, EmptyTypesSchemaFilter()), check)
                 }.assertEmpty("\n")
@@ -163,7 +163,7 @@ class FilteredSchemaTest {
         }
 
         // Verify with an ALLOW_EMPTY_TYPES option enabled
-        InvariantChecker()
+        FailureCollector()
             .also { check ->
                 checkViaductSchemaInvariants(
                     filterSchema(
@@ -179,7 +179,7 @@ class FilteredSchemaTest {
 
     @Test
     fun `invariant checks on filtered test schema`() {
-        InvariantChecker()
+        FailureCollector()
             .also { check ->
                 checkViaductSchemaInvariants(filterSchema(unfilteredTestSchema, SuffixSchemaFilter("Remove", "Keep")), check)
             }.assertEmpty("\n")
@@ -271,7 +271,7 @@ class FilteredSchemaTest {
         unfilteredSchema: ViaductSchema,
         filteredSchema: ViaductSchema
     ) {
-        val checker = InvariantChecker()
+        val checker = FailureCollector()
         for (def in filteredSchema.types.values) {
             checker.checkUnwrapping(unfilteredSchema.types[def.name]!!, def)
         }
@@ -284,7 +284,7 @@ class FilteredSchemaTest {
         checker.assertEmpty("\n")
     }
 
-    fun InvariantChecker.checkUnwrapping(
+    fun FailureCollector.checkUnwrapping(
         unfilteredDef: ViaductSchema.Def,
         filteredDef: ViaductSchema.Def
     ) {

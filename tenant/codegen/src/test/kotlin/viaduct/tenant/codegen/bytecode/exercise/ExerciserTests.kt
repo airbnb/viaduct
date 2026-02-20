@@ -64,7 +64,7 @@ class ExerciserTests {
         val PKG = JavaName("viaduct.tenant.codegen.bytecode.exercise")
 
         // fun exercise(schema: String) =
-        //     InvariantChecker().also {
+        //     FailureCollector().also {
         //         Exerciser(it, ClassResolver.fromSystemClassLoader(PKG))
         //             .exerciseGeneratedCode(mkSchema(schema))
         //     }
@@ -74,7 +74,7 @@ class ExerciserTests {
         //     shard: Int,
         //     shardCount: Int
         // ): List<String> {
-        //     val checker = InvariantChecker()
+        //     val checker = FailureCollector()
         //     val result = mutableListOf<ViaductSchema.TypeDef>()
         //     Exerciser(checker, ClassResolver.fromSystemClassLoader(PKG), shard, shardCount, result)
         //         .exerciseGeneratedCode(mkSchema(schema))
@@ -82,11 +82,11 @@ class ExerciserTests {
         // }
 
         // TODO v2 exercise tests
-        // suspend fun exerciseV2(schema: String): InvariantChecker {
+        // suspend fun exerciseV2(schema: String): FailureCollector {
         //
         //     val graphQLSchema = mkGraphQLSchema(schema)
         //     val viaductSchema = GJSchema.fromSchema(graphQLSchema)
-        //     return InvariantChecker().also {
+        //     return FailureCollector().also {
         //         Exerciser(
         //             it, ClassResolver.fromSystemClassLoader(PKG), schema = viaductSchema,
         //             graphQLSchema

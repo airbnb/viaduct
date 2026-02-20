@@ -46,7 +46,7 @@ import viaduct.graphql.schema.graphqljava.readTypesFromURLs
 import viaduct.graphql.schema.graphqljava.toGraphQLSchema
 import viaduct.graphql.schema.test.SchemaDiff
 import viaduct.graphql.utils.DefaultSchemaProvider
-import viaduct.invariants.InvariantChecker
+import viaduct.invariants.FailureCollector
 
 fun main(args: Array<String>) =
     CLI()
@@ -391,7 +391,7 @@ private class MmDiffCommand : CliktCommand(
         .required()
 
     override fun run() {
-        val checker = InvariantChecker()
+        val checker = FailureCollector()
 
         // Read input schema (both GJSchema and the underlying registry)
         val (expected, registry) = readGJSchemaWithRegistry(projectDirectory.toPath())

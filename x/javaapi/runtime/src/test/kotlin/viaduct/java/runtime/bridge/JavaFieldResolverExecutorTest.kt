@@ -11,18 +11,14 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FieldResolverExecutor
-import viaduct.java.runtime.example.GreetingResolver
 
 class JavaFieldResolverExecutorTest {
     @Test
     fun `simple resolver returns expected value`(): Unit =
         runBlocking {
-            // Create a simple resolver that returns "Hello, World!"
-            val greetingResolver = GreetingResolver()
-
-            // Wrap it in the bridge executor
+            // Wrap a simple resolve function in the bridge executor
             val executor = JavaFieldResolverExecutor(
-                resolveFunction = { ctx -> greetingResolver.resolve(ctx) },
+                resolveFunction = { CompletableFuture.completedFuture("Hello, World!") },
                 resolverId = "Query.greeting",
                 resolverName = "GreetingResolver"
             )

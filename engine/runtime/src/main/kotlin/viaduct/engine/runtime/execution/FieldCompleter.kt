@@ -27,7 +27,7 @@ import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
-import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ENGINE_VALUE_SLOT
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.execution.CompletionErrors.FieldCompletionException
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingEnvironment
@@ -143,7 +143,7 @@ class FieldCompleter(
 
             // Obtain a result for this field
             val handledFieldValue = combineValues(
-                parentOER.getValue(fieldKey, ENGINE_VALUE_SLOT),
+                parentOER.getValue(fieldKey, RAW_VALUE_SLOT),
                 parentOER.getValue(fieldKey, ACCESS_CHECK_SLOT),
                 bypassChecker,
                 field.fieldName,
@@ -418,7 +418,7 @@ class FieldCompleter(
         }
         val bypassCheck = temporaryBypassAccessCheck.shouldBypassCheck(field.mergedField.singleField, parameters.bypassChecksDuringCompletion)
         val listValues = cells.map {
-            combineValues(it.getValue(ENGINE_VALUE_SLOT), it.getValue(ACCESS_CHECK_SLOT), bypassCheck, field.fieldName, parameters.path)
+            combineValues(it.getValue(RAW_VALUE_SLOT), it.getValue(ACCESS_CHECK_SLOT), bypassCheck, field.fieldName, parameters.path)
         }
         val instrumentationParams = InstrumentationFieldCompleteParameters(
             parameters.executionContextWithLocalContext,
