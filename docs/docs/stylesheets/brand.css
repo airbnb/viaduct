@@ -82,3 +82,137 @@
 .md-nav__item--active > .md-nav__link {
   color: #337985;
 }
+
+/* Copy-as-Markdown dropdown */
+.copy-md-dropdown {
+  position: relative;
+  display: inline-block;
+  float: right;
+  margin: 0 0 0.5rem 1rem;
+  z-index: 10;
+}
+
+.copy-md-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0 0.25rem 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-family: inherit;
+  color: var(--md-default-fg-color--light);
+  transition: background 125ms, color 125ms, border-color 125ms;
+  white-space: nowrap;
+}
+
+.copy-md-trigger:hover {
+  background: var(--md-accent-fg-color--transparent);
+  color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+}
+
+.copy-md-trigger-icon svg,
+.copy-md-chevron svg {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+  fill: currentColor;
+}
+
+.copy-md-label {
+  line-height: 1;
+  padding-right: 0.25rem;
+}
+
+.copy-md-chevron-wrap {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  margin-left: 0.25rem;
+  border-left: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0 1rem 1rem 0;
+  transition: background 125ms;
+}
+
+.copy-md-chevron-wrap:hover {
+  background: var(--md-accent-fg-color--transparent);
+}
+
+/* Success state */
+.copy-md-trigger--success,
+.copy-md-trigger--success:hover {
+  color: var(--md-primary-fg-color);
+  border-color: var(--md-primary-fg-color);
+}
+
+/* Dropdown menu */
+.copy-md-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 220px;
+  background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  overflow: hidden;
+  padding: 0.25rem 0;
+}
+
+[data-md-color-scheme="slate"] .copy-md-menu {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.copy-md-dropdown--open .copy-md-menu {
+  display: block;
+}
+
+/* Menu items */
+.copy-md-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-family: inherit;
+  color: var(--md-default-fg-color);
+  text-decoration: none;
+  text-align: left;
+  transition: background 100ms;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.copy-md-menu-item:hover {
+  background: var(--md-accent-fg-color--transparent);
+  color: var(--md-accent-fg-color);
+}
+
+/* Divider before the AI actions */
+.copy-md-menu-item[data-action="chatgpt"] {
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+  margin-top: 0.25rem;
+  padding-top: 0.7rem;
+}
+
+.copy-md-menu-icon {
+  display: flex;
+  align-items: center;
+  color: var(--md-default-fg-color--light);
+  flex-shrink: 0;
+}
+
+.copy-md-menu-icon svg {
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+}
