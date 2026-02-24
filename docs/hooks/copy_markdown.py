@@ -10,6 +10,7 @@ time on_page_markdown fires the macros plugin has already expanded all
 from __future__ import annotations
 
 import os
+import posixpath
 import re
 from typing import Any
 
@@ -17,6 +18,9 @@ from typing import Any
 _page_markdown: dict[str, str] = {}
 # Ordered list of (src_path, title, url) for llms.txt index.
 _page_order: list[tuple[str, str, str]] = []
+
+# Matches markdown links: [text](target)
+_MD_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +59,53 @@ def _page_url(page: Any, config: dict) -> str:
     return f"{site_url}/{url_path}"
 
 
+def _rewrite_md_links(markdown: str, src_path: str, config: dict) -> str:
+    """Rewrite relative .md links to absolute URLs, leaving code fences untouched."""
+    page_dir = posixpath.dirname(src_path)  # e.g. "getting_started/setup"
+
+    # Split on fenced code blocks (``` or ~~~) to avoid rewriting inside them.
+    # Odd-indexed segments are inside fences; even-indexed are outside.
+    fence_re = re.compile(r"(```[^\n]*\n.*?```|~~~[^\n]*\n.*?~~~)", re.DOTALL)
+    parts = fence_re.split(markdown)
+
+    def rewrite_link(m: re.Match) -> str:
+        text, target = m.group(1), m.group(2)
+        # Split off any trailing fragment (#anchor)
+        if "#" in target:
+            path_part, fragment = target.split("#", 1)
+            fragment = "#" + fragment
+        else:
+            path_part, fragment = target, ""
+
+        # Leave absolute URLs, anchor-only links, and mailto: unchanged.
+        if not path_part or path_part.startswith(("http://", "https://", "mailto:")):
+            return m.group(0)
+
+        # Only rewrite links that end in .md (or .md# handled above).
+        if not path_part.endswith(".md"):
+            return m.group(0)
+
+        # Resolve relative path against page's source directory.
+        resolved = posixpath.normpath(posixpath.join(page_dir, path_part))
+
+        # Guard: must not escape the docs root.
+        if resolved.startswith(".."):
+            return m.group(0)
+
+        abs_url = _src_path_to_url(resolved, config)
+        return f"[{text}]({abs_url}{fragment})"
+
+    out_parts = []
+    for i, part in enumerate(parts):
+        if i % 2 == 0:
+            # Outside a code fence — rewrite links.
+            out_parts.append(_MD_LINK_RE.sub(rewrite_link, part))
+        else:
+            # Inside a code fence — leave unchanged.
+            out_parts.append(part)
+    return "".join(out_parts)
+
+
 # ---------------------------------------------------------------------------
 # MkDocs event handlers
 # ---------------------------------------------------------------------------
@@ -71,7 +122,7 @@ def on_page_markdown(markdown: str, page: Any, config: dict, files: Any) -> str:
     if not re.match(r"^#\s", cleaned):
         cleaned = f"# {title}\n\n{cleaned}"
 
-    _page_markdown[page.file.src_path] = cleaned
+    _page_markdown[page.file.src_path] = _rewrite_md_links(cleaned, page.file.src_path, config)
     return markdown  # return unchanged so the normal build proceeds
 
 
