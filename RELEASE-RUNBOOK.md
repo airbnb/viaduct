@@ -58,6 +58,8 @@ This Gradle task updates all demo app `gradle.properties` files to match the `VE
 
 ## Prerequisites for Release Managers
 
+> NOTE: All release tasks should be run from your local machine and not a workspace.
+
 ### Required Tools
 
 **GitHub CLI (`gh`)**
@@ -86,6 +88,7 @@ Verify you have access to:
 - Viaduct-GraphQL GitHub organization ([https://github.com/orgs/viaduct-dev/people](https://github.com/orgs/viaduct-dev/people))
 - Gradle Plugin Portal `viaduct-maintainers` account (check: https://plugins.gradle.org/u/viaduct-maintainers)
 - 1Password vault with `viaductbot` credentials (for Sonatype)
+- Write permissions on the [airbnb/viaduct](https://github.com/airbnb/viaduct) repository
 
 If you're missing any access, contact your team lead before release day.
 
@@ -103,7 +106,7 @@ Expected output: `Hi <username>! You've successfully authenticated, but GitHub d
 If this fails:
 
 - Ensure you have SSH keys set up: https://docs.github.com/en/authentication/connecting-to-github-with-ssh
-- Add your key to ssh-agent: `ssh-add ~/.ssh/id_rsa`
+- Add your key to ssh-agent: `ssh-add ~/.ssh/id_rsa` or `ssh-add ~/.ssh/id_ed25519`
 
 **Authenticate GitHub CLI**
 
@@ -114,7 +117,6 @@ gh auth login
 - Select: `GitHub.com`
 - Select: `HTTPS`
 - Authenticate via browser when prompted
-
 
 **Clone public Viaduct repository:**
 
@@ -175,6 +177,8 @@ You should see that the `VERSION` file has changed a the project root and the `g
 > Use the normal PR merge process to merge this OSS PR. (pull-me)
 
 ### 3) Make release branch
+
+This step should be done on the main Viaduct repository, not a fork.
 
 Once this PR is approved and merged:
 
