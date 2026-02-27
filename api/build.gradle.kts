@@ -13,20 +13,12 @@ viaductPublishing {
     description.set("Fat jar bundle of the Viaduct tenant API for easier dependency management")
 }
 
-// In composite builds (when demo apps are included), expose transitive deps so consumers don't need explicit declarations.
-// For published jars, keep as implementation so they're bundled in the shadow jar without POM conflicts.
-val isPublishing = gradle.startParameter.taskNames.any { it.contains("publish") || it.contains("MavenCentral") }
-val isCompositeBuild = gradle.includedBuilds.any { it.name.contains("starter") || it.name == "starwars" } && !isPublishing
-
 dependencies {
+    // Always expose as api so composite-build consumers (demo apps) get transitive deps.
+    // In the published shadow jar, these are bundled and transitive deps are suppressed below.
     api(libs.viaduct.tenant.api)
-    if (isCompositeBuild) {
-        api(libs.viaduct.service.api)
-        api(libs.graphql.java)  // Needed for generated resolver bases
-    } else {
-        implementation(libs.viaduct.service.api)
-        implementation(libs.graphql.java)
-    }
+    api(libs.viaduct.service.api)
+    api(libs.graphql.java)  // Needed for generated resolver bases
 }
 
 // Create shaded jar for publishing (fat jar with all dependencies)
@@ -37,17 +29,17 @@ tasks.named<ShadowJar>("shadowJar") {
     // Use compileClasspath to get only compile-time API dependencies (not runtime)
     configurations = listOf(project.configurations.compileClasspath.get())
 
-    // In composite builds, exclude non-relocated third-party classes to avoid version conflicts
-    // with consumers' own dependency versions. These are resolved normally via api() dependencies.
-    if (isCompositeBuild) {
-        exclude("kotlinx/**")
-        exclude("kotlin/**")
-        exclude("io/kotest/**")
-        exclude("org/jetbrains/**")
-        exclude("org/reactivestreams/**")
-        exclude("reactor/**")
-        exclude("io/projectreactor/**")
-    }
+    // Exclude third-party classes with rapid API churn that would cause version conflicts
+    // (e.g. NoSuchMethodError) when the consumer's versions differ from the bundled ones.
+    // Stable APIs (javax, jakarta, micrometer, etc.) are intentionally kept bundled.
+    exclude("kotlin/**")
+    exclude("kotlinx/**")
+    exclude("io/kotest/**")
+    exclude("org/jetbrains/**")
+    exclude("org/reactivestreams/**")
+    exclude("reactor/**")
+    exclude("io/projectreactor/**")
+    exclude("_COROUTINE/**")
 
     // Relocate common dependencies to avoid conflicts
     relocate("com.google.common", "viaduct.shaded.guava")
@@ -61,7 +53,10 @@ tasks.named<Jar>("jar") {
     enabled = false
 }
 
-// Configure apiElements and runtimeElements to use shadow jar
+// Configure apiElements and runtimeElements to use shadow jar.
+// The shadow jar is self-contained for all bundled Viaduct classes, so we suppress
+// transitive runtime dependencies to prevent old bundled versions (e.g. coroutines)
+// from leaking onto consumers' classpaths alongside the shadow jar.
 configurations {
     named("apiElements") {
         outgoing {
@@ -73,6 +68,25 @@ configurations {
         outgoing {
             artifacts.clear()
             artifact(tasks.shadowJar)
+        }
+    }
+}
+
+// Suppress runtimeElements from Gradle module metadata so consumers don't resolve
+// transitive deps that are already bundled in the shadow jar.
+plugins.withId("org.jetbrains.kotlin.jvm") {
+    val javaComponent = components["java"] as AdhocComponentWithVariants
+    javaComponent.withVariantsFromConfiguration(configurations.runtimeElements.get()) {
+        skip()
+    }
+}
+
+// Strip transitive dependencies from POM for Maven consumers.
+afterEvaluate {
+    publishing.publications.withType<MavenPublication>().configureEach {
+        pom.withXml {
+            val deps = asNode().get("dependencies") as groovy.util.NodeList
+            deps.forEach { (it as groovy.util.Node).parent().remove(it) }
         }
     }
 }
