@@ -1,0 +1,67 @@
+name: Post Slack Alerts
+
+on:
+  workflow_run:
+    workflows: ["Build and Test (Gradle)"]
+    types:
+      - completed
+
+concurrency:
+  group: post-slack-alerts-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  post-alert:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Download failure info artifact
+        uses: actions/download-artifact@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: slack-alert
+          path: slack-alert
+
+      - name: Read failure info
+        id: failure_info
+        run: |
+          info=$(cat slack-alert/failure-info.json)
+          echo "failed_jobs=$(echo "$info" | jq -r '.failed_jobs')" >> "$GITHUB_OUTPUT"
+          echo "failed_steps=$(echo "$info" | jq -r '.failed_steps')" >> "$GITHUB_OUTPUT"
+          echo "workflow=$(echo "$info" | jq -r '.workflow')" >> "$GITHUB_OUTPUT"
+          echo "run_number=$(echo "$info" | jq -r '.run_number')" >> "$GITHUB_OUTPUT"
+          echo "repository=$(echo "$info" | jq -r '.repository')" >> "$GITHUB_OUTPUT"
+          echo "branch=$(echo "$info" | jq -r '.branch')" >> "$GITHUB_OUTPUT"
+          echo "actor=$(echo "$info" | jq -r '.actor')" >> "$GITHUB_OUTPUT"
+          echo "sha=$(echo "$info" | jq -r '.sha')" >> "$GITHUB_OUTPUT"
+          echo "server_url=$(echo "$info" | jq -r '.server_url')" >> "$GITHUB_OUTPUT"
+          echo "repository_full=$(echo "$info" | jq -r '.repository_full')" >> "$GITHUB_OUTPUT"
+          echo "run_id=$(echo "$info" | jq -r '.run_id')" >> "$GITHUB_OUTPUT"
+          echo "alert_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Post formatted failure alert to Slack
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ vars.SLACK_CHANNEL_ID }}
+            text: |
+              :x: *GitHub Actions Pipeline Failure*
+              > *${{ steps.failure_info.outputs.workflow }}* (#${{ steps.failure_info.outputs.run_number }}) in repository: `${{ steps.failure_info.outputs.repository }}`
+
+              ```
+              ❗ Description  : One or more jobs failed
+              🧩 Failed Jobs  : ${{ steps.failure_info.outputs.failed_jobs }}
+              🧱 Failed Step  : ${{ steps.failure_info.outputs.failed_steps }}
+              🌿 Branch       : ${{ steps.failure_info.outputs.branch }}
+              🧑‍💻 Actor        : ${{ steps.failure_info.outputs.actor }}
+              🔢 Commit SHA   : ${{ steps.failure_info.outputs.sha }}
+              🕒 Time         : ${{ steps.failure_info.outputs.alert_time }}
+              ```
+
+              *Links:*
+              • 🔗 [${{ steps.failure_info.outputs.repository }}](${{ steps.failure_info.outputs.server_url }}/${{ steps.failure_info.outputs.repository_full }})
+              • 🚀 [Workflow Run](${{ steps.failure_info.outputs.server_url }}/${{ steps.failure_info.outputs.repository_full }}/actions/runs/${{ steps.failure_info.outputs.run_id }})
