@@ -175,7 +175,7 @@ extra:
       link: https://github.com/airbnb/viaduct/discussions
       name: Discussions
     - icon: fontawesome/solid/scale-balanced
-      link: https://airbnb.tech/uncategorized/code-of-conduct/
+      link: https://airbnb.tech/open-source/code-of-conduct/
       name: Code of Conduct
   analytics:
     provider: google

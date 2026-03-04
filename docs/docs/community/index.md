@@ -21,7 +21,7 @@ If you want to get more involved by contributing to Viaduct, join us here:
 
 * [GitHub](https://github.com/airbnb/viaduct): Development takes place here!
 * [Contributor Discord](https://discord.gg/v9gkcKMM): Join our Discord for Viaduct contributors
-* [Code of Conduct](https://airbnb.tech/uncategorized/code-of-conduct/): Our code of conduct
+* [Code of Conduct](https://airbnb.tech/open-source/code-of-conduct/): Our code of conduct
 * [Contribution Guidelines](https://github.com/airbnb/viaduct/blob/main/CONTRIBUTING.md)
 
 
