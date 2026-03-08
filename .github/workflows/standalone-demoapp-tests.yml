@@ -1,0 +1,167 @@
+name: Standalone Demo App Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      java_versions:
+        description: "Java versions to run (array, e.g. [17,21])"
+        required: false
+        default: '["17","21"]'
+      os:
+        description: "Select operating system"
+        required: false
+        type: choice
+        options:
+          - ubuntu-latest
+          - ubuntu-24.04
+          - ubuntu-22.04
+          - ubuntu-24.04-arm
+          - ubuntu-22.04-arm
+          - macos-latest
+          - macos-26
+          - macos-15-intel
+          - macos-15
+          - macos-13
+          - macos-14
+        default: ubuntu-latest
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: standalone-demoapp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish-to-maven-local:
+    runs-on: ubuntu-latest
+    name: Publish to Maven Local
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+
+      - name: Publish to Maven Local
+        run: ./gradlew publishToMavenLocal --no-daemon
+        shell: bash
+
+      - name: Upload Maven Local repository
+        uses: actions/upload-artifact@v6
+        with:
+          name: maven-local-repo
+          path: ~/.m2/repository
+          compression-level: 0  # JARs are already compressed; skip re-compression
+          retention-days: 1     # only needed within this run
+
+  test-demoapps:
+    needs: publish-to-maven-local
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter]
+    name: Test ${{ matrix.demoapp }}
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+          cache-read-only: 'true'
+
+      - name: Download Maven Local repository
+        uses: actions/download-artifact@v7
+        with:
+          name: maven-local-repo
+          path: ~/.m2/repository
+
+      - name: Test ${{ matrix.demoapp }}
+        run: cd demoapps/${{ matrix.demoapp }} && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
+        shell: bash
+
+  test-starwars:
+    needs: publish-to-maven-local
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["17","21"]') }}
+    name: Test starwars (Java ${{ matrix.java }}) ${{ matrix.os }}
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+          cache-read-only: 'true'
+
+      - name: Download Maven Local repository
+        uses: actions/download-artifact@v7
+        with:
+          name: maven-local-repo
+          path: ~/.m2/repository
+
+      - name: Test starwars
+        run: cd demoapps/starwars && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
+        shell: bash
+
+  collect-failure-info:
+    runs-on: ubuntu-latest
+    needs: [publish-to-maven-local, test-demoapps, test-starwars]
+    if: failure()
+    steps:
+      - name: Collect failure metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=${{ github.run_id }}
+
+          failed_jobs=$(gh api repos/${{ github.repository }}/actions/runs/$run_id/jobs \
+            --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
+
+          failed_steps=$(gh api repos/${{ github.repository }}/actions/runs/$run_id/jobs \
+            --jq '[.jobs[] | select(.conclusion=="failure") | .steps[] | select(.conclusion=="failure") | .name] | join(", ")')
+
+          mkdir -p slack-alert
+          cat > slack-alert/failure-info.json <<EOF
+          {
+            "workflow": "${{ github.workflow }}",
+            "run_number": "${{ github.run_number }}",
+            "repository": "${{ github.event.repository.name }}",
+            "failed_jobs": "$failed_jobs",
+            "failed_steps": "$failed_steps",
+            "branch": "${{ github.ref_name }}",
+            "actor": "${{ github.actor }}",
+            "sha": "${{ github.sha }}",
+            "server_url": "${{ github.server_url }}",
+            "repository_full": "${{ github.repository }}",
+            "run_id": "${{ github.run_id }}"
+          }
+          EOF
+        shell: bash
+
+      - name: Upload failure info artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: slack-alert
+          path: slack-alert/

@@ -7,11 +7,12 @@ val viaductVersion: String by settings
 pluginManagement {
     if (gradle.parent != null) {
         includeBuild("../../gradle-plugins")
-    }
-    repositories {
-        if (System.getenv("USE_MAVEN_LOCAL")?.toBoolean() == true) mavenLocal()
-        mavenCentral()
-        gradlePluginPortal()
+    } else {
+        repositories {
+            if (System.getenv("USE_MAVEN_LOCAL")?.toBoolean() == true) mavenLocal()
+            mavenCentral()
+            gradlePluginPortal()
+        }
     }
 }
 

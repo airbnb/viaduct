@@ -2,7 +2,7 @@ name: Post Slack Alerts
 
 on:
   workflow_run:
-    workflows: ["Build and Test (Gradle)"]
+    workflows: ["Build and Test (Gradle)", "Standalone Demo App Tests"]
     types:
       - completed
 
