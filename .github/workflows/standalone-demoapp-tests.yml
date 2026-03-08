@@ -55,7 +55,7 @@ jobs:
           java-version: '21'
 
       - name: Publish to Maven Local
-        run: ./gradlew publishToMavenLocal --no-daemon
+        run: ./gradlew publishToMavenLocal -PpublishMinimal --no-daemon
         shell: bash
 
       - name: Upload Maven Local repository
