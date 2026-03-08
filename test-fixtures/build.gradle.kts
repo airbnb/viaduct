@@ -84,6 +84,11 @@ plugins.withId("org.jetbrains.kotlin.jvm") {
 }
 afterEvaluate {
     publishing.publications.withType<MavenPublication>().configureEach {
+        // The shadow jar bundles all Viaduct classes; transitive deps are intentionally
+        // stripped from the POM. The capability-based dep on tenant-api test fixtures
+        // cannot be represented in Maven POM but is irrelevant since the POM has no deps.
+        suppressPomMetadataWarningsFor("apiElements")
+        suppressPomMetadataWarningsFor("runtimeElements")
         pom.withXml {
             val deps = asNode().get("dependencies") as groovy.util.NodeList
             deps.forEach { (it as groovy.util.Node).parent().remove(it) }

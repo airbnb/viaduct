@@ -38,6 +38,9 @@ publishing {
             artifact(tasks["sourcesJar"])
             artifact(emptyJavadocJar.get())
 
+            suppressPomMetadataWarningsFor("testFixturesApiElements")
+            suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
+
             pom {
                 name.set("Viaduct Tools")
                 description.set("A GraphQL-based microservice alternative.")

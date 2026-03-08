@@ -1,5 +1,5 @@
 plugins {
-    `kotlin-dsl`
+    kotlin("jvm")
     `maven-publish`
 }
 
@@ -33,3 +33,4 @@ publishing {
         }
     }
 }
+

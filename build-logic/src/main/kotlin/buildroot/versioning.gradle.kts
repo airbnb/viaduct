@@ -27,7 +27,7 @@ fun findVersionFile(start: File): File {
 val versionFile = findVersionFile(rootDir)
 val baseVersion: String = versionFile.readText().trim().ifEmpty { "0.0.0" }
 
-logger.lifecycle("Using version from VERSION file: $baseVersion")
+logger.info("Using version from VERSION file: $baseVersion")
 
 gradle.allprojects {
     group = "com.airbnb.viaduct"
