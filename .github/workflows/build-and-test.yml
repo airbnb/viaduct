@@ -46,25 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-build
         with:
-          distribution: 'temurin'
           java-version: ${{ matrix.java }}
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            .gradle
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
 
       - name: Download dependencies
         run: |
@@ -197,30 +181,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+          cache-read-only: 'true'
+
       - uses: actions/download-artifact@v7
         with:
           name: build-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/
-
-      - name: Setup JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.java }}
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            .gradle
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
 
       - name: Run tests
         id: run_tests
@@ -313,25 +282,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-build
         with:
-          distribution: 'temurin'
           java-version: ${{ matrix.java }}
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            .gradle
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
+          cache-read-only: 'true'
 
       - name: Run Detekt Static Analysis
         id: run_detekt
@@ -382,25 +336,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-build
         with:
-          distribution: 'temurin'
           java-version: ${{ matrix.java }}
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            .gradle
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
+          cache-read-only: 'true'
 
       - name: Run Ktlint Code Formatting Check
         id: run_ktlint
@@ -445,25 +384,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-build
         with:
-          distribution: 'temurin'
           java-version: ${{ matrix.java }}
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            .gradle
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
+          cache-read-only: 'true'
 
       - name: Verify coverage thresholds
         id: verify_coverage
