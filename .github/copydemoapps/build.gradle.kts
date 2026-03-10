@@ -49,7 +49,7 @@ tasks.register<JavaExec>("runCopybara") {
     mainClass.set("com.google.copybara.Main")
 
     args = providers.gradleProperty("copybaraArgs")
-        .map { if (it.isNotEmpty()) it.split(" ") else emptyList() }
+        .map { if (it.isNotEmpty()) it.split("\u001F") else emptyList() }
         .getOrElse(emptyList())
 
     notCompatibleWithConfigurationCache("Copybara execution is not compatible with configuration cache")

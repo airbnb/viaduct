@@ -318,32 +318,34 @@ If you haven't already, you should create a local clone of the demo apps in some
 
 #### Initial test
 
-Next, we'll experiment with a single demo app.  In the root directory of your release repository type:
+Start with `starwars` — it has historically been the most error-prone app and is the best early signal.  In the root directory of your release repository type:
 
 ```bash
-./.github/copydemoapps/copy cli-starter
+./.github/copydemoapps/copy starwars
 ```
 
-This should copy the release version of the `cli-starter` into the `viaduct-dev/cli-starter` repo.  Next, in a temporary directory someplace checkout the destination repo:
+This should copy the release version of `starwars` into the `viaduct-dev/starwars` repo.  Next, in a temporary directory checkout the destination repo:
 
 ```bash
-git clone git@github.com:viaduct-dev/cli-starter.git
+git clone git@github.com:viaduct-dev/starwars.git
 ```
 
 Then ensure that it can be built and tested against the published Viaduct artifacts:
 
 ```bash
-cd cli-starter && ./gradlew test
+cd starwars && ./gradlew test
 ```
 
 Verify in the build-scan that the correct release artifacts have been used.
 
 #### Remaining tests
 
-I that worked, hopefully all of them will work, so we can do the rest in a loop (this assumes `~/repos/viaduct` is your viaduct repo on the release branch, and `/tmp/dapps` is where you're putting the test-clones of the demo apps):
+If that worked, the remaining apps should work too.  Run them all in a loop (this assumes `~/repos/viaduct` is your viaduct repo on the release branch, and `/tmp/dapps` is where you're cloning the demo apps):
+
+> **Note:** Before running this loop, confirm that the list of apps matches the current contents of the `demoapps/` directory.  Add any newly introduced apps that are not yet listed here.
 
 ```bash
-for APP in jetty-starter ktor-starter micronaut-starter starwars; do
+for APP in cli-starter jetty-starter ktor-starter micronaut-starter; do
   cd ~/repos/viaduct \
     && ./.github/copydemoapps/copy $APP \
     && git clone git@github.com:viaduct-dev/$APP.git /tmp/dapps/$APP \
