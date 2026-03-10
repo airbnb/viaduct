@@ -50,7 +50,7 @@ def validate_json_array(name: str, value: str, allow_numbers: bool = False) -> l
         )
 
     valid_types = (str, int) if allow_numbers else (str,)
-    invalid = [item for item in parsed if not isinstance(item, valid_types)]
+    invalid = [item for item in parsed if isinstance(item, bool) or not isinstance(item, valid_types)]
     if invalid:
         expected = "strings or integers" if allow_numbers else "strings"
         raise ValueError(

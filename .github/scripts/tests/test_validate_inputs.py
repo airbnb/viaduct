@@ -118,6 +118,16 @@ class TestValidateJsonArray(unittest.TestCase):
             validate_json_array("java_versions", "[null]", allow_numbers=True)
         self.assertIn("invalid values", str(ctx.exception))
 
+    def test_boolean_rejected_for_java_versions(self):
+        with self.assertRaises(ValueError) as ctx:
+            validate_json_array("java_versions", "[true]", allow_numbers=True)
+        self.assertIn("invalid values", str(ctx.exception))
+
+    def test_boolean_rejected_for_os(self):
+        with self.assertRaises(ValueError) as ctx:
+            validate_json_array("os", "[true]")
+        self.assertIn("array of strings", str(ctx.exception))
+
     def test_hint_present_for_invalid_json(self):
         with self.assertRaises(ValueError) as ctx:
             validate_json_array("os", "=[ubuntu-latest]")
