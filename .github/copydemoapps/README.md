@@ -29,9 +29,10 @@ migration state and do a clean squash from scratch. This is intentional — the
 standalone repos are meant to be clean, self-contained starting points, not a
 replay of the monorepo's commit history.
 
-Copybara is downloaded on demand from GitHub releases and cached locally in
-`copybara-cache/` (git-ignored). The Gradle wrapper pulls Java 21 via the
-toolchain resolver if not already installed.
+Copybara is downloaded on demand from GitHub releases (always the latest
+release) and cached in `build/`. Run `./gradlew clean` to force a fresh
+download. The Gradle wrapper pulls Java 21 via the toolchain resolver if not
+already installed.
 
 ## Prerequisites
 

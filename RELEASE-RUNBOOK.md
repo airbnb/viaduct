@@ -354,6 +354,11 @@ done
 
 Again verify in the build-scan that the correct release artifacts have been used.
 
+#### Small warning
+
+Copybara pushes weekly updates with no guarantee of backward compatibility.  We took the decision to download the latest to avoid building a big backlog of migration tech debt - but that means release managers might experience unexpected breakages.  This hasn't been a problem in the past, but keep this in mind if something breaks very mysteriously.
+
+
 ### 11) ⚠️ Publish the GitHub Release
 
 **This step has been skipped in previous releases - please don't.**

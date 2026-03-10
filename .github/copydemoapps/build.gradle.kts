@@ -4,24 +4,27 @@ plugins {
     `java-base`  // for Java toolchain support
 }
 
-val copybaraJar = layout.projectDirectory.file("copybara-cache/copybara_deploy.jar").asFile
+// We intentionally download the latest Copybara release rather than pinning
+// to a specific version. Copybara has no stable release track — all releases
+// are automated weekly snapshots from master, with "version compatibility or
+// correctness not guaranteed" per the release notes. Given that this tooling
+// is an obscure corner of Viaduct that sees infrequent attention, pinning
+// would mean silently falling years behind; we prefer the small risk of an
+// occasional breakage from an automatic upgrade over the certainty of
+// accumulating a painful amount of drift. The jar is cached in build/ and
+// refreshed whenever the build directory is cleaned.
+val copybaraJar = layout.buildDirectory.file("copybara_deploy.jar").get().asFile
 
 val downloadCopybara by tasks.registering {
     group = "copybara"
-    description = "Downloads Copybara JAR from GitHub releases"
+    description = "Downloads the latest Copybara JAR from GitHub releases"
     outputs.file(copybaraJar)
     onlyIf { !copybaraJar.exists() }
     notCompatibleWithConfigurationCache("Downloads external JAR at runtime")
     doLast {
         copybaraJar.parentFile.mkdirs()
-        val apiUrl = "https://api.github.com/repos/google/copybara/releases/latest"
-        val connection = URL(apiUrl).openConnection()
-        connection.setRequestProperty("Accept", "application/json")
-        val response = connection.getInputStream().bufferedReader().readText()
-        val pattern = """"browser_download_url":\s*"([^"]*copybara_deploy\.jar)"""".toRegex()
-        val downloadUrl = pattern.find(response)?.groupValues?.get(1)
-            ?: throw GradleException("Could not find copybara_deploy.jar in GitHub releases")
-        logger.lifecycle("Downloading Copybara from {}", downloadUrl)
+        val downloadUrl = "https://github.com/google/copybara/releases/latest/download/copybara_deploy.jar"
+        logger.lifecycle("Downloading latest Copybara from {}", downloadUrl)
         URL(downloadUrl).openStream().use { it.copyTo(copybaraJar.outputStream()) }
         logger.lifecycle("Downloaded to {}", copybaraJar)
     }
