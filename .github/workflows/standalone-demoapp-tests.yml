@@ -4,32 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       java_versions:
-        description: "Java versions to run (array, e.g. [17,21])"
+        description: "Java versions (array, e.g. [\"17\",\"21\"]). Defaults to [\"17\",\"21\"]."
         required: false
-        default: '["17","21"]'
+        type: string
       os:
-        description: "Select operating system"
+        description: "Operating system (e.g. [\"ubuntu-24.04-arm\", \"macos-15-intel\"]).  Defaults to [\"ubuntu-latest\", \"macos-latest\"]."
         required: false
-        type: choice
-        options:
-          - ubuntu-latest
-          - ubuntu-24.04
-          - ubuntu-22.04
-          - ubuntu-24.04-arm
-          - ubuntu-22.04-arm
-          - macos-latest
-          - macos-26
-          - macos-15-intel
-          - macos-15
-          - macos-13
-          - macos-14
-        default: ubuntu-latest
+        type: string
   push:
     branches:
       - main
   pull_request:
     branches:
       - main
+  workflow_call:
 
 permissions:
   contents: read
@@ -40,7 +28,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate-inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate inputs
+        env:
+          OS_INPUT: ${{ inputs.os }}
+          JAVA_INPUT: ${{ inputs.java_versions }}
+        run: python3 .github/scripts/validate_inputs.py
+
   publish-to-maven-local:
+    needs: validate-inputs
     runs-on: ubuntu-latest
     name: Publish to Maven Local
     env:
@@ -52,7 +51,9 @@ jobs:
 
       - uses: ./.github/actions/setup-build
         with:
-          java-version: '21'
+          # Java 17 matches our minimum published artifact target, making this
+          # a realistic test of consuming our artifacts from a Java 17 project.
+          java-version: '17'
 
       - name: Publish to Maven Local
         run: ./gradlew publishToMavenLocal -PpublishMinimal --no-daemon
@@ -82,7 +83,7 @@ jobs:
 
       - uses: ./.github/actions/setup-build
         with:
-          java-version: '21'
+          java-version: '17'
           cache-read-only: 'true'
 
       - name: Download Maven Local repository
@@ -100,7 +101,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ${{ inputs.os && fromJSON(format('["{0}"]', inputs.os)) || fromJSON('["ubuntu-latest"]') }}
+        os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
         java: ${{ fromJSON(inputs.java_versions || '["17","21"]') }}
     name: Test starwars (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
