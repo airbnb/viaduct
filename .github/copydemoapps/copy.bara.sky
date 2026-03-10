@@ -1,9 +1,6 @@
 # Unified Copybara configuration for publishing Viaduct demo apps
 # This config dynamically creates workflows for all demo apps
 
-# Source ref can be overridden via -v SOURCE_REF=<branch>
-SOURCE_REF = "HEAD"
-
 # Define all demo apps that should be published
 # Add new demo apps here to automatically include them in publishing
 DEMO_APPS = [
@@ -22,7 +19,6 @@ def create_demoapp_workflow(demoapp_name):
         name = "airbnb-viaduct-to-" + demoapp_name,
         origin = git.origin(
             url = "https://github.com/airbnb/viaduct.git",
-            ref = SOURCE_REF,
         ),
         destination = git.destination(
             url = "https://github.com/viaduct-dev/" + demoapp_name + ".git",
@@ -34,6 +30,7 @@ def create_demoapp_workflow(demoapp_name):
         mode = "SQUASH",
         transformations = [
             core.move(root, ""),
+            metadata.replace_message("Update from airbnb/viaduct at ${COPYBARA_CONTEXT_REFERENCE}\n"),
         ],
     )
 
