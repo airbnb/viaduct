@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       java_versions:
-        description: "Java versions (array, e.g. [\"17\",\"21\"]). Defaults to [\"11\",\"17\",\"21\"]."
+        description: "Java versions (array, e.g. [\"17\",\"21\"]). Defaults to [\"17\",\"11\",\"21\"].  The first element in this list is used for linting and coverage reporting."
         required: false
         type: string
       os:
-        description: "Operating system (e.g. [\"ubuntu-24.04-arm\", \"macos-15-intel\"]).  Defaults to [\"ubuntu-latest\", \"macos-latest\"]."
+        description: "Operating system (e.g. [\"ubuntu-24.04-arm\", \"macos-15-intel\"]).  Defaults to [\"ubuntu-latest\", \"macos-latest\"].  The first element in this list is used for linting and coverage reporting."
         required: false
         type: string
   push:
@@ -22,22 +22,41 @@ on:
 jobs:
   validate-inputs:
     runs-on: ubuntu-latest
+    outputs:
+      coverage_os: ${{ steps.validate.outputs.coverage_os }}
+      coverage_java: ${{ steps.validate.outputs.coverage_java }}
+      has_wide: ${{ steps.validate.outputs.has_wide }}
+      wide_matrix: ${{ steps.validate.outputs.wide_matrix }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install Python dependencies
+        run: pip install -r .github/scripts/requirements.txt
+
+      - name: Run CI script tests
+        run: |
+          cd .github/scripts/tests
+          python3 -m unittest discover
+        shell: bash
+
       - name: Validate inputs
+        id: validate
         env:
           OS_INPUT: ${{ inputs.os }}
           JAVA_INPUT: ${{ inputs.java_versions }}
         run: python3 .github/scripts/validate_inputs.py
 
-  build:
+  # Deep build: single coordinate (first OS × first Java). Runs assembly and
+  # uploads the build artifact for test-deep and docs-verify to consume.
+  build-deep:
     needs: validate-inputs
-    strategy:
-      matrix:
-        os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["11", "17", "21"]') }}
-    runs-on: ${{ matrix.os }}
-    name: Build (Java ${{ matrix.java }}) ${{ matrix.os }}
+    runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
+    name: Build (deep)
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
@@ -47,7 +66,7 @@ jobs:
 
       - uses: ./.github/actions/setup-build
         with:
-          java-version: ${{ matrix.java }}
+          java-version: ${{ needs['validate-inputs'].outputs.coverage_java }}
 
       - name: Download dependencies
         run: |
@@ -59,20 +78,10 @@ jobs:
           echo "✅ Dependencies downloaded successfully"
         shell: bash
 
-      # Pinned 3.13 due to incompatibility between djlint and 3.14
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install dependencies
-        run: pip install -r docs/requirements.txt
-
       - name: Build project (without tests)
         id: build_project
         run: |
           echo "🔨 Building project..."
-          ./gradlew clean || { echo "❌ Clean failed"; exit 1; }
           ./gradlew assemble --scan || { echo "❌ Assemble failed"; exit 1; }
           echo "✅ Project built successfully"
         shell: bash
@@ -86,14 +95,150 @@ jobs:
           echo "${{ github.event.pull_request.number }}" > build-scan-urls/pr-number.txt
         shell: bash
 
+      - name: Collect build artifacts
+        run: |
+          echo "📦 Collecting artifacts..."
+          rm -rf build/package
+          mkdir -p build/package/{primary,sources,javadoc,others}
+
+          # Primary jars (exclude sources/javadoc)
+          find . -type f -path "*/build/libs/*.jar" \
+            ! -name "*-sources.jar" ! -name "*-javadoc.jar" \
+            -exec cp {} build/package/primary/ \; || true
+
+          # Sources & Javadoc jars (if any)
+          find . -type f -path "*/build/libs/*-sources.jar" -exec cp {} build/package/sources/ \; || true
+          find . -type f -path "*/build/libs/*-javadoc.jar" -exec cp {} build/package/javadoc/ \; || true
+
+          # (Optional) POMs or other publish files
+          find . -type f -path "*/build/publications/*/*.pom" -exec cp {} build/package/others/ \; || true
+
+          echo "✅ Collected:"
+          find build/package -type f -maxdepth 2 -print
+        shell: bash
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: build-deep
+          path: build/
+
+      - name: Upload build scan URLs
+        if: ${{ steps.save_build_scan_url.conclusion == 'success' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-scan-urls-build-deep
+          path: build-scan-urls/
+
+  # Deep test: same single coordinate as build-deep. Runs testWithCoverage
+  # (tests + coverage report + coverage verification) and CI script tests.
+  test-deep:
+    runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
+    name: Test (deep)
+    needs: [build-deep, validate-inputs]
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ needs['validate-inputs'].outputs.coverage_java }}
+          cache-read-only: 'true'
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: build-deep
+          path: build/
+
+      - name: Run tests with coverage
+        id: run_tests_with_coverage
+        run: |
+          echo "🧪 Running tests with coverage..."
+          ./gradlew testWithCoverage --no-configuration-cache --scan || {
+            echo "❌ Tests or coverage verification failed"
+            exit 1
+          }
+          echo "✅ Tests and coverage completed"
+        shell: bash
+
+      - name: Save test build scan URL
+        id: save_test_scan_url
+        if: failure() && steps.run_tests_with_coverage.conclusion == 'failure'
+        run: |
+          mkdir -p build-scan-urls
+          echo "${{ steps.run_tests_with_coverage.outputs.build-scan-url }}" > build-scan-urls/test.txt
+          echo "${{ github.event.pull_request.number }}" > build-scan-urls/pr-number.txt
+        shell: bash
+
+      - name: Upload JUnit test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: junit-results-deep
+          path: '**/build/test-results/test/*.xml'
+
+      - name: Upload JaCoCo coverage reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-reports-deep
+          path: build/reports/jacoco
+
+      - name: Upload all reports (for debugging)
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: all-reports-deep
+          path: build/reports
+
+      - name: Upload build scan URLs
+        if: ${{ steps.save_test_scan_url.conclusion == 'success' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-scan-urls-test-deep
+          path: build-scan-urls/
+
+  # Docs verification: runs in parallel with test-deep. Generates Dokka API
+  # docs from the build-deep artifact, builds the mkdocs site, and checks for
+  # broken links with djlint.
+  docs-verify:
+    needs: [build-deep, validate-inputs]
+    runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
+    name: Docs verify
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ needs['validate-inputs'].outputs.coverage_java }}
+          cache-read-only: 'true'
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: build-deep
+          path: build/
+
+      # Pinned 3.13 due to incompatibility between djlint and 3.14
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Python dependencies
+        run: pip install -r docs/requirements.txt
+
       - name: Verify Dokka output
         run: |
-          echo "🔨 Building Dokka documentation..."
+          echo "🔨 Building mkdocs site..."
           cd docs
           mkdocs build
           cd ..
 
-          echo "🔨 Building Dokka documentation..."
+          echo "🔨 Generating Dokka API documentation..."
           ./gradlew :core:tenant:tenant-api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:x-javaapi-api:dokkaGenerate || { echo "❌ Dokka failed"; exit 1; }
 
           echo "📖 Verifying Dokka documentation output..."
@@ -131,48 +276,18 @@ jobs:
           echo "✅ All Dokka documentation verified successfully"
         shell: bash
 
-      - name: Collect build artifacts
-        run: |
-          echo "📦 Collecting artifacts..."
-          rm -rf build/package
-          mkdir -p build/package/{primary,sources,javadoc,others}
-
-          # Primary jars (exclude sources/javadoc)
-          find . -type f -path "*/build/libs/*.jar" \
-            ! -name "*-sources.jar" ! -name "*-javadoc.jar" \
-            -exec cp {} build/package/primary/ \; || true
-
-          # Sources & Javadoc jars (if any)
-          find . -type f -path "*/build/libs/*-sources.jar" -exec cp {} build/package/sources/ \; || true
-          find . -type f -path "*/build/libs/*-javadoc.jar" -exec cp {} build/package/javadoc/ \; || true
-
-          # (Optional) POMs or other publish files
-          find . -type f -path "*/build/publications/*/*.pom" -exec cp {} build/package/others/ \; || true
-
-          echo "✅ Collected:"
-          find build/package -type f -maxdepth 2 -print
-        shell: bash
-
-      - uses: actions/upload-artifact@v6
-        with:
-          name: build-java-${{ matrix.java }}-${{ matrix.os }}
-          path: build/
-
-      - name: Upload build scan URLs
-        if: ${{ steps.save_build_scan_url.conclusion == 'success' }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: build-scan-urls-build-${{ matrix.java }}-${{ matrix.os }}
-          path: build-scan-urls/
-
-  test:
+  # Wide test: full OS × Java matrix minus the deep coordinate. Runs
+  # ./gradlew test (which handles its own build via Gradle task dependencies)
+  # with no artifact dependency on build-deep, so all coordinates start
+  # as soon as validate-inputs completes.
+  test-wide:
+    if: needs['validate-inputs'].outputs.has_wide == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["11", "17", "21"]') }}
-    name: Test (Java ${{ matrix.java }}) ${{ matrix.os }}
-    needs: build
+        include: ${{ fromJSON(needs['validate-inputs'].outputs.wide_matrix) }}
+    name: Test wide (Java ${{ matrix.java }}) ${{ matrix.os }}
+    needs: validate-inputs
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
@@ -183,15 +298,8 @@ jobs:
       - uses: ./.github/actions/setup-build
         with:
           java-version: ${{ matrix.java }}
-          cache-read-only: 'true'
-
-      - uses: actions/download-artifact@v7
-        with:
-          name: build-java-${{ matrix.java }}-${{ matrix.os }}
-          path: build/
 
       - name: Run tests
-        id: run_tests
         run: |
           echo "🧪 Running tests..."
           ./gradlew test --scan --continue || {
@@ -201,39 +309,12 @@ jobs:
           echo "✅ Test execution completed"
         shell: bash
 
-      - name: Save test build scan URL
-        id: save_test_scan_url
-        if: ${{ failure() && steps.run_tests.conclusion == 'failure' }}
-        run: |
-          mkdir -p build-scan-urls
-          echo "${{ steps.run_tests.outputs.build-scan-url }}" > build-scan-urls/test.txt
-          echo "${{ github.event.pull_request.number }}" > build-scan-urls/pr-number.txt
-        shell: bash
-
-      - name: Generate coverage and test reports
-        if: always()
-        run: |
-          echo "📊 Generating aggregated coverage and test reports..."
-          ./gradlew testAndCoverage --no-configuration-cache || {
-            echo "❌ Failed to generate reports"
-            exit 1
-          }
-          echo "✅ Reports generated successfully"
-        shell: bash
-
       - name: Upload JUnit test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: junit-results-java-${{ matrix.java }}-${{ matrix.os }}
           path: '**/build/test-results/test/*.xml'
-
-      - name: Upload JaCoCo coverage reports
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: coverage-reports-java-${{ matrix.java }}-${{ matrix.os }}
-          path: build/reports/jacoco
 
       - name: Upload all reports (for debugging)
         if: always()
@@ -242,30 +323,6 @@ jobs:
           name: all-reports-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/reports
 
-      - name: Setup Python
-        if: always()
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      - name: Install Python dependencies
-        if: always()
-        run: pip install -r .github/scripts/requirements.txt
-
-      - name: Running Python Script Tests
-        if: always()
-        run: |
-          cd .github/scripts/tests
-          python3 -m unittest discover
-        shell: bash
-
-      - name: Upload build scan URLs
-        if: ${{ steps.save_test_scan_url.conclusion == 'success' }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: build-scan-urls-test-${{ matrix.java }}-${{ matrix.os }}
-          path: build-scan-urls/
-
   detekt:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -273,7 +330,7 @@ jobs:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
         java: ${{ inputs.java_versions && fromJSON(format('["{0}"]', fromJSON(inputs.java_versions)[0])) || fromJSON('["17"]') }}
     name: detekt (Java ${{ matrix.java }}) ${{ matrix.os }}
-    needs: build
+    needs: validate-inputs
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
@@ -327,7 +384,7 @@ jobs:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
         java: ${{ inputs.java_versions && fromJSON(format('["{0}"]', fromJSON(inputs.java_versions)[0])) || fromJSON('["17"]') }}
     name: ktlint (Java ${{ matrix.java }}) ${{ matrix.os }}
-    needs: build
+    needs: validate-inputs
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
@@ -367,58 +424,9 @@ jobs:
           name: build-scan-urls-ktlint-${{ matrix.java }}-${{ matrix.os }}
           path: build-scan-urls/
 
-  coverage-verification:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
-        java: ${{ inputs.java_versions && fromJSON(format('["{0}"]', fromJSON(inputs.java_versions)[0])) || fromJSON('["17"]') }}
-    name: coverage verification (Java ${{ matrix.java }}) ${{ matrix.os }}
-    needs: test
-    if: failure() || success()
-    env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-build
-        with:
-          java-version: ${{ matrix.java }}
-          cache-read-only: 'true'
-
-      - name: Verify coverage thresholds
-        id: verify_coverage
-        run: |
-          echo "🎯 Verifying coverage thresholds..."
-          ./gradlew testCodeCoverageVerification --no-configuration-cache -x testCodeCoverageReport || {
-            echo "❌ Coverage thresholds not met"
-            echo "Please check the coverage report and add more tests"
-            exit 1
-          }
-          echo "✅ Coverage thresholds met successfully"
-        shell: bash
-
-      - name: Save coverage build scan URL
-        id: save_coverage_scan_url
-        if: ${{ failure() && steps.verify_coverage.conclusion == 'failure' }}
-        run: |
-          mkdir -p build-scan-urls
-          echo "${{ steps.verify_coverage.outputs.build-scan-url }}" > build-scan-urls/coverage-verification.txt
-          echo "${{ github.event.pull_request.number }}" > build-scan-urls/pr-number.txt
-        shell: bash
-
-      - name: Upload build scan URLs
-        if: ${{ steps.save_coverage_scan_url.conclusion == 'success' }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: build-scan-urls-coverage-${{ matrix.java }}-${{ matrix.os }}
-          path: build-scan-urls/
-
   collect-failure-info:
     runs-on: ubuntu-latest
-    needs: [build, test, detekt, ktlint, coverage-verification]
+    needs: [validate-inputs, build-deep, test-deep, docs-verify, test-wide, detekt, ktlint]
     if: failure()
     steps:
       - name: Collect failure metadata

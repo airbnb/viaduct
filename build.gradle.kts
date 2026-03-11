@@ -77,35 +77,10 @@ tasks.register<JacocoCoverageVerification>("testCodeCoverageVerification") {
     }
 }
 
-// GitHub Actions-friendly task to run tests and generate coverage
-tasks.register("testAndCoverage") {
-    description = "Runs tests and generates coverage reports"
+// Runs tests, generates coverage reports, and verifies coverage thresholds in one shot
+tasks.register("testWithCoverage") {
+    description = "Runs tests, generates coverage reports, and verifies coverage thresholds"
     group = "verification"
-
-    dependsOn("testCodeCoverageReport")
-
-    // Capture values at configuration time
-    val isGitHubActions = providers.environmentVariable("GITHUB_ACTIONS")
-        .map { it.toBoolean() }
-        .orElse(false)
-    val runnerOs = providers.environmentVariable("RUNNER_OS")
-        .orElse("unknown")
-    val javaVersion = providers.systemProperty("java.version")
-        .orElse("unknown")
-
-    doLast {
-        logger.lifecycle("=" .repeat(80))
-        logger.lifecycle("Coverage Reports Generated:")
-        logger.lifecycle("=" .repeat(80))
-        logger.lifecycle("📊 Individual module XML: */build/reports/jacoco/test/jacocoTestReport.xml")
-        logger.lifecycle("📊 Aggregated XML:        build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml")
-        logger.lifecycle("📊 Aggregated HTML:       build/reports/jacoco/testCodeCoverageReport/html/index.html")
-        logger.lifecycle("=" .repeat(80))
-
-        if (isGitHubActions.get()) {
-            logger.lifecycle("🚀 Running in GitHub Actions")
-            logger.lifecycle("   OS: ${runnerOs.get()} | Java: ${javaVersion.get()}")
-            logger.lifecycle("::notice title=Coverage Reports::Generated at build/reports/jacoco/testCodeCoverageReport/html/index.html")
-        }
-    }
+    dependsOn("test", "testCodeCoverageReport", "testCodeCoverageVerification")
 }
+
