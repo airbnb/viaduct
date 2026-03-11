@@ -11,6 +11,11 @@ on:
         description: "Operating system (e.g. [\"ubuntu-24.04-arm\", \"macos-15-intel\"]).  Defaults to [\"ubuntu-latest\", \"macos-latest\"].  The first element in this list is used for linting and coverage reporting."
         required: false
         type: string
+      no_cache:
+        description: "Disable the Gradle build cache for this run (paranoia run — forces every task to execute from scratch)."
+        required: false
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -20,7 +25,7 @@ on:
   workflow_call:
 
 env:
-  GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+  GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=${{ !inputs.no_cache }} -Dorg.gradle.daemon=false"
   BUILDSCAN_PUBLISH: "true"
   BUILDSCAN_AUTOACCEPTTERMS: "true"
 
