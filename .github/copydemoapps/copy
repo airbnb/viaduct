@@ -1,0 +1,87 @@
+#!/bin/bash
+# Copy a Viaduct demo app to its standalone GitHub repo in viaduct-dev.
+#
+# Usage: copy DEMOAPP [SOURCE_REF] [--target-ref=BRANCH] [EXTRA_COPYBARA_ARGS...]
+#
+#   DEMOAPP:              cli-starter | jetty-starter | ktor-starter | micronaut-starter | starwars
+#   SOURCE_REF:           git ref to copy; if omitted, uses the current branch,
+#                         which must match release/vX.Y.Z (hard error otherwise)
+#   --target-ref=BRANCH:  push and fetch to BRANCH instead of main; must come
+#                         before any EXTRA_COPYBARA_ARGS
+#   EXTRA_COPYBARA_ARGS:  any additional copybara options, e.g.:
+#                           --dry-run
+#
+# Examples:
+#   Production run (checked out on the release branch):
+#     copy starwars
+#
+#   Production run (explicit ref, any branch):
+#     copy starwars release/v0.7.0
+#
+#   Dry run (shows what would change, does not push):
+#     copy starwars --dry-run
+#
+#   Test branch run (pushes to a test branch instead of main):
+#     copy starwars release/v0.7.0 --target-ref=test/my-branch
+#
+# Authentication:
+#   Local:   SSH keys (git@github.com:viaduct-dev/...)
+#   CI:      Set VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN; uses HTTPS
+
+set -e
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+DEMOAPP="$1"
+if [ -z "$DEMOAPP" ]; then
+    echo "Usage: $(basename "$0") DEMOAPP [SOURCE_REF] [EXTRA_COPYBARA_ARGS...]" >&2
+    echo "  DEMOAPP: cli-starter | jetty-starter | ktor-starter | micronaut-starter | starwars" >&2
+    exit 1
+fi
+shift
+
+# Second positional arg is SOURCE_REF unless it looks like a flag.
+# If omitted, infer from the current git branch — which must match the
+# release branch pattern (release/vX.Y.Z).
+if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+    SOURCE_REF="$1"
+    shift
+else
+    CURRENT_BRANCH="$(git -C "$SCRIPT_DIR/../.." rev-parse --abbrev-ref HEAD)"
+    if [[ ! "$CURRENT_BRANCH" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "error: not on a release branch (current: $CURRENT_BRANCH)" >&2
+        echo "  Either check out a release branch or pass SOURCE_REF explicitly." >&2
+        exit 1
+    fi
+    SOURCE_REF="$CURRENT_BRANCH"
+fi
+
+# Optional --target-ref=BRANCH sets both push and fetch destinations.
+# Must appear before any raw copybara flags.
+TARGET_REF_ARGS=()
+if [ $# -gt 0 ] && [[ "$1" == --target-ref=* ]]; then
+    TARGET_REF="${1#--target-ref=}"
+    shift
+    TARGET_REF_ARGS=(--git-destination-push="$TARGET_REF" --git-destination-fetch="$TARGET_REF")
+elif [ $# -gt 1 ] && [[ "$1" == "--target-ref" ]]; then
+    TARGET_REF="$2"
+    shift 2
+    TARGET_REF_ARGS=(--git-destination-push="$TARGET_REF" --git-destination-fetch="$TARGET_REF")
+fi
+
+# Destination URL: HTTPS with token in CI, SSH locally
+if [ -n "$VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN" ]; then
+    DEST_URL="https://x-access-token:${VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN}@github.com/viaduct-dev/${DEMOAPP}.git"
+else
+    DEST_URL="git@github.com:viaduct-dev/${DEMOAPP}.git"
+fi
+
+exec "$SCRIPT_DIR/run" migrate \
+    "airbnb-viaduct-to-${DEMOAPP}" \
+    "$SOURCE_REF" \
+    --git-destination-url="$DEST_URL" \
+    --git-committer-email=viabot@ductworks.io \
+    --git-committer-name=ViaBot \
+    --force \
+    "${TARGET_REF_ARGS[@]}" \
+    "$@"

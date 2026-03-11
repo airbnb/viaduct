@@ -212,56 +212,7 @@ Monitor the triggered builds and verify all 9 combinations pass successfully.
 
 ### 5) Validate Demo Apps
 
-We've had problems in the past with the published demo apps not working correctly with our published artifacts. If we discover a problem post-publication, it often requires that we restart the entire release process. To avoid that, in this step we use the Maven Local Cache to test that the demo apps against the published artifacts (the validation above tests them as included builds).
-
-#### 5a) Clean your local Maven cache
-
-Remove existing Viaduct artifacts to ensure fresh build:
-
-```bash
-rm -rf ~/.m2/repository/com/airbnb/viaduct
-```
-
-#### 5b) Publish to Maven local
-
-```bash
-cd ~/repos/viaduct-public    # Or wherever your public viaduct clone is
-git checkout release/v0.X.0  # Your release branch
-VIADUCT_PLUGIN_SNAPSHOT=false ./gradlew publishToMavenLocal
-```
-
-This puts the build artifacts in `~/.m2/repository/` (setting the `VIADUCT_PLUGIN_SNAPSHOT` variable is important, otherwise `-SNAPSHOT` will be appended to the locally-published version number).
-
-#### 5c) Configure demo apps to use Maven local
-
-Update all demo app settings.gradle.kts to check mavenLocal() first:
-
-```bash
-for i in demoapps/*/settings.gradle.kts; do sed -i '' 's/^\([ ]*\)repositories {/\1repositories { mavenLocal()/g' "$i"; done
-```
-
-Note: This sed command adds `mavenLocal()` after `repositories {`. The formatting won't be perfect (no newline), but it works.
-
-#### 5d) Test each demo app
-
-```bash
-for i in demoapps/*; do (cd $i; ./gradlew clean test --scan); done
-```
-
-The `--scan` flag generates a build scan URL (you'll have to accept the terms of service). Open it and verify dependencies are being pulled from `~/.m2/repository` (local) and not from remote repositories, which you can find as noted in this screenshot:
-![build-scan UI scrrenshot](buildscan-screenshot.png)
-
-#### 5e) Restore demo app settings
-
-```bash
-git restore demoapps
-```
-
-**Troubleshooting:**
-
-- *Build fails with signing error:* This should not happen after the signing fix. If it does, ensure you're using the updated tools/build.gradle.kts
-- *Dependencies not from local:* Check build scan, ensure `mavenLocal()` was added correctly
-- *Tests fail:* Investigate if it's a real issue or environmental problem
+(Validating the demo apps has been incorporated into the previous step.  Keeping the section here so section-number references elsewhere stay current.)
 
 ### 6) Generate Changelog
 
@@ -277,6 +228,8 @@ git checkout release/v0.7.0  # Your release branch
 
 .github/scripts/generate_changelog.py origin/release/v0.6.0 HEAD > /tmp/release-v0.7.0-changelog.md
 ```
+
+This script requires the package `semantic_release` from `pip` - be sure to install it beforehand.
 
 #### 6b) Clean up the output
 
@@ -353,41 +306,60 @@ Log in to [Sonatype Maven Central](https://plugins.gradle.org/u/viaduct-maintain
 
 Once the artifacts are published, we need to update the standalone copies of the standalone apps to agree with the new release.
 
-- `starwars` → `viaduct-dev/starwars`
 - `cli-starter` → `viaduct-dev/cli-starter`
+- `jetty-starter` → `viaduct-dev/jetty-starter`
 - `ktor-starter` → `viaduct-dev/ktor-starter`
+- `micronaut-starter` → `viaduct-dev/micronaut-starter`
+- `starwars` → `viaduct-dev/starwars`
 
 **It's important to do this on the release branch!**
 
-We do this with a copybara script. For each demoapp run:
+If you haven't already, you should create a local clone of the demo apps in some directory:
 
+#### Initial test
 
+Start with `starwars` — it has historically been the most error-prone app and is the best early signal.  In the root directory of your release repository type:
 
 ```bash
-mkdir -p .github/copybara
-cp ~/repos/treehouse/projects/viaduct/oss/.github/copybara/copy.bara.sky .github/copybara/copy.bara.sky
-
-for i in cli-starter ktor-starter starwars; do
-  tools/copybara/run migrate \
-    .github/copybara/copy.bara.sky \
-    airbnb-viaduct-to-$i \
-    release/v0.X.0 \
-    --git-destination-url=git@github.com:viaduct-dev/$i.git \
-    --git-committer-email=viabot@ductworks.io \
-    --git-committer-name=viabot \
-    --force
-  done
+./.github/copydemoapps/copy starwars
 ```
 
-You should have a local clone of each of these demoapp repository. After running updating their repos, pull the update to your local clone and verify that they pass their tests. For each demoapp:
+This should copy the release version of `starwars` into the `viaduct-dev/starwars` repo.  Next, in a temporary directory checkout the destination repo:
 
 ```bash
-cd ~/repos/starwars # Or wherever your public clone is
-git pull
-./gradlew clean test --scan
+git clone git@github.com:viaduct-dev/starwars.git
+```
+
+Then ensure that it can be built and tested against the published Viaduct artifacts:
+
+```bash
+cd starwars && ./gradlew test
 ```
 
 Verify in the build-scan that the correct release artifacts have been used.
+
+#### Remaining tests
+
+If that worked, the remaining apps should work too.  Run them all in a loop (this assumes `~/repos/viaduct` is your viaduct repo on the release branch, and `/tmp/dapps` is where you're cloning the demo apps):
+
+> **Note:** Before running this loop, confirm that the list of apps matches the current contents of the `demoapps/` directory.  Add any newly introduced apps that are not yet listed here.
+
+```bash
+for APP in cli-starter jetty-starter ktor-starter micronaut-starter; do
+  cd ~/repos/viaduct \
+    && ./.github/copydemoapps/copy $APP \
+    && git clone git@github.com:viaduct-dev/$APP.git /tmp/dapps/$APP \
+    && cd /tmp/dapps/$APP \
+    && ./gradlew test
+done
+```
+
+Again verify in the build-scan that the correct release artifacts have been used.
+
+#### Small warning
+
+Copybara pushes weekly updates with no guarantee of backward compatibility.  We took the decision to download the latest to avoid building a big backlog of migration tech debt - but that means release managers might experience unexpected breakages.  This hasn't been a problem in the past, but keep this in mind if something breaks very mysteriously.
+
 
 ### 11) ⚠️ Publish the GitHub Release
 

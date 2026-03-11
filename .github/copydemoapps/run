@@ -1,0 +1,27 @@
+#!/bin/bash
+# Run Copybara to publish a Viaduct demo app to its standalone GitHub repo.
+#
+# Usage: run WORKFLOW_NAME [EXTRA_ARGS...]
+# Example: run airbnb-viaduct-to-starwars
+
+set -e
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+CONFIG_FILE="$SCRIPT_DIR/copy.bara.sky"
+
+# Copybara CLI: SUBCOMMAND CONFIG_FILE [WORKFLOW] [SOURCE_REF] [OPTIONS]
+# Extract the subcommand so we can insert the config file after it.
+SUBCOMMAND="$1"
+shift
+
+# Serialize args using the ASCII unit separator (0x1F) as delimiter so that
+# arguments containing spaces are preserved when Gradle splits them back out.
+ALL_ARGS=("$SUBCOMMAND" "$CONFIG_FILE" "$@" "--config-root=$REPO_ROOT")
+COPYBARA_ARGS=$(IFS=$'\x1f'; echo "${ALL_ARGS[*]}")
+
+exec "$SCRIPT_DIR/gradlew" --project-dir "$SCRIPT_DIR" runCopybara \
+    --console=plain \
+    --no-configuration-cache \
+    -PrepoRoot="$REPO_ROOT" \
+    -PcopybaraArgs="$COPYBARA_ARGS"
