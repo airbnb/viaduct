@@ -29,7 +29,7 @@ jobs:
   publish-artifacts:
     runs-on: ubuntu-latest
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       GRADLE_SCAN: "false"
     steps:
       - name: Set release ref

@@ -58,7 +58,7 @@ jobs:
     runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
     name: Build (deep)
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -136,7 +136,7 @@ jobs:
     name: Test (deep)
     needs: [build-deep, validate-inputs]
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -208,7 +208,7 @@ jobs:
     runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
     name: Docs verify
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
     steps:
       - uses: actions/checkout@v6
 
@@ -289,7 +289,7 @@ jobs:
     name: Test wide (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: validate-inputs
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -332,7 +332,7 @@ jobs:
     name: detekt (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: validate-inputs
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -386,7 +386,7 @@ jobs:
     name: ktlint (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: validate-inputs
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
