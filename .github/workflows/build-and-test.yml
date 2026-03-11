@@ -19,6 +19,11 @@ on:
       - main
   workflow_call:
 
+env:
+  GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+  BUILDSCAN_PUBLISH: "true"
+  BUILDSCAN_AUTOACCEPTTERMS: "true"
+
 jobs:
   validate-inputs:
     runs-on: ubuntu-latest
@@ -57,10 +62,6 @@ jobs:
     needs: validate-inputs
     runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
     name: Build (deep)
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v6
 
@@ -135,10 +136,6 @@ jobs:
     runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
     name: Test (deep)
     needs: [build-deep, validate-inputs]
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v6
 
@@ -207,8 +204,6 @@ jobs:
     needs: [build-deep, validate-inputs]
     runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
     name: Docs verify
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
     steps:
       - uses: actions/checkout@v6
 
@@ -288,10 +283,6 @@ jobs:
         include: ${{ fromJSON(needs['validate-inputs'].outputs.wide_matrix) }}
     name: Test wide (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: validate-inputs
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v6
 
@@ -324,23 +315,15 @@ jobs:
           path: build/reports
 
   detekt:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
-        java: ${{ inputs.java_versions && fromJSON(format('["{0}"]', fromJSON(inputs.java_versions)[0])) || fromJSON('["17"]') }}
-    name: detekt (Java ${{ matrix.java }}) ${{ matrix.os }}
+    runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
+    name: detekt
     needs: validate-inputs
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-build
         with:
-          java-version: ${{ matrix.java }}
+          java-version: ${{ needs['validate-inputs'].outputs.coverage_java }}
           cache-read-only: 'true'
 
       - name: Run Detekt Static Analysis
@@ -367,34 +350,26 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: detekt-reports-java-${{ matrix.java }}-${{ matrix.os }}
+          name: detekt-reports
           path: '**/build/reports/detekt/**/*'
 
       - name: Upload build scan URLs
         if: ${{ steps.save_detekt_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
-          name: build-scan-urls-detekt-${{ matrix.java }}-${{ matrix.os }}
+          name: build-scan-urls-detekt
           path: build-scan-urls/
 
   ktlint:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
-        java: ${{ inputs.java_versions && fromJSON(format('["{0}"]', fromJSON(inputs.java_versions)[0])) || fromJSON('["17"]') }}
-    name: ktlint (Java ${{ matrix.java }}) ${{ matrix.os }}
+    runs-on: ${{ needs['validate-inputs'].outputs.coverage_os }}
+    name: ktlint
     needs: validate-inputs
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
       - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-build
         with:
-          java-version: ${{ matrix.java }}
+          java-version: ${{ needs['validate-inputs'].outputs.coverage_java }}
           cache-read-only: 'true'
 
       - name: Run Ktlint Code Formatting Check
@@ -421,7 +396,7 @@ jobs:
         if: ${{ steps.save_ktlint_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
-          name: build-scan-urls-ktlint-${{ matrix.java }}-${{ matrix.os }}
+          name: build-scan-urls-ktlint
           path: build-scan-urls/
 
   collect-failure-info:
