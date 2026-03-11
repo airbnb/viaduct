@@ -1,0 +1,21 @@
+name: CI (Manual Trigger)
+# Runs the full CI suite — build-and-test, standalone demoapp tests, and API
+# compatibility check — using each workflow's built-in defaults.
+#
+# This is a "run everything" convenience trigger, not a tool for targeting
+# specific OS/Java combinations. To test a particular combination, trigger
+# build-and-test.yml or standalone-demoapp-tests.yml directly and supply
+# the os and java_versions inputs there.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/build-and-test.yml
+
+  standalone-demoapp-tests:
+    uses: ./.github/workflows/standalone-demoapp-tests.yml
+
+  bcv-api-check:
+    uses: ./.github/workflows/bcv_api_check.yaml

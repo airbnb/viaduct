@@ -197,18 +197,10 @@ to update the demoapps to match (you can use `git diff` as above to verify).  Pu
 Trigger comprehensive testing across all supported environments by running:
 
 ```shell
-gh workflow run ".github/workflows/trigger-all-builds.yml" \
---ref release/v0.X.0 \
--f reason="Testing release candidate v0.X.0"
+gh workflow run .github/workflows/ci-manual-trigger.yml --ref release/v0.X.0
 ```
 
-This will trigger builds on all supported combinations:
-
-- OS: ubuntu-latest, macos-latest, macos-15-intel
-- Java: 11, 17, 21
-
-Monitor the triggered builds and verify all 9 combinations pass successfully.
-
+This will trigger all of our CI workflows across all of their Java x OS matrices. Monitor the triggered builds and verify all 9 combinations pass successfully. (This includes standalone tests of the demo apps using a from-scratch Maven local cache -- automating a painful and error prone pre-release validation step from the past.)
 
 ### 5) Validate Demo Apps
 
