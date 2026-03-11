@@ -1,0 +1,28 @@
+name: Release Full Test
+# Full-matrix, cache-disabled CI suite for release validation.
+#
+# Runs build-and-test with no_cache=true (forcing every Gradle task to
+# execute from scratch), plus standalone demoapp tests and API compatibility
+# check, using each workflow's built-in matrix defaults.
+#
+# Takes no inputs — it is always a paranoia run.  To target a specific
+# OS/Java combination instead, trigger build-and-test.yml directly.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/build-and-test.yml
+    with:
+      use_gradle_cache: false
+
+  standalone-demoapp-tests:
+    uses: ./.github/workflows/standalone-demoapp-tests.yml
+    with:
+      use_gradle_cache: false
+
+  bcv-api-check:
+    uses: ./.github/workflows/bcv_api_check.yaml
+    with:
+      use_gradle_cache: false

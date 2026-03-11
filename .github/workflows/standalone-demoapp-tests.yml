@@ -18,6 +18,11 @@ on:
     branches:
       - main
   workflow_call:
+    inputs:
+      use_gradle_cache:
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -43,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Publish to Maven Local
     env:
-      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=${{ inputs.use_gradle_cache }}"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -75,7 +80,7 @@ jobs:
         demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter]
     name: Test ${{ matrix.demoapp }}
     env:
-      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=${{ inputs.use_gradle_cache }}"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -105,7 +110,7 @@ jobs:
         java: ${{ fromJSON(inputs.java_versions || '["17","21"]') }}
     name: Test starwars (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
-      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=${{ inputs.use_gradle_cache }}"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:

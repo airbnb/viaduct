@@ -11,11 +11,18 @@ on:
         types: [opened, synchronize, reopened]
     workflow_dispatch:
     workflow_call:
+        inputs:
+            use_gradle_cache:
+                required: false
+                type: boolean
+                default: true
 
 jobs:
     api-compatibility:
         runs-on: ubuntu-latest
         name: Binary API compatibility
+        env:
+            GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=${{ inputs.use_gradle_cache }} -Dorg.gradle.daemon=false"
 
         steps:
             - name: Checkout
