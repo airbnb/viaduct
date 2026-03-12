@@ -292,7 +292,7 @@ This workflow will:
 
 ### 9) Verify publications
 
-Log in to [Sonatype Maven Central](https://plugins.gradle.org/u/viaduct-maintainers) and the [Gradle Plugin Portal](https://plugins.gradle.org/u/viaduct-maintainers) to verify the artifacts are live (credentials in shared 1Password vault).
+Log in to [Sonatype Maven Central](https://central.sonatype.com/namespace/com.airbnb.viaduct) and the [Gradle Plugin Portal](https://plugins.gradle.org/u/viaduct-maintainers) to verify the artifacts are live (credentials in shared 1Password vault).
 
 ### 10) Publish and verify standalone apps
 
