@@ -24,9 +24,42 @@ on:
         required: false
         default: false
         type: boolean
+      emergency_publish_shared:
+        description: 'Publish only the missing build-logic:shared artifact (use to recover from a release where it was omitted)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
+  emergency-publish-shared:
+    if: ${{ inputs.emergency_publish_shared }}
+    runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: release/v${{ inputs.release_version }}
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Publish build-logic:shared to Maven Central
+        env:
+          RELEASE: "true"
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew build-logic:shared:publishAllPublicationsToMavenCentralRepository --no-daemon --stacktrace
+
   publish-artifacts:
+    if: ${{ !inputs.emergency_publish_shared }}
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
