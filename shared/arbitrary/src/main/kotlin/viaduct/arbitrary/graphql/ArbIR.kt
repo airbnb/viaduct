@@ -2,13 +2,8 @@ package viaduct.arbitrary.graphql
 
 import graphql.introspection.Introspection
 import graphql.language.Document
-import graphql.language.Field
 import graphql.language.FragmentDefinition
-import graphql.language.FragmentSpread
-import graphql.language.InlineFragment
 import graphql.language.OperationDefinition
-import graphql.language.Selection as GJSelection
-import graphql.language.SelectionSet
 import graphql.schema.GraphQLAppliedDirective
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLDirectiveContainer
@@ -20,7 +15,6 @@ import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
-import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
@@ -119,21 +113,6 @@ internal fun Arb.Companion.ir(
 ): Arb<IR.Value> =
     arbitrary { rs ->
         IRGen(schema, inputObjectScc, cfg, rs).genValue(type)
-    }
-
-/**
- * Return an [Arb] that can generate an [IR.Value] for the provided output type
- * and selections.
- */
-fun Arb.Companion.ir(
-    schema: ViaductSchema,
-    type: GraphQLOutputType,
-    selections: SelectionSet?,
-    fragments: Map<String, FragmentDefinition> = emptyMap(),
-    cfg: Config = Config.default
-): Arb<IR.Value> =
-    arbitrary { rs ->
-        IRResultGen(schema, fragments, cfg, rs).genValue(type, selections)
     }
 
 /** Return an [Arb] that can generate an [IR.Value] for the provided [Document] */
@@ -361,178 +340,13 @@ private class IRGen(
         }
 }
 
-private class IRResultGen(
-    private val schema: ViaductSchema,
-    private val fragments: Map<String, FragmentDefinition>,
-    private val cfg: Config,
-    private val rs: RandomSource,
-) {
-    private val enumGen = EnumValueGen(rs)
-    private val scalarGen = ScalarValueGen(cfg, rs)
-
-    fun genValue(
-        type: GraphQLOutputType,
-        selections: SelectionSet?
-    ): IR.Value = gen(type, selections, true)
-
-    private fun enullOr(
-        nullable: Boolean,
-        fn: () -> IR.Value
-    ) = if (nullable && rs.sampleWeight(cfg[ExplicitNullValueWeight])) {
-        IR.Value.Null
-    } else {
-        fn()
-    }
-
-    private fun gen(
-        type: GraphQLOutputType,
-        selections: SelectionSet?,
-        nullable: Boolean
-    ): IR.Value =
-        when (type) {
-            is GraphQLNonNull -> gen(GraphQLTypeUtil.unwrapOneAs(type), selections, false)
-            is GraphQLList ->
-                enullOr(nullable) {
-                    val listSize = Arb.int(cfg[ListValueSize]).next(rs)
-                    val items = List(listSize) {
-                        gen(GraphQLTypeUtil.unwrapOneAs(type), selections, true)
-                    }
-                    IR.Value.List(items)
-                }
-
-            is GraphQLObjectType ->
-                enullOr(nullable) {
-                    genObject(type, requireNotNull(selections))
-                }
-
-            is GraphQLCompositeType ->
-                enullOr(nullable) {
-                    val concreteType = concretizeType(type, requireNotNull(selections))
-                    gen(concreteType, selections, nullable)
-                }
-
-            is GraphQLEnumType ->
-                enullOr(nullable) {
-                    enumGen.gen(type)
-                }
-
-            is GraphQLScalarType ->
-                enullOr(nullable) {
-                    scalarGen.gen(type)
-                }
-
-            else -> throw IllegalArgumentException("Unsupported type: $type")
-        }
-
-    private fun genObject(
-        type: GraphQLCompositeType,
-        selections: SelectionSet
-    ): IR.Value.Object {
-        val concreteType = concretizeType(type, selections)
-
-        return selections.selections.fold(IR.Value.Object(concreteType.name)) { acc, sel ->
-            when (sel) {
-                is Field -> {
-                    if (sel.name == "__typename") {
-                        acc + (sel.resultKey to IR.Value.String(concreteType.name))
-                    } else {
-                        val fieldDef = requireNotNull(concreteType.getField(sel.name)) {
-                            "unexpected field: ${concreteType.name}.${sel.name}"
-                        }
-                        val value = gen(fieldDef.type, sel.selectionSet, true)
-                        acc + (sel.resultKey to value)
-                    }
-                }
-
-                is FragmentSpread -> {
-                    val fragment = requireNotNull(fragments[sel.name]) { "missing fragment `${sel.name}`" }
-                    val fragmentType = schema.schema.getTypeAs<GraphQLCompositeType>(fragment.typeCondition.name)
-                    if (schema.rels.isSpreadable(concreteType, fragmentType)) {
-                        val fragmentResult = genObject(concreteType, fragment.selectionSet)
-                        acc.copy(fields = acc.fields + fragmentResult.fields)
-                    } else {
-                        acc
-                    }
-                }
-
-                is InlineFragment -> {
-                    val fragmentType = sel.typeCondition?.name
-                        ?.let { schema.schema.getTypeAs<GraphQLCompositeType>(it) }
-                        ?: concreteType
-                    if (schema.rels.isSpreadable(concreteType, fragmentType)) {
-                        val fragmentResult = genObject(concreteType, sel.selectionSet)
-                        acc.copy(fields = acc.fields + fragmentResult.fields)
-                    } else {
-                        acc
-                    }
-                }
-
-                else -> throw IllegalArgumentException("unexpected selection type: $sel")
-            }
-        }
-    }
-
-    /** Pick a concrete object type for the supplied type */
-    private fun concretizeType(
-        type: GraphQLCompositeType,
-        selections: SelectionSet
-    ): GraphQLObjectType {
-        if (type is GraphQLObjectType) return type
-
-        var candidateTypes = listOf<GraphQLObjectType>()
-        if (rs.sampleWeight(cfg[SelectedTypeBias])) {
-            val concreteCandidates = selectedObjectTypes(selections)
-            if (concreteCandidates.isNotEmpty()) {
-                candidateTypes = concreteCandidates.toList()
-            }
-        }
-        if (candidateTypes.isEmpty()) {
-            candidateTypes = schema.rels.possibleObjectTypes(type).toList()
-        }
-        return Arb.of(candidateTypes).next(rs)
-    }
-
-    /**
-     * Return the set of GraphQLObject types that have type conditions within a selection set.
-     * This will traverse through fragment definitions and inline fragments, but not through field selections
-     */
-    private fun selectedObjectTypes(selections: SelectionSet): Set<GraphQLObjectType> {
-        tailrec fun loop(
-            acc: Set<GraphQLObjectType>,
-            pending: List<GJSelection<*>>
-        ): Set<GraphQLObjectType> =
-            when (val sel = pending.firstOrNull()) {
-                null -> acc
-                is Field -> loop(acc, pending.drop(1))
-                is InlineFragment -> {
-                    val typeCondition = sel.typeCondition?.name?.let { schema.schema.getTypeAs<GraphQLCompositeType>(it) }
-                    val newAcc = (typeCondition as? GraphQLObjectType)?.let { acc + it } ?: acc
-                    val newPending = pending.drop(1) + sel.selectionSet.selections
-                    loop(newAcc, newPending)
-                }
-                is FragmentSpread -> {
-                    val fragment = requireNotNull(this.fragments[sel.name]) {
-                        "missing fragment `${sel.name}`"
-                    }
-                    val typeCondition = schema.schema.getTypeAs<GraphQLCompositeType>(fragment.typeCondition.name)
-                    val newAcc = (typeCondition as? GraphQLObjectType)?.let { acc + it } ?: acc
-                    val newPending = pending.drop(1) + fragment.selectionSet.selections
-                    loop(newAcc, newPending)
-                }
-                else -> throw IllegalArgumentException("unexpected selection type: $sel")
-            }
-
-        return loop(emptySet(), selections.selections)
-    }
-}
-
 internal operator fun IR.Value.Object.plus(entry: Pair<String, IR.Value>): IR.Value.Object = copy(fields = fields + entry)
 
-private class EnumValueGen(private val rs: RandomSource) {
+internal class EnumValueGen(private val rs: RandomSource) {
     fun gen(type: GraphQLEnumType): IR.Value.String = Arb.of(type.values).next(rs).let { IR.Value.String(it.name) }
 }
 
-private class ScalarValueGen(
+internal class ScalarValueGen(
     private val cfg: Config,
     private val rs: RandomSource
 ) {
