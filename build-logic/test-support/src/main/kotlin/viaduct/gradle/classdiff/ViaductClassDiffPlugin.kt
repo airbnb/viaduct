@@ -118,6 +118,7 @@ abstract class ViaductClassDiffPlugin : Plugin<Project> {
             workerCount.set(1)
             includeIneligibleForTesting.set(true)
             this.schemaFiles.from(schemaFiles)
+            this.defaultSchemaFile.set(DefaultSchemaPlugin.getDefaultSchemaFileProvider(project))
             this.codegenClasspath.from(codegenClasspath)
             generatedSrcDir.set(project.layout.buildDirectory.dir(GENERATED_SOURCES_PATH))
             dependsOn("processResources")
@@ -139,6 +140,7 @@ abstract class ViaductClassDiffPlugin : Plugin<Project> {
             group = PLUGIN_GROUP
             description = "Generates Kotlin GRTs for schema diff '${schemaDiff.name}'"
             this.schemaFiles.from(schemaFiles)
+            this.defaultSchemaFile.set(DefaultSchemaPlugin.getDefaultSchemaFileProvider(project))
             this.codegenClasspath.from(codegenClasspath)
             packageName.set(pkg)
             buildFlags.putAll(BuildFlags.DEFAULT)

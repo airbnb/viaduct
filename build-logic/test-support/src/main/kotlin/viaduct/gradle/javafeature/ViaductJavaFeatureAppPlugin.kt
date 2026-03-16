@@ -10,6 +10,7 @@ import org.gradle.kotlin.dsl.register
 import viaduct.gradle.common.ViaductFeatureAppExtensionBase
 import viaduct.gradle.common.ViaductFeatureAppPluginBase
 import viaduct.gradle.common.getOrCreateCodegenClasspath
+import viaduct.gradle.defaultschema.DefaultSchemaPlugin
 import viaduct.gradle.utils.capitalize
 
 /**
@@ -97,6 +98,7 @@ abstract class ViaductJavaFeatureAppPlugin : ViaductFeatureAppPluginBase() {
             dependsOn("processResources")
 
             this.schemaFiles.from(schemaFile)
+            this.defaultSchemaFile.set(DefaultSchemaPlugin.getDefaultSchemaFileProvider(project))
             this.packageName.set(packageName)
             this.codegenClasspath.from(project.getOrCreateCodegenClasspath())
             this.generatedSrcDir.set(project.layout.buildDirectory.dir("generated-sources/java-featureapp/schema/$featureAppName"))
@@ -117,6 +119,7 @@ abstract class ViaductJavaFeatureAppPlugin : ViaductFeatureAppPluginBase() {
             description = "Generates tenant code for Java FeatureApp $featureAppName"
 
             this.schemaFiles.from(schemaFile)
+            this.defaultSchemaFile.set(DefaultSchemaPlugin.getDefaultSchemaFileProvider(project))
             this.grtPackage.set(packageName)
             this.tenantPackage.set(packageName)
             this.codegenClasspath.from(project.getOrCreateCodegenClasspath())

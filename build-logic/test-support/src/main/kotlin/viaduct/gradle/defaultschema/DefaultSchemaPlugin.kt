@@ -3,9 +3,11 @@ package viaduct.gradle.defaultschema
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.Directory
+import org.gradle.api.file.RegularFile
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.register
 
 /**
@@ -40,6 +42,13 @@ abstract class DefaultSchemaPlugin : Plugin<Project> {
         fun getGeneratedResourcesDir(project: Project): Provider<Directory> {
             return project.layout.buildDirectory.dir(DEFAULT_SCHEMA_BUILD_PATH)
         }
+
+        /**
+         * Returns a lazy provider for the extracted default schema file, establishing
+         * a proper task dependency on [TASK_NAME] so consumers can declare it as
+         * a typed [org.gradle.api.tasks.InputFile] input.
+         */
+        fun getDefaultSchemaFileProvider(project: Project): Provider<RegularFile> = project.tasks.named<DefaultSchemaOutputTask>(TASK_NAME).flatMap { it.defaultSchemaFile }
 
         /**
          * Wires the default schema generated resources into the given source set and

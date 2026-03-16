@@ -4,11 +4,13 @@ import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.ProjectLayout
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
@@ -20,6 +22,7 @@ import viaduct.gradle.shared.BuildFlags
  * Base class for tenant generation tasks.
  * Contains common functionality shared between viaduct-schema and viaduct-feature-app plugins.
  */
+@CacheableTask
 abstract class ViaductTenantTaskBase : DefaultTask() {
     @get:Input
     abstract val featureAppTest: Property<Boolean>
@@ -40,6 +43,10 @@ abstract class ViaductTenantTaskBase : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val schemaFiles: ConfigurableFileCollection
 
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val defaultSchemaFile: RegularFileProperty
+
     @get:Classpath
     abstract val codegenClasspath: ConfigurableFileCollection
 
@@ -51,9 +58,6 @@ abstract class ViaductTenantTaskBase : DefaultTask() {
 
     @get:OutputDirectory
     abstract val metaInfSrcDir: DirectoryProperty
-
-    @get:Inject
-    abstract val projectLayout: ProjectLayout
 
     @get:Inject
     abstract val workerExecutor: WorkerExecutor
@@ -83,7 +87,7 @@ abstract class ViaductTenantTaskBase : DefaultTask() {
 
         // Include the default schema along with the configured schema files
         val allSchemaFiles = DefaultSchemaUtil
-            .getSchemaFilesIncludingDefault(schemaFiles, projectLayout, logger)
+            .getSchemaFilesIncludingDefault(schemaFiles, defaultSchemaFile.get().asFile, logger)
             .toList()
             .sortedBy { it.absolutePath }
 

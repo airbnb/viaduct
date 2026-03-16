@@ -5,11 +5,13 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.ProjectLayout
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
@@ -24,10 +26,8 @@ import viaduct.gradle.shared.BuildFlags
 /**
  * Task to generate Kotlin GRT (GraphQL Runtime Types) for ClassDiff tests.
  */
+@CacheableTask
 abstract class ViaductClassDiffGRTKotlinTask : DefaultTask() {
-    @get:Inject
-    abstract val projectLayout: ProjectLayout
-
     @get:Inject
     abstract val workerExecutor: WorkerExecutor
 
@@ -40,6 +40,10 @@ abstract class ViaductClassDiffGRTKotlinTask : DefaultTask() {
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val schemaFiles: ConfigurableFileCollection
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val defaultSchemaFile: RegularFileProperty
 
     @get:Classpath
     abstract val codegenClasspath: ConfigurableFileCollection
@@ -57,7 +61,7 @@ abstract class ViaductClassDiffGRTKotlinTask : DefaultTask() {
 
         // Include the default schema along with the configured schema files
         val allSchemaFiles = DefaultSchemaUtil
-            .getSchemaFilesIncludingDefault(schemaFiles, projectLayout, logger)
+            .getSchemaFilesIncludingDefault(schemaFiles, defaultSchemaFile.get().asFile, logger)
             .toList()
             .sortedBy { it.absolutePath }
         val schemaFilesArg = allSchemaFiles.joinToString(",") { it.absolutePath }

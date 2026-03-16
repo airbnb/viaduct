@@ -260,6 +260,7 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
             this.workerCount.set(1)
             this.includeIneligibleForTesting.set(true)
             this.schemaFiles.from(schemaFile)
+            this.defaultSchemaFile.set(DefaultSchemaPlugin.getDefaultSchemaFileProvider(project))
             this.codegenClasspath.from(codegenClasspath)
             this.generatedSrcDir.set(project.layout.buildDirectory.dir("generated-sources/featureapp/schema/$featureAppName"))
         }
@@ -301,6 +302,7 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
             this.featureAppTest.set(true)
             this.buildFlags.putAll(BuildFlags.DEFAULT)
             this.schemaFiles.from(schemaFile)
+            this.defaultSchemaFile.set(DefaultSchemaPlugin.getDefaultSchemaFileProvider(project))
             this.tenantFromSourceNameRegex.set("(.*)")
             this.codegenClasspath.from(codegenClasspath)
             this.modernModuleSrcDir.set(project.layout.buildDirectory.dir("generated-sources/featureapp/tenant/$featureAppName/modernmodule"))
