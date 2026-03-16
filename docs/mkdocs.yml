@@ -48,10 +48,16 @@ theme:
   icon:
     repo: fontawesome/brands/github
 
+hooks:
+  - hooks/copy_markdown.py
+
 extra_css:
   - stylesheets/brand.css
   - kdoc-service-styles.css
   - kdoc-styles.css
+
+extra_javascript:
+  - javascripts/copy-markdown.js
 
 plugins:
   - search
