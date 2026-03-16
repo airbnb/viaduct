@@ -17,7 +17,7 @@ The scaffold task generates a ready-to-run Ktor application with:
 
 ### Prerequisites
 
-- Java 21 must be on the path or available via JAVA_HOME
+- Java 17+ must be on the path or available via JAVA_HOME
 - Gradle must be installed (the scaffold will generate wrapper files)
 
 ### Running the Scaffold
