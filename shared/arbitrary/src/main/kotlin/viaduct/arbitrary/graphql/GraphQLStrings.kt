@@ -23,6 +23,10 @@ private val nameContinueRanges: List<CharRange> =
 
 private val builtinTypeNames = setOf("Boolean", "Float", "ID", "Int", "String")
 
+// Enum values may not be "true", "false", or "null"
+//   https://spec.graphql.org/draft/#sec-Enum-Value
+private val bannedEnumValues = setOf("true", "false", "null")
+
 /**
  * Return a String that is a valid GraphQL name, defined by
  * https://spec.graphql.org/draft/#sec-Names
@@ -69,7 +73,10 @@ fun Arb.Companion.graphQLFieldName(cfg: Config = Config.default): Arb<String> = 
 fun Arb.Companion.graphQLArgumentName(cfg: Config = Config.default): Arb<String> = graphQLFieldName(cfg[FieldNameLength]).filter(cfg)
 
 /** Generate Strings suitable for use as GraphQL enum value */
-fun Arb.Companion.graphQLEnumValueName(cfg: Config = Config.default): Arb<String> = graphQLName(cfg[FieldNameLength]).filter(cfg)
+fun Arb.Companion.graphQLEnumValueName(cfg: Config = Config.default): Arb<String> =
+    graphQLName(cfg[FieldNameLength])
+        .filter(cfg)
+        .filter { it !in bannedEnumValues }
 
 /** Generate Strings suitable for use as a GraphQL description. */
 fun Arb.Companion.graphQLDescription(cfg: Config = Config.default): Arb<String> = Arb.string(cfg[DescriptionLength])

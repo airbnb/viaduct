@@ -91,6 +91,17 @@ class GraphQLStringsTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `Arb_graphQLEnumValueName does not produce invalid names`(): Unit =
+        runBlocking {
+            Arb.graphQLEnumValueName().forNone {
+                it.startsWith("__") ||
+                    it == "true" ||
+                    it == "false" ||
+                    it == "null"
+            }
+        }
+
+    @Test
     fun `BanFieldNames`(): Unit =
         runBlocking {
             // create a ban list of single-letter field names, a-m and A-M
