@@ -8,7 +8,11 @@ import io.kotest.property.Gen
 import io.kotest.property.PropertyTesting
 import io.kotest.property.RandomSource
 import io.kotest.property.Sample
+import io.kotest.property.arbitrary.filter
+import io.kotest.property.arbitrary.map
+import io.kotest.property.arbitrary.next
 import io.kotest.property.asSample
+import java.io.PrintStream
 import viaduct.apiannotations.VisibleForTest
 
 /** Convert an arb to an infinite [kotlin.sequences.Sequence] */
@@ -37,21 +41,29 @@ fun <T> Gen<T>.minViolation(
 /**
  * Flatten this Arb into an Arb of the inner item type.
  * The new Arb will return items in the same order as produced by the original Arb.
+ *
+ * The underlying Arb must eventually produce a non-empty Iterable; if every sample is empty,
+ * [Arb.sample] will loop indefinitely.
  */
 @VisibleForTest
-fun <T> Arb<Iterable<T>>.flatten(): Arb<T> = Flatten(this)
+fun <T> Arb<Iterable<T>>.flatten(): Arb<T> = Flatten(map { it.iterator() })
+
+/** transform this Arb using [fn], dropping any null values returned by [fn] */
+@JvmName("mapNotNull")
+@VisibleForTest
+fun <T, R> Arb<T>.mapNotNull(fn: (T) -> R?): Arb<R> = map(fn).filter { it != null }.map { it!! }
 
 @VisibleForTest
 private class Flatten<T>(
-    val underlying: Arb<Iterable<T>>,
+    val underlying: Arb<Iterator<T>>,
 ) : Arb<T>() {
     private var chunk: Iterator<T>? = null
 
-    override fun edgecase(rs: RandomSource): T? = underlying.edgecase(rs)?.first()
+    override fun edgecase(rs: RandomSource): T? = underlying.edgecase(rs)?.takeIf { it.hasNext() }?.next()
 
     override fun sample(rs: RandomSource): Sample<T> {
-        if (chunk == null || chunk?.hasNext() == false) {
-            chunk = underlying.sample(rs).value.iterator()
+        while (chunk == null || chunk?.hasNext() == false) {
+            chunk = underlying.sample(rs).value
         }
         return chunk!!.next().asSample()
     }
@@ -78,3 +90,44 @@ fun failProperty(
         },
         cause
     )
+
+/**
+ * Alternates sampling this Arb once and incrementing the seed value, up to [maxIter] iterations
+ */
+@VisibleForTest
+fun Arb<*>.seedMarch(
+    startingSeed: Long = 0,
+    maxIter: Int = 1_000_000,
+    onIteration: (Long) -> Unit = {}
+): Pair<Long, Throwable>? {
+    repeat(maxIter) { iter ->
+        val seed = startingSeed + iter
+        onIteration(seed)
+        try {
+            next(RandomSource.seeded(seed))
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Throwable
+        ) {
+            return seed to e
+        }
+    }
+    return null
+}
+
+/** Runs [seedMarch] on this [Arb], periodically printing its status */
+@VisibleForTest
+fun Arb<*>.printSeedMarch(
+    startingSeed: Long = 0,
+    maxIter: Int = 1_000_000,
+    printEvery: Int = 1_000,
+    out: PrintStream = System.out
+) {
+    seedMarch(startingSeed, maxIter) { seed ->
+        if (seed.mod(printEvery) == 0) {
+            out.println("Seed $seed...")
+        }
+    }?.let { (failingSeed, err) ->
+        out.println("Failed on seed: $failingSeed")
+        throw err
+    }
+}
