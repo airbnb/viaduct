@@ -9,3 +9,16 @@ For an end-to-end example of a service that embeds Viaduct, see the demonstratio
 For more information on constructing a `Viaduct` object see `service/AGENTS.md`.
 
 For more information about the details of how Viaduct executes GraphQL operations, you can look at `engine/AGENTS.md`, although it is often helpful to start with `service/AGENTS.md` to understand how `viaduct.engine.api.Engine` instances get configured.
+
+## Navigating the Shared Libraries
+
+The `shared/` directory contains libraries used across the Viaduct engine and tenant APIs:
+
+- **`shared/codegen/`** — Bytecode generation library used to compile tenant field resolvers into JVM bytecode at startup. See `shared/codegen/AGENTS.md` for details.
+- **`shared/viaductschema/`** — Unified abstraction layer for working with GraphQL schemas. See `shared/viaductschema/AGENTS.md` for details.
+- **`shared/apiannotations/`** — Annotations used in the Viaduct public API.
+- **`tenant/`** — The Tenant API, which application developers use to write resolvers. See `tenant/api/module.md` for package-level descriptions.
+
+## Implementation Documentation
+
+- [`impldocs/subquery-execution.md`](impldocs/subquery-execution.md) — Cross-cutting documentation about the `ExecutionHandle` abstraction and how `ctx.query()`/`ctx.mutation()` drive subquery execution across the engine.

@@ -5,4 +5,8 @@ This directory contains three subprojects: `service/api` which defines the inter
 
 To support integration with infrastructure such as observability, Viaduct takes a Service Provider Interface (SPI) approach.  In particular the `api/src/main/kotlin/viaduct/service/api/spi` directory contains interfaces intended to be implemented by Service Engineers.  For example, `viaduct.service.api.spi.ErrorReporter` is an interface for integrating GraphQL into an organization's error-logging infrastructure.
 
+## Module Descriptions
+
+- [`module.md`](module.md) — Package-level descriptions for the Service API and Service Wiring packages.
+
 

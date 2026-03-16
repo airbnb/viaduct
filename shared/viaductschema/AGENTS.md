@@ -17,6 +17,12 @@ The ViaductSchema library provides a unified abstraction layer for working with 
 * [FOR-CSV-USERS.md](FOR-CSV-USERS.md) This file is for developers who want to use the `schema2csv` command to explore GraphQL schemas.
 * [FOR-IMPLEMENTERS.md](FOR-IMPLEMENTERS.md) This file is for developers who want to create their own `ViaductSchema` implementation backed by a different underlying representation.
 * [FOR-MAINTAINERS.md](FOR-MAINTAINERS.md) This file is for developers who maintain or extend the ViaductSchema library itself.
+* [TESTING.md](TESTING.md) — Testing strategy for contributors: how to write and run tests for ViaductSchema implementations.
+* [TEST_FIXTURES.md](TEST_FIXTURES.md) — Test fixture utilities available to implementations and consumers for constructing test schemas.
+
+## Implementation Documentation
+
+- [`src/main/kotlin/viaduct/graphql/schema/binary/encoding.md`](src/main/kotlin/viaduct/graphql/schema/binary/encoding.md) — Binary encoding format specification for compact schema serialization.
 
 ## Goals and Non-Goals
 
