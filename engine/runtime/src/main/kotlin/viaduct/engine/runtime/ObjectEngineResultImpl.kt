@@ -9,7 +9,6 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.completedDeferred
 import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.ObjectEngineResult
 
 /**
  * Thread-safe data structure for memoizing field resolution results during GraphQL query execution.

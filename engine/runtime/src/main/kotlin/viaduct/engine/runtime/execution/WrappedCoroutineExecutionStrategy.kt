@@ -9,7 +9,7 @@ import graphql.execution.SimpleDataFetcherExceptionHandler
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.supervisorScope
-import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.api.spi.CoroutineInterop
 
 /**
  * WrappedCoroutineExecutionStrategy executes the passed-in executionStrategy within the scope of a coroutine. This

@@ -235,6 +235,56 @@ public class GraphQLSchemaParser {
   }
 
   /**
+   * Extracts argument models from a ViaductSchema for resolver fields that have arguments.
+   *
+   * @param schema the ViaductSchema
+   * @param packageName the package name for generated argument types
+   * @param mutationTypeName the name of the mutation type (or null if none)
+   * @return the list of argument models
+   */
+  public List<ArgumentModel> extractArguments(
+      ViaductSchema schema, String packageName, String mutationTypeName) {
+    Map<String, List<ResolverModel>> resolversByType =
+        extractResolvers(schema, packageName, mutationTypeName);
+    TypeMapper typeMapper = new TypeMapper();
+    List<ArgumentModel> arguments = new ArrayList<>();
+
+    for (ViaductSchema.TypeDef typeDef : schema.getTypes().values()) {
+      if (!(typeDef instanceof ViaductSchema.Object objectType)) continue;
+      String typeName = objectType.getName();
+
+      List<ResolverModel> resolvers = resolversByType.get(typeName);
+      if (resolvers == null) continue;
+
+      for (ResolverModel resolver : resolvers) {
+        if (!resolver.hasArguments()) continue;
+
+        for (ViaductSchema.Extension<?, ?> extension : objectType.getExtensions()) {
+          for (Object member : extension.getMembers()) {
+            if (!(member instanceof ViaductSchema.Field field)) continue;
+            if (!field.getName().equals(resolver.gqlFieldName())) continue;
+            if (!field.getHasArgs()) continue;
+
+            String fqClassName = resolver.argumentsType();
+            String className = fqClassName.substring(fqClassName.lastIndexOf('.') + 1);
+            List<FieldModel> fields = new ArrayList<>();
+            for (ViaductSchema.FieldArg arg : field.getArgs()) {
+              fields.add(
+                  new FieldModel(
+                      arg.getName(),
+                      typeMapper.toJavaType(arg.getType()),
+                      arg.getType().isNullable()));
+            }
+            arguments.add(new ArgumentModel(packageName, className, fields));
+          }
+        }
+      }
+    }
+
+    return arguments;
+  }
+
+  /**
    * Extracts resolver models from a ViaductSchema by finding fields with @resolver directive.
    *
    * <p>Groups resolvers by their containing type name. Each type with resolver fields will have an

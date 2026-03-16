@@ -26,7 +26,7 @@ class NodeResolverGeneratorTest {
         assertNotNull(contents)
         contents!!
 
-        assertTrue(contents.contains("package pkg.tenant"))
+        assertTrue(contents.contains("package pkg.tenant.resolverbases"))
         assertTrue(contents.contains("NodeResolverFor(\"Foo\")"))
         assertTrue(contents.contains("abstract class Foo : NodeResolverBase"))
         assertTrue(contents.contains("NodeResolverFor(\"Bar\")"))
@@ -63,7 +63,7 @@ class NodeResolverGeneratorTest {
         assertNotNull(contents)
         contents!!
 
-        assertTrue(contents.contains("package pkg.tenant"))
+        assertTrue(contents.contains("package pkg.tenant.resolverbases"))
         assertTrue(contents.contains("NodeResolverFor(\"Foo\")"))
         assertTrue(contents.contains("abstract class Foo : NodeResolverBase"))
         assertTrue(contents.contains("NodeResolverFor(\"Bar\")"))

@@ -318,6 +318,62 @@ public final class JavaGRTGenerator {
     }
   }
 
+  /** Generator for Java arguments classes from GraphQL resolver field arguments. */
+  public static final class ArgumentGenerator {
+
+    private static final String TEMPLATE =
+        STUtilsKt.stTemplate(
+            """
+            package <mdl.packageName>;
+
+            import java.util.List;
+            import viaduct.java.api.types.Arguments;
+
+            /** Generated arguments class for resolver field. */
+            public class <mdl.className> implements Arguments {
+
+                <mdl.fields: {f |
+                private <f.javaType> <f.name>;
+                }; separator="\\n">
+
+                <mdl.fields: {f |
+                public <f.javaType> <f.getterName>() {
+                    return this.<f.name>;
+                \\}
+
+                public void <f.setterName>(<f.javaType> <f.name>) {
+                    this.<f.name> = <f.name>;
+                \\}
+                }; separator="\\n">
+            }
+            """);
+
+    private ArgumentGenerator() {}
+
+    /**
+     * Generates the Java arguments class source code as a string.
+     *
+     * @param model the argument model
+     * @return the generated Java source code
+     */
+    public static String generate(ArgumentModel model) {
+      return new STContents(TEMPLATE, model).toString();
+    }
+
+    /**
+     * Generates the Java arguments class source code and writes it to a file.
+     *
+     * @param model the argument model
+     * @param outputDir the output directory
+     * @return the file that was written
+     * @throws IOException if there's an error writing the file
+     */
+    public static File generateToFile(ArgumentModel model, File outputDir) throws IOException {
+      STContents contents = new STContents(TEMPLATE, model);
+      return writeToFile(contents, model.packageName(), model.className(), outputDir);
+    }
+  }
+
   /** Generator for Java union interfaces from GraphQL union types. */
   public static final class UnionGenerator {
 

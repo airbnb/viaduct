@@ -2,8 +2,9 @@
 
 package com.example.starwars.service.test
 
+import com.example.starwars.modules.filmography.films.models.FilmCastData
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
-import com.example.starwars.modules.filmography.films.resolvers.FilmCharacterCountSummaryResolver
+import com.example.starwars.modules.filmography.films.resolvers.FilmCastDataResolver
 import com.example.starwars.modules.filmography.films.resolvers.FilmDisplayTitleResolver
 import com.example.starwars.modules.filmography.films.resolvers.FilmProductionDetailsResolver
 import com.example.starwars.modules.filmography.films.resolvers.FilmSummaryResolver
@@ -114,19 +115,18 @@ class FilmResolverUnitTests : DefaultAbstractResolverTestBase() {
         }
 
     @Test
-    fun `FilmCharacterCountSummaryResolver counts characters`(): Unit =
+    fun `FilmCastDataResolver returns character IDs from repository`(): Unit =
         runBlocking {
-            val resolver = FilmCharacterCountSummaryResolver(filmCharactersRepository)
+            val resolver = FilmCastDataResolver(filmCharactersRepository)
 
             val result = runFieldResolver(
                 resolver = resolver,
                 objectValue = Film.Builder(context)
                     .id(GlobalIDImpl(Film.Reflection, "1"))
-                    .title("A New Hope")
                     .build(),
             )
 
-            assertEquals("A New Hope features 5 main characters", result)
+            assertEquals(FilmCastData(listOf("1", "2", "3", "4", "5")), result)
         }
 
     // Note: Node-based tests using runNodeResolver are now in QueryResolverUnitTests.kt

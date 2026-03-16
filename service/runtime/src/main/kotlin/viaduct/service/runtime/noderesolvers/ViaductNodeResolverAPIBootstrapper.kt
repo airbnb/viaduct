@@ -1,7 +1,7 @@
 package viaduct.service.runtime.noderesolvers
 
-import viaduct.engine.api.TenantAPIBootstrapper
-import viaduct.engine.api.TenantModuleBootstrapper
+import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 
 /**

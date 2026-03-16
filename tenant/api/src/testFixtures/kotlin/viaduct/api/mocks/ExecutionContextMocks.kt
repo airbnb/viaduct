@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalApi::class)
+
 package viaduct.api.mocks
 
 import graphql.schema.GraphQLObjectType
@@ -7,6 +9,8 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.SelectiveNodeExecutionContext
 import viaduct.api.globalid.GlobalID
+import viaduct.api.internal.DefaultGRTConvFactory
+import viaduct.api.internal.GRTConvFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.select.SelectionSetFactory
@@ -19,6 +23,8 @@ import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ViaductSchema
@@ -64,6 +70,7 @@ class MockNodeEngineObjectData(
  * then the original ExecutionContext will be returned. Otherwise, a minimal
  * ExecutionContext will be returned.
  */
+@OptIn(InternalApi::class)
 val InternalContext.executionContext: ExecutionContext
     get() =
         this as? ExecutionContext ?: MockExecutionContext(this)
@@ -74,14 +81,18 @@ val InternalContext.executionContext: ExecutionContext
  * then the original ExecutionContext will be returned. Otherwise, a minimal
  * ExecutionContext will be returned.
  */
+@OptIn(InternalApi::class)
 val InternalContext.resolverExecutionContext: ResolverExecutionContext<Query>
+    @Suppress("UNCHECKED_CAST")
     get() =
         this as? ResolverExecutionContext<Query> ?: MockResolverExecutionContext<Query>(this)
 
+@OptIn(InternalApi::class)
 class MockInternalContext(
     override val schema: ViaductSchema,
     override val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
-    override val reflectionLoader: ReflectionLoader = mockReflectionLoader("viaduct.api.grts")
+    override val reflectionLoader: ReflectionLoader = mockReflectionLoader("viaduct.api.grts"),
+    override val grtConvFactory: GRTConvFactory = DefaultGRTConvFactory,
 ) : InternalContext {
     override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> {
         val (typeName, localID) = globalIDCodec.deserialize(serialized)
@@ -99,6 +110,7 @@ class MockInternalContext(
     }
 }
 
+@OptIn(InternalApi::class)
 open class MockExecutionContext(
     internalContext: InternalContext,
     override val requestContext: Any? = null
@@ -118,6 +130,7 @@ open class MockExecutionContext(
     }
 }
 
+@OptIn(InternalApi::class)
 open class MockResolverExecutionContext<Q : Query>(
     internalContext: InternalContext,
     val queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
@@ -176,6 +189,7 @@ open class MockResolverExecutionContext<Q : Query>(
 }
 
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
+@OptIn(InternalApi::class)
 class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : CompositeOutput>(
     override val objectValue: O,
     override val queryValue: Q,
@@ -196,6 +210,7 @@ class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
 }
 
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
+@OptIn(InternalApi::class)
 class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, R : CompositeOutput>(
     override val queryValue: Q,
     override val arguments: A,
@@ -228,6 +243,7 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
 }
 
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
+@OptIn(InternalApi::class)
 class MockNodeExecutionContext<R : NodeObject>(
     override val id: GlobalID<R>,
     override val requestContext: Any? = null,

@@ -20,6 +20,8 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
 import viaduct.api.types.Query
+import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -29,6 +31,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  * This class is package-private and should not be used directly.
  * Use [MutationResolverTester.create] instead.
  */
+@OptIn(InternalApi::class, VisibleForTest::class)
 internal class MutationResolverTesterImpl<Q : Query, M : Mutation, A : Arguments, R : CompositeOutput>(
     override val config: ResolverTester.TesterConfig
 ) : MutationResolverTester<Q, M, A, R> {
@@ -53,7 +56,9 @@ internal class MutationResolverTesterImpl<Q : Query, M : Mutation, A : Arguments
                     "Example: tester.test(resolver) { arguments = Mutation_X_Arguments(...) }"
             )
 
+        @Suppress("UNCHECKED_CAST")
         val queryValue = testConfig.queryValue ?: NullQuery as Q
+        @Suppress("UNCHECKED_CAST")
         val selections = testConfig.selections ?: (SelectionSet.NoSelections as SelectionSet<R>)
 
         val ctx = createMutationContext(

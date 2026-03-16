@@ -193,15 +193,15 @@ internal class GraphQLTypesGen(
             type: GraphQLType,
             listBudget: Int
         ): GraphQLType =
-            if (type !is GraphQLNonNull && allowNonNullable && sampleWeight(NonNullableness)) {
+            if (type !is GraphQLNonNull && allowNonNullable && sampleWeight(NonNullableTypeWeight)) {
                 wrap(GraphQLNonNull.nonNull(type), listBudget)
-            } else if (listBudget > 0 && sampleWeight(Listiness)) {
+            } else if (listBudget > 0 && sampleWeight(ListTypeWeight)) {
                 wrap(GraphQLList.list(type), listBudget - 1)
             } else {
                 type
             }
 
-        return wrap(t, cfg[Listiness].max)
+        return wrap(t, cfg[ListTypeWeight].max)
     }
 
     /**
@@ -394,7 +394,7 @@ internal class GraphQLTypesGen(
             .newFieldDefinition()
             .name(Arb.graphQLFieldName(cfg).next(rs))
             .description(genDescription())
-            .arguments(genArguments(FieldHasArgs))
+            .arguments(genArguments(FieldArgumentWeight))
             .type(genOutputTypeRef())
             .build()
 
@@ -434,7 +434,7 @@ internal class GraphQLTypesGen(
              *   input A { b: B }    // field type "B" > host type "A"    ->  mandatory edge is not allowed
              *   input B { a: A! }   // field type "A" > host type "B"    ->  mandatory edge is allowed
              */
-            val oneOfTypes = names.inputs.filter { sampleWeight(OneOfWeight) }.toSet()
+            val oneOfTypes = names.inputs.filter { sampleWeight(OneOfTypeWeight) }.toSet()
 
             val inputs = names.inputs.associateWith { name ->
                 val isOneOf = name in oneOfTypes

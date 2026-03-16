@@ -10,8 +10,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
+import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.types.Arguments
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -53,13 +55,13 @@ class RequiredselectionSetFactoryVariablesProviderTest {
     )
 
     private val objectData = createEngineObjectData(defaultSchema.schema.queryType, emptyMap())
+    private val mockEngineExecutionContext: EngineExecutionContext = mockk {
+        every { fullSchema } returns defaultSchema
+        every { requestContext } returns null
+    }
     private val vresolveCtx = VariablesResolver.ResolveCtx(
         objectData,
         emptyMap(),
-        mockk {
-            every { fullSchema } returns defaultSchema
-            every { requestContext } returns null
-        }
     )
 
     private fun mkFactory(): RequiredSelectionSetFactory =
@@ -86,14 +88,15 @@ class RequiredselectionSetFactoryVariablesProviderTest {
      */
     private val variablesProviderContextFactory = object : VariablesProviderContextFactory {
         override fun createVariablesProviderContext(
-            engineExecutionContext: viaduct.engine.api.EngineExecutionContext,
+            engineExecutionContext: EngineExecutionContext,
             requestContext: Any?,
             rawArguments: Map<String, Any?>
         ): VariablesProviderContext<Arguments> {
             val ic = InternalContextImpl(
                 engineExecutionContext.fullSchema,
                 GlobalIDCodecDefault,
-                mockReflectionLoader("viaduct.api.bootstrap.test.grts")
+                mockReflectionLoader("viaduct.api.bootstrap.test.grts"),
+                DefaultGRTConvFactory
             )
             return VariablesProviderContextImpl(ic, requestContext, MockArguments())
         }
@@ -112,7 +115,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
             ).first
 
             assertThrows<IllegalStateException> {
-                rss!!.variablesResolvers.resolve(vresolveCtx)
+                rss!!.variablesResolvers.resolve(vresolveCtx, mockEngineExecutionContext)
             }
         }
 
@@ -138,7 +141,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
             ).first
 
             // All values pass through - validation happens at GraphQL execution level
-            val result = rss!!.variablesResolvers.resolve(vresolveCtx)
+            val result = rss!!.variablesResolvers.resolve(vresolveCtx, mockEngineExecutionContext)
             assertEquals(
                 mapOf(
                     "nullVar" to null,
@@ -165,7 +168,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
 
             // The exception should be propagated up from the resolve call
             val thrownException = assertThrows<RuntimeException> {
-                rss!!.variablesResolvers.resolve(vresolveCtx)
+                rss!!.variablesResolvers.resolve(vresolveCtx, mockEngineExecutionContext)
             }
 
             // Verify it's the same exception we threw
@@ -193,7 +196,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
 
             // Should throw IllegalStateException because VariablesProvider returns extra variables
             assertThrows<IllegalStateException> {
-                rss!!.variablesResolvers.resolve(vresolveCtx)
+                rss!!.variablesResolvers.resolve(vresolveCtx, mockEngineExecutionContext)
             }
         }
 }

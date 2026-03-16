@@ -6,10 +6,11 @@ import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.instrumentation.Instrumentation
 import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import viaduct.engine.api.TemporaryBypassAccessCheck
-import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
+import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
@@ -39,7 +40,8 @@ data class EngineConfiguration(
     val additionalInstrumentation: Instrumentation? = null,
     val chainInstrumentationWithDefaults: Boolean = false,
     val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
-    val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault
+    val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
+    val tenantNameResolver: TenantNameResolver = TenantNameResolver()
 ) {
     companion object {
         val default = EngineConfiguration()

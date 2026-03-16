@@ -224,7 +224,7 @@ class KmUtilsTest {
             """.trimIndent()
         ) {
             val gqlActualConnection = schema.types["ActualConnection"]!!.asTypeExpr()
-            val subject = gqlActualConnection.baseTypeKmType(pkg, baseTypeMapper, field = null)
+            val subject = gqlActualConnection.baseTypeKmType(pkg, baseTypeMapper, field = null, false)
             // In OSS, PagedConnection types are handled as regular types, not EdgesQueryResponse
             assertKmTypeEquals(
                 KmName("testing/ActualConnection").asNullableType(),
@@ -281,7 +281,7 @@ class KmUtilsTest {
             """.trimIndent()
         ) {
             val gqlActualConnection = schema.types["ActualConnection"]!!.asTypeExpr()
-            val subject = gqlActualConnection.baseTypeKmType(pkg, baseTypeMapper, field = null)
+            val subject = gqlActualConnection.baseTypeKmType(pkg, baseTypeMapper, field = null, false)
             assertEquals("testing/ActualConnection", subject.name.toString())
             assertEquals(0, subject.arguments.size)
         }

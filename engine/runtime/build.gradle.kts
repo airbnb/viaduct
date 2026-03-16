@@ -38,6 +38,7 @@ dependencies {
     testFixturesApi(libs.viaduct.engine.runtime)
     testFixturesApi(libs.viaduct.service.api)
     testFixturesApi(libs.viaduct.shared.arbitrary)
+    testFixturesApi(testFixtures(libs.viaduct.shared.arbitrary))
 
     testFixturesImplementation(libs.caffeine)
     testFixturesImplementation(libs.checker.qual)
@@ -59,6 +60,7 @@ dependencies {
     testImplementation(libs.viaduct.service.runtime)
     testImplementation(libs.viaduct.shared.arbitrary)
     testImplementation(testFixtures(libs.viaduct.engine.api))
+    testImplementation(testFixtures(libs.viaduct.shared.arbitrary))
     testImplementation(testFixtures(libs.viaduct.engine.runtime))
     testImplementation(testFixtures(libs.viaduct.service.api))
     testImplementation(testFixtures(libs.viaduct.shared.graphql))
@@ -69,6 +71,7 @@ dependencies {
 
     jmhApi(libs.jmh.core)
     jmhApi(libs.viaduct.shared.arbitrary)
+    jmhApi(testFixtures(libs.viaduct.shared.arbitrary))
 
     jmhImplementation(libs.graphql.java)
     jmhImplementation(libs.kotest.property.jvm)

@@ -21,15 +21,15 @@ import kotlinx.coroutines.runBlocking
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineImpl
-import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.engine.api.TemporaryBypassAccessCheck
-import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.coroutines.CoroutineInterop
-import viaduct.engine.api.flatten
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.api.spi.CheckerExecutorFactory
+import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.TemporaryBypassAccessCheck
+import viaduct.engine.api.spi.TenantModuleBootstrapper
+import viaduct.engine.api.spi.flatten
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
@@ -70,7 +70,7 @@ class StandardViaduct
         class Factory
             @Inject
             constructor(
-                private val injector: Injector // Parent injector
+                private val injector: Injector, // Parent injector
             ) {
                 /**
                  * Creates a new StandardViaduct with the specified schema configuration.
@@ -80,6 +80,26 @@ class StandardViaduct
                  */
                 fun createForSchema(schemaConfig: SchemaConfiguration): StandardViaduct {
                     val schemaModule = SchemaScopedModule(schemaConfig)
+                    val childInjector = injector.createChildInjector(schemaModule)
+                    return childInjector.getInstance(StandardViaduct::class.java)
+                }
+
+                /**
+                 * Creates a new StandardViaduct that reuses schemas from an existing EngineRegistry.
+                 * This avoids expensive schema rebuilding when only code changes need to be picked up.
+                 * Preserves lazy schema initialization state - lazy schemas remain lazy.
+                 *
+                 * @param schemaConfig the schema configuration (needed for Guice bindings)
+                 * @param existingEngineRegistry the existing EngineRegistry to reuse schemas from
+                 */
+                fun createWithReusedSchemas(
+                    schemaConfig: SchemaConfiguration,
+                    existingEngineRegistry: EngineRegistry,
+                ): StandardViaduct {
+                    val schemaModule = SchemaScopedModule(
+                        schemaConfig = schemaConfig,
+                        existingRegistry = existingEngineRegistry,
+                    )
                     val childInjector = injector.createChildInjector(schemaModule)
                     return childInjector.getInstance(StandardViaduct::class.java)
                 }
@@ -274,7 +294,7 @@ class StandardViaduct
                 }
 
                 // Build tenant bootstrapper from builders
-                val tenantBootstrapper = buildList {
+                val tenantBootstrappers = buildList {
                     addAll(tenantAPIBootstrapperBuilders)
                     if (defaultQueryNodeResolversEnabled) {
                         add(ViaductNodeResolverAPIBootstrapper.Builder())
@@ -282,7 +302,7 @@ class StandardViaduct
                 }.map { it.create() }.flatten()
 
                 val parentModule = StandardViaductModule(
-                    tenantBootstrapper = tenantBootstrapper,
+                    tenantBootstrapper = tenantBootstrappers,
                     engineConfiguration = engineConfiguration,
                     tenantNameResolver = tenantNameResolver,
                     checkerExecutorFactory = checkerExecutorFactory,
@@ -454,6 +474,17 @@ class StandardViaduct
          * @return GraphQLSchema instance of the registered scope
          */
         fun getSchema(schemaId: SchemaId): ViaductSchema = engineRegistry.getSchema(schemaId)
+
+        /**
+         * Creates a new StandardViaduct instance that reuses this instance's schemas.
+         * This avoids expensive schema rebuilding when only code changes need to be picked up.
+         *
+         * @param schemaConfig the schema configuration to use for the new instance
+         * @return a new StandardViaduct instance that reuses schemas but has fresh code-dependent components
+         */
+        fun createWithReusedSchemas(schemaConfig: SchemaConfiguration): StandardViaduct {
+            return standardViaductFactory.createWithReusedSchemas(schemaConfig, engineRegistry)
+        }
 
         /**
          * Airbnb only

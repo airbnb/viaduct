@@ -19,6 +19,7 @@ import viaduct.api.Variable
 import viaduct.api.Variables
 import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
+import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.types.Arguments
 import viaduct.engine.api.FromArgumentVariable
@@ -105,7 +106,8 @@ class RequiredSelectionSetFactoryTest {
             val ic = InternalContextImpl(
                 engineExecutionContext.fullSchema,
                 GlobalIDCodecDefault,
-                mockReflectionLoader("viaduct.api.bootstrap.test.grts")
+                mockReflectionLoader("viaduct.api.bootstrap.test.grts"),
+                DefaultGRTConvFactory
             )
             return VariablesProviderContextImpl(ic, requestContext, MockArguments())
         }

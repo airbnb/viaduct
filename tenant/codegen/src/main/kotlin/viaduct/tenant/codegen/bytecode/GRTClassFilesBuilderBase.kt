@@ -40,8 +40,10 @@ abstract class GRTClassFilesBuilderBase protected constructor(
     /**
      * The schema being processed. Available after [addAll] is called.
      */
-    protected lateinit var schema: ViaductSchema
+    internal lateinit var schema: ViaductSchema
         private set
+
+    internal fun getType(type: String): ViaductSchema.TypeDef? = schema.types[type]
 
     /**
      * Returns true if the given object type is the query root type in the schema.

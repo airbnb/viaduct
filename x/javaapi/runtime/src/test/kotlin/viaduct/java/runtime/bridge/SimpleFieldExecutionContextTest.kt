@@ -3,6 +3,7 @@ package viaduct.java.runtime.bridge
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import viaduct.java.api.types.GraphQLObject
 
 class SimpleFieldExecutionContextTest {
     @Test
@@ -25,14 +26,25 @@ class SimpleFieldExecutionContextTest {
     }
 
     @Test
-    fun `getObjectValue throws UnsupportedOperationException`() {
+    fun `getObjectValue throws UnsupportedOperationException when no object value provided`() {
         val context = SimpleFieldExecutionContext(
             requestContext = null
         )
 
         assertThatThrownBy { context.getObjectValue() }
             .isInstanceOf(UnsupportedOperationException::class.java)
-            .hasMessageContaining("Object value access not yet implemented")
+            .hasMessageContaining("Object value not available")
+    }
+
+    @Test
+    fun `getObjectValue returns provided object value`() {
+        val testObject = object : GraphQLObject {}
+        val context = SimpleFieldExecutionContext(
+            requestContext = null,
+            objectValue = testObject
+        )
+
+        assertThat(context.getObjectValue()).isSameAs(testObject)
     }
 
     @Test

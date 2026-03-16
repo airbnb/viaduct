@@ -4,8 +4,8 @@ import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutionException
 import kotlin.coroutines.cancellation.CancellationException
-import viaduct.api.ViaductTenantResolverException
 import viaduct.engine.runtime.exceptions.FieldFetchingException
+import viaduct.errors.TenantResolverException
 
 object UnwrapExceptionUtil {
     fun unwrapExceptionForError(exception: Throwable): Throwable {
@@ -35,5 +35,5 @@ object UnwrapExceptionUtil {
             e is ExecutionException ||
             e is InvocationTargetException
 
-    fun isViaductWrapper(e: Throwable) = e is ViaductTenantResolverException || e is FieldFetchingException
+    fun isViaductWrapper(e: Throwable) = e is TenantResolverException || e is FieldFetchingException
 }

@@ -114,7 +114,7 @@ class ExerciserTests {
     // TODO v2 tests
     // @Test
     // fun testEnumV2() =
-    //     runBlockingTest {
+    //     runTest {
     //         exerciseV2("enum SimpleEnum { A B C }").assertEmpty("\n")
     //     }
 

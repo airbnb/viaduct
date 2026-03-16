@@ -22,7 +22,7 @@ These step-by-step guides will teach you how to build powerful GraphQL APIs with
 
 Follow these tutorials in order to master Viaduct's resolver patterns:
 
-#### 1. [Field Resolver Tutorial](https://github.com/airbnb/viaduct/blob/main/tenant/runtime/src/test/kotlin/viaduct/tenant/runtime/tutorials/fieldresolver/SimpleFieldResolverFeatureAppTest.kt)
+#### 1. [Field Resolver Tutorial](https://github.com/airbnb/viaduct/blob/main/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial01/SimpleFieldResolverFeatureAppTest.kt)
 
 **Start here!** Learn the most basic resolver type.
 
@@ -34,7 +34,7 @@ Follow these tutorials in order to master Viaduct's resolver patterns:
 
 - **Generated classes**: `QueryResolvers.*`
 
-#### 2. [Node Resolver Tutorial](https://github.com/airbnb/viaduct/blob/main/tenant/runtime/src/test/kotlin/viaduct/tenant/runtime/tutorials/noderesolver/SimpleNodeResolverFeatureAppTest.kt)
+#### 2. [Node Resolver Tutorial](https://github.com/airbnb/viaduct/blob/main/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial02/SimpleNodeResolverFeatureAppTest.kt)
 
 Learn the foundation of Viaduct's object system.
 
@@ -48,7 +48,7 @@ Learn the foundation of Viaduct's object system.
 
 - **Why it matters**: Foundation for all object resolution in Viaduct
 
-#### 3. [Simple Resolvers Tutorial](https://github.com/airbnb/viaduct/blob/main/tenant/runtime/src/test/kotlin/viaduct/tenant/runtime/tutorials/simpleresolvers/SimpleResolversFeatureAppTest.kt)
+#### 3. [Simple Resolvers Tutorial](https://github.com/airbnb/viaduct/blob/main/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial03/SimpleResolversFeatureAppTest.kt)
 
 See how Field and Node resolvers work together.
 
@@ -61,6 +61,18 @@ See how Field and Node resolvers work together.
 - **Generated classes**: `QueryResolvers.*`, `UserResolvers.*`, `NodeResolvers.*`
 
 - **Advanced feature**: Field resolvers accessing parent object data
+
+#### 11. [Subqueries Tutorial](https://github.com/airbnb/viaduct/blob/main/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial11/SimpleSubqueriesFeatureAppTest.kt)
+
+Execute subqueries against the Query and Mutation roots from inside a resolver.
+
+- **What you'll learn**: How to use `ctx.query()` and `ctx.mutation()` to issue imperative subqueries
+
+- **Key concepts**: `ctx.query()`, `ctx.mutation()`, subquery variable scoping, when to use subqueries vs declarative `@Resolver` fragments
+
+- **Example**: A field resolver that fetches data from the Query root at runtime; a mutation resolver that calls another mutation via `ctx.mutation()`
+
+- **Why it matters**: Enables resolvers to fetch related data that isn't known at query planning time
 
 ### Key Concepts Across All Tutorials
 

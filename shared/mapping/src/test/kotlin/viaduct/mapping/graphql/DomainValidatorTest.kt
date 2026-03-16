@@ -3,7 +3,6 @@ package viaduct.mapping.graphql
 import io.kotest.common.runBlocking
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.constant
-import io.kotest.property.forAll
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.arbitrary.common.checkInvariants
 import viaduct.arbitrary.graphql.GenInterfaceStubsIfNeeded
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.arbitrary.graphql.graphQLSchema
@@ -28,7 +26,7 @@ class DomainValidatorTest : KotestPropertyBase() {
     fun `checkAll with schema -- passes for valid domain`(): Unit =
         runBlocking {
             Arb.graphQLSchema(cfg).forAll { schema ->
-                val validator = DomainValidator(IdentityDomain, schema)
+                val validator = DomainValidator(IdentityDomain, schema, randomSource)
                 val result = runCatching { validator.checkAll(100) }
                 result.isSuccess
             }
@@ -38,7 +36,7 @@ class DomainValidatorTest : KotestPropertyBase() {
     fun `checkAll with schema -- throws ValueRoundtripError with seed for invalid domain`(): Unit =
         runBlocking {
             Arb.graphQLSchema(cfg).checkInvariants { schema, check ->
-                val validator = DomainValidator(NonBijectiveTestDomain, schema)
+                val validator = DomainValidator(NonBijectiveTestDomain, schema, randomSource)
                 val exception = runCatching { validator.checkAll(100) }.exceptionOrNull()
 
                 if (check.isInstanceOf(
@@ -63,7 +61,7 @@ class DomainValidatorTest : KotestPropertyBase() {
         runBlocking {
             Arb.graphQLSchema(cfg).checkInvariants { schema, check ->
                 val err = RuntimeException()
-                val validator = DomainValidator(ThrowingTestDomain(err), schema)
+                val validator = DomainValidator(ThrowingTestDomain(err), schema, randomSource)
                 val exception = runCatching { validator.checkAll(1) }.exceptionOrNull()
 
                 if (check.isInstanceOf(
@@ -93,7 +91,7 @@ class DomainValidatorTest : KotestPropertyBase() {
     fun `checkAll -- fails for non-bijective domain`() {
         val schema = "type Query { x:Int }".asSchema
         assertThrows<ValueRoundtripError> {
-            DomainValidator(NonBijectiveTestDomain, schema).checkAll()
+            DomainValidator(NonBijectiveTestDomain, schema, randomSource).checkAll()
         }
     }
 
@@ -101,7 +99,7 @@ class DomainValidatorTest : KotestPropertyBase() {
     fun `checkAll -- passes for IR domain`() {
         val schema = "type Query { x:Int }".asSchema
         assertDoesNotThrow {
-            DomainValidator(IR, schema).checkAll()
+            DomainValidator(IR, schema, randomSource).checkAll()
         }
     }
 
@@ -109,7 +107,7 @@ class DomainValidatorTest : KotestPropertyBase() {
     fun `checkAll -- passes for simple test domain`() {
         val schema = "type Query { x:Int }".asSchema
         assertDoesNotThrow {
-            DomainValidator(IdentityDomain, schema).checkAll()
+            DomainValidator(IdentityDomain, schema, randomSource).checkAll()
         }
     }
 
@@ -129,7 +127,7 @@ class DomainValidatorTest : KotestPropertyBase() {
                 { it.also { inverted += it.name } }
             )
         }
-        val validator = DomainValidator(domain, schema)
+        val validator = DomainValidator(domain, schema, randomSource)
 
         runCatching {
             validator.checkAll()
@@ -143,7 +141,8 @@ class DomainValidatorTest : KotestPropertyBase() {
     fun `check -- throws ValueRoundtripError for non-bijective domain`() {
         val schema = "type Query { x:Int }".asSchema
         val err = assertThrows<ValueRoundtripError> {
-            DomainValidator(NonBijectiveTestDomain, schema).check(IR.Value.Object("Query", emptyMap()))
+            DomainValidator(NonBijectiveTestDomain, schema, randomSource)
+                .check(IR.Value.Object("Query", emptyMap()))
         }
         assertNull(err.seed)
     }
@@ -153,7 +152,7 @@ class DomainValidatorTest : KotestPropertyBase() {
         val schema = "type Query { x:Int }".asSchema
         val cause = RuntimeException()
         val err = assertThrows<RoundtripError> {
-            DomainValidator(ThrowingTestDomain(cause), schema)
+            DomainValidator(ThrowingTestDomain(cause), schema, randomSource)
                 .check(IR.Value.Object("Query", emptyMap()))
         }
         assertNull(err.seed)
@@ -164,7 +163,8 @@ class DomainValidatorTest : KotestPropertyBase() {
     fun `check -- does not throw for valid domain`() {
         val schema = "type Query { x:Int }".asSchema
         assertDoesNotThrow {
-            DomainValidator(IdentityDomain, schema).check(IR.Value.Object("Query", emptyMap()))
+            DomainValidator(IdentityDomain, schema, randomSource)
+                .check(IR.Value.Object("Query", emptyMap()))
         }
     }
 
@@ -179,7 +179,7 @@ class DomainValidatorTest : KotestPropertyBase() {
                     assertSame(obj, inp)
                 }
         }
-        val validator = DomainValidator(domain, Arb.constant(obj))
+        val validator = DomainValidator(domain, Arb.constant(obj), randomSource)
         assertDoesNotThrow {
             validator.checkAll()
         }

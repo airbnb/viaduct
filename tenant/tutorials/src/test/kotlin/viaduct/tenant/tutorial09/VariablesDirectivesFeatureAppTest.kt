@@ -11,6 +11,7 @@ import viaduct.api.context.VariablesProviderContext
 import viaduct.api.types.Arguments
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.tenant.tutorial09.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial09.resolverbases.QueryResolvers
 import viaduct.tenant.tutorial09.resolverbases.UserResolvers
 

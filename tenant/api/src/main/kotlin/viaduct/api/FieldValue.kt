@@ -52,7 +52,7 @@ private class FieldErrorValueImpl<T>(
         // TODO (https://app.asana.com/1/150975571430/task/1210815621831967?focus=true): Think through the following:
         // 1. Does this do what we want in terms of having the correct stack trace?
         // 2. Should this always wrap exceptions in FieldError?
-        // 3. How does this interact with ViaductTenantResolverException and ViaductFrameworkException?
+        // 3. How does this interact with TenantResolverException and FrameworkException?
         throw error
     }
 

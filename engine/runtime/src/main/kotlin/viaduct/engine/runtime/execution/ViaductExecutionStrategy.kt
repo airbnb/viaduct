@@ -26,8 +26,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import viaduct.deferred.RequestParentJobContextElement
-import viaduct.engine.api.TemporaryBypassAccessCheck
-import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.RequestScopeCancellationException
@@ -65,7 +65,7 @@ import viaduct.utils.slf4j.logger
  *
  * @see FieldResolver Handles the resolution phase of execution
  * @see FieldCompleter Handles the completion phase of execution
- * @see [viaduct.engine.api.ObjectEngineResult] Stores intermediate execution results
+ * @see [viaduct.engine.runtime.ObjectEngineResult] Stores intermediate execution results
  */
 class ViaductExecutionStrategy internal constructor(
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler,

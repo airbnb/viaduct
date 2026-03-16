@@ -2,7 +2,7 @@ package com.example.starwars.modules.universe.planets.resolvers
 
 import com.example.starwars.modules.universe.planets.models.PlanetBuilder
 import com.example.starwars.modules.universe.planets.models.PlanetsRepository
-import com.example.starwars.universe.NodeResolvers
+import com.example.starwars.universe.resolverbases.NodeResolvers
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.Resolver

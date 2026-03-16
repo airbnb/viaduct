@@ -1,13 +1,22 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("jacoco-integration-base")
+    id("test-classdiff")
+    id("me.champeau.jmh").version("0.7.3")
     `maven-publish`
 }
 
 viaductPublishing {
     name.set("Codegen")
     description.set("The Viaduct code generator and command-line interface.")
+}
+
+viaductClassDiff {
+    schemaDiff("schema") {
+        actualPackage.set("actuals.api.generated")
+        expectedPackage.set("viaduct.api.grts")
+        schemaResource("graphql/schema.graphqls")
+    }
 }
 
 dependencies {
@@ -38,6 +47,19 @@ dependencies {
     testImplementation(libs.jackson.annotations)
     testImplementation(libs.slf4j.api)
     testImplementation(libs.kotest.property.jvm)
+
+    testImplementation(libs.viaduct.shared.graphql)
+
+    /** Codegen classpath for test-classdiff worker isolation **/
+    viaductCodegenClasspath(libs.viaduct.tenant.codegen)
+
+    jmh(libs.jmh.annotation.processor)
+    jmhAnnotationProcessor(libs.jmh.annotation.processor)
+    jmhApi(libs.jmh.core)
+
+    jmhImplementation(testFixtures(libs.viaduct.shared.viaductschema))
+    jmhImplementation(libs.graphql.java)
+    jmhImplementation(libs.guava)
 }
 
 tasks.test {

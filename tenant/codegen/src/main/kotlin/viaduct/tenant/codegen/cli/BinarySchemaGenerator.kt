@@ -14,6 +14,12 @@ import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
  * CLI tool to serialize a list of schema files as binary viaduct schema
  */
 class BinarySchemaGenerator : CliktCommand() {
+    // Static entry point for Gradle Worker API classloader isolation (see CodegenWorkAction).
+    object Main {
+        @JvmStatic
+        fun main(args: Array<String>) = BinarySchemaGenerator().main(args)
+    }
+
     private val schemaFiles: List<File> by option("--schema_files")
         .file(mustExist = true, canBeDir = false).split(",").required()
     private val outputFile: File by option("--output_file")

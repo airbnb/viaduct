@@ -3,7 +3,7 @@ package viaduct.engine.api.instrumentation
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
-import viaduct.engine.api.CheckerExecutor
+import viaduct.engine.api.spi.CheckerExecutor
 
 open class ChainedModernGJInstrumentation(
     val gjInstrumentations: List<ViaductModernGJInstrumentation>

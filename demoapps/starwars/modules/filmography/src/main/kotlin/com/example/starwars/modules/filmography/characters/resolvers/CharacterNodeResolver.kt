@@ -1,6 +1,6 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
-import com.example.starwars.filmography.NodeResolvers
+import com.example.starwars.filmography.resolverbases.NodeResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import jakarta.inject.Inject

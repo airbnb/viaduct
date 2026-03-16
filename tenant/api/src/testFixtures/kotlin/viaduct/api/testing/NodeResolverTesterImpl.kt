@@ -20,6 +20,8 @@ import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
+import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -29,6 +31,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  * This class is package-private and should not be used directly.
  * Use [NodeResolverTester.create] instead.
  */
+@OptIn(InternalApi::class, VisibleForTest::class)
 internal class NodeResolverTesterImpl<R : NodeObject>(
     override val config: ResolverTester.TesterConfig
 ) : NodeResolverTester<R> {

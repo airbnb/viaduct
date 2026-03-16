@@ -22,7 +22,7 @@ sealed class ResolverExecutionContextImpl<Q : Query>(
         return query(selectionsFor(queryType, selections, variables))
     }
 
-    private suspend fun <T : Query> query(selections: SelectionSet<T>) = engineExecutionContextWrapper.query(this, "query", selections)
+    private suspend fun <T : Query> query(selections: SelectionSet<T>) = engineExecutionContextWrapper.query(this, selections)
 
     override fun <T : CompositeOutput> selectionsFor(
         type: Type<T>,

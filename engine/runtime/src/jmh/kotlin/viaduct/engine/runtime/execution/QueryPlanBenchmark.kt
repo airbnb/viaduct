@@ -15,8 +15,8 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
-import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.parse.CachedDocumentParser.parseDocument
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.createSchema
 
 @State(Scope.Benchmark)

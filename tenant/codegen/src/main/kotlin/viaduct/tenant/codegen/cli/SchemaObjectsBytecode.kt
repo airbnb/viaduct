@@ -61,7 +61,7 @@ class SchemaObjectsBytecode : CliktCommand() {
                 "be used for tests only to generate all object types, including ineligible ones."
         )
     val compilationSchema: File? by option("--compilation_schema").file(mustExist = false, canBeDir = false)
-    val compilationSchemaBinary: File? by option("--binary_compilation_schema").file(mustExist = false, canBeDir = false)
+    val compilationSchemaBinary: File? by option("--compilation_schema_binary").file(mustExist = false, canBeDir = false)
     val flagFile: File by option("--flag_file").file(mustExist = true, canBeDir = false).required()
 
     override fun run() {

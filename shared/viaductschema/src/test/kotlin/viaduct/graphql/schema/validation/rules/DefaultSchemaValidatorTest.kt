@@ -32,8 +32,8 @@ class DefaultSchemaValidatorTest {
     fun `should detect subscription and custom scalar violations`() {
         val schema = ViaductSchema.fromTypeDefinitionRegistry(
             """
-            scalar DateTime
-            type Query { time: DateTime }
+            scalar URL
+            type Query { link: URL }
             type Subscription { onTick: String }
             schema {
                 query: Query
@@ -49,6 +49,27 @@ class DefaultSchemaValidatorTest {
             ValidationErrorCodes.SUBSCRIPTION_NOT_ALLOWED,
             ValidationErrorCodes.CUSTOM_SCALAR_NOT_ALLOWED
         )
+    }
+
+    @Test
+    fun `should allow Viaduct standard scalars`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            scalar Date
+            scalar DateTime
+            scalar Long
+            scalar BackingData
+            scalar Byte
+            scalar Short
+            scalar JSON
+            scalar Time
+            type Query { data: String }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator.validate(schema)
+
+        errors.shouldBeEmpty()
     }
 
     @Test

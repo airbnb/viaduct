@@ -2,7 +2,6 @@ import viaduct.gradle.internal.includeNamed
 
 pluginManagement {
     includeBuild("build-logic")
-    includeBuild("build-test-plugins")
     includeBuild("gradle-plugins")
 }
 
@@ -38,21 +37,17 @@ includeBuild("demoapps/ktor-starter")
 includeBuild("demoapps/micronaut-starter")
 includeBuild("demoapps/starwars")
 
-// integration tests
-include(":tenant:codegen-integration-tests")
-include(":tenant:api-integration-tests")
-include(":tenant:runtime-integration-tests")
 include(":tenant:tutorials")
+include(":x:javaapi:runtime-integration-tests")
 
 // misc
 include(":docs")
 includeNamed(":viaduct-bom", projectName = "bom")
-include(":tools")
 include(":api")
 include(":runtime")
 include(":test-fixtures")
 includeBuild("build-logic") {
     dependencySubstitution {
-        substitute(module("com.airbnb.viaduct:common")).using(project(":common"))
+        substitute(module("com.airbnb.viaduct.build:common")).using(project(":common"))
     }
 }

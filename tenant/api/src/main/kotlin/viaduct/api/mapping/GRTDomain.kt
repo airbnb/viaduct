@@ -1,7 +1,6 @@
 package viaduct.api.mapping
 
 import viaduct.api.context.ExecutionContext
-import viaduct.api.internal.GRTConv
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.InternalSelectionSet
@@ -28,17 +27,17 @@ class GRTDomain<T : GRT> private constructor(
         Conv(
             forward = {
                 val conv = when (it) {
-                    is InputLikeBase -> GRTConv(
+                    is InputLikeBase -> ctx.grtConvFactory.create(
                         internalCtx = ctx,
                         type = it.graphQLInputObjectType,
                         selectionSet = null,
                         keyMapping = keyMapping,
                     )
-                    is ObjectBase -> GRTConv(
+                    is ObjectBase -> ctx.grtConvFactory.create(
                         internalCtx = ctx,
                         type = it.engineObject.type,
                         selectionSet = selectionSet,
-                        keyMapping = keyMapping
+                        keyMapping = keyMapping,
                     )
                     else ->
                         throw IllegalArgumentException("Unsupported GRT type: ${it.javaClass}")
@@ -50,7 +49,7 @@ class GRTDomain<T : GRT> private constructor(
                 val type = requireNotNull(ctx.schema.schema.getType(typeName)) {
                     "Unknown type: $typeName"
                 }
-                val conv = GRTConv(ctx, type, selectionSet, keyMapping)
+                val conv = ctx.grtConvFactory.create(ctx, type, selectionSet, keyMapping)
                 @Suppress("UNCHECKED_CAST")
                 conv.invert(it) as T
             },

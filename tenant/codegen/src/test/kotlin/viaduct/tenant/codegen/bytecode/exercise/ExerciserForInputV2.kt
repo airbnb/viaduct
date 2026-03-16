@@ -3,12 +3,12 @@ package viaduct.tenant.codegen.bytecode.exercise
 import graphql.schema.GraphQLInputObjectType
 import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.full.declaredMemberProperties
-import viaduct.api.ViaductTenantUsageException
 import viaduct.api.context.ExecutionContext
 import viaduct.api.internal.InputTypeFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
+import viaduct.errors.TenantUsageException
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 
@@ -131,7 +131,7 @@ private fun Exerciser.compareFieldValues(
         val actValue = try {
             getter.getter.call(actual)
         } catch (e: InvocationTargetException) {
-            if (e.targetException is ViaductTenantUsageException) {
+            if (e.targetException is TenantUsageException) {
                 check.addFailure(
                     "missing setter for field $fName causing exception when get: $e",
                     "INPUT_BUILDER_SETTER_MISSING:$fName",
@@ -158,5 +158,7 @@ private fun buildGraphqlInputObjectType(
 ): GraphQLInputObjectType =
     InputTypeFactory.argumentsInputType(
         cfg.argumentTypeName(field.containingDef.name, field.name),
+        field.containingDef.name,
+        field.name,
         schema
     )

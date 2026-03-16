@@ -6,7 +6,6 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
-import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
 
 /**
@@ -53,7 +52,6 @@ import viaduct.apiannotations.VisibleForTest
  *
  * @since 1.0
  */
-@StableApi
 @VisibleForTest
 interface NodeResolverTester<R : NodeObject> : ResolverTester {
     /**

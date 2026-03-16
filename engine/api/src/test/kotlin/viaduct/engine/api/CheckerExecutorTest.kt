@@ -2,6 +2,7 @@ package viaduct.engine.api
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.spi.CheckerExecutor
 
 class CheckerExecutorTest {
     private class TestCheckerExecutor : CheckerExecutor {

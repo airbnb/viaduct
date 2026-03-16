@@ -23,10 +23,7 @@ import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.take
 import io.kotest.property.assume
-import io.kotest.property.checkAll
-import io.kotest.property.forAll
 import kotlin.math.sqrt
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -40,11 +37,9 @@ import viaduct.graphql.utils.GraphQLTypeRelations
 import viaduct.graphql.utils.allChildren
 import viaduct.graphql.utils.allChildrenOfType
 
-// a baseline iteration count. Individual tests may scale this up or down depending on their relative speed.
-private const val iterCount = 5_000
-
-@ExperimentalCoroutinesApi
-class GraphQLDocumentGenTest : KotestPropertyBase() {
+class GraphQLDocumentGenTest : KotestPropertyBase(
+    iterations = 5_000
+) {
     private val schema =
         """
             directive @dir(arg:Int!) repeatable on QUERY | MUTATION | SUBSCRIPTION | FIELD | FRAGMENT_DEFINITION | FRAGMENT_SPREAD | INLINE_FRAGMENT | VARIABLE_DEFINITION
@@ -112,17 +107,17 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
     @Test
     fun `Arb_graphQLDocument -- generates valid documents with minimal config for trivial schema`() {
-        assertAllDocumentsValid("type Query { x:Int }", mkConfig(), iterCount * 10)
+        assertAllDocumentsValid("type Query { x:Int }", mkConfig())
     }
 
     @Test
     fun `Arb_graphQLDocument -- generates valid documents with default config for trivial schema`() {
-        assertAllDocumentsValid("type Query { x:Int }", Config.default, iterCount * 10)
+        assertAllDocumentsValid("type Query { x:Int }", Config.default)
     }
 
     @Test
     fun `Arb_graphQLDocument -- generates valid documents with default config`() {
-        assertAllDocumentsValid(schema, Config.default, iterCount)
+        assertAllDocumentsValid(schema, Config.default)
     }
 
     @Test
@@ -134,7 +129,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 x(inp: Inp = { y: 3, z:0 }): Int
             }
         """.trimIndent().asSchema
-        assertAllDocumentsValid(schema, Config.default, iterCount * 10)
+        assertAllDocumentsValid(schema, Config.default)
     }
 
     @Test
@@ -146,8 +141,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
             (InlineFragmentWeight to CompoundingWeight(.2, 1))
 
         // our test matrix is N schemas by M documents. To get good coverage while being in
-        // the ballpark of `iterCount`, let's use a square root value for each M/N dimension
-        val iter = sqrt(iterCount.toDouble()).toInt()
+        // the ballpark of `iterations`, let's use a square root value for each M/N dimension
+        val iter = sqrt(iterations.toDouble()).toInt()
 
         // GJ schemas
         Arb
@@ -168,7 +163,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
     @Test
     fun `Arb_graphQLDocument -- generates valid documents with minimal config`() {
-        assertAllDocumentsValid(schema, mkConfig(), iterCount * 10)
+        assertAllDocumentsValid(schema, mkConfig())
     }
 
     @Test
@@ -177,8 +172,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
             """
                 type Obj { x:Int, next:Obj, others: [Obj] }
                 type Query { obj:Obj }
-            """.trimIndent(),
-            iter = iterCount
+            """.trimIndent()
         )
 
     @Test
@@ -188,8 +182,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 interface I { i:I }
                 type Obj implements I { x:Int, i:I }
                 type Query { i: I }
-            """.trimIndent(),
-            iter = iterCount
+            """.trimIndent()
         )
 
     @Test
@@ -201,8 +194,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 union U = Foo | Bar
                 type Query { u:U }
             """.trimIndent(),
-            cfg = Config.default + (FragmentSpreadWeight to CompoundingWeight.Never),
-            iterCount * 10
+            cfg = Config.default + (FragmentSpreadWeight to CompoundingWeight.Never)
         )
 
     @Test
@@ -211,8 +203,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
             """
                 input Input { x:Int, i:Input }
                 type Query { x(inp:Input!):Int }
-            """.trimIndent(),
-            iter = iterCount * 10
+            """.trimIndent()
         )
 
     @Test
@@ -221,8 +212,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
             """
                 type Obj { obj:Obj! }
                 type Query { obj:Obj! }
-            """.trimIndent(),
-            iter = iterCount
+            """.trimIndent()
         )
 
     @Test
@@ -232,8 +222,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 type Obj { x:Int, y:Obj }
                 type Subscription { x:Int, obj:Obj }
                 type Query { x:Int }
-            """.trimIndent(),
-            iter = iterCount * 10
+            """.trimIndent()
         )
 
     @Test
@@ -249,7 +238,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 """.trimIndent().asSchema
 
                 // incremental directives may not appear anywhere in a subscription operation
-                Arb.graphQLDocument(schema, cfg).forAll(iterCount) { doc ->
+                Arb.graphQLDocument(schema, cfg).forAll { doc ->
                     doc
                         .getDefinitionsOfType(OperationDefinition::class.java)
                         .filter { it.operation == OperationDefinition.Operation.SUBSCRIPTION }
@@ -273,7 +262,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 """.trimIndent().asSchema
 
                 // incremental directives may not be used on a mutation root selection
-                Arb.graphQLDocument(schema, cfg).forAll(iterCount) { doc ->
+                Arb.graphQLDocument(schema, cfg).forAll { doc ->
                     doc
                         .getDefinitionsOfType(OperationDefinition::class.java)
                         .filter { it.operation == OperationDefinition.Operation.MUTATION }
@@ -526,7 +515,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
             (OperationCount to 2..2) +
             (FragmentSpreadWeight to CompoundingWeight(.4, 1)) +
             (VariableWeight to .3)
-        assertAllDocumentsValid("type Query { x(a:Int!):Int }", cfg, iter = iterCount * 10)
+        assertAllDocumentsValid("type Query { x(a:Int!):Int }", cfg)
     }
 
     @Test
@@ -545,7 +534,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
             Arb
                 .graphQLDocument(schema, cfg)
-                .forAll(iterCount) { doc ->
+                .forAll { doc ->
                     val badVariableRefs = doc
                         .allChildrenOfType<VariableDefinition>()
                         .flatMap { it.allChildrenOfType<Directive>() }
@@ -560,7 +549,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
         runBlocking {
             val cfg = mkConfig(variableWeight = 1.0)
             val schema = "type Query { x(a:Int, b:Int!=0):Int }".asSchema
-            Arb.graphQLDocument(schema, cfg).forAll(iterCount) { doc ->
+            Arb.graphQLDocument(schema, cfg).forAll { doc ->
                 val bargs = doc.allChildrenOfType<Argument>().filter { it.name == "b" }
                 assume(bargs.isNotEmpty())
 
@@ -574,14 +563,13 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
     private fun assertAllDocumentsValid(
         sdl: String,
-        cfg: Config = Config.default,
-        iter: Int = iterCount
-    ) = assertAllDocumentsValid(sdl.asSchema, cfg, iter)
+        cfg: Config = Config.default
+    ) = assertAllDocumentsValid(sdl.asSchema, cfg)
 
     private fun assertAllDocumentsValid(
         schema: ViaductSchema,
         cfg: Config = Config.default,
-        iter: Int = iterCount
+        iter: Int = iterations
     ): Unit =
         runBlocking {
             Arb.graphQLDocument(schema, cfg).assertAllValid(schema.schema, iter)
@@ -590,7 +578,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
     private fun assertAllDocumentsValid(
         schema: GraphQLSchema,
         cfg: Config = Config.default,
-        iter: Int = iterCount
+        iter: Int = iterations
     ): Unit =
         runBlocking {
             Arb.graphQLDocument(schema, cfg).assertAllValid(schema, iter)
@@ -598,7 +586,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
     private fun Arb<Document>.assertAllValid(
         schema: GraphQLSchema,
-        iter: Int = iterCount
+        iter: Int = iterations
     ): Unit =
         runBlocking {
             minInvalid(schema, iter)?.let { doc ->
@@ -606,7 +594,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
                 debug(schema, doc, errors)
                 fail(
                     buildString {
-                        append("Testing failed with seed: ${randomSource.seed}\n")
+                        append("Testing failed with seed: $seed\n")
                         append("Document is not valid:\n")
                         errors.forEach { append(" - $it\n") }
                         append("Document:\n")
@@ -619,8 +607,8 @@ class GraphQLDocumentGenTest : KotestPropertyBase() {
 
     private fun Arb<Document>.minInvalid(
         schema: GraphQLSchema,
-        iter: Int = iterCount
-    ): Document? = minViolation(DocumentComparator, iter) { validate(schema, it).isEmpty() }
+        iter: Int = iterations
+    ): Document? = minViolation(DocumentComparator, randomSource, iter) { validate(schema, it).isEmpty() }
 }
 
 private fun validate(

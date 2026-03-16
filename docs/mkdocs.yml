@@ -144,12 +144,17 @@ nav:
         - Batch Resolution: docs/developers/resolvers/batch_resolution.md
         - Mutations: docs/developers/resolvers/mutations.md
         - Node References: docs/developers/resolvers/node_references.md
+        - Subqueries: docs/developers/resolvers/subqueries.md
       - Generated Code: docs/developers/generated_code/index.md
       - Global IDs: docs/developers/globalids/index.md
       - Pagination: docs/developers/pagination/index.md
+      - Api Stability:
+        - docs/developers/api_stability/index.md
+        - Contributors guide: docs/developers/api_stability/contributors_guide.md
       - Scopes: docs/developers/scopes/index.md
       - Schema Reference: docs/developers/schema_reference/index.md
       - Serve: docs/developers/serve/index.md
+      - Viaduct Api: docs/developers/viaduct_api/index.md
       - Testing: docs/developers/testing/index.md
     - Service Engineers:
       - docs/service_engineers/index.md
@@ -176,7 +181,7 @@ extra:
       link: https://github.com/airbnb/viaduct/discussions
       name: Discussions
     - icon: fontawesome/solid/scale-balanced
-      link: https://airbnb.tech/uncategorized/code-of-conduct/
+      link: https://airbnb.tech/open-source/code-of-conduct/
       name: Code of Conduct
   analytics:
     provider: google

@@ -4,13 +4,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.ViaductTenantUsageException
 import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.MockType
 import viaduct.api.mocks.testGlobalId
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
+import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 class GlobalIDCodecTest {
@@ -82,12 +82,12 @@ class GlobalIDCodecTest {
     }
 
     @Test
-    fun `deserialize throws ViaductTenantUsageException for malformed GlobalID`() {
+    fun `deserialize throws TenantUsageException for malformed GlobalID`() {
         val type = MockType.mkNodeObject("TestType")
         val reflectionLoader = MockReflectionLoader(type)
         val codec = GlobalIDCodec(GlobalIDCodecDefault, reflectionLoader)
 
-        val exception = assertThrows<ViaductTenantUsageException> {
+        val exception = assertThrows<TenantUsageException> {
             codec.deserialize<NodeObject>("invalid-id-1")
         }
         assertTrue(exception.message?.contains("Invalid GlobalID") ?: false)

@@ -2,9 +2,9 @@ package viaduct.java.runtime.test
 
 import graphql.ExecutionResult
 import java.util.function.Consumer
-import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.graphql.test.assertJson
 
 /**

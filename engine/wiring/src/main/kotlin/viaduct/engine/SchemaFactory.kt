@@ -9,7 +9,7 @@ import io.github.classgraph.ClassGraph
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.graphql.Scalars
 import viaduct.graphql.utils.DefaultSchemaFactory

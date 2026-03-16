@@ -308,6 +308,12 @@ fun ViaductSchema.AppliedDirective<*>.toDirectiveForTypeDefinition() =
         .name(name)
         .arguments(
             arguments.entries
+                // NullLiteral represents an argument that was not explicitly specified by the
+                // schema author (filled in by DefinitionsDecoder for nullable args with no
+                // default). Omitting these arguments from the AST mirrors SDL parsing behaviour
+                // and lets graphql-java treat them as isNotSet = true, which is the expected
+                // contract for optional directive arguments.
+                .filterNot { (_, v) -> v is ViaductSchema.NullLiteral }
                 .map { arg ->
                     Argument
                         .newArgument()

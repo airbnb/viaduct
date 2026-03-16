@@ -5,7 +5,7 @@ import io.mockk.mockk
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.NodeResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.mocks.ContextMocks
 
 class EngineExecutionContextImplTest {

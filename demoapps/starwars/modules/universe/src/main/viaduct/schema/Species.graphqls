@@ -77,7 +77,44 @@ extend type Query @scope(to: ["default"]) {
   """
   All species
   """
-  allSpecies(limit: Int): [Species]
-    @resolver
-    @backingData(class: "com.example.starwars.modules.universe.species.queries.AllSpeciesQueryResolver")
+  allSpecies(limit: Int): [Species] @resolver
+
+  """
+  All species as a paginated connection supporting both forward and backward pagination.
+  Use `first`/`after` to page forward or `last`/`before` to page backward.
+  Cannot mix forward and backward arguments in the same request.
+  Demonstrates MultidirectionalConnectionArguments and the fromEdges builder,
+  which gives full manual control over edge construction and cursor encoding.
+  """
+  allSpeciesConnection(
+    "Maximum number of species to return from the start (forward pagination)."
+    first: Int
+    "Cursor to start fetching after (exclusive, for forward pagination)."
+    after: String
+    "Maximum number of species to return from the end (backward pagination)."
+    last: Int
+    "Cursor to fetch items before (exclusive, for backward pagination)."
+    before: String
+  ): SpeciesConnection @resolver
+}
+
+"""
+A connection to a list of Species supporting multidirectional cursor pagination.
+Demonstrates the @connection directive with MultidirectionalConnectionArguments and fromEdges.
+"""
+type SpeciesConnection @connection @scope(to: ["default"]) {
+  "List of species edges."
+  edges: [SpeciesEdge]
+  "Pagination information."
+  pageInfo: PageInfo!
+}
+
+"""
+An edge in a SpeciesConnection.
+"""
+type SpeciesEdge @edge @scope(to: ["default"]) {
+  "The species at the end of the edge."
+  node: Species
+  "A cursor for pagination."
+  cursor: String!
 }

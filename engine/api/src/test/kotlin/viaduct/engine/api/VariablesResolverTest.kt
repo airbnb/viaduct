@@ -34,8 +34,8 @@ class VariablesResolverTest {
     ) = runBlocking {
         assertEquals(expected.variableNames, actual.variableNames)
         assertEquals(
-            expected.resolve(mkResolverCtx(objectData, arguments)),
-            actual.resolve(mkResolverCtx(objectData, arguments))
+            expected.resolve(mkResolverCtx(objectData, arguments), engineCtx),
+            actual.resolve(mkResolverCtx(objectData, arguments), engineCtx)
         )
     }
 
@@ -59,8 +59,7 @@ class VariablesResolverTest {
     private fun mkResolverCtx(
         objData: EngineObjectData = objectData,
         arguments: Map<String, Any?> = emptyMap(),
-        eCtx: EngineExecutionContext = engineCtx
-    ): VariablesResolver.ResolveCtx = VariablesResolver.ResolveCtx(objData, arguments, eCtx)
+    ): VariablesResolver.ResolveCtx = VariablesResolver.ResolveCtx(objData, arguments)
 
     @Test
     fun `const -- empty`() {
@@ -77,16 +76,16 @@ class VariablesResolverTest {
     @Test
     fun `validated -- resolve`(): Unit =
         runBlocking {
-            val vr = MockVariablesResolver("a") { mapOf("b" to 1) }
+            val vr = MockVariablesResolver("a") { _, _ -> mapOf("b" to 1) }
 
             // sanity
             assertEquals(
                 mapOf("b" to 1),
-                vr.resolve(mkResolverCtx())
+                vr.resolve(mkResolverCtx(), engineCtx)
             )
 
             assertThrows<IllegalStateException> {
-                vr.validated().resolve(mkResolverCtx())
+                vr.validated().resolve(mkResolverCtx(), engineCtx)
             }
         }
 
@@ -96,7 +95,7 @@ class VariablesResolverTest {
             val vr = VariablesResolver.const(mapOf("a" to null))
             assertEquals(
                 mapOf("a" to null),
-                vr.validated().resolve(mkResolverCtx())
+                vr.validated().resolve(mkResolverCtx(), engineCtx)
             )
         }
 
@@ -319,19 +318,19 @@ class VariablesResolverTest {
             // empty
             assertEquals(
                 emptyMap<String, Any?>(),
-                emptyList<VariablesResolver>().resolve(mkResolverCtx())
+                emptyList<VariablesResolver>().resolve(mkResolverCtx(), engineCtx)
             )
 
             // single-item
             assertEquals(
                 mapOf("a" to 1),
-                listOf(a).resolve(mkResolverCtx())
+                listOf(a).resolve(mkResolverCtx(), engineCtx)
             )
 
             // multi-item
             assertEquals(
                 mapOf("a" to 1, "b" to 2, "c" to 3),
-                listOf(a, b, c).resolve(mkResolverCtx())
+                listOf(a, b, c).resolve(mkResolverCtx(), engineCtx)
             )
         }
 

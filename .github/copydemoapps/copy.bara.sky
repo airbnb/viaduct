@@ -1,0 +1,38 @@
+# Unified Copybara configuration for publishing Viaduct demo apps
+# This config dynamically creates workflows for all demo apps
+
+# Define all demo apps that should be published
+# Add new demo apps here to automatically include them in publishing
+DEMO_APPS = [
+    "cli-starter",
+    "jetty-starter",
+    "ktor-starter",
+    "micronaut-starter",
+    "starwars",
+]
+
+# Function to create a workflow for a specific demo app
+def create_demoapp_workflow(demoapp_name):
+    """Creates a workflow for publishing a demo app."""
+    root = "demoapps/" + demoapp_name
+    core.workflow(
+        name = "airbnb-viaduct-to-" + demoapp_name,
+        origin = git.origin(
+            url = "https://github.com/airbnb/viaduct.git",
+        ),
+        destination = git.destination(
+            url = "https://github.com/viaduct-dev/" + demoapp_name + ".git",
+            fetch = "main",
+            push = "main",
+        ),
+        origin_files = glob([root + "/**"]),
+        authoring = authoring.pass_thru("ViaBot <viabot@ductworks.io>"),
+        mode = "SQUASH",
+        transformations = [
+            core.move(root, ""),
+            metadata.replace_message("Update from airbnb/viaduct at ${COPYBARA_CONTEXT_REFERENCE}\n"),
+        ],
+    )
+
+# Create workflows for all demo apps using list comprehension
+[create_demoapp_workflow(demoapp) for demoapp in DEMO_APPS]

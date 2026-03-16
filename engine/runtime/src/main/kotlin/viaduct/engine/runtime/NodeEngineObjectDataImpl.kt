@@ -4,17 +4,13 @@ import graphql.schema.GraphQLObjectType
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.supervisorScope
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.NodeReference
-import viaduct.engine.runtime.EngineExecutionContextExtensions.executeAccessChecksInModstrat
 
 class NodeEngineObjectDataImpl(
     override val id: String,
@@ -59,40 +55,8 @@ class NodeEngineObjectDataImpl(
             val nodeResolver = dispatcherRegistry.getNodeResolverDispatcher(type.name)
                 ?: throw IllegalStateException("No node resolver found for type ${type.name}")
 
-            if (!context.executeAccessChecksInModstrat) {
-                val nodeChecker = dispatcherRegistry.getTypeCheckerDispatcher(type.name)
-                if (nodeChecker == null) {
-                    resolvedEngineObjectData = nodeResolver.resolve(id, selections, context)
-                    resolving.complete(Unit)
-                } else {
-                    supervisorScope {
-                        // Execute node level access check with no arguments and no selection sets currently.
-                        val checkAsync = async {
-                            nodeChecker.execute(
-                                emptyMap(),
-                                mapOf(
-                                    "key" to CheckerProxyEngineObjectData(
-                                        ObjectEngineResultImpl.newForType(type),
-                                        "missing from checker RSS"
-                                    )
-                                ),
-                                context,
-                                CheckerExecutor.CheckerType.TYPE
-                            )
-                        }
-                        runCatching {
-                            resolvedEngineObjectData = nodeResolver.resolve(id, selections, context)
-                        }.onSuccess {
-                            val checkerResult = checkAsync.await()
-                            checkerResult.asError?.let { throw it.error }
-                            resolving.complete(Unit)
-                        }.getOrThrow()
-                    }
-                }
-            } else {
-                resolvedEngineObjectData = nodeResolver.resolve(id, selections, context)
-                resolving.complete(Unit)
-            }
+            resolvedEngineObjectData = nodeResolver.resolve(id, selections, context)
+            resolving.complete(Unit)
             return true
         } catch (e: Exception) {
             // don't consider real CancellationException as failures. Just rethrow

@@ -22,6 +22,7 @@ import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
 import viaduct.engine.api.fragment.FragmentVariables
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.runtime.execution.constraints.Constraints
 
 class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
     private val schema =
@@ -400,6 +401,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
             def = typeDef,
             selections = emptyList(),
             requestedTypes = emptySet(),
+            constraints = Constraints.Unconstrained.narrowToImpls(typeDef, context.schema),
             ctx = context
         )
     }

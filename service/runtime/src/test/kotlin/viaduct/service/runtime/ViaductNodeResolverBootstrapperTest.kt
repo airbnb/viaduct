@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.service.runtime.noderesolvers.ViaductQueryNodeResolverModuleBootstrapper
 
 class ViaductNodeResolverBootstrapperTest {

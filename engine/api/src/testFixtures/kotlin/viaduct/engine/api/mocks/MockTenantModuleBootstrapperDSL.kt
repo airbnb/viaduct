@@ -2,14 +2,14 @@ package viaduct.engine.api.mocks
 
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
 
 @DslMarker
 /**

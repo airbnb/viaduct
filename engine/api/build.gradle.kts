@@ -19,6 +19,7 @@ dependencies {
 
     /** Viaduct dependencies **/
     api(libs.viaduct.service.api)
+    api(libs.viaduct.errors)
     implementation(libs.viaduct.shared.utils)
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.apiannotations)

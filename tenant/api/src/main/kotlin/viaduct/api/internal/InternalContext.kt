@@ -1,11 +1,11 @@
 package viaduct.api.internal
 
-import viaduct.api.ViaductFrameworkException
 import viaduct.api.context.ExecutionContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.ViaductSchema
+import viaduct.errors.FrameworkException
 import viaduct.service.api.spi.GlobalIDCodec
 
 /**
@@ -32,6 +32,9 @@ interface InternalContext {
     /** An interface that can serve GRT's and type information for GraphQL types */
     val reflectionLoader: ReflectionLoader
 
+    /** Factory for creating [viaduct.mapping.graphql.Conv]s that map between GRT and IR values. */
+    val grtConvFactory: GRTConvFactory
+
     /**
      * Deserializes a GlobalID string into a typed [GlobalID] object.
      *
@@ -48,4 +51,4 @@ interface InternalContext {
 @InternalApi
 val ExecutionContext.internal: InternalContext
     get() = this as? InternalContext
-        ?: throw ViaductFrameworkException("ExecutionContext does not implement InternalContext: $this")
+        ?: throw FrameworkException("ExecutionContext does not implement InternalContext: $this")

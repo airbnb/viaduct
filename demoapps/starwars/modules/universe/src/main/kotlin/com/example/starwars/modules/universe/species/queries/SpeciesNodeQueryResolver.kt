@@ -2,7 +2,7 @@ package com.example.starwars.modules.universe.species.queries
 
 import com.example.starwars.modules.universe.species.models.SpeciesBuilder
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
-import com.example.starwars.universe.NodeResolvers
+import com.example.starwars.universe.resolverbases.NodeResolvers
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.Resolver

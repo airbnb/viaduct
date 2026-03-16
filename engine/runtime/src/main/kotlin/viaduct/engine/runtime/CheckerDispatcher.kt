@@ -1,11 +1,11 @@
 package viaduct.engine.runtime
 
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.spi.CheckerExecutor
 
 /**
  * Interface that dispatches the access checker for a field or a type

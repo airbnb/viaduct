@@ -1,6 +1,7 @@
 package viaduct.tenant.runtime.internal
 
 import viaduct.api.globalid.GlobalID
+import viaduct.api.internal.GRTConvFactory
 import viaduct.api.internal.GlobalIDCodec
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ReflectionLoader
@@ -11,7 +12,8 @@ import viaduct.service.api.spi.GlobalIDCodec as ServiceGlobalIDCodec
 class InternalContextImpl(
     override val schema: ViaductSchema,
     override val globalIDCodec: ServiceGlobalIDCodec,
-    override val reflectionLoader: ReflectionLoader
+    override val reflectionLoader: ReflectionLoader,
+    override val grtConvFactory: GRTConvFactory,
 ) : InternalContext {
     // Delegate to internal GlobalIDCodec which contains the typed deserialization logic
     private val typedCodec = GlobalIDCodec(globalIDCodec, reflectionLoader)

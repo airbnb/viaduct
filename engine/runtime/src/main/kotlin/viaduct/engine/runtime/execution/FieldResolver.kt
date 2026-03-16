@@ -26,14 +26,15 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import viaduct.deferred.asDeferred
 import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.ResolutionPolicy
+import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.LazyEngineObjectData
+import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
@@ -399,10 +400,13 @@ class FieldResolver(
         val field = checkNotNull(parameters.field) { "Expected parameters.field to be non-null." }
         val data = fetchedValue.fetchedValue ?: return FieldResolutionResult.fromFetchedValue(null, fetchedValue, resolutionPolicy)
 
-        // Unwrap data from "ParentManagedValue" if necessary, and set the effective resolution policy
+        // Unwrap data from "ParentManagedValue" or "StandardResolutionValue" if necessary, and set the effective resolution policy
         var effectiveResolutionPolicy = resolutionPolicy
         val effectiveData = if (data is ParentManagedValue) {
             effectiveResolutionPolicy = ResolutionPolicy.PARENT_MANAGED
+            data.value
+        } else if (data is StandardResolutionValue) {
+            effectiveResolutionPolicy = ResolutionPolicy.STANDARD
             data.value
         } else {
             data

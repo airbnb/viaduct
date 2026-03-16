@@ -3,7 +3,6 @@ package viaduct.tenant.codegen.bytecode.exercise
 import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.declaredFunctions
-import viaduct.api.ViaductTenantUsageException
 import viaduct.api.context.ExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
@@ -12,6 +11,7 @@ import viaduct.api.mocks.executionContext
 import viaduct.codegen.km.getterName
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
+import viaduct.errors.TenantUsageException
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
@@ -98,7 +98,7 @@ private suspend fun Exerciser.exerciseBuilderRoundtrip(
             val actValue = try {
                 getterWithAlias.callSuspend(objFromBuilder, null)
             } catch (e: InvocationTargetException) {
-                if (e.targetException is ViaductTenantUsageException) {
+                if (e.targetException is TenantUsageException) {
                     check.addFailure(
                         "missing setter for field $fName causing exception when get: $e",
                         "OBJECT_SETTER_MISSING:$fName",

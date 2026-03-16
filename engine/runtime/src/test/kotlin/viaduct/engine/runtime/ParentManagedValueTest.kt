@@ -4,6 +4,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ParentManagedValue
+import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.runFeatureTest
@@ -47,6 +48,14 @@ class ParentManagedValueTest {
     @Test
     fun `ParentManagedValue throws when wrapped multiple times`() {
         val inner = ParentManagedValue(null)
+        assertThrows<IllegalArgumentException> {
+            ParentManagedValue(inner)
+        }
+    }
+
+    @Test
+    fun `ParentManagedValue throws when wrapping a StandardResolutionValue`() {
+        val inner = StandardResolutionValue("x")
         assertThrows<IllegalArgumentException> {
             ParentManagedValue(inner)
         }

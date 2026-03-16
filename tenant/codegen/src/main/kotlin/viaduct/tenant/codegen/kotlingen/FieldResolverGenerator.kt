@@ -6,6 +6,7 @@ import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
 import viaduct.codegen.utils.JavaName
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.tenantModule
 import viaduct.utils.string.capitalize
@@ -75,8 +76,8 @@ internal fun genResolver(
     tenantPackage: String,
     grtPackage: String,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
-    queryTypeName: String? = "Query",
-    mutationTypeName: String? = "Mutation"
+    queryTypeName: String?,
+    mutationTypeName: String?
 ): STContents = STContents(stGroup, ResolversModelImpl(tenantPackage, grtPackage, typeName, fields, baseTypeMapper, queryTypeName, mutationTypeName))
 
 private interface ResolversModel {
@@ -133,14 +134,22 @@ private class ResolverModelImpl(
             "viaduct.api.types.CompositeOutput.NotComposite"
         }
 
+    /**
+     * Checks if the field returns a Connection type (detected via @connection directive).
+     * Connection types get special context handling with pagination utilities.
+     */
+    private val isConnectionField: Boolean = field.type.baseTypeDef.hasConnectionDirective
+
     override val typeSpecifier: String = field.kmType(JavaName(grtPackage).asKmName, baseTypeMapper).kotlinTypeString
     override val ctxInterface: String
-        get() =
-            if (mutationTypeName != null && this.field.containingDef.name == mutationTypeName) {
+        get() = when {
+            mutationTypeName != null && this.field.containingDef.name == mutationTypeName ->
                 "viaduct.api.context.MutationFieldExecutionContext<$queryGrtTypeName, $mutationGrtTypeName, $grtArgsName, $grtOutputName>"
-            } else {
+            isConnectionField ->
+                "viaduct.api.context.ConnectionFieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
+            else ->
                 "viaduct.api.context.FieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
-            }
+        }
     override val includeBatchResolve: Boolean = this.field.containingDef.name != "Mutation"
 }
 
@@ -158,7 +167,7 @@ private val resolversST = stTemplate(
     import viaduct.api.types.CompositeOutput
     import viaduct.api.FieldValue
     <mdl.nativeTypeImports; separator="\n">
-    
+
     @OptIn(InternalApi::class)
     object <mdl.typeName>Resolvers {
         <mdl.resolvers:resolver(); separator="\n">

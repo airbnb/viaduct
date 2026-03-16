@@ -22,6 +22,8 @@ abstract class ViaductPublishingExtension @Inject constructor(objects: ObjectFac
 
 val viaductPublishing = extensions.create<ViaductPublishingExtension>("viaductPublishing")
 
+val publishMinimal = providers.gradleProperty("publishMinimal").isPresent
+
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
     publishToMavenCentral(automaticRelease = true)
@@ -31,7 +33,10 @@ mavenPublishing {
     when {
         plugins.hasPlugin("java-platform") -> configure(JavaPlatform())
         plugins.hasPlugin("com.gradle.plugin-publish") -> configure(GradlePublishPlugin())
-        else -> configure(KotlinJvm(javadocJar = JavadocJar.Dokka("dokkaGeneratePublicationJavadoc"), sourcesJar = true))
+        else -> configure(KotlinJvm(
+            javadocJar = if (publishMinimal) JavadocJar.Empty() else JavadocJar.Dokka("dokkaGeneratePublicationJavadoc"),
+            sourcesJar = !publishMinimal
+        ))
     }
 }
 
@@ -74,8 +79,6 @@ afterEvaluate {
         setRequired {
             gradle.taskGraph.allTasks.any { it is PublishToMavenRepository }
         }
-        project.logger.lifecycle(publishing.publications.toString())
-        publishing.publications.forEach { project.logger.lifecycle("Publication: ${it.name}") }
         publishing.publications.forEach { sign(it) }
     }
 }

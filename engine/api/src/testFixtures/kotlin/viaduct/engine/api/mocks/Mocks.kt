@@ -1,4 +1,5 @@
 @file:Suppress("ForbiddenImport")
+@file:OptIn(VisibleForTest::class)
 
 package viaduct.engine.api.mocks
 
@@ -18,11 +19,13 @@ import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import viaduct.apiannotations.VisibleForTest
 import viaduct.dataloader.mocks.MockNextTickDispatcher
 import viaduct.engine.ViaductSchemaLoadException
 import viaduct.engine.ViaductWiringFactory
-import viaduct.engine.api.CheckerExecutor
-import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.Coordinate
@@ -30,20 +33,22 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.ParsedSelections
-import viaduct.engine.api.QueryPlanExecutionCondition
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.ResolverMetadata
-import viaduct.engine.api.TenantAPIBootstrapper
-import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.CheckerExecutorFactory
+import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.mocks.createDispatcherRegistry
@@ -63,7 +68,7 @@ typealias FieldUnbatchedResolverFn = suspend (
 ) -> Any?
 
 typealias FieldBatchResolverFn = suspend (selectors: List<FieldResolverExecutor.Selector>, context: EngineExecutionContext) -> Map<FieldResolverExecutor.Selector, Result<Any?>>
-typealias VariablesResolverFn = suspend (ctx: VariablesResolver.ResolveCtx) -> Map<String, Any?>
+typealias VariablesResolverFn = suspend (ctx: VariablesResolver.ResolveCtx, context: EngineExecutionContext) -> Map<String, Any?>
 
 fun createCoroutineInterop(): CoroutineInterop = DefaultCoroutineInterop
 
@@ -102,7 +107,10 @@ class MockVariablesResolver(
 ) : VariablesResolver {
     override val variableNames: Set<String> = names.toSet()
 
-    override suspend fun resolve(ctx: VariablesResolver.ResolveCtx): Map<String, Any?> = resolveFn(ctx)
+    override suspend fun resolve(
+        ctx: VariablesResolver.ResolveCtx,
+        context: EngineExecutionContext
+    ): Map<String, Any?> = resolveFn(ctx, context)
 }
 
 /**
@@ -191,6 +199,9 @@ open class MockFieldBatchResolverExecutor(
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> = batchResolveFn(selectors, context)
 }
 
+private val testScheduler: TestCoroutineScheduler = TestCoroutineScheduler()
+private val internalDispatcher: TestDispatcher = UnconfinedTestDispatcher(testScheduler)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 fun FieldResolverExecutor.invoke(
     fullSchema: ViaductSchema,
@@ -200,7 +211,7 @@ fun FieldResolverExecutor.invoke(
     queryValue: Map<String, Any?> = emptyMap(),
     selections: EngineSelectionSet? = null,
     context: EngineExecutionContext = ContextMocks(fullSchema).engineExecutionContext,
-) = runBlocking(MockNextTickDispatcher()) {
+) = runBlocking(MockNextTickDispatcher(testScheduler, internalDispatcher)) {
     val selector = FieldResolverExecutor.Selector(
         arguments = arguments,
         objectValue = createEngineObjectData(fullSchema.schema.getObjectType(coord.first), objectValue),
@@ -218,7 +229,7 @@ fun CheckerExecutor.invoke(
     objectDataMap: Map<String, Map<String, Any?>> = emptyMap(),
     context: EngineExecutionContext = ContextMocks(fullSchema).engineExecutionContext,
     checkerType: CheckerExecutor.CheckerType = CheckerExecutor.CheckerType.FIELD
-) = runBlocking(MockNextTickDispatcher()) {
+) = runBlocking(MockNextTickDispatcher(testScheduler, internalDispatcher)) {
     val objectType = fullSchema.schema.getObjectType(coord.first)!!
     val objectMap = objectDataMap.mapValues { (_, it) -> createEngineObjectData(objectType, it) }
     execute(arguments, objectMap, context, checkerType)
@@ -454,7 +465,7 @@ object Samples {
         field("TestType" to "parameterizedField") {
             resolver {
                 objectSelections("fragment _ on TestType { aField @include(if: \$experiment) bIntField }") {
-                    variables("experiment") { ctx ->
+                    variables("experiment") { ctx, _ ->
                         mapOf("experiment" to (ctx.arguments["experiment"] ?: false))
                     }
                 }
@@ -473,7 +484,7 @@ object Samples {
         field("TestType" to "dField") {
             resolver {
                 objectSelections("fragment _ on TestType { aField @include(if: \$experiment) bIntField }") {
-                    variables("experiment") { _ ->
+                    variables("experiment") { _, _ ->
                         mapOf("experiment" to true)
                     }
                 }

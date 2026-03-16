@@ -1,7 +1,6 @@
 package viaduct.gradle
 
 import graphql.GraphQLError
-import graphql.GraphQLException
 import graphql.parser.MultiSourceReader
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
@@ -22,9 +21,10 @@ class ViaductSchemaValidator(private val logger: Logger) {
      * If syntax validation fails, Viaduct validation is skipped.
      *
      * @param schemaFiles All schema files to validate (including framework-generated files)
-     * @param excludeFromViaductValidation Files whose Viaduct validation errors should be filtered out.
+     * @param excludeFromViaductValidation Framework-generated files (e.g., BUILTIN_SCHEMA).
      *        These files are still included in parsing and type resolution, but errors originating
-     *        from them are suppressed. Typically used for framework-generated files like BUILTIN_SCHEMA.
+     *        from them are treated as internal framework errors. If any framework errors are found,
+     *        they are reported with clear messaging and tenant errors are not returned.
      */
     fun validateSchema(
         schemaFiles: Collection<File>,
@@ -42,40 +42,36 @@ class ViaductSchemaValidator(private val logger: Logger) {
     }
 
     private fun performSyntaxValidation(schemaFiles: Collection<File>): List<GraphQLError> {
-        try {
-            if (schemaFiles.isEmpty()) {
-                throw IllegalArgumentException("Schema content is empty or blank")
-            }
+        if (schemaFiles.isEmpty()) {
+            return listOf(ValidationError.newValidationError().description("Schema content is empty or blank").build())
+        }
 
-            var hasContent = false
-            val reader = MultiSourceReader.newMultiSourceReader()
-                .apply {
-                    schemaFiles.forEach { file ->
-                        logger.debug("Reading file {}", file.absolutePath)
-                        val content = file.readText(Charsets.UTF_8)
-                        if (content.isNotBlank()) {
-                            hasContent = true
-                        }
-                        reader(StringReader(content), file.path)
+        var hasContent = false
+        val reader = MultiSourceReader.newMultiSourceReader()
+            .apply {
+                schemaFiles.forEach { file ->
+                    logger.debug("Reading file {}", file.absolutePath)
+                    val content = file.readText(Charsets.UTF_8)
+                    if (content.isNotBlank()) {
+                        hasContent = true
                     }
+                    reader(StringReader(content), file.path)
                 }
-                .trackData(true)
-                .build()
-            if (!hasContent) {
-                throw IllegalArgumentException("Schema content is empty or blank")
             }
+            .trackData(true)
+            .build()
 
+        if (!hasContent) {
+            return listOf(ValidationError.newValidationError().description("Schema content is empty or blank").build())
+        }
+
+        return try {
             val typeRegistry = SchemaParser().parse(reader)
             UnExecutableSchemaGenerator.makeUnExecutableSchema(typeRegistry)
-
             logger.debug("Schema syntax validation successful. Found {} types defined.", typeRegistry.types().size)
-            return emptyList()
+            emptyList()
         } catch (e: SchemaProblem) {
-            return e.errors
-        } catch (e: GraphQLException) {
-            return listOf(ValidationError.newValidationError().description(e.message).build())
-        } catch (e: Exception) {
-            return listOf(ValidationError.newValidationError().description(e.message).build())
+            e.errors
         }
     }
 
@@ -83,60 +79,72 @@ class ViaductSchemaValidator(private val logger: Logger) {
         schemaFiles: Collection<File>,
         excludeFromViaductValidation: Collection<File> = emptyList()
     ): List<GraphQLError> {
-        try {
-            logger.debug("Running Viaduct-specific validation rules...")
+        logger.debug("Running Viaduct-specific validation rules...")
 
-            val schema = ViaductSchema.fromTypeDefinitionRegistry(schemaFiles.toList())
-            val allErrors = DefaultSchemaValidator.validate(schema)
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(schemaFiles.toList())
+        val allErrors = DefaultSchemaValidator.validate(schema)
 
-            // Filter out errors originating from excluded files (e.g., framework-generated BUILTIN_SCHEMA)
-            val excludedPaths = excludeFromViaductValidation.mapNotNull { normalizePath(it.path) }.toSet()
-            val errors = if (excludedPaths.isEmpty()) {
-                allErrors
-            } else {
-                allErrors.filter { error ->
-                    val sourceName = error.location.sourceLocation?.sourceName
-                    val normalizedSourceName = sourceName?.let { normalizePath(it) }
-                    normalizedSourceName == null || normalizedSourceName !in excludedPaths
-                }
-            }
+        if (allErrors.isEmpty()) {
+            logger.debug("Viaduct schema validation passed. Found {} types defined.", schema.types.size)
+            return emptyList()
+        }
 
-            if (errors.isEmpty()) {
-                logger.debug("Viaduct schema validation passed. Found {} types defined.", schema.types.size)
-                return emptyList()
-            }
+        val excludedPaths = excludeFromViaductValidation.mapNotNull { normalizePath(it.path) }.toSet()
 
-            logger.error("Viaduct schema validation failed with {} error(s)", errors.size)
-            errors.forEach { error ->
+        if (excludedPaths.isEmpty()) {
+            logTenantErrors(allErrors)
+            return allErrors.map { convertToGraphQLError(it) }
+        }
+
+        // Partition errors into framework errors (from excluded files) and tenant errors
+        val (frameworkErrors, tenantErrors) = allErrors.partition { error ->
+            val sourceName = error.location.sourceLocation?.sourceName
+            val normalizedSourceName = sourceName?.let { normalizePath(it) }
+            normalizedSourceName != null && normalizedSourceName in excludedPaths
+        }
+
+        // Framework errors indicate an internal problem — report and halt without reporting tenant errors
+        if (frameworkErrors.isNotEmpty()) {
+            logger.error(
+                "Viaduct framework schema has {} validation error(s). " +
+                    "This is an internal framework issue, not a problem with your schema.",
+                frameworkErrors.size
+            )
+            frameworkErrors.forEach { error ->
                 logger.error("  [{}] {}: {}", error.code, error.location, error.message)
             }
-            return errors.map { convertToGraphQLError(it) }
-        } catch (e: SchemaProblem) {
-            logger.error("Schema error during Viaduct validation: {}", e.message, e)
-            return listOf(
-                ValidationError.newValidationError()
-                    .description("Viaduct validation failed: ${e.message}")
-                    .build()
-            )
-        } catch (e: GraphQLException) {
-            logger.error("GraphQL error during Viaduct validation: {}", e.message, e)
-            return listOf(
-                ValidationError.newValidationError()
-                    .description("Viaduct validation failed: ${e.message}")
-                    .build()
-            )
-        } catch (e: Exception) {
-            logger.error("Unexpected error during Viaduct validation: {}", e.message, e)
-            return listOf(
-                ValidationError.newValidationError()
-                    .description("Viaduct validation failed: ${e.message}")
-                    .build()
-            )
+            return frameworkErrors.map { convertToFrameworkGraphQLError(it) }
+        }
+
+        if (tenantErrors.isNotEmpty()) {
+            logTenantErrors(tenantErrors)
+            return tenantErrors.map { convertToGraphQLError(it) }
+        }
+
+        return emptyList()
+    }
+
+    private fun logTenantErrors(errors: List<SchemaValidationError>) {
+        logger.error("Viaduct schema validation failed with {} error(s)", errors.size)
+        errors.forEach { error ->
+            logger.error("  [{}] {}: {}", error.code, error.location, error.message)
         }
     }
 
     private fun convertToGraphQLError(error: SchemaValidationError): GraphQLError {
         val description = buildString {
+            append("[${error.code}] ")
+            append("${error.location}: ")
+            append(error.message)
+        }
+        return ValidationError.newValidationError()
+            .description(description)
+            .build()
+    }
+
+    private fun convertToFrameworkGraphQLError(error: SchemaValidationError): GraphQLError {
+        val description = buildString {
+            append("Internal framework error: ")
             append("[${error.code}] ")
             append("${error.location}: ")
             append(error.message)

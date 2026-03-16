@@ -1,6 +1,7 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
 import kotlinx.coroutines.withContext
+import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
@@ -17,7 +18,8 @@ import viaduct.engine.runtime.FieldResolverDispatcher
  */
 class InstrumentedFieldResolverDispatcher(
     val dispatcher: FieldResolverDispatcher,
-    val instrumentation: ViaductResolverInstrumentation
+    val instrumentation: ViaductResolverInstrumentation,
+    val coordinate: Coordinate? = null,
 ) : FieldResolverDispatcher {
     override val objectSelectionSet get() = dispatcher.objectSelectionSet
     override val querySelectionSet get() = dispatcher.querySelectionSet
@@ -37,7 +39,8 @@ class InstrumentedFieldResolverDispatcher(
         val state = instrumentation.createInstrumentationState(createStateParameter)
 
         val resolverExecuteParam = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
-            resolverMetadata = dispatcher.resolverMetadata
+            resolverMetadata = dispatcher.resolverMetadata,
+            fieldCoordinate = coordinate,
         )
 
         val instrumentedObjectValue = InstrumentedEngineObjectData(objectValue, instrumentation, state)

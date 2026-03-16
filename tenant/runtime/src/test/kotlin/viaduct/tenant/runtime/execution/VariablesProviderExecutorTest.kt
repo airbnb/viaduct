@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test
 import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalIDImpl
+import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
 import viaduct.api.mocks.MockInternalContext
@@ -44,7 +45,7 @@ class VariablesProviderExecutorTest {
             requestContext: Any?,
             rawArguments: Map<String, Any?>
         ): VariablesProviderContext<Arguments> {
-            val ic = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
+            val ic = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader, DefaultGRTConvFactory)
             return VariablesProviderContextImpl(ic, requestContext, MockArgs(rawArguments))
         }
     }
@@ -77,11 +78,11 @@ class VariablesProviderExecutorTest {
                     VariablesResolver.ResolveCtx(
                         objectData,
                         mapOf("a" to 5, "b" to 7),
-                        mockk {
-                            every { fullSchema } returns MockSchema.minimal
-                            every { requestContext } returns null
-                        }
-                    )
+                    ),
+                    mockk {
+                        every { fullSchema } returns MockSchema.minimal
+                        every { requestContext } returns null
+                    }
                 )
             )
         }
@@ -124,11 +125,11 @@ class VariablesProviderExecutorTest {
                     VariablesResolver.ResolveCtx(
                         objectData,
                         mapOf("a" to 5, "b" to 7),
-                        mockk {
-                            every { fullSchema } returns MockSchema.minimal
-                            every { requestContext } returns null
-                        }
-                    )
+                    ),
+                    mockk {
+                        every { fullSchema } returns MockSchema.minimal
+                        every { requestContext } returns null
+                    }
                 )
             )
         }

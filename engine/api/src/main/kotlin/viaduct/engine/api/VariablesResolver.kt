@@ -19,21 +19,27 @@ interface VariablesResolver {
     val requiredSelectionSet: RequiredSelectionSet? get() = null
 
     /**
-     * A collection of data available to a [VariablesResolver.resolve] method
+     * Per-item invocation data available to a [VariablesResolver.resolve] method.
+     * This class carries only data specific to a particular invocation — the shared,
+     * per-request [EngineExecutionContext] is passed as a separate parameter to [resolve].
      * @param objectData The data resolved from this objects [requiredSelectionSet]
      * @param arguments The argument values provided to the field whose resolver depends on these values.
      */
     data class ResolveCtx(
         val objectData: EngineObjectData,
-        val arguments: Map<String, Any?>,
-        val engineExecutionContext: EngineExecutionContext
+        val arguments: Map<String, Any?>
     )
 
     /**
      * Resolve variable values.
      * The returned map must include entries for exactly the keys described in [variableNames].
+     * @param ctx Per-item invocation data (object data and arguments).
+     * @param context The per-request [EngineExecutionContext], shared across all invocations within a single GraphQL request.
      */
-    suspend fun resolve(ctx: ResolveCtx): Map<String, Any?>
+    suspend fun resolve(
+        ctx: ResolveCtx,
+        context: EngineExecutionContext
+    ): Map<String, Any?>
 
     /**
      * Return a [VariablesResolver] that wraps this instance and validates that
@@ -52,13 +58,19 @@ interface VariablesResolver {
         val Empty: VariablesResolver = object : VariablesResolver {
             override val variableNames: Set<String> = emptySet()
 
-            override suspend fun resolve(ctx: ResolveCtx): Map<String, Any?> = emptyMap()
+            override suspend fun resolve(
+                ctx: ResolveCtx,
+                context: EngineExecutionContext
+            ): Map<String, Any?> = emptyMap()
         }
 
         private data class Const(val values: Map<String, Any?>) : VariablesResolver {
             override val variableNames: Set<String> = values.keys
 
-            override suspend fun resolve(ctx: ResolveCtx) = values
+            override suspend fun resolve(
+                ctx: ResolveCtx,
+                context: EngineExecutionContext
+            ) = values
         }
 
         private class Builder(
@@ -182,8 +194,11 @@ interface VariablesResolver {
 }
 
 data class Validated(val delegate: VariablesResolver) : VariablesResolver by delegate {
-    override suspend fun resolve(ctx: ResolveCtx): Map<String, Any?> =
-        delegate.resolve(ctx).also { result ->
+    override suspend fun resolve(
+        ctx: ResolveCtx,
+        context: EngineExecutionContext
+    ): Map<String, Any?> =
+        delegate.resolve(ctx, context).also { result ->
             check(result.keys == variableNames) {
                 val extra = (result.keys - variableNames).let {
                     if (it.isNotEmpty()) {
@@ -214,7 +229,10 @@ data class FromArgument(val name: String, val path: List<String>) : VariablesRes
     private val reader = InputValueReader(path)
     override val variableNames: Set<String> = setOf(name)
 
-    override suspend fun resolve(ctx: ResolveCtx): Map<String, Any?> = mapOf(name to reader.read(ctx.arguments))
+    override suspend fun resolve(
+        ctx: ResolveCtx,
+        context: EngineExecutionContext
+    ): Map<String, Any?> = mapOf(name to reader.read(ctx.arguments))
 }
 
 data class FromFieldVariablesResolver(val name: String, val path: List<String>, override val requiredSelectionSet: RequiredSelectionSet) : VariablesResolver {
@@ -227,7 +245,10 @@ data class FromFieldVariablesResolver(val name: String, val path: List<String>, 
     private val reader = EngineDataReader(path)
     override val variableNames: Set<String> = setOf(name)
 
-    override suspend fun resolve(ctx: ResolveCtx): Map<String, Any?> = mapOf(name to reader.read(ctx.objectData))
+    override suspend fun resolve(
+        ctx: ResolveCtx,
+        context: EngineExecutionContext
+    ): Map<String, Any?> = mapOf(name to reader.read(ctx.objectData))
 }
 
 /** Return a merged set of all variable names provided by these [VariablesResolver]s */
@@ -236,7 +257,10 @@ val List<VariablesResolver>.variableNames: Set<String>
         flatMap { it.variableNames }.toSet()
 
 /** Return a combined map of all variable values resolved by these [VariableResolver]s */
-suspend fun List<VariablesResolver>.resolve(ctx: ResolveCtx): Map<String, Any?> = fold(emptyMap()) { acc, vr -> acc + vr.resolve(ctx) }
+suspend fun List<VariablesResolver>.resolve(
+    ctx: ResolveCtx,
+    context: EngineExecutionContext
+): Map<String, Any?> = fold(emptyMap()) { acc, vr -> acc + vr.resolve(ctx, context) }
 
 /** check that all values provide disjoint sets of variables */
 fun List<VariablesResolver>.checkDisjoint() {

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import viaduct.engine.runtime.QueryPlanExecutionCondition
 
 class QueryPlanExecutionConditionTest {
     @Nested

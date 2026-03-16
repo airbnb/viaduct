@@ -38,13 +38,13 @@ import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.ParsedSelections
-import viaduct.engine.api.QueryPlanExecutionCondition
-import viaduct.engine.api.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
-import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.runtime.QueryPlanExecutionCondition
+import viaduct.engine.runtime.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 import viaduct.engine.runtime.execution.QueryPlan.CollectedField
 import viaduct.engine.runtime.execution.QueryPlan.Field
@@ -54,6 +54,7 @@ import viaduct.engine.runtime.execution.QueryPlan.Fragments
 import viaduct.engine.runtime.execution.QueryPlan.InlineFragment
 import viaduct.engine.runtime.execution.QueryPlan.Selection
 import viaduct.engine.runtime.execution.QueryPlan.SelectionSet
+import viaduct.engine.runtime.execution.constraints.Constraints
 
 class QueryPlanTest {
     @Test
@@ -607,6 +608,191 @@ class QueryPlanTest {
     }
 
     @Test
+    fun `QueryPlanFactory_Cached -- same RSS produces same QueryPlan instance within a build`() {
+        // Two fields x and y both return ObjectA, which has a single type checker RSS (selects id).
+        // Since the type checker RSS is one singleton shared by both fields, within one top-level plan
+        // build both fields should reference the exact same child QueryPlan instance from the RSS cache.
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .typeCheckerEntry("ObjectA", "id")
+            .build()
+        val factory = QueryPlanFactory.Cached()
+        val schema = ViaductSchema(
+            """
+            type Query { x:ObjectA y:ObjectA }
+            type ObjectA { id:Int }
+            """.trimIndent().asSchema
+        )
+        val params = QueryPlan.Parameters(
+            query = "{x{id} y{id}}",
+            schema = schema,
+            registry = reg,
+            executeAccessChecksInModstrat = false,
+        )
+        val objectA = schema.schema.getObjectType("ObjectA")!!
+        runExecutionTest {
+            val plan = factory.build(params, "{x{id} y{id}}".asDocument)
+
+            val xField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
+            val yField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "y" }
+            // Each field's fieldTypeChildPlans has one entry for ObjectA with one type checker plan
+            val xPlans = xField.fieldTypeChildPlans[objectA]!!.value
+            val yPlans = yField.fieldTypeChildPlans[objectA]!!.value
+            expectThat(xPlans).hasSize(1)
+            expectThat(yPlans).hasSize(1)
+            // Both plans come from the same RSS singleton — must be the exact same QueryPlan instance
+            expectThat(xPlans.first()).isSameInstanceAs(yPlans.first())
+        }
+    }
+
+    @Test
+    fun `QueryPlanFactory_Cached -- same RSS produces same QueryPlan instance across top-level builds`() {
+        // x has a checker RSS (selects z). Built in two separate top-level plan builds.
+        // The second build should reuse the RSS child plan from the global cache.
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry("Query" to "x", "z")
+            .build()
+        val factory = QueryPlanFactory.Cached()
+        val schema = ViaductSchema("type Query { x:Int z:Int }".asSchema)
+        val params = QueryPlan.Parameters(
+            query = "{x}",
+            schema = schema,
+            registry = reg,
+            executeAccessChecksInModstrat = false,
+        )
+        runExecutionTest {
+            // Build with {x} — triggers a cache miss for the top-level plan
+            val plan1 = factory.build(params, "{x}".asDocument)
+            // Build with {x z} — different top-level plan, but checker RSS for x is same object
+            val params2 = params.copy(query = "{x z}")
+            val plan2 = factory.build(params2, "{x z}".asDocument)
+
+            val xField1 = plan1.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
+            val xField2 = plan2.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
+            expectThat(xField1.childPlans).hasSize(1)
+            expectThat(xField2.childPlans).hasSize(1)
+            // Both top-level plans share the same RSS child plan instance
+            expectThat(xField1.childPlans.first()).isSameInstanceAs(xField2.childPlans.first())
+        }
+    }
+
+    @Test
+    fun `QueryPlanFactory_Cached -- cycle prevention still works with RSS cache (direct self-reference)`() {
+        // Same as the Default cycle test but using the Cached factory.
+        // x's checker RSS selects x itself — must not cause infinite recursion.
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry("Query" to "x", "x")
+            .build()
+        val factory = QueryPlanFactory.Cached()
+        val schema = ViaductSchema("type Query { x:Int }".asSchema)
+        val params = QueryPlan.Parameters(
+            query = "{x}",
+            schema = schema,
+            registry = reg,
+            executeAccessChecksInModstrat = false,
+        )
+        runExecutionTest {
+            val plan = factory.build(params, "{x}".asDocument)
+            val xField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
+            // Checker RSS for x produces one child plan (the cycle is broken at that level)
+            expectThat(xField.childPlans).hasSize(1)
+            val checkerPlan = xField.childPlans.first()
+            // The checker plan contains field x but no further child plans (cycle broken)
+            val innerX = checkerPlan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
+            expectThat(innerX.childPlans).hasSize(0)
+        }
+    }
+
+    @Test
+    fun `QueryPlanFactory_Cached -- cycle prevention still works with RSS cache (type checker self-reference)`() {
+        // ObjectX's type checker selects y (which returns ObjectX).
+        // The RSS plan cache ensures each RSS is built at most once; forcing the type checker
+        // lazy after the build returns the cached plan and does not recurse infinitely.
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .typeCheckerEntry("ObjectX", "y")
+            .build()
+        val factory = QueryPlanFactory.Cached()
+        val schema = ViaductSchema(
+            """
+            type Query { x:ObjectX }
+            type ObjectX { y:ObjectX z:Int }
+            """.trimIndent().asSchema
+        )
+        val params = QueryPlan.Parameters(
+            query = "{x{z}}",
+            schema = schema,
+            registry = reg,
+            executeAccessChecksInModstrat = false,
+        )
+        runExecutionTest {
+            // Must complete without stack overflow or infinite recursion
+            val plan = factory.build(params, "{x{z}}".asDocument)
+            val xField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
+            val objectX = schema.schema.getObjectType("ObjectX")!!
+            // ObjectX has a type checker — x should have fieldTypeChildPlans for ObjectX
+            val typeCheckerPlans = xField.fieldTypeChildPlans[objectX]
+            expectThat(typeCheckerPlans).isNotNull()
+            // Forcing the lazy terminates — RSS plan is built once then cached
+            val typeCheckerPlanList = typeCheckerPlans!!.value
+            expectThat(typeCheckerPlanList).hasSize(1)
+            val checkerPlan = typeCheckerPlanList.first()
+            // The checker plan selects y (type ObjectX); y also has fieldTypeChildPlans for ObjectX
+            val yField = checkerPlan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "y" }
+            val yTypeCheckerPlans = yField.fieldTypeChildPlans[objectX]
+            expectThat(yTypeCheckerPlans).isNotNull()
+            // Forcing y's lazy also terminates — returns the RSS plan already in the cache
+            val yTypeCheckerPlanList = yTypeCheckerPlans!!.value
+            expectThat(yTypeCheckerPlanList).hasSize(1)
+            // Both lazies return the same cached RSS plan instance
+            expectThat(typeCheckerPlanList.first()).isSameInstanceAs(yTypeCheckerPlanList.first())
+        }
+    }
+
+    @Test
+    fun `QueryPlanFactory_Cached -- sub-plan RSS is not globally cached with cycle-truncated children`() {
+        // RSS1 (checker for a) selects {b}; RSS2 (checker for b) selects {a} — mutual cycle.
+        //
+        // When {a} is built, RSS1 is cached globally. During RSS1's build, RSS2 is encountered
+        // as a sub-plan with RSS1 in the building set, so RSS2's `a` field gets no child plans
+        // (cycle broken). Without isolation, RSS2 would be globally cached in this truncated form.
+        //
+        // The correct behavior: RSS2 is only cached locally during RSS1's build. When {b} is
+        // later built, RSS2 is built fresh and `a` correctly gets RSS1 as a child plan.
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry("Query" to "a", "b") // RSS1
+            .fieldCheckerEntry("Query" to "b", "a") // RSS2
+            .build()
+        val factory = QueryPlanFactory.Cached()
+        val schema = ViaductSchema("type Query { a: Int b: Int }".asSchema)
+        val params = QueryPlan.Parameters(
+            schema = schema,
+            registry = reg,
+            executeAccessChecksInModstrat = false,
+        )
+        runExecutionTest {
+            // Build {a} — RSS1 is cached globally; RSS2 is built locally within RSS1 (truncated)
+            val planA = factory.build(params.copy(query = "{a}"), "{a}".asDocument)
+            val aField = planA.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "a" }
+            expectThat(aField.childPlans).hasSize(1) // RSS1 attached to a
+            val rss1Plan = aField.childPlans.first()
+            val bInRss1 = rss1Plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "b" }
+            expectThat(bInRss1.childPlans).hasSize(1) // RSS2-truncated embedded in RSS1
+            val aInRss2Truncated = bInRss1.childPlans.first().selectionSet.selections
+                .filterIsInstance<Field>().first { it.resultKey == "a" }
+            expectThat(aInRss2Truncated.childPlans).hasSize(0) // cycle truncated here
+
+            // Build {b} — RSS2 not in global cache, so built fresh with full children
+            val planB = factory.build(params.copy(query = "{b}"), "{b}".asDocument)
+            val bField = planB.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "b" }
+            expectThat(bField.childPlans).hasSize(1) // RSS2-fresh attached to b
+            val aInRss2Fresh = bField.childPlans.first().selectionSet.selections
+                .filterIsInstance<Field>().first { it.resultKey == "a" }
+            // RSS2 built fresh: a has RSS1 as child (cycle broken at RSS1's level, not RSS2's)
+            // Fails with flat context: RSS2 was globally cached during RSS1's build with a having no children
+            expectThat(aInRss2Fresh.childPlans).hasSize(1)
+        }
+    }
+
+    @Test
     fun `QueryPlanBuilder -- cycle prevention in checker RSS chains`() {
         val varResolvers = VariablesResolver.fromSelectionSetVariables(
             SelectionsParser.parse("Query", "z"),
@@ -821,7 +1007,7 @@ class QueryPlanTest {
             val plan = runExecutionTest {
                 val params = mkQPParameters("{x}", ViaductSchema(schema), requiredSelectionSetRegistry)
                     .copy(executionCondition = customCondition)
-                QueryPlan.build(params, "{x}".asDocument)
+                QueryPlanFactory.Default.build(params, "{x}".asDocument)
             }
 
             // Verify the ExecutionCondition is stored in the plan
@@ -842,7 +1028,7 @@ class QueryPlanTest {
             val plan = runExecutionTest {
                 val params = mkQPParameters("{x}", ViaductSchema(schema), reg)
                     .copy(executionCondition = customCondition)
-                QueryPlan.build(params, "{x}".asDocument)
+                QueryPlanFactory.Default.build(params, "{x}".asDocument)
             }
 
             // Verify the root plan has the custom ExecutionCondition from parameters
@@ -1025,7 +1211,7 @@ internal fun buildPlan(
 ): QueryPlan =
     runExecutionTest {
         mkQPParameters(doc, schema, requiredSelectionSetRegistry).let { params ->
-            QueryPlan.build(params, doc.asDocument)
+            QueryPlanFactory.Default.build(params, doc.asDocument)
         }
     }
 

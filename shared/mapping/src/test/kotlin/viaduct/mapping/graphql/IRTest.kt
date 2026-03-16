@@ -21,7 +21,6 @@ import io.kotest.property.arbitrary.pair
 import io.kotest.property.arbitrary.short
 import io.kotest.property.arbitrary.string
 import io.kotest.property.arbitrary.zoneOffset
-import io.kotest.property.forAll
 import java.time.OffsetTime
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -233,7 +232,7 @@ class IRTest : KotestPropertyBase() {
             val cfg = Config.default + (GenInterfaceStubsIfNeeded to true)
             Arb.graphQLSchema(cfg).forAll(100) { schema ->
                 val result = runCatching {
-                    DomainValidator(IR, schema).checkAll(100)
+                    DomainValidator(IR, schema, random = randomSource).checkAll(100)
                 }
                 result.isSuccess
             }

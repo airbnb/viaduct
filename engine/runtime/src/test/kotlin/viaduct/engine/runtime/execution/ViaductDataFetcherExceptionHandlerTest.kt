@@ -21,9 +21,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.api.ViaductFrameworkException
-import viaduct.api.ViaductTenantResolverException
 import viaduct.engine.runtime.exceptions.FieldFetchingException
+import viaduct.errors.FrameworkException
+import viaduct.errors.TenantResolverException
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.ResolverErrorBuilder
 
@@ -147,13 +147,13 @@ class ViaductDataFetcherExceptionHandlerTest {
 
     @Test
     fun handleTenantResolverException() {
-        // Mocking because ViaductTenantResolverException has an internal constructor
-        val inner = mockk<ViaductTenantResolverException>(relaxed = true) {
+        // Mocking because TenantResolverException has an internal constructor
+        val inner = mockk<TenantResolverException>(relaxed = true) {
             every { cause } returns RuntimeException("foo")
             every { resolver } returns "Human.name"
             every { message } returns "inner tenant resolver exception message"
         }
-        val throwable = mockk<ViaductTenantResolverException>(relaxed = true) {
+        val throwable = mockk<TenantResolverException>(relaxed = true) {
             every { cause } returns inner
             every { resolver } returns "Starship.pilot"
             every { message } returns "outer tenant resolver exception message"
@@ -176,8 +176,8 @@ class ViaductDataFetcherExceptionHandlerTest {
     @Test
     fun handleFrameworkError() {
         val inner = RuntimeException("bar")
-        // Mocking because ViaductFrameworkException has an internal constructor
-        val throwable = mockk<ViaductFrameworkException>(relaxed = true) {
+        // Mocking because FrameworkException has an internal constructor
+        val throwable = mockk<FrameworkException>(relaxed = true) {
             every { cause } returns inner
             every { message } returns "foo"
         }
@@ -186,12 +186,12 @@ class ViaductDataFetcherExceptionHandlerTest {
         val result = exceptionHandler.handleException(params).join()
 
         assertEquals(1, capturedThrowables.size)
-        assertTrue(capturedThrowables.first() is ViaductFrameworkException)
+        assertTrue(capturedThrowables.first() is FrameworkException)
 
         assertEquals(true, capturedMetadata.first().isFrameworkError)
 
         assertEquals(1, result.errors.size)
-        assertEquals("viaduct.api.ViaductFrameworkException: foo", result.errors.first().message)
+        assertEquals("viaduct.errors.FrameworkException: foo", result.errors.first().message)
 
         assertEquals("true", result.errors.first().extensions["isFrameworkError"])
         assertEquals(capturedMetadata[0].fieldName, result.errors[0].extensions["fieldName"])
@@ -203,7 +203,7 @@ class ViaductDataFetcherExceptionHandlerTest {
     fun handleArbitraryExceptionNesting() {
         val actualException = IllegalStateException("actual error")
 
-        val tenantResolverException = mockk<ViaductTenantResolverException>(relaxed = true) {
+        val tenantResolverException = mockk<TenantResolverException>(relaxed = true) {
             every { cause } returns actualException
             every { resolver } returns "Test.field"
             every { message } returns "tenant resolver message"

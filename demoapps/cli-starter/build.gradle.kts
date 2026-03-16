@@ -21,7 +21,12 @@ dependencies {
 
     implementation(libs.logback.classic)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlin.reflect)
     implementation(libs.jackson.databind)
+
+    implementation(libs.kotlinx.coroutines.jdk8)
+    implementation(libs.kotlin.reflect)
+    implementation(libs.reactive.streams)
 
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.junit.jupiter.engine)

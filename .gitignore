@@ -1,11 +1,18 @@
 # ----------------------------------------
 # Gradle
+# Because build and .gradle directories
+# are symlinks in Treehouse, we need
+# to ignore them as files as well as
+# directory segments.
 # ----------------------------------------
 HELP.md
+.gradle
 .gradle/
+build
 build/
 out/
 !gradle/wrapper/gradle-wrapper.jar
+**/build
 **/build/
 **/out/
 !**/src/main/**/build/

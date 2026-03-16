@@ -23,8 +23,8 @@ jmh = "1.37"
 junit5 = "5.11.3"
 kotest = "5.9.1"
 kotlin = "1.9.24"
-kotlinx = "1.5.2"
-kotlinx-debug = "1.8.0"
+kotlinx = "1.8.1"
+kotlinx-debug = "1.8.1"
 kotlinx-metadata = "0.9.0"
 mockk-jvm = "1.13.3"
 reflections = "0.10.2"
@@ -88,8 +88,10 @@ viaduct-shared-invariants = { module = "com.airbnb.viaduct:shared-invariants", v
 viaduct-shared-mapping = { module = "com.airbnb.viaduct:shared-mapping", version.ref = "project" }
 viaduct-shared-utils = { module = "com.airbnb.viaduct:shared-utils", version.ref = "project" }
 viaduct-shared-viaductschema = { module = "com.airbnb.viaduct:shared-viaductschema", version.ref = "project" }
+viaduct-errors = { module = "com.airbnb.viaduct:errors", version.ref = "project" }
 
 viaduct-gradle-plugins-common = { module = "com.airbnb.viaduct:gradle-plugins-common", version.ref = "project" }
+viaduct-build-shared = { module = "com.airbnb.viaduct.build:shared", version.ref = "project" }
 
 viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version.ref = "project" }
 viaduct-serve = { module = "com.airbnb.viaduct:serve", version.ref = "project" }
@@ -158,3 +160,4 @@ checker-qual = { module = "org.checkerframework:checker-qual", version.ref = "ch
 
 # Linting
 detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }
+detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref = "detekt" }

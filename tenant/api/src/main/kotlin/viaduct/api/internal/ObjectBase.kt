@@ -18,11 +18,7 @@ import kotlin.reflect.full.isSubclassOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import viaduct.api.ViaductFrameworkException
-import viaduct.api.ViaductTenantException
-import viaduct.api.ViaductTenantUsageException
 import viaduct.api.globalid.GlobalID
-import viaduct.api.handleTenantAPIErrors
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
@@ -31,6 +27,10 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.UnsetFieldException
+import viaduct.errors.FrameworkException
+import viaduct.errors.TenantException
+import viaduct.errors.TenantUsageException
+import viaduct.errors.handleTenantAPIErrors
 
 /**
  * Base class for object type GRTs
@@ -55,9 +55,9 @@ abstract class ObjectBase(
         } catch (ex: Exception) {
             if (ex is CancellationException) currentCoroutineContext().ensureActive()
             when (ex) {
-                is ViaductTenantException -> throw ex
+                is TenantException -> throw ex
                 is EngineObjectDataFetchException -> throw ex.cause!!
-                else -> throw ViaductFrameworkException("ObjectBase.fetch failed for ${engineObject.type.name}.$fieldName. ($ex)", ex)
+                else -> throw FrameworkException("ObjectBase.fetch failed for ${engineObject.type.name}.$fieldName. ($ex)", ex)
             }
         }
     }
@@ -79,7 +79,7 @@ abstract class ObjectBase(
         val selection = alias ?: fieldName
         val result = fieldCache.getOrPut(selection) {
             val objectType = engineObject.type
-            val fieldDefinition = objectType.getField(fieldName) ?: throw ViaductFrameworkException(
+            val fieldDefinition = objectType.getField(fieldName) ?: throw FrameworkException(
                 "Field $fieldName not found on type ${objectType.name}"
             )
             val fieldValue = try {
@@ -97,13 +97,13 @@ abstract class ObjectBase(
                         }
                     }
                     is EngineObjectData -> engineObject.fetch(selection)
-                    else -> throw ViaductFrameworkException("Unknown EngineObject subclass ${engineObject.javaClass.name}")
+                    else -> throw FrameworkException("Unknown EngineObject subclass ${engineObject.javaClass.name}")
                 }
             } catch (ex: Exception) {
                 if (ex is CancellationException) currentCoroutineContext().ensureActive()
                 when (ex) {
-                    is UnsetFieldException -> throw ViaductTenantUsageException(ex.message, ex)
-                    is ViaductTenantException, is ViaductFrameworkException -> throw ex
+                    is UnsetFieldException -> throw TenantUsageException(ex.message, ex)
+                    is TenantException, is FrameworkException -> throw ex
                     else -> throw EngineObjectDataFetchException("engineObjectData.fetch failed on field $fieldName", ex)
                 }
             }
@@ -210,11 +210,11 @@ abstract class ObjectBase(
      * Returns the EngineObjectData for this GRT instance, throwing if called on a NodeReference.
      *
      * @return The EngineObjectData backing this GRT
-     * @throws ViaductTenantUsageException if called on a NodeReference
+     * @throws TenantUsageException if called on a NodeReference
      */
     protected fun toBuilderEOD(): EngineObjectData {
         if (engineObject is NodeReference) {
-            throw ViaductTenantUsageException(
+            throw TenantUsageException(
                 "Cannot call toBuilder() on an unresolved NodeReference."
             )
         }

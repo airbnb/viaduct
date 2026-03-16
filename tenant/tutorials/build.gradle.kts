@@ -7,6 +7,8 @@ plugins {
 viaductFeatureApp {}
 
 dependencies {
+    viaductCodegenClasspath(libs.viaduct.tenant.codegen)
+
     testImplementation(libs.graphql.java)
     testImplementation(libs.guice)
     testImplementation(libs.javax.inject)

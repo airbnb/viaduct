@@ -3,9 +3,7 @@ package viaduct.engine.runtime.tenantloading
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.CheckerExecutorFactory
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
@@ -14,6 +12,8 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.api.spi.CheckerExecutorFactory
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.validation.Validator
 
 class ExecutorValidatorTest {

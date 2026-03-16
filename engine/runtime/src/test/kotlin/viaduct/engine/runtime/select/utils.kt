@@ -2,6 +2,8 @@ package viaduct.engine.runtime.select
 
 import graphql.language.Field
 import graphql.schema.GraphQLCompositeType
+import viaduct.engine.api.EngineSelection
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.graphql.utils.GraphQLTypeRelation
 
 /**
@@ -26,3 +28,20 @@ internal val EngineSelectionSetImpl.typeFields: Map<String, List<Field>>
             }
             .groupBy({ it.field.name }, { it.field })
     }
+
+/**
+ * A [typeFields] variant that works with any [EngineSelectionSet] implementation,
+ * including [ProjectedEngineSelectionSet].
+ *
+ * Kotlin resolves extensions by static receiver type, so this is used when the receiver
+ * is typed as [EngineSelectionSet] (e.g., after [EngineSelectionSet.selectionSetForType]
+ * which now returns [EngineSelectionSet]). When the receiver is typed as
+ * [EngineSelectionSetImpl], the more specific extension above is used instead.
+ *
+ * The keys are field names identical to the [EngineSelectionSetImpl] variant.
+ * Test assertions only use [Map.keys], so the different value type is irrelevant.
+ */
+internal val EngineSelectionSet.typeFields: Map<String, List<EngineSelection>>
+    get() = selections()
+        .filter { sel -> containsField(type, sel.fieldName) }
+        .groupBy { it.fieldName }

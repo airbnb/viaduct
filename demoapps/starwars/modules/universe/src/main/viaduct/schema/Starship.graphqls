@@ -96,4 +96,38 @@ extend type Query @scope(to: ["default"]) {
   All starships
   """
   allStarships(limit: Int): [Starship] @resolver
+
+  """
+  All starships as a paginated connection using forward pagination (Relay-style).
+  Use `first` to set the page size and `after` to page forward from a cursor.
+  Demonstrates ForwardConnectionArguments and the fromSlice builder, which is
+  ideal when fetching a slice from a larger dataset (fetch limit+1 to detect hasNextPage).
+  """
+  allStarshipsConnection(
+    "Maximum number of starships to return."
+    first: Int
+    "Cursor to start fetching after (exclusive, for forward pagination)."
+    after: String
+  ): StarshipsConnection @resolver
+}
+
+"""
+A connection to a list of Starships with forward pagination support.
+Demonstrates the @connection directive with ForwardConnectionArguments and the fromSlice builder.
+"""
+type StarshipsConnection @connection @scope(to: ["default"]) {
+  "List of starship edges."
+  edges: [StarshipEdge]
+  "Pagination information."
+  pageInfo: PageInfo!
+}
+
+"""
+An edge in a StarshipsConnection.
+"""
+type StarshipEdge @edge @scope(to: ["default"]) {
+  "The starship at the end of the edge."
+  node: Starship
+  "A cursor for pagination."
+  cursor: String!
 }

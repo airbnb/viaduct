@@ -4,16 +4,18 @@ import javax.inject.Provider
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
 import viaduct.api.NodeResolverBase
-import viaduct.api.ViaductTenantUsageException
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
-import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.ResolverType
+import viaduct.engine.api.TenantModuleMetadata
+import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.errors.TenantUsageException
+import viaduct.errors.wrapResolveException
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
@@ -26,8 +28,9 @@ class NodeUnbatchedResolverExecutorImpl(
     private val factory: NodeExecutionContextFactory,
     private val resolverName: String,
     override val isSelective: Boolean,
+    private val tenantMetadata: TenantModuleMetadata? = null,
 ) : NodeResolverExecutor {
-    override val metadata = ResolverMetadata.forModern(resolverName)
+    override val metadata = ResolverMetadata.forModern(resolverName, ResolverType.NODE, tenantMetadata)
     override val isBatching = false
 
     override suspend fun resolve(
@@ -60,7 +63,7 @@ class NodeUnbatchedResolverExecutorImpl(
             }
 
             return when (val eo = result.engineObject) {
-                is NodeReference -> throw ViaductTenantUsageException(
+                is NodeReference -> throw TenantUsageException(
                     "NodeReference returned from node resolver. Use a GRT builder instead of Context.nodeFor to construct your node object."
                 )
 

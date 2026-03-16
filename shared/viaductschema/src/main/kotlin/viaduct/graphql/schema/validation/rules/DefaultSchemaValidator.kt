@@ -12,9 +12,10 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * - [NoSubscriptionsRule]: Disallows subscription type definitions
  * - [NoCustomScalarsRule]: Only allows built-in GraphQL scalars
  * - [ApplicationOnlyDefinitionsRule]: Directives and scalars must be defined at application level
+ * - [BackingDataFieldsRule]: BackingData type and @backingData directive must be used together
  */
 object DefaultSchemaValidator {
-    private val allowedScalarNames = GraphQLBuiltIns.SCALARS
+    private val allowedScalarNames = GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS
     private val modulePartitionPathPrefix = "partition/"
 
     private val validator = SchemaValidator(
@@ -22,7 +23,8 @@ object DefaultSchemaValidator {
             listOf(
                 NoSubscriptionsRule(),
                 NoCustomScalarsRule(allowedScalarNames),
-                ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix)
+                ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix),
+                BackingDataFieldsRule()
             )
         )
     )

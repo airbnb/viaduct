@@ -42,7 +42,7 @@ import viaduct.service.api.spi.FlagManager
 import viaduct.utils.collections.parallelMap
 
 /**
- * Uses `runBlocking` instead of `runBlockingTest` or `runTest` since we have seen strange behavior with runBlockingTest when trying to test the real
+ * Uses `runBlocking` instead of `runBlockingTest` or `runTest` since we have seen strange behavior with runTest when trying to test the real
  * concurrency on this class. If the kotlin.coroutines library is updated to 1.6+ we can try to use runTest again since the kotlin team rewrote the
  * test lib with that version.
  *

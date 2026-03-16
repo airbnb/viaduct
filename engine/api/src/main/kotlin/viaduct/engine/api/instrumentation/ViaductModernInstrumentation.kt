@@ -25,7 +25,7 @@ import graphql.schema.DataFetcher
 import graphql.schema.GraphQLSchema
 import graphql.validation.ValidationError
 import java.util.concurrent.CompletableFuture
-import viaduct.engine.api.CheckerExecutor
+import viaduct.engine.api.spi.CheckerExecutor
 
 /**
  * ViaductModernInstrumentation is an interface representing the instrumentation methods that are available in

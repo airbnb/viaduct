@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.CheckerExecutor
+import viaduct.engine.api.spi.CheckerExecutor
 
 class ViaductInstrumentationAdapterTest {
     class TestModernInstrumentation :

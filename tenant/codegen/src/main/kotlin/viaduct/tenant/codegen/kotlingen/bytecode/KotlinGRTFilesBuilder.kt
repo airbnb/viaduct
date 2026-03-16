@@ -31,8 +31,13 @@ abstract class KotlinGRTFilesBuilder protected constructor(
     /**
      * The schema being processed. Available after [addAll] is called.
      */
-    protected lateinit var schema: ViaductSchema
+    internal lateinit var schema: ViaductSchema
         private set
+
+    /**
+     * Returns a type definition by name from the schema.
+     */
+    internal fun getType(type: String): ViaductSchema.TypeDef? = schema.types[type]
 
     /**
      * Returns true if the given object type is the query root type in the schema.

@@ -13,7 +13,6 @@ import graphql.schema.GraphQLTypeUtil
 import graphql.schema.GraphQLUnionType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT

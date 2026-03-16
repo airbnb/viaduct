@@ -13,5 +13,7 @@ class InputTypeDescriptor(
      */
     val fields: Iterable<ViaductSchema.HasDefaultValue>,
     /** The TypeDef that this InputTypeDescriptor originated from, if one exists */
-    val def: ViaductSchema.TypeDef?
+    val def: ViaductSchema.TypeDef?,
+    /** For Arguments types: the field whose arguments are being wrapped (null for Input types) */
+    val containingField: ViaductSchema.Field? = null,
 )

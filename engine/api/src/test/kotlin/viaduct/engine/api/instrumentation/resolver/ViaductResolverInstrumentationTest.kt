@@ -25,7 +25,7 @@ class ViaductResolverInstrumentationTest {
             val result = ViaductResolverInstrumentation.DEFAULT.instrumentResolverExecution(
                 ResolverFunction { expectedResult },
                 ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
-                    resolverMetadata = ResolverMetadata.forModern("TestResolver")
+                    resolverMetadata = ResolverMetadata.forMock("TestResolver")
                 ),
                 null
             ).resolve()

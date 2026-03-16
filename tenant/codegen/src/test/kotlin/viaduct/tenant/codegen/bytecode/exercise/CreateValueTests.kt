@@ -1,7 +1,7 @@
 package viaduct.tenant.codegen.bytecode.exercise
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -156,7 +156,7 @@ class CreateValueTests {
 
     @Test
     fun testCreateValueV2() =
-        runBlockingTest {
+        runTest {
             val fieldB = defForObjectB.codegenIncludedFields.first()
             val valueV2 = fieldB.createValueV2(classResolverForV2, graphqlSchemaForV2)
             assertTrue(valueV2 is ObjectA)
@@ -171,7 +171,7 @@ class CreateValueTests {
 
     @Test
     fun testValueV2FromGenericValueAsEngineObjectData() =
-        runBlockingTest {
+        runTest {
             val fieldB = defForObjectB.codegenIncludedFields.first()
             val data = fieldB.valueV2FromGenericValue(
                 classResolverForV2,

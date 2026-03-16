@@ -4,7 +4,7 @@ import viaduct.dataloader.BatchLoaderEnvironment
 import viaduct.dataloader.DataLoader
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.NodeResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
 
 /**
  * If the resolver is a batch resolver, then the data loader handles batching together calls to

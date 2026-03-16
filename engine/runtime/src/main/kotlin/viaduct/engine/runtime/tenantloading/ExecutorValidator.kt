@@ -1,12 +1,12 @@
 package viaduct.engine.runtime.tenantloading
 
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.NodeResolverExecutor
-import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.validation.Validator
 import viaduct.engine.runtime.validation.Validator.Companion.flatten
 

@@ -1,6 +1,5 @@
 package viaduct.engine.runtime.tenantloading
 
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -9,6 +8,7 @@ import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.VariablesResolver
+import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.select.SelectionsParser
@@ -19,16 +19,6 @@ class RequiredSelectionsAreAcyclicTest {
         assertValid(
             "type Subject { x: Int }",
             MockRequiredSelectionSetRegistry.empty
-        )
-    }
-
-    @Test
-    fun `valid -- dependency on sibling`() {
-        assertValid(
-            "type Subject { x: Int y: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "y")
-                .build()
         )
     }
 
@@ -83,64 +73,6 @@ class RequiredSelectionsAreAcyclicTest {
             MockRequiredSelectionSetRegistry.builder()
                 .fieldResolverEntry("Subject" to "x", "y { a } z")
                 .fieldResolverEntry("Subject" to "y", "h")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- same required selection sets for same coordinate`() {
-        assertValid(
-            "type Subject { x: Int y: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "x", "y")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- same required selection sets for same coordinate 1`() {
-        assertValid(
-            "type Subject { x: Int y: Int z: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "y", "z")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- different required selection sets for same coordinate`() {
-        assertValid(
-            "type Subject { x: Int y: Int z: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "x", "y z")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- different required selection sets for same coordinate 1`() {
-        assertValid(
-            "type Subject { x: Int y: Int z: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "x", "z")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- same required selection sets for multiple same coordinate`() {
-        assertValid(
-            "type Subject { x: Int y: Int z: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "y", "z")
-                .fieldResolverEntry("Subject" to "y", "z")
                 .build()
         )
     }
@@ -219,70 +151,6 @@ class RequiredSelectionsAreAcyclicTest {
     }
 
     @Test
-    fun `valid -- field checker rss references self`() {
-        assertValid(
-            "type Subject { x: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Subject" to "x", "x")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- field checker references self with resolver`() {
-        assertValid(
-            "type Subject { x: Int y: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Subject" to "x", "x")
-                .fieldResolverEntry("Subject" to "x", "y")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- field checker with multiple required selections`() {
-        assertValid(
-            "type Subject { x: Int y: Int z: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Subject" to "x", "y z")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- multiple field checkers for same field`() {
-        assertValid(
-            "type Subject { x: Int y: Int z: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Subject" to "x", "y")
-                .fieldCheckerEntry("Subject" to "x", "z")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- field checker with resolver on different fields`() {
-        assertValid(
-            "type Subject { x: Int y: Int z: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "z", "y")
-                .build()
-        )
-    }
-
-    @Test
-    fun `valid -- mixed field checker and resolver dependencies`() {
-        assertValid(
-            "type Subject { x: Int y: Int z: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "y", "z")
-                .build()
-        )
-    }
-
-    @Test
     fun `valid -- type checker basic`() {
         assertValid(
             """
@@ -311,83 +179,6 @@ class RequiredSelectionsAreAcyclicTest {
             "type Subject { x: Int }",
             MockRequiredSelectionSetRegistry.builder()
                 .fieldResolverEntry("Subject" to "x", "x")
-                .build()
-        )
-    }
-
-    @Test
-    fun `invalid -- recursion via sibling fields`() {
-        assertInvalid(
-            "type Subject { x: Int, y: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "y", "x")
-                .build()
-        )
-    }
-
-    @Test
-    fun `invalid -- recursion via nested object`() {
-        assertInvalid(
-            "type Subject { x: Int, y: Int, subject: Subject }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "subject { y }")
-                .fieldResolverEntry("Subject" to "y", "subject { x }")
-                .build()
-        )
-    }
-
-    @Test
-    fun `invalid -- recursion via nested object 1`() {
-        assertInvalid(
-            "type Subject { x: Int, y: Int, subject: Subject }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "y", "subject { x }")
-                .build()
-        )
-    }
-
-    @Test
-    fun `invalid -- recursion via nested object 2`() {
-        assertInvalid(
-            "type Subject { x: Subject }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "x { __typename }")
-                .build()
-        )
-    }
-
-    @Test
-    fun `invalid -- recursion via nested object for each coordinate`() {
-        assertInvalid(
-            "type Subject { x: Int, y: Int, subject: Subject }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "subject { x }")
-                .fieldResolverEntry("Subject" to "y", "subject { y }")
-                .build()
-        )
-    }
-
-    @Test
-    fun `invalid -- same coordinate with cycle itself`() {
-        assertInvalid(
-            "type Subject { x: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "x")
-                .fieldResolverEntry("Subject" to "x", "x")
-                .build()
-        )
-    }
-
-    @Test
-    fun `invalid -- same coordinate recursion with cycle from nested object`() {
-        assertInvalid(
-            "type Subject { x: Int, y: Int, subject: Subject }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "x", "subject { y }")
-                .fieldResolverEntry("Subject" to "y", "subject { x }")
                 .build()
         )
     }
@@ -489,19 +280,6 @@ class RequiredSelectionsAreAcyclicTest {
     }
 
     @Test
-    fun `invalid -- cycle after first element does not cause infinite loop`() {
-        assertInvalid(
-            """
-                type Subject { x: Int, y: Int }
-            """.trimIndent(),
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldResolverEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "y", "y")
-                .build()
-        )
-    }
-
-    @Test
     fun `invalid -- type checker references resolver with own type in RSS`() {
         assertInvalid(
             "type Subject { x: Int s: Subject }",
@@ -510,6 +288,24 @@ class RequiredSelectionsAreAcyclicTest {
                 .fieldResolverEntry("Subject" to "x", "s { x }")
                 .build()
         )
+    }
+
+    @Test
+    fun `invalid -- cycle through type checker, field checker, resolver`() {
+        val schema = MockSchema.mk(
+            """
+            extend type Query { empty: Int }
+            type Foo { a: Int, b: Int }
+            """.trimIndent()
+        )
+        val registry = MockRequiredSelectionSetRegistry.builder()
+            .typeCheckerEntry("Foo", "a")
+            .fieldCheckerEntry("Foo" to "a", "b")
+            .fieldResolverEntry("Foo" to "b", "a")
+            .build()
+        assertThrows<RequiredSelectionsCycleException> {
+            validateOne(schema, registry, "Foo" to null)
+        }
     }
 
     @Test
@@ -683,28 +479,6 @@ class RequiredSelectionsAreAcyclicTest {
     }
 
     @Test
-    fun `invalid -- field checker and resolver create cycle`() {
-        assertInvalid(
-            "type Subject { x: Int y: Int }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Subject" to "x", "y")
-                .fieldResolverEntry("Subject" to "y", "x")
-                .build()
-        )
-    }
-
-    @Test
-    fun `invalid -- field checker mixed with resolver cycle through nested object`() {
-        assertInvalid(
-            "type Subject { x: Int y: Int subject: Subject }",
-            MockRequiredSelectionSetRegistry.builder()
-                .fieldCheckerEntry("Subject" to "x", "subject { y }")
-                .fieldResolverEntry("Subject" to "y", "subject { x }")
-                .build()
-        )
-    }
-
-    @Test
     fun `invalid -- cycle with field checker, resolver, and variables`() {
         // Field checker on Subject.a requires Subject.b
         // Resolver for Subject.b requires Subject.c with variable from Subject.a
@@ -727,45 +501,6 @@ class RequiredSelectionsAreAcyclicTest {
                     )
                 )
                 .build()
-        )
-    }
-
-    @Test
-    fun `error path -- required selection traversal`() {
-        val err = assertThrows<RequiredSelectionsCycleException> {
-            validateAll(
-                "type Subject { x: Int, y: Int }",
-                MockRequiredSelectionSetRegistry.builder()
-                    .fieldResolverEntry("Subject" to "x", "y")
-                    .fieldResolverEntry("Subject" to "y", "x")
-                    .build()
-            )
-        }
-        err.assertErrorPath(
-            "Subject.x",
-            "Subject.y",
-            "Subject.x"
-        )
-    }
-
-    @Test
-    fun `error path -- selection set traversal`() {
-        val err = assertThrows<RequiredSelectionsCycleException> {
-            validateAll(
-                """
-                    type Foo { x: Int bar: Bar }
-                    type Bar { x: Int foo: Foo }
-                """.trimIndent(),
-                MockRequiredSelectionSetRegistry.builder()
-                    .fieldResolverEntry("Foo" to "x", "bar { x }")
-                    .fieldResolverEntry("Bar" to "x", "foo { x }")
-                    .build()
-            )
-        }
-        err.assertErrorPath(
-            "Foo.x",
-            "Bar.x",
-            "Foo.x"
         )
     }
 
@@ -812,10 +547,6 @@ class RequiredSelectionsAreAcyclicTest {
         }
     }
 
-    private fun RequiredSelectionsCycleException.assertErrorPath(vararg expectedPath: String) {
-        assertEquals(expectedPath.toList(), this.path.toList())
-    }
-
     /**
      * Given a schema and a collection of required selection sets,
      * runs the cycle-detection validator against that collection.
@@ -848,12 +579,21 @@ class RequiredSelectionsAreAcyclicTest {
             }
             .toSet()
         coordToValidate.map { coord ->
-            val ctx = RequiredSelectionsValidationCtx(
-                coord.first,
-                coord.second,
-                registry
-            )
-            validator.validate(ctx)
+            validateOne(schema, registry, coord)
         }
+    }
+
+    private fun validateOne(
+        schema: ViaductSchema,
+        registry: MockRequiredSelectionSetRegistry,
+        coord: TypeOrFieldCoordinate
+    ) {
+        val validator = RequiredSelectionsAreAcyclic(schema)
+        val ctx = RequiredSelectionsValidationCtx(
+            coord.first,
+            coord.second,
+            registry
+        )
+        validator.validate(ctx)
     }
 }

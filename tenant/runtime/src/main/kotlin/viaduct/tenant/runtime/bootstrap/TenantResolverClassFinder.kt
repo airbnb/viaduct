@@ -3,6 +3,7 @@ package viaduct.tenant.runtime.bootstrap
 import kotlin.reflect.KClass
 import viaduct.api.internal.ObjectBase
 import viaduct.api.types.Arguments
+import viaduct.engine.api.TenantModuleMetadata
 
 /**
  * Interface for dynamically discovering and loading Viaduct Modern tenant classes at runtime.
@@ -54,4 +55,11 @@ interface TenantResolverClassFinder {
      * @throws ClassNotFoundException if no matching class is found
      */
     fun argumentClassForName(typeName: String): KClass<out Arguments>
+
+    /**
+     * Returns the typed metadata from the tenant module associated with this package.
+     *
+     * @return the tenant module metadata, or [TenantModuleMetadata.EMPTY] if not available
+     */
+    fun tenantModuleMetadata(): TenantModuleMetadata
 }

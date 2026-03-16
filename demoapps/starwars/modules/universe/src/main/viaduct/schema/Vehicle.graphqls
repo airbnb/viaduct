@@ -80,7 +80,5 @@ extend type Query @scope(to: ["default"]) {
   """
   All vehicles
   """
-  allVehicles(limit: Int): [Vehicle]
-    @resolver
-    @backingData(class: "com.example.starwars.modules.universe.vehicles.queries.AllVehiclesQueryResolver")
+  allVehicles(limit: Int): [Vehicle] @resolver
 }

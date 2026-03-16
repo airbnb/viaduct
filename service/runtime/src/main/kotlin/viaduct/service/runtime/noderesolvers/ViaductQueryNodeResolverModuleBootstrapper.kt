@@ -2,13 +2,14 @@ package viaduct.service.runtime.noderesolvers
 
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
-import viaduct.engine.api.TenantModuleBootstrapper
+import viaduct.engine.api.ResolverType
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 
 /**
  * ViaductNodeResolverModuleBootstrapper is responsible for defining and bootstrapping system level Query.node/s field resolvers.
@@ -34,7 +35,7 @@ class ViaductQueryNodeResolverModuleBootstrapper : TenantModuleBootstrapper {
             override val objectSelectionSet: RequiredSelectionSet? = null
             override val querySelectionSet: RequiredSelectionSet? = null
             override val resolverId: String = "Query.node"
-            override val metadata: ResolverMetadata = ResolverMetadata.forModern("query-node-resolver")
+            override val metadata: ResolverMetadata = ResolverMetadata.forModern("query-node-resolver", ResolverType.NODE)
             override val isBatching: Boolean = false
 
             override suspend fun batchResolve(
@@ -59,7 +60,7 @@ class ViaductQueryNodeResolverModuleBootstrapper : TenantModuleBootstrapper {
             override val objectSelectionSet: RequiredSelectionSet? = null
             override val querySelectionSet: RequiredSelectionSet? = null
             override val resolverId: String = "Query.nodes"
-            override val metadata: ResolverMetadata = ResolverMetadata.forModern("query-nodes-resolver")
+            override val metadata: ResolverMetadata = ResolverMetadata.forModern("query-nodes-resolver", ResolverType.NODE)
             override val isBatching: Boolean = false
 
             override suspend fun batchResolve(

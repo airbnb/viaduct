@@ -21,6 +21,8 @@ import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.TypeResolver
 import io.kotest.property.Arb
+import io.kotest.property.RandomSource
+import kotlin.random.Random
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
@@ -33,7 +35,6 @@ import strikt.assertions.isEqualTo
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.failProperty
 import viaduct.arbitrary.common.minViolation
-import viaduct.arbitrary.common.randomSource
 import viaduct.arbitrary.graphql.ExecutionInputComparator
 import viaduct.arbitrary.graphql.arbRuntimeWiring
 import viaduct.engine.api.ViaductSchema
@@ -71,6 +72,7 @@ import viaduct.engine.runtime.execution.RecordingInstrumentation.RecordingInstru
 @ExperimentalCoroutinesApi
 internal class Conformer private constructor(
     val schema: ViaductSchema,
+    val random: RandomSource,
     private val fn: suspend Conformer.() -> Unit = {}
 ) {
     /** Create a [Conformer] backed by the provided resolvers */
@@ -78,8 +80,13 @@ internal class Conformer private constructor(
         sdl: String,
         resolvers: Map<String, Map<String, DataFetcher<Any?>>>,
         typeResolvers: Map<String, TypeResolver> = emptyMap(),
+        seed: Long = Random.nextLong(),
         fn: suspend Conformer.() -> Unit = {}
-    ) : this(createSchema(sdl, createRuntimeWiring(resolvers, typeResolvers)), fn)
+    ) : this(
+        createSchema(sdl, createRuntimeWiring(resolvers, typeResolvers)),
+        RandomSource.seeded(seed),
+        fn
+    )
 
     /**
      * Create a [Conformer] backed by deterministic [Arb]-based wiring
@@ -89,9 +96,13 @@ internal class Conformer private constructor(
     constructor(
         sdl: String,
         cfg: Config = Config.default,
-        seed: Long = randomSource().seed,
+        seed: Long = Random.nextLong(),
         fn: suspend Conformer.() -> Unit = {}
-    ) : this(createSchema(sdl, arbRuntimeWiring(sdl, seed, cfg)), fn)
+    ) : this(
+        createSchema(sdl, arbRuntimeWiring(sdl, seed, cfg)),
+        RandomSource.seeded(seed),
+        fn
+    )
 
     val modernRecorder = RecordingInstrumentation()
     val gjRecorder = RecordingInstrumentation()
@@ -123,11 +134,11 @@ internal class Conformer private constructor(
             checkInstrumentationsEqual = checkInstrumentationsEqual,
             extraChecks = extraChecks
         )
-        val failure = arb.minViolation(ExecutionInputComparator, iter) {
+        val failure = arb.minViolation(ExecutionInputComparator, random, iter) {
             tryCheck(it, checkResult).isSuccess
         }
         failure?.let {
-            failProperty(it.dump(), tryCheck(it, checkResult).exceptionOrNull())
+            failProperty(it.dump(), tryCheck(it, checkResult).exceptionOrNull(), seed = random.seed)
         }
     }
 

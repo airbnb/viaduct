@@ -1,7 +1,7 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
 
 /**

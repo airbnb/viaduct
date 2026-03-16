@@ -2,7 +2,7 @@ package com.example.starwars.modules.universe.starships.resolvers
 
 import com.example.starwars.modules.universe.starships.models.StarshipBuilder
 import com.example.starwars.modules.universe.starships.models.StarshipsRepository
-import com.example.starwars.universe.NodeResolvers
+import com.example.starwars.universe.resolverbases.NodeResolvers
 import jakarta.inject.Inject
 import viaduct.api.Resolver
 import viaduct.api.grts.Starship

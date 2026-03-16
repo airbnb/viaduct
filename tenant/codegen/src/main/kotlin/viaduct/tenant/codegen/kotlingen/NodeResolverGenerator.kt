@@ -45,7 +45,9 @@ private class NodeResolverGenerator(
             .map { it.name }
 
         genNodeResolvers(tenantOwnedNodes, tenantPackage, grtPackage)?.let { contents ->
-            val file = File(resolverGeneratedDir, "NodeResolvers.kt")
+            val resolverbasesDir = File(resolverGeneratedDir, "resolverbases")
+            resolverbasesDir.mkdirs()
+            val file = File(resolverbasesDir, "NodeResolvers.kt")
             contents.write(file)
         }
     }
@@ -95,7 +97,7 @@ private class NodeModelImpl(override val typeName: String, override val grtPacka
 
 private val nodesSt = stTemplate(
     """
-        package <mdl.tenantPackage>
+        package <mdl.tenantPackage>.resolverbases
 
         import viaduct.api.FieldValue
         import viaduct.api.SelectiveResolver

@@ -1,11 +1,11 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.api.spi.CheckerExecutor
 
 /**
  * Wraps a [CheckerExecutor] to add instrumentation callbacks during checker execution.

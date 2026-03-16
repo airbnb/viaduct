@@ -27,5 +27,6 @@ package viaduct.engine.api
 value class ParentManagedValue(val value: Any?) {
     init {
         require(value !is ParentManagedValue)
+        require(value !is StandardResolutionValue)
     }
 }

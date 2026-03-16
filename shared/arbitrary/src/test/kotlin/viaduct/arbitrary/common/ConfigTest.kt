@@ -12,8 +12,6 @@ import io.kotest.property.arbitrary.intRange
 import io.kotest.property.arbitrary.pair
 import io.kotest.property.arbitrary.string
 import io.kotest.property.arbitrary.withEdgecases
-import io.kotest.property.checkAll
-import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -64,7 +62,7 @@ class ConfigTest : KotestPropertyBase() {
     fun `Config_get with present key returns configured value`(): Unit =
         runBlocking {
             val key = ConfigKey<Any>(0, Unvalidated)
-            forAll<Any> { x ->
+            Arb.int().forAll { x ->
                 val cfg = Config.default + (key to x)
                 cfg[key] == x
             }

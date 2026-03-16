@@ -1,9 +1,9 @@
 package viaduct.engine.runtime
 
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.spi.CheckerExecutor
 
 /**
  * Dispatch the access checker execution to the appropriate executor.

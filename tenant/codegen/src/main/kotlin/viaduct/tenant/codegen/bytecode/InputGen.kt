@@ -9,6 +9,7 @@ import kotlinx.metadata.KmVariance
 import kotlinx.metadata.Modality
 import kotlinx.metadata.Visibility
 import kotlinx.metadata.hasAnnotations
+import kotlinx.metadata.isNullable
 import kotlinx.metadata.isSuspend
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
@@ -21,6 +22,7 @@ import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.kmType
+import viaduct.tenant.codegen.util.ConnectionArgumentsInfo
 
 internal fun GRTClassFilesBuilder.inputGen(def: ViaductSchema.Input) {
     makeInputClass(
@@ -35,25 +37,34 @@ internal fun GRTClassFilesBuilder.inputGen(def: ViaductSchema.Input) {
 internal fun GRTClassFilesBuilder.fieldArgumentsInputGen(field: ViaductSchema.Field) {
     if (field.args.none()) return
 
-    makeInputClass(
+    val connectionArgsInfo = ConnectionArgumentsInfo.from(field)
+
+    val builder = makeInputClass(
         cfg.argumentTypeName(field).kmFQN(pkg),
         field.args,
-        cfg.ARGUMENTS_GRT.asKmName
+        cfg.ARGUMENTS_GRT.asKmName,
+        overrideFieldNames = connectionArgsInfo.overrideFieldNames,
+        containingField = field,
     )
+
+    // If the field returns a Connection type, add appropriate ConnectionArguments interface
+    connectionArgsInfo.interfaceToAdd?.let { builder.addSupertype(it.asType()) }
 }
 
 private fun GRTClassFilesBuilder.makeInputClass(
     className: KmName,
     fields: Iterable<ViaductSchema.HasDefaultValue>,
-    taggingInterface: KmName
+    taggingInterface: KmName,
+    overrideFieldNames: Set<String> = emptySet(),
+    containingField: ViaductSchema.Field? = null,
 ): CustomClassBuilder {
     val builder = kmClassFilesBuilder.customClassBuilder(
         ClassKind.CLASS,
         className
     )
-    InputClassGen(this, fields, builder)
+    InputClassGen(this, fields, builder, overrideFieldNames)
     builder.addSupertype(taggingInterface.asType())
-    this.inputBuilderGen(fields, builder, taggingInterface)
+    this.inputBuilderGen(fields, builder, taggingInterface, containingField)
 
     return builder
 }
@@ -62,6 +73,7 @@ private class InputClassGen(
     private val grtClassFilesBuilder: GRTClassFilesBuilderBase,
     private val fields: Iterable<ViaductSchema.HasDefaultValue>,
     private val inputClass: CustomClassBuilder,
+    private val overrideFieldNames: Set<String> = emptySet(),
 ) {
     private val pkg = grtClassFilesBuilder.pkg
     private val baseTypeMapper = grtClassFilesBuilder.baseTypeMapper
@@ -189,6 +201,17 @@ private class InputClassGen(
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
         val fieldType = field.kmType(pkg, baseTypeMapper)
+        // Connection argument override fields (e.g., first, after, last, before) must be
+        // nullable in the schema to match the ConnectionArguments interface declarations
+        // (e.g., ForwardConnectionArguments.first: Int?, after: String?). Non-nullable types
+        // generate primitive JVM getters (int getFirst()) that don't satisfy the interface's
+        // boxed method (Integer getFirst()), causing AbstractMethodError at runtime.
+        if (field.name in overrideFieldNames) {
+            require(fieldType.isNullable) {
+                "Connection argument '${field.name}' must be nullable in the schema to satisfy " +
+                    "the ConnectionArguments interface, but it is declared as non-null."
+            }
+        }
         val kmProperty = KmPropertyBuilder(
             JavaIdName(field.name),
             fieldType,
@@ -197,6 +220,9 @@ private class InputClassGen(
             constructorProperty = false
         ).apply {
             getterVisibility(Visibility.PUBLIC)
+            if (field.name in overrideFieldNames) {
+                propertyModality(Modality.FINAL)
+            }
             getterBody(
                 body = buildString {
                     append("{\n")

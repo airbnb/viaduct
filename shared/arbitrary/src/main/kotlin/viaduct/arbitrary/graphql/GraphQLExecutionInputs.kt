@@ -1,3 +1,5 @@
+@file:OptIn(InternalApi::class)
+
 package viaduct.arbitrary.graphql
 
 import graphql.ExecutionInput
@@ -13,6 +15,7 @@ import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import viaduct.api.internal.EngineValueConv
+import viaduct.apiannotations.InternalApi
 import viaduct.arbitrary.common.Config
 import viaduct.engine.api.ViaductSchema
 

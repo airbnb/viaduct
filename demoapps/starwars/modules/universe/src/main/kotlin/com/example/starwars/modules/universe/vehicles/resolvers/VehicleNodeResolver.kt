@@ -2,7 +2,7 @@ package com.example.starwars.modules.universe.vehicles.resolvers
 
 import com.example.starwars.modules.universe.vehicles.models.VehicleBuilder
 import com.example.starwars.modules.universe.vehicles.models.VehiclesRepository
-import com.example.starwars.universe.NodeResolvers
+import com.example.starwars.universe.resolverbases.NodeResolvers
 import jakarta.inject.Inject
 import viaduct.api.Resolver
 import viaduct.api.grts.Vehicle

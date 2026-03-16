@@ -337,18 +337,20 @@ internal class FilteredSchemaDecoder(
         field: SchemaWithData.Field,
         unfilteredField: ViaductSchema.Field
     ): List<SchemaWithData.FieldArg> =
-        unfilteredField.args.map { arg ->
-            val typeExpr = createTypeExprFromDefs(arg.type)
-            SchemaWithData.FieldArg(
-                field,
-                arg.name,
-                typeExpr,
-                remapAppliedDirectives(arg.appliedDirectives),
-                arg.hasDefault,
-                if (arg.hasDefault) arg.defaultValue else null,
-                arg
-            )
-        }
+        unfilteredField.args
+            .filter { filter.includeFieldArg(it) }
+            .map { arg ->
+                val typeExpr = createTypeExprFromDefs(arg.type)
+                SchemaWithData.FieldArg(
+                    field,
+                    arg.name,
+                    typeExpr,
+                    remapAppliedDirectives(arg.appliedDirectives),
+                    arg.hasDefault,
+                    if (arg.hasDefault) arg.defaultValue else null,
+                    arg
+                )
+            }
 
     private fun createDirectiveArg(
         unfilteredArg: ViaductSchema.DirectiveArg,
@@ -385,6 +387,13 @@ interface SchemaFilter {
     fun includeTypeDef(typeDef: ViaductSchema.TypeDef): Boolean
 
     fun includeField(field: ViaductSchema.Field): Boolean
+
+    /**
+     * Whether to include a specific field argument in the filtered schema.
+     * When false, the arg is dropped from the field but the field itself is retained.
+     * Defaults to true for backward compatibility.
+     */
+    fun includeFieldArg(arg: ViaductSchema.FieldArg): Boolean = true
 
     fun includeEnumValue(enumValue: ViaductSchema.EnumValue): Boolean
 

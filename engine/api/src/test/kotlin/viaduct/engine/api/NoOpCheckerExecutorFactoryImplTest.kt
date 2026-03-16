@@ -3,6 +3,7 @@ package viaduct.engine.api
 import kotlin.test.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.spi.NoOpCheckerExecutorFactoryImpl
 
 internal class NoOpCheckerExecutorFactoryImplTest {
     private val testSubject = NoOpCheckerExecutorFactoryImpl()

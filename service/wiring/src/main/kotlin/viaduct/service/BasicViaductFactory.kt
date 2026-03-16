@@ -1,6 +1,7 @@
 package viaduct.service
 
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
+import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
@@ -16,6 +17,7 @@ import viaduct.service.runtime.StandardViaduct
  *
  * @see ViaductBuilder
  */
+@StableApi
 object BasicViaductFactory {
     /**
      * A simple factory-function for [Viaduct] instances.
@@ -109,6 +111,7 @@ object BasicViaductFactory {
  * @param tenantCodeInjector the injector used to instantiate resolver and other tenant classes;
  *        defaults to [TenantCodeInjector.Naive] which uses reflection with zero-arg constructors
  */
+@StableApi
 data class TenantRegistrationInfo(
     val tenantPackagePrefix: String,
     val tenantCodeInjector: TenantCodeInjector = TenantCodeInjector.Naive,
@@ -122,7 +125,9 @@ data class TenantRegistrationInfo(
  *        For testing only - production should use null to rely on default discovery.
  * @param grtResourcesIncluded the regex to match GRT schema files to include.
  *        For testing only - production should use null to rely on default pattern.
- *  */
+ *
+ */
+@StableApi
 data class SchemaRegistrationInfo(
     val scopes: List<SchemaScopeInfo> = listOf(),
     val grtPackagePrefix: String? = null,
@@ -136,10 +141,12 @@ data class SchemaRegistrationInfo(
  * @param scopesToApply The set of scope-ids that define the scoped schema.
  *                      If null or empty, the full schema is used.
  */
+@StableApi
 data class SchemaScopeInfo(
     val schemaId: String = "",
     val scopesToApply: Set<String>? = null,
 )
 
 /** Converts this [SchemaId.Scoped] to a [SchemaScopeInfo] for use with [BasicViaductFactory]. */
+@StableApi
 fun SchemaId.Scoped.toSchemaScopeInfo(): SchemaScopeInfo = SchemaScopeInfo(this.id, this.scopeIds.ifEmpty { null })

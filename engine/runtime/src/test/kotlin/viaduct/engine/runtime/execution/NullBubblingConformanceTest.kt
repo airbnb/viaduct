@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package viaduct.engine.runtime.execution
 
 import graphql.schema.DataFetcher
@@ -13,11 +15,9 @@ import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.graphql.NullNonNullableWeight
 import viaduct.arbitrary.graphql.ResolverExceptionWeight
 
-private val cfg = Config.default
-private const val iter = 8_000
-
-@ExperimentalCoroutinesApi
 class NullBubblingConformanceTest : KotestPropertyBase() {
+    private val cfg = Config.default
+
     @Test
     fun `multi-field non-null bubbling`() {
         Conformer(
@@ -67,7 +67,7 @@ class NullBubblingConformanceTest : KotestPropertyBase() {
             """.trimIndent(),
             cfg
         ) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter, checkNoModernErrors = false)
+            Arb.viaductExecutionInput(schema, cfg).checkAll(checkNoModernErrors = false)
         }
     }
 
@@ -81,14 +81,14 @@ class NullBubblingConformanceTest : KotestPropertyBase() {
             """.trimIndent(),
             cfg + (NullNonNullableWeight to .5)
         ) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter, checkNoModernErrors = false)
+            Arb.viaductExecutionInput(schema, cfg).checkAll(checkNoModernErrors = false)
         }
     }
 
     @Test
     fun `trivial schema -- arb non-null bubbling`() {
         Conformer("type Query { x:Int! }", cfg + (NullNonNullableWeight to .5)) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter, checkNoModernErrors = false)
+            Arb.viaductExecutionInput(schema, cfg).checkAll(checkNoModernErrors = false)
         }
     }
 

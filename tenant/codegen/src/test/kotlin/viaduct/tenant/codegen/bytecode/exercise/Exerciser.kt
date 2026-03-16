@@ -3,7 +3,7 @@
 package viaduct.tenant.codegen.bytecode.exercise
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
@@ -40,7 +40,7 @@ class Exerciser(
                     is ViaductSchema.Enum -> exerciseEnumV2(def)
                     is ViaductSchema.Input -> exerciseInputV2(def, graphqlSchema)
                     is ViaductSchema.Interface -> exerciseInterface(def)
-                    is ViaductSchema.Object -> runBlockingTest {
+                    is ViaductSchema.Object -> runTest {
                         exerciseObjectV2(def, graphqlSchema)
                         for (field in def.fields) {
                             if (!field.args.none()) {

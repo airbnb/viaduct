@@ -5,8 +5,6 @@ package viaduct.arbitrary.graphql
 import graphql.ExecutionInput
 import graphql.ParseAndValidate
 import io.kotest.property.Arb
-import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -14,10 +12,6 @@ import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.minViolation
 
-// a baseline iteration count. Individual tests may scale this up or down depending on their relative speed.
-private const val iterCount = 5_000
-
-@ExperimentalCoroutinesApi
 class GraphQLExecutionInputGenTest : KotestPropertyBase() {
     private val schema =
         """
@@ -100,11 +94,11 @@ class GraphQLExecutionInputGenTest : KotestPropertyBase() {
     @Test
     fun `generates valid ExecutionInputs with a default config`(): Unit =
         runBlocking {
-            Arb.graphQLExecutionInput(schema).assertAllValid(iterCount * 10)
+            Arb.graphQLExecutionInput(schema).assertAllValid()
         }
 
-    private fun Arb<ExecutionInput>.assertAllValid(iter: Int = iterCount) {
-        val failure = minViolation(ExecutionInputComparator, iter) {
+    private fun Arb<ExecutionInput>.assertAllValid() {
+        val failure = minViolation(ExecutionInputComparator, randomSource, iterations) {
             !ParseAndValidate.parseAndValidate(schema.schema, it).isFailure
         }
         assertNull(failure) {
@@ -112,7 +106,7 @@ class GraphQLExecutionInputGenTest : KotestPropertyBase() {
             val result = ParseAndValidate.parseAndValidate(schema.schema, failure)
             buildString {
                 append("ExecutionInput failed validation:\n")
-                append("Seed: ${randomSource.seed}\n")
+                append("Seed: $seed\n")
                 result.errors.forEach { append("$it\n") }
                 append("Operation: ${failure.operationName}\n")
                 append("Variables: ${failure.variables}\n")

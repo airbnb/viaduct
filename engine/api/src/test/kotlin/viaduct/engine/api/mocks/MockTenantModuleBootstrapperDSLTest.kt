@@ -14,6 +14,7 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
+import viaduct.engine.api.spi.CheckerExecutor.CheckerType
 
 class MockTenantModuleBootstrapperDSLTest {
     companion object {
@@ -118,10 +119,10 @@ class MockTenantModuleBootstrapperDSLTest {
 
         val (ctx, reg) = module.contextMocks.run { Pair(engineExecutionContext, dispatcherRegistry) }
         runBlocking {
-            val result1 = reg.getFieldCheckerDispatcher("TestType", "aField")!!.execute(emptyArgs, emptyObjectMap, ctx, viaduct.engine.api.CheckerExecutor.CheckerType.FIELD)
+            val result1 = reg.getFieldCheckerDispatcher("TestType", "aField")!!.execute(emptyArgs, emptyObjectMap, ctx, CheckerType.FIELD)
             assertEquals(CheckerResult.Success, result1)
 
-            val result2 = reg.getFieldCheckerDispatcher("TestType", "cField")!!.execute(emptyArgs, emptyObjectMap, ctx, viaduct.engine.api.CheckerExecutor.CheckerType.FIELD)
+            val result2 = reg.getFieldCheckerDispatcher("TestType", "cField")!!.execute(emptyArgs, emptyObjectMap, ctx, CheckerType.FIELD)
             assertEquals(true, result2 is CheckerResult.Error)
             assertEquals(true, (result2 as CheckerResult.Error).error is SecurityException)
         }
@@ -202,7 +203,7 @@ class MockTenantModuleBootstrapperDSLTest {
             field("TestType" to "aField") {
                 resolver {
                     objectSelections("fragment _ on TestType { aField bIntField }") {
-                        variables("testVar") { ctx -> mapOf("testVar" to ctx.arguments["input"]) }
+                        variables("testVar") { ctx, _ -> mapOf("testVar" to ctx.arguments["input"]) }
                     }
                     resolverName("test-resolver")
                     fn { _, _, _, _, _ -> "complex-result" }
@@ -382,7 +383,7 @@ class MockTenantModuleBootstrapperDSLTest {
             assertEquals("test-id", result.fetch("id"))
 
             // Execute the checker and verify it works
-            val checkerResult = reg.getTypeCheckerDispatcher("TestNode")!!.execute(emptyArgs, emptyObjectMap, ctx, viaduct.engine.api.CheckerExecutor.CheckerType.TYPE)
+            val checkerResult = reg.getTypeCheckerDispatcher("TestNode")!!.execute(emptyArgs, emptyObjectMap, ctx, CheckerType.TYPE)
             assertEquals(CheckerResult.Success, checkerResult)
         }
     }
@@ -431,7 +432,7 @@ class MockTenantModuleBootstrapperDSLTest {
             field("TestType" to "complexField") {
                 resolver {
                     objectSelections("fragment _ on TestType { aField bIntField }") {
-                        variables("param") { ctx -> mapOf("param" to ctx.arguments["input"]) }
+                        variables("param") { ctx, _ -> mapOf("param" to ctx.arguments["input"]) }
                     }
                     resolverName("complex-resolver")
                     fn { _, _, _, _, _ -> "complex-result" }

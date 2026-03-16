@@ -370,3 +370,7 @@ type MyProduct implements IProduct & Node {
   id: ID!
   productId: ID! @idOf(type: "MyProduct")
 }
+
+type Under_Score_Type {
+  someField(stringArg: String!, intArg: Int): String
+}

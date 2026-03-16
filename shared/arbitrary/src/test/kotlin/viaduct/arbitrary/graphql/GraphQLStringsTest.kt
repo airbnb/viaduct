@@ -7,8 +7,6 @@ import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import io.kotest.property.Arb
-import io.kotest.property.forAll
-import io.kotest.property.forNone
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config

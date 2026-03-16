@@ -7,6 +7,7 @@ import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.graphql.test.assertHasError
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.tenant.tutorial03.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial03.resolverbases.QueryResolvers
 import viaduct.tenant.tutorial03.resolverbases.UserResolvers
 

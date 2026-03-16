@@ -6,7 +6,6 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
 import viaduct.api.types.Query
-import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
 
 /**
@@ -61,7 +60,6 @@ import viaduct.apiannotations.VisibleForTest
  *
  * @since 1.0
  */
-@StableApi
 @VisibleForTest
 interface MutationResolverTester<Q : Query, M : Mutation, A : Arguments, R : CompositeOutput> : ResolverTester {
     /**

@@ -46,15 +46,23 @@ class DefaultJavaResolverClassFinder(
 
     override fun <T : Any?> getSubTypesOf(type: Class<T>): Set<Class<out T>> = scanner.getSubTypesOf(type, listOf(tenantPackage))
 
+    @Suppress("UNCHECKED_CAST")
     override fun grtClassForName(typeName: String): Class<out GRT> {
-        throw UnsupportedOperationException(
-            "GRT class loading is not yet supported. Will be implemented in a later vertical slice."
-        )
+        val fullClassName = "$grtPackagePrefix.$typeName"
+        val clazz = Class.forName(fullClassName)
+        require(GRT::class.java.isAssignableFrom(clazz)) {
+            "Class $fullClassName exists but does not implement GRT"
+        }
+        return clazz as Class<out GRT>
     }
 
+    @Suppress("UNCHECKED_CAST")
     override fun argumentClassForName(className: String): Class<out Arguments> {
-        throw UnsupportedOperationException(
-            "Arguments class loading is not yet supported. Will be implemented in a later vertical slice."
-        )
+        val fullClassName = "$grtPackagePrefix.$className"
+        val clazz = Class.forName(fullClassName)
+        require(Arguments::class.java.isAssignableFrom(clazz)) {
+            "Class $fullClassName exists but does not implement Arguments"
+        }
+        return clazz as Class<out Arguments>
     }
 }

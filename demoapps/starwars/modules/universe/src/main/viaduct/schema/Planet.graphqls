@@ -81,7 +81,38 @@ extend type Query @scope(to: ["default"]) {
   """
   All planets
   """
-  allPlanets(limit: Int): [Planet]
-    @resolver
-    @backingData(class: "com.example.starwars.modules.universe.planets.queries.AllPlanetsQueryResolver")
+  allPlanets(limit: Int): [Planet] @resolver
+
+  """
+  All planets as a paginated connection using backward pagination (Relay-style).
+  Use `last` to set the page size and `before` to page backward from a cursor.
+  Demonstrates BackwardConnectionArguments and the fromList builder.
+  """
+  allPlanetsConnection(
+    "Maximum number of planets to return from the end."
+    last: Int
+    "Cursor to fetch items before (exclusive, for backward pagination)."
+    before: String
+  ): PlanetsConnection @resolver
+}
+
+"""
+A connection to a list of Planets with backward pagination support.
+Demonstrates the @connection directive with BackwardConnectionArguments.
+"""
+type PlanetsConnection @connection @scope(to: ["default"]) {
+  "List of planet edges."
+  edges: [PlanetEdge]
+  "Pagination information."
+  pageInfo: PageInfo!
+}
+
+"""
+An edge in a PlanetsConnection.
+"""
+type PlanetEdge @edge @scope(to: ["default"]) {
+  "The planet at the end of the edge."
+  node: Planet
+  "A cursor for pagination."
+  cursor: String!
 }

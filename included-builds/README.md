@@ -18,8 +18,6 @@ This directory contains the layered build structure for Viaduct to eliminate cir
 
 4. **main build** (root) - Applications and testing
    - Test apps, tools, docs, runtime-publisher
-   - Codegen tests (tenant/codegen-integration-tests)
-   - build-test-plugins can safely depend on codegen layer
 
 ## Benefits
 

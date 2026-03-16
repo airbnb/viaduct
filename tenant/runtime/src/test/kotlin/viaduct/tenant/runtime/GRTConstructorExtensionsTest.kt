@@ -277,11 +277,11 @@ class GRTConstructorExtensionsTest {
     }
 
     @Test
-    fun `toInputLikeGRT - throws IAE when Arguments kcls name does not match schema`() {
+    fun `toInputLikeGRT - throws IAE when Arguments called without typeName and fieldName`() {
         val exception = assertThrows<IllegalArgumentException> {
             fakeInputData.toInputLikeGRT(ictx, ValidArguments::class)
         }
-        assertTrue(exception.message!!.contains("Invalid Arguments class name"))
+        assertTrue(exception.message!!.contains("typeName is required"))
     }
 
     // InputType named "InputType" but it's an Object, not Input - for testing type erasure

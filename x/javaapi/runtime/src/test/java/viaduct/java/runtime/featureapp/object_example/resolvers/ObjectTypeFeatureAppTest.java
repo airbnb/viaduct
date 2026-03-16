@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import viaduct.engine.api.spi.FieldResolverExecutor;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.runtime.featureapp.object_example.grt.Address;
 import viaduct.java.runtime.featureapp.object_example.grt.Person;
@@ -57,6 +58,7 @@ public class ObjectTypeFeatureAppTest extends JavaFeatureAppTestBase {
         age: Int
         address: Address
         fullAddress: String @resolver
+        greeting: String @resolver
     }
 
     extend type Query {
@@ -88,20 +90,47 @@ public class ObjectTypeFeatureAppTest extends JavaFeatureAppTestBase {
   /**
    * Resolver implementation for Person.fullAddress field.
    *
-   * <p>This resolver demonstrates an object field resolver - it operates on Person (not Query) and
-   * returns a computed value. Note that accessing other fields on the parent Person object requires
-   * those fields to be in the selection set or declared as required selections on the resolver.
+   * <p>This resolver demonstrates an object field resolver with required selections - it operates
+   * on Person (not Query) and uses objectValueFragment to declare which fields it needs from the
+   * parent object. The Viaduct engine ensures these fields are resolved before this resolver runs.
    *
-   * <p>For simplicity, this resolver returns a static value to demonstrate the resolver pattern.
+   * <p>The objectValueFragment declares that we need the nested address fields (street, city,
+   * country) from the parent Person object. This enables ctx.getObjectValue().getAddress() to
+   * return a fully populated Address object.
    */
-  @Resolver
+  @Resolver(objectValueFragment = "address { street city country }")
   public static class FullAddressResolver extends PersonResolvers.FullAddressResolver {
     @Override
     public CompletableFuture<String> resolve(Context ctx) {
-      // Demonstrate that the resolver is called and can return a computed value.
-      // In a real scenario, you might access ctx.getObjectValue() and read fields
-      // that are declared in the resolver's objectSelectionSet.
-      return CompletableFuture.completedFuture("123 Main St, San Francisco, USA");
+      // Access the parent Person object with its required selections populated
+      Person person = ctx.getObjectValue();
+      Address address = person.getAddress();
+
+      if (address == null) {
+        return CompletableFuture.completedFuture("No address");
+      }
+
+      // Build the full address string from the required selections
+      String fullAddress =
+          address.getStreet() + ", " + address.getCity() + ", " + address.getCountry();
+      return CompletableFuture.completedFuture(fullAddress);
+    }
+  }
+
+  /**
+   * Resolver implementation for Person.greeting field WITHOUT objectValueFragment.
+   *
+   * <p>This resolver demonstrates a resolver that does NOT use required selections. It returns a
+   * simple greeting without accessing any parent object fields. This serves as a contrast to
+   * FullAddressResolver to verify that resolvers without objectValueFragment have null
+   * objectSelectionSet.
+   */
+  @Resolver
+  public static class GreetingResolver extends PersonResolvers.GreetingResolver {
+    @Override
+    public CompletableFuture<String> resolve(Context ctx) {
+      // This resolver doesn't need any fields from the parent object
+      return CompletableFuture.completedFuture("Hello!");
     }
   }
 
@@ -192,5 +221,37 @@ public class ObjectTypeFeatureAppTest extends JavaFeatureAppTestBase {
     Assertions.assertNotNull(address);
     // country is nullable and our resolver sets it to "USA"
     assertThat(address.get("country")).isEqualTo("USA");
+  }
+
+  // ==========================================================================
+  // Required Selections Wiring Tests
+  // ==========================================================================
+
+  @Test
+  public void fullAddressResolverHasObjectSelectionSetWired() {
+    // Verify that the FullAddressResolver with objectValueFragment has objectSelectionSet wired
+    FieldResolverExecutor executor = getFieldResolverExecutor("Person", "fullAddress");
+
+    Assertions.assertNotNull(executor, "Executor for Person.fullAddress should exist");
+    Assertions.assertNotNull(
+        executor.getObjectSelectionSet(),
+        "FullAddressResolver should have objectSelectionSet wired from objectValueFragment");
+    Assertions.assertNull(
+        executor.getQuerySelectionSet(),
+        "FullAddressResolver should have null querySelectionSet (no queryValueFragment)");
+  }
+
+  @Test
+  public void greetingResolverWithoutObjectValueFragmentHasNullSelectionSet() {
+    // Verify that the GreetingResolver WITHOUT objectValueFragment has null objectSelectionSet
+    FieldResolverExecutor executor = getFieldResolverExecutor("Person", "greeting");
+
+    Assertions.assertNotNull(executor, "Executor for Person.greeting should exist");
+    Assertions.assertNull(
+        executor.getObjectSelectionSet(),
+        "GreetingResolver without objectValueFragment should have null objectSelectionSet");
+    Assertions.assertNull(
+        executor.getQuerySelectionSet(),
+        "GreetingResolver without queryValueFragment should have null querySelectionSet");
   }
 }

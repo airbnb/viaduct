@@ -194,7 +194,7 @@ class EngineFeatureTestExample {
                 // Resolver function for this field
                 resolver {
                     objectSelections("calc(n:\$v)") {
-                        variables("v") { _ -> mapOf("v" to 41) }
+                        variables("v") { _, _ -> mapOf("v" to 41) }
                     }
                     fn { _, obj, _, _, _ -> obj.fetch("calc") }
                 }

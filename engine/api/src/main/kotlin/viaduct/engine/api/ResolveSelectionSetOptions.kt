@@ -1,5 +1,7 @@
 package viaduct.engine.api
 
+import viaduct.engine.runtime.ObjectEngineResult
+
 /**
  * Options for executing a selection set via [EngineExecutionContext.resolveSelectionSet].
  *

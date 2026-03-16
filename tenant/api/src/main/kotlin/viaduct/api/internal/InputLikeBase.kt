@@ -3,11 +3,11 @@ package viaduct.api.internal
 import graphql.language.Value
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLTypeUtil
-import viaduct.api.ViaductFrameworkException
-import viaduct.api.ViaductTenantUsageException
-import viaduct.api.handleTenantAPIErrors
 import viaduct.api.types.InputLike
 import viaduct.apiannotations.InternalApi
+import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
+import viaduct.errors.handleTenantAPIErrors
 import viaduct.mapping.graphql.GJValueConv
 import viaduct.mapping.graphql.IR
 
@@ -26,7 +26,7 @@ abstract class InputLikeBase : InputLike {
         try {
             validateInputData(graphQLInputObjectType, inputData)
         } catch (e: IllegalStateException) {
-            throw ViaductFrameworkException("Failed to init ${graphQLInputObjectType.name} ($e)", e)
+            throw FrameworkException("Failed to init ${graphQLInputObjectType.name} ($e)", e)
         }
     }
 
@@ -52,7 +52,7 @@ abstract class InputLikeBase : InputLike {
                 IR.Value.Null
             }
 
-            val grtConv = GRTConv(context, fieldDefinition)
+            val grtConv = context.grtConvFactory.createForInputField(context, fieldDefinition)
             grtConv.invert(irValue) as T
         }
 
@@ -82,7 +82,7 @@ abstract class InputLikeBase : InputLike {
             val field = requireNotNull(graphQLInputObjectType.getField(fieldName)) {
                 "Field $fieldName not found on type ${graphQLInputObjectType.name}"
             }
-            val conv = GRTConv(context, field) andThen EngineValueConv(context.schema, field.type, null).inverse()
+            val conv = context.grtConvFactory.createForInputField(context, field) andThen EngineValueConv(context.schema, field.type, null).inverse()
             inputData.put(fieldName, conv(value))
         }
 
@@ -91,7 +91,7 @@ abstract class InputLikeBase : InputLike {
             try {
                 validateInputData(graphQLInputObjectType, inputData)
             } catch (e: IllegalStateException) {
-                throw ViaductTenantUsageException("Failed to build ${graphQLInputObjectType.name} ($e)", e)
+                throw TenantUsageException("Failed to build ${graphQLInputObjectType.name} ($e)", e)
             }
         }
     }

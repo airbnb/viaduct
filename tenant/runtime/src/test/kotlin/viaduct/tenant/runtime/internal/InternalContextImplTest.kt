@@ -3,9 +3,9 @@ package viaduct.tenant.runtime.internal
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.ViaductFrameworkException
 import viaduct.api.context.ExecutionContext
 import viaduct.api.globalid.GlobalID
+import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.internal
@@ -15,6 +15,7 @@ import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.errors.FrameworkException
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -23,7 +24,7 @@ class InternalContextImplTest {
 
     @Test
     fun simple() {
-        val ctx = InternalContextImpl(schema, GlobalIDCodecDefault, MockReflectionLoader())
+        val ctx = InternalContextImpl(schema, GlobalIDCodecDefault, MockReflectionLoader(), DefaultGRTConvFactory)
         assertSame(schema, ctx.schema)
     }
 
@@ -36,7 +37,7 @@ class InternalContextImplTest {
     @Test
     fun `ExecutionContext_internal -- not an InternalContext`() {
         val ec = TestExecutionContext()
-        assertThrows<ViaductFrameworkException> {
+        assertThrows<FrameworkException> {
             ec.internal
         }
     }
@@ -55,6 +56,7 @@ private open class TestCompositeContext : TestExecutionContext(), InternalContex
     override val schema: ViaductSchema get() = TODO()
     override val globalIDCodec: GlobalIDCodec get() = TODO()
     override val reflectionLoader: ReflectionLoader get() = TODO()
+    override val grtConvFactory get() = TODO()
 
     override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> = TODO()
 }

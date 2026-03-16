@@ -26,7 +26,7 @@ class FieldResolverGeneratorTest {
     ): String {
         val schema = mkSchema(sdl)
         val type = schema.types[typeName] as ViaductSchema.Record
-        val contents = genResolver(typeName, type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema))
+        val contents = genResolver(typeName, type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "Query", "Mutation")
         return contents.toString()
     }
 
@@ -159,7 +159,8 @@ class FieldResolverGeneratorTest {
             "pkg.tenant",
             "viaduct.api.grts",
             ViaductBaseTypeMapper(schema),
-            queryTypeName = "AppQuery"
+            queryTypeName = "AppQuery",
+            "Mutation"
         ).toString()
         assertTrue(
             contentsWithCorrectName.contains("viaduct.api.grts.AppQuery"),
@@ -176,7 +177,9 @@ class FieldResolverGeneratorTest {
             type.fields,
             "pkg.tenant",
             "viaduct.api.grts",
-            ViaductBaseTypeMapper(schema)
+            ViaductBaseTypeMapper(schema),
+            "Query",
+            "Mutation"
         ).toString()
         assertTrue(
             contentsWithDefaultName.contains("viaduct.api.grts.Query"),
@@ -202,6 +205,53 @@ class FieldResolverGeneratorTest {
         )
 
         assertTrue(contents.contains("open suspend fun resolve(ctx: Context): kotlin.Any"))
+    }
+
+    @Test
+    fun `generates ConnectionFieldExecutionContext for connection fields`() {
+        val contents = gen(
+            """
+                directive @connection on OBJECT
+                directive @edge on OBJECT
+
+                type Query { placeholder: Int }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
+
+                type Book {
+                    title: String!
+                }
+
+                type BookEdge @edge {
+                    cursor: String!
+                    node: Book
+                }
+
+                type BookConnection @connection {
+                    edges: [BookEdge!]!
+                }
+
+                type Subject {
+                    books(first: Int!, after: String): BookConnection!
+                    title: String
+                }
+            """.trimIndent(),
+            "Subject"
+        )
+
+        // Connection field should use ConnectionFieldExecutionContext
+        assertContains(contents, "ConnectionFieldExecutionContext")
+        assertContains(
+            contents,
+            "ConnectionFieldExecutionContext<viaduct.api.grts.Subject, viaduct.api.grts.Query, viaduct.api.grts.Subject_Books_Arguments, viaduct.api.grts.BookConnection>"
+        )
+
+        // Regular field should still use FieldExecutionContext (not Connection variant)
+        assertContains(contents, "FieldExecutionContext<viaduct.api.grts.Subject, viaduct.api.grts.Query,")
+
+        // Both resolver classes should be generated
+        assertContains(contents, "class Books ")
+        assertContains(contents, "class Title ")
     }
 
     @Test

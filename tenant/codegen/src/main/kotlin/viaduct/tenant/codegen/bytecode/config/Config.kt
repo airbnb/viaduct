@@ -183,4 +183,16 @@ object cfg {
     val REFLECTED_TYPE_FIELDS =
         JavaBinaryName("viaduct.api.reflect.TypeFields")
     val EDGE_GRT = JavaBinaryName("viaduct.api.types.Edge")
+
+    val CONNECTION_GRT = JavaBinaryName("viaduct.api.types.Connection")
+    val CONNECTION_BUILDER =
+        JavaBinaryName("viaduct.api.internal.ConnectionBuilder")
+    val CONNECTION_FIELD_EXECUTION_CONTEXT =
+        JavaBinaryName("viaduct.api.context.ConnectionFieldExecutionContext")
+
+    val FORWARD_CONNECTION_ARGUMENTS = JavaBinaryName("viaduct.api.types.ForwardConnectionArguments")
+    val BACKWARD_CONNECTION_ARGUMENTS = JavaBinaryName("viaduct.api.types.BackwardConnectionArguments")
+    val MULTIDIRECTIONAL_CONNECTION_ARGUMENTS = JavaBinaryName("viaduct.api.types.MultidirectionalConnectionArguments")
+
+    val CONNECTION_ARGUMENTS = JavaBinaryName("viaduct.api.types.ConnectionArguments")
 }

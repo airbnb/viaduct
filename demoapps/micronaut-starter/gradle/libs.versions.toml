@@ -3,7 +3,7 @@ kotlin = "2.1.0"
 ksp = "2.1.0-1.0.29"
 micronaut = "4.7.4"
 micronautCore = "4.7.4"
-kotest = "5.8.0"
+kotest = "6.1.4"
 junit5 = "5.11.3"
 junitPlatform = "1.11.3"
 

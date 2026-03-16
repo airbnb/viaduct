@@ -13,6 +13,7 @@ import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
+import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.testGlobalId
@@ -96,7 +97,8 @@ class ResolverExecutionContextFactoryTest {
             NodeExecutionContextFactory.FakeResolverBase::class.java,
             codec,
             reflectionLoader,
-            Type.ofClass(TestNode::class)
+            Type.ofClass(TestNode::class),
+            DefaultGRTConvFactory
         )
         assertNotNull(factory)
 
@@ -122,7 +124,8 @@ class ResolverExecutionContextFactoryTest {
                 InvalidNodeResolverWithoutContext::class.java,
                 codec,
                 reflectionLoader,
-                Type.ofClass(TestNode::class)
+                Type.ofClass(TestNode::class),
+                DefaultGRTConvFactory
             )
         }
     }
@@ -135,7 +138,8 @@ class ResolverExecutionContextFactoryTest {
                 InvalidNodeResolverWrongContextType::class.java,
                 codec,
                 reflectionLoader,
-                Type.ofClass(TestNode::class)
+                Type.ofClass(TestNode::class),
+                DefaultGRTConvFactory
             )
         }
     }
@@ -155,7 +159,8 @@ class ResolverExecutionContextFactoryTest {
             reflectionLoader,
             schema,
             "Query",
-            "testField"
+            "testField",
+            DefaultGRTConvFactory
         )
 
         val contextMocks = ContextMocks(myFullSchema = schema)
@@ -183,7 +188,8 @@ class ResolverExecutionContextFactoryTest {
             reflectionLoader,
             schema,
             "Mutation",
-            "testMutation"
+            "testMutation",
+            DefaultGRTConvFactory
         )
 
         val contextMocks = ContextMocks(myFullSchema = schema)
@@ -210,7 +216,8 @@ class ResolverExecutionContextFactoryTest {
                 reflectionLoader,
                 schema,
                 "Query",
-                "nonExistentField"
+                "nonExistentField",
+                DefaultGRTConvFactory
             )
         }
 
@@ -227,7 +234,8 @@ class ResolverExecutionContextFactoryTest {
                 reflectionLoader,
                 schema,
                 "Query",
-                "testField"
+                "testField",
+                DefaultGRTConvFactory
             )
         }
     }
@@ -242,7 +250,8 @@ class ResolverExecutionContextFactoryTest {
                 reflectionLoader,
                 schema,
                 "Query",
-                "testField"
+                "testField",
+                DefaultGRTConvFactory
             )
         }
     }
@@ -263,7 +272,8 @@ class ResolverExecutionContextFactoryTest {
             Type.ofClass(CompositeOutput.NotComposite::class),
             Arguments.NoArguments::class as KClass<Arguments>,
             FakeObject::class as KClass<Object>,
-            FakeQuery::class as KClass<Query>
+            FakeQuery::class as KClass<Query>,
+            DefaultGRTConvFactory
         )
         val contextMocks = ContextMocks(myFullSchema = schema)
         val queryType = schema.schema.queryType
@@ -291,7 +301,8 @@ class ResolverExecutionContextFactoryTest {
             Type.ofClass(CompositeOutput.NotComposite::class),
             Arguments.NoArguments::class as KClass<Arguments>,
             FakeObject::class as KClass<Object>,
-            FakeQuery::class as KClass<Query>
+            FakeQuery::class as KClass<Query>,
+            DefaultGRTConvFactory
         )
 
         val contextMocks = ContextMocks(myFullSchema = schema)
@@ -321,7 +332,8 @@ class ResolverExecutionContextFactoryTest {
                 Type.ofClass(CompositeOutput.NotComposite::class),
                 Arguments.NoArguments::class as KClass<Arguments>,
                 FakeObject::class as KClass<Object>,
-                FakeQuery::class as KClass<Query>
+                FakeQuery::class as KClass<Query>,
+                DefaultGRTConvFactory
             )
         }
     }
@@ -339,7 +351,8 @@ class ResolverExecutionContextFactoryTest {
                 Type.ofClass(CompositeOutput.NotComposite::class),
                 Arguments.NoArguments::class as KClass<Arguments>,
                 FakeObject::class as KClass<Object>,
-                FakeQuery::class as KClass<Query>
+                FakeQuery::class as KClass<Query>,
+                DefaultGRTConvFactory
             )
         }
     }

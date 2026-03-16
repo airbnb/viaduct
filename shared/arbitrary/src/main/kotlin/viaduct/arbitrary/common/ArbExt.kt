@@ -2,22 +2,14 @@
 
 package viaduct.arbitrary.common
 
-import io.kotest.common.ExperimentalKotest
 import io.kotest.property.Arb
 import io.kotest.property.Exhaustive
 import io.kotest.property.Gen
-import io.kotest.property.PropTestConfig
-import io.kotest.property.PropertyContext
 import io.kotest.property.PropertyTesting
 import io.kotest.property.RandomSource
 import io.kotest.property.Sample
 import io.kotest.property.asSample
-import io.kotest.property.checkAll
-import java.lang.AssertionError
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.runBlocking
 import viaduct.apiannotations.VisibleForTest
-import viaduct.invariants.FailureCollector
 
 /** Convert an arb to an infinite [kotlin.sequences.Sequence] */
 @VisibleForTest
@@ -27,34 +19,19 @@ fun <T> Gen<T>.asSequence(rs: RandomSource): Sequence<T> = generate(rs).map { it
 @VisibleForTest
 fun <T> Gen<T>.minViolation(
     comparator: Comparator<T>,
+    rs: RandomSource,
     iter: Int? = null,
     property: (T) -> Boolean
 ): T? {
     val seq = when (this) {
-        // for Exhaustives, calling asSequence(randomSource) will loop through the generator multiple times to fill
+        // for Exhaustives, calling asSequence(rs) will loop through the generator multiple times to fill
         // up to the requested iteration count. This is fine for Arb testing, but more repetitive for this simpler
         // method of finding the minimum violation.
         // As an alternative, just take all the Exhaustive values
         is Exhaustive -> this.values.asSequence()
-        else -> asSequence(randomSource()).take(iter ?: PropertyTesting.defaultIterationCount)
+        else -> asSequence(rs).take(iter ?: PropertyTesting.defaultIterationCount)
     }
     return seq.filterNot(property).minWithOrNull(comparator)
-}
-
-/** assert that all values of an Arb pass the invariant checks defined by a provided function */
-@OptIn(ExperimentalCoroutinesApi::class, ExperimentalKotest::class)
-@VisibleForTest
-fun <T> Gen<T>.checkInvariants(
-    iter: Int? = null,
-    fn: PropertyContext.(T, FailureCollector) -> Unit
-) = runBlocking {
-    val cfg = PropTestConfig(iterations = iter)
-    checkAll(cfg) {
-        val check = FailureCollector()
-        this.fn(it, check)
-        check.assertEmpty("\n")
-        markSuccess()
-    }
 }
 
 /**
@@ -82,10 +59,8 @@ private class Flatten<T>(
 
 /**
  * Throw a property check failure.
- * If no seed value is provided, the message of the thrown exception will include the
- * current property testing seed value.
+ * The [seed] parameter is included in the error message for reproducibility.
  */
-
 @VisibleForTest
 fun failProperty(
     message: String,
@@ -93,9 +68,13 @@ fun failProperty(
     seed: Long? = null
 ): Unit =
     throw AssertionError(
-        """
-            |Property failed with seed ${seed ?: randomSource().seed}
-            |$message
-        """.trimMargin(),
+        buildString {
+            if (seed != null) {
+                appendLine("Property failed with seed $seed")
+            } else {
+                appendLine("Property failed")
+            }
+            append(message)
+        },
         cause
     )

@@ -8,10 +8,10 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldComplete
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.instrumentation.ChainedInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.api.spi.CheckerExecutor
 
 class ChainedViaductModernInstrumentation private constructor(
     val modernInstrumentations: List<ViaductModernInstrumentation>,

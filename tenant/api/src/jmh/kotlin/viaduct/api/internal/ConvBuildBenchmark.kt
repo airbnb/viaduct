@@ -20,6 +20,7 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockType
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
@@ -29,13 +30,14 @@ import viaduct.engine.api.select.SelectionsParser
 /**
  * JMH benchmark for Conv building with and without selection sets.
  *
- * Demonstrates the pathological cost of [GRTConv] and [EngineValueConv] when
+ * Demonstrates the pathological cost of [DefaultGRTConvFactory] and [EngineValueConv] when
  * `selectionSet == null` on a large schema. This is the root cause of the
  * production OOM in ExploreActivityListingCustomTypeResolver, where
  * `GRTDomain.forType()` triggers unbounded Conv building.
  *
  * Run with: bazel run //projects/viaduct/oss/tenant/api/src/jmh/kotlin/viaduct/api/internal:conv_build_benchmark
  */
+@OptIn(InternalApi::class)
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -88,26 +90,26 @@ open class ConvBuildBenchmark {
         )
     }
 
-    // === GRTConv benchmarks (production code path via GRTDomain.forType()) ===
+    // === DefaultGRTConvFactory benchmarks (production code path via GRTDomain.forType()) ===
 
     @Benchmark
     fun grtConv_root_unbounded(blackhole: Blackhole) {
         blackhole.consume(
-            GRTConv(internalCtx, rootType, null, KeyMapping.FieldNameToFieldName)
+            DefaultGRTConvFactory.create(internalCtx, rootType, null, KeyMapping.FieldNameToFieldName)
         )
     }
 
     @Benchmark
     fun grtConv_root_bounded(blackhole: Blackhole) {
         blackhole.consume(
-            GRTConv(internalCtx, rootType, rootBoundedSelectionSet, KeyMapping.SelectionToSelection)
+            DefaultGRTConvFactory.create(internalCtx, rootType, rootBoundedSelectionSet, KeyMapping.SelectionToSelection)
         )
     }
 
     @Benchmark
     fun grtConv_interior_unbounded(blackhole: Blackhole) {
         blackhole.consume(
-            GRTConv(internalCtx, interiorType, null, KeyMapping.FieldNameToFieldName)
+            DefaultGRTConvFactory.create(internalCtx, interiorType, null, KeyMapping.FieldNameToFieldName)
         )
     }
 

@@ -102,6 +102,21 @@ class NoCustomScalarsRuleTest {
     }
 
     @Test
+    fun `should match allowed scalars case-insensitively`() {
+        val sdl = """
+            scalar string
+            scalar BOOLEAN
+            type Query { data: String }
+        """.trimIndent()
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(sdl)
+        val validator = SchemaValidator(listOf(listOf(NoCustomScalarsRule())))
+
+        val errors = validator.validate(schema)
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
     fun `should allow scalar when included in custom builtInScalars set`() {
         val sdl = """
             scalar DateTime

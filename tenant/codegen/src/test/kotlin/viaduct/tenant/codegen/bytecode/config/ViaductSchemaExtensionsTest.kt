@@ -262,7 +262,7 @@ class ViaductSchemaExtensionsTest {
         val typeExpr = schema.field("TestType", "field").type
 
         // Should return null (letting extension function handle default case)
-        val result = viaductMapper.mapBaseType(typeExpr, viaduct.codegen.utils.KmName("test"))
+        val result = viaductMapper.mapBaseType(typeExpr, viaduct.codegen.utils.KmName("test"), null, false)
         assertTrue(result == null)
     }
 

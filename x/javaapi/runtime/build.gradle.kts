@@ -31,6 +31,9 @@ dependencies {
     // GraphQL schema types
     implementation(libs.graphql.java)
 
+    // Shared GraphQL utils (for collectVariableReferences extension)
+    implementation(libs.viaduct.shared.graphql)
+
     // Testing
     testImplementation(libs.assertj.core)
     testImplementation(libs.io.mockk.jvm)
@@ -41,8 +44,9 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.shared.graphql))
     testImplementation(libs.graphql.java)
 
-    // Dependencies for JavaFeatureAppTestBase (moved from testFixtures)
+    // Dependencies for JavaFeatureAppTestBase
     testImplementation(libs.viaduct.service.runtime)
     testImplementation(libs.viaduct.service.wiring)
     testImplementation(testFixtures(libs.viaduct.service.api))
+    testImplementation(testFixtures(libs.viaduct.tenant.runtime))
 }

@@ -16,11 +16,11 @@ A comprehensive, hands-on tutorial series that teaches you how to build GraphQL 
 
 ## Tutorial Series Overview
 
-This series consists of 10 progressive tutorials, each demonstrating core Viaduct concepts through working code examples and tests. Follow them in order for the best learning experience.
+This series consists of 12 progressive tutorials, each demonstrating core Viaduct concepts through working code examples and tests. Follow them in order for the best learning experience.
 
 ## How to Use the Tutorials
 
-Start with Tutorial 1 and work your way through to Tutorial 10. Each tutorial builds on concepts from previous ones.
+Start with Tutorial 1 and work your way through to Tutorial 12. Each tutorial builds on concepts from previous ones.
 
 ### Navigation Within Files
 Each tutorial file includes navigation comments:
@@ -159,6 +159,36 @@ Each tutorial follows a consistent format:
 - Conditional argument passing based on business logic
 
 **Key concepts:** Advanced variable usage, argument transformation, conditional behavior
+
+---
+
+### 11. Simple Subqueries
+**File:** [SimpleSubqueriesFeatureAppTest.kt](tutorial11/SimpleSubqueriesFeatureAppTest.kt)
+
+**What you'll learn:**
+- Execute subqueries against the Query root from any resolver using `ctx.query()`
+- Execute submutations from mutation resolvers using `ctx.mutation()`
+- Pass variables to subqueries
+- When to use `ctx.query()` vs declarative `@Resolver` fragments
+
+**Key concepts:** Imperative subquery execution, subquery variable scope, mutation submutations, runtime vs planning-time field access
+
+---
+
+### 12. Connections
+**File:** [ConnectionsFeatureAppTest.kt](tutorial12/ConnectionsFeatureAppTest.kt)
+
+**What you'll learn:**
+- Building Relay-spec paginated APIs with Connection types
+- `ConnectionBuilder.fromList()` – hand over the full dataset, let the framework paginate
+- `ConnectionBuilder.fromSlice()` – fetch limit+1 rows yourself, pass `hasNextPage` explicitly
+- `ConnectionBuilder.fromEdges()` – construct edges manually for full cursor and PageInfo control
+- Forward pagination (`first`/`after`) and backward pagination (`last`/`before`)
+- Designing rich schemas with `@connection`, `@edge`, and `PageInfo`
+
+**Key concepts:** Relay Connection spec, OffsetCursor encoding, PageInfo, cursor-based pagination
+
+---
 
 ## Getting the Most Out of These Tutorials
 

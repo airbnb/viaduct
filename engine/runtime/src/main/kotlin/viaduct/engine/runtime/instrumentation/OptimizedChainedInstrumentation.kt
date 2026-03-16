@@ -7,11 +7,11 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldComplete
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.api.instrumentation.asStandardInstrumentations
+import viaduct.engine.api.spi.CheckerExecutor
 
 class OptimizedChainedInstrumentation(
     viaductInstrumentations: List<ViaductInstrumentationBase>

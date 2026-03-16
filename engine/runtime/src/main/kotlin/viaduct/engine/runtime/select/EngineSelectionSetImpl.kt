@@ -5,7 +5,6 @@ import graphql.execution.CoercedVariables
 import graphql.execution.ValuesResolver
 import graphql.language.Argument
 import graphql.language.AstPrinter
-import graphql.language.DirectivesContainer
 import graphql.language.Field
 import graphql.language.FragmentDefinition
 import graphql.language.FragmentSpread
@@ -18,6 +17,7 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLFieldsContainer
 import graphql.schema.GraphQLImplementingType
+import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
 import viaduct.engine.api.EngineSelection
@@ -28,9 +28,8 @@ import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
 import viaduct.engine.api.fragment.FragmentVariables
 import viaduct.engine.api.gj
+import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.graphql.utils.GraphQLTypeRelation
-import viaduct.graphql.utils.ensureOneDirective
-import viaduct.graphql.utils.rawValue
 
 data class EngineSelectionSetContext(
     val variables: Map<String, Any?>,
@@ -39,11 +38,16 @@ data class EngineSelectionSetContext(
     val gjContext: GraphQLContext,
     val locale: Locale
 ) {
-    val coercedVariables by lazy { CoercedVariables.of(variables) }
+    val coercedVariables: CoercedVariables = CoercedVariables.of(variables)
+    val constraintsCtx: Constraints.Ctx = Constraints.Ctx(coercedVariables, null)
 }
 
 /** A FieldSelection combines a GraphQL Field selection with a type condition */
-data class FieldSelection(val field: Field, val typeCondition: GraphQLCompositeType) {
+data class FieldSelection(
+    val field: Field,
+    val typeCondition: GraphQLCompositeType,
+    val constraints: Constraints = Constraints.Unconstrained
+) {
     override fun toString(): String =
         buildString {
             if (field.alias != null) {
@@ -79,6 +83,8 @@ data class EngineSelectionSetImpl(
     val selections: List<FieldSelection>,
     /** the explicit types requested, @see [requestsType] */
     val requestedTypes: Set<GraphQLCompositeType>,
+    /** active Constraints for statically pruning unreachable selections at construction time */
+    val constraints: Constraints,
     /** contextual data for this selection set */
     val ctx: EngineSelectionSetContext
 ) : EngineSelectionSet {
@@ -110,7 +116,7 @@ data class EngineSelectionSetImpl(
                 .groupBy(keySelector = { it.typeCondition }, valueTransform = { it.field })
                 .map { (type, fields) ->
                     InlineFragment(TypeName(type.name), SelectionSet(fields))
-                }.mapNotNull(::asEagerlyInlined)
+                }.mapNotNull { asEagerlyInlined(it, constraints) }
 
         return SelectionSet(newSelections)
     }
@@ -121,8 +127,14 @@ data class EngineSelectionSetImpl(
                 "cannot rebind variable with key $k"
             }
         }
+        val newCtx = this.ctx.copy(variables = this.ctx.variables + variables)
+        val newSelections = selections.filter { sel ->
+            !sel.constraints.solve(newCtx.constraintsCtx).isDrop
+        }
         return this.copy(
-            ctx = this.ctx.copy(variables = this.ctx.variables + variables)
+            ctx = newCtx,
+            selections = newSelections,
+            constraints = constraints
         )
     }
 
@@ -154,7 +166,11 @@ data class EngineSelectionSetImpl(
                 }
             }
 
-        return this.copy(def = ctx.schema.schema.queryType, selections = selections)
+        return this.copy(
+            def = ctx.schema.schema.queryType,
+            selections = selections,
+            constraints = Constraints.Unconstrained
+        )
     }
 
     override fun containsField(
@@ -200,30 +216,33 @@ data class EngineSelectionSetImpl(
     private fun withTypedSelections(
         type: GraphQLCompositeType,
         selectionSet: GJSelectionSet,
+        parentConstraints: Constraints = this.constraints,
         spreadFragments: Set<String> = emptySet()
     ): EngineSelectionSetImpl =
         selectionSet.selections
-            .filter(::applyConditionalDirectives)
             .fold(this) { acc, sel ->
+                val childConstraints = parentConstraints.descend(sel)
+                if (childConstraints.solve(ctx.constraintsCtx).isDrop) return@fold acc
+
                 when (sel) {
                     is Field ->
                         acc.copy(
-                            selections = acc.selections + FieldSelection(sel, type)
+                            selections = acc.selections + FieldSelection(sel, type, childConstraints)
                         )
 
                     is InlineFragment -> {
                         val u =
                             if (sel.typeCondition == null) {
-                                this.def
+                                type
                             } else {
                                 compositeType(sel.typeCondition.name)
                             }
-                        acc.withTypedSelections(u, sel.selectionSet)
+                        acc.withTypedSelections(u, sel.selectionSet, childConstraints, spreadFragments)
                     }
 
                     is FragmentSpread -> {
-                        if (sel.name in spreadFragments) {
-                            throw IllegalArgumentException("Cyclic fragment spreads detected")
+                        require(sel.name !in spreadFragments) {
+                            "Cyclic fragment spreads detected"
                         }
 
                         val frag = getFragmentDefinition(sel.name)
@@ -231,6 +250,7 @@ data class EngineSelectionSetImpl(
                         acc.withTypedSelections(
                             u,
                             frag.selectionSet,
+                            childConstraints,
                             spreadFragments + sel.name
                         )
                     }
@@ -302,11 +322,17 @@ data class EngineSelectionSetImpl(
                 }
                 .mapNotNull { it.field.selectionSet }
 
-        val base = EngineSelectionSetImpl(def = subselectionType, selections = emptyList(), requestedTypes = emptySet(), ctx)
+        val base = EngineSelectionSetImpl(
+            def = subselectionType,
+            selections = emptyList(),
+            requestedTypes = emptySet(),
+            constraints = Constraints.Unconstrained.narrowToImpls(subselectionType, ctx.schema),
+            ctx = ctx
+        )
         return newSelections.fold(base) { acc, ss -> acc + ss }
     }
 
-    override fun selectionSetForType(type: String): EngineSelectionSetImpl {
+    override fun selectionSetForType(type: String): EngineSelectionSet {
         val u = compositeType(type)
 
         if (u == this.def) return this
@@ -315,49 +341,60 @@ data class EngineSelectionSetImpl(
             throw IllegalArgumentException("Selections of type $type are not spreadable in type ${this.def.name}")
         }
 
+        val newConstraints = constraints.narrowTypes(ctx.schema.rels.possibleObjectTypes(u))
+        val filteredSelections = selections.filter { ctx.schema.rels.isSpreadable(it.typeCondition, u) }
+        val filteredRequestedTypes = requestedTypes.filter { ctx.schema.rels.isSpreadable(it, u) }.toSet()
+
+        if (u is GraphQLObjectType) {
+            val sourceImpl = copy(
+                def = u,
+                selections = filteredSelections,
+                requestedTypes = filteredRequestedTypes,
+                constraints = newConstraints
+            )
+            return ProjectedEngineSelectionSet.from(u, filteredSelections, ctx, sourceImpl)
+        }
+
         return copy(
             def = u,
-            selections = selections.filter { ctx.schema.rels.isSpreadable(it.typeCondition, u) },
-            requestedTypes = requestedTypes.filter { ctx.schema.rels.isSpreadable(it, u) }.toSet()
+            selections = filteredSelections,
+            requestedTypes = filteredRequestedTypes,
+            constraints = newConstraints
         )
     }
 
     /**
-     * Apply any applicable @skip/@include directives, returning false if the selection should be dropped.
+     * Compute child [Constraints] when descending into a selection node.
      *
-     * Selections with directives that depend on variable references will be dropped only if the required
-     * variable value is present. Selections whose inclusion depends on variable references that are not
-     * present will be kept.
+     * - [Field]: inherit directive constraints from the parent, clear type constraints (field
+     *   subselections have no relation to the parent type condition)
+     * - [InlineFragment]: narrow type constraints to the fragment's type condition; add directive constraints
+     * - [FragmentSpread]: same as InlineFragment, resolved via fragment definition lookup
      */
-    private fun applyConditionalDirectives(selection: Selection<*>): Boolean {
-        when (selection) {
-            is DirectivesContainer<*> -> {
-                val directivesByName = selection.directivesByName
+    private fun Constraints.descend(sel: Selection<*>): Constraints =
+        when (sel) {
+            is Field ->
+                withDirectives(sel.directives).clearTypes()
 
-                val skip =
-                    directivesByName["skip"].ensureOneDirective()
-                        ?.argumentsByName
-                        ?.get("if")
-                        ?.value
-                        ?.rawValue(ctx.variables)
-
-                if (skip == true) return false
-
-                val include =
-                    directivesByName["include"].ensureOneDirective()
-                        ?.argumentsByName
-                        ?.get("if")
-                        ?.value
-                        ?.rawValue(ctx.variables)
-
-                if (include == false) return false
-
-                return true
+            is InlineFragment -> {
+                val typeCondition = if (sel.typeCondition == null) {
+                    def
+                } else {
+                    compositeType(sel.typeCondition.name)
+                }
+                withDirectives(sel.directives).narrowToImpls(typeCondition, ctx.schema)
             }
 
-            else -> return true
+            is FragmentSpread -> {
+                val frag = getFragmentDefinition(sel.name)
+                withDirectives(sel.directives).narrowToImpls(
+                    compositeType(frag.typeCondition.name),
+                    ctx.schema
+                )
+            }
+
+            else -> throw IllegalArgumentException("Unsupported Selection type: $sel")
         }
-    }
 
     override fun isEmpty(): Boolean = selections.isEmpty()
 
@@ -371,7 +408,7 @@ data class EngineSelectionSetImpl(
                 if (u is GraphQLFieldsContainer) {
                     val coord = (u.name to fname).gj
                     val field = ctx.schema.schema.getFieldDefinition(coord)
-                    if (field.type is GraphQLCompositeType) {
+                    if (GraphQLTypeUtil.unwrapAll(field.type) is GraphQLCompositeType) {
                         selectionSetForField(u.name, fname).isTransitivelyEmpty()
                     } else {
                         false
@@ -417,47 +454,59 @@ data class EngineSelectionSetImpl(
         return ctx.schema.schema.getFieldDefinition(coord)
     }
 
-    private fun asEagerlyInlined(selection: Selection<*>): Selection<*>? =
-        when (val sel = selection) {
+    private fun asEagerlyInlined(
+        selection: Selection<*>,
+        constraints: Constraints
+    ): Selection<*>? {
+        // At serialization time, selections have already been validated and pruned during
+        // construction via withTypedSelections. We only need directive constraints here —
+        // applying type narrowing (via descend) is incorrect because the type constraints
+        // reflect the root type, not the subfield types, and would incorrectly prune valid
+        // inline fragments (e.g., `... on Foo` inside a Query-rooted ESS after toNodelikeSelectionSet).
+        val directives = when (selection) {
+            is Field -> selection.directives
+            is InlineFragment -> selection.directives
+            is FragmentSpread -> selection.directives
+            else -> throw IllegalArgumentException("Unsupported Selection type: $selection")
+        }
+        val child = constraints.withDirectives(directives).clearTypes()
+        if (child.solve(ctx.constraintsCtx).isDrop) return null
+
+        return when (val sel = selection) {
             is Field -> {
                 if (sel.selectionSet == null) {
                     sel
                 } else {
-                    asEagerlyInlined(sel.selectionSet)?.let { ss ->
+                    asEagerlyInlined(sel.selectionSet, child)?.let { ss ->
                         sel.transform { it.selectionSet(ss) }
                     }
                 }
             }
 
             is InlineFragment ->
-                if (sel.selectionSet.selections.isEmpty()) {
-                    null
-                } else {
-                    asEagerlyInlined(sel.selectionSet)?.let { ss ->
-                        sel.transform { it.selectionSet(ss) }
-                    }
+                asEagerlyInlined(sel.selectionSet, child)?.let { ss ->
+                    sel.transform { it.selectionSet(ss) }
                 }
 
             is FragmentSpread -> {
                 val frag = getFragmentDefinition(sel.name)
-                if (frag.selectionSet.selections.isEmpty()) {
-                    null
-                } else {
-                    asEagerlyInlined(frag.selectionSet)?.let { ss ->
-                        InlineFragment.newInlineFragment()
-                            .typeCondition(frag.typeCondition)
-                            .selectionSet(ss)
-                            .build()
-                    }
+                asEagerlyInlined(frag.selectionSet, child)?.let { ss ->
+                    InlineFragment.newInlineFragment()
+                        .typeCondition(frag.typeCondition)
+                        .selectionSet(ss)
+                        .build()
                 }
             }
 
             else -> throw IllegalArgumentException("Unsupported Selection type: $sel")
         }
+    }
 
-    private fun asEagerlyInlined(ss: GJSelectionSet): GJSelectionSet? =
-        ss.selections.mapNotNull(::asEagerlyInlined)
-            .filter(::applyConditionalDirectives)
+    private fun asEagerlyInlined(
+        ss: GJSelectionSet,
+        constraints: Constraints
+    ): GJSelectionSet? =
+        ss.selections.mapNotNull { asEagerlyInlined(it, constraints) }
             .takeIf { it.isNotEmpty() }
             ?.let(::GJSelectionSet)
 
@@ -494,6 +543,7 @@ data class EngineSelectionSetImpl(
                     def = type,
                     requestedTypes = emptySet(),
                     selections = emptyList(),
+                    constraints = Constraints.Unconstrained.narrowToImpls(type, schema),
                     ctx = EngineSelectionSetContext(
                         variables = variables,
                         fragmentDefinitions = parsedSelections.fragmentMap,

@@ -4,11 +4,11 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import kotlin.reflect.KClass
-import viaduct.api.ViaductTenantUsageException
 import viaduct.api.context.ExecutionContext
-import viaduct.api.handleTenantAPIErrors
 import viaduct.api.types.GRT
 import viaduct.apiannotations.InternalApi
+import viaduct.errors.TenantUsageException
+import viaduct.errors.handleTenantAPIErrors
 
 /**
  * Used to dynamically create a Viaduct object without having a GRT class.
@@ -40,7 +40,7 @@ class ViaductObjectBuilder<T : GRT> private constructor(
         name: String,
         value: Any?
     ): ViaductObjectBuilder<T> {
-        val fieldDefinition = graphqlType.getField(name) ?: throw ViaductTenantUsageException("Field $name not found on type ${graphqlType.name}")
+        val fieldDefinition = graphqlType.getField(name) ?: throw TenantUsageException("Field $name not found on type ${graphqlType.name}")
         val fieldContext = DynamicValueBuilderTypeChecker.FieldContext(fieldDefinition, graphqlType)
         DynamicValueBuilderTypeChecker(context).checkType(fieldDefinition.type, value, fieldContext)
 

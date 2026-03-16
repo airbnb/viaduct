@@ -26,7 +26,7 @@ import viaduct.engine.runtime.EngineExecutionContextImpl
  * ## Architecture
  *
  * The subquery execution flow uses ExecutionHandle to maintain execution context:
- * 1. Resolver calls ctx.query(resolverId, selections)
+ * 1. Resolver calls ctx.query(selections)
  * 2. ExecutionHandle provides access to ExecutionParameters (opaque to tenant code)
  * 3. Engine builds QueryPlan from EngineSelectionSet
  * 4. Engine resolves fields with proper access checks and variable scoping
@@ -77,7 +77,6 @@ class SubqueryExecutionTest {
 
                         // Execute subquery via ctx.query()
                         val queryResult = ctx.query(
-                            resolverId = "Container.derivedFromQuery",
                             selectionSet = rss
                         )
 
@@ -130,7 +129,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "firstName lastName", emptyMap())
 
                         val queryResult = ctx.query(
-                            resolverId = "User.fullName",
                             selectionSet = rss
                         )
 
@@ -189,7 +187,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "multiply(n: $input)", emptyMap())
 
                         val queryResult = ctx.query(
-                            resolverId = "Calculator.double",
                             selectionSet = rss
                         )
 
@@ -245,7 +242,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "multiply(n: \$myVar)", mapOf("myVar" to input))
 
                         val queryResult = ctx.query(
-                            resolverId = "Calculator.double",
                             selectionSet = rss
                         )
 
@@ -308,7 +304,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Mutation", "addToCounter(amount: \$amt)", mapOf("amt" to value))
 
                         val mutationResult = ctx.mutation(
-                            resolverId = "Container.addAmount",
                             selectionSet = rss
                         )
 
@@ -371,7 +366,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Mutation", "incrementCounter", emptyMap())
 
                         val mutationResult = ctx.mutation(
-                            resolverId = "Container.triggerMutation",
                             selectionSet = rss
                         )
 
@@ -427,7 +421,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Mutation", "incrementCounter", emptyMap())
 
                         val mutationResult = ctx.mutation(
-                            resolverId = "Query.queryFieldThatMutates",
                             selectionSet = rss
                         )
 
@@ -495,7 +488,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "rootValue", emptyMap())
 
                         val result = ctx.query(
-                            resolverId = "Container.viaCtxQuery",
                             selectionSet = rss
                         )
 
@@ -560,7 +552,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "baseValue", emptyMap())
 
                         val result = ctx.query(
-                            resolverId = "Level2.derivedValue",
                             selectionSet = rss
                         )
 
@@ -615,7 +606,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Mutation", "nonExistentMutation", emptyMap())
 
                         ctx.mutation(
-                            resolverId = "Container.tryMutation",
                             selectionSet = rss
                         )
 
@@ -676,7 +666,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "failingField", emptyMap())
 
                         val result = ctx.query(
-                            resolverId = "Container.callFailingField",
                             selectionSet = rss
                         )
 
@@ -734,7 +723,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("User", "id name", emptyMap())
 
                         ctx.query(
-                            resolverId = "Container.tryMismatchedSelection",
                             selectionSet = rss
                         )
 
@@ -815,7 +803,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Mutation", "field1 field2", emptyMap())
 
                         val mutationResult = ctx.mutation(
-                            resolverId = "Container.triggerMutations",
                             selectionSet = rss
                         )
 
@@ -882,7 +869,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "multiply(n: \$myVar)", mapOf("myVar" to 10))
 
                         val result = ctx.query(
-                            resolverId = "Container.first",
                             selectionSet = rss
                         )
 
@@ -898,7 +884,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "multiply(n: \$myVar)", mapOf("myVar" to 25))
 
                         val result = ctx.query(
-                            resolverId = "Container.second",
                             selectionSet = rss
                         )
 
@@ -952,7 +937,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "valueFromVar(v: \$subVar)", mapOf("subVar" to 42))
 
                         val result = ctx.query(
-                            resolverId = "Container.useSubqueryVar",
                             selectionSet = rss
                         )
 
@@ -1047,7 +1031,6 @@ class SubqueryExecutionTest {
                         )
 
                         val queryResult = ctx.query(
-                            resolverId = "Aggregator.fetchUserDetails",
                             selectionSet = rss
                         )
 
@@ -1124,7 +1107,6 @@ class SubqueryExecutionTest {
                         val rss = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "rootValue", emptyMap())
                         val queryResult = ctx.query(
-                            resolverId = "Container.derivedFromQuery",
                             selectionSet = rss
                         )
                         queryResult.fetchAs<Int>("rootValue") * 2
@@ -1180,7 +1162,6 @@ class SubqueryExecutionTest {
                             .engineSelectionSet("Query", "nonExistentField", emptyMap())
 
                         ctx.query(
-                            resolverId = "Container.result",
                             selectionSet = rss
                         )
 

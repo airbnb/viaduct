@@ -5,10 +5,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.ViaductTenantUsageException
 import viaduct.api.mocks.MockInternalContext
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.errors.TenantUsageException
 
 @ExperimentalCoroutinesApi
 class FakeObjectTest {
@@ -29,7 +29,7 @@ class FakeObjectTest {
         kotlinx.coroutines.runBlocking {
             // missing - should throw exception with mkEngineObjectData
             mk("extend type Query { x: Int }").apply {
-                assertThrows<ViaductTenantUsageException> { get<Int?>("x") }
+                assertThrows<TenantUsageException> { get<Int?>("x") }
             }
 
             // explicit null

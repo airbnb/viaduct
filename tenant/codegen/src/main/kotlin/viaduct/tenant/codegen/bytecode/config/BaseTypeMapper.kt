@@ -5,6 +5,7 @@ import kotlinx.metadata.KmType
 import kotlinx.metadata.KmTypeProjection
 import kotlinx.metadata.KmVariance
 import kotlinx.metadata.isNullable
+import viaduct.codegen.ct.ExternalClassWrapper
 import viaduct.codegen.km.KmClassFilesBuilder
 import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.JavaIdName
@@ -21,8 +22,8 @@ interface BaseTypeMapper {
     fun mapBaseType(
         type: ViaductSchema.TypeExpr<*>,
         pkg: KmName,
-        field: ViaductSchema.HasDefaultValue? = null,
-        isInput: Boolean = false,
+        field: ViaductSchema.HasDefaultValue?,
+        isInput: Boolean,
     ): KmType?
 
     /**
@@ -98,23 +99,28 @@ class ViaductBaseTypeMapper(
         fqn: KmName,
         kmClassFilesBuilder: KmClassFilesBuilder
     ) {
-        val nested = mutableListOf<JavaIdName>()
+        val nested = mutableListOf<ExternalClassWrapper.Nested>()
 
-        // Modern mode: add Reflection nested class for types with reflected types
+        // Modern mode: add Reflection nested class for types with reflected types.
+        // hasInstanceField=true ensures the cross-shard placeholder includes the INSTANCE field
+        // that generated code references (e.g. ExampleEdge$Reflection.INSTANCE in connection builders).
         if (def.hasReflectedType) {
-            nested += JavaIdName(REFLECTION_NAME)
+            nested += ExternalClassWrapper.Nested(JavaIdName(REFLECTION_NAME), hasInstanceField = true)
         }
 
         when (def) {
             is ViaductSchema.Object -> {
                 // Modern mode: objects are treated as classes (not interfaces)
-                kmClassFilesBuilder.addExternalClassReference(fqn, nested = nested)
+                kmClassFilesBuilder.addExternalClassReferenceWithNestedSpec(fqn, nested = nested)
             }
             is ViaductSchema.Interface, is ViaductSchema.Union -> {
-                kmClassFilesBuilder.addExternalClassReference(fqn, isInterface = true, nested = nested)
+                kmClassFilesBuilder.addExternalClassReferenceWithNestedSpec(fqn, isInterface = true, nested = nested)
             }
             is ViaductSchema.Input, is ViaductSchema.Enum -> {
-                kmClassFilesBuilder.addExternalClassReference(fqn, nested = nested)
+                kmClassFilesBuilder.addExternalClassReferenceWithNestedSpec(fqn, nested = nested)
+            }
+            is ViaductSchema.Scalar -> {
+                kmClassFilesBuilder.addExternalClassReferenceWithNestedSpec(fqn)
             }
         }
     }
@@ -145,7 +151,7 @@ class ViaductBaseTypeMapper(
     internal fun ViaductSchema.TypeExpr<*>.idKmType(
         pkg: KmName,
         field: ViaductSchema.HasDefaultValue?,
-        isInput: Boolean = false,
+        isInput: Boolean,
     ): KmType {
         val idTypeName = this@ViaductBaseTypeMapper.getGlobalIdType().asKmName // The "GlobalID" in GlobalID<Foo>
         val grtTypeName = field?.grtNameForIdParam() // The "Foo" in GlobalID<Foo>

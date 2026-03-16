@@ -1,4 +1,5 @@
 @file:Suppress("ForbiddenImport")
+@file:OptIn(ExperimentalCoroutinesApi::class)
 
 package viaduct.arbitrary.common
 
@@ -12,7 +13,6 @@ import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.take
 import io.kotest.property.exhaustive.exhaustive
-import io.kotest.property.forAll
 import java.util.UUID
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -24,7 +24,6 @@ import org.junit.jupiter.api.assertThrows
 
 class ArbExtTest : KotestPropertyBase() {
     @Test
-    @OptIn(ExperimentalCoroutinesApi::class)
     fun `Gen_asSequence`(): Unit =
         runBlocking {
             Arb
@@ -34,19 +33,19 @@ class ArbExtTest : KotestPropertyBase() {
                     val seq = arb.asSequence(RandomSource.default())
                     arb to seq
                 }.forAll { (arb, seq) ->
-                    seq.first() == arb.next(randomSource())
+                    seq.first() == arb.next(randomSource)
                 }
         }
 
     @Test
     fun `Gen_minViolation -- can succeed`() {
-        val failure = Arb.int(-10..10).minViolation(Comparator.naturalOrder()) { true }
+        val failure = Arb.int(-10..10).minViolation(Comparator.naturalOrder(), randomSource) { true }
         assertNull(failure)
     }
 
     @Test
     fun `Gen_minViolation -- returns violation`() {
-        val failure = Arb.int(-10..10).minViolation(Comparator.naturalOrder()) { it > 0 }
+        val failure = Arb.int(-10..10).minViolation(Comparator.naturalOrder(), randomSource) { it > 0 }
         assertEquals(-10, failure)
     }
 
@@ -55,12 +54,11 @@ class ArbExtTest : KotestPropertyBase() {
         val falsifier = (-10..10)
             .toList()
             .exhaustive()
-            .minViolation(Comparator.naturalOrder()) { it > 0 }
+            .minViolation(Comparator.naturalOrder(), randomSource) { it > 0 }
         assertEquals(-10, falsifier)
     }
 
     @Test
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun `Arb_flatten`(): Unit =
         runBlocking {
             val chunkSize = 10
@@ -70,12 +68,12 @@ class ArbExtTest : KotestPropertyBase() {
                     Arb
                         .char('a'..'z')
                         .map { c -> i to c }
-                        .take(chunkSize, randomSource())
+                        .take(chunkSize, randomSource)
                         .toList()
                 }.flatten()
 
             arb
-                .take(chunkSize * 1_000, randomSource())
+                .take(chunkSize * 1_000, randomSource)
                 .chunked(chunkSize)
                 .forEach { chunk ->
                     val firsts = chunk.map { it.first }
@@ -84,20 +82,21 @@ class ArbExtTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Any_failProperty -- failure message includes seed values`() {
-        // no seed value is provided, use the current randomSource
+    fun `Any_failProperty -- failure message includes seed when provided`() {
+        // no seed value is provided
         assertThrows<AssertionError> {
             failProperty("msg")
         }.let {
-            assertTrue(it.message?.contains(randomSource.seed.toString()) ?: false)
+            assertTrue(it.message?.contains("Property failed") ?: false)
+            assertTrue(it.message?.contains("msg") ?: false)
         }
 
         // provide a seed value
-        val seed = UUID.randomUUID().leastSignificantBits
+        val explicitSeed = UUID.randomUUID().leastSignificantBits
         assertThrows<AssertionError> {
-            failProperty("msg", seed = seed)
+            failProperty("msg", seed = explicitSeed)
         }.let {
-            assertTrue(it.message?.contains(seed.toString()) ?: false)
+            assertTrue(it.message?.contains(explicitSeed.toString()) ?: false)
         }
     }
 }

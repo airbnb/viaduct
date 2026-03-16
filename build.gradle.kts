@@ -15,6 +15,10 @@ orchestration {
     )
 }
 
+tasks.named("publishToMavenLocal") {
+    dependsOn(gradle.includedBuild("build-logic").task(":shared:publishToMavenLocal"))
+}
+
 // Jacoco configuration
 jacoco {
     toolVersion = libs.versions.jacoco.get()

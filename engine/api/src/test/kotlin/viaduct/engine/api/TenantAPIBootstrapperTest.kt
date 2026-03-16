@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.spi.flatten
 
 class TenantAPIBootstrapperTest {
     @Test

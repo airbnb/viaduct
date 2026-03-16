@@ -17,6 +17,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Iterator
 
+import author_mappings as _author_mappings
+
 from semantic_release.commit_parser.conventional import ConventionalCommitParser
 from semantic_release.commit_parser.token import ParsedMessageResult, ParseResult
 from semantic_release.enums import LevelBump
@@ -95,6 +97,10 @@ def extract_username_from_email(email: str) -> str | None:
     if not email:
         return None
 
+    mapped = _author_mappings.map_email(email)
+    if mapped:
+        return None if mapped in BOT_USERNAMES else f"@{mapped}"
+
     match = re.search(r'^([^@]+)@', email)
     if not match:
         return None
@@ -116,15 +122,11 @@ def extract_username_from_coauthor(author_line: str) -> str | None:
     Returns:
         Username prefixed with @ (e.g., '@email'), or None if invalid/bot
     """
-    match = re.search(r'<([^@]+)@', author_line)
+    match = re.search(r'<([^>]+)>', author_line)
     if not match:
         return None
 
-    username = match.group(1)
-    if username in BOT_USERNAMES:
-        return None
-
-    return f"@{username}"
+    return extract_username_from_email(match.group(1))
 
 
 def clean_commit_message(message: str) -> str:
@@ -141,6 +143,12 @@ def clean_commit_message(message: str) -> str:
     for pattern in METADATA_PATTERNS:
         cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
     return cleaned.strip()
+
+
+def strip_conventional_prefix(message: str) -> str:
+    """Strip 'type(scope)!: ' prefix from a conventional commit subject."""
+    match = re.match(r'^[a-z]+(\([^)]+\))?!?:\s*', message)
+    return message[match.end():] if match else message
 
 
 def replace_airbnb_marker(message: str, sha: str) -> str:
@@ -243,11 +251,13 @@ def extract_authors(commit: CommitInfo) -> list[str]:
     Returns:
         List of @usernames for all non-bot authors
     """
+    seen: set[str] = set()
     authors = []
 
     # Add primary author
     primary = extract_username_from_email(commit.author_email)
-    if primary:
+    if primary and primary not in seen:
+        seen.add(primary)
         authors.append(primary)
 
     # Add co-authors
@@ -256,7 +266,8 @@ def extract_authors(commit: CommitInfo) -> list[str]:
             coauthor = coauthor.strip()
             if coauthor:
                 username = extract_username_from_coauthor(coauthor)
-                if username:
+                if username and username not in seen:
+                    seen.add(username)
                     authors.append(username)
 
     return authors
@@ -296,7 +307,7 @@ def parse_commit(commit: CommitInfo, parser: ConventionalCommitParser) -> Change
             authors=authors,
             change_type=parsed.type,
             scope=parsed.scope,
-            description=parsed.descriptions[0] if parsed.descriptions else cleaned_message,
+            description=strip_conventional_prefix(cleaned_message),
             is_breaking=bool(parsed.breaking_descriptions) or parsed.bump == LevelBump.MAJOR,
             breaking_description=parsed.breaking_descriptions[0] if parsed.breaking_descriptions else None,
             bump=parsed.bump,
@@ -373,7 +384,7 @@ def render_breaking_changes(entries: list[ChangelogEntry]) -> str:
     """
     lines = ["## Breaking Changes", ""]
     for entry in entries:
-        desc = entry.breaking_description or entry.description
+        desc = entry.description
         lines.append(f"- {desc} by {entry.formatted_authors}")
     lines.append("")
 

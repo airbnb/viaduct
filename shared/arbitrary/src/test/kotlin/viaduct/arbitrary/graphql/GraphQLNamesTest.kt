@@ -8,12 +8,10 @@ import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.pair
-import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.arbitrary.common.checkInvariants
 
 class GraphQLNamesTest : KotestPropertyBase() {
     @Test
@@ -39,23 +37,24 @@ class GraphQLNamesTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb_graphQLNames -- IncludeCustomScalars`() {
-        Arb
-            .of(true, false)
-            .flatMap { incl ->
-                val cfg = Config.default + (GenCustomScalars to incl)
-                Arb
-                    .graphQLNames(cfg)
-                    .map { names -> incl to names.scalars - builtinScalars.keys }
-            }.checkInvariants { (incl, scalars), check ->
-                if (!incl) {
-                    check.isTrue(
-                        scalars.isEmpty(),
-                        "Found ${scalars.size} scalars when IncludeCustomScalars is $incl"
-                    )
+    fun `Arb_graphQLNames -- IncludeCustomScalars`(): Unit =
+        runBlocking {
+            Arb
+                .of(true, false)
+                .flatMap { incl ->
+                    val cfg = Config.default + (GenCustomScalars to incl)
+                    Arb
+                        .graphQLNames(cfg)
+                        .map { names -> incl to names.scalars - builtinScalars.keys }
+                }.checkInvariants { (incl, scalars), check ->
+                    if (!incl) {
+                        check.isTrue(
+                            scalars.isEmpty(),
+                            "Found ${scalars.size} scalars when IncludeCustomScalars is $incl"
+                        )
+                    }
                 }
-            }
-    }
+        }
 
     @Test
     fun `Arb_graphQLNames -- TypeTypeWeights -- zero`(): Unit =

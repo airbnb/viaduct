@@ -4,6 +4,7 @@ import viaduct.graphiql.GraphiQLHtmlCustomizer
 plugins {
     id("conventions.kotlin")
     id("conventions.dokka")
+    id("conventions.bcv-api")
 }
 
 viaductPublishing {

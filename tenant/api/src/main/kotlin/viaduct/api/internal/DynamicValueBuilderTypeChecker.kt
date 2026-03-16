@@ -11,9 +11,10 @@ import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.GraphQLUnionType
 import kotlin.reflect.KClass
-import viaduct.api.ViaductTenantUsageException
 import viaduct.api.globalid.GlobalID
 import viaduct.apiannotations.InternalApi
+import viaduct.errors.TenantUsageException
+import viaduct.graphql.isGlobalID
 import viaduct.graphql.schema.baseGraphqlScalarTypeMapping
 
 private fun graphqlScalarTypeToKotlinClass(
@@ -170,13 +171,13 @@ value class DynamicValueBuilderTypeChecker(val ctx: InternalContext) {
     private fun getKotlinTypeForBackingData(fieldDefinition: GraphQLFieldDefinition): KClass<*> {
         val directive = fieldDefinition.appliedDirectives.find { it.name == "backingData" }
         if (directive == null) {
-            throw ViaductTenantUsageException(
+            throw TenantUsageException(
                 "Backing data field ${fieldDefinition.name} must have @backingData directive defined in schema. None found."
             )
         }
         val classPath = (directive.arguments.find { it.name == "class" })?.getValue<String>()
         if (classPath == null) {
-            throw ViaductTenantUsageException(
+            throw TenantUsageException(
                 "Backing data field ${fieldDefinition.name}'s @backingData directive must define a `class` argument of string type."
             )
         }

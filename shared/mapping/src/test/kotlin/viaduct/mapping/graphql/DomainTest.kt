@@ -5,7 +5,6 @@ package viaduct.mapping.graphql
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.take
-import io.kotest.property.forAll
 import java.util.Locale.getDefault
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.flatten
-import viaduct.arbitrary.common.randomSource
 import viaduct.arbitrary.graphql.GenInterfaceStubsIfNeeded
 import viaduct.arbitrary.graphql.objectIR
 import viaduct.arbitrary.graphql.viaductSchema
@@ -30,7 +28,7 @@ class DomainTest : KotestPropertyBase() {
                 .map { schema ->
                     Arb
                         .objectIR(schema, cfg)
-                        .take(100, randomSource())
+                        .take(100, randomSource)
                         .toList()
                 }.flatten()
 

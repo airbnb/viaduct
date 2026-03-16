@@ -1,11 +1,7 @@
 package viaduct.api.internal
 
-import graphql.schema.GraphQLDirectiveContainer
 import graphql.schema.GraphQLEnumType
-import graphql.schema.GraphQLFieldDefinition
-import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
-import graphql.schema.GraphQLObjectType
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.primaryConstructor
@@ -40,20 +36,6 @@ fun wrapEnum(
         }
     }
 }
-
-/** return true if the provided field should have a GlobalID GRT type */
-@InternalApi
-fun isGlobalID(
-    field: GraphQLFieldDefinition,
-    parentType: GraphQLObjectType,
-): Boolean = field.name == "id" && parentType.interfaces.any { it.name == "Node" } || field.hasIdOfDirective
-
-/** return true if the provided field should have a GlobalID GRT type */
-@InternalApi
-fun isGlobalID(field: GraphQLInputObjectField): Boolean = field.hasIdOfDirective
-
-private val GraphQLDirectiveContainer.hasIdOfDirective: Boolean get() =
-    appliedDirectives.any { it.name == "idOf" }
 
 /** wrap a map of unwrapped engine data in a GRT facade with type [T] */
 @InternalApi

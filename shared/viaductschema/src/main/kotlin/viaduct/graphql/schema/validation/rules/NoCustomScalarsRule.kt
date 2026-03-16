@@ -21,11 +21,13 @@ class NoCustomScalarsRule(
         id = "NoCustomScalars",
         description = "Only built-in GraphQL scalars are allowed"
     ) {
+    private val builtInScalarNamesLower: Set<String> = builtInScalars.map { it.lowercase() }.toSet()
+
     override fun visitScalar(
         ctx: ValidationContext,
         scalar: ViaductSchema.Scalar
     ) {
-        if (scalar.name !in builtInScalars) {
+        if (scalar.name.lowercase() !in builtInScalarNamesLower) {
             ctx.reportError(
                 code = ValidationErrorCodes.CUSTOM_SCALAR_NOT_ALLOWED,
                 message = "Custom scalar '${scalar.name}' is not allowed. " +

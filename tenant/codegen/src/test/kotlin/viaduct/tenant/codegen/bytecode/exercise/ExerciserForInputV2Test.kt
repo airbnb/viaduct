@@ -11,6 +11,7 @@ import viaduct.api.grts.MissingGetterImplInputV2
 import viaduct.api.grts.MissingPropertyInputV2
 import viaduct.api.grts.MissingToBuilderInputV2
 import viaduct.api.grts.TestArgObject
+import viaduct.api.grts.Under_Score_Object
 import viaduct.codegen.utils.JavaName
 import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
@@ -191,6 +192,19 @@ class ExerciserForInputV2Test {
             }
             """.trimIndent(),
             TestArgObject::class
+        ).exerciseArgInputV2().assertEmpty("\n")
+    }
+
+    @Test
+    fun `test arg input with underscore type name`() {
+        @Suppress("ClassName")
+        Fixture(
+            """
+            type Under_Score_Object {
+                someField(stringArg: String!, intArg: Int): String
+            }
+            """.trimIndent(),
+            Under_Score_Object::class
         ).exerciseArgInputV2().assertEmpty("\n")
     }
 }

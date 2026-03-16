@@ -6,14 +6,15 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchPar
 import graphql.schema.DataFetcher
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ViaductDataFetchingEnvironment
-import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.SyncFieldResolverDispatcher
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ResolverDataFetcher
+import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher
 import viaduct.graphql.utils.asNamedElement
 import viaduct.service.api.spi.FlagManager
@@ -29,7 +30,8 @@ class ResolverDataFetcherInstrumentation(
     private val dispatcherRegistry: DispatcherRegistry, // Modern resolvers
     private val flagManager: FlagManager,
     private val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
-    private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop
+    private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
+    private val tenantNameResolver: TenantNameResolver = TenantNameResolver(),
 ) : ViaductModernGJInstrumentation {
     override fun createState(parameters: InstrumentationCreateStateParameters): InstrumentationState {
         return ResolverDataFetcherState(
@@ -53,7 +55,6 @@ class ResolverDataFetcherInstrumentation(
         val fieldName = dfEnv.fieldDefinition.name
 
         val resolverDispatcher = resolverDispatcher(typeName, fieldName) ?: return dataFetcher
-        val checkerDispatcher = dispatcherRegistry.getFieldCheckerDispatcher(typeName, fieldName)
 
         val enableSync = (state as? ResolverDataFetcherState)?.enableSyncValueComputation == true
         val innerDispatcher = if (enableSync) {
@@ -61,14 +62,14 @@ class ResolverDataFetcherInstrumentation(
         } else {
             resolverDispatcher
         }
-        val instrumentedDispatcher = InstrumentedFieldResolverDispatcher(innerDispatcher, resolverInstrumentation)
+        val instrumentedDispatcher = InstrumentedFieldResolverDispatcher(innerDispatcher, resolverInstrumentation, coordinate = typeName to fieldName)
 
         return ResolverDataFetcher(
             typeName = typeName,
             fieldName = fieldName,
             fieldResolverDispatcher = instrumentedDispatcher,
-            checkerDispatcher = checkerDispatcher,
-            coroutineInterop = coroutineInterop
+            coroutineInterop = coroutineInterop,
+            tenantNameResolver = tenantNameResolver,
         )
     }
 

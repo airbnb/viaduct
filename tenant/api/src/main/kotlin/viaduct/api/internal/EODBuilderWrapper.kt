@@ -8,11 +8,12 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
-import viaduct.api.ViaductFrameworkException
 import viaduct.api.globalid.GlobalID
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
+import viaduct.errors.FrameworkException
+import viaduct.graphql.isGlobalID
 import viaduct.service.api.spi.GlobalIDCodec
 
 /**
@@ -76,7 +77,7 @@ internal class EODBuilderWrapper(
             is GraphQLEnumType -> unwrapEnum(value)
             is GraphQLList -> unwrapList(field, unwrappedType, value)
             is GraphQLCompositeType -> unwrapObject(value)
-            else -> throw ViaductFrameworkException("Unexpected schema type ${GraphQLTypeUtil.simplePrint(unwrappedType)}")
+            else -> throw FrameworkException("Unexpected schema type ${GraphQLTypeUtil.simplePrint(unwrappedType)}")
         }
     }
 

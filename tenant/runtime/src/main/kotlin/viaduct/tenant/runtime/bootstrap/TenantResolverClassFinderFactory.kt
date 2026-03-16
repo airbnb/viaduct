@@ -12,10 +12,10 @@ package viaduct.tenant.runtime.bootstrap
  */
 fun interface TenantResolverClassFinderFactory {
     /**
-     * Creates a TenantResolverClassFinder configured to scan the specified package.
+     * Creates a TenantResolverClassFinder configured to scan the specified tenant package.
      *
-     * @param packageName the package name to scan for resolver classes
+     * @param packageInfo the tenant package info including package name and module metadata
      * @return a configured TenantResolverClassFinder instance
      */
-    fun create(packageName: String): TenantResolverClassFinder
+    fun create(packageInfo: TenantPackageInfo): TenantResolverClassFinder
 }

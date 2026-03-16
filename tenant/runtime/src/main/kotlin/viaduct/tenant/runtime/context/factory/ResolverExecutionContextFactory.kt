@@ -16,6 +16,7 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.VariablesProviderContext
+import viaduct.api.internal.GRTConvFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.reflect.Type
@@ -89,6 +90,7 @@ class NodeExecutionContextFactory(
     private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     resultType: Type<NodeObject>,
+    private val grtConvFactory: GRTConvFactory,
 ) : ResolverExecutionContextFactoryBase<NodeObject>(
         resolverBaseClass,
         NodeExecutionContext::class.java,
@@ -100,7 +102,7 @@ class NodeExecutionContextFactory(
         requestContext: Any?,
         id: String
     ): NodeExecutionContext<*> {
-        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
+        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader, grtConvFactory)
         val wrappedContext = NodeExecutionContextImpl(
             internalContext,
             EngineExecutionContextWrapperImpl(engineExecutionContext),
@@ -135,6 +137,9 @@ class FieldExecutionContextFactory internal constructor(
     private val argumentsCls: KClass<Arguments>,
     private val objectCls: KClass<Object>,
     private val queryCls: KClass<Query>,
+    private val grtConvFactory: GRTConvFactory,
+    private val graphqlTypeName: String? = null,
+    private val graphqlFieldName: String? = null,
 ) : VariablesProviderContextFactory,
     ResolverExecutionContextFactoryBase<CompositeOutput>(
         resolverBaseClass,
@@ -152,7 +157,7 @@ class FieldExecutionContextFactory internal constructor(
         syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)? = null,
         syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)? = null,
     ): BaseFieldExecutionContext<*, *, *> {
-        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
+        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader, grtConvFactory)
         val engineExecutionContextWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext)
 
         val wrappedContext = when (expectedContextInterface) {
@@ -161,7 +166,7 @@ class FieldExecutionContextFactory internal constructor(
                 engineExecutionContextWrapper,
                 this.toSelectionSet(engineSelections) as SelectionSet<Connection<*, *>>,
                 requestContext,
-                rawArguments.toInputLikeGRT(internalContext, argumentsCls) as ConnectionArguments,
+                rawArguments.toInputLikeGRT(internalContext, argumentsCls, graphqlTypeName, graphqlFieldName) as ConnectionArguments,
                 rawObjectValue.toObjectGRT(internalContext, objectCls),
                 rawQueryValue.toObjectGRT(internalContext, queryCls),
                 syncObjectValueGetter,
@@ -175,7 +180,7 @@ class FieldExecutionContextFactory internal constructor(
                 engineExecutionContextWrapper,
                 this.toSelectionSet(engineSelections),
                 requestContext,
-                rawArguments.toInputLikeGRT(internalContext, argumentsCls),
+                rawArguments.toInputLikeGRT(internalContext, argumentsCls, graphqlTypeName, graphqlFieldName),
                 rawObjectValue.toObjectGRT(internalContext, objectCls),
                 rawQueryValue.toObjectGRT(internalContext, queryCls),
                 syncObjectValueGetter,
@@ -189,7 +194,7 @@ class FieldExecutionContextFactory internal constructor(
                 engineExecutionContextWrapper,
                 this.toSelectionSet(engineSelections),
                 requestContext,
-                rawArguments.toInputLikeGRT(internalContext, argumentsCls),
+                rawArguments.toInputLikeGRT(internalContext, argumentsCls, graphqlTypeName, graphqlFieldName),
                 rawQueryValue.toObjectGRT(internalContext, queryCls),
                 syncQueryValueGetter,
                 queryCls,
@@ -207,8 +212,8 @@ class FieldExecutionContextFactory internal constructor(
         requestContext: Any?,
         rawArguments: Map<String, Any?>
     ): VariablesProviderContext<Arguments> {
-        val ic = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader)
-        return VariablesProviderContextImpl(ic, requestContext, rawArguments.toInputLikeGRT(ic, argumentsCls))
+        val ic = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader, grtConvFactory)
+        return VariablesProviderContextImpl(ic, requestContext, rawArguments.toInputLikeGRT(ic, argumentsCls, graphqlTypeName, graphqlFieldName))
     }
 
     @VisibleForTest
@@ -234,6 +239,7 @@ class FieldExecutionContextFactory internal constructor(
             schema: ViaductSchema,
             typeName: String,
             fieldName: String,
+            grtConvFactory: GRTConvFactory,
         ): FieldExecutionContextFactory {
             val fieldDef = schema.schema.getObjectType(typeName)?.getFieldDefinition(fieldName)
                 ?: throw IllegalArgumentException("Called on a missing field coordinate ($typeName.$fieldName).")
@@ -282,6 +288,9 @@ class FieldExecutionContextFactory internal constructor(
                 argumentsCls,
                 objectCls,
                 queryCls,
+                grtConvFactory,
+                graphqlTypeName = typeName,
+                graphqlFieldName = fieldName,
             )
         }
     }

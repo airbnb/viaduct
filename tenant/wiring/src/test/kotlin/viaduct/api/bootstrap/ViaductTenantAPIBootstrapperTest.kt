@@ -24,10 +24,10 @@ import viaduct.api.bootstrap.test.AFieldResolver
 import viaduct.api.bootstrap.test.TestBatchNodeResolver
 import viaduct.api.bootstrap.test.TestNodeResolver
 import viaduct.api.bootstrap.test.TestTenantModule
-import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.NodeResolverExecutor
-import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.TenantCodeInjector
 import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder

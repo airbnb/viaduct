@@ -1,4 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
 @file:Suppress("ForbiddenImport", "DEPRECATION")
 
 package viaduct.engine.runtime.execution
@@ -35,28 +34,30 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
+import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.graphQLExecutionInput
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.ResolveSelectionSetOptions
-import viaduct.engine.api.TemporaryBypassAccessCheck
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.coroutines.CoroutineInterop
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.instrumentation.ChainedViaductModernInstrumentation
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.FlagManager
 
+@OptIn(ExperimentalCoroutinesApi::class, VisibleForTest::class)
 object ExecutionTestHelpers {
     suspend fun executeViaductModernGraphQL(
         sdl: String,
@@ -114,16 +115,29 @@ object ExecutionTestHelpers {
             fieldName: String,
             executeAccessChecksInModstrat: Boolean
         ): List<RequiredSelectionSet> {
-            val delegateResult = rssDelegate.getFieldCheckerRequiredSelectionSets(typeName, fieldName, executeAccessChecksInModstrat)
-            return delegateResult.ifEmpty { delegate.getFieldCheckerRequiredSelectionSets(typeName, fieldName, executeAccessChecksInModstrat) }
+            val delegateResult =
+                rssDelegate.getFieldCheckerRequiredSelectionSets(typeName, fieldName, executeAccessChecksInModstrat)
+            return delegateResult.ifEmpty {
+                delegate.getFieldCheckerRequiredSelectionSets(
+                    typeName,
+                    fieldName,
+                    executeAccessChecksInModstrat
+                )
+            }
         }
 
         override fun getTypeCheckerRequiredSelectionSets(
             typeName: String,
             executeAccessChecksInModstrat: Boolean
         ): List<RequiredSelectionSet> {
-            val delegateResult = rssDelegate.getTypeCheckerRequiredSelectionSets(typeName, executeAccessChecksInModstrat)
-            return delegateResult.ifEmpty { delegate.getTypeCheckerRequiredSelectionSets(typeName, executeAccessChecksInModstrat) }
+            val delegateResult =
+                rssDelegate.getTypeCheckerRequiredSelectionSets(typeName, executeAccessChecksInModstrat)
+            return delegateResult.ifEmpty {
+                delegate.getTypeCheckerRequiredSelectionSets(
+                    typeName,
+                    executeAccessChecksInModstrat
+                )
+            }
         }
     }
 
@@ -298,7 +312,7 @@ object ExecutionTestHelpers {
 
     private class ExceptionHandlerWithFuture : DataFetcherExceptionHandler {
         @OptIn(DelicateCoroutinesApi::class)
-        override fun handleException(handlerParameters: DataFetcherExceptionHandlerParameters?): CompletableFuture<DataFetcherExceptionHandlerResult?>? {
+        override fun handleException(handlerParameters: DataFetcherExceptionHandlerParameters?): CompletableFuture<DataFetcherExceptionHandlerResult?> {
             return scopedFuture {
                 SimpleDataFetcherExceptionHandler().handleException(handlerParameters).await()
             }
@@ -370,6 +384,7 @@ class DocumentCache : PreparsedDocumentProvider {
         )
 }
 
+@OptIn(VisibleForTest::class)
 object CheckerDispatchers {
     fun success(requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()): CheckerDispatcher {
         val dispatcher = object : CheckerDispatcher {
@@ -380,7 +395,7 @@ object CheckerDispatchers {
                 arguments: Map<String, Any?>,
                 objectDataMap: Map<String, EngineObjectData>,
                 context: EngineExecutionContext,
-                checkerType: viaduct.engine.api.CheckerExecutor.CheckerType
+                checkerType: viaduct.engine.api.spi.CheckerExecutor.CheckerType
             ): CheckerResult = CheckerResult.Success
         }
         dispatcher.executor = object : CheckerExecutor {
@@ -405,12 +420,8 @@ object CheckerDispatchers {
  * `EngineExecutionContext.query()` method. For production code, use
  * [EngineExecutionContext.resolveSelectionSet] directly.
  */
-suspend fun EngineExecutionContext.query(
-    resolverId: String,
-    selectionSet: EngineSelectionSet
-): EngineObjectData =
+suspend fun EngineExecutionContext.query(selectionSet: EngineSelectionSet): EngineObjectData =
     resolveSelectionSet(
-        resolverId,
         selectionSet,
         ResolveSelectionSetOptions.DEFAULT
     )
@@ -422,12 +433,8 @@ suspend fun EngineExecutionContext.query(
  * `EngineExecutionContext.mutation()` method. For production code, use
  * [EngineExecutionContext.resolveSelectionSet] directly.
  */
-suspend fun EngineExecutionContext.mutation(
-    resolverId: String,
-    selectionSet: EngineSelectionSet
-): EngineObjectData =
+suspend fun EngineExecutionContext.mutation(selectionSet: EngineSelectionSet): EngineObjectData =
     resolveSelectionSet(
-        resolverId,
         selectionSet,
         ResolveSelectionSetOptions.MUTATION
     )

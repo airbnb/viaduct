@@ -41,6 +41,7 @@ sealed class ExecutionContextImpl(
     override val schema = baseData.schema
     override val globalIDCodec = baseData.globalIDCodec
     override val reflectionLoader = baseData.reflectionLoader
+    override val grtConvFactory = baseData.grtConvFactory
 
     override fun <T : NodeObject> globalIDFor(
         type: Type<T>,

@@ -5,7 +5,6 @@ import graphql.execution.MergedField
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLSchema
-import viaduct.engine.runtime.execution.Constraints.Resolution
 import viaduct.engine.runtime.execution.QueryPlan.CollectedField
 import viaduct.engine.runtime.execution.QueryPlan.Field
 import viaduct.engine.runtime.execution.QueryPlan.FragmentDefinition
@@ -14,6 +13,8 @@ import viaduct.engine.runtime.execution.QueryPlan.Fragments
 import viaduct.engine.runtime.execution.QueryPlan.InlineFragment
 import viaduct.engine.runtime.execution.QueryPlan.Selection
 import viaduct.engine.runtime.execution.QueryPlan.SelectionSet
+import viaduct.engine.runtime.execution.constraints.Constraints
+import viaduct.engine.runtime.execution.constraints.Constraints.Resolution
 import viaduct.utils.collections.MaskedSet
 
 object CollectFields {
@@ -57,7 +58,7 @@ object CollectFields {
 
         fun asSelectionSet(): SelectionSet = SelectionSet(acc)
 
-        fun constrainedTypes() = constraintsCtx.parentTypes.toSet()
+        fun constrainedTypes() = constraintsCtx.parentTypes?.toSet()
     }
 
     /**
@@ -121,7 +122,8 @@ object CollectFields {
                             MergedField.newMergedField(sel.field).build(),
                             // filter child plans to those that apply to the constrained type or root types
                             childPlans = sel.childPlans.filter {
-                                state.constrainedTypes().contains(it.parentType) || it.parentType.isRootType(state.schema)
+                                val types = state.constrainedTypes()
+                                types == null || types.contains(it.parentType) || it.parentType.isRootType(state.schema)
                             },
                             fieldTypeChildPlans = sel.fieldTypeChildPlans,
                             collectedFieldMetadata = sel.metadata

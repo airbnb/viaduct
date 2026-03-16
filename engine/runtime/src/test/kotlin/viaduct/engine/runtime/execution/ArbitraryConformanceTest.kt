@@ -4,10 +4,10 @@ package viaduct.engine.runtime.execution
 
 import graphql.schema.idl.SchemaPrinter
 import io.kotest.property.Arb
-import io.kotest.property.PropertyTesting
+import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.map
+import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.take
-import io.kotest.property.checkAll
 import kotlin.math.sqrt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -17,7 +17,6 @@ import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.flatten
-import viaduct.arbitrary.common.randomSource
 import viaduct.arbitrary.graphql.EnumTypeSize
 import viaduct.arbitrary.graphql.FragmentSpreadWeight
 import viaduct.arbitrary.graphql.GenInterfaceStubsIfNeeded
@@ -30,8 +29,6 @@ import viaduct.arbitrary.graphql.SchemaSize
 import viaduct.arbitrary.graphql.graphQLDocument
 import viaduct.arbitrary.graphql.graphQLExecutionInput
 import viaduct.arbitrary.graphql.graphQLSchema
-
-private const val iter = 5_000
 
 /**
  * This class is a tool for mining and investigating conformance bugs.
@@ -78,7 +75,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
     @Test
     fun `trivial schema -- conformance`() {
         Conformer("type Query { x: Int }", cfg) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -92,7 +89,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
             """.trimIndent(),
             cfg
         ) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -106,7 +103,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
             """.trimIndent(),
             cfg
         ) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -117,18 +114,18 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
                 .map { doc ->
                     Arb.graphQLExecutionInput(schema, doc, cfg)
                         .asViaductExecutionInput(schema)
-                        .take(10, randomSource())
+                        .take(10, randomSource)
                         .toList()
                 }.flatten()
 
-            inputs.checkAll(iter)
+            inputs.checkAll()
         }
     }
 
     @Test
     fun `field merging -- objects`() {
         Conformer("type Query { x: Int, q:Query }", cfg) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -136,7 +133,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
     fun `field merging -- fragments`() {
         val cfg = cfg + (FragmentSpreadWeight to CompoundingWeight(.2, 10)) + (OperationCount to 1..1)
         Conformer("type Query { x:Int, q:Query }", cfg) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -144,7 +141,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
     fun `field errors`() {
         val cfg = cfg + (ResolverExceptionWeight to .3)
         Conformer("type Query { x:Int, y:Int, q:Query }", cfg) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter, checkNoModernErrors = false)
+            Arb.viaductExecutionInput(schema, cfg).checkAll(checkNoModernErrors = false)
         }
     }
 
@@ -159,7 +156,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
             """.trimIndent(),
             cfg
         ) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -177,7 +174,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
                 type Query { a(a:Int):I_A,  aa(aa:Int):I_AA,  b(b:Int): I_B }
             """.trimIndent(),
         ) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -195,7 +192,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
                 type Query { a1(a:Int):A1,  a2(a:Int):A2 }
             """.trimIndent()
         ) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -229,7 +226,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
             """.trimIndent(),
             cfg
         ) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -241,7 +238,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
                 type Query { q(inp:Inp):Query }
             """.trimIndent()
         ) {
-            Arb.viaductExecutionInput(schema, cfg).checkAll(iter)
+            Arb.viaductExecutionInput(schema, cfg).checkAll()
         }
     }
 
@@ -259,7 +256,7 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
                 (ListValueSize to 0..2) +
                 (GenInterfaceStubsIfNeeded to true)
 
-            val dim = sqrt(iter.toDouble()).toInt()
+            val dim = sqrt(iterations.toDouble()).toInt()
             Arb.graphQLSchema(cfg).checkAll(dim) { schema ->
                 Conformer(SchemaPrinter().print(schema)) {
                     Arb.viaductExecutionInput(this.schema).checkAll(dim)
@@ -277,15 +274,38 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
      */
     @Test
     @Disabled
-    fun `debug -- seed march`() {
-        var i = 0
-        var iters = 0
-        while (true) {
-            val test = ArbitraryConformanceTest()
-            println("SEED: ${PropertyTesting.defaultSeed}  i=$i   iters=$iters")
-            test.`arb arb arb`()
-            i += 1
-            iters += iter
+    fun `debug -- seed march`(): Unit =
+        runBlocking {
+            // Runs `arb arb arb` across an ascending sequence of seed values to find
+            // low-probability conformance bugs. Each seed gets a single iteration.
+            //
+            // To use: un-disable, run, and wait for a failure. The printed seed can
+            // then be passed to `KotestPropertyBase(seed = ...)` in the class declaration
+            // to reproduce the failure.
+            //
+            // This test has the potential to run forever and should not be enabled in master.
+
+            val cfg = cfg +
+                (SchemaSize to 20) +
+                (ObjectTypeSize to 1..5) +
+                (EnumTypeSize to 1..5) +
+                (InputObjectTypeSize to 1..5) +
+                (ListValueSize to 0..2) +
+                (GenInterfaceStubsIfNeeded to true)
+
+            var seed = 0L
+            while (true) {
+                if (seed.mod(100) == 0) {
+                    println("SEED: $seed")
+                }
+                val rs = RandomSource.seeded(seed)
+                val schema = Arb.graphQLSchema(cfg).next(rs)
+                val sdl = SchemaPrinter().print(schema)
+                Conformer(sdl, seed = seed) {
+                    Arb.viaductExecutionInput(this.schema).checkAll(1)
+                }
+
+                seed += 1
+            }
         }
-    }
 }

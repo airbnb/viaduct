@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.tenant.tutorial04.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial04.resolverbases.QueryResolvers
 import viaduct.tenant.tutorial04.resolverbases.UserResolvers
 

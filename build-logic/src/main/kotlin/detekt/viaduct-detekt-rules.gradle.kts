@@ -17,7 +17,7 @@ if (isFirstRegistration) {
 
 val detektPluginsCfg = configurations.maybeCreate("detektPlugins")
 if (isRootBuild) {
-    dependencies { add(detektPluginsCfg.name, "com.airbnb.viaduct:common") }
+    dependencies { add(detektPluginsCfg.name, "com.airbnb.viaduct.build:common") }
 }
 
 if (isFirstRegistration) {

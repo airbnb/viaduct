@@ -8,13 +8,14 @@ import com.google.inject.Singleton
 import javax.inject.Qualifier
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineFactory
-import viaduct.engine.api.CheckerExecutorFactory
-import viaduct.engine.api.CheckerExecutorFactoryCreator
-import viaduct.engine.api.RequiredSelectionSetRegistry
-import viaduct.engine.api.TenantModuleBootstrapper
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.api.spi.CheckerExecutorFactory
+import viaduct.engine.api.spi.CheckerExecutorFactoryCreator
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
+import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
 import viaduct.service.api.SchemaId
@@ -22,7 +23,8 @@ import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrappe
 import viaduct.utils.slf4j.logger
 
 internal class SchemaScopedModule(
-    private val schemaConfig: SchemaConfiguration
+    private val schemaConfig: SchemaConfiguration,
+    private val existingRegistry: EngineRegistry? = null,
 ) : AbstractModule() {
     companion object {
         private val log by logger()
@@ -33,10 +35,12 @@ internal class SchemaScopedModule(
 
         bind(RequiredSelectionSetRegistry::class.java).to(DispatcherRegistry::class.java)
 
-        install(SchemaRegistryModule())
+        install(SchemaRegistryModule(existingRegistry))
     }
 
-    private class SchemaRegistryModule : PrivateModule() {
+    private class SchemaRegistryModule(
+        private val existingRegistry: EngineRegistry?
+    ) : PrivateModule() {
         override fun configure() {
         }
 
@@ -51,7 +55,10 @@ internal class SchemaScopedModule(
             factory: EngineRegistry.Factory,
             config: SchemaConfiguration,
         ): EngineRegistry {
-            return factory.create(config)
+            return when {
+                existingRegistry != null -> factory.createWithReusedSchemas(existingRegistry)
+                else -> factory.create(config)
+            }
         }
 
         @Provides
@@ -103,7 +110,7 @@ internal class SchemaScopedModule(
         val startTime = System.currentTimeMillis()
         val dispatcherRegistry = DispatcherRegistryFactory(tenantBootstrapper, validator, checkerExecutorFactory, resolverInstrumentation).create(schema)
         val elapsedTime = System.currentTimeMillis() - startTime
-        log.info("Created DispatcherRegistry for Viaduct Modern after [$elapsedTime] ms")
+        log.info("Created DispatcherRegistry for Viaduct Modern after [{}] ms", elapsedTime)
         return dispatcherRegistry
     }
 
@@ -112,9 +119,10 @@ internal class SchemaScopedModule(
     fun providesEngineFactory(
         config: EngineConfiguration,
         dispatcherRegistry: DispatcherRegistry,
+        tenantNameResolver: TenantNameResolver,
     ): EngineFactory {
         return EngineFactory(
-            config = config,
+            config = config.copy(tenantNameResolver = tenantNameResolver),
             dispatcherRegistry = dispatcherRegistry,
         )
     }

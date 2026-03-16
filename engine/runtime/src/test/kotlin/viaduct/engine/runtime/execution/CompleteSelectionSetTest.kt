@@ -4,12 +4,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CompleteSelectionSetOptions
-import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 
 /**
@@ -273,7 +273,6 @@ class CompleteSelectionSetTest {
                         val rss = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "rootValue name", emptyMap())
                         ctx.resolveSelectionSet(
-                            "Container.completedResult",
                             rss,
                             ResolveSelectionSetOptions(targetResult = oer)
                         )

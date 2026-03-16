@@ -9,7 +9,7 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.UnionWiringEnvironment
 import graphql.schema.idl.WiringFactory
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.api.spi.CoroutineInterop
 
 /**
  * graphql-java wiring for the Viaduct Modern engine.

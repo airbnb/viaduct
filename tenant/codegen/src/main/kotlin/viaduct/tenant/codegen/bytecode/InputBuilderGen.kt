@@ -32,7 +32,8 @@ import viaduct.tenant.codegen.bytecode.config.kmType
 internal fun GRTClassFilesBuilder.inputBuilderGen(
     fields: Iterable<ViaductSchema.HasDefaultValue>,
     container: CustomClassBuilder,
-    inputTaggingInterface: KmName
+    inputTaggingInterface: KmName,
+    containingField: ViaductSchema.Field? = null,
 ): CustomClassBuilder {
     val result = container.nestedClassBuilder(JavaIdName("Builder"))
     InputBuilderGenV2(
@@ -41,7 +42,8 @@ internal fun GRTClassFilesBuilder.inputBuilderGen(
         builderBuilder = container,
         builderClass = result,
         builderFor = container.kmType,
-        inputTaggingInterface = inputTaggingInterface
+        inputTaggingInterface = inputTaggingInterface,
+        containingField = containingField,
     )
     return result
 }
@@ -52,7 +54,8 @@ private class InputBuilderGenV2(
     private val builderBuilder: CustomClassBuilder,
     private val builderClass: CustomClassBuilder,
     private val builderFor: KmType,
-    private val inputTaggingInterface: KmName
+    private val inputTaggingInterface: KmName,
+    private val containingField: ViaductSchema.Field? = null,
 ) {
     private val pkg = grtClassFilesBuilder.pkg
     private val baseTypeMapper = grtClassFilesBuilder.baseTypeMapper
@@ -198,16 +201,26 @@ private class InputBuilderGenV2(
         }
         val className = builderBuilder.kmType.name.toString().split("/").last()
         val inputTypeFactoryMethod = InputTypeFactoryConfig.getFactoryMethodName(inputTaggingInterface)
+        val inputTypeFactoryCall = if (containingField != null) {
+            """InputTypeFactory.argumentsInputType(
+                        "$className",
+                        "${containingField.containingDef.name}",
+                        "${containingField.name}",
+                        (${castObjectExpression(internalContextType, "$1")}).getSchema()
+                    )"""
+        } else {
+            """InputTypeFactory.$inputTypeFactoryMethod(
+                        "$className",
+                        (${castObjectExpression(internalContextType, "$1")}).getSchema()
+                    )"""
+        }
 
         this.addConstructor(
             kmConstructor,
             superCall = """
                 this(
                     ${castObjectExpression(internalContextType, "$1")},
-                    InputTypeFactory.$inputTypeFactoryMethod(
-                        "$className",
-                        (${castObjectExpression(internalContextType, "$1")}).getSchema()
-                    ),
+                    $inputTypeFactoryCall,
                     new java.util.LinkedHashMap()
                 );
             """.trimIndent(),

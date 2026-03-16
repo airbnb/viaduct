@@ -249,6 +249,17 @@ class TestExtractAuthors(unittest.TestCase):
         authors = extract_authors(commit)
         self.assertEqual(authors, [])
 
+    def test_duplicate_author_and_coauthor_deduplicated(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="Fix bug",
+            body='',
+            author_email="john@example.com",
+            co_authors_raw="John <john@example.com>"
+        )
+        authors = extract_authors(commit)
+        self.assertEqual(authors, ["@john"])
+
     def test_mixed_valid_and_invalid_coauthors(self):
         commit = CommitInfo(
             sha="abc123",
@@ -400,6 +411,19 @@ class TestParseCommit(unittest.TestCase):
         self.assertNotIn("AIRBNB", entry.message)
 
 
+    def test_pr_reference_preserved_in_description(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="ci: add standalone demoapp tests workflow (#296)",
+            body='',
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        entry = parse_commit(commit, self.parser)
+        self.assertIsNotNone(entry)
+        self.assertIn("(#296)", entry.description)
+
+
 class TestGroupEntriesByType(unittest.TestCase):
     def test_groups_by_type(self):
         entries = [
@@ -434,12 +458,22 @@ class TestRenderSection(unittest.TestCase):
 class TestRenderBreakingChanges(unittest.TestCase):
     def test_render_breaking_changes(self):
         entries = [
-            ChangelogEntry("a", "m1", ["@john"], "fix", None, "d1", True, "Breaking change description", LevelBump.MAJOR),
+            ChangelogEntry("a", "m1", ["@john"], "fix", None, "subject description", True, "body trailer description", LevelBump.MAJOR),
         ]
         result = render_breaking_changes(entries)
         self.assertIn("## Breaking Changes", result)
-        self.assertIn("Breaking change description", result)
+        self.assertIn("subject description", result)
+        self.assertNotIn("body trailer description", result)
         self.assertIn("@john", result)
+
+    def test_breaking_change_uses_subject_with_sha(self):
+        # subject description already has SHA from (AIRBNB) substitution — body trailer does not
+        entries = [
+            ChangelogEntry("abc1234", "m1", ["@alice"], "refactor", None, "rename SomeClass (abc1234)", True, "SomeClass renamed to OtherClass.", LevelBump.MAJOR),
+        ]
+        result = render_breaking_changes(entries)
+        self.assertIn("rename SomeClass (abc1234)", result)
+        self.assertNotIn("SomeClass renamed to OtherClass.", result)
 
 
 if __name__ == '__main__':

@@ -1,7 +1,11 @@
+@file:OptIn(VisibleForTest::class)
+
 package viaduct.tenant.testing
 
 import viaduct.api.context.ExecutionContext
 import viaduct.api.internal.select.SelectionSetFactory
+import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.VisibleForTest
 
 /**
  * Default implementation of [ResolverTestBase] with pre-configured test dependencies.
@@ -24,6 +28,7 @@ import viaduct.api.internal.select.SelectionSetFactory
         "See FieldResolverTester, MutationResolverTester, or NodeResolverTester for the new API.",
     level = DeprecationLevel.WARNING
 )
+@OptIn(InternalApi::class)
 abstract class DefaultAbstractResolverTestBase : ResolverTestBase {
     override val ossSelectionSetFactory: SelectionSetFactory by lazy {
         mkSelectionSetFactory()

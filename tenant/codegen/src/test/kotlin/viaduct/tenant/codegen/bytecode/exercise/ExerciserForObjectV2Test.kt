@@ -2,7 +2,7 @@ package viaduct.tenant.codegen.bytecode.exercise
 
 import kotlin.reflect.KClass
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.MissingBuilderObjectV2
 import viaduct.api.grts.MissingDefaultGetterObjectV2
@@ -45,7 +45,7 @@ class ExerciserForObjectV2Test {
 
     @Test
     fun `ObjectV2 has no failures`() =
-        runBlockingTest {
+        runTest {
             Fixture(
                 """
             type ObjectV2 {
@@ -61,7 +61,7 @@ class ExerciserForObjectV2Test {
 
     @Test
     fun `missing builder`() =
-        runBlockingTest {
+        runTest {
             Fixture(
                 """
             type MissingBuilderObjectV2 {
@@ -74,7 +74,7 @@ class ExerciserForObjectV2Test {
 
     @Test
     fun `missing getter`() =
-        runBlockingTest {
+        runTest {
             Fixture(
                 """
             type MissingGetterObjectV2 {
@@ -87,7 +87,7 @@ class ExerciserForObjectV2Test {
 
     @Test
     fun `missing default getter`() =
-        runBlockingTest {
+        runTest {
             Fixture(
                 """
             type MissingDefaultGetterObjectV2 {
@@ -100,7 +100,7 @@ class ExerciserForObjectV2Test {
 
     @Test
     fun `missing non default getter`() =
-        runBlockingTest {
+        runTest {
             Fixture(
                 """
             type MissingNonDefaultGetterObjectV2 {
@@ -113,7 +113,7 @@ class ExerciserForObjectV2Test {
 
     @Test
     fun `missing setter`() =
-        runBlockingTest {
+        runTest {
             Fixture(
                 """
             type MissingSetterObjectV2 {

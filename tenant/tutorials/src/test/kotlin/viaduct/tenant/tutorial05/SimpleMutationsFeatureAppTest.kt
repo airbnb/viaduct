@@ -10,6 +10,7 @@ import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial05.resolverbases.MutationResolvers
+import viaduct.tenant.tutorial05.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial05.resolverbases.QueryResolvers
 
 /**

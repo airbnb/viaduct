@@ -2,7 +2,7 @@
 coroutinesReactor = "1.10.2"
 junit5 = "5.11.3"
 junitPlatform = "1.11.3"
-kotest = "6.0.5"
+kotest = "6.1.4"
 kotlin = "2.2.21"
 micronaut = "4.6.1"
 micronautKotlin = "4.7.0"

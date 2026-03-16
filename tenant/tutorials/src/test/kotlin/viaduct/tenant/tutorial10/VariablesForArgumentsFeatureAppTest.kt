@@ -33,7 +33,7 @@ import viaduct.tenant.tutorial10.resolverbases.QueryResolvers
  * - Conditional field argument control
  *
  * PREVIOUS: [viaduct.tenant.tutorial09.VariablesDirectivesFeatureAppTest]
- * NEXT: End of tutorial series
+ * NEXT: [viaduct.tenant.tutorial11.SimpleSubqueriesFeatureAppTest]
  */
 class VariablesForArgumentsFeatureAppTest : FeatureAppTestBase() {
     override var sdl = """

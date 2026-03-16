@@ -1,7 +1,7 @@
 package viaduct.graphiql
 
 import java.io.File
-import java.net.URL
+import java.net.URI
 
 /**
  * Customizes the official GraphiQL HTML for use with Viaduct.
@@ -26,7 +26,7 @@ class GraphiQLHtmlCustomizer(
     private fun downloadHtml(): String {
         val tempFile = File.createTempFile("graphiql", ".html")
         try {
-            URL(sourceUrl).openStream().use { input ->
+            URI(sourceUrl).toURL().openStream().use { input ->
                 tempFile.outputStream().use { output ->
                     input.copyTo(output)
                 }

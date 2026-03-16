@@ -15,10 +15,7 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.InternalApi
-import viaduct.apiannotations.VisibleForTest
 
-@OptIn(VisibleForTest::class, InternalApi::class)
 class FieldResolverTesterTest {
     companion object {
         private const val TEST_SCHEMA_SDL = """
@@ -218,7 +215,6 @@ internal object MockFieldArguments : Arguments
 
 internal class MockFieldOutput(val value: String) : CompositeOutput
 
-@OptIn(InternalApi::class)
 internal class SimpleFieldResolver : ResolverBase<MockFieldOutput> {
     class Context(val inner: FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput>) :
         FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput> by inner
@@ -228,7 +224,6 @@ internal class SimpleFieldResolver : ResolverBase<MockFieldOutput> {
     }
 }
 
-@OptIn(InternalApi::class)
 internal class ContextAwareFieldResolver : ResolverBase<MockFieldOutput> {
     class Context(val inner: FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput>) :
         FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput> by inner
@@ -240,7 +235,6 @@ internal class ContextAwareFieldResolver : ResolverBase<MockFieldOutput> {
     }
 }
 
-@OptIn(InternalApi::class)
 internal class BatchFieldResolver : ResolverBase<MockFieldOutput> {
     class Context(val inner: FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput>) :
         FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput> by inner
@@ -256,7 +250,6 @@ internal class BatchFieldResolver : ResolverBase<MockFieldOutput> {
     }
 }
 
-@OptIn(InternalApi::class)
 internal class NoArgsFieldResolver : ResolverBase<MockFieldOutput> {
     class Context(val inner: FieldExecutionContext<MockFieldObject, MockFieldQuery, Arguments.NoArguments, MockFieldOutput>) :
         FieldExecutionContext<MockFieldObject, MockFieldQuery, Arguments.NoArguments, MockFieldOutput> by inner
@@ -266,7 +259,6 @@ internal class NoArgsFieldResolver : ResolverBase<MockFieldOutput> {
     }
 }
 
-@OptIn(InternalApi::class)
 internal class SelectionAwareResolver : ResolverBase<MockFieldOutput> {
     class Context(val inner: FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput>) :
         FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput> by inner
@@ -276,7 +268,6 @@ internal class SelectionAwareResolver : ResolverBase<MockFieldOutput> {
     }
 }
 
-@OptIn(InternalApi::class)
 internal class ExceptionThrowingResolver : ResolverBase<MockFieldOutput> {
     class Context(val inner: FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput>) :
         FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput> by inner
@@ -286,7 +277,6 @@ internal class ExceptionThrowingResolver : ResolverBase<MockFieldOutput> {
     }
 }
 
-@OptIn(InternalApi::class)
 internal class RequestContextAwareResolver : ResolverBase<MockFieldOutput> {
     class Context(val inner: FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput>) :
         FieldExecutionContext<MockFieldObject, MockFieldQuery, MockFieldArguments, MockFieldOutput> by inner

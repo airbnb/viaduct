@@ -29,6 +29,12 @@ fun createSchema(schema: String): ViaductSchema = ViaductSchema.fromTypeDefiniti
 
 fun createGraphQLSchema(schema: String): GraphQLSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(MIN_SCHEMA + schema))
 
+fun loadGraphQLSchema(schemaResourcePaths: List<String>): ViaductSchema {
+    require(schemaResourcePaths.isNotEmpty()) { "schemaResourcePaths must not be empty" }
+    val paths = schemaResourcePaths.map { Resources.getResource(it) }
+    return ViaductSchema.fromTypeDefinitionRegistry(readTypesFromURLs(paths))
+}
+
 fun loadGraphQLSchema(schemaResourcePath: String? = null): ViaductSchema {
     val packageWithSchema = System.getenv()["PACKAGE_WITH_SCHEMA"] ?: "graphql"
     val paths = if (schemaResourcePath != null) {

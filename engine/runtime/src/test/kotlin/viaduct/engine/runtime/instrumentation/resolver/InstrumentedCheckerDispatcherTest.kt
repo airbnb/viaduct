@@ -10,9 +10,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
 
 internal class InstrumentedCheckerDispatcherTest {

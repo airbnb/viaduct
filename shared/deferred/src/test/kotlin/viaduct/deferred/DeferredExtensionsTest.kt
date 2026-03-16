@@ -25,6 +25,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
@@ -141,30 +143,33 @@ class DeferredExtensionsTest {
 
         @Test
         fun `parent cancellation cascades to deferred`() =
-            runBlocking {
+            runTest {
                 val parent = Job()
                 lateinit var d: CompletableDeferred<Int>
 
-                // Create and link under the TL parent, then exit the scope
-                withRequestParent(parent) {
-                    val before = parent.children.toSet()
+                launch {
+                    // Create and link under the TL parent, then exit the scope
+                    withRequestParent(parent) {
+                        val before = parent.children.toSet()
 
-                    d = completableDeferred()
+                        d = completableDeferred()
 
-                    // best-effort: ensure linkage happened
-                    yield()
+                        // best-effort: ensure linkage happened
+                        yield()
 
-                    val after = parent.children.toSet()
-                    val newChildren = after - before
+                        val after = parent.children.toSet()
+                        val newChildren = after - before
 
-                    // Optional sanity (don’t hard-fail if you don’t want flakiness):
-                    assertTrue(
-                        newChildren.any { sup -> sup.children.any { it === d } },
-                        "Supervisor should parent the deferred"
-                    )
+                        // Optional sanity (don’t hard-fail if you don’t want flakiness):
+                        assertTrue(
+                            newChildren.any { sup -> sup.children.any { it === d } },
+                            "Supervisor should parent the deferred"
+                        )
+                    }
                 }
 
                 // Now we're outside the TL scope; cancelling parent won't cancel the test coroutine
+                runCurrent()
                 val ce = CancellationException("parent-cancel")
                 parent.cancel(ce)
 

@@ -56,6 +56,7 @@ dependencies {
     testImplementation(libs.kotest.assertions.shared)
     testImplementation(libs.kotest.property.jvm)
     testImplementation(libs.viaduct.shared.arbitrary)
+    testImplementation(testFixtures(libs.viaduct.shared.arbitrary))
 
     jmh(libs.jmh.annotation.processor)
 
@@ -63,6 +64,7 @@ dependencies {
 
     jmhApi(libs.jmh.core)
     jmhApi(libs.viaduct.shared.arbitrary)
+    jmhApi(testFixtures(libs.viaduct.shared.arbitrary))
 
     jmhImplementation(libs.graphql.java)
     jmhImplementation(libs.guava)

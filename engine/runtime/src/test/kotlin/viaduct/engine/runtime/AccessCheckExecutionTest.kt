@@ -317,7 +317,7 @@ class AccessCheckExecutionTest {
                 value("foo")
                 checker {
                     objectSelections("key", "fragment _ on Query { plusOne(value: \$var) }") {
-                        variables("var", rss = createRSS("Query", "string2", forChecker = true)) { ctx ->
+                        variables("var", rss = createRSS("Query", "string2", forChecker = true)) { ctx, _ ->
                             val string2 = ctx.objectData.fetch("string2") as String
                             mapOf("var" to string2.toInt())
                         }
@@ -895,7 +895,7 @@ class AccessCheckExecutionTest {
                 value("foo")
                 checker {
                     objectSelections("key", "fragment _ on Query { plusMany(value: \$var) }") {
-                        variables("var") { mapOf("var" to 3) }
+                        variables("var") { _, _ -> mapOf("var" to 3) }
                     }
                     fn { _, objectDataMap ->
                         plusManyValue.set(objectDataMap["key"]?.fetch("plusMany"))
@@ -932,7 +932,7 @@ class AccessCheckExecutionTest {
                 }
                 checker {
                     querySelections("key", "fragment _ on Query { plusMany(value: \$var) }") {
-                        variables("var") { mapOf("var" to 6) }
+                        variables("var") { _, _ -> mapOf("var" to 6) }
                     }
                     fn { _, objectDataMap ->
                         plusManyValue.set(objectDataMap["key"]?.fetch("plusMany"))

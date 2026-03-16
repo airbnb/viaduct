@@ -6,7 +6,7 @@ import java.io.File
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -113,7 +113,7 @@ class ParameterizedSchemaDrivenTests {
         schemaName: String,
         schemaFiles: List<File>,
         assert: (failures: FailureCollector) -> Unit
-    ) = runBlockingTest {
+    ) = runTest {
         val failures = FailureCollector()
 
         try {

@@ -117,6 +117,10 @@ private fun primeExternalClass(
     ) {
         nesteds.forEach { n ->
             val nc = outer.makeNestedClassFixed(n.nestedName.toString(), n.flags)
+            if (n.hasInstanceField) {
+                javassist.CtField.make("public static final ${nc.name} INSTANCE;", nc)
+                    .let { nc.addField(it) }
+            }
             buildNested(n.nested, nc)
         }
     }

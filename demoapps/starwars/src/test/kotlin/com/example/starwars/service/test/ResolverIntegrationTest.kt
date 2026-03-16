@@ -817,4 +817,481 @@ class ResolverIntegrationTest {
             errorMessage shouldContain "Character with ID 9999 not found"
         }
     }
+
+    @Nested
+    inner class ConnectionResolvers {
+        @Test
+        fun `should resolve allCharactersConnection with edges and pageInfo`() {
+            val query = """
+                query {
+                    allCharactersConnection(first: 3) {
+                        edges {
+                            cursor
+                            node {
+                                id
+                                name
+                            }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+            val connection = response.path("data").path("allCharactersConnection")
+
+            connection shouldNotBe null
+            val edges = connection.path("edges")
+            (edges.size() > 0) shouldBe true
+            (edges.size() <= 3) shouldBe true
+
+            val firstEdge = edges[0]
+            firstEdge.path("cursor").asText().shouldNotBeEmpty()
+            firstEdge.path("node").path("id").asText().shouldNotBeEmpty()
+            firstEdge.path("node").path("name").asText().shouldNotBeEmpty()
+
+            val pageInfo = connection.path("pageInfo")
+            // 3 items fit on first page of a dataset with more characters, so hasNextPage should be true
+            pageInfo.path("hasNextPage").asBoolean() shouldBe true
+            pageInfo.path("hasPreviousPage").asBoolean() shouldBe false
+            pageInfo.path("startCursor").asText().shouldNotBeEmpty()
+            pageInfo.path("endCursor").asText().shouldNotBeEmpty()
+        }
+
+        @Test
+        fun `should resolve allCharactersConnection forward pagination with after cursor`() {
+            // Fetch first page to get the endCursor
+            val firstPageQuery = """
+                query {
+                    allCharactersConnection(first: 2) {
+                        edges { cursor node { id name } }
+                        pageInfo { hasNextPage endCursor }
+                    }
+                }
+            """.trimIndent()
+
+            val firstPageResponse = client.executeGraphQLQuery(firstPageQuery)
+            val firstPageConnection = firstPageResponse.path("data").path("allCharactersConnection")
+            val endCursor = firstPageConnection.path("pageInfo").path("endCursor").asText()
+            val firstPageNames = (0 until firstPageConnection.path("edges").size())
+                .map { firstPageConnection.path("edges")[it].path("node").path("name").asText() }
+
+            // Use endCursor to fetch next page
+            val secondPageQuery = """
+                query {
+                    allCharactersConnection(first: 2, after: "$endCursor") {
+                        edges { cursor node { id name } }
+                        pageInfo { hasPreviousPage }
+                    }
+                }
+            """.trimIndent()
+
+            val secondPageResponse = client.executeGraphQLQuery(secondPageQuery)
+            val secondPageConnection = secondPageResponse.path("data").path("allCharactersConnection")
+            val secondPageEdges = secondPageConnection.path("edges")
+
+            // Second page should have items
+            (secondPageEdges.size() > 0) shouldBe true
+            // Second page should show previous page exists
+            secondPageConnection.path("pageInfo").path("hasPreviousPage").asBoolean() shouldBe true
+
+            // Names on second page should differ from first page
+            val secondPageNames = (0 until secondPageEdges.size())
+                .map { secondPageEdges[it].path("node").path("name").asText() }
+            (firstPageNames.intersect(secondPageNames.toSet()).isEmpty()) shouldBe true
+        }
+
+        @Test
+        fun `should resolve allCharactersConnection with no arguments uses default page size`() {
+            val query = """
+                query {
+                    allCharactersConnection {
+                        edges { cursor node { id } }
+                        pageInfo { hasNextPage hasPreviousPage }
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+            val connection = response.path("data").path("allCharactersConnection")
+
+            (connection.path("edges").size() > 0) shouldBe true
+        }
+
+        @Test
+        fun `should resolve allFilmsConnection with edges pageInfo and totalCount`() {
+            val query = """
+                query {
+                    allFilmsConnection(first: 2) {
+                        totalCount
+                        edges {
+                            cursor
+                            node {
+                                id
+                                title
+                                episodeID
+                            }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+            val connection = response.path("data").path("allFilmsConnection")
+
+            connection shouldNotBe null
+
+            // totalCount reflects the full dataset
+            val totalCount = connection.path("totalCount").asInt()
+            (totalCount > 0) shouldBe true
+
+            val edges = connection.path("edges")
+            (edges.size() > 0) shouldBe true
+            (edges.size() <= 2) shouldBe true
+
+            val firstEdge = edges[0]
+            firstEdge.path("cursor").asText().shouldNotBeEmpty()
+            firstEdge.path("node").path("id").asText().shouldNotBeEmpty()
+            firstEdge.path("node").path("title").asText().shouldNotBeEmpty()
+
+            val pageInfo = connection.path("pageInfo")
+            pageInfo.path("startCursor").asText().shouldNotBeEmpty()
+            pageInfo.path("endCursor").asText().shouldNotBeEmpty()
+            // first page with 2 items: hasPreviousPage is false
+            pageInfo.path("hasPreviousPage").asBoolean() shouldBe false
+        }
+
+        @Test
+        fun `should resolve allFilmsConnection totalCount matches full film count`() {
+            // Fetch the connection without pagination to get total
+            val connectionQuery = """
+                query {
+                    allFilmsConnection {
+                        totalCount
+                        edges { node { id } }
+                    }
+                }
+            """.trimIndent()
+
+            val listQuery = """
+                query {
+                    allFilms(limit: 100) { id }
+                }
+            """.trimIndent()
+
+            val connectionResponse = client.executeGraphQLQuery(connectionQuery)
+            val listResponse = client.executeGraphQLQuery(listQuery)
+
+            val totalCount = connectionResponse.path("data").path("allFilmsConnection").path("totalCount").asInt()
+            val listCount = listResponse.path("data").path("allFilms").size()
+
+            totalCount shouldBe listCount
+        }
+
+        // ── Backward pagination (allPlanetsConnection, fromList) ────────────────
+
+        @Test
+        fun `should resolve allPlanetsConnection last N items using backward pagination`() {
+            val query = """
+                query {
+                    allPlanetsConnection(last: 3) {
+                        edges {
+                            cursor
+                            node { id name }
+                        }
+                        pageInfo {
+                            hasPreviousPage
+                            hasNextPage
+                            startCursor
+                            endCursor
+                        }
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+            val connection = response.path("data").path("allPlanetsConnection")
+
+            connection shouldNotBe null
+            val edges = connection.path("edges")
+            edges.size() shouldBe 3
+
+            // Cursors must be present on every edge
+            edges.forEach { edge ->
+                edge.path("cursor").asText().shouldNotBeEmpty()
+                edge.path("node").path("id").asText().shouldNotBeEmpty()
+            }
+
+            val pageInfo = connection.path("pageInfo")
+            // Last 3 items — there are items before them
+            pageInfo.path("hasPreviousPage").asBoolean() shouldBe true
+            // Last 3 items — nothing after them in the forward direction
+            pageInfo.path("hasNextPage").asBoolean() shouldBe false
+            pageInfo.path("startCursor").asText().shouldNotBeEmpty()
+            pageInfo.path("endCursor").asText().shouldNotBeEmpty()
+        }
+
+        @Test
+        fun `should resolve allPlanetsConnection backward pagination with before cursor`() {
+            // Fetch the last 3 to get a startCursor to page backward from
+            val lastPageQuery = """
+                query {
+                    allPlanetsConnection(last: 3) {
+                        edges { cursor node { id name } }
+                        pageInfo { startCursor }
+                    }
+                }
+            """.trimIndent()
+
+            val lastPageResponse = client.executeGraphQLQuery(lastPageQuery)
+            val lastPageConnection = lastPageResponse.path("data").path("allPlanetsConnection")
+            val startCursor = lastPageConnection.path("pageInfo").path("startCursor").asText()
+            val lastPageNames = (0 until lastPageConnection.path("edges").size())
+                .map { lastPageConnection.path("edges")[it].path("node").path("name").asText() }
+
+            // Fetch the 3 items before the startCursor
+            val prevPageQuery = """
+                query {
+                    allPlanetsConnection(last: 3, before: "$startCursor") {
+                        edges { cursor node { id name } }
+                        pageInfo { hasPreviousPage hasNextPage }
+                    }
+                }
+            """.trimIndent()
+
+            val prevPageResponse = client.executeGraphQLQuery(prevPageQuery)
+            val prevPageConnection = prevPageResponse.path("data").path("allPlanetsConnection")
+            val prevPageEdges = prevPageConnection.path("edges")
+
+            (prevPageEdges.size() > 0) shouldBe true
+
+            // Items on the previous page must not overlap with the last page
+            val prevPageNames = (0 until prevPageEdges.size())
+                .map { prevPageEdges[it].path("node").path("name").asText() }
+            (lastPageNames.intersect(prevPageNames.toSet()).isEmpty()) shouldBe true
+        }
+
+        // ── Forward pagination + fromSlice (allStarshipsConnection) ────────────
+
+        @Test
+        fun `should resolve allStarshipsConnection with edges and pageInfo using fromSlice`() {
+            val query = """
+                query {
+                    allStarshipsConnection(first: 1) {
+                        edges {
+                            cursor
+                            node { id name model }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+            val connection = response.path("data").path("allStarshipsConnection")
+
+            connection shouldNotBe null
+            val edges = connection.path("edges")
+            edges.size() shouldBe 1
+
+            val pageInfo = connection.path("pageInfo")
+            pageInfo.path("hasPreviousPage").asBoolean() shouldBe false
+            pageInfo.path("hasNextPage").asBoolean() shouldBe true
+            pageInfo.path("startCursor").asText().shouldNotBeEmpty()
+            pageInfo.path("endCursor").asText().shouldNotBeEmpty()
+        }
+
+        @Test
+        fun `should resolve allStarshipsConnection forward pagination with after cursor`() {
+            val firstPageQuery = """
+                query {
+                    allStarshipsConnection(first: 1) {
+                        edges { cursor node { id name } }
+                        pageInfo { hasNextPage endCursor }
+                    }
+                }
+            """.trimIndent()
+
+            val firstPageResponse = client.executeGraphQLQuery(firstPageQuery)
+            val firstPageConnection = firstPageResponse.path("data").path("allStarshipsConnection")
+            val endCursor = firstPageConnection.path("pageInfo").path("endCursor").asText()
+            val firstPageNames = (0 until firstPageConnection.path("edges").size())
+                .map { firstPageConnection.path("edges")[it].path("node").path("name").asText() }
+
+            val secondPageQuery = """
+                query {
+                    allStarshipsConnection(first: 1, after: "$endCursor") {
+                        edges { cursor node { id name } }
+                        pageInfo { hasPreviousPage }
+                    }
+                }
+            """.trimIndent()
+
+            val secondPageResponse = client.executeGraphQLQuery(secondPageQuery)
+            val secondPageConnection = secondPageResponse.path("data").path("allStarshipsConnection")
+            val secondPageEdges = secondPageConnection.path("edges")
+
+            (secondPageEdges.size() > 0) shouldBe true
+            // After using an after cursor the second page knows there's a previous page
+            secondPageConnection.path("pageInfo").path("hasPreviousPage").asBoolean() shouldBe true
+
+            val secondPageNames = (0 until secondPageEdges.size())
+                .map { secondPageEdges[it].path("node").path("name").asText() }
+            (firstPageNames.intersect(secondPageNames.toSet()).isEmpty()) shouldBe true
+        }
+
+        // ── Multidirectional + fromEdges (allSpeciesConnection) ─────────────────
+
+        @Test
+        fun `should resolve allSpeciesConnection forward pagination using fromEdges`() {
+            val query = """
+                query {
+                    allSpeciesConnection(first: 1) {
+                        edges {
+                            cursor
+                            node { id name classification }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+            val connection = response.path("data").path("allSpeciesConnection")
+
+            connection shouldNotBe null
+            val edges = connection.path("edges")
+            edges.size() shouldBe 1
+
+            // fromEdges: verify cursors were manually encoded
+            edges.forEach { edge -> edge.path("cursor").asText().shouldNotBeEmpty() }
+
+            val pageInfo = connection.path("pageInfo")
+            pageInfo.path("hasPreviousPage").asBoolean() shouldBe false
+            pageInfo.path("hasNextPage").asBoolean() shouldBe true
+        }
+
+        @Test
+        fun `should resolve allSpeciesConnection backward last N using fromEdges`() {
+            val query = """
+                query {
+                    allSpeciesConnection(last: 1) {
+                        edges {
+                            cursor
+                            node { id name }
+                        }
+                        pageInfo {
+                            hasPreviousPage
+                            hasNextPage
+                        }
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+            val connection = response.path("data").path("allSpeciesConnection")
+
+            val edges = connection.path("edges")
+            edges.size() shouldBe 1
+
+            val pageInfo = connection.path("pageInfo")
+            // Last 1 species: items exist before it (effectiveOffset = totalSize - 1 = 1 > 0)
+            pageInfo.path("hasPreviousPage").asBoolean() shouldBe true
+            // Last 1 species: nothing after in forward direction
+            pageInfo.path("hasNextPage").asBoolean() shouldBe false
+        }
+
+        @Test
+        fun `should resolve allSpeciesConnection backward with before cursor using fromEdges`() {
+            // Fetch last 1 to get a startCursor (last species, at offset 1 in a 2-item repo)
+            val lastPageQuery = """
+                query {
+                    allSpeciesConnection(last: 1) {
+                        edges { cursor node { id name } }
+                        pageInfo { startCursor }
+                    }
+                }
+            """.trimIndent()
+
+            val lastPageResponse = client.executeGraphQLQuery(lastPageQuery)
+            val lastPageConnection = lastPageResponse.path("data").path("allSpeciesConnection")
+            val startCursor = lastPageConnection.path("pageInfo").path("startCursor").asText()
+            val lastPageNames = (0 until lastPageConnection.path("edges").size())
+                .map { lastPageConnection.path("edges")[it].path("node").path("name").asText() }
+
+            // Fetch 1 item before the startCursor (the species before offset 1, i.e. offset 0)
+            val prevPageQuery = """
+                query {
+                    allSpeciesConnection(last: 1, before: "$startCursor") {
+                        edges { cursor node { id name } }
+                        pageInfo { hasPreviousPage }
+                    }
+                }
+            """.trimIndent()
+
+            val prevPageResponse = client.executeGraphQLQuery(prevPageQuery)
+            val prevPageConnection = prevPageResponse.path("data").path("allSpeciesConnection")
+            val prevPageEdges = prevPageConnection.path("edges")
+
+            (prevPageEdges.size() > 0) shouldBe true
+            val prevPageNames = (0 until prevPageEdges.size())
+                .map { prevPageEdges[it].path("node").path("name").asText() }
+            // Items before last 2 must not overlap with the last 2
+            (lastPageNames.intersect(prevPageNames.toSet()).isEmpty()) shouldBe true
+        }
+
+        @Test
+        fun `should resolve allSpeciesConnection forward then backward returns different items`() {
+            // Forward: first 1 species (offset 0)
+            val forwardQuery = """
+                query {
+                    allSpeciesConnection(first: 1) {
+                        edges { node { name } }
+                    }
+                }
+            """.trimIndent()
+
+            // Backward: last 1 species (offset 1 in a 2-item repo)
+            val backwardQuery = """
+                query {
+                    allSpeciesConnection(last: 1) {
+                        edges { node { name } }
+                    }
+                }
+            """.trimIndent()
+
+            val forwardResponse = client.executeGraphQLQuery(forwardQuery)
+            val backwardResponse = client.executeGraphQLQuery(backwardQuery)
+
+            val forwardEdges = forwardResponse.path("data").path("allSpeciesConnection").path("edges")
+            val backwardEdges = backwardResponse.path("data").path("allSpeciesConnection").path("edges")
+
+            val forwardNames = (0 until forwardEdges.size()).map { forwardEdges[it].path("node").path("name").asText() }.toSet()
+            val backwardNames = (0 until backwardEdges.size()).map { backwardEdges[it].path("node").path("name").asText() }.toSet()
+
+            // First 2 and last 2 of the species list should be different
+            (forwardNames.intersect(backwardNames).isEmpty()) shouldBe true
+        }
+    }
 }

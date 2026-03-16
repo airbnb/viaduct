@@ -17,7 +17,7 @@ class VariablesResolverTest {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
-                        variables("varx") { _ -> mapOf("varx" to 3) }
+                        variables("varx") { _, _ -> mapOf("varx" to 3) }
                     }
                     fn { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 2 }
                 }
@@ -37,7 +37,7 @@ class VariablesResolverTest {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
-                        variables("varx") { ctx -> mapOf("varx" to ctx.arguments.getAs<Int>("y") * 2) }
+                        variables("varx") { ctx, _ -> mapOf("varx" to ctx.arguments.getAs<Int>("y") * 2) }
                     }
                     fn { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
                 }
@@ -58,7 +58,7 @@ class VariablesResolverTest {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
-                        variables("varx") { _ -> mapOf("varx" to 2, "extra" to 3) }
+                        variables("varx") { _, _ -> mapOf("varx" to 2, "extra" to 3) }
                     }
                     fn { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
                 }
@@ -80,7 +80,7 @@ class VariablesResolverTest {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
-                        variables("varx") { _ -> mapOf("varx" to null) }
+                        variables("varx") { _, _ -> mapOf("varx" to null) }
                     }
                     fn { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
                 }
@@ -101,7 +101,7 @@ class VariablesResolverTest {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
-                        variables("varx") { _ -> emptyMap<String, Any?>() }
+                        variables("varx") { _, _ -> emptyMap<String, Any?>() }
                     }
                     fn { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
                 }
@@ -125,7 +125,7 @@ class VariablesResolverTest {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$x)") {
-                        variables("x") { _ -> mapOf("x" to 2) }
+                        variables("x") { _, _ -> mapOf("x" to 2) }
                     }
                     fn { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
                 }
@@ -165,10 +165,10 @@ class VariablesResolverTest {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
-                        variables("varx") { _ -> mapOf("varx" to 2) }
+                        variables("varx") { _, _ -> mapOf("varx" to 2) }
                     }
                     querySelections("bar(x:\$varx)") {
-                        variables("varx") { _ -> mapOf("varx" to 3) }
+                        variables("varx") { _, _ -> mapOf("varx" to 3) }
                     }
                     fn { _, obj, q, _, _ -> obj.fetchAs<Int>("bar") + q.fetchAs<Int>("bar") }
                 }

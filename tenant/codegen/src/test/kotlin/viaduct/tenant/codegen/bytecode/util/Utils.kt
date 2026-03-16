@@ -28,13 +28,12 @@ fun ViaductSchema.TypeExpr<*>.assertKotlinTypeString(
     expected: String,
     field: ViaductSchema.HasDefaultValue?,
     isInput: Boolean = false,
-    useSchemaValueType: Boolean = false,
     pkg: String = expectedPkg,
     baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductSchema.Empty)
 ) {
     assertEquals(
         expected,
-        kmType(JavaName(pkg).asKmName, baseTypeMapper, field = field, isInput = isInput, useSchemaValueType = useSchemaValueType).kotlinTypeString
+        kmType(JavaName(pkg).asKmName, baseTypeMapper, field = field, isInput = isInput, useSchemaValueType = false).kotlinTypeString
     )
 }
 

@@ -10,10 +10,10 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLNamedType
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.TimeoutCancellationException
-import viaduct.api.ViaductFrameworkException
-import viaduct.api.ViaductTenantException
-import viaduct.api.ViaductTenantResolverException
 import viaduct.engine.runtime.exceptions.FieldFetchingException
+import viaduct.errors.FrameworkException
+import viaduct.errors.TenantException
+import viaduct.errors.TenantResolverException
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.utils.slf4j.logger
@@ -49,7 +49,7 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
     // A helper function that processes the exception and returns a list of GraphQLErrors
     private fun processException(params: DataFetcherExceptionHandlerParameters): List<GraphQLError> {
         // For metadata: unwrap ONLY concurrency wrappers, preserving the top-most Viaduct exception
-        // (whether FieldFetchingException, ViaductTenantResolverException, etc.)
+        // (whether FieldFetchingException, TenantResolverException, etc.)
         val exceptionForMetadata = UnwrapExceptionUtil.unwrapException(params.exception, UnwrapExceptionUtil::isConcurrencyWrapper)
 
         // For errors: unwrap ALL wrappers (concurrency + Viaduct) to get the actual underlying error
@@ -81,8 +81,8 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
     ): ErrorReporter.Metadata {
         if (params.fieldDefinition == null) return ErrorReporter.Metadata.EMPTY
         val isFrameworkError = when (exception) {
-            is ViaductFrameworkException -> true
-            is ViaductTenantException -> false
+            is FrameworkException -> true
+            is TenantException -> false
             else -> null
         }
 
@@ -95,7 +95,7 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
             parentType = parentType,
             operationName = operationName,
             isFrameworkError = isFrameworkError,
-            resolvers = (exception as? ViaductTenantResolverException)?.let(::resolverCallChain),
+            resolvers = (exception as? TenantResolverException)?.let(::resolverCallChain),
             dataFetchingEnvironment = params.dataFetchingEnvironment
         )
     }
@@ -150,8 +150,8 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
         )
     }
 
-    private fun resolverCallChain(exception: ViaductTenantResolverException): List<String> {
-        return generateSequence(exception) { it.cause as? ViaductTenantResolverException }
+    private fun resolverCallChain(exception: TenantResolverException): List<String> {
+        return generateSequence(exception) { it.cause as? TenantResolverException }
             .map { it.resolver }
             .toList()
     }

@@ -2,7 +2,6 @@ package viaduct.engine.runtime
 
 import graphql.execution.ResultPath
 import graphql.schema.GraphQLObjectType
-import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 

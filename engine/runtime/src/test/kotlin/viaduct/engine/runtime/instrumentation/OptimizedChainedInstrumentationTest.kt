@@ -13,10 +13,10 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.CheckerExecutor
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationAdapter
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
+import viaduct.engine.api.spi.CheckerExecutor
 
 class OptimizedChainedInstrumentationTest {
     private lateinit var noInteractionInstrumentationBase: ViaductInstrumentationBase

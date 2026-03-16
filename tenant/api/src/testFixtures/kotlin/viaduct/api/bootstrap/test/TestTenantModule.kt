@@ -19,6 +19,7 @@ import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
+import viaduct.apiannotations.InternalApi
 
 class TestTenantModule : TenantModule {
     override val metadata = mapOf(
@@ -26,6 +27,7 @@ class TestTenantModule : TenantModule {
     )
 }
 
+@OptIn(InternalApi::class)
 object TestTypeModernResolvers {
     @ResolverFor("TestType", "aField")
     abstract class AField : ResolverBase<String> {
@@ -138,6 +140,7 @@ class WhenMappingsTestResolver : TestTypeModernResolvers.WhenMappingsTest() {
         }
 }
 
+@OptIn(InternalApi::class)
 @NodeResolverFor("TestNode")
 abstract class TestNodeResolverBase : NodeResolverBase<TestNode> {
     open suspend fun resolve(ctx: Context): TestNode = TODO()
@@ -151,6 +154,7 @@ class TestNodeResolver : TestNodeResolverBase() {
     override suspend fun resolve(ctx: Context): TestNode = TODO()
 }
 
+@OptIn(InternalApi::class)
 @NodeResolverFor("TestBatchNode")
 abstract class TestBatchNodeResolverBase : NodeResolverBase<TestBatchNode> {
     open suspend fun batchResolve(ctx: List<Context>): List<TestBatchNode> = TODO()
@@ -164,6 +168,7 @@ class TestBatchNodeResolver : TestBatchNodeResolverBase() {
     override suspend fun batchResolve(ctx: List<Context>): List<TestBatchNode> = TODO()
 }
 
+@OptIn(InternalApi::class)
 @NodeResolverFor("MissingNode")
 abstract class TestMissingResolverBase : NodeResolverBase<TestNode> {
     open suspend fun resolve(ctx: Context): TestNode = TODO()

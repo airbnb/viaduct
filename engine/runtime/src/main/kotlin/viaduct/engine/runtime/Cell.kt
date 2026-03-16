@@ -4,7 +4,6 @@ import java.lang.IllegalArgumentException
 import java.util.concurrent.atomic.AtomicReferenceArray
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
-import viaduct.engine.api.ObjectEngineResult
 
 /**
  * A thread-safe, lock-free data structure for memoizing field values during

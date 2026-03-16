@@ -6,12 +6,16 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
+import viaduct.errors.handleTenantAPIErrors
+import viaduct.errors.handleTenantAPIErrorsSuspend
 
 class ExceptionsTest {
     @Test
-    fun `test handleTenantAPIErrors with ViaductTenantException`() {
-        val exception = ViaductTenantUsageException("Tenant error")
-        val thrown = assertThrows(ViaductTenantUsageException::class.java) {
+    fun `test handleTenantAPIErrors with TenantException`() {
+        val exception = TenantUsageException("Tenant error")
+        val thrown = assertThrows(TenantUsageException::class.java) {
             handleTenantAPIErrors("Test message") {
                 throw exception
             }
@@ -22,7 +26,7 @@ class ExceptionsTest {
     @Test
     fun `test handleTenantAPIErrors with other exception`() {
         val exception = RuntimeException("Runtime error")
-        val thrown = assertThrows(ViaductFrameworkException::class.java) {
+        val thrown = assertThrows(FrameworkException::class.java) {
             handleTenantAPIErrors("Test message") {
                 throw exception
             }
@@ -32,9 +36,9 @@ class ExceptionsTest {
     }
 
     @Test
-    fun `test handleTenantAPIErrorsSuspend with ViaductTenantException`() {
-        val exception = ViaductTenantUsageException("Tenant error")
-        val thrown = assertThrows(ViaductTenantUsageException::class.java) {
+    fun `test handleTenantAPIErrorsSuspend with TenantException`() {
+        val exception = TenantUsageException("Tenant error")
+        val thrown = assertThrows(TenantUsageException::class.java) {
             runBlocking {
                 handleTenantAPIErrorsSuspend("Test message") {
                     throw exception
@@ -47,7 +51,7 @@ class ExceptionsTest {
     @Test
     fun `test handleTenantAPIErrorsSuspend with other exception`() {
         val exception = RuntimeException("Runtime error")
-        val thrown = assertThrows(ViaductFrameworkException::class.java) {
+        val thrown = assertThrows(FrameworkException::class.java) {
             runBlocking {
                 handleTenantAPIErrorsSuspend("Test message") {
                     throw exception

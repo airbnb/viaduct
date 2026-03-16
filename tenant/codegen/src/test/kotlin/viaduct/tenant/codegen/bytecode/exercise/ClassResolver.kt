@@ -90,7 +90,7 @@ interface ClassResolver {
 
     /**
      * Return a Type describing the reflected type information for the type with the provided name.
-     * If no such Type information exists, a [viaduct.api.ViaductTenantException] exception will be thrown.
+     * If no such Type information exists, a [viaduct.errors.TenantException] exception will be thrown.
      */
     fun reflectionFor(type: String): Type<*>
 

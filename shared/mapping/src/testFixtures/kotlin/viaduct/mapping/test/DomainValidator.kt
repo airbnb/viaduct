@@ -4,11 +4,11 @@ package viaduct.mapping.test
 
 import graphql.schema.GraphQLSchema
 import io.kotest.property.Arb
+import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.take
 import kotlinx.coroutines.runBlocking
 import viaduct.arbitrary.common.Config
-import viaduct.arbitrary.common.randomSource
 import viaduct.arbitrary.graphql.objectIR
 import viaduct.engine.api.ViaductSchema
 import viaduct.mapping.graphql.Conv
@@ -24,6 +24,7 @@ const val DEFAULT_ITER = 1_000
 class DomainValidator<From, To> private constructor(
     private val fromGen: Arb<From>,
     private val conv: Conv<From, To>,
+    private val random: RandomSource,
     private val equals: Equals<From>,
 ) {
     /**
@@ -40,7 +41,6 @@ class DomainValidator<From, To> private constructor(
         iter: Int
     ) {
         runBlocking {
-            val random = randomSource()
             valueGen
                 .take(iter, random)
                 .forEach { from ->
@@ -99,12 +99,14 @@ class DomainValidator<From, To> private constructor(
         operator fun <From> invoke(
             domain: Domain<From>,
             schema: GraphQLSchema,
+            random: RandomSource,
             cfg: Config = Config.default,
             equalsFn: Function2<From, From, Boolean>? = null,
         ): DomainValidator<From, IR.Value.Object> =
             DomainValidator(
                 Arb.objectIR(ViaductSchema(schema), cfg).map(domain.conv.inverse()),
                 domain.conv,
+                random,
                 Equals(equalsFn),
             )
 
@@ -120,11 +122,13 @@ class DomainValidator<From, To> private constructor(
         operator fun <From> invoke(
             domain: Domain<From>,
             generator: Arb<From>,
+            random: RandomSource,
             equalsFn: Function2<From, From, Boolean>? = null,
         ): DomainValidator<From, IR.Value.Object> =
             DomainValidator(
                 generator,
                 domain.conv,
+                random,
                 Equals(equalsFn),
             )
 

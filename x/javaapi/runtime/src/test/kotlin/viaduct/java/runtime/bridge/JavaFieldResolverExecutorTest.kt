@@ -10,7 +10,10 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.FieldResolverExecutor
+import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.api.spi.FieldResolverExecutor
 
 class JavaFieldResolverExecutorTest {
     @Test
@@ -98,4 +101,81 @@ class JavaFieldResolverExecutorTest {
             assertThat(result.exceptionOrNull()).isInstanceOf(RuntimeException::class.java)
             assertThat(result.exceptionOrNull()?.message).isEqualTo("Test error")
         }
+
+    @Test
+    fun `executor with objectSelectionSet has correct value`() {
+        val objectSelections = SelectionsParser.parse("Person", "name age")
+        val requiredSelectionSet = RequiredSelectionSet(
+            objectSelections,
+            emptyList(),
+            forChecker = false,
+            ExecutionAttribution.fromResolver("TestResolver")
+        )
+
+        val executor = JavaFieldResolverExecutor(
+            resolveFunction = { CompletableFuture.completedFuture("test") },
+            resolverId = "Person.fullName",
+            resolverName = "FullNameResolver",
+            objectSelectionSet = requiredSelectionSet
+        )
+
+        assertThat(executor.objectSelectionSet).isNotNull
+        assertThat(executor.objectSelectionSet).isEqualTo(requiredSelectionSet)
+        assertThat(executor.querySelectionSet).isNull()
+    }
+
+    @Test
+    fun `executor with querySelectionSet has correct value`() {
+        val querySelections = SelectionsParser.parse("Query", "currentUser { id }")
+        val requiredSelectionSet = RequiredSelectionSet(
+            querySelections,
+            emptyList(),
+            forChecker = false,
+            ExecutionAttribution.fromResolver("TestResolver")
+        )
+
+        val executor = JavaFieldResolverExecutor(
+            resolveFunction = { CompletableFuture.completedFuture("test") },
+            resolverId = "Person.greeting",
+            resolverName = "GreetingResolver",
+            querySelectionSet = requiredSelectionSet
+        )
+
+        assertThat(executor.querySelectionSet).isNotNull
+        assertThat(executor.querySelectionSet).isEqualTo(requiredSelectionSet)
+        assertThat(executor.objectSelectionSet).isNull()
+    }
+
+    @Test
+    fun `executor with both selection sets has correct values`() {
+        val objectSelections = SelectionsParser.parse("Person", "name")
+        val querySelections = SelectionsParser.parse("Query", "config { setting }")
+        val attribution = ExecutionAttribution.fromResolver("DualResolver")
+
+        val objectSelectionSet = RequiredSelectionSet(
+            objectSelections,
+            emptyList(),
+            forChecker = false,
+            attribution
+        )
+        val querySelectionSet = RequiredSelectionSet(
+            querySelections,
+            emptyList(),
+            forChecker = false,
+            attribution
+        )
+
+        val executor = JavaFieldResolverExecutor(
+            resolveFunction = { CompletableFuture.completedFuture("test") },
+            resolverId = "Person.computed",
+            resolverName = "ComputedResolver",
+            objectSelectionSet = objectSelectionSet,
+            querySelectionSet = querySelectionSet
+        )
+
+        assertThat(executor.objectSelectionSet).isNotNull
+        assertThat(executor.objectSelectionSet).isEqualTo(objectSelectionSet)
+        assertThat(executor.querySelectionSet).isNotNull
+        assertThat(executor.querySelectionSet).isEqualTo(querySelectionSet)
+    }
 }

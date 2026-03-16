@@ -24,7 +24,7 @@ Selection execution uses a three-tier API architecture:
 | Tier | API | Purpose | Consumers |
 |------|-----|---------|-----------|
 | **Tenant** | `ctx.query(SelectionSet<T>)` / `ctx.mutation(SelectionSet<T>)` | Typed, simple, opinionated | Resolver code |
-| **Engine API** | `EEC.resolveSelectionSet(resolverId, selectionSet, options)` | Flexible, configurable, triggers resolution | Advanced tenant runtime integrations, engine internals |
+| **Engine API** | `EEC.resolveSelectionSet(selectionSet, options)` | Flexible, configurable, triggers resolution | Advanced tenant runtime integrations, engine internals |
 | **Engine API** | `EEC.completeSelectionSet(selectionSet, arguments, options)` | Complete already-resolved fields | Classic-on-Modern shims path |
 | **Wiring** | `Engine.resolveSelectionSet(handle, selectionSet, options)` | Implementation detail | Only called by EEC |
 | **Wiring** | `Engine.completeSelectionSet(handle, selectionSet, ...)` | Implementation detail | Only called by EEC |
@@ -76,7 +76,7 @@ For declarative, static sibling/root fields known at registration time, prefer `
 ┌─────────────────────────────────────┐
 │ Step 5: Build Child Parameters      │
 │ ExecutionParameters.forResolution()   │
-│ QueryPlan.buildFromSelections()     │
+│ QueryPlanFactory.buildFromSelections()│
 └─────────────────┬───────────────────┘
                   │
                   ▼
@@ -110,7 +110,7 @@ When a resolver calls `ctx.query(selections)`, the call flows through the bridge
 
 1. `ResolverExecutionContextImpl.query()` delegates to `EngineExecutionContextWrapperImpl.query()`
 2. The wrapper converts the tenant's `SelectionSet<T>` into an `EngineSelectionSet`
-3. It calls `EngineExecutionContext.resolveSelectionSet(resolverId, engineSelectionSet, options)`
+3. It calls `EngineExecutionContext.resolveSelectionSet(engineSelectionSet, options)`
 
 This bridge is the only place the tenant runtime touches the engine. It converts:
 - **To engine**: `SelectionSet<Query>` → `EngineSelectionSet` (the `ExecutionHandle` is accessed internally)
@@ -165,7 +165,7 @@ Inside the runtime module, `asExecutionParameters()` bridges that gap. If someon
 
 ## Step 5: Building Child Execution Parameters
 
-The core of subquery execution is `ExecutionParameters.forResolution()`. This method builds `QueryPlan.Parameters` using `fullSchema`, calls `QueryPlan.buildFromSelections()` to create the plan, then delegates to `forChildPlan()`.
+The core of subquery execution is `ExecutionParameters.forResolution()`. This method builds `QueryPlan.Parameters` using `fullSchema`, calls `QueryPlanFactory.buildFromSelections()` to create the plan, then delegates to `forChildPlan()`.
 
 ### Schema Choice
 
@@ -191,13 +191,13 @@ The tenant-facing `ctx.query()` and `ctx.mutation()` always create fresh instanc
 
 ### Building the QueryPlan
 
-Subqueries don't start from a full GraphQL document—they start from an `EngineSelectionSet` that already contains the parent type, selection AST, fragment definitions, and variables. `QueryPlan.buildFromSelections()` feeds this directly into the plan builder, skipping re-parsing and document construction.
+Subqueries don't start from a full GraphQL document—they start from an `EngineSelectionSet` that already contains the parent type, selection AST, fragment definitions, and variables. `QueryPlanFactory.buildFromSelections()` feeds this directly into the plan builder, skipping re-parsing and document construction.
 
 Plan caching keys on selection text, document key, schema hash, and `executeAccessChecksInModstrat`. Variables are not part of the cache key—the plan only depends on field/argument structure, not specific values.
 
 **Key files:**
 - `engine/runtime/.../execution/ExecutionParameters.kt` — `forResolution()` method
-- `engine/runtime/.../execution/QueryPlan.kt` — `buildFromSelections()`
+- `engine/runtime/.../execution/QueryPlanFactory.kt` — `buildFromSelections()`
 
 ## Step 6: Field Resolution
 
@@ -262,7 +262,7 @@ The engine provides two methods for selection set execution with different purpo
 
 ```kotlin
 // Use resolveSelectionSet when you need to trigger new resolution
-val data = eec.resolveSelectionSet(resolverId, selectionSet, options)
+val data = eec.resolveSelectionSet(selectionSet, options)
 ```
 
 **Use `completeSelectionSet` when:**
@@ -296,7 +296,7 @@ The `CompleteSelectionSetOptions` class provides configuration:
 
 ## Testing
 
-- `QueryPlanBuildFromSelectionsTest` — `QueryPlan.buildFromSelections()` behavior
+- `QueryPlanBuildFromSelectionsTest` — `QueryPlanFactory.buildFromSelections()` behavior
 - `SubqueryExecutionTest` — end-to-end tests including variable isolation, error handling, nested subqueries, and handle extraction
 
 ## References

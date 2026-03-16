@@ -52,7 +52,7 @@ class MocksAdditionalTest {
 
     @Test
     fun `MockVariablesResolver properties`() {
-        val resolver = MockVariablesResolver("var1", "var2") { emptyMap() }
+        val resolver = MockVariablesResolver("var1", "var2") { _, _ -> emptyMap() }
         assertEquals(setOf("var1", "var2"), resolver.variableNames)
     }
 

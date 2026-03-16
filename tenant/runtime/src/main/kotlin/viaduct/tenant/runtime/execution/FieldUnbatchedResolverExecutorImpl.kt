@@ -7,12 +7,14 @@ import viaduct.api.ResolverBase
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
-import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.FieldResolverExecutor.Selector
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.ResolverType
+import viaduct.engine.api.TenantModuleMetadata
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.FieldResolverExecutor.Selector
+import viaduct.errors.wrapResolveException
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
@@ -32,8 +34,9 @@ class FieldUnbatchedResolverExecutorImpl(
     private val reflectionLoader: ReflectionLoader,
     private val resolverContextFactory: FieldExecutionContextFactory,
     private val resolverName: String,
+    private val tenantMetadata: TenantModuleMetadata? = null,
 ) : FieldResolverExecutor {
-    override val metadata = ResolverMetadata.forModern(resolverName)
+    override val metadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD, tenantMetadata)
 
     override val isBatching = false
 
@@ -62,7 +65,7 @@ class FieldUnbatchedResolverExecutorImpl(
             syncQueryValueGetter = selector.syncQueryValueGetter,
         )
         val resolver = mkResolver()
-        val result = wrapResolveException(resolverId) {
+        val result = wrapResolveException(resolverName) {
             resolveFn.callSuspend(resolver, ctx)
         }
         return unwrapFieldResolverResult(result, globalIDCodec)

@@ -4,6 +4,7 @@ import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
+import viaduct.java.api.types.GraphQLObject
 import viaduct.java.api.types.Query
 
 // Internal marker types for the context implementation
@@ -23,16 +24,21 @@ object AnySelections : CompositeOutput
  *
  * @param requestContext The request context from the engine
  * @param arguments The typed Arguments instance (populated from the engine's argument map), or null
+ * @param objectValue The parent object value (e.g., a Person instance for a Person.fullAddress resolver), or null
  */
 @Suppress("UNCHECKED_CAST", "TooManyFunctions")
 class SimpleFieldExecutionContext(
     private val requestContext: Any?,
     private val arguments: Arguments? = null,
-) : FieldExecutionContext<AnyQuery, AnyQuery, Arguments, AnySelections>,
-    FieldResolverBase.Context<AnyQuery, AnyQuery, Arguments, AnySelections> {
-    override fun getObjectValue(): AnyQuery {
+    private val objectValue: Any? = null,
+) : FieldExecutionContext<GraphQLObject, AnyQuery, Arguments, AnySelections>,
+    FieldResolverBase.Context<GraphQLObject, AnyQuery, Arguments, AnySelections> {
+    override fun getObjectValue(): GraphQLObject {
+        if (objectValue != null) {
+            return objectValue as GraphQLObject
+        }
         throw UnsupportedOperationException(
-            "Object value access not yet implemented for Java resolvers"
+            "Object value not available. Ensure the resolver declares an objectValueFragment."
         )
     }
 

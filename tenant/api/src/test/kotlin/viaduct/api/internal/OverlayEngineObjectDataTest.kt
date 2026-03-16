@@ -1,10 +1,9 @@
 package viaduct.api.internal
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.UnsetFieldException
 import viaduct.engine.api.mocks.MockSchema
@@ -36,7 +35,7 @@ class OverlayEngineObjectDataTest {
 
     @Test
     fun `fetch - returns overlay value when present`() =
-        runBlockingTest {
+        runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
                 .build()
@@ -52,7 +51,7 @@ class OverlayEngineObjectDataTest {
 
     @Test
     fun `fetch - falls back to base when not in overlay`() =
-        runBlockingTest {
+        runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
                 .build()
@@ -67,7 +66,7 @@ class OverlayEngineObjectDataTest {
 
     @Test
     fun `fetch - throws when field not in overlay or base`() =
-        runBlockingTest {
+        runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .build()
 
@@ -75,17 +74,14 @@ class OverlayEngineObjectDataTest {
                 .build()
 
             val combined = OverlayEngineObjectData(overlay, base)
-
-            assertThrows<UnsetFieldException> {
-                runBlockingTest {
-                    combined.fetch(FIELD_1)
-                }
+            kotlin.test.assertFailsWith<UnsetFieldException> {
+                combined.fetch(FIELD_1)
             }
         }
 
     @Test
     fun `fetch - overlay null overrides base non-null value`() =
-        runBlockingTest {
+        runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
                 .build()
@@ -101,7 +97,7 @@ class OverlayEngineObjectDataTest {
 
     @Test
     fun `fetchOrNull - returns overlay value when present`() =
-        runBlockingTest {
+        runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
                 .build()
@@ -117,7 +113,7 @@ class OverlayEngineObjectDataTest {
 
     @Test
     fun `fetchOrNull - falls back to base when not in overlay`() =
-        runBlockingTest {
+        runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
                 .build()
@@ -132,7 +128,7 @@ class OverlayEngineObjectDataTest {
 
     @Test
     fun `fetchOrNull - returns null when not in overlay or base`() =
-        runBlockingTest {
+        runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .build()
 
@@ -146,7 +142,7 @@ class OverlayEngineObjectDataTest {
 
     @Test
     fun `fetchSelections returns union of overlay and base selections`() =
-        runBlockingTest {
+        runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
                 .put(FIELD_2, 42)
@@ -165,7 +161,7 @@ class OverlayEngineObjectDataTest {
 
     @Test
     fun `multiple field overrides work correctly`() =
-        runBlockingTest {
+        runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, "base1")
                 .put(FIELD_2, 10)

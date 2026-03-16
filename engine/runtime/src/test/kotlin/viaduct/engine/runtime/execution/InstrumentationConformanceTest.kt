@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package viaduct.engine.runtime.execution
 
 import graphql.schema.DataFetcher
@@ -6,7 +8,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.KotestPropertyBase
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class InstrumentationConformanceTest : KotestPropertyBase() {
     @Test
     fun `scalar`() {

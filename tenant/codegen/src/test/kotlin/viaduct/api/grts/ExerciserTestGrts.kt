@@ -5,6 +5,7 @@ import kotlin.reflect.KClass
 import viaduct.api.context.ExecutionContext
 import viaduct.api.internal.FieldImpl
 import viaduct.api.internal.InputLikeBase
+import viaduct.api.internal.InputTypeFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.internal
@@ -543,6 +544,72 @@ class TestArgObject_Test_Arguments internal constructor(
         fun build(): TestArgObject_Test_Arguments {
             validateInputDataAndThrowAsTenantError()
             return TestArgObject_Test_Arguments(context, inputData, graphQLInputObjectType)
+        }
+    }
+}
+
+@Suppress("ClassName")
+class Under_Score_Object(
+    context: InternalContext,
+    engineObject: EngineObject
+) : ObjectBase(context, engineObject), Object {
+    final suspend fun getSomeField(alias: String? = null): String {
+        return fetch("someField", String::class, alias)
+    }
+
+    class Builder(context: ExecutionContext) :
+        ObjectBase.Builder<Under_Score_Object>(
+            context.internal,
+            context.internal.schema.schema.getObjectType("Under_Score_Object"),
+            null
+        ) {
+        fun someField(someField: String): Builder {
+            put("someField", someField)
+            return this
+        }
+
+        override fun build() = Under_Score_Object(context, buildEngineObjectData())
+    }
+}
+
+@Suppress("ClassName")
+class Under_Score_Object_SomeField_Arguments internal constructor(
+    override val context: InternalContext,
+    override val inputData: Map<String, Any?>,
+    override val graphQLInputObjectType: GraphQLInputObjectType,
+) : InputLikeBase(), Arguments {
+    val stringArg: String get() = get("stringArg")
+    val intArg: Int? get() = get("intArg")
+
+    fun toBuilder(): Builder {
+        return Builder(context, graphQLInputObjectType, inputData)
+    }
+
+    class Builder internal constructor(
+        override val context: InternalContext,
+        override val graphQLInputObjectType: GraphQLInputObjectType,
+        inputData: Map<String, Any?> = LinkedHashMap()
+    ) : InputLikeBase.Builder() {
+        constructor(context: ExecutionContext) : this(
+            context.internal,
+            InputTypeFactory.argumentsInputType("Under_Score_Object_SomeField_Arguments", "Under_Score_Object", "someField", context.internal.schema)
+        )
+
+        override val inputData: MutableMap<String, Any?> = LinkedHashMap(inputData)
+
+        fun stringArg(value: String): Builder {
+            put("stringArg", value)
+            return this
+        }
+
+        fun intArg(value: Int?): Builder {
+            put("intArg", value)
+            return this
+        }
+
+        fun build(): Under_Score_Object_SomeField_Arguments {
+            validateInputDataAndThrowAsTenantError()
+            return Under_Score_Object_SomeField_Arguments(context, inputData, graphQLInputObjectType)
         }
     }
 }

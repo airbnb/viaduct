@@ -10,6 +10,7 @@ import viaduct.api.FieldValue
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.tenant.tutorial08.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial08.resolverbases.QueryResolvers
 
 /**

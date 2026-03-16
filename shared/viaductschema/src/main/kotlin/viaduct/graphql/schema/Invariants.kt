@@ -269,7 +269,9 @@ private fun checkValidSchemaInvariants(
             check.isNotEmpty(def.values, "ENUM_VALUES_NOT_EMPTY")
         }
         is ViaductSchema.Input -> {
-            check.isNotEmpty(def.fields, "INPUT_FIELDS_NOT_EMPTY")
+            if (!options.allowEmptyTypes) {
+                check.isNotEmpty(def.fields, "INPUT_FIELDS_NOT_EMPTY")
+            }
         }
         is ViaductSchema.Interface -> {
             if (!options.allowEmptyTypes) {

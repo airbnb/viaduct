@@ -25,12 +25,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.slf4j.LoggerFactory.getLogger
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.TenantAPIBootstrapper
-import viaduct.engine.api.TenantModuleBootstrapper
-import viaduct.engine.api.TenantModuleException
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
@@ -45,6 +40,11 @@ import viaduct.engine.api.mocks.assertRequiredSelectionSetListEquals
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantModuleBootstrapper
+import viaduct.engine.api.spi.TenantModuleException
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedNodeResolverDispatcher
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidatorContext
@@ -179,17 +179,10 @@ class DispatcherRegistryTest {
     }
 
     @Test
-    fun `test getRequiredSelectionSet combined with field checker Rss when executeAccessChecksInModstrat is off but checker is on modern field`() {
+    fun `test getRequiredSelectionSet field checker Rss excluded when executeAccessChecksInModstrat is off`() {
         val dispatcherRegistry = createDispatcherRegistry()
         val rss = dispatcherRegistry.getRequiredSelectionSetsForField("TestType", "aField", false)
-        assertTrue(rss.isNotEmpty())
-        assertEquals(1, rss.size)
-        assertEquals("TestType", rss[0].selections.typeName)
-        assertTrue(
-            AstPrinter
-                .printAstCompact(rss[0].selections.toDocument())
-                .contains("{dField}")
-        )
+        assertTrue(rss.isEmpty())
     }
 
     @Test

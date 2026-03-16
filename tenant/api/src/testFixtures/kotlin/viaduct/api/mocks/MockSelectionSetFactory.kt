@@ -6,6 +6,7 @@ import viaduct.api.reflect.Field
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.CompositeOutput
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.ViaductSchema
 
 /**
@@ -38,6 +39,7 @@ import viaduct.engine.api.ViaductSchema
  * @param schema The Viaduct schema used for type information
  * @since 1.0
  */
+@OptIn(InternalApi::class)
 class MockSelectionSetFactory(
     private val schema: ViaductSchema
 ) : SelectionSetFactory {
@@ -47,6 +49,7 @@ class MockSelectionSetFactory(
         variables: Map<String, Any?>
     ): SelectionSet<T> {
         return if (selections.isBlank()) {
+            @Suppress("UNCHECKED_CAST")
             SelectionSet.NoSelections as SelectionSet<T>
         } else {
             MockSelectionSet(type, selections)

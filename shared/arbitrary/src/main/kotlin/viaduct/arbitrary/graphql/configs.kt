@@ -41,7 +41,7 @@ object InterfaceImplementsInterface : ConfigKey<CompoundingWeight>(
  * fields will have at least 1 argument, 1% will have at least 2 arguments,
  * .1% at least 3, and so on.
  */
-object FieldHasArgs : ConfigKey<CompoundingWeight>(
+object FieldArgumentWeight : ConfigKey<CompoundingWeight>(
     CompoundingWeight(.1, 3),
     CompoundingWeightValidator
 )
@@ -103,16 +103,16 @@ object FieldNameLength : ConfigKey<IntRange>(1..10, IntRangeValidator(1..Int.MAX
 object DescriptionLength : ConfigKey<IntRange>(0..10, IntRangeValidator(0..Int.MAX_VALUE))
 
 /** The probability that a field type will be wrapped in a List type */
-object Listiness : ConfigKey<CompoundingWeight>(CompoundingWeight(.1, 2), CompoundingWeightValidator)
+object ListTypeWeight : ConfigKey<CompoundingWeight>(CompoundingWeight(.1, 2), CompoundingWeightValidator)
 
 /** The probability that a field- or argument type will be non-nullable */
-object NonNullableness : ConfigKey<Double>(.2, WeightValidator)
+object NonNullableTypeWeight : ConfigKey<Double>(.2, WeightValidator)
 
 /** The number of input fields that an input object type will define */
 object InputObjectTypeSize : ConfigKey<IntRange>(1..3, IntRangeValidator(1..Int.MAX_VALUE))
 
 /** The probability that a generated input object will be a OneOf type */
-object OneOfWeight : ConfigKey<Double>(0.25, WeightValidator)
+object OneOfTypeWeight : ConfigKey<Double>(0.25, WeightValidator)
 
 /**
  * The number of fields that an interface type will define.

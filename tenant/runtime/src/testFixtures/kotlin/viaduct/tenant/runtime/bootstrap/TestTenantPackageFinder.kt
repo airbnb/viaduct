@@ -7,7 +7,7 @@ import viaduct.api.TenantModule
  * A mock implementation of the TenantPackageFinder interface for testing.
  */
 class TestTenantPackageFinder(classes: Iterable<KClass<out TenantModule>>) : TenantPackageFinder {
-    private val packages = classes.map { it.java.packageName }.toSet()
+    private val packageInfos = classes.map { TenantPackageInfo(packageName = it.java.packageName) }.toSet()
 
-    override fun tenantPackages() = packages
+    override fun tenantPackages() = packageInfos
 }

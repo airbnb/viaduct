@@ -1,10 +1,10 @@
 [versions]
-kotlin = "2.2.21"
+kotlin = "1.9.24"
 logback = "1.5.21"
 coroutines = "1.5.2"
-jackson = "2.9.10"
-junit = "5.9.2"
-junitPlatform = "1.9.2"
+jackson = "2.17.3"
+junit = "5.11.3"
+junitPlatform = "1.11.3"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -21,6 +21,9 @@ viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures", 
 # Runtime dependencies
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-jdk8 = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-jdk8", version.ref = "coroutines" }
+kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
+reactive-streams = { group = "org.reactivestreams", name = "reactive-streams", version = "1.0.4" }
 jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version.ref = "jackson" }
 
 # Test dependencies

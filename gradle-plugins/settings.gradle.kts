@@ -7,6 +7,12 @@ pluginManagement {
     includeBuild("../build-logic")
 }
 
+includeBuild("../build-logic") {
+    dependencySubstitution {
+        substitute(module("com.airbnb.viaduct.build:shared")).using(project(":shared"))
+    }
+}
+
 @Suppress("UnstableApiUsage")
 dependencyResolutionManagement {
     repositories {

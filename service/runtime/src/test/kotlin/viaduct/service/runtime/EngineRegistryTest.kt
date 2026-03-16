@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION")
-
 package viaduct.service.runtime
 
 import graphql.schema.idl.SchemaParser

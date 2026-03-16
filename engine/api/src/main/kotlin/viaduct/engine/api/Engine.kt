@@ -1,6 +1,7 @@
 package viaduct.engine.api
 
 import graphql.ExecutionResult
+import viaduct.engine.runtime.ObjectEngineResult
 
 /**
  * Core GraphQL execution engine that processes queries, mutations, and subscriptions

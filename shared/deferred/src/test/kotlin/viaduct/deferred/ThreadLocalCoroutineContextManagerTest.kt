@@ -1,7 +1,10 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package viaduct.deferred
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertNull
@@ -21,7 +24,7 @@ class ThreadLocalCoroutineContextManagerTest {
 
         @Test
         fun `currentRequestParentJobOrNull returns request job inside context`() =
-            runBlockingTest {
+            runTest {
                 val requestJob = Job()
 
                 withContext(
@@ -34,7 +37,7 @@ class ThreadLocalCoroutineContextManagerTest {
 
         @Test
         fun `thread-local is restored to null after exiting request context`() =
-            runBlockingTest {
+            runTest {
                 val requestJob = Job()
 
                 withContext(
@@ -50,7 +53,7 @@ class ThreadLocalCoroutineContextManagerTest {
 
         @Test
         fun `nested request contexts restore correctly`() =
-            runBlockingTest {
+            runTest {
                 val outerJob = Job()
                 val innerJob = Job()
 
@@ -71,7 +74,7 @@ class ThreadLocalCoroutineContextManagerTest {
 
         @Test
         fun `thread-local is consistent across coroutine suspension points`() =
-            runBlockingTest {
+            runTest {
                 val requestJob = Job()
 
                 withContext(

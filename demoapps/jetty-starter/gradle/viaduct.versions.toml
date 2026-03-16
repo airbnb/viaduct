@@ -1,11 +1,12 @@
 [versions]
 jetty = "11.0.26"
-kotest = "5.8.1"
+kotest = "5.9.1"
 kotlin = "1.9.24"
+coroutines = "1.5.2"
 jackson = "2.20.1"
 jakarta = "6.0.0"
-junit = "5.9.2"
-junit-platform = "1.9.2"
+junit = "5.11.3"
+junit-platform = "1.11.3"
 logback = "1.5.21"
 httpclient = "5.5.1"
 
@@ -21,6 +22,10 @@ viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref 
 viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures", version.ref = "viaduct" }
 jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version.ref = "jackson" }
 jakarta-servlet-api = { group = "jakarta.servlet", name = "jakarta.servlet-api", version.ref = "jakarta" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-jdk8 = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-jdk8", version.ref = "coroutines" }
+kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
+reactive-streams = { group = "org.reactivestreams", name = "reactive-streams", version = "1.0.4" }
 jetty-server = { group = "org.eclipse.jetty", name = "jetty-server", version.ref = "jetty" }
 jetty-servlet = { group = "org.eclipse.jetty", name = "jetty-servlet", version.ref = "jetty" }
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }

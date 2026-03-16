@@ -1,9 +1,11 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("jacoco-integration-base")
+    id("test-feature-app")
     `java-test-fixtures`
 }
+
+viaductFeatureApp {}
 
 viaductPublishing {
     name.set("Tenant Runtime")
@@ -11,6 +13,7 @@ viaductPublishing {
 }
 
 dependencies {
+    implementation(libs.caffeine)
     implementation(libs.graphql.java)
     implementation(libs.guice)
     implementation(libs.javax.inject)
@@ -20,6 +23,7 @@ dependencies {
     implementation(libs.viaduct.service.api)
 
     implementation(libs.viaduct.shared.graphql)
+    implementation(libs.viaduct.shared.mapping)
     implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.shared.utils)
     implementation(libs.classgraph)
@@ -53,6 +57,7 @@ dependencies {
     testImplementation(libs.viaduct.engine.runtime)
     testImplementation(libs.viaduct.service.runtime)
     testImplementation(libs.viaduct.shared.arbitrary)
+    testImplementation(testFixtures(libs.viaduct.shared.arbitrary))
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.jackson.core)
@@ -63,4 +68,13 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.strikt.core)
     testImplementation(libs.micrometer.core)
+
+    testImplementation(libs.viaduct.engine.wiring)
+    testImplementation(libs.viaduct.tenant.wiring)
+    testImplementation(libs.guice)
+    testImplementation(libs.assertj.core)
+    testImplementation(libs.slf4j.api)
+
+    /** Codegen classpath for test-feature-app worker isolation **/
+    viaductCodegenClasspath(libs.viaduct.tenant.codegen)
 }

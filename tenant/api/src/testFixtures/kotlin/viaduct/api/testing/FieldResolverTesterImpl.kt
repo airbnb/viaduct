@@ -21,6 +21,8 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -30,6 +32,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  * This class is package-private and should not be used directly.
  * Use [FieldResolverTester.create] instead.
  */
+@OptIn(InternalApi::class, VisibleForTest::class)
 internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R : CompositeOutput>(
     override val config: ResolverTester.TesterConfig
 ) : FieldResolverTester<O, Q, A, R> {
@@ -63,6 +66,7 @@ internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R :
 
         @Suppress("UNCHECKED_CAST")
         val queryValue = testConfig.queryValue ?: NullQuery as Q
+        @Suppress("UNCHECKED_CAST")
         val selections = testConfig.selections ?: (SelectionSet.NoSelections as SelectionSet<R>)
 
         val ctx = createFieldContext(
@@ -90,6 +94,7 @@ internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R :
 
         // Default queryValues to match objectValues length if not provided
         val queryValues = if (testConfig.queryValues.isEmpty()) {
+            @Suppress("UNCHECKED_CAST")
             List(testConfig.objectValues.size) { NullQuery as Q }
         } else {
             require(testConfig.objectValues.size == testConfig.queryValues.size) {
@@ -100,9 +105,11 @@ internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R :
             testConfig.queryValues
         }
 
+        @Suppress("UNCHECKED_CAST")
         val selections = testConfig.selections ?: (SelectionSet.NoSelections as SelectionSet<R>)
 
         val contexts = testConfig.objectValues.zip(queryValues) { obj, query ->
+            @Suppress("UNCHECKED_CAST")
             createFieldContext(
                 objectValue = obj,
                 queryValue = query,

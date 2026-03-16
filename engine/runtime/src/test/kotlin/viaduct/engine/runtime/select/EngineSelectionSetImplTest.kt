@@ -8,11 +8,13 @@ import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.TypeName
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSelection
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.select.SelectionsParser
 
@@ -103,6 +105,95 @@ class EngineSelectionSetImplTest {
 
         ss = mk("Foo", "id @include(if:${'$'}includeIf)")
         assertEquals(setOf("id"), ss.typeFields.keys)
+    }
+
+    @Test
+    fun `create -- contradictory skip and include with same variable are pruned`() {
+        val ss = mk("Foo", "... @skip(if:${'$'}v) { ... @include(if:${'$'}v) { id } }")
+        assertFalse(ss.containsSelection("Foo", "id"))
+    }
+
+    @Test
+    fun `create -- unsatisfiable type condition is pruned`() {
+        // Foo and Baz both implement Node but are siblings — Baz selections on Foo are unreachable
+        val ss = mk(
+            "Foo",
+            "... on Node { ... on Baz { id } }",
+        )
+        assertFalse(ss.containsField("Foo", "id"))
+    }
+
+    @Test
+    fun `addVariables -- unused variables`() {
+        val ss1 = mk("Foo", "id")
+        val ss2 = ss1.addVariables(mapOf("var" to true))
+        assertEquals(ss1.selections(), ss2.selections())
+    }
+
+    @Test
+    fun `addVariables -- re-evaluates constraints for fields`() {
+        val ss = mk("Foo", "id @skip(if:\$var)")
+        assertTrue(ss.addVariables(mapOf("var" to true)).isEmpty())
+    }
+
+    @Test
+    fun `addVariables -- re-evaluates constraints for inline fragments`() {
+        val ss = mk("Foo", "... @skip(if:\$var) { id }")
+        assertTrue(ss.addVariables(mapOf("var" to true)).isEmpty())
+    }
+
+    @Test
+    fun `addVariables -- re-evaluates constraints for fragment spreads`() {
+        val ss = mk(
+            "Foo",
+            """
+                fragment Main on Foo { ...Frag @skip(if:${'$'}var) }
+                fragment Frag on Foo { id }
+            """.trimIndent(),
+        )
+        assertTrue(ss.addVariables(mapOf("var" to true)).isEmpty())
+    }
+
+    @Test
+    fun `toSelectionSet -- culls fields whose subselections are entirely pruned`() {
+        mk("Query", "x q { x @skip(if:true) }", sdl = "extend type Query { x:Int q:Query }").let {
+            assertEquals(
+                """
+                {
+                  ... on Query {
+                    x
+                  }
+                }
+                """.trimIndent(),
+                AstPrinter.printAst(it.toSelectionSet())
+            )
+        }
+    }
+
+    @Test
+    fun `toSelectionSet -- culls unreachable subselections with unbound contradictory variables`() {
+        val ss = mk(
+            "Query",
+            """
+                q @skip(if: ${'$'}var) {
+                  a: x
+                  b: x @include(if: ${'$'}var)
+                }
+            """.trimIndent(),
+            "extend type Query { x:Int q:Query }"
+        )
+        assertEquals(
+            """
+            {
+              ... on Query {
+                q @skip(if: ${'$'}var) {
+                  a: x
+                }
+              }
+            }
+            """.trimIndent(),
+            AstPrinter.printAst(ss.toSelectionSet())
+        )
     }
 
     @Test
@@ -233,10 +324,17 @@ class EngineSelectionSetImplTest {
     }
 
     @Test
+    fun `containsField -- untyped inline fragment inherits enclosing type condition`() {
+        val ss = mk("Node", "... on Foo { ... { int } }")
+        assertTrue(ss.containsField("Foo", "int"))
+        assertFalse(ss.containsField("Node", "int"))
+    }
+
+    @Test
     fun `containsField -- simple type projections do not change contained fields`() {
         val ss = mk("Node", "id ... on Foo { bar }")
 
-        fun test(ss: EngineSelectionSetImpl) {
+        fun test(ss: EngineSelectionSet) {
             assertTrue(ss.containsField("Node", "id"))
             assertTrue(ss.containsField("Foo", "id"))
             assertTrue(ss.containsField("Foo", "bar"))
@@ -521,7 +619,7 @@ class EngineSelectionSetImplTest {
     fun `requestsType -- simple type projections do not change requested types`() {
         val ss = mk("Foo", "__typename")
 
-        fun test(ss: EngineSelectionSetImpl) {
+        fun test(ss: EngineSelectionSet) {
             assertTrue(ss.requestsType("Node"))
             assertTrue(ss.requestsType("Foo"))
             assertFalse(ss.requestsType("Baz"))
@@ -688,6 +786,21 @@ class EngineSelectionSetImplTest {
         assertTrue(
             mk("Query", "__type(name:\"Foo\") { __typename @skip(if:true)}").isTransitivelyEmpty()
         )
+    }
+
+    @Test
+    fun `isTransitivelyEmpty -- NonNull wrapped composite type`() {
+        val sdl = """
+            type Bar { x: Int }
+            type Container implements Node { id: ID!, bar: Bar! }
+        """.trimIndent()
+
+        val ss = mk("Node", "... on Container { bar { x @skip(if:\$skipIf) } }", sdl = sdl, vars = mapOf("skipIf" to true))
+        assertTrue(ss.isTransitivelyEmpty())
+
+        val projected = ss.selectionSetForType("Container")
+        assertTrue(projected is ProjectedEngineSelectionSet)
+        assertTrue(projected.isTransitivelyEmpty())
     }
 
     @Test
@@ -1152,6 +1265,25 @@ class EngineSelectionSetImplTest {
             setOf("id", "__typename"),
             ss.selectionSetForType("Foo").typeFields.keys
         )
+    }
+
+    @Test
+    fun `selectionSetForType -- returns ProjectedEngineSelectionSet for concrete types`() {
+        val projected = mk("Node", "id ... on Foo { int }").selectionSetForType("Foo")
+        assertTrue(projected is ProjectedEngineSelectionSet, "expected ProjectedEngineSelectionSet, got ${projected::class.simpleName}")
+        assertEquals("Foo", projected.type)
+    }
+
+    @Test
+    fun `selectionSetForType -- identity optimization returns EngineSelectionSetImpl for same concrete type`() {
+        val ss = mk("Foo", "id") // produces EngineSelectionSetImpl(def=Foo)
+        assertSame(ss, ss.selectionSetForType("Foo")) // hits the identity check u == this.def and returns this
+    }
+
+    @Test
+    fun `selectionSetForType -- abstract types return EngineSelectionSetImpl`() {
+        val result = mk("Foo", "id ... on Node { __typename }").selectionSetForType("Node")
+        assertTrue(result is EngineSelectionSetImpl, "expected EngineSelectionSetImpl for interface, got ${result::class.simpleName}")
     }
 
     @Test

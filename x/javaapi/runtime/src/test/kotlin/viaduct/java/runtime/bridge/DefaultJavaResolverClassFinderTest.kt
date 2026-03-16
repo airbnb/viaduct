@@ -9,6 +9,7 @@ import viaduct.java.api.annotations.ResolverFor
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
+import viaduct.java.api.types.GRT
 import viaduct.java.api.types.Query
 
 class DefaultJavaResolverClassFinderTest {
@@ -26,6 +27,9 @@ class DefaultJavaResolverClassFinderTest {
             return CompletableFuture.completedFuture("test")
         }
     }
+
+    // Test GRT class for grtClassForName test
+    class TestGrt : GRT
 
     // ClassFinder configured to scan this test's package
     private val classFinder = DefaultJavaResolverClassFinder(
@@ -74,16 +78,37 @@ class DefaultJavaResolverClassFinderTest {
     }
 
     @Test
-    fun `grtClassForName throws UnsupportedOperationException`() {
-        assertThatThrownBy { classFinder.grtClassForName("SomeType") }
-            .isInstanceOf(UnsupportedOperationException::class.java)
-            .hasMessageContaining("GRT class loading is not yet supported")
+    fun `grtClassForName loads GRT class by type name`() {
+        // Use nested class name format for inner classes
+        val grtClass = classFinder.grtClassForName("DefaultJavaResolverClassFinderTest\$TestGrt")
+
+        assertThat(grtClass.name).isEqualTo(
+            "viaduct.java.runtime.bridge.DefaultJavaResolverClassFinderTest\$TestGrt"
+        )
     }
 
     @Test
-    fun `argumentClassForName throws UnsupportedOperationException`() {
-        assertThatThrownBy { classFinder.argumentClassForName("SomeArgs") }
-            .isInstanceOf(UnsupportedOperationException::class.java)
-            .hasMessageContaining("Arguments class loading is not yet supported")
+    fun `grtClassForName throws ClassNotFoundException for unknown type`() {
+        assertThatThrownBy { classFinder.grtClassForName("NonExistentType") }
+            .isInstanceOf(ClassNotFoundException::class.java)
+    }
+
+    @Test
+    fun `grtClassForName throws IllegalArgumentException for non-GRT class`() {
+        // Create a finder that points to a package with non-GRT classes
+        val badFinder = DefaultJavaResolverClassFinder(
+            tenantPackage = "viaduct.java.runtime.bridge",
+            grtPackagePrefix = "java.lang" // String exists but is not a GRT
+        )
+
+        assertThatThrownBy { badFinder.grtClassForName("String") }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("does not implement GRT")
+    }
+
+    @Test
+    fun `argumentClassForName throws ClassNotFoundException for unknown class`() {
+        assertThatThrownBy { classFinder.argumentClassForName("NonExistentArgs") }
+            .isInstanceOf(ClassNotFoundException::class.java)
     }
 }

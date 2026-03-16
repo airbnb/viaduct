@@ -68,6 +68,8 @@ fun <T : Object> EngineObject.toObjectGRT(
 fun <T : InputLike> Map<String, Any?>.toInputLikeGRT(
     internalContext: InternalContext,
     kcls: KClass<T>,
+    typeName: String? = null,
+    fieldName: String? = null,
 ): T {
     if (kcls == Arguments.NoArguments::class) {
         @Suppress("UNCHECKED_CAST")
@@ -76,7 +78,11 @@ fun <T : InputLike> Map<String, Any?>.toInputLikeGRT(
 
     val inputType = when {
         kcls.hasAnnotation<FakeGRT>() -> null
-        kcls.isSubclassOf(Arguments::class) -> InputTypeFactory.argumentsInputType(kcls.simpleName!!, internalContext.schema)
+        kcls.isSubclassOf(Arguments::class) -> {
+            requireNotNull(typeName) { "typeName is required for Arguments type ${kcls.simpleName}" }
+            requireNotNull(fieldName) { "fieldName is required for Arguments type ${kcls.simpleName}" }
+            InputTypeFactory.argumentsInputType(kcls.simpleName!!, typeName, fieldName, internalContext.schema)
+        }
         kcls.isSubclassOf(Input::class) -> InputTypeFactory.inputObjectInputType(kcls.simpleName!!, internalContext.schema)
         else -> throw IllegalArgumentException("KClass $kcls is not in { Arguments, Input}.")
     }

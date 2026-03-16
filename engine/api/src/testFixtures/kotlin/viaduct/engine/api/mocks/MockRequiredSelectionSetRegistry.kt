@@ -2,8 +2,8 @@ package viaduct.engine.api.mocks
 
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.VariablesResolver
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
 
 class MockRequiredSelectionSetRegistry(
     val entries: List<RequiredSelectionSetEntry> = emptyList()

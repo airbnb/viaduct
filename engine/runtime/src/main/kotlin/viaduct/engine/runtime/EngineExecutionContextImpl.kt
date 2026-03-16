@@ -13,14 +13,14 @@ import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.NodeResolverExecutor
-import viaduct.engine.api.ObjectEngineResult
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.SubqueryExecutionException
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
@@ -126,6 +126,7 @@ class EngineExecutionContextImpl(
         override val fragments: Map<String, FragmentDefinition> = emptyMap(),
         override val variables: Map<String, Any?> = emptyMap(),
         override val resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
+        override val attribution: ExecutionAttribution = ExecutionAttribution.DEFAULT,
     ) : EngineExecutionContext.FieldExecutionScope
 
     override fun createNodeReference(
@@ -138,7 +139,6 @@ class EngineExecutionContextImpl(
     }
 
     override suspend fun resolveSelectionSet(
-        resolverId: String,
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
     ): EngineObjectData {

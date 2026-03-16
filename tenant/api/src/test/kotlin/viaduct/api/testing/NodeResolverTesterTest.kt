@@ -14,10 +14,7 @@ import viaduct.api.context.NodeExecutionContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
-import viaduct.apiannotations.InternalApi
-import viaduct.apiannotations.VisibleForTest
 
-@OptIn(VisibleForTest::class, InternalApi::class)
 class NodeResolverTesterTest {
     companion object {
         private const val TEST_SCHEMA_SDL = """
@@ -181,7 +178,6 @@ internal class MockNodeObject(val nodeId: String, val nodeName: String) : NodeOb
     }
 }
 
-@OptIn(InternalApi::class)
 internal class SimpleNodeResolver : NodeResolverBase<MockNodeObject> {
     class Context(val inner: NodeExecutionContext<MockNodeObject>) :
         NodeExecutionContext<MockNodeObject> by inner
@@ -192,7 +188,6 @@ internal class SimpleNodeResolver : NodeResolverBase<MockNodeObject> {
     }
 }
 
-@OptIn(InternalApi::class)
 internal class BatchNodeResolver : NodeResolverBase<MockNodeObject> {
     class Context(val inner: NodeExecutionContext<MockNodeObject>) :
         NodeExecutionContext<MockNodeObject> by inner
@@ -210,7 +205,6 @@ internal class BatchNodeResolver : NodeResolverBase<MockNodeObject> {
     }
 }
 
-@OptIn(InternalApi::class)
 internal class RequestContextAwareNodeResolver : NodeResolverBase<MockNodeObject> {
     class Context(val inner: NodeExecutionContext<MockNodeObject>) :
         NodeExecutionContext<MockNodeObject> by inner

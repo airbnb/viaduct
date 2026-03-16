@@ -267,6 +267,62 @@ class FilteredSchemaTest {
         `test unwrapAll`(unfilteredTestSchema, filteredSchema)
     }
 
+    @Test
+    fun `includeFieldArg drops individual args while keeping the field`() {
+        // Filter that drops any arg named "a1" but keeps the parent field
+        val filter = object : SchemaFilter {
+            override fun includeTypeDef(typeDef: ViaductSchema.TypeDef) = true
+
+            override fun includeField(field: ViaductSchema.Field) = true
+
+            override fun includeFieldArg(arg: ViaductSchema.FieldArg) = arg.name != "a1"
+
+            override fun includeEnumValue(enumValue: ViaductSchema.EnumValue) = true
+
+            override fun includeSuper(
+                record: ViaductSchema.OutputRecord,
+                superInterface: ViaductSchema.Interface
+            ) = true
+        }
+
+        val filteredSchema = filterSchema(unfilteredTestSchema, filter)
+
+        val objectKeep = filteredSchema.types["ObjectKeep"] as SchemaWithData.Object
+        val fieldC = objectKeep.field("c")!!
+        // Field survives even though one of its args was excluded
+        assertTrue(fieldC.hasArgs, "field c should still have args after dropping a1")
+        val argNames = fieldC.args.map { it.name }
+        assertFalse("a1" in argNames, "a1 should have been excluded by includeFieldArg")
+        assertTrue("a2" in argNames, "a2 should be retained since includeFieldArg returned true for it")
+    }
+
+    @Test
+    fun `includeFieldArg - field persists even when all its args are filtered out`() {
+        // Filter that drops all args but keeps the parent field
+        val filter = object : SchemaFilter {
+            override fun includeTypeDef(typeDef: ViaductSchema.TypeDef) = true
+
+            override fun includeField(field: ViaductSchema.Field) = true
+
+            override fun includeFieldArg(arg: ViaductSchema.FieldArg) = false
+
+            override fun includeEnumValue(enumValue: ViaductSchema.EnumValue) = true
+
+            override fun includeSuper(
+                record: ViaductSchema.OutputRecord,
+                superInterface: ViaductSchema.Interface
+            ) = true
+        }
+
+        val filteredSchema = filterSchema(unfilteredTestSchema, filter)
+
+        val objectKeep = filteredSchema.types["ObjectKeep"] as SchemaWithData.Object
+        // Field c must still be present even though all its args were excluded
+        val fieldC = objectKeep.field("c")
+        assertFalse(fieldC == null, "field c should still exist even when all its args are filtered out")
+        assertTrue(fieldC!!.args.isEmpty(), "field c should have no args after all are filtered out")
+    }
+
     fun `test unwrapAll`(
         unfilteredSchema: ViaductSchema,
         filteredSchema: ViaductSchema

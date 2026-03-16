@@ -55,6 +55,48 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
+    fun `resolve passes fieldCoordinate to instrumentation parameters`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+            val mockResolverMetadata = ResolverMetadata.forMock("mock-resolver")
+            val coordinate = "User" to "name"
+
+            every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation, coordinate)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, mockk())
+
+            // Then
+            val executeContext = instrumentation.executeResolverContexts.first()
+            assertEquals(coordinate, executeContext.parameters.fieldCoordinate)
+        }
+
+    @Test
+    fun `resolve passes null fieldCoordinate when no coordinate is provided`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, mockk())
+
+            // Then
+            val executeContext = instrumentation.executeResolverContexts.first()
+            assertNull(executeContext.parameters.fieldCoordinate)
+        }
+
+    @Test
     fun `resolve calls instrumentation with error on exception`() =
         runBlocking {
             // Given

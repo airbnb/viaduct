@@ -5,3 +5,7 @@ viaduct-detekt-rules:
     active: true
   ApiStabilityAnnotationRequired:
     active: false
+  ApiAnnotationConflict:
+    active: true
+  SingleApiAnnotation:
+    active: true

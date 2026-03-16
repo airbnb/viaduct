@@ -25,7 +25,7 @@ import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifierTypeOrDefault
 
-private val TEST_SOURCE_SETS = setOf("test", "testFixtures", "jmh", "integrationTest")
+private val TEST_SOURCE_SETS = setOf("test", "testFixtures", "jmh")
 private val STABILITY_ANNOTATION_SIMPLE_NAMES = setOf(
     "StableApi",
     "ExperimentalApi",

@@ -1,3 +1,5 @@
+@file:OptIn(InternalApi::class)
+
 package viaduct.engine.runtime.execution
 
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -30,6 +32,7 @@ import io.kotest.property.arbitrary.string
 import java.io.File
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
+import viaduct.apiannotations.InternalApi
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.ConfigKey

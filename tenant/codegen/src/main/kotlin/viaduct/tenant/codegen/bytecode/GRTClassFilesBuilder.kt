@@ -10,7 +10,7 @@ internal class GRTClassFilesBuilder(
         cfg.importedClasses.forEach { kmClassFilesBuilder.addImportedClass(it) }
     }
 
-    protected override fun isGenerated(def: ViaductSchema.TypeDef): Boolean = !def.name.startsWith("__")
+    protected override fun isGenerated(def: ViaductSchema.TypeDef): Boolean = def !is ViaductSchema.Scalar && !def.name.startsWith("__")
 
     override fun addEnum(def: ViaductSchema.Enum) {
         if (!isGenerated(def)) return

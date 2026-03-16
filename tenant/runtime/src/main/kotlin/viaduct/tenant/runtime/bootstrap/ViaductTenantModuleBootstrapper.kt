@@ -1,21 +1,23 @@
 package viaduct.tenant.runtime.bootstrap
 
 import kotlin.reflect.full.declaredMemberFunctions
-import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberFunctions
 import viaduct.api.NodeResolverBase
 import viaduct.api.Resolver
 import viaduct.api.ResolverBase
 import viaduct.api.Variables
+import viaduct.api.internal.DefaultGRTConvFactory
+import viaduct.api.internal.GRTConvFactory
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
-import viaduct.engine.api.FieldResolverExecutor
-import viaduct.engine.api.NodeResolverExecutor
-import viaduct.engine.api.TenantModuleBootstrapper
-import viaduct.engine.api.TenantModuleException
+import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleBootstrapper
+import viaduct.engine.api.spi.TenantModuleException
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.TenantCodeInjector
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
@@ -41,10 +43,13 @@ class ViaductTenantModuleBootstrapper(
     private val tenantCodeInjector: TenantCodeInjector,
     private val tenantResolverClassFinder: TenantResolverClassFinder,
     private val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
+    private val grtConvFactory: GRTConvFactory = DefaultGRTConvFactory,
 ) : TenantModuleBootstrapper {
     private val reflectionLoader = ReflectionLoaderImpl { name -> tenantResolverClassFinder.grtClassForName(name) }
 
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(globalIDCodec, reflectionLoader)
+
+    private val tenantMetadata: TenantModuleMetadata = tenantResolverClassFinder.tenantModuleMetadata()
 
     /**
      * Return a list of Pair<field-coordinate, resolver executor>s for this Viaduct tenant module.
@@ -68,10 +73,10 @@ class ViaductTenantModuleBootstrapper(
         val resolverClassesByBaseClass: Map<Class<out ResolverBase<*>>, List<Class<out ResolverBase<*>>>> =
             resolverBaseClasses.associateWith { type ->
                 // Get all @Resolver subclasses
-                tenantResolverClassFinder.getSubTypesOf(type).filter { it.kotlin.hasAnnotation<Resolver>() } as List<Class<out ResolverBase<*>>>
+                tenantResolverClassFinder.getSubTypesOf(type).filter { it.isAnnotationPresent(Resolver::class.java) } as List<Class<out ResolverBase<*>>>
             }
         for ((baseClass, resolverClasses) in resolverClassesByBaseClass) {
-            val resolverForAnnotation = baseClass.annotations.firstOrNull { it is ResolverFor } as? ResolverFor
+            val resolverForAnnotation = baseClass.getAnnotation(ResolverFor::class.java)
                 ?: throw TenantModuleException("ResolverBase class $baseClass does not have a @ResolverFor annotation")
 
             val typeName = resolverForAnnotation.typeName
@@ -102,13 +107,17 @@ class ViaductTenantModuleBootstrapper(
                 throw TenantModuleException("Resolver class $resolverClass could not be injected into", e)
             }
             val resolverKClass = resolverClass.kotlin
-            val resolverAnnotation = resolverKClass.annotations.firstOrNull { it is Resolver } as? Resolver
+            // Use Java reflection (not Kotlin reflection) to read the @Resolver annotation.
+            // Kotlin's KClass.annotations caches annotation instances lazily and never re-reads
+            // after JBR class redefinition. Java's Class.getAnnotation() returns fresh values
+            // after HotswapAgent redefines a class.
+            val resolverAnnotation = resolverClass.getAnnotation(Resolver::class.java)
                 ?: throw TenantModuleException("Resolver class $resolverKClass does not have a @Resolver annotation")
 
             // validate that the Resolver defines a maximum of one @Variables-annotated class
             resolverClass.declaredClasses
                 .filterNot { it.isSynthetic }
-                .filter { it.kotlin.hasAnnotation<Variables>() }
+                .filter { it.isAnnotationPresent(Variables::class.java) }
                 .let {
                     check(it.size <= 1) {
                         "Resolver class $resolverKClass cannot have more than one nested class with @Variables"
@@ -122,6 +131,7 @@ class ViaductTenantModuleBootstrapper(
                 schema = schema,
                 typeName = typeName,
                 fieldName = fieldName,
+                grtConvFactory = grtConvFactory,
             )
 
             val (objectSelectionSet, querySelectionSet) = requiredSelectionSetFactory.createRequiredSelectionSets(
@@ -171,7 +181,8 @@ class ViaductTenantModuleBootstrapper(
                     globalIDCodec = globalIDCodec,
                     reflectionLoader = reflectionLoader,
                     resolverContextFactory = fieldExecutionContextFactory,
-                    resolverName = resolverKClass.qualifiedName!!
+                    resolverName = resolverKClass.qualifiedName!!,
+                    tenantMetadata = tenantMetadata,
                 )
                 result.put(resolverId, resolverExecutor)?.let { extant ->
                     throw RuntimeException(
@@ -197,6 +208,7 @@ class ViaductTenantModuleBootstrapper(
                     reflectionLoader = reflectionLoader,
                     resolverContextFactory = fieldExecutionContextFactory,
                     resolverName = resolverKClass.qualifiedName!!,
+                    tenantMetadata = tenantMetadata,
                 )
                 result.put(resolverId, resolverExecutor)?.let { extant ->
                     throw RuntimeException(
@@ -233,7 +245,8 @@ class ViaductTenantModuleBootstrapper(
                 tenantResolverClassFinder.getSubTypesOf(it) as Set<Class<out NodeResolverBase<*>>>
             }
         for ((baseClass, nodeResolverClasses) in nodeResolverClassesByBaseClass) {
-            val nodeResolverForAnnotation = baseClass.annotations.first { it is NodeResolverFor } as NodeResolverFor
+            val nodeResolverForAnnotation = baseClass.getAnnotation(NodeResolverFor::class.java)
+                ?: throw TenantModuleException("NodeResolverBase class $baseClass does not have a @NodeResolverFor annotation")
             val typeName = nodeResolverForAnnotation.typeName
 
             val nodeType = schema.schema.getObjectType(typeName)
@@ -252,7 +265,7 @@ class ViaductTenantModuleBootstrapper(
             @Suppress("UNCHECKED_CAST")
             val reflectiveType = reflectionLoader.reflectionFor(typeName) as Type<NodeObject>
             val resolverContextFactory: NodeExecutionContextFactory =
-                NodeExecutionContextFactory(baseClass, globalIDCodec, reflectionLoader, reflectiveType)
+                NodeExecutionContextFactory(baseClass, globalIDCodec, reflectionLoader, reflectiveType, grtConvFactory)
 
             if (nodeResolverClasses.size != 1) {
                 throw TenantModuleException(
@@ -295,6 +308,7 @@ class ViaductTenantModuleBootstrapper(
                         factory = resolverContextFactory,
                         resolverName = resolverKClass.qualifiedName!!,
                         isSelective = isSelective,
+                        tenantMetadata = tenantMetadata,
                     )
                 nodeResolverExecutors.put(typeName, nodeUnbatchedResolverExecutor)?.let { extant ->
                     throw TenantModuleException(
@@ -314,6 +328,7 @@ class ViaductTenantModuleBootstrapper(
                         factory = resolverContextFactory,
                         resolverName = resolverKClass.qualifiedName!!,
                         isSelective = isSelective,
+                        tenantMetadata = tenantMetadata,
                     )
                 nodeResolverExecutors.put(typeName, nodeResolverExecutor)?.let { extant ->
                     throw TenantModuleException(

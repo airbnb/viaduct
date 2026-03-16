@@ -3,7 +3,6 @@ package viaduct.engine.runtime
 import javax.inject.Singleton
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.RequiredSelectionSetRegistry
 
 /**
  * Combined interface for all dispatcher registries.
@@ -70,8 +69,7 @@ interface DispatcherRegistry : RequiredSelectionSetRegistry {
             fieldName: String,
             executeAccessChecksInModstrat: Boolean
         ): List<RequiredSelectionSet> {
-            val fieldResolverExecutor = getFieldResolverDispatcher(typeName, fieldName)
-            if (!executeAccessChecksInModstrat && fieldResolverExecutor == null) {
+            if (!executeAccessChecksInModstrat) {
                 return emptyList()
             }
             val checkerRss = getFieldCheckerDispatcher(typeName, fieldName)?.requiredSelectionSets?.values?.filterNotNull()

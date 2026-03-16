@@ -43,9 +43,25 @@ class NoSubscriptionsRuleTest {
         with(errors[0]) {
             code shouldBe ValidationErrorCodes.SUBSCRIPTION_NOT_ALLOWED
             message shouldContain "Subscription"
-            location.path shouldBe listOf("Subscription")
+            location.path shouldBe listOf("Subscription", "onHelloChanged")
             location.sourceLocation shouldBe null
         }
+    }
+
+    @Test
+    fun `subscription type with only framework dummy field passes validation`() {
+        // The framework adds a dummy `_` field to the empty subscription root type.
+        // This should not be flagged as a tenant violation.
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            type Query { hello: String }
+            type Subscription { _: String }
+            """.trimIndent()
+        )
+
+        val errors = validator.validate(schema)
+
+        errors.shouldBeEmpty()
     }
 
     @Test
@@ -78,7 +94,7 @@ class NoSubscriptionsRuleTest {
         with(errors[0]) {
             code shouldBe ValidationErrorCodes.SUBSCRIPTION_NOT_ALLOWED
             message shouldContain "HelloEvents"
-            location.path shouldBe listOf("HelloEvents")
+            location.path shouldBe listOf("HelloEvents", "onHelloChanged")
         }
     }
 }

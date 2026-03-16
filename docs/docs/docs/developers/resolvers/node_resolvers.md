@@ -85,13 +85,41 @@ For the example `User` type, the `R` type would be the User [GRT](../generated_c
 
 `NodeExecutionContext` includes the ID of the node to be resolved, and the selection set for the node being requested by the query. Most node resolvers are not "selective," i.e., they ignore this selection set and thus don’t call this function. In this case, as discussed above, it’s important that the node resolver returns its entire responsibility set.
 
-**Advanced users:** If the `selections` function is *not* called by an invocation of a resolver, then the engine will assume that invocation will return the full responsibility set of the resolver and may take actions based on that assumption. If a resolver is going to be selective, then it **must** call this function to get its selection set rather than obtain it through some other means.
-
 Since `NodeExecutionContext` implements `ResolverExecutionContext`, it also includes the utilities provided there, which allow you to:
 
 * Execute [subqueries](subqueries.md)
 * Construct [node references](node_references.md)
 * Construct [GlobalIDs](../globalids/index.md)
+
+### Non-Selective and Selective Node Resolvers
+There are two primary categories of Node Resolver:
+1. Non-Selective Node Resolvers: Serve most use cases and are the default option. These resolvers always return the same data for a given node ID and benefit from higher cache hit rates.
+
+**Note: Selective Node Resolvers are still under development and not ready for use. This section specifies how they are intended to function.**
+2. Selective Node Resolvers: Can vary the response data returned for a given node ID based on the fields selected via the `selections` function on the node. While these resolvers are not cached as efficiently they enable the conditional resolution of potentially expensive fields only when requested.
+
+Selective resolvers must extend the `SelectiveResolver` interface in order to access the `selections` function to read its selection set from the context:
+
+```kotlin
+class SelectiveUserNodeResolver @Inject constructor(
+  val userService: UserServiceClient
+    // Extends SelectiveResolver to enable selections functionality
+): NodeResolvers.User(), SelectiveResolver{
+  override suspend fun resolve(ctx: Context): User {
+    // Uses the selections function to get the selection set from context
+    val sel = selections(ctx)
+    return User.builder(ctx)
+      .id(ctx.id)
+      .apply {
+        // Conditionally fetch expensive fields based on what's requested
+        if (sel.contains(User.expensiveField)) {
+          expensiveField(fetchExpensiveData())
+        }
+      }
+      .build()
+  }
+}
+```
 
 ## Responsibility set
 

@@ -53,5 +53,5 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
         return mutation(selectionsFor(mutationType, selections, variables))
     }
 
-    private suspend fun <T : Mutation> mutation(selections: SelectionSet<T>) = engineExecutionContextWrapper.mutation(this, "mutation", selections)
+    private suspend fun <T : Mutation> mutation(selections: SelectionSet<T>) = engineExecutionContextWrapper.mutation(this, selections)
 }

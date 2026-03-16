@@ -7,9 +7,13 @@ import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
 import viaduct.api.reflect.Type
 import viaduct.api.types.Arguments
+import viaduct.api.types.BackwardConnectionArguments
+import viaduct.api.types.ForwardConnectionArguments
+import viaduct.api.types.MultidirectionalConnectionArguments
 import viaduct.api.types.Mutation
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.EngineObjectData
 
@@ -77,4 +81,54 @@ class FakeArguments(
 
     /** get the argument with the provided name, will throw IllegalArgumentException if no non-null value is found */
     fun <T> get(argName: String): T = requireNotNull(tryGet(argName)) { "$argName is unset or null." }
+}
+
+/**
+ * For testing without codegen: provides [ForwardConnectionArguments] support
+ * for feature tests of connection fields.
+ */
+@FakeGRT
+@Suppress("UNUSED_PARAMETER")
+@OptIn(ExperimentalApi::class)
+class FakeConnectionArguments(
+    context: InternalContext? = null,
+    val inputData: Map<String, Any?> = emptyMap(),
+    inputType: GraphQLInputObjectType? = null,
+) : ForwardConnectionArguments {
+    override val first: Int? get() = inputData["first"] as? Int
+    override val after: String? get() = inputData["after"] as? String
+}
+
+/**
+ * For testing without codegen: provides [BackwardConnectionArguments] support
+ * for feature tests of connection fields using backward pagination (`last`/`before`).
+ */
+@FakeGRT
+@Suppress("UNUSED_PARAMETER")
+@OptIn(ExperimentalApi::class)
+class FakeBackwardConnectionArguments(
+    context: InternalContext? = null,
+    val inputData: Map<String, Any?> = emptyMap(),
+    inputType: GraphQLInputObjectType? = null,
+) : BackwardConnectionArguments {
+    override val last: Int? get() = inputData["last"] as? Int
+    override val before: String? get() = inputData["before"] as? String
+}
+
+/**
+ * For testing without codegen: provides [MultidirectionalConnectionArguments] support
+ * for feature tests of connection fields using bidirectional pagination (`first`/`after`/`last`/`before`).
+ */
+@FakeGRT
+@Suppress("UNUSED_PARAMETER")
+@OptIn(ExperimentalApi::class)
+class FakeMultidirectionalConnectionArguments(
+    context: InternalContext? = null,
+    val inputData: Map<String, Any?> = emptyMap(),
+    inputType: GraphQLInputObjectType? = null,
+) : MultidirectionalConnectionArguments {
+    override val first: Int? get() = inputData["first"] as? Int
+    override val after: String? get() = inputData["after"] as? String
+    override val last: Int? get() = inputData["last"] as? Int
+    override val before: String? get() = inputData["before"] as? String
 }

@@ -2,6 +2,7 @@ package viaduct.engine.api
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
 
 class RequiredSelectionSetRegistryTest {
     @Test

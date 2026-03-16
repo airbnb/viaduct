@@ -22,6 +22,8 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
+import viaduct.tenant.codegen.bytecode.config.connectionEdgeTypeName
+import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
 import viaduct.tenant.codegen.bytecode.config.hasEdgeDirective
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
@@ -69,6 +71,11 @@ private class ObjectClassGenV2(
             }
         }
 
+        // Add Connection<E, N> marker interface for @connection directive types
+        if (def.hasConnectionDirective) {
+            addConnectionInterface()
+        }
+
         // Add Edge<N> marker interface for @edge directive types
         if (def.hasEdgeDirective) {
             addEdgeInterface()
@@ -80,6 +87,26 @@ private class ObjectClassGenV2(
             .addPrimaryConstructor()
             .addFieldGetters()
             .addToBuilderFun()
+    }
+
+    /**
+     * Add Connection<EdgeType, NodeType> interface to the class.
+     * The edge type is extracted from the 'edges' field, and the node type
+     * is extracted from the edge's 'node' field.
+     */
+    private fun addConnectionInterface() {
+        val edgeTypeName = def.connectionEdgeTypeName ?: return
+        val edgeTypeDef = grtClassFilesBuilder.getType(edgeTypeName) as? ViaductSchema.Object ?: return
+        val nodeTypeName = edgeTypeDef.typeOfNodeField ?: return
+
+        val edgeKmType = KmName("$pkg/$edgeTypeName").asType()
+        val nodeKmType = KmName("$pkg/$nodeTypeName").asType()
+
+        val connectionType = cfg.CONNECTION_GRT.asKmName.asType().also {
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, edgeKmType)
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, nodeKmType)
+        }
+        objectClass.addSupertype(connectionType)
     }
 
     /**

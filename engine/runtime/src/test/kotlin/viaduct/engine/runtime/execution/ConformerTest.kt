@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package viaduct.engine.runtime.execution
 
 import graphql.schema.DataFetcher
@@ -14,11 +16,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.arbitrary.common.randomSource
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createExecutionInput
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 
-@ExperimentalCoroutinesApi
 class ConformerTest : KotestPropertyBase() {
     @Test
     fun `ctor -- Conformers with different seeds produce different results`() {
@@ -148,8 +148,9 @@ class ConformerTest : KotestPropertyBase() {
 
     @Test
     fun `checkAll -- failure includes correct seed value`() {
+        val conformerSeed = 42L
         val assertionFailure = assertThrows<AssertionError> {
-            Conformer("type Query { x:Int }") {
+            Conformer("type Query { x:Int }", seed = conformerSeed) {
                 val arb = Arb.constant(
                     createExecutionInput(schema, "{x}")
                 )
@@ -157,8 +158,7 @@ class ConformerTest : KotestPropertyBase() {
             }
         }
 
-        val seedString = randomSource().seed.toString()
-        assertTrue(assertionFailure.message?.contains(seedString) ?: false) {
+        assertTrue(assertionFailure.message?.contains(conformerSeed.toString()) ?: false) {
             assertionFailure.message
         }
     }

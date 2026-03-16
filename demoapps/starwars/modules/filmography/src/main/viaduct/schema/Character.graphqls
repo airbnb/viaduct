@@ -129,9 +129,17 @@ extend type Query @scope(to: ["default"]) {
   All characters
   """
   # tag::all_characters[3] Batch query sample
-  allCharacters(limit: Int): [Character]
-    @resolver
-    @backingData(class: "com.example.starwars.modules.filmography.characters.queries.AllCharactersQueryResolver")
+  allCharacters(limit: Int): [Character] @resolver
+  """
+  All characters as a paginated connection (Relay-style cursor pagination).
+  Use `first` to set the page size and `after` to page forward from a cursor.
+  """
+  allCharactersConnection(
+    "Maximum number of characters to return."
+    first: Int
+    "Cursor to start fetching after (exclusive, for forward pagination)."
+    after: String
+  ): CharactersConnection @resolver
 }
 
 # tag::connection_example[11] Example of @connection directive

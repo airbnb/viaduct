@@ -19,7 +19,6 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.ObjectEngineResult
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ViaductSchema
@@ -235,7 +234,6 @@ class EngineExecutionContextExtensionsTest {
             override val fieldScope get() = mockk<EngineExecutionContext.FieldExecutionScope>()
 
             override suspend fun resolveSelectionSet(
-                resolverId: String,
                 selectionSet: EngineSelectionSet,
                 options: ResolveSelectionSetOptions
             ): EngineObjectData = mockk()

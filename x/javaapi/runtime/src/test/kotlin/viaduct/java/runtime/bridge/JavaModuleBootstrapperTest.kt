@@ -34,6 +34,30 @@ class JavaModuleBootstrapperTest {
         }
     }
 
+    // Test fixtures for required selections tests
+    @ResolverFor(typeName = "Person", fieldName = "fullName")
+    abstract class PersonFullNameResolverBase :
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
+
+    @Resolver(objectValueFragment = "firstName lastName")
+    class PersonFullNameResolver : PersonFullNameResolverBase() {
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String> {
+            return CompletableFuture.completedFuture("Full Name")
+        }
+    }
+
+    // Test fixture for resolver without required selections (plain @Resolver)
+    @ResolverFor(typeName = "Person", fieldName = "age")
+    abstract class PersonAgeResolverBase :
+        FieldResolverBase<Int, TestQuery, TestQuery, Arguments.None, CompositeOutput>
+
+    @Resolver
+    class PersonAgeResolver : PersonAgeResolverBase() {
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<Int> {
+            return CompletableFuture.completedFuture(30)
+        }
+    }
+
     @Test
     fun `fieldResolverExecutors returns empty when no resolvers found`() {
         val mockClassFinder = mockk<JavaResolverClassFinder>()
@@ -92,6 +116,46 @@ class JavaModuleBootstrapperTest {
         assertThat(executors).isEmpty()
     }
 
+    @Test
+    fun `fieldResolverExecutors creates executor with objectSelectionSet from annotation`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.resolverClassesInPackage() } returns setOf(PersonFullNameResolverBase::class.java)
+        every { mockClassFinder.getSubTypesOf(FieldResolverBase::class.java) } returns
+            setOf(PersonFullNameResolver::class.java, PersonFullNameResolverBase::class.java)
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, TenantCodeInjector.Naive)
+        val schema = createMockSchemaWithPerson()
+
+        val executors = bootstrapper.fieldResolverExecutors(schema).toList()
+
+        assertThat(executors).hasSize(1)
+        val (coordinate, executor) = executors.first()
+        assertThat(coordinate.first).isEqualTo("Person")
+        assertThat(coordinate.second).isEqualTo("fullName")
+        // The executor should have objectSelectionSet populated from the annotation
+        assertThat(executor.objectSelectionSet).isNotNull
+        assertThat(executor.querySelectionSet).isNull()
+    }
+
+    @Test
+    fun `fieldResolverExecutors creates executor with empty selections for plain Resolver annotation`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.resolverClassesInPackage() } returns setOf(PersonAgeResolverBase::class.java)
+        every { mockClassFinder.getSubTypesOf(FieldResolverBase::class.java) } returns
+            setOf(PersonAgeResolver::class.java, PersonAgeResolverBase::class.java)
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, TenantCodeInjector.Naive)
+        val schema = createMockSchemaWithPerson()
+
+        val executors = bootstrapper.fieldResolverExecutors(schema).toList()
+
+        assertThat(executors).hasSize(1)
+        val (_, executor) = executors.first()
+        // Plain @Resolver annotation should result in null selection sets (backward compatible)
+        assertThat(executor.objectSelectionSet).isNull()
+        assertThat(executor.querySelectionSet).isNull()
+    }
+
     // Helper to create mock schema
     private fun createMockSchema(): ViaductSchema {
         val graphqlSchema = GraphQLSchema.newSchema()
@@ -135,6 +199,51 @@ class JavaModuleBootstrapperTest {
                     .build()
             )
             .additionalType(testType)
+            .build()
+
+        return mockk {
+            every { schema } returns graphqlSchema
+        }
+    }
+
+    // Helper to create mock schema with Person type
+    private fun createMockSchemaWithPerson(): ViaductSchema {
+        val personType = GraphQLObjectType.newObject()
+            .name("Person")
+            .field(
+                GraphQLFieldDefinition.newFieldDefinition()
+                    .name("firstName")
+                    .type(Scalars.GraphQLString)
+            )
+            .field(
+                GraphQLFieldDefinition.newFieldDefinition()
+                    .name("lastName")
+                    .type(Scalars.GraphQLString)
+            )
+            .field(
+                GraphQLFieldDefinition.newFieldDefinition()
+                    .name("fullName")
+                    .type(Scalars.GraphQLString)
+            )
+            .field(
+                GraphQLFieldDefinition.newFieldDefinition()
+                    .name("age")
+                    .type(Scalars.GraphQLInt)
+            )
+            .build()
+
+        val graphqlSchema = GraphQLSchema.newSchema()
+            .query(
+                GraphQLObjectType.newObject()
+                    .name("Query")
+                    .field(
+                        GraphQLFieldDefinition.newFieldDefinition()
+                            .name("placeholder")
+                            .type(Scalars.GraphQLString)
+                    )
+                    .build()
+            )
+            .additionalType(personType)
             .build()
 
         return mockk {

@@ -1,6 +1,8 @@
 package viaduct.utils.classgraph
 
 import com.github.benmanes.caffeine.cache.Caffeine
+import com.github.benmanes.caffeine.cache.RemovalCause
+import com.github.benmanes.caffeine.cache.Scheduler
 import io.github.classgraph.ClassGraph
 import io.github.classgraph.ClassInfoList
 import io.github.classgraph.ScanResult
@@ -20,6 +22,7 @@ import viaduct.utils.slf4j.logger
 @OptIn(ExperimentalTime::class)
 class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
     companion object {
+        private val AIRBNB_ONLY_EXTRA_CLASSPATH = "/srv/classes"
         private val singletonInstance = AtomicReference<ClassGraphScanner?>(null)
 
         // TODO: make these configurable during the initialization or via arguments.
@@ -84,16 +87,39 @@ class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
                 forPackagePrefix(packagePrefix)
             }
 
+        /**
+         * Invalidate the scanner's cache for a specific package prefix.
+         *
+         * @param packagePrefix the packagePrefix to invalidate cache for
+         */
+        fun invalidateCache(packagePrefix: String) {
+            // The cache key is Collection<String>, so we need to invalidate the correct key
+            val keysToInvalidate = scanResultCache.asMap().keys.filter { keySet ->
+                keySet.any { it == packagePrefix || packagePrefix.startsWith("$it.") }
+            }
+            keysToInvalidate.forEach { key ->
+                scanResultCache.invalidate(key)
+            }
+        }
+
         private val log by logger()
         private val scanResultCache =
             Caffeine.newBuilder()
-                // ensure on removal/eviction, the ScanResult is closed. This is important so that we don't keep around
-                // a reference to the extra classloader that was used to load the classes.
-                .removalListener { _: Collection<String>?, value: ScanResult?, _ -> value?.close() }
+                // Close ScanResult only on time-based eviction or size-based eviction,
+                // NOT on explicit invalidation. When invalidateCache() removes an entry,
+                // it may still be in use by concurrent request threads (e.g., lazy init).
+                // Closing a ScanResult that is still referenced causes
+                // "Cannot use a ScanResult after it has been closed".
+                .removalListener { _: Collection<String>?, value: ScanResult?, cause: RemovalCause? ->
+                    if (cause != null && cause != RemovalCause.EXPLICIT) {
+                        value?.close()
+                    }
+                }
                 .evictionListener { _: Collection<String>?, value: ScanResult?, _ -> value?.close() }
                 // it's not necessary to keep these around forever. 10m should be sufficient to allow for
                 // server startup + warmup which is where this is primarily used.
                 .expireAfterWrite(10, TimeUnit.MINUTES)
+                .scheduler(Scheduler.systemScheduler())
                 .build<Collection<String>, ScanResult>()
     }
 
@@ -187,14 +213,32 @@ class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
         scanResultCache.get(packagePrefixes) {
             val (scanResult, elapsedTime) =
                 measureTimedValue {
-                    ClassGraph()
+                    val classGraph = ClassGraph()
                         .enableClassInfo()
                         .enableAnnotationInfo()
                         .ignoreClassVisibility()
                         .acceptPackages(*packagePrefixes.toTypedArray())
-                        .scan()
+
+                    // Add extra classpath to the scan so ClassGraph can discover NEW .class files
+                    // that were placed there at runtime (e.g., by a development-time class reloader).
+                    //
+                    // Uses addClassLoader with a URLClassLoader (not overrideClasspath) to preserve
+                    // ClassGraph's default classpath discovery (existing classloaders, module path, etc.).
+                    //
+                    // Note: For classes that exist in BOTH the JAR and the extra class path, ClassGraph
+                    // will use the JAR's bytecode (found first). This is acceptable because:
+                    // - ClassGraph is used only for class DISCOVERY (getSubTypesOf, getTypesAnnotatedWith)
+                    // - Annotation values are read via Java reflection on the JVM-loaded class,
+                    //   not from ClassGraph's bytecode-parsed ClassInfo
+                    val extraClasspath = java.io.File(AIRBNB_ONLY_EXTRA_CLASSPATH)
+                    if (extraClasspath.exists() && extraClasspath.isDirectory) {
+                        log.info("Adding extra classpath to ClassGraph scan: {}", extraClasspath.absolutePath)
+                        classGraph.addClassLoader(java.net.URLClassLoader(arrayOf(extraClasspath.toURI().toURL())))
+                    }
+
+                    classGraph.scan()
                 }
-            log.debug(
+            log.info(
                 "Scanned '{}' package in {}",
                 packagePrefixes,
                 elapsedTime

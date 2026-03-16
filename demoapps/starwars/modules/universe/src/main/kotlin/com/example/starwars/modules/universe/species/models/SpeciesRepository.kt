@@ -50,6 +50,21 @@ class SpeciesRepository {
     fun findAll(): List<Species> = species
 
     /**
+     * Retrieves a paginated list of species
+     *
+     * @return A list of paginated species.
+     */
+    fun findSome(
+        limit: Int,
+        offset: Int
+    ): List<Species> = species.drop(offset).take(limit)
+
+    /**
+     * Returns the total number of species.
+     */
+    fun count(): Int = species.size
+
+    /**
      * Finds a species by its ID.
      *
      * @param id The ID of the species to find.

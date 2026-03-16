@@ -15,7 +15,6 @@ import viaduct.engine.runtime.instrumentation.resolver.ChainedResolverInstrument
 class ChainedResolverInstrumentationTest {
     @Test
     fun `createInstrumentationState creates state for all instrumentations`() {
-        val parameters = ViaductResolverInstrumentation.CreateInstrumentationStateParameters()
         val state1 = object : ViaductResolverInstrumentation.InstrumentationState {}
         val state2 = object : ViaductResolverInstrumentation.InstrumentationState {}
         val instr1CreateStateCalled = AtomicBoolean(false)
@@ -50,7 +49,7 @@ class ChainedResolverInstrumentationTest {
     fun `instrumentResolverExecution chains all instrumentations`() =
         runBlocking {
             val parameters = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
-                resolverMetadata = ResolverMetadata.forModern("TestResolver")
+                resolverMetadata = ResolverMetadata.forMock("TestResolver")
             )
             val instr1ResolverExecutionCalled = AtomicBoolean(false)
             val instr2ResolverExecutionCalled = AtomicBoolean(false)
@@ -81,7 +80,7 @@ class ChainedResolverInstrumentationTest {
             val chained = ChainedResolverInstrumentation(listOf(instr1, instr2))
             val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
             val result = chained.instrumentResolverExecution(
-                ResolverFunction { expectedResult },
+                { expectedResult },
                 parameters,
                 state
             ).resolve()
@@ -125,7 +124,7 @@ class ChainedResolverInstrumentationTest {
             val chained = ChainedResolverInstrumentation(listOf(instr1, instr2))
             val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
             val result = chained.instrumentFetchSelection(
-                FetchFunction { expectedResult },
+                { expectedResult },
                 parameters,
                 state
             ).fetch()
@@ -174,7 +173,7 @@ class ChainedResolverInstrumentationTest {
             val chained = ChainedResolverInstrumentation(listOf(instr1, instr2))
             val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
             val result = chained.instrumentAccessChecker(
-                CheckerFunction { expectedResult },
+                { expectedResult },
                 parameters,
                 state
             ).check()

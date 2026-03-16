@@ -288,6 +288,8 @@ class ExternalClassWrapper(
     class Nested(
         val nestedName: JavaIdName,
         val flags: Int = Ct.STATIC_PUBLIC_FINAL,
-        val nested: List<Nested> = emptyList()
+        val nested: List<Nested> = emptyList(),
+        /** When true, a `public static final INSTANCE` field is added to the placeholder class. */
+        val hasInstanceField: Boolean = false,
     )
 }

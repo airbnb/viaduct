@@ -38,16 +38,20 @@ class KmClassFilesBuilder(
         kmName: KmName,
         isInterface: Boolean = false,
         nested: List<JavaIdName> = emptyList()
-    ) {
-        externalClassWrappers.put(
-            kmName,
-            ExternalClassWrapper(
-                kmName.asJavaBinaryName,
-                isInterface,
-                nested.map { ExternalClassWrapper.Nested(it) }
-            )
+    ) = addExternalClassReferenceWithNestedSpec(kmName, isInterface, nested.map { ExternalClassWrapper.Nested(it) })
+
+    fun addExternalClassReferenceWithNestedSpec(
+        kmName: KmName,
+        isInterface: Boolean = false,
+        nested: List<ExternalClassWrapper.Nested> = emptyList()
+    ) = externalClassWrappers.put(
+        kmName,
+        ExternalClassWrapper(
+            kmName.asJavaBinaryName,
+            isInterface,
+            nested
         )
-    }
+    )
 
     private val externalClassWrappers: MutableMap<KmName, ExternalClassWrapper> = mutableMapOf()
 
@@ -58,7 +62,7 @@ class KmClassFilesBuilder(
 
     private val importedClasses = mutableSetOf<JavaName>()
 
-    // *** The public functions below are the main API. *** //
+// *** The public functions below are the main API. *** //
 
     private val classBuilders = mutableListOf<ClassBuilder>()
     private val classTrees: List<KmClassTree> by lazy {
@@ -121,6 +125,23 @@ class KmClassFilesBuilder(
         classPool = ClassPool(true)
         val ctClasses = buildBytecode(classPool)
         return object : ClassLoader(getSystemClassLoader()) {
+            override fun loadClass(
+                name: String,
+                resolve: Boolean
+            ): Class<*> {
+                // Child-first: prefer in-memory bytecode over anything in the parent classloader.
+                // This prevents compiled Kotlin GRT stubs (e.g. viaduct.api.grts.*) on the test
+                // classpath from shadowing the bytecode we just generated.
+                // Must check findLoadedClass first to avoid duplicate class definition errors.
+                return synchronized(getClassLoadingLock(name)) {
+                    findLoadedClass(name) ?: try {
+                        findClass(name).also { if (resolve) resolveClass(it) }
+                    } catch (_: ClassNotFoundException) {
+                        super.loadClass(name, resolve)
+                    }
+                }
+            }
+
             override fun findClass(name: String?): Class<*> {
                 // Set `this` as the classloader, otherwise nested classes are not properly loaded
                 return ctClasses.firstOrNull { it.name == name }?.toClass(this, null)
@@ -153,6 +174,7 @@ class KmClassFilesBuilder(
                             check.isFalse(hasSuperClass, "ONLY_ONE_SUPERCLASS")
                             hasSuperClass = true
                         }
+
                         else -> {
                             val supertypeKmClass = kmClassMap[supertype.name.toString()]
                             if (supertypeKmClass == null) {

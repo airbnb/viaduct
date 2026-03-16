@@ -8,11 +8,11 @@ import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
-import viaduct.engine.api.RequiredSelectionSetRegistry
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
 
 class FromFieldVariablesHaveValidPathsTest {
     @Test

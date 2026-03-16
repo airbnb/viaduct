@@ -33,7 +33,7 @@ import java.util.function.Supplier
 import kotlin.collections.plus
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.ObjectEngineResult
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
@@ -42,6 +42,7 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
+import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
@@ -154,7 +155,8 @@ object FieldExecutionHelpers {
             EngineExecutionContextImpl.FieldExecutionScopeImpl(
                 fragments = parameters.queryPlan.fragments.map.mapValues { it.value.gjDef },
                 variables = parameters.coercedVariables.toMap(),
-                resolutionPolicy = parameters.resolutionPolicy
+                resolutionPolicy = parameters.resolutionPolicy,
+                attribution = parameters.queryPlan.attribution ?: ExecutionAttribution.DEFAULT,
             )
         }
         val updatedEngineExecCtx = parameters.engineExecutionContext.copy(fieldScopeSupplier = fieldScope)
@@ -346,7 +348,7 @@ object FieldExecutionHelpers {
                 }
             } ?: ProxyEngineObjectData(currentEngineData, "missing from variable RSS", null)
 
-            val resolved = vr.resolve(VariablesResolver.ResolveCtx(variablesData, arguments, engineExecutionContext))
+            val resolved = vr.resolve(VariablesResolver.ResolveCtx(variablesData, arguments), engineExecutionContext)
             acc + resolved
         }.let {
             ValuesResolver.coerceVariableValues(

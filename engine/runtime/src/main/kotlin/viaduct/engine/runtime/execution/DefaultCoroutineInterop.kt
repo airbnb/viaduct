@@ -7,7 +7,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.future.future
 import viaduct.dataloader.NextTickDispatcher
-import viaduct.engine.api.coroutines.CoroutineInterop
+import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.execution.scopedAsync as oss_scopedAsync
 import viaduct.engine.runtime.execution.scopedFuture as oss_scopedFuture
 import viaduct.engine.runtime.execution.withThreadLocalCoroutineContext as oss_withThreadLocalCoroutineContext

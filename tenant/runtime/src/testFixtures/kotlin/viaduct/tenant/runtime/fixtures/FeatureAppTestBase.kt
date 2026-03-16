@@ -1,27 +1,23 @@
 @file:Suppress("ForbiddenImport")
+@file:OptIn(VisibleForTest::class, InternalApi::class)
 
 package viaduct.tenant.runtime.fixtures
 
 import com.google.inject.Guice
 import com.google.inject.Injector
-import kotlinx.coroutines.future.await
-import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.BeforeEach
 import viaduct.api.Resolver
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
-import viaduct.service.ViaductBuilder
-import viaduct.service.api.ExecutionInput
-import viaduct.service.api.ExecutionResult
-import viaduct.service.api.SchemaId
+import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.VisibleForTest
+import viaduct.engine.api.spi.TenantModuleBootstrapper
+import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.service.api.spi.mocks.MockFlagManager
-import viaduct.service.runtime.SchemaConfiguration
-import viaduct.service.runtime.StandardViaduct
 import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
+import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
 import viaduct.tenant.runtime.bootstrap.ViaductTenantResolverClassFinderFactory
 
 /**
@@ -62,7 +58,7 @@ import viaduct.tenant.runtime.bootstrap.ViaductTenantResolverClassFinderFactory
  * test app in its own separate package.
  *```
  */
-abstract class FeatureAppTestBase {
+abstract class FeatureAppTestBase : AbstractFeatureAppTestBase() {
     open lateinit var sdl: String
         protected set
 
@@ -77,8 +73,7 @@ abstract class FeatureAppTestBase {
     protected open val validateResolverCompleteness: Boolean = true
 
     private val injector: Injector by lazy { Guice.createInjector() }
-    private val guiceTenantCodeInjector by lazy { GuiceTenantCodeInjector(injector) }
-    private val flagManager = MockFlagManager()
+    protected val guiceTenantCodeInjector by lazy { GuiceTenantCodeInjector(injector) }
 
     // GlobalID codec for creating GlobalID strings in tests
     private val globalIdCodec = GlobalIDCodecDefault
@@ -94,31 +89,19 @@ abstract class FeatureAppTestBase {
         grtPackagePrefix = derivedClassPackagePrefix
     )
 
-    protected val viaductTenantAPIBootstrapperBuilder =
+    protected open val viaductTenantAPIBootstrapperBuilder =
         ViaductTenantAPIBootstrapper.Builder()
             .tenantCodeInjector(guiceTenantCodeInjector)
             .tenantResolverClassFinderFactory(tenantResolverClassFinderFactory)
             .tenantPackagePrefix(derivedClassPackagePrefix)
 
-    protected lateinit var viaductBuilder: ViaductBuilder
-    lateinit var viaductSchemaConfiguration: SchemaConfiguration
-    lateinit var viaductService: StandardViaduct
+    override fun sdl(): String = sdl
 
-    fun withViaductBuilder(builderUpdate: ViaductBuilder.() -> Unit) {
-        viaductBuilder.apply(builderUpdate)
-    }
+    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> = viaductTenantAPIBootstrapperBuilder
 
-    fun withSchemaConfiguration(config: SchemaConfiguration) {
-        viaductBuilder = viaductBuilder.withSchemaConfiguration(config)
-        viaductSchemaConfiguration = config
-    }
-
-    @BeforeEach
-    open fun initViaductBuilder() {
-        if (!::viaductBuilder.isInitialized) {
-            viaductBuilder = ViaductBuilder()
-                .withFlagManager(flagManager)
-                .withTenantAPIBootstrapperBuilder(viaductTenantAPIBootstrapperBuilder)
+    override fun onBeforeBuild() {
+        if (validateResolverCompleteness) {
+            validateResolverImplementations()
         }
     }
 
@@ -145,58 +128,6 @@ abstract class FeatureAppTestBase {
     }
 
     /**
-     * Executes a query against the test application.
-     *
-     * @param scopeId The scope ID to use for the query.
-     * @param query The query to execute.
-     * @param variables The variables to use for the query.
-     *
-     * @return The result of the query execution.
-     */
-    open fun execute(
-        query: String,
-        variables: Map<String, Any?> = mapOf(),
-        schemaId: SchemaId = defaultSchemaId(),
-        requestContext: Any? = null,
-    ): ExecutionResult {
-        return runBlocking {
-            tryBuildViaductService()
-            val executionInput = ExecutionInput.create(
-                operationText = query,
-                variables = variables,
-                requestContext = requestContext,
-            )
-            val result = viaductService.executeAsync(executionInput, schemaId).await()
-            result
-        }
-    }
-
-    open fun defaultSchemaId(): SchemaId = SchemaId.Full
-
-    open fun getScopeConfig(): Set<SchemaConfiguration.ScopeConfig> = emptySet()
-
-    /**
-     * Attempts to build the [StandardViaduct] instance if it has not been initialized yet.
-     */
-    @Suppress("TooGenericExceptionCaught")
-    fun tryBuildViaductService() {
-        if (!::viaductSchemaConfiguration.isInitialized) {
-            viaductSchemaConfiguration = SchemaConfiguration.fromSdl(sdl, scopes = getScopeConfig())
-            viaductBuilder.withSchemaConfiguration(viaductSchemaConfiguration)
-        }
-        if (!::viaductService.isInitialized) {
-            if (validateResolverCompleteness) {
-                validateResolverImplementations()
-            }
-            try {
-                viaductService = viaductBuilder.build()
-            } catch (t: Throwable) {
-                throw RuntimeException("Failed to build Viaduct service", t)
-            }
-        }
-    }
-
-    /**
      * Validates that all generated resolver base classes have corresponding implementation classes.
      *
      * When the schema declares @resolver on a field or type, codegen generates a base class
@@ -209,7 +140,7 @@ abstract class FeatureAppTestBase {
      * field returns null at query time with no indication of what went wrong.
      */
     private fun validateResolverImplementations() {
-        val classFinder = tenantResolverClassFinderFactory.create(derivedClassPackagePrefix)
+        val classFinder = tenantResolverClassFinderFactory.create(TenantPackageInfo(derivedClassPackagePrefix))
         val missingResolvers = mutableListOf<String>()
 
         // Check field resolvers (@ResolverFor base classes need a @Resolver subclass).

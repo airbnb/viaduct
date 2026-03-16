@@ -85,15 +85,33 @@ type Film implements Node @scope(to: ["default"]) @resolver {
   Main characters in this film (batch resolver example)
   """
   mainCharacters: [Character] @resolver
+
+  """
+  Character IDs fetched once from the film-character relationship store.
+  Shared by the characters and characterCountSummary resolvers so both
+  fields avoid making separate findCharactersByFilmId calls.
+  """
+  castData: BackingData
+    @resolver
+    @backingData(class: "com.example.starwars.modules.filmography.films.models.FilmCastData")
 }
 
 extend type Query @scope(to: ["default"]) {
   """
   All films
   """
-  allFilms(limit: Int): [Film]
-    @resolver
-    @backingData(class: "com.example.starwars.modules.filmography.films.queries.AllFilmsQueryResolver")
+  allFilms(limit: Int): [Film] @resolver
+  """
+  All films as a paginated connection (Relay-style cursor pagination).
+  Use `first` to set the page size and `after` to page forward from a cursor.
+  The connection also exposes `totalCount` for the total number of films.
+  """
+  allFilmsConnection(
+    "Maximum number of films to return."
+    first: Int
+    "Cursor to start fetching after (exclusive, for forward pagination)."
+    after: String
+  ): FilmsConnection @resolver
 }
 
 # tag::films_connection_example[13] Example of @connection directive for Films

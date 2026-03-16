@@ -231,7 +231,7 @@ private class FieldsObjectBuilder(
 }
 
 private fun GRTClassFilesBuilder.reflectedTypeKmNameForDef(def: ViaductSchema.TypeDef): KmName =
-    def.asTypeExpr().baseTypeKmType(this.pkg, this.baseTypeMapper, null).name.append(".${cfg.REFLECTION_NAME}")
+    def.asTypeExpr().baseTypeKmType(this.pkg, this.baseTypeMapper, null, false).name.append(".${cfg.REFLECTION_NAME}")
 
 private fun GRTClassFilesBuilder.reflectedTypeForDef(def: ViaductSchema.TypeDef): KmType = reflectedTypeKmNameForDef(def).asType()
 

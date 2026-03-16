@@ -22,7 +22,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.asDeferred
 import viaduct.deferred.waitAllDeferreds
 import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.TemporaryBypassAccessCheck
+import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl

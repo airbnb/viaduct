@@ -5,7 +5,6 @@ pluginManagement {
         gradlePluginPortal()
     }
     includeBuild("../../build-logic")
-    includeBuild("../../build-test-plugins")
 }
 
 plugins {
@@ -25,10 +24,12 @@ includeNamed(":tenant:codegen", "../..")
 includeNamed(":tenant:runtime", "../..")
 includeNamed(":tenant:wiring", "../..")
 
-// Include Java API modules
-includeNamed(":x:javaapi:api", "../..")
-includeNamed(":x:javaapi:codegen", "../..")
-includeNamed(":x:javaapi:runtime", "../..")
+// Include Java API modules (skipped when publishMinimal is set — not needed by demoapps)
+if (!providers.gradleProperty("publishMinimal").isPresent) {
+    includeNamed(":x:javaapi:api", "../..")
+    includeNamed(":x:javaapi:codegen", "../..")
+    includeNamed(":x:javaapi:runtime", "../..")
+}
 
 // Include all shared modules
 includeNamed(":shared:apiannotations", "../..")
@@ -41,6 +42,7 @@ includeNamed(":shared:viaductschema", "../..")
 includeNamed(":shared:invariants", "../..")
 includeNamed(":shared:codegen", "../..")
 includeNamed(":shared:mapping", "../..")
+includeNamed(":errors", "../..")
 includeNamed(":snipped:errors", "../..")
 
 // Serve module (development server runtime)

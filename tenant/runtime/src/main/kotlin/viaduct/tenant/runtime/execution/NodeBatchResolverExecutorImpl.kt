@@ -8,14 +8,16 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import viaduct.api.FieldValue
 import viaduct.api.NodeResolverBase
-import viaduct.api.ViaductFrameworkException
-import viaduct.api.ViaductTenantResolverException
 import viaduct.api.internal.ReflectionLoader
-import viaduct.api.wrapResolveException
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.NodeResolverExecutor
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.ResolverType
+import viaduct.engine.api.TenantModuleMetadata
+import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.errors.FrameworkException
+import viaduct.errors.TenantResolverException
+import viaduct.errors.wrapResolveException
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
@@ -28,8 +30,9 @@ class NodeBatchResolverExecutorImpl(
     private val factory: NodeExecutionContextFactory,
     private val resolverName: String,
     override val isSelective: Boolean,
+    private val tenantMetadata: TenantModuleMetadata? = null,
 ) : NodeResolverExecutor {
-    override val metadata = ResolverMetadata.forModern(resolverName)
+    override val metadata = ResolverMetadata.forModern(resolverName, ResolverType.NODE, tenantMetadata)
     override val isBatching = true
 
     override suspend fun resolve(
@@ -47,7 +50,7 @@ class NodeBatchResolverExecutorImpl(
             throw IllegalStateException("Unexpected return value from batchResolve function for node $typeName: $results")
         }
         if (selectors.size != results.size) {
-            throw ViaductTenantResolverException(
+            throw TenantResolverException(
                 IllegalStateException(
                     "The batchResolve function in the Node resolver for $typeName was given a batch of size ${selectors.size} but returned ${results.size} elements"
                 ),
@@ -67,8 +70,8 @@ class NodeBatchResolverExecutorImpl(
             return Result.success(NodeUnbatchedResolverExecutorImpl.unwrapNodeResolverResult(result))
         } catch (e: Exception) {
             if (e is CancellationException) currentCoroutineContext().ensureActive()
-            if (e is ViaductFrameworkException) return Result.failure(e)
-            return Result.failure(ViaductTenantResolverException(e, typeName))
+            if (e is FrameworkException) return Result.failure(e)
+            return Result.failure(TenantResolverException(e, typeName))
         }
     }
 }

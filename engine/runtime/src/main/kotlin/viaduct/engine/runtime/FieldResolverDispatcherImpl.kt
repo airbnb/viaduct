@@ -3,9 +3,9 @@ package viaduct.engine.runtime
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.spi.FieldResolverExecutor
 
 /**
  * Initialized via DispathcerRegistry and resolves a single node for a node type whose

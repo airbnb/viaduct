@@ -18,8 +18,6 @@ import io.kotest.property.arbitrary.intRange
 import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.take
-import io.kotest.property.forAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -29,7 +27,6 @@ import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.utils.allChildrenOfType
 
-@ExperimentalCoroutinesApi
 class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
     @Test
     fun `returns the same data for the same query and same seed`(): Unit =
@@ -95,7 +92,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                 val results = Arb
                     .constant(inp)
                     .map(gql::execute)
-                    .take(10, randomSource())
+                    .take(10, randomSource)
 
                 results.all {
                     it.toSpecification()["data"] == mapOf("__typename" to "Query")
@@ -126,7 +123,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                 val results = Arb
                     .constant(inp)
                     .map(gql::execute)
-                    .take(10, randomSource())
+                    .take(10, randomSource)
 
                 results.all {
                     val data = it.getData<Map<String, Any?>>()
@@ -159,7 +156,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                 val results = Arb
                     .constant(inp)
                     .map(gql::execute)
-                    .take(10, randomSource())
+                    .take(10, randomSource)
 
                 results.all {
                     val data = it.getData<Map<String, Any?>>()
@@ -203,7 +200,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                 val results = Arb
                     .constant(inp)
                     .map(gql::execute)
-                    .take(10, randomSource())
+                    .take(10, randomSource)
 
                 results.all { it.errors.isEmpty() }
             }

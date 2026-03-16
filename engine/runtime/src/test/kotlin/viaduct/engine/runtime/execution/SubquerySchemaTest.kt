@@ -96,7 +96,6 @@ class SubquerySchemaTest {
                             .engineSelectionSet("Query", "internalField", emptyMap())
 
                         val queryResult = ctx.query(
-                            resolverId = "Container.derivedFromInternal",
                             selectionSet = rss
                         )
 
@@ -184,7 +183,6 @@ class SubquerySchemaTest {
                             .engineSelectionSet("Mutation", "internalMutation", emptyMap())
 
                         val mutationResult = ctx.mutation(
-                            resolverId = "Container.triggerInternalMutation",
                             selectionSet = rss
                         )
 
@@ -238,7 +236,6 @@ class SubquerySchemaTest {
                             .engineSelectionSet("Query", "rootValue", emptyMap())
 
                         val queryResult = ctx.query(
-                            resolverId = "Container.derivedFromQuery",
                             selectionSet = rss
                         )
 

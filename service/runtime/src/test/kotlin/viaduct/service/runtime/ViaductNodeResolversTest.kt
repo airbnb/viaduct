@@ -9,11 +9,11 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.FieldResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.runtime.noderesolvers.ViaductQueryNodeResolverModuleBootstrapper

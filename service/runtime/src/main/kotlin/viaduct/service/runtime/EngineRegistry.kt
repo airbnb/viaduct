@@ -3,6 +3,7 @@
 
 package viaduct.service.runtime
 
+import com.google.common.annotations.VisibleForTesting
 import graphql.GraphQL
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -28,6 +29,14 @@ class EngineRegistry private constructor(
     private val schemasById: Map<SchemaId, Lazy<ViaductSchema>> = emptyMap(),
     private val documentProviderFactory: DocumentProviderFactory,
 ) {
+    /**
+     * Returns all schemas (both initialized and lazy)
+     */
+    @VisibleForTesting
+    internal fun getAllSchemas(): Map<SchemaId, Lazy<ViaductSchema>> {
+        return schemasById
+    }
+
     /**
      * Exception thrown when a requested schema is not found in the registry.
      * This is an expected failure case that should be handled gracefully by callers.
@@ -103,6 +112,21 @@ class EngineRegistry private constructor(
                     )
                     registry
                 }
+
+            /**
+             * Create an [EngineRegistry] that reuses schemas from an existing registry, preserving
+             * lazy initialization state.
+             *
+             * @param existingRegistry the existing EngineRegistry to reuse schemas from
+             * @return a new [EngineRegistry] instance that reuses all schemas from the existing registry
+             */
+            fun createWithReusedSchemas(existingRegistry: EngineRegistry): EngineRegistry {
+                val allSchemas = existingRegistry.getAllSchemas()
+                return EngineRegistry(
+                    allSchemas,
+                    documentProviderFactory,
+                )
+            }
 
             @OptIn(ExperimentalCoroutinesApi::class)
             private suspend fun buildScopedSchemas(

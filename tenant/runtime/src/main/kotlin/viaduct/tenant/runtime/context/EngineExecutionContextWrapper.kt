@@ -24,13 +24,11 @@ interface EngineExecutionContextWrapper {
 
     suspend fun <T : Query> query(
         ctx: InternalContext,
-        resolverId: String,
         selections: SelectionSet<T>
     ): T
 
     suspend fun <T : Mutation> mutation(
         ctx: InternalContext,
-        resolverId: String,
         selections: SelectionSet<T>
     ): T
 
@@ -51,22 +49,18 @@ class EngineExecutionContextWrapperImpl(
 ) : EngineExecutionContextWrapper {
     override suspend fun <T : Query> query(
         ctx: InternalContext,
-        resolverId: String,
         selections: SelectionSet<T>
     ): T =
         engineExecutionContext.resolveSelectionSet(
-            resolverId,
             selections.getEngineSelectionSet(),
             ResolveSelectionSetOptions.DEFAULT
         ).toObjectGRT(ctx, selections.type.kcls)
 
     override suspend fun <T : Mutation> mutation(
         ctx: InternalContext,
-        resolverId: String,
         selections: SelectionSet<T>
     ): T =
         engineExecutionContext.resolveSelectionSet(
-            resolverId,
             selections.getEngineSelectionSet(),
             ResolveSelectionSetOptions.MUTATION
         ).toObjectGRT(ctx, selections.type.kcls)
