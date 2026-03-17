@@ -10,6 +10,8 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
 import viaduct.gradle.defaultschema.DefaultSchemaPlugin
+import viaduct.gradle.javafeature.ViaductJavaFeatureAppSchemaTask
+import viaduct.gradle.javafeature.ViaductJavaFeatureAppTenantTask
 import viaduct.gradle.utils.capitalize
 
 /**
@@ -55,7 +57,7 @@ abstract class ViaductFeatureAppPluginBase : Plugin<Project> {
         schemaFile: File,
         packageName: String,
         extractionTask: TaskProvider<Task>
-    ): TaskProvider<out Task>
+    ): TaskProvider<ViaductJavaFeatureAppSchemaTask>
 
     /** Register the tenant-generation task and return its provider. */
     protected abstract fun configureTenantGeneration(
@@ -64,7 +66,7 @@ abstract class ViaductFeatureAppPluginBase : Plugin<Project> {
         schemaFile: File,
         packageName: String,
         schemaTask: TaskProvider<out Task>?
-    ): TaskProvider<out Task>
+    ): TaskProvider<ViaductJavaFeatureAppTenantTask>
 
     // ── concrete lifecycle ──────────────────────────────────────────────
 
@@ -140,8 +142,7 @@ abstract class ViaductFeatureAppPluginBase : Plugin<Project> {
             throw GradleException("Invalid package name '$packageName'. Package name must contain at least one segment (e.g., 'com.example.feature')")
         }
 
-        @Suppress("DEPRECATION")
-        val schemaDir = File(project.buildDir, schemaDirName)
+        val schemaDir = project.layout.buildDirectory.dir(schemaDirName).get().asFile
         val schemaFile = File(schemaDir, "$featureAppName.graphql")
 
         // Create schema extraction task
@@ -166,10 +167,10 @@ abstract class ViaductFeatureAppPluginBase : Plugin<Project> {
         val testSourceSet = javaExtension.sourceSets.getByName("test")
 
         val schemaTask = configureSchemaGeneration(project, featureAppName, schemaFile, packageName, extractionTask)
-        testSourceSet.java.srcDir(schemaTask.map { it.outputs.files })
+        testSourceSet.java.srcDir(schemaTask.flatMap { it.generatedSrcDir })
 
         val tenantTask = configureTenantGeneration(project, featureAppName, schemaFile, packageName, schemaTask)
-        testSourceSet.java.srcDir(tenantTask.map { it.outputs.files })
+        testSourceSet.java.srcDir(tenantTask.flatMap { it.resolverSrcDir })
     }
 
     /**
