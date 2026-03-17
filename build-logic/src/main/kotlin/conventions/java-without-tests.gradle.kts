@@ -1,5 +1,7 @@
 package conventions
 
+import viaduct.gradle.internal.repoRoot
+
 plugins {
     idea
     java
@@ -22,13 +24,7 @@ java {
 
 checkstyle {
     toolVersion = "10.12.4"
-    // Find config file relative to actual OSS root, not the included build
-    val ossRoot = if (rootProject.name == "core") {
-        rootProject.projectDir.parentFile.parentFile
-    } else {
-        rootProject.projectDir
-    }
-    configFile = file("$ossRoot/config/checkstyle/checkstyle.xml")
+    configFile = repoRoot().file("config/checkstyle/checkstyle.xml").get().asFile
     isIgnoreFailures = false
 }
 

@@ -1,5 +1,6 @@
 plugins {
     id("conventions.kotlin")
+    id("conventions.viaduct-publishing")
 }
 
 viaductPublishing {

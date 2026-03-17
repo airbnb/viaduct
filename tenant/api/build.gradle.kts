@@ -6,6 +6,7 @@ plugins {
     id("conventions.kotlin-static-analysis")
     id("conventions.dokka")
     id("conventions.bcv-api")
+    id("conventions.viaduct-publishing")
     id("test-feature-app")
     id("me.champeau.jmh").version("0.7.3")
 }

@@ -5,6 +5,7 @@ plugins {
     id("conventions.kotlin")
     id("conventions.dokka")
     id("conventions.bcv-api")
+    id("conventions.viaduct-publishing")
 }
 
 viaductPublishing {

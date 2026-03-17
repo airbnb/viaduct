@@ -1,6 +1,7 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
+    id("conventions.viaduct-publishing")
     id("test-classdiff")
     id("me.champeau.jmh").version("0.7.3")
     `maven-publish`

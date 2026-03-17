@@ -12,21 +12,29 @@ plugins {
 
 rootProject.name = "viaduct"
 
+// Gradle auto-substitution (matching group:name) only applies to subprojects of proper included
+// builds (IncludedBuildState). ROOT subprojects (RootBuildState) are NOT registered in the
+// composite substitution table, so the three rules below are required for the included demoapp
+// builds to resolve com.airbnb.viaduct:api/runtime/test-fixtures to their local counterparts.
 includeBuild(".") {
     dependencySubstitution {
-        // Bundle modules for simplified dependency management
         substitute(module("com.airbnb.viaduct:api")).using(project(":api"))
         substitute(module("com.airbnb.viaduct:runtime")).using(project(":runtime"))
         substitute(module("com.airbnb.viaduct:test-fixtures")).using(project(":test-fixtures"))
     }
 }
+
+// All included-builds/core subprojects publish under names matching their Gradle project names,
+// so auto-substitution handles them without any explicit rules.
 includeBuild("included-builds/core")
+// The gradle-plugins projects publish under artifact IDs that differ from their Gradle project
+// names (e.g. ":application-plugin" publishes as "application-gradle-plugin"), so explicit
+// substitution is required — auto-substitution can't match them.
 includeBuild("gradle-plugins") {
     dependencySubstitution {
         substitute(module("com.airbnb.viaduct:gradle-plugins-common")).using(project(":common"))
         substitute(module("com.airbnb.viaduct:module-gradle-plugin")).using(project(":module-plugin"))
         substitute(module("com.airbnb.viaduct:application-gradle-plugin")).using(project(":application-plugin"))
-        substitute(module("com.airbnb.viaduct:serve")).using(project(":core:serve"))
     }
 }
 

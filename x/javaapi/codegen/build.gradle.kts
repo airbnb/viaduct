@@ -3,6 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
+    id("conventions.viaduct-publishing")
     id("com.gradleup.shadow")
     application
 }

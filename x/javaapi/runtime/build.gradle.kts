@@ -1,6 +1,7 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
+    id("conventions.viaduct-publishing")
 }
 
 description = "Java Tenant API runtime implementation - bridges Java API to Kotlin engine"
