@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.tenant.codegen.bytecode.util.assertKotlinTypeString
 import viaduct.tenant.codegen.bytecode.util.field
 import viaduct.tenant.codegen.bytecode.util.typedef
@@ -217,5 +218,32 @@ class IdTest {
             assertEquals("Node2", schema.field("Node2", "id").grtNameForIdParam())
             assertEquals(null, schema.field("Node2", "id2").grtNameForIdParam())
             assertEquals("MyNode", schema.field("Node2", "id3").grtNameForIdParam())
+        }
+
+    @Test
+    fun `idOf with non-existent type throws`() =
+        myWithSchema("type Object { f1: ID! @idOf(type: \"NonExistent\") }") {
+            val field = schema.field("Object", "f1")
+            val ex = assertThrows<IllegalArgumentException> {
+                field.assertKotlinTypeString("unused", pkg = pkgName, baseTypeMapper = baseTypeMapper)
+            }
+            assertTrue(ex.message!!.contains("references undefined type"))
+            assertTrue(ex.message!!.contains("NonExistent"))
+        }
+
+    @Test
+    fun `idOf with non-Node type throws`() =
+        myWithSchema(
+            """
+            enum MyEnum { A B }
+            type Object { f1: ID! @idOf(type: "MyEnum") }
+            """.trimIndent()
+        ) {
+            val field = schema.field("Object", "f1")
+            val ex = assertThrows<IllegalArgumentException> {
+                field.assertKotlinTypeString("unused", pkg = pkgName, baseTypeMapper = baseTypeMapper)
+            }
+            assertTrue(ex.message!!.contains("does not implement Node"))
+            assertTrue(ex.message!!.contains("MyEnum"))
         }
 }

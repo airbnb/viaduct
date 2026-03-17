@@ -1,5 +1,8 @@
 package viaduct.tenant.codegen.bytecode
 
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlinx.metadata.KmClassifier
@@ -323,9 +326,9 @@ class KmUtilsTest {
             )
             assertEquals(
                 "java.time.LocalDate.parse(\"2000-01-31\")",
-                input.field("d")!!.type.valueInCtSyntax(java.time.LocalDate.of(2000, 1, 31), pkg)
+                input.field("d")!!.type.valueInCtSyntax(LocalDate.of(2000, 1, 31), pkg)
             )
-            val inst = java.time.LocalDateTime.of(2000, 1, 31, 1, 0, 0).toInstant(java.time.ZoneOffset.of("Z"))
+            val inst = LocalDateTime.of(2000, 1, 31, 1, 0, 0).toInstant(ZoneOffset.of("Z"))
             assertEquals(
                 "java.time.Instant.parse(\"2000-01-31T01:00:00Z\")",
                 input.field("dt")!!.type.valueInCtSyntax(inst, pkg)

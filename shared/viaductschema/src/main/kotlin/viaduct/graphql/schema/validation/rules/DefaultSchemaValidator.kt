@@ -13,6 +13,7 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * - [NoCustomScalarsRule]: Only allows built-in GraphQL scalars
  * - [ApplicationOnlyDefinitionsRule]: Directives and scalars must be defined at application level
  * - [BackingDataFieldsRule]: BackingData type and @backingData directive must be used together
+ * - [IdOfTypeValidationRule]: @idOf type parameter must reference an existing Node type
  */
 object DefaultSchemaValidator {
     private val allowedScalarNames = GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS
@@ -24,7 +25,8 @@ object DefaultSchemaValidator {
                 NoSubscriptionsRule(),
                 NoCustomScalarsRule(allowedScalarNames),
                 ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix),
-                BackingDataFieldsRule()
+                BackingDataFieldsRule(),
+                IdOfTypeValidationRule()
             )
         )
     )

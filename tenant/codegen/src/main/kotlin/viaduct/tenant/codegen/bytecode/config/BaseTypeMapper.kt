@@ -155,9 +155,9 @@ class ViaductBaseTypeMapper(
     ): KmType {
         val idTypeName = this@ViaductBaseTypeMapper.getGlobalIdType().asKmName // The "GlobalID" in GlobalID<Foo>
         val grtTypeName = field?.grtNameForIdParam() // The "Foo" in GlobalID<Foo>
-        val grtBaseTypeDef = grtTypeName?.let { schema.types[it] }
 
-        if (grtTypeName == null || grtBaseTypeDef == null) {
+        if (grtTypeName == null) {
+            // No @idOf directive and not a Node id field — use String
             return KmType().also {
                 it.classifier = KmClassifier.Class(Km.STRING.toString())
                 it.isNullable = this.baseTypeNullable
@@ -167,6 +167,14 @@ class ViaductBaseTypeMapper(
                     }
                 }
             }
+        }
+
+        // @idOf is present — the referenced type MUST exist and implement Node
+        val grtBaseTypeDef = requireNotNull(schema.types[grtTypeName]) {
+            "@idOf(type: \"$grtTypeName\") references undefined type `$grtTypeName`"
+        }
+        require(grtBaseTypeDef.isNode) {
+            "@idOf(type: \"$grtTypeName\") references type `$grtTypeName` which does not implement Node."
         }
 
         val notGraphQLObjectType = (grtBaseTypeDef.kind != ViaductSchema.TypeDefKind.OBJECT)
