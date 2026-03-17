@@ -183,4 +183,15 @@ open class ViaductInstrumentationAdapter(
             checkerExecutor
         }
     }
+
+    override fun beginNodeFetching(
+        parameters: InstrumentNodeFetchingParameters,
+        state: InstrumentationState?
+    ): InstrumentationContext<Any>? {
+        return if (viaductInstrumentation is IViaductInstrumentation.WithBeginNodeFetching) {
+            viaductInstrumentation.beginNodeFetching(parameters, state)
+        } else {
+            noOp()
+        }
+    }
 }

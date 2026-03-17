@@ -9,6 +9,7 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchPar
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
 import viaduct.engine.api.instrumentation.ChainedInstrumentation
+import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
 import viaduct.engine.api.spi.CheckerExecutor
@@ -138,6 +139,21 @@ class ChainedViaductModernInstrumentation private constructor(
         return instrumentAccessCheckInstrumentations.fold(checkerDispatcher) { dispatcher, instr ->
             instr.instrumentAccessCheck(dispatcher, parameters, getState(instr, state))
         }
+    }
+
+    private val beginNodeFetchingInstrumentations by lazy {
+        mapInstrumentations<ViaductModernInstrumentation.WithBeginNodeFetching>()
+    }
+
+    override fun beginNodeFetching(
+        parameters: InstrumentNodeFetchingParameters,
+        state: InstrumentationState?
+    ): InstrumentationContext<Any>? {
+        return ChainedInstrumentationContext(
+            beginNodeFetchingInstrumentations.mapNotNull { instr ->
+                instr.beginNodeFetching(parameters, getState(instr, state))
+            }
+        )
     }
 
     private inline fun <reified T : ViaductModernInstrumentation> mapInstrumentations() =

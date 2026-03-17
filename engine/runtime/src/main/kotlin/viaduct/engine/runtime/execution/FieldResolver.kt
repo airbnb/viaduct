@@ -30,7 +30,9 @@ import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.engineExecutionContext
+import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.runtime.Cell
+import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.LazyEngineObjectData
@@ -516,6 +518,13 @@ class FieldResolver(
                 val engineResult = checkNotNull(result.engineResult as? ObjectEngineResultImpl) {
                     "Expected ObjectEngineResultImpl but got ${result.engineResult}"
                 }
+                val nodeResolverMetadata = (parameters.engineExecutionContext as? EngineExecutionContextImpl)
+                    ?.dispatcherRegistry?.getNodeResolverDispatcher(engineResult.type.name)?.resolverMetadata
+                val nodeInstrCtx = parameters.instrumentation.beginNodeFetching(
+                    InstrumentNodeFetchingParameters(env, nodeResolverMetadata),
+                    parameters.executionContext.instrumentationState
+                )
+                nodeInstrCtx?.onDispatched()
                 parameters.launchOnRootScope {
                     try {
                         val dataFetchingEnvironment = env.get()
@@ -525,9 +534,11 @@ class FieldResolver(
                             )
                         originalSource.resolveData(selections, dataFetchingEnvironment.engineExecutionContext)
                         engineResult.resolve()
+                        nodeInstrCtx?.onCompleted(null, null)
                     } catch (e: Exception) {
                         if (e is CancellationException) currentCoroutineContext().ensureActive()
                         engineResult.resolveExceptionally(e)
+                        nodeInstrCtx?.onCompleted(null, e)
                     }
                 }
             }

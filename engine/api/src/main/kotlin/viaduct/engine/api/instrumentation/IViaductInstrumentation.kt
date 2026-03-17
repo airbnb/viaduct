@@ -179,6 +179,13 @@ interface IViaductInstrumentation {
         ): InstrumentationContext<Any>
     }
 
+    interface WithBeginNodeFetching : IViaductInstrumentation {
+        fun beginNodeFetching(
+            parameters: InstrumentNodeFetchingParameters,
+            state: InstrumentationState?
+        ): InstrumentationContext<Any>?
+    }
+
     interface WithInstrumentAccessCheck : IViaductInstrumentation {
         fun instrumentAccessCheck(
             checkerExecutor: CheckerExecutor,

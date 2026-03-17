@@ -8,10 +8,13 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldComplete
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
+import graphql.schema.DataFetchingEnvironment
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import java.util.function.Supplier
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -27,7 +30,8 @@ class ViaductInstrumentationAdapterTest {
         IViaductInstrumentation.WithBeginFieldExecution,
         IViaductInstrumentation.WithBeginFieldCompletion,
         IViaductInstrumentation.WithBeginFieldListCompletion,
-        IViaductInstrumentation.WithInstrumentAccessCheck {
+        IViaductInstrumentation.WithInstrumentAccessCheck,
+        IViaductInstrumentation.WithBeginNodeFetching {
         var beginFetchObjectCalled = false
         var beginCompleteObjectCalled = false
         var instrumentDataFetcherCalled = false
@@ -36,6 +40,7 @@ class ViaductInstrumentationAdapterTest {
         var beginFieldCompletionCalled = false
         var beginFieldListCompletionCalled = false
         var instrumentAccessCheckCalled = false
+        var beginNodeFetchingCalled = false
 
         override fun beginFetchObject(
             parameters: InstrumentationExecutionStrategyParameters,
@@ -101,6 +106,14 @@ class ViaductInstrumentationAdapterTest {
         ): CheckerExecutor {
             instrumentAccessCheckCalled = true
             return checkerExecutor
+        }
+
+        override fun beginNodeFetching(
+            parameters: InstrumentNodeFetchingParameters,
+            state: InstrumentationState?
+        ): InstrumentationContext<Any>? {
+            beginNodeFetchingCalled = true
+            return noOp()
         }
     }
 
@@ -185,5 +198,30 @@ class ViaductInstrumentationAdapterTest {
 
         instrumentation.instrumentAccessCheck(mockk(), mockk(), mockk())
         assert(instrumentationBase.instrumentAccessCheckCalled)
+
+        val nodeFetchingParams = InstrumentNodeFetchingParameters(
+            Supplier { mockk<DataFetchingEnvironment>() },
+            null,
+        )
+        instrumentation.beginNodeFetching(nodeFetchingParams, null)
+        assert(instrumentationBase.beginNodeFetchingCalled)
+    }
+
+    @Test
+    fun `asStandardInstrumentation method returns adapter`() {
+        val base = TestModernInstrumentation()
+        val adapter = base.asStandardInstrumentation()
+        assertTrue(adapter is ViaductModernGJInstrumentation)
+    }
+
+    @Test
+    fun `beginNodeFetching returns noOp when WithBeginNodeFetching is not implemented`() {
+        val instrumentation = standardInstrumentationBase.asStandardInstrumentation
+        val nodeFetchingParams = InstrumentNodeFetchingParameters(
+            Supplier { mockk<DataFetchingEnvironment>() },
+            null,
+        )
+        val result = instrumentation.beginNodeFetching(nodeFetchingParams, null)
+        assertNotNull(result)
     }
 }

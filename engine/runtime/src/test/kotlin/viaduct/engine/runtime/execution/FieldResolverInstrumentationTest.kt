@@ -1,6 +1,7 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
+import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.schema.DataFetcher
@@ -19,10 +20,17 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
+import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.NodeEngineObjectDataImpl
+import viaduct.engine.runtime.NodeResolverDispatcher
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 
@@ -277,6 +285,131 @@ class FieldResolverInstrumentationTest {
                 assertEquals("data fetcher failed", capturedError?.message) {
                     "Data fetcher error should take priority over field checker error"
                 }
+            }
+    }
+
+    @Nested
+    inner class NodeFetchingInstrumentationTest {
+        private val sdl = """
+            type Query { foo: Foo }
+            type Foo { id: ID! }
+        """.trimIndent()
+
+        private fun nodeInstrumentation(
+            onBeginFetching: (InstrumentNodeFetchingParameters) -> Unit = {},
+            onCompleted: (Any?, Throwable?) -> Unit = { _, _ -> }
+        ) = object : ViaductModernInstrumentation.WithBeginNodeFetching {
+            override fun beginNodeFetching(
+                parameters: InstrumentNodeFetchingParameters,
+                state: InstrumentationState?
+            ): InstrumentationContext<Any>? {
+                onBeginFetching(parameters)
+                return object : InstrumentationContext<Any> {
+                    override fun onDispatched() {}
+
+                    override fun onCompleted(
+                        result: Any?,
+                        t: Throwable?
+                    ) = onCompleted(result, t)
+                }
+            }
+        }
+
+        private fun buildDispatcherRegistry(
+            resolverName: String = "foo-node-resolver",
+            resolveBlock: suspend (id: String, context: EngineExecutionContext) -> EngineObjectData
+        ): DispatcherRegistry {
+            val nodeRes = object : NodeResolverDispatcher {
+                override val resolverMetadata = ResolverMetadata.forMock(resolverName)
+
+                override suspend fun resolve(
+                    id: String,
+                    selections: EngineSelectionSet,
+                    context: EngineExecutionContext
+                ): EngineObjectData = resolveBlock(id, context)
+            }
+            return DispatcherRegistry.Impl(
+                fieldResolverDispatchers = emptyMap(),
+                nodeResolverDispatchers = mapOf("Foo" to nodeRes),
+                fieldCheckerDispatchers = emptyMap(),
+                typeCheckerDispatchers = emptyMap()
+            )
+        }
+
+        @Test
+        @DisplayName("beginNodeFetching is called with correct resolver metadata when node resolver is triggered")
+        fun beginNodeFetchingCalledWithCorrectResolverMetadata() =
+            runExecutionTest {
+                var capturedMetadata: ResolverMetadata? = null
+                val onCompletedCalled = CountDownLatch(1)
+
+                val dispatcherRegistry = buildDispatcherRegistry { id, context ->
+                    val fooType = context.fullSchema.schema.getObjectType("Foo")
+                    createEngineObjectData(fooType, mapOf("id" to id))
+                }
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "foo" to DataFetcher { dfe ->
+                            NodeEngineObjectDataImpl("1", dfe.graphQLSchema.getObjectType("Foo"), dispatcherRegistry)
+                        }
+                    ),
+                    "Foo" to mapOf("id" to DataFetcher { "1" })
+                )
+
+                executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = "{ foo { id } }",
+                    instrumentations = listOf(
+                        nodeInstrumentation(
+                            onBeginFetching = { capturedMetadata = it.resolverMetadata },
+                            onCompleted = { _, _ -> onCompletedCalled.countDown() }
+                        )
+                    ),
+                    dispatcherRegistry = dispatcherRegistry
+                )
+
+                assertTrue(onCompletedCalled.await(1, TimeUnit.SECONDS)) { "beginNodeFetching onCompleted was never called" }
+                assertEquals("foo-node-resolver", capturedMetadata?.name) { "resolverMetadata should have correct node resolver name" }
+            }
+
+        @Test
+        @DisplayName("beginNodeFetching onCompleted receives error when node resolver fails")
+        fun beginNodeFetchingOnCompletedReceivesErrorWhenNodeResolverFails() =
+            runExecutionTest {
+                var capturedError: Throwable? = null
+                val onCompletedCalled = CountDownLatch(1)
+
+                val dispatcherRegistry = buildDispatcherRegistry { _, _ ->
+                    throw RuntimeException("node resolver failed")
+                }
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "foo" to DataFetcher { dfe ->
+                            NodeEngineObjectDataImpl("1", dfe.graphQLSchema.getObjectType("Foo"), dispatcherRegistry)
+                        }
+                    ),
+                    "Foo" to mapOf("id" to DataFetcher { "1" })
+                )
+
+                executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = resolvers,
+                    query = "{ foo { id } }",
+                    instrumentations = listOf(
+                        nodeInstrumentation(
+                            onCompleted = { _, t ->
+                                capturedError = t
+                                onCompletedCalled.countDown()
+                            }
+                        )
+                    ),
+                    dispatcherRegistry = dispatcherRegistry
+                )
+
+                assertTrue(onCompletedCalled.await(1, TimeUnit.SECONDS)) { "beginNodeFetching onCompleted was never called" }
+                assertTrue(capturedError is RuntimeException) { "Expected RuntimeException but got ${capturedError?.javaClass}" }
+                assertEquals("node resolver failed", capturedError?.message)
             }
     }
 }

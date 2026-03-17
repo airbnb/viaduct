@@ -149,6 +149,16 @@ interface ViaductModernInstrumentation {
                     return noOp()
                 }
 
+                override fun beginNodeFetching(
+                    parameters: InstrumentNodeFetchingParameters,
+                    state: InstrumentationState?
+                ): InstrumentationContext<Any>? {
+                    if (viaductInstrumentation is WithBeginNodeFetching) {
+                        return viaductInstrumentation.beginNodeFetching(parameters, state)
+                    }
+                    return noOp()
+                }
+
                 override fun instrumentDocumentAndVariables(
                     documentAndVariables: DocumentAndVariables,
                     parameters: InstrumentationExecutionParameters,
@@ -317,6 +327,13 @@ interface ViaductModernInstrumentation {
     interface WithBeginFieldListCompletion : ViaductModernInstrumentation {
         fun beginFieldListCompletion(
             parameters: InstrumentationFieldCompleteParameters,
+            state: InstrumentationState?
+        ): InstrumentationContext<Any>?
+    }
+
+    interface WithBeginNodeFetching : ViaductModernInstrumentation {
+        fun beginNodeFetching(
+            parameters: InstrumentNodeFetchingParameters,
             state: InstrumentationState?
         ): InstrumentationContext<Any>?
     }
@@ -552,5 +569,12 @@ interface ViaductModernGJInstrumentation : Instrumentation {
         state: InstrumentationState?
     ): CheckerExecutor {
         return checkerExecutor
+    }
+
+    fun beginNodeFetching(
+        parameters: InstrumentNodeFetchingParameters,
+        state: InstrumentationState?
+    ): InstrumentationContext<Any>? {
+        return noOp()
     }
 }

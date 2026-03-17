@@ -40,4 +40,14 @@ open class ChainedModernGJInstrumentation(
 
         return instrumentedChecker
     }
+
+    override fun beginNodeFetching(
+        parameters: InstrumentNodeFetchingParameters,
+        state: InstrumentationState?
+    ): InstrumentationContext<Any>? =
+        ChainedInstrumentationContext(
+            gjInstrumentations.mapNotNull { instr ->
+                instr.beginNodeFetching(parameters, getState(instr, state))
+            }
+        )
 }
