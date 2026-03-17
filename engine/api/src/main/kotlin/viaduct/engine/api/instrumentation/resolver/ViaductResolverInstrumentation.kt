@@ -66,6 +66,7 @@ interface ViaductResolverInstrumentation {
     data class InstrumentExecuteResolverParameters(
         val resolverMetadata: ResolverMetadata,
         val fieldCoordinate: Coordinate? = null,
+        val syncValueComputation: Boolean = false,
     )
 
     /**

@@ -20,6 +20,7 @@ class InstrumentedFieldResolverDispatcher(
     val dispatcher: FieldResolverDispatcher,
     val instrumentation: ViaductResolverInstrumentation,
     val coordinate: Coordinate? = null,
+    val syncValueComputation: Boolean = false,
 ) : FieldResolverDispatcher {
     override val objectSelectionSet get() = dispatcher.objectSelectionSet
     override val querySelectionSet get() = dispatcher.querySelectionSet
@@ -41,6 +42,7 @@ class InstrumentedFieldResolverDispatcher(
         val resolverExecuteParam = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
             resolverMetadata = dispatcher.resolverMetadata,
             fieldCoordinate = coordinate,
+            syncValueComputation = syncValueComputation,
         )
 
         val instrumentedObjectValue = InstrumentedEngineObjectData(objectValue, instrumentation, state)

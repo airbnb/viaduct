@@ -97,6 +97,46 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
+    fun `resolve passes syncValueComputation to instrumentation parameters`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation, syncValueComputation = true)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, mockk())
+
+            // Then
+            val executeContext = instrumentation.executeResolverContexts.first()
+            assertEquals(true, executeContext.parameters.syncValueComputation)
+        }
+
+    @Test
+    fun `resolve defaults syncValueComputation to false`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, mockk())
+
+            // Then
+            val executeContext = instrumentation.executeResolverContexts.first()
+            assertEquals(false, executeContext.parameters.syncValueComputation)
+        }
+
+    @Test
     fun `resolve calls instrumentation with error on exception`() =
         runBlocking {
             // Given
