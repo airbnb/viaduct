@@ -130,7 +130,8 @@ object FieldExecutionHelpers {
                         executionContext = parameters.executionContext,
                     ),
                     ExecutionObservabilityContext(
-                        resolverMetadata = fieldResolverMetadata
+                        resolverMetadata = fieldResolverMetadata,
+                        attribution = parameters.queryPlan.attribution
                     )
                 )
             }
