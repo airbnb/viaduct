@@ -12,27 +12,15 @@ java {
 }
 
 dependencies {
-    implementation(project(":common"))
+    implementation(project(":plugins-common"))
 
     // Your runtime helpers used by the plugin implementation (keep as needed)
     implementation(libs.viaduct.tenant.codegen)
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.viaductschema)
 
-    // StringTemplate utilities for scaffolding (includes ST4 transitively)
-    implementation(libs.viaduct.shared.codegen)
-
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)
-
-    // Serve runtime (development server with GraphiQL)
-    implementation(libs.viaduct.serve)
-
-    // Testing
-    testImplementation(libs.kotlin.test)
-    testImplementation(libs.junit)
-    testImplementation(libs.kotest.assertions.core.jvm)
-    testRuntimeOnly(libs.junit.engine)
 }
 
 // Manifest with Implementation-Version for runtime access if you need it
@@ -50,19 +38,17 @@ gradlePlugin {
     vcsUrl = "https://github.com/airbnb/viaduct"
 
     plugins {
-        create("viaductApplication") {
-            // e.g., com.airbnb.viaduct.application-gradle-plugin
-            id = "$group.application-gradle-plugin"
-            implementationClass = "viaduct.gradle.ViaductApplicationPlugin"
-            displayName = "Viaduct :: Application Plugin"
-            description = "Application plugin for Viaduct-based apps."
+        create("viaductModule") {
+            id = "$group.module-gradle-plugin"
+            implementationClass = "viaduct.gradle.ViaductModulePlugin"
+            displayName = "Viaduct :: Module Plugin"
+            description = "Module plugin for Viaduct tenant modules."
             tags.set(listOf("viaduct", "graphql", "kotlin"))
         }
     }
 }
 
 viaductPublishing {
-    name.set("Application Gradle Plugin")
-    description.set("Gradle plugin for Viaduct application projects.")
-    artifactId.set("application-gradle-plugin")
+    name.set("Module Gradle Plugin")
+    description.set("Gradle plugin for Viaduct tenant modules.")
 }

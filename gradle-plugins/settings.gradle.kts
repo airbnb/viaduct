@@ -22,6 +22,6 @@ plugins {
     id("settings.common")
 }
 
-includeNamed(":common")
-includeNamed(":application-plugin")
-includeNamed(":module-plugin")
+includeNamed(":common", projectName = "plugins-common")
+includeNamed(":application", projectName = "plugins-application")
+includeNamed(":module", projectName = "plugins-module")

@@ -14,7 +14,6 @@ dependencies {
 }
 
 viaductPublishing {
-    artifactId.set("gradle-plugins-common")
     name.set("Common Gradle Plugin Libraries")
     description.set("Common libs used by Viaduct Gradle plugins.")
 }

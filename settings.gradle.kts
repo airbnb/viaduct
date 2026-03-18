@@ -27,16 +27,9 @@ includeBuild(".") {
 // so auto-substitution handles them without any explicit rules.
 includeBuild("included-builds/core")
 
-// The gradle-plugins projects publish under artifact IDs that differ from their Gradle project
-// names (e.g. ":application-plugin" publishes as "application-gradle-plugin"), so explicit
-// substitution is required — auto-substitution can't match them.
-includeBuild("gradle-plugins") {
-    dependencySubstitution {
-        substitute(module("com.airbnb.viaduct:gradle-plugins-common")).using(project(":common"))
-        substitute(module("com.airbnb.viaduct:module-gradle-plugin")).using(project(":module-plugin"))
-        substitute(module("com.airbnb.viaduct:application-gradle-plugin")).using(project(":application-plugin"))
-    }
-}
+// All gradle-plugins subprojects publish under names matching their Gradle project names,
+// so auto-substitution handles them without any explicit rules.
+includeBuild("gradle-plugins")
 
 // demo apps
 includeBuild("demoapps/cli-starter")

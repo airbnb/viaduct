@@ -90,7 +90,7 @@ viaduct-shared-utils = { module = "com.airbnb.viaduct:shared-utils", version.ref
 viaduct-shared-viaductschema = { module = "com.airbnb.viaduct:shared-viaductschema", version.ref = "project" }
 viaduct-errors = { module = "com.airbnb.viaduct:errors", version.ref = "project" }
 
-viaduct-gradle-plugins-common = { module = "com.airbnb.viaduct:gradle-plugins-common", version.ref = "project" }
+viaduct-gradle-plugins-common = { module = "com.airbnb.viaduct:plugins-common", version.ref = "project" }
 viaduct-build-shared = { module = "com.airbnb.viaduct:build-shared", version.ref = "project" }
 
 viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version.ref = "project" }
