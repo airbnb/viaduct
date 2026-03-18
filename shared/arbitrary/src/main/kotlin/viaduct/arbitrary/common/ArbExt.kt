@@ -59,7 +59,7 @@ private class Flatten<T>(
 ) : Arb<T>() {
     private var chunk: Iterator<T>? = null
 
-    override fun edgecase(rs: RandomSource): T? = underlying.edgecase(rs)?.takeIf { it.hasNext() }?.next()
+    override fun edgecase(rs: RandomSource): T? = null
 
     override fun sample(rs: RandomSource): Sample<T> {
         while (chunk == null || chunk?.hasNext() == false) {
