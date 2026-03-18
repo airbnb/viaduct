@@ -12,5 +12,5 @@ orchestration {
 }
 
 tasks.named("publishToMavenLocal") {
-    dependsOn(gradle.includedBuild("build-logic").task(":shared:publishToMavenLocal"))
+    dependsOn(gradle.includedBuild("build-logic").task(":build-shared:publishToMavenLocal"))
 }

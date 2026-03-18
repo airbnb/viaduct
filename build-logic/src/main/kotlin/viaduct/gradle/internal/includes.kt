@@ -15,7 +15,7 @@ fun Settings.includeNamed(
     projectName: String? = null
 ) {
     include(path)
-    project(path).projectDir = File("$rootPath${path.replace(":", "/")}")
+    project(path).projectDir = File(settingsDir, "$rootPath${path.replace(":", "/")}")
     val name = projectName ?: path.trimStart(':').replace(":", "-")
     project(path).name = name
 }

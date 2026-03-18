@@ -32,7 +32,7 @@ dependencies {
     testImplementation(libs.kotest.assertions.core.jvm)
 
     // For GraphQLInput interface in exercise tests
-    testImplementation(project(":x:javaapi:x-javaapi-api"))
+    testImplementation(project(":x:javaapi:javaapi-api"))
 }
 
 // Create fat jar with all dependencies for CLI usage

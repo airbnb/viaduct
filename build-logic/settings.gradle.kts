@@ -14,8 +14,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "build-logic"
 
-include(":common")
-include(":shared")
+include(":build-common")
+project(":build-common").projectDir = file("common")
+include(":build-shared")
+project(":build-shared").projectDir = file("shared")
 include(":test-support")
 
 // build-logic's .gradle/ and build/ dirs are redirected to dist/ via symlinks

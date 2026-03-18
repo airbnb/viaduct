@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm")
 }
 
-group = "com.airbnb.viaduct.build"
+group = "com.airbnb.viaduct"
 
 dependencies {
     compileOnly(libs.detekt.api)

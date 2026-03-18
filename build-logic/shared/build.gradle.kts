@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
 }
 
-group = "com.airbnb.viaduct.build"
+group = "com.airbnb.viaduct"
 
 fun findVersionFile(start: File): File {
     var d: File? = start

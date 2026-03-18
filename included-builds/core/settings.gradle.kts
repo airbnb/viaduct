@@ -22,13 +22,14 @@ includeNamed(":service:wiring", "../..")
 includeNamed(":tenant:api", "../..")
 includeNamed(":tenant:codegen", "../..")
 includeNamed(":tenant:runtime", "../..")
+includeNamed(":tenant:tutorials", "../..")
 includeNamed(":tenant:wiring", "../..")
 
 // Include Java API modules (skipped when publishMinimal is set — not needed by demoapps)
 if (!providers.gradleProperty("publishMinimal").isPresent) {
-    includeNamed(":x:javaapi:api", "../..")
-    includeNamed(":x:javaapi:codegen", "../..")
-    includeNamed(":x:javaapi:runtime", "../..")
+    includeNamed(":x:javaapi:api", "../..", projectName = "javaapi-api")
+    includeNamed(":x:javaapi:codegen", "../..", projectName = "javaapi-codegen")
+    includeNamed(":x:javaapi:runtime", "../..", projectName = "javaapi-runtime")
 }
 
 // Include all shared modules

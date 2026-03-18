@@ -2,13 +2,14 @@ plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     id("conventions.viaduct-publishing")
+    id("test-java-feature-app")
 }
 
 description = "Java Tenant API runtime implementation - bridges Java API to Kotlin engine"
 
 dependencies {
     // Java API that this runtime implements
-    api(project(":x:javaapi:x-javaapi-api"))
+    api(project(":x:javaapi:javaapi-api"))
 
     // Viaduct engine API (Kotlin)
     api(libs.viaduct.engine.api)
@@ -34,6 +35,9 @@ dependencies {
 
     // Shared GraphQL utils (for collectVariableReferences extension)
     implementation(libs.viaduct.shared.graphql)
+
+    // Java codegen classpath for process-isolated schema/tenant generation
+    viaductCodegenClasspath(libs.viaduct.javaapi.codegen)
 
     // Testing
     testImplementation(libs.assertj.core)
