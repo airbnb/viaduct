@@ -133,7 +133,7 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
         val offsetLimit = this.arguments.toOffsetLimit()
         val offset = if (offsetLimit.backwards) maxOf(0, items.size - offsetLimit.limit) else offsetLimit.offset
         val slice = items.drop(offset).take(offsetLimit.limit)
-        val hasNextPage = offset + offsetLimit.limit < items.size
+        val hasNextPage = offset.toLong() + offsetLimit.limit.toLong() < items.size
         return buildEdges(slice, hasNextPage, offset, offsetLimit.limit, buildNode)
     }
 

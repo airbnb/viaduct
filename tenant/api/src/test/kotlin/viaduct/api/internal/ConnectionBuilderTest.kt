@@ -432,7 +432,7 @@ class ConnectionBuilderTest {
         val fullList = (0..4).map { SimpleTestNode("$it", "Node$it") }
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -451,7 +451,7 @@ class ConnectionBuilderTest {
         val fullList = (0..9).map { SimpleTestNode("$it", "Node$it") }
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -468,7 +468,7 @@ class ConnectionBuilderTest {
         val fullList = (0..9).map { SimpleTestNode("$it", "Node$it") }
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -522,7 +522,7 @@ class ConnectionBuilderTest {
 
         // Request all 5 items - fromList determines hasNextPage from list size
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -559,7 +559,7 @@ class ConnectionBuilderTest {
         val fullList = listOf(SimpleTestNode("1", "Node1"), SimpleTestNode("2", "Node2"))
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -580,7 +580,7 @@ class ConnectionBuilderTest {
         val fullList = (0..4).map { SimpleTestNode("$it", "Node$it") }
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -654,7 +654,7 @@ class ConnectionBuilderTest {
         val fullList = (0..9).map { SimpleTestNode("$it", "Node$it") }
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -679,7 +679,7 @@ class ConnectionBuilderTest {
         val fullList = (0..9).map { SimpleTestNode("$it", "Node$it") }
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -701,7 +701,7 @@ class ConnectionBuilderTest {
         val fullList = (0..9).map { SimpleTestNode("$it", "Node$it") }
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -725,7 +725,7 @@ class ConnectionBuilderTest {
         val fullList = (0..2).map { SimpleTestNode("$it", "Node$it") }
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
@@ -744,13 +744,74 @@ class ConnectionBuilderTest {
     }
 
     @Test
+    fun `fromList with Int MAX_VALUE first and after cursor does not overflow hasNextPage`() {
+        // Regression test: offset + Int.MAX_VALUE overflows if plain Int arithmetic is used.
+        // With first=Int.MAX_VALUE and an after cursor, hasNextPage must be false (everything returned).
+        val afterCursor = OffsetCursor.fromOffset(4)
+        val args = TestForwardArgs(first = Int.MAX_VALUE, after = afterCursor.value)
+        val builder = createBuilder(args)
+        val fullList = (0..9).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(fullList) { node ->
+            createNodeGRT(node)
+        }
+
+        val eod = builder.getBuiltEngineObjectData()
+        val pageInfo = runBlocking { eod.fetch("pageInfo") } as EngineObject
+        val hasNextPage = runBlocking { (pageInfo as EngineObjectData).fetch("hasNextPage") }
+
+        // Should be false — we fetched everything after cursor 4, there is no next page
+        assertFalse(hasNextPage as Boolean)
+    }
+
+    @Test
+    fun `fromList with Int MAX_VALUE first and no cursor returns all items`() {
+        val args = TestForwardArgs(first = Int.MAX_VALUE)
+        val builder = createBuilder(args)
+        val fullList = (0..9).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(fullList) { node ->
+            createNodeGRT(node)
+        }
+
+        val eod = builder.getBuiltEngineObjectData()
+        val builtEdges = runBlocking { eod.fetch("edges") } as List<*>
+        assertEquals(10, builtEdges.size)
+
+        val pageInfo = runBlocking { eod.fetch("pageInfo") } as EngineObject
+        val hasNextPage = runBlocking { (pageInfo as EngineObjectData).fetch("hasNextPage") }
+        assertFalse(hasNextPage as Boolean)
+    }
+
+    @Test
+    fun `fromList with Int MAX_VALUE last and no cursor returns all items`() {
+        val args = TestBackwardArgs(last = Int.MAX_VALUE)
+        val builder = createBuilder(args)
+        val fullList = (0..9).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(fullList) { node ->
+            createNodeGRT(node)
+        }
+
+        val eod = builder.getBuiltEngineObjectData()
+        val builtEdges = runBlocking { eod.fetch("edges") } as List<*>
+        assertEquals(10, builtEdges.size)
+
+        val pageInfo = runBlocking { eod.fetch("pageInfo") } as EngineObject
+        val hasNextPage = runBlocking { (pageInfo as EngineObjectData).fetch("hasNextPage") }
+        val hasPreviousPage = runBlocking { (pageInfo as EngineObjectData).fetch("hasPreviousPage") }
+        assertFalse(hasNextPage as Boolean)
+        assertFalse(hasPreviousPage as Boolean)
+    }
+
+    @Test
     fun `fromList with multidirectional backward pagination without cursor returns last N items`() {
         val args = TestMultidirectionalArgs(last = 4)
         val builder = createBuilder(args)
         val fullList = (0..9).map { SimpleTestNode("$it", "Node$it") }
 
         builder.fromList(fullList) { node ->
-            createNodeGRT(node as SimpleTestNode)
+            createNodeGRT(node)
         }
 
         val eod = builder.getBuiltEngineObjectData()
