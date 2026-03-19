@@ -5,9 +5,16 @@ plugins {
     id("test-java-feature-app")
 }
 
+viaductJavaFeatureApp {
+    fileNamePattern.set(".*(FeatureApp|FeatureAppTest|ContractTest).*")
+}
+
 description = "Java Tenant API runtime implementation - bridges Java API to Kotlin engine"
 
 dependencies {
+    // Java codegen classpath for process-isolated schema/tenant generation
+    viaductCodegenClasspath(libs.viaduct.javaapi.codegen)
+
     // Java API that this runtime implements
     api(project(":x:javaapi:javaapi-api"))
 

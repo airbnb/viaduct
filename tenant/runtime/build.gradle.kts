@@ -36,6 +36,7 @@ dependencies {
     implementation(libs.viaduct.shared.apiannotations)
 
     testFixturesImplementation(libs.viaduct.engine.api)
+    testFixturesImplementation(testFixtures(libs.viaduct.shared.graphql))
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
     testFixturesImplementation(libs.viaduct.service.runtime)
     testFixturesImplementation(libs.viaduct.service.wiring)
