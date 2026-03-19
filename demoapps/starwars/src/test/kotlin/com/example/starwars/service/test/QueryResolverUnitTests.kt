@@ -3,6 +3,7 @@
 package com.example.starwars.service.test
 
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
+import com.example.starwars.modules.filmography.characters.queries.AllCharactersConnectionQueryResolver
 import com.example.starwars.modules.filmography.characters.queries.AllCharactersQueryResolver
 import com.example.starwars.modules.filmography.characters.queries.SearchCharacterQueryResolver
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
@@ -27,6 +28,7 @@ import viaduct.api.grts.Character
 import viaduct.api.grts.CharacterSearchInput
 import viaduct.api.grts.Film
 import viaduct.api.grts.Planet
+import viaduct.api.grts.Query_AllCharactersConnection_Arguments
 import viaduct.api.grts.Query_AllCharacters_Arguments
 import viaduct.api.grts.Query_AllFilms_Arguments
 import viaduct.api.grts.Query_AllPlanets_Arguments
@@ -35,6 +37,7 @@ import viaduct.api.grts.Query_AllVehicles_Arguments
 import viaduct.api.grts.Query_SearchCharacter_Arguments
 import viaduct.api.grts.Species
 import viaduct.api.grts.Vehicle
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -284,5 +287,31 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
 
             assertNotNull(result)
             assertEquals(ref.name, result.first().get().getName())
+        }
+
+    @OptIn(ExperimentalApi::class)
+    @Test
+    fun `allCharactersConnection paginates forward and reports correct page info`(): Unit =
+        runBlocking {
+            val resolver = AllCharactersConnectionQueryResolver(characterRepository)
+
+            // Request first 3 of 5 characters
+            val firstPageArgs = Query_AllCharactersConnection_Arguments.Builder(context).first(3).build()
+
+            val firstPage = runFieldResolver(resolver = resolver, arguments = firstPageArgs)
+
+            assertNotNull(firstPage)
+            firstPage!!
+            assertEquals(3, firstPage.getEdges()!!.size)
+            val endCursor = firstPage.getEdges()!!.last()!!.getCursor()
+            assertNotNull(endCursor)
+
+            // Request next 3 from endCursor — only 2 characters remain
+            val secondPageArgs = Query_AllCharactersConnection_Arguments.Builder(context).first(3).after(endCursor).build()
+
+            val secondPage = runFieldResolver(resolver = resolver, arguments = secondPageArgs)
+
+            assertNotNull(secondPage)
+            assertEquals(2, secondPage!!.getEdges()!!.size)
         }
 }

@@ -9,6 +9,7 @@ import kotlin.reflect.full.primaryConstructor
 import viaduct.api.FieldValue
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
+import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
@@ -20,6 +21,7 @@ import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ObjectBaseTestHelpers
 import viaduct.api.internal.internal
 import viaduct.api.internal.select.SelectionSetFactory
+import viaduct.api.mocks.MockConnectionFieldExecutionContext
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.mocks.MockFieldExecutionContext
 import viaduct.api.mocks.MockInternalContext
@@ -31,10 +33,13 @@ import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
+import viaduct.api.types.Connection
+import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.ViaductSchema
@@ -122,7 +127,7 @@ import viaduct.tenant.runtime.select.SelectionSetImpl
         "See FieldResolverTester, MutationResolverTester, or NodeResolverTester for the new API.",
     level = DeprecationLevel.WARNING
 )
-@OptIn(VisibleForTest::class, InternalApi::class)
+@OptIn(VisibleForTest::class, InternalApi::class, ExperimentalApi::class)
 interface ResolverTestBase {
     /**
      * An ExecutionContext that can be used to construct a builder, e.g. Foo.Builder(context).
@@ -397,14 +402,18 @@ interface ResolverTestBase {
         selections: SelectionSet<*> = SelectionSet.NoSelections,
         contextQueries: List<Query> = emptyList()
     ): FieldExecutionContext<*, *, *, *> {
-        val innerCtx = createNodeExecutionContext(
-            objectValue,
-            queryValue,
-            arguments,
-            requestContext,
-            selections,
-            contextQueries
-        )
+        val isConnectionContext = ConnectionFieldExecutionContext::class.java.isAssignableFrom(ctxKClass.java)
+        val innerCtx = if (isConnectionContext) {
+            val connectionArguments = arguments as? ConnectionArguments
+                ?: throw IllegalArgumentException(
+                    "Resolver (${ctxKClass.qualifiedName}) uses ConnectionFieldExecutionContext but the provided " +
+                        "arguments do not implement ConnectionArguments. " +
+                        "Pass a ConnectionArguments instance to runFieldResolver()."
+                )
+            createConnectionFieldExecutionContext(objectValue, queryValue, connectionArguments, requestContext, selections, contextQueries)
+        } else {
+            createFieldExecutionContext(objectValue, queryValue, arguments, requestContext, selections, contextQueries)
+        }
         // Primary constructor is null when Ctx is FieldExecutionContext
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
@@ -551,7 +560,7 @@ inline fun <reified ctx : FieldExecutionContext<*, *, *, *>> ResolverTestBase.cr
 ): ctx = createFieldResolverContext(ctx::class, objectValue, queryValue, arguments, requestContext, selections, contextQueries) as ctx
 
 @OptIn(InternalApi::class)
-private fun ResolverTestBase.createNodeExecutionContext(
+private fun ResolverTestBase.createFieldExecutionContext(
     objectValue: Object,
     queryValue: Query,
     arguments: Arguments,
@@ -568,6 +577,31 @@ private fun ResolverTestBase.createNodeExecutionContext(
         arguments = arguments,
         requestContext = requestContext,
         selectionsValue = selections,
+        internalContext = internalContext,
+        queryResults = queryResultsMap,
+        selectionSetFactory = ossSelectionSetFactory,
+    )
+}
+
+@Suppress("UNCHECKED_CAST")
+@OptIn(InternalApi::class, ExperimentalApi::class)
+private fun ResolverTestBase.createConnectionFieldExecutionContext(
+    objectValue: Object,
+    queryValue: Query,
+    arguments: ConnectionArguments,
+    requestContext: Any?,
+    selections: SelectionSet<*>,
+    contextQueryValues: List<Query> = emptyList()
+): ConnectionFieldExecutionContext<*, *, *, *> {
+    val internalContext = context.internal
+    val queryResultsMap = buildContextQueryMap(contextQueryValues)
+
+    return MockConnectionFieldExecutionContext<Object, Query, ConnectionArguments, Connection<*, *>>(
+        objectValue = objectValue,
+        queryValue = queryValue,
+        arguments = arguments,
+        requestContext = requestContext,
+        selectionsValue = selections as SelectionSet<Connection<*, *>>,
         internalContext = internalContext,
         queryResults = queryResultsMap,
         selectionSetFactory = ossSelectionSetFactory,

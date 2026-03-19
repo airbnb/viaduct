@@ -6,9 +6,11 @@ import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.primaryConstructor
 import viaduct.api.FieldValue
 import viaduct.api.ResolverBase
+import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.internal.select.SelectionSetFactory
+import viaduct.api.mocks.MockConnectionFieldExecutionContext
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.mocks.MockFieldExecutionContext
 import viaduct.api.mocks.MockInternalContext
@@ -19,8 +21,11 @@ import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
+import viaduct.api.types.Connection
+import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.ViaductSchema
@@ -69,7 +74,9 @@ internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R :
         @Suppress("UNCHECKED_CAST")
         val selections = testConfig.selections ?: (SelectionSet.NoSelections as SelectionSet<R>)
 
+        val contextClass = getContextClass(resolver)
         val ctx = createFieldContext(
+            contextClass = contextClass,
             objectValue = objectValue,
             queryValue = queryValue,
             arguments = arguments,
@@ -78,7 +85,7 @@ internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R :
             contextQueryValues = testConfig.contextQueryValues
         )
 
-        return invokeResolver(resolver, ctx)
+        return invokeResolver(resolver, ctx, contextClass)
     }
 
     override suspend fun testBatch(
@@ -108,9 +115,11 @@ internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R :
         @Suppress("UNCHECKED_CAST")
         val selections = testConfig.selections ?: (SelectionSet.NoSelections as SelectionSet<R>)
 
+        val contextClass = getContextClass(resolver)
         val contexts = testConfig.objectValues.zip(queryValues) { obj, query ->
             @Suppress("UNCHECKED_CAST")
             createFieldContext(
+                contextClass = contextClass,
                 objectValue = obj,
                 queryValue = query,
                 arguments = Arguments.NoArguments as A, // Batch resolvers don't support per-item arguments
@@ -120,10 +129,12 @@ internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R :
             )
         }
 
-        return invokeBatchResolver(resolver, contexts)
+        return invokeBatchResolver(resolver, contexts, contextClass)
     }
 
+    @OptIn(ExperimentalApi::class)
     private fun createFieldContext(
+        contextClass: KClass<*>,
         objectValue: O,
         queryValue: Q,
         arguments: A,
@@ -132,26 +143,45 @@ internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R :
         contextQueryValues: List<Query>
     ): FieldExecutionContext<O, Q, A, R> {
         val queryResults = buildContextQueryMap(contextQueryValues)
+        val isConnectionContext = ConnectionFieldExecutionContext::class.java.isAssignableFrom(contextClass.java)
 
-        return MockFieldExecutionContext(
-            objectValue = objectValue,
-            queryValue = queryValue,
-            arguments = arguments,
-            requestContext = requestContext,
-            selectionsValue = selections,
-            internalContext = internalContext,
-            queryResults = queryResults,
-            selectionSetFactory = selectionSetFactory
-        )
+        return if (isConnectionContext) {
+            val connectionArguments = arguments as? ConnectionArguments
+                ?: throw IllegalArgumentException(
+                    "Resolver (${contextClass.qualifiedName}) uses ConnectionFieldExecutionContext but the provided " +
+                        "arguments do not implement ConnectionArguments. " +
+                        "Pass a ConnectionArguments instance in the test configuration."
+                )
+            @Suppress("UNCHECKED_CAST")
+            MockConnectionFieldExecutionContext(
+                objectValue = objectValue,
+                queryValue = queryValue,
+                arguments = connectionArguments,
+                requestContext = requestContext,
+                selectionsValue = selections as SelectionSet<Connection<*, *>>,
+                internalContext = internalContext,
+                queryResults = queryResults,
+                selectionSetFactory = selectionSetFactory
+            ) as FieldExecutionContext<O, Q, A, R>
+        } else {
+            MockFieldExecutionContext(
+                objectValue = objectValue,
+                queryValue = queryValue,
+                arguments = arguments,
+                requestContext = requestContext,
+                selectionsValue = selections,
+                internalContext = internalContext,
+                queryResults = queryResults,
+                selectionSetFactory = selectionSetFactory
+            )
+        }
     }
 
     private suspend fun invokeResolver(
         resolver: ResolverBase<R>,
-        ctx: FieldExecutionContext<O, Q, A, R>
+        ctx: FieldExecutionContext<O, Q, A, R>,
+        contextClass: KClass<*>
     ): R {
-        // Get the Context nested class from the resolver
-        val contextClass = getContextClass(resolver)
-
         // Instantiate the wrapper context
         val wrappedCtx = contextClass.primaryConstructor?.call(ctx)
             ?: throw IllegalStateException(
@@ -168,11 +198,9 @@ internal class FieldResolverTesterImpl<O : Object, Q : Query, A : Arguments, R :
 
     private suspend fun invokeBatchResolver(
         resolver: ResolverBase<R>,
-        contexts: List<FieldExecutionContext<O, Q, A, R>>
+        contexts: List<FieldExecutionContext<O, Q, A, R>>,
+        contextClass: KClass<*>
     ): List<FieldValue<R>> {
-        // Get the Context nested class
-        val contextClass = getContextClass(resolver)
-
         // Wrap all contexts
         val wrappedContexts = contexts.map { ctx ->
             contextClass.primaryConstructor?.call(ctx)

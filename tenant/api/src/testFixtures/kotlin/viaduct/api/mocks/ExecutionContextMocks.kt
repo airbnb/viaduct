@@ -3,6 +3,7 @@
 package viaduct.api.mocks
 
 import graphql.schema.GraphQLObjectType
+import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
@@ -18,6 +19,8 @@ import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
+import viaduct.api.types.Connection
+import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Mutation
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
@@ -201,6 +204,27 @@ class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
     selectionSetFactory: SelectionSetFactory? = null,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory),
     FieldExecutionContext<O, Q, A, R> {
+    override fun selections() = selectionsValue
+
+    // In mock contexts, sync and lazy values are the same
+    override suspend fun getObjectValue(): O = objectValue
+
+    override suspend fun getQueryValue(): Q = queryValue
+}
+
+@Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
+@OptIn(InternalApi::class)
+class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionArguments, R : Connection<*, *>>(
+    override val objectValue: O,
+    override val queryValue: Q,
+    override val arguments: A,
+    override val requestContext: Any?,
+    private val selectionsValue: SelectionSet<R>,
+    internalContext: InternalContext,
+    queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
+    selectionSetFactory: SelectionSetFactory? = null,
+) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory),
+    ConnectionFieldExecutionContext<O, Q, A, R> {
     override fun selections() = selectionsValue
 
     // In mock contexts, sync and lazy values are the same
