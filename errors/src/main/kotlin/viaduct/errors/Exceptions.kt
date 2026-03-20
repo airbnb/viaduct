@@ -9,17 +9,17 @@ import viaduct.apiannotations.StableApi
 
 /**
  * Tagging interface for exceptions that have been classified as either framework or tenant errors.
- * Allows code to check `e is WrappedException` instead of checking both
+ * Allows code to check `e is PassthroughException` instead of checking both
  * [FrameworkException] and [TenantException] separately.
  */
 @StableApi
-interface WrappedException
+interface PassthroughException
 
 /**
  * Marker interface for exceptions that should be attributed to tenant code.
  */
 @StableApi
-interface TenantException : WrappedException
+interface TenantException : PassthroughException
 
 /**
  * Used in the tenant API and dependencies to indicate that an error is due to framework code
@@ -29,7 +29,7 @@ interface TenantException : WrappedException
 class FrameworkException(
     message: String,
     cause: Throwable? = null,
-) : Exception(message, cause), WrappedException
+) : Exception(message, cause), PassthroughException
 
 /**
  * Used in framework code to indicate that an error is due to invalid usage of the tenant API
@@ -73,7 +73,7 @@ class ErroneousFieldException(
 
 /**
  * Use this to wrap all entry points into the tenant API. This will catch any exception
- * and attribute it to the framework unless it's a [TenantException].
+ * and attribute it to the framework unless it's a [PassthroughException].
  */
 fun <T> handleTenantAPIErrors(
     message: String,
@@ -83,7 +83,7 @@ fun <T> handleTenantAPIErrors(
     try {
         return block()
     } catch (e: Throwable) {
-        if (e is TenantException) throw e
+        if (e is PassthroughException) throw e
         throw FrameworkException("$message ($e)", e)
     }
 }
@@ -100,7 +100,7 @@ suspend fun <T> handleTenantAPIErrorsSuspend(
         return block()
     } catch (e: Throwable) {
         if (e is CancellationException) currentCoroutineContext().ensureActive()
-        if (e is TenantException) throw e
+        if (e is PassthroughException) throw e
         throw FrameworkException("$message ($e)", e)
     }
 }
