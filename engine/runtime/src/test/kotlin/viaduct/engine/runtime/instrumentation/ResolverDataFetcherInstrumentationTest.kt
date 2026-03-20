@@ -14,9 +14,9 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
+import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 import viaduct.service.api.spi.FlagManager
 
 internal class ResolverDataFetcherInstrumentationTest {

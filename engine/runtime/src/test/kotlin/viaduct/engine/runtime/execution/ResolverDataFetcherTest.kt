@@ -26,7 +26,6 @@ import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
 import viaduct.engine.api.mocks.FieldUnbatchedResolverFn
@@ -46,6 +45,7 @@ import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.createSchema
+import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager

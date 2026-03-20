@@ -45,3 +45,17 @@ Contains utilities for parsing text into GraphQL queries.
 # Package viaduct.engine.api.select
 
 Contains utilities parsing GraphQL selections.
+
+# Package viaduct.engine.runtime
+
+Contains runtime-specific value types co-located in the engine-api module:
+`ObjectEngineResult` and `QueryPlanExecutionCondition`.
+
+# Package viaduct.engine.runtime.dfe
+
+Contains `ViaductDataFetchingEnvironment` — Viaduct's bridge between GraphQL-Java's
+`DataFetchingEnvironment` and Viaduct's `EngineExecutionContext`, plus the
+`engineExecutionContext` and `requireViaductDataFetchingEnvironment` extension functions.
+This package lives under `engine/api/` (not `engine/runtime/`) so its Bazel target can use
+`associates` to access internal members of `viaduct.engine.api` without creating a
+compilation cycle.

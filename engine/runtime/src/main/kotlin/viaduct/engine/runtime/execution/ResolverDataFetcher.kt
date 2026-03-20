@@ -7,7 +7,6 @@ import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.withContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData as EngineObjectDataApi
-import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
@@ -17,6 +16,7 @@ import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.findLocalContextForType
+import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
 
 class ResolverDataFetcher(

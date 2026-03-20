@@ -5,13 +5,13 @@ import graphql.execution.instrumentation.parameters.InstrumentationCreateStatePa
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.schema.DataFetcher
 import viaduct.engine.api.ResolutionPolicy
-import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.SyncFieldResolverDispatcher
+import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ResolverDataFetcher
 import viaduct.engine.runtime.execution.TenantNameResolver

@@ -16,8 +16,8 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.api.fragment.Fragment
+import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 
 class SelectionsParserTest : Assertions() {
     private fun mkEnv(

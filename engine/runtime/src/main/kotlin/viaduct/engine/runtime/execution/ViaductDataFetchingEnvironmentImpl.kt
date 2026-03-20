@@ -2,8 +2,8 @@ package viaduct.engine.runtime.execution
 
 import graphql.schema.DataFetchingEnvironment
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvironment
+import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 
 /**
  * Implementation of ViaductDataFetchingEnvironment that delegates DFE methods to GraphQL-Java

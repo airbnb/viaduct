@@ -29,7 +29,6 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.StandardResolutionValue
-import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextImpl
@@ -42,6 +41,7 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setRawValue
 import viaduct.engine.runtime.Value
+import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.engine.runtime.exceptions.FieldFetchingException
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingEnvironment
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField

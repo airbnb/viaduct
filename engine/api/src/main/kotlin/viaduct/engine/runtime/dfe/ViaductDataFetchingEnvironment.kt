@@ -1,6 +1,7 @@
-package viaduct.engine.api
+package viaduct.engine.runtime.dfe
 
 import graphql.schema.DataFetchingEnvironment
+import viaduct.engine.api.EngineExecutionContext
 
 /**
  * Viaduct's DataFetchingEnvironment implementation that bridges GraphQL-Java compatibility
@@ -43,5 +44,5 @@ fun DataFetchingEnvironment.requireViaductDataFetchingEnvironment(): ViaductData
  *
  * This will throw an error if the DataFetchingEnvironment is not a ViaductDataFetchingEnvironment.
  */
-val DataFetchingEnvironment.engineExecutionContext
+val DataFetchingEnvironment.engineExecutionContext: EngineExecutionContext
     get() = requireViaductDataFetchingEnvironment().engineExecutionContext

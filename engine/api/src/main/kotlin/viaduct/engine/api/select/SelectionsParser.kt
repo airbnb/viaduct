@@ -4,9 +4,9 @@ import graphql.language.FragmentDefinition
 import graphql.language.SelectionSet
 import graphql.schema.DataFetchingEnvironment
 import viaduct.engine.api.ParsedSelections
-import viaduct.engine.api.engineExecutionContext
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.parse.CachedDocumentParser
+import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.graphql.utils.SelectionsParserUtils
 
 object SelectionsParser {
