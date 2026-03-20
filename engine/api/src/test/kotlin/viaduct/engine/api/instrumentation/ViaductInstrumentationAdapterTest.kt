@@ -101,6 +101,7 @@ class ViaductInstrumentationAdapterTest {
 
         override fun instrumentAccessCheck(
             checkerExecutor: CheckerExecutor,
+            dataFetchingEnvironment: DataFetchingEnvironment,
             parameters: InstrumentationExecutionStrategyParameters,
             state: InstrumentationState?
         ): CheckerExecutor {
@@ -196,7 +197,7 @@ class ViaductInstrumentationAdapterTest {
         instrumentation.beginFieldListCompletion(mockk(), mockk())
         assert(instrumentationBase.beginFieldListCompletionCalled)
 
-        instrumentation.instrumentAccessCheck(mockk(), mockk(), mockk())
+        instrumentation.instrumentAccessCheck(mockk(), mockk<DataFetchingEnvironment>(), mockk(), mockk())
         assert(instrumentationBase.instrumentAccessCheckCalled)
 
         val nodeFetchingParams = InstrumentNodeFetchingParameters(

@@ -3,6 +3,7 @@ package viaduct.engine.api.instrumentation
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
+import graphql.schema.DataFetchingEnvironment
 import viaduct.engine.api.spi.CheckerExecutor
 
 open class ChainedModernGJInstrumentation(
@@ -30,12 +31,13 @@ open class ChainedModernGJInstrumentation(
 
     override fun instrumentAccessCheck(
         checkerExecutor: CheckerExecutor,
+        dataFetchingEnvironment: DataFetchingEnvironment,
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?
     ): CheckerExecutor {
         var instrumentedChecker = checkerExecutor
         for (instr in gjInstrumentations) {
-            instrumentedChecker = instr.instrumentAccessCheck(instrumentedChecker, parameters, getState(instr, state))
+            instrumentedChecker = instr.instrumentAccessCheck(instrumentedChecker, dataFetchingEnvironment, parameters, getState(instr, state))
         }
 
         return instrumentedChecker

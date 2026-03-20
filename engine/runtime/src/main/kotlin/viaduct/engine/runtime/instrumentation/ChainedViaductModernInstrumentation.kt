@@ -8,6 +8,7 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldComplete
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
+import graphql.schema.DataFetchingEnvironment
 import viaduct.engine.api.instrumentation.ChainedInstrumentation
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
@@ -133,11 +134,12 @@ class ChainedViaductModernInstrumentation private constructor(
 
     override fun instrumentAccessCheck(
         checkerDispatcher: CheckerExecutor,
+        dataFetchingEnvironment: DataFetchingEnvironment,
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?
     ): CheckerExecutor {
         return instrumentAccessCheckInstrumentations.fold(checkerDispatcher) { dispatcher, instr ->
-            instr.instrumentAccessCheck(dispatcher, parameters, getState(instr, state))
+            instr.instrumentAccessCheck(dispatcher, dataFetchingEnvironment, parameters, getState(instr, state))
         }
     }
 

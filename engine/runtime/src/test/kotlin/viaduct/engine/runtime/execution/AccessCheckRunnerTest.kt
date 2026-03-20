@@ -242,7 +242,7 @@ class AccessCheckRunnerTest {
         val params = mockk<ExecutionParameters> {
             every { this@mockk.engineExecutionContext } returns engineExecutionContext
             every { instrumentation } returns mockk {
-                every { instrumentAccessCheck(any(), any(), any()) } answers { firstArg() }
+                every { instrumentAccessCheck(any(), any(), any(), any()) } answers { firstArg() }
             }
             every { executionContext } returns mockk {
                 every { instrumentationState } returns mockk()
@@ -344,7 +344,7 @@ class AccessCheckRunnerTest {
         return mockk<ExecutionParameters> {
             engineExecutionContext?.let { every { this@mockk.engineExecutionContext } returns it }
             every { instrumentation } returns mockk {
-                every { instrumentAccessCheck(any(), any(), any()) } answers { firstArg() }
+                every { instrumentAccessCheck(any(), any(), any(), any()) } answers { firstArg() }
             }
             every { executionContext } returns mockk<ExecutionContext> {
                 every { instrumentationState } returns mockk()

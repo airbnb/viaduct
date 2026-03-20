@@ -189,6 +189,7 @@ interface IViaductInstrumentation {
     interface WithInstrumentAccessCheck : IViaductInstrumentation {
         fun instrumentAccessCheck(
             checkerExecutor: CheckerExecutor,
+            dataFetchingEnvironment: DataFetchingEnvironment,
             parameters: InstrumentationExecutionStrategyParameters,
             state: InstrumentationState?
         ): CheckerExecutor

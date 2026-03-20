@@ -3,6 +3,7 @@ package viaduct.engine.runtime.instrumentation
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
+import graphql.schema.DataFetchingEnvironment
 import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.mockk
@@ -79,6 +80,7 @@ class ChainedModernGJInstrumentationTest {
     @Test
     fun `instrumentAccessCheck chains all instrumentations`() {
         val parameters = mockk<InstrumentationExecutionStrategyParameters>()
+        val dfe = mockk<DataFetchingEnvironment>()
         val state1 = object : InstrumentationState {}
         val state2 = object : InstrumentationState {}
         val initialChecker = mockk<CheckerExecutor>()
@@ -87,19 +89,19 @@ class ChainedModernGJInstrumentationTest {
 
         val instr1 = mockk<ViaductModernGJInstrumentation> {
             every { createStateAsync(any()) } returns CompletableFuture.completedFuture(state1)
-            every { instrumentAccessCheck(initialChecker, parameters, state1) } returns intermediateChecker
+            every { instrumentAccessCheck(initialChecker, dfe, parameters, state1) } returns intermediateChecker
         }
         val instr2 = mockk<ViaductModernGJInstrumentation> {
             every { createStateAsync(any()) } returns CompletableFuture.completedFuture(state2)
-            every { instrumentAccessCheck(intermediateChecker, parameters, state2) } returns finalChecker
+            every { instrumentAccessCheck(intermediateChecker, dfe, parameters, state2) } returns finalChecker
         }
 
         val chained = ChainedModernGJInstrumentation(listOf(instr1, instr2))
         val state = chained.createStateAsync(mockk())?.get()
-        val result = chained.instrumentAccessCheck(initialChecker, parameters, state)
+        val result = chained.instrumentAccessCheck(initialChecker, dfe, parameters, state)
 
         assertNotNull(result)
-        verify { instr1.instrumentAccessCheck(initialChecker, parameters, state1) }
-        verify { instr2.instrumentAccessCheck(intermediateChecker, parameters, state2) }
+        verify { instr1.instrumentAccessCheck(initialChecker, dfe, parameters, state1) }
+        verify { instr2.instrumentAccessCheck(intermediateChecker, dfe, parameters, state2) }
     }
 }

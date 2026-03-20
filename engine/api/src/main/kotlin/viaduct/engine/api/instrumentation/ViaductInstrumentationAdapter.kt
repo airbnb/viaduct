@@ -20,6 +20,7 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldParamete
 import graphql.execution.instrumentation.parameters.InstrumentationValidationParameters
 import graphql.language.Document
 import graphql.schema.DataFetcher
+import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLSchema
 import graphql.validation.ValidationError
 import java.util.concurrent.CompletableFuture
@@ -174,11 +175,12 @@ open class ViaductInstrumentationAdapter(
 
     override fun instrumentAccessCheck(
         checkerExecutor: CheckerExecutor,
+        dataFetchingEnvironment: DataFetchingEnvironment,
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?
     ): CheckerExecutor {
         return if (viaductInstrumentation is IViaductInstrumentation.WithInstrumentAccessCheck) {
-            return viaductInstrumentation.instrumentAccessCheck(checkerExecutor, parameters, state)
+            return viaductInstrumentation.instrumentAccessCheck(checkerExecutor, dataFetchingEnvironment, parameters, state)
         } else {
             checkerExecutor
         }

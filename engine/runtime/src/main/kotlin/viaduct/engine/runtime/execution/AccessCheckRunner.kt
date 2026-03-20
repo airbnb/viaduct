@@ -157,11 +157,13 @@ class AccessCheckRunner(
         arguments: Map<String, Any?>,
         checkerType: CheckerExecutor.CheckerType
     ): Value<out CheckerResult?> {
+        val dataFetchingEnvironment = dataFetchingEnvironmentSupplier.get()
         val localExecutionContext = parameters.engineExecutionContext.copy(
-            dataFetchingEnvironment = dataFetchingEnvironmentSupplier.get()
+            dataFetchingEnvironment = dataFetchingEnvironment
         )
         val instrumentedDispatcher = parameters.instrumentation.instrumentAccessCheck(
             dispatcher.executor,
+            dataFetchingEnvironment,
             InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters),
             parameters.executionContext.instrumentationState
         )

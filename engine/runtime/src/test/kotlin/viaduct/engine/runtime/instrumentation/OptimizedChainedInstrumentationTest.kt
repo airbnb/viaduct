@@ -4,6 +4,7 @@ import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.SimpleInstrumentationContext.noOp
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
+import graphql.schema.DataFetchingEnvironment
 import io.mockk.Called
 import io.mockk.every
 import io.mockk.mockk
@@ -95,6 +96,7 @@ class OptimizedChainedInstrumentationTest {
 
         override fun instrumentAccessCheck(
             checkerExecutor: CheckerExecutor,
+            dataFetchingEnvironment: DataFetchingEnvironment,
             parameters: InstrumentationExecutionStrategyParameters,
             state: InstrumentationState?
         ): CheckerExecutor {
@@ -112,7 +114,7 @@ class OptimizedChainedInstrumentationTest {
         val params = mockk<InstrumentationExecutionStrategyParameters>()
         val state = mockk<InstrumentationState>()
         val checkerExecutor = mockk<CheckerExecutor>()
-        val result = optimized.instrumentAccessCheck(checkerExecutor, params, state)
+        val result = optimized.instrumentAccessCheck(checkerExecutor, mockk<DataFetchingEnvironment>(), params, state)
         assertNotNull(result)
         assert(instrumentAccessCheckInstrumentation.called)
         verify { noInteractionInstrumentation wasNot Called }
