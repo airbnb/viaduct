@@ -63,7 +63,10 @@ class ViaductObjectBuilder<T : GRT> private constructor(
             DynamicValueBuilderTypeChecker(context).isValidObjectType(type, value.graphqlType)
     }
 
-    override fun build(): T = grtClazz.constructors.first().call(context, underlyingWrapper.getEngineObjectData())
+    override fun build(): T =
+        handleTenantAPIErrors("ViaductObjectBuilder.build failed") {
+            grtClazz.constructors.first().call(context, underlyingWrapper.getEngineObjectData())
+        }
 
     companion object {
         @Suppress("unused")

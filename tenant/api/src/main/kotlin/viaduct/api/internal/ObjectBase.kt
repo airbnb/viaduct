@@ -55,7 +55,7 @@ abstract class ObjectBase(
         } catch (ex: Exception) {
             if (ex is CancellationException) currentCoroutineContext().ensureActive()
             when (ex) {
-                is TenantException -> throw ex
+                is TenantException, is FrameworkException -> throw ex
                 is EngineObjectDataFetchException -> throw ex.cause!!
                 else -> throw FrameworkException("ObjectBase.fetch failed for ${engineObject.type.name}.$fieldName. ($ex)", ex)
             }
@@ -108,7 +108,9 @@ abstract class ObjectBase(
                 }
             }
 
-            wrap(fieldDefinition.type, fieldValue, baseFieldTypeClass) ?: NULL_VALUE
+            handleTenantAPIErrors("ObjectBase.get wrap failed for ${objectType.name}.$fieldName") {
+                wrap(fieldDefinition.type, fieldValue, baseFieldTypeClass)
+            } ?: NULL_VALUE
         }
         return (if (result == NULL_VALUE) null else result) as T
     }
@@ -262,8 +264,9 @@ abstract class ObjectBase(
             value: Any?,
         ): Builder<T> {
             typeCheck(name, value)
-
-            wrapper.put(name, value)
+            handleTenantAPIErrors("ObjectBase.Builder.put failed") {
+                wrapper.put(name, value)
+            }
             return this
         }
 
@@ -278,8 +281,9 @@ abstract class ObjectBase(
             alias: String? = null
         ): Builder<T> {
             typeCheck(name, value)
-
-            wrapper.put(name, value, alias)
+            handleTenantAPIErrors("ObjectBase.Builder.put failed") {
+                wrapper.put(name, value, alias)
+            }
             return this
         }
 

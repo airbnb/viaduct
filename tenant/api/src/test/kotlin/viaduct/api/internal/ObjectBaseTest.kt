@@ -547,13 +547,13 @@ class ObjectBaseTest {
                         .put("backingDataField", "abc")
                         .build()
                 )
-            val exception = assertThrows<IllegalArgumentException> {
+            val exception = assertThrows<FrameworkException> {
                 o2.get(
                     "backingDataField",
                     Int::class
                 )
             }
-            assertTrue(exception.message!!.contains("Expected backing data value to be of type Int, got String"))
+            assertTrue(exception.cause!!.message!!.contains("Expected backing data value to be of type Int, got String"))
         }
 
     @Test
@@ -575,8 +575,8 @@ class ObjectBaseTest {
                         .put("backingDataList", listOf(1))
                         .build()
                 )
-            val exception = assertThrows<IllegalArgumentException> { o1.get("backingDataList", String::class) }
-            assertTrue(exception.message!!.contains("Expected backing data value to be of type String, got Int"))
+            val exception = assertThrows<FrameworkException> { o1.get("backingDataList", String::class) }
+            assertTrue(exception.cause!!.message!!.contains("Expected backing data value to be of type String, got Int"))
         }
 
     private abstract inner class NR : NodeReference {
