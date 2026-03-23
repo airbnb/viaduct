@@ -1,0 +1,115 @@
+@file:Suppress("MemberVisibilityCanBePrivate")
+
+package viaduct.engine.api.bootstrap.executionregistry
+
+/**
+ * Data model for module index JSON emitted by build tooling (KSP) and consumed by codegen and the engine at runtime.
+ *
+ * These files are generated build outputs and packaged as resources:
+ *   META-INF/viaduct/modules/<tenantpkg>.json
+ *
+ * Then consumed by the bootstrapper.
+ */
+data class ExecutionRegistry(
+    /** Version of the module-index JSON schema */
+    val version: String,
+    /**
+     * FQN of the Tenant API's ExecutorFactory implementation.
+     */
+    val executorFactory: String,
+    val nodes: List<NodeEntry> = emptyList(),
+    val fields: List<FieldEntry> = emptyList(),
+)
+
+data class NodeEntry(
+    val typeName: String,
+    val isBatching: Boolean,
+    val isSelective: Boolean,
+    /**
+     * A string used as a prefix for metrics tags and log-message labels.
+     * This string is intended to give developers and operators strong guidance to the specific code implementation of a
+     * given executor.
+     */
+    val attribution: String,
+    val tenantAPIData: NodeAPIData,
+)
+
+data class NodeAPIData(
+    /** Resolver implementation class name (FQN that runtime used to discover via scanning). */
+    val resolverClass: String,
+    /** Generated resolver base class name, used as a stable join key with codegen output. */
+    val resolverBaseClass: String,
+)
+
+data class FieldEntry(
+    val typeName: String,
+    val fieldName: String,
+    val isBatching: Boolean,
+    val isSelective: Boolean,
+    /**
+     * A string used as a prefix for metrics tags and log-message labels.
+     * This string is intended to give developers and operators strong guidance to the specific code implementation of a
+     * given executor.
+     */
+    val attribution: String,
+    /**
+     * Required object-level selections needed to resolve this field, expressed as a raw fragment string.
+     * Optional: many resolvers need no required selections.
+     */
+    val objectSelections: SelectionsBlock? = null,
+    /**
+     * Required query-level selections needed to resolve this field (e.g., viewer or other root context).
+     * Optional and independent of objectSelections.
+     */
+    val querySelections: SelectionsBlock? = null,
+    val tenantAPIData: FieldAPIData,
+)
+
+data class FieldAPIData(
+    /** Resolver implementation class name (FQN that runtime used to discover via scanning). */
+    val resolverClass: String,
+    /** Generated resolver base class name, used as a stable join key with codegen output. */
+    val resolverBaseClass: String,
+    /**
+     * FQN: optional return type name for debugging/introspection.
+     */
+    val returnTypeName: String? = null,
+)
+
+data class SelectionsBlock(
+    /**
+     * Raw GraphQL fragment string (e.g., `fragment _ on Type { ... }`).
+     * Parsed without schema during executor construction; schema validation happens later as an explicit step.
+     */
+    val selections: String,
+    /**
+     * Variables required by `selections` (e.g., for @include/@skip), with tenant-API-specific sourcing rules.
+     */
+    val variablesProviders: List<VariableProviderEntry> = emptyList(),
+)
+
+data class VariableProviderEntry(
+    /**
+     * Map of variable name -> encoded type expression used by Viaduct (e.g., `Boolean!` encoded as `! Boolean`).
+     *
+     * Example:
+     *   { "includeDetails": "! Boolean" }
+     */
+    val providedVariables: Map<String, String>,
+    /**
+     * Tenant-API-specific variable source description.
+     *
+     * This matches the JSON shape:
+     *   "providerVariablesAPIData": { "type": "...", "path": "..." }
+     */
+    val providerVariablesAPIData: ProviderVariablesAPIData,
+)
+
+/**
+ * Sealed model for variable providers. The JSON encoding uses a discriminator field:
+ *   { "type": "fromArgument" | "fromObjectField", "path": "<...>" }
+ */
+data class ProviderVariablesAPIData(
+    val type: String,
+    val path: String
+)
