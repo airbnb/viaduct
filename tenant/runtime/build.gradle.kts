@@ -6,7 +6,9 @@ plugins {
     `java-test-fixtures`
 }
 
-viaductFeatureApp {}
+viaductFeatureApp {
+    fileNamePattern.set(".*(FeatureApp|FeatureAppTest|ContractTest).*")
+}
 
 viaductPublishing {
     name.set("Tenant Runtime")

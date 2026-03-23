@@ -176,33 +176,111 @@ abstract class ViaductFeatureAppPluginBase : Plugin<Project> {
     /**
      * Extract package name from a Kotlin or Java source file.
      */
-    protected fun extractPackageFromFile(file: File): String? {
-        return try {
-            val content = file.readText()
-            val packagePattern = Regex("^\\s*package\\s+([\\w.]+)", RegexOption.MULTILINE)
-            val match = packagePattern.find(content)
-            match?.groupValues?.get(1)
-        } catch (_: Exception) {
-            null
-        }
-    }
+    protected fun extractPackageFromFile(file: File): String? = Companion.extractPackageFromFile(file)
 
     /**
      * Clean up extracted schema content by stripping margin characters and markers.
      */
-    protected fun cleanupSchema(rawSchema: String): String {
-        return rawSchema.lines()
-            .map { line ->
-                line.trimStart()
-                    .removePrefix("|")
-                    .trimStart()
+    protected fun cleanupSchema(rawSchema: String): String = Companion.cleanupSchema(rawSchema)
+
+    companion object {
+        /** Walk up the directory hierarchy until a `settings.gradle.kts` or `settings.gradle` is found. */
+        fun findSettingsRoot(start: File): File? {
+            var dir: File? = start
+            while (dir != null) {
+                if (File(dir, "settings.gradle.kts").exists() || File(dir, "settings.gradle").exists()) {
+                    return dir
+                }
+                dir = dir.parentFile
             }
-            .filter { line ->
-                line.isNotBlank() &&
-                    !line.startsWith("#START_SCHEMA") &&
-                    !line.startsWith("#END_SCHEMA")
+            return null
+        }
+
+        /** Build an index from simple class name → `.kt` source file, skipping build and .git dirs. */
+        fun buildKtFileIndex(root: File): Map<String, File> {
+            val index = mutableMapOf<String, File>()
+            root.walkTopDown()
+                .onEnter { dir -> dir.name != "build" && dir.name != ".git" }
+                .filter { it.isFile && it.extension == "kt" }
+                .forEach { file -> index.putIfAbsent(file.nameWithoutExtension, file) }
+            return index
+        }
+
+        /**
+         * Extracts the simple superclass name from a Java (`extends Foo`) or Kotlin class declaration.
+         *
+         * For Kotlin, two patterns are tried in order:
+         * 1. Direct inheritance without constructor params: `class Foo : Bar()` or `class Foo : Interface`
+         * 2. Inheritance with constructor params: `class Foo(val x: Int) : Bar()`
+         * Both are anchored to a class declaration line to avoid false positives from annotations.
+         */
+        fun extractSuperclassName(content: String): String? {
+            // Java: "class Foo extends Bar"
+            Regex("""extends\s+(\w+)""").find(content)?.let { return it.groupValues[1] }
+            // Kotlin without constructor params: "class Foo : Bar()" or "abstract class Foo : Bar"
+            Regex(
+                """^(?:abstract\s+|open\s+)*(?:class|interface|object)\s+\w[\w<>]*\s*:\s*(\w+)""",
+                setOf(RegexOption.MULTILINE)
+            ).find(content)?.let { return it.groupValues[1] }
+            // Kotlin with constructor params: "class Foo(val x: Int) : Bar("
+            Regex(
+                """^(?:abstract\s+|open\s+)*(?:class|interface|object)\s+\w[\w<>]*\s*[:(][^{]*:\s*(\w+)\s*\(""",
+                setOf(RegexOption.MULTILINE)
+            ).find(content)?.let { return it.groupValues[1] }
+            return null
+        }
+
+        /**
+         * Iteratively searches for the nearest ancestor file (following the superclass chain)
+         * that contains `#START_SCHEMA`/`#END_SCHEMA` markers. Uses a visited set to prevent
+         * infinite loops from cycles.
+         */
+        fun findSchemaFile(
+            startFile: File,
+            ktFileIndex: Map<String, File>
+        ): File? {
+            val visited = mutableSetOf<File>()
+            var file = startFile
+            while (true) {
+                if (!visited.add(file)) return null // cycle detected
+                val content = try {
+                    file.readText()
+                } catch (_: Exception) {
+                    return null
+                }
+                if (content.contains("#START_SCHEMA") && content.contains("#END_SCHEMA")) return file
+                val parentName = extractSuperclassName(content) ?: return null
+                file = ktFileIndex[parentName] ?: return null
             }
-            .joinToString("\n")
-            .trim()
+        }
+
+        /** Extract package name from a Kotlin or Java source file. */
+        fun extractPackageFromFile(file: File): String? {
+            return try {
+                val content = file.readText()
+                val packagePattern = Regex("^\\s*package\\s+([\\w.]+)", RegexOption.MULTILINE)
+                val match = packagePattern.find(content)
+                match?.groupValues?.get(1)
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        /** Clean up extracted schema content by stripping margin characters and markers. */
+        fun cleanupSchema(rawSchema: String): String {
+            return rawSchema.lines()
+                .map { line ->
+                    line.trimStart()
+                        .removePrefix("|")
+                        .trimStart()
+                }
+                .filter { line ->
+                    line.isNotBlank() &&
+                        !line.startsWith("#START_SCHEMA") &&
+                        !line.startsWith("#END_SCHEMA")
+                }
+                .joinToString("\n")
+                .trim()
+        }
     }
 }

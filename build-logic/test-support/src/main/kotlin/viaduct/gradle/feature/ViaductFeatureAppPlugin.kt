@@ -11,6 +11,7 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
+import viaduct.gradle.common.ViaductFeatureAppPluginBase
 import viaduct.gradle.common.getOrCreateCodegenClasspath
 import viaduct.gradle.defaultschema.DefaultSchemaPlugin
 import viaduct.gradle.shared.BuildFlags
@@ -18,18 +19,35 @@ import viaduct.gradle.utils.capitalize
 
 /**
  * Plugin for automatically discovering FeatureApp files and generating
- * both schema and tenant code for each discovered file using existing tasks
+ * both schema and tenant code for each discovered file using existing tasks.
+ *
+ * Schema discovery follows the `:` (superclass) chain: if a Kotlin file has no inline SDL
+ * markers or `override var sdl`, the plugin walks up the superclass hierarchy until it
+ * finds a file that contains `#START_SCHEMA`/`#END_SCHEMA`.
  */
 abstract class ViaductFeatureAppPlugin : Plugin<Project> {
+    /**
+     * Index from simple class name → `.kt` source file, built once during `afterEvaluate`.
+     * Avoids walking the project tree inside the recursive [ViaductFeatureAppPluginBase.findSchemaFile] call.
+     */
+    private var ktFileIndex: Map<String, File> = emptyMap()
+
+    private lateinit var projectRoot: File
+
     override fun apply(project: Project) {
         val extension = project.extensions.create<ViaductFeatureAppExtension>("viaductFeatureApp", project)
 
         val codegenClasspath = project.getOrCreateCodegenClasspath()
 
+        // Walk up from projectDir to find the settings root (the real OSS root)
+        projectRoot = ViaductFeatureAppPluginBase.findSettingsRoot(project.projectDir) ?: project.rootDir
+
         // Ensure default schema plugin is applied so default schema is available
         DefaultSchemaPlugin.ensureApplied(project)
 
         project.afterEvaluate {
+            ktFileIndex = ViaductFeatureAppPluginBase.buildKtFileIndex(projectRoot)
+
             val ssName = extension.sourceSetName.get()
             DefaultSchemaPlugin.wireToSourceSet(project, ssName)
 
@@ -76,7 +94,10 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
     }
 
     /**
-     * Check if a file is a FeatureApp by examining its content
+     * Check if a file is a FeatureApp by examining its content.
+     *
+     * A file qualifies if it has inline schema markers, an `override var sdl` property,
+     * or if any file in its superclass chain contains `#START_SCHEMA`/`#END_SCHEMA`.
      */
     private fun isFeatureAppFile(file: File): Boolean {
         return try {
@@ -89,11 +110,14 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
                 return false
             }
 
-            // Must have either schema markers or override sdl
-            val hasSchemaMarker = content.contains("#START_SCHEMA") && content.contains("#END_SCHEMA")
-            val hasOverrideSdl = content.contains(Regex("override\\s+var\\s+sdl\\s*="))
+            // Has inline schema markers — process it directly
+            if (content.contains("#START_SCHEMA") && content.contains("#END_SCHEMA")) return true
 
-            hasSchemaMarker || hasOverrideSdl
+            // Has override sdl — process it directly
+            if (content.contains(Regex("override\\s+var\\s+sdl\\s*="))) return true
+
+            // No inline SDL — follow superclass chain to find schema
+            ViaductFeatureAppPluginBase.findSchemaFile(file, ktFileIndex) != null
         } catch (_: Exception) {
             false
         }
@@ -117,7 +141,7 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
             .lowercase()
             .ifEmpty { "default" }
 
-        val packageName = extractPackageFromFile(featureAppFile) ?: "${extension.basePackageName.get()}.$featureAppName"
+        val packageName = ViaductFeatureAppPluginBase.extractPackageFromFile(featureAppFile) ?: "${extension.basePackageName.get()}.$featureAppName"
         if (!packageName.contains(".")) {
             throw GradleException("Invalid package name '$packageName'. Package name must contain at least one segment (e.g., 'com.example.feature')")
         }
@@ -157,21 +181,8 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
     }
 
     /**
-     * Extract package name from Kotlin/Java file
-     */
-    private fun extractPackageFromFile(file: File): String? {
-        return try {
-            val content = file.readText()
-            val packagePattern = Regex("^\\s*package\\s+([\\w.]+)", RegexOption.MULTILINE)
-            val match = packagePattern.find(content)
-            match?.groupValues?.get(1)
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    /**
-     * Extract GraphQL schema from FeatureApp file
+     * Extract GraphQL schema from FeatureApp file.
+     * If no inline schema is found, follows the superclass chain.
      */
     private fun extractSchemaFromFeatureApp(
         featureAppFile: File,
@@ -180,16 +191,18 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
         val content = featureAppFile.readText()
         var schemaContent: String? = null
 
-        // Try to find schema between #START_SCHEMA and #END_SCHEMA markers
+        // Try to find schema between #START_SCHEMA and #END_SCHEMA markers.
+        // Use [^\n]* before/after markers to handle both plain indentation (spaces)
+        // and Kotlin trimMargin style (| prefix on each line).
         val schemaMarkerPattern = Regex(
-            """#START_SCHEMA\s*\n(.*?)\n\s*#END_SCHEMA""",
-            setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
+            """#START_SCHEMA[^\n]*\n(.*?)\n[^\n]*#END_SCHEMA""",
+            setOf(RegexOption.DOT_MATCHES_ALL)
         )
 
         val markerMatch = schemaMarkerPattern.find(content)
         if (markerMatch != null) {
             val rawSchema = markerMatch.groupValues[1]
-            schemaContent = cleanupSchema(rawSchema)
+            schemaContent = ViaductFeatureAppPluginBase.cleanupSchema(rawSchema)
         }
 
         // If no markers found, try to extract from sdl property
@@ -202,35 +215,20 @@ abstract class ViaductFeatureAppPlugin : Plugin<Project> {
             val sdlMatch = sdlPattern.find(content)
             if (sdlMatch != null) {
                 val rawSchema = sdlMatch.groupValues[1]
-                schemaContent = cleanupSchema(rawSchema)
+                schemaContent = ViaductFeatureAppPluginBase.cleanupSchema(rawSchema)
             }
         }
 
+        // If no inline schema found, follow superclass chain
         if (schemaContent.isNullOrBlank()) {
-            throw GradleException("No valid GraphQL schema found in ${featureAppFile.name}")
+            val schemaFile = ViaductFeatureAppPluginBase.findSchemaFile(featureAppFile, ktFileIndex)
+                ?: throw GradleException("No valid GraphQL schema found in ${featureAppFile.name} or its superclass chain")
+            extractSchemaFromFeatureApp(schemaFile, outputFile)
+            return
         }
 
         outputFile.parentFile.mkdirs()
         outputFile.writeText(schemaContent)
-    }
-
-    /**
-     * Clean up extracted schema content
-     */
-    private fun cleanupSchema(rawSchema: String): String {
-        return rawSchema.lines()
-            .map { line ->
-                line.trimStart()
-                    .removePrefix("|")
-                    .trimStart()
-            }
-            .filter { line ->
-                line.isNotBlank() &&
-                    !line.startsWith("#START_SCHEMA") &&
-                    !line.startsWith("#END_SCHEMA")
-            }
-            .joinToString("\n")
-            .trim()
     }
 
     /**
