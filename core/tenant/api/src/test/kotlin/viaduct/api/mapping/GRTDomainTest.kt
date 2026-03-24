@@ -18,9 +18,11 @@ import viaduct.api.testschema.Input2
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.Scalars
 import viaduct.api.testschema.TestUser
+import viaduct.api.types.GRT
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.engineObjectsAreEquivalent
+import viaduct.errors.TenantUsageException
 import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.DomainValidator
 
@@ -127,6 +129,22 @@ class GRTDomainTest : KotestPropertyBase() {
                     .build()
             )
         )
+    }
+
+    @Test
+    fun `GRTDomain throws TenantUsageException for unsupported GRT type`() {
+        // An object that implements GRT but is neither an InputLikeBase nor an ObjectBase
+        val unsupportedGrt = object : GRT {}
+        @Suppress("UNCHECKED_CAST")
+        val untypedDomain = domain as viaduct.mapping.graphql.Domain<GRT>
+        val result = runCatching { untypedDomain.conv(unsupportedGrt) }
+        val exception = result.exceptionOrNull()
+        assert(exception is TenantUsageException) {
+            "Expected TenantUsageException but got $exception"
+        }
+        assert(exception!!.message?.contains("Unsupported GRT type") == true) {
+            "Expected message to reference unsupported GRT type but got: ${exception.message}"
+        }
     }
 
     @Test

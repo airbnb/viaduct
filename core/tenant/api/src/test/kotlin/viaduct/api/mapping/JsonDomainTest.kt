@@ -19,6 +19,7 @@ import viaduct.api.testschema.O1
 import viaduct.api.types.Input
 import viaduct.api.types.Object
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.errors.TenantUsageException
 import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.DomainValidator
 
@@ -92,7 +93,7 @@ class JsonDomainTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `JsonDomain throws when __typename is a non-objectIsh type`(): Unit =
+    fun `JsonDomain throws TenantUsageException when __typename is a non-objectIsh type`(): Unit =
         runBlocking {
             val nonObjectIshTypes = schema.schema.allTypesAsList
                 .filter { t ->
@@ -104,8 +105,21 @@ class JsonDomainTest : KotestPropertyBase() {
             Arb.of(nonObjectIshTypes).forAll { type ->
                 val str = """{"__typename": "${type.name}"}"""
                 val result = runCatching { domain.conv(str) }
-                val msg = result.exceptionOrNull()?.message
-                msg?.contains("Expected an input or output") ?: false
+                val exception = result.exceptionOrNull()
+                exception is TenantUsageException &&
+                    exception.message?.contains("Expected an input or output") == true
             }
         }
+
+    @Test
+    fun `JsonDomain throws TenantUsageException when __typename is missing`() {
+        val result = runCatching { domain.conv("""{"someField": "value"}""") }
+        val exception = result.exceptionOrNull()
+        assert(exception is TenantUsageException) {
+            "Expected TenantUsageException but got $exception"
+        }
+        assert(exception!!.message?.contains("__typename") == true) {
+            "Expected message to reference __typename but got: ${exception.message}"
+        }
+    }
 }

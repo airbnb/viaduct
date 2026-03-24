@@ -19,6 +19,8 @@ import viaduct.api.types.Input
 import viaduct.api.types.Object
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.errors.TenantUsageException
+import viaduct.errors.ensureNotNull
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.Domain
 import viaduct.mapping.graphql.IR
@@ -34,7 +36,7 @@ object JsonDomain {
         val selectionSet: EngineSelectionSet?,
         val resolveTypeName: ResolveTypeName
     ) : Domain<String> {
-        override val conv: Conv<String, IR.Value.Object> = Conv(
+        override val conv: Conv<String, IR.Value.Object> = Conv<String, IR.Value.Object>(
             forward = { str ->
                 val typeName = resolveTypeName(str)
                 val type = objectishType(typeName)
@@ -46,14 +48,14 @@ object JsonDomain {
                 val conv = JsonConv(internal.schema, type, selectionSet)
                 conv.invert(ir)
             }
-        )
+        ).handleTenantAPIErrors("Error in JsonDomain.conv")
 
         private fun objectishType(name: String): GraphQLType {
-            val type = requireNotNull(internal.schema.schema.getType(name)) {
+            val type = ensureNotNull(internal.schema.schema.getType(name)) {
                 "Unknown type: $name"
             }
-            require(type is GraphQLObjectType || type is GraphQLInputObjectType) {
-                "Expected an input or output object type, but got $type"
+            if (type !is GraphQLObjectType && type !is GraphQLInputObjectType) {
+                throw TenantUsageException("Expected an input or output object type, but got $type")
             }
             return type
         }
@@ -76,7 +78,7 @@ object JsonDomain {
 
             override fun invoke(jsonString: String): String {
                 val tree = mapper.readTree(jsonString)
-                val typeNameNode = requireNotNull(tree["__typename"]) {
+                val typeNameNode = ensureNotNull(tree["__typename"]) {
                     "Cannot resolve typename for object when neither a type is programmatically provided " +
                         "nor a __typename field is present in the input json"
                 }

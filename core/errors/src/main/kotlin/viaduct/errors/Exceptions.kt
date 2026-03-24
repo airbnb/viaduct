@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 
 /**
@@ -25,7 +26,7 @@ interface TenantException : PassthroughException
  * Used in the tenant API and dependencies to indicate that an error is due to framework code
  * and shouldn't be attributed to tenant code.
  */
-@StableApi
+@InternalApi
 class FrameworkException(
     message: String,
     cause: Throwable? = null,
@@ -35,8 +36,8 @@ class FrameworkException(
  * Used in framework code to indicate that an error is due to invalid usage of the tenant API
  * by tenant code.
  */
-@StableApi
-class TenantUsageException(
+@InternalApi
+open class TenantUsageException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause), TenantException
@@ -45,8 +46,8 @@ class TenantUsageException(
  * Used to wrap non-framework exceptions that are thrown while executing tenant resolver code.
  * This is tied to a specific tenant-written resolver.
  */
-@StableApi
-class TenantResolverException constructor(
+@InternalApi
+class TenantResolverException(
     override val cause: Throwable,
     val resolver: String,
 ) : Exception(cause), TenantException {
@@ -66,15 +67,27 @@ class TenantResolverException constructor(
  * equivalent error FieldValues) produced upstream and must not be dropped or re-wrapped in any
  * exception that discards it.
  */
-@StableApi
+@InternalApi
 class ErroneousFieldException(
     val graphQLErrors: List<GraphQLError>,
 ) : Exception(), TenantException
 
 /**
+ * Throws [TenantUsageException] if [value] is null, otherwise returns [value].
+ * Use at tenant API boundaries where a null value indicates invalid tenant usage rather
+ * than a framework bug.
+ */
+@InternalApi
+fun <T : Any> ensureNotNull(
+    value: T?,
+    lazyMessage: () -> Any
+): T = value ?: throw TenantUsageException(lazyMessage().toString())
+
+/**
  * Use this to wrap all entry points into the tenant API. This will catch any exception
  * and attribute it to the framework unless it's a [PassthroughException].
  */
+@InternalApi
 fun <T> handleTenantAPIErrors(
     message: String,
     block: () -> T,
@@ -91,6 +104,7 @@ fun <T> handleTenantAPIErrors(
 /**
  * Same as [handleTenantAPIErrors] but for suspend functions.
  */
+@InternalApi
 suspend fun <T> handleTenantAPIErrorsSuspend(
     message: String,
     block: suspend () -> T,
@@ -109,7 +123,7 @@ suspend fun <T> handleTenantAPIErrorsSuspend(
  * Catches any exception thrown by [resolveFn] (which must be called via reflection) and wraps it
  * in [TenantResolverException] unless it's a [FrameworkException].
  */
-@StableApi
+@InternalApi
 suspend fun wrapResolveException(
     resolverId: String,
     resolveFn: suspend () -> Any?,

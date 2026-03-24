@@ -12,6 +12,8 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.GRT
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.errors.TenantUsageException
+import viaduct.errors.ensureNotNull
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.Domain
 import viaduct.mapping.graphql.IR
@@ -24,7 +26,7 @@ class GRTDomain<T : GRT> private constructor(
     private val keyMapping: KeyMapping
 ) : Domain<T> {
     override val conv: Conv<T, IR.Value.Object> =
-        Conv(
+        Conv<T, IR.Value.Object>(
             forward = {
                 val conv = when (it) {
                     is InputLikeBase -> ctx.grtConvFactory.create(
@@ -40,13 +42,13 @@ class GRTDomain<T : GRT> private constructor(
                         keyMapping = keyMapping,
                     )
                     else ->
-                        throw IllegalArgumentException("Unsupported GRT type: ${it.javaClass}")
+                        throw TenantUsageException("Unsupported GRT type: ${it.javaClass}")
                 }
                 conv(it) as IR.Value.Object
             },
             inverse = {
                 val typeName = it.name
-                val type = requireNotNull(ctx.schema.schema.getType(typeName)) {
+                val type = ensureNotNull(ctx.schema.schema.getType(typeName)) {
                     "Unknown type: $typeName"
                 }
                 val conv = ctx.grtConvFactory.create(ctx, type, selectionSet, keyMapping)
@@ -54,7 +56,7 @@ class GRTDomain<T : GRT> private constructor(
                 conv.invert(it) as T
             },
             "GRTDomain"
-        )
+        ).handleTenantAPIErrors("Error in GRTDomain.conv")
 
     companion object {
         /** Create a [GRTDomain] that maps values for the provided [selectionSet] */
