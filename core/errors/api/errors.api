@@ -1,32 +1,6 @@
-public final class viaduct/errors/ErroneousFieldException : java/lang/Exception, viaduct/errors/TenantException {
-	public fun <init> (Ljava/util/List;)V
-	public final fun getGraphQLErrors ()Ljava/util/List;
-}
-
-public final class viaduct/errors/ExceptionsKt {
-	public static final fun wrapResolveException (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class viaduct/errors/FrameworkException : java/lang/Exception, viaduct/errors/PassthroughException {
-	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
 public abstract interface class viaduct/errors/PassthroughException {
 }
 
 public abstract interface class viaduct/errors/TenantException : viaduct/errors/PassthroughException {
-}
-
-public final class viaduct/errors/TenantResolverException : java/lang/Exception, viaduct/errors/TenantException {
-	public fun <init> (Ljava/lang/Throwable;Ljava/lang/String;)V
-	public fun getCause ()Ljava/lang/Throwable;
-	public final fun getResolver ()Ljava/lang/String;
-	public final fun getResolversCallChain ()Ljava/lang/String;
-}
-
-public final class viaduct/errors/TenantUsageException : java/lang/Exception, viaduct/errors/TenantException {
-	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
