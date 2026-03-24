@@ -24,6 +24,21 @@ val viaductPublishing = extensions.create<ViaductPublishingExtension>("viaductPu
 
 val publishMinimal = providers.gradleProperty("publishMinimal").isPresent
 
+// Script plugins are the correct sharing mechanism here: build-logic/common/ utilities are on
+// the compilation classpath of precompiled plugins only (src/main/kotlin/). They do NOT
+// propagate to sibling subproject build scripts (shared/build.gradle.kts), because Gradle
+// scopes implementation() dependencies to precompiled plugin compilation, not to subproject
+// buildscript classpaths. Script plugins share the applying project's classpath, which covers
+// all Gradle API types needed.
+//
+// Walk up the Gradle instance hierarchy to the top-level build (gradle.parent == null
+// at the root). Since core/ is an included build of OSS — not the other way around —
+// the top-level Gradle is always the OSS build, so its rootProject.projectDir is always
+// the right anchor for resolving build-logic/gradle/viaduct-maven-central.gradle.kts.
+apply(from = generateSequence(gradle) { it.parent }.last()
+    .rootProject.projectDir
+    .resolve("build-logic/gradle/viaduct-maven-central.gradle.kts"))
+
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
     publishToMavenCentral(automaticRelease = true)
@@ -53,33 +68,7 @@ afterEvaluate {
         pom {
             name.set(resolvedName)
             if (resolvedDescription.isNotBlank()) description.set(resolvedDescription) else description.set("Viaduct library $resolvedArtifactId")
-
-            url.set("https://viaduct.airbnb.tech/")
-            licenses { license {
-                name.set("Apache License, Version 2.0")
-                url.set("https://www.apache.org/licenses/LICENSE-2.0")
-            }}
-            developers { developer {
-                id.set("airbnb"); name.set("Airbnb, Inc.")
-                email.set("viaduct-maintainers@airbnb.com")
-            }}
-            scm {
-                connection.set("scm:git:git://github.com/airbnb/viaduct.git")
-                developerConnection.set("scm:git:ssh://github.com/airbnb/viaduct.git")
-                url.set("https://github.com/airbnb/viaduct")
-            }
         }
-    }
-
-    signing {
-        val signingKeyId: String? by project
-        val signingKey: String? by project
-        val signingPassword: String? by project
-        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
-        setRequired {
-            gradle.taskGraph.allTasks.any { it is PublishToMavenRepository }
-        }
-        publishing.publications.forEach { sign(it) }
     }
 }
 

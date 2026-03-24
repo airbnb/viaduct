@@ -1,6 +1,10 @@
+import com.vanniktech.maven.publish.JavaLibrary
+import com.vanniktech.maven.publish.JavadocJar
+
 plugins {
     kotlin("jvm")
-    `maven-publish`
+    alias(libs.plugins.gradle.maven.publish)
+    signing
 }
 
 group = "com.airbnb.viaduct"
@@ -26,11 +30,16 @@ kotlin {
     jvmToolchain(17)
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-        }
+mavenPublishing {
+    val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
+    publishToMavenCentral(automaticRelease = true)
+    if (isRelease) signAllPublications()
+    configure(JavaLibrary(javadocJar = JavadocJar.Empty(), sourcesJar = false))
+    coordinates("com.airbnb.viaduct", "build-shared", version.toString())
+    pom {
+        name.set("Viaduct :: Build Shared")
+        description.set("Shared build utilities for Viaduct Gradle plugins")
     }
 }
 
+apply(from = rootDir.resolve("gradle/viaduct-maven-central.gradle.kts"))
