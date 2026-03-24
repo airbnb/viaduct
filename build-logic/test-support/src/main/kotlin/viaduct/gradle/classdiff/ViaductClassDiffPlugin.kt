@@ -121,7 +121,7 @@ abstract class ViaductClassDiffPlugin : Plugin<Project> {
             this.defaultSchemaFile.set(DefaultSchemaPlugin.getDefaultSchemaFileProvider(project))
             this.codegenClasspath.from(codegenClasspath)
             generatedSrcDir.set(project.layout.buildDirectory.dir(GENERATED_SOURCES_PATH))
-            dependsOn("processResources")
+            dependsOn(project.tasks.named("processResources"))
             doFirst { generatedSrcDir.get().asFile.mkdirs() }
         }
 
@@ -145,7 +145,7 @@ abstract class ViaductClassDiffPlugin : Plugin<Project> {
             packageName.set(pkg)
             buildFlags.putAll(BuildFlags.DEFAULT)
             generatedSrcDir.set(project.layout.buildDirectory.dir("$GENERATED_SOURCES_PATH/$pkgPath"))
-            dependsOn("processResources")
+            dependsOn(project.tasks.named("processResources"))
             doFirst { generatedSrcDir.get().asFile.mkdirs() }
         }
     }

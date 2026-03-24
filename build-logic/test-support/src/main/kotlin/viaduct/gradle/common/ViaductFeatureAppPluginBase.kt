@@ -142,8 +142,8 @@ abstract class ViaductFeatureAppPluginBase : Plugin<Project> {
             throw GradleException("Invalid package name '$packageName'. Package name must contain at least one segment (e.g., 'com.example.feature')")
         }
 
-        val schemaDir = project.layout.buildDirectory.dir(schemaDirName).get().asFile
-        val schemaFile = File(schemaDir, "$featureAppName.graphql")
+        val schemaFileProvider = project.layout.buildDirectory.dir(schemaDirName)
+            .map { it.file("$featureAppName.graphql") }
 
         // Create schema extraction task
         val extractionTask = project.tasks.register("extract${taskNamePrefix}${featureAppName.capitalize()}Schema") {
@@ -151,10 +151,11 @@ abstract class ViaductFeatureAppPluginBase : Plugin<Project> {
             description = "Extracts schema from $displayName $featureAppName"
 
             inputs.file(featureAppFile)
-            outputs.file(schemaFile)
+            outputs.file(schemaFileProvider)
 
             doLast {
-                schemaDir.mkdirs()
+                val schemaFile = schemaFileProvider.get().asFile
+                schemaFile.parentFile.mkdirs()
                 try {
                     extractSchemaFromFeatureApp(featureAppFile, schemaFile)
                 } catch (e: Exception) {
@@ -162,6 +163,8 @@ abstract class ViaductFeatureAppPluginBase : Plugin<Project> {
                 }
             }
         }
+
+        val schemaFile = schemaFileProvider.get().asFile
 
         val javaExtension = project.extensions.getByType<JavaPluginExtension>()
         val testSourceSet = javaExtension.sourceSets.getByName("test")
