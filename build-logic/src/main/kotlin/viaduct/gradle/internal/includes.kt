@@ -11,11 +11,10 @@ import org.gradle.api.initialization.Settings
  */
 fun Settings.includeNamed(
     path: String,
-    rootPath: String = ".",
     projectName: String? = null
 ) {
     include(path)
-    project(path).projectDir = File(settingsDir, "$rootPath${path.replace(":", "/")}")
+    project(path).projectDir = File(settingsDir, path.replace(":", "/"))
     val name = projectName ?: path.trimStart(':').replace(":", "-")
     project(path).name = name
 }

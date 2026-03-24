@@ -35,7 +35,7 @@ import viaduct.engine.api.select.SelectionsParser
  * production OOM in ExploreActivityListingCustomTypeResolver, where
  * `GRTDomain.forType()` triggers unbounded Conv building.
  *
- * Run with: bazel run //projects/viaduct/oss/tenant/api/src/jmh/kotlin/viaduct/api/internal:conv_build_benchmark
+ * Run with: bazel run //projects/viaduct/oss/core/tenant/api/src/jmh/kotlin/viaduct/api/internal:conv_build_benchmark
  */
 @OptIn(InternalApi::class)
 @State(Scope.Benchmark)

@@ -191,7 +191,7 @@ val config = ViaductConfig(...)
 Embeds entire files or specific line ranges:
 
 ```markdown
-{{ codefile("tenant/api/src/main/kotlin/MyClass.kt", start=10, end=20, lang="kotlin") }}
+{{ codefile("core/tenant/api/src/main/kotlin/MyClass.kt", start=10, end=20, lang="kotlin") }}
 ```
 
 #### github - Embed GitHub Files
@@ -199,7 +199,7 @@ Embeds entire files or specific line ranges:
 Embeds files from GitHub with links:
 
 ```markdown
-{{ github("tenant/api/TenantModule.kt#L10-L20") }}
+{{ github("core/tenant/api/TenantModule.kt#L10-L20") }}
 ```
 
 ### Publishing to Both Internal and External Sites

@@ -20,14 +20,14 @@ Replace the old dependency:
 
 ```python
 # Old
-"//projects/viaduct/oss/tenant/runtime/src/testFixtures/kotlin/viaduct/tenant/testing"
+"//projects/viaduct/oss/core/tenant/runtime/src/testFixtures/kotlin/viaduct/tenant/testing"
 ```
 
 With the new dependency:
 
 ```python
 # New
-"//projects/viaduct/oss/tenant/api/src/testFixtures/kotlin/viaduct/api/testing"
+"//projects/viaduct/oss/core/tenant/api/src/testFixtures/kotlin/viaduct/api/testing"
 ```
 
 ### Step 2: Change Base Class to Factory Pattern

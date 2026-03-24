@@ -4,7 +4,7 @@ import io.gitlab.arturbosch.detekt.Detekt
 import viaduct.gradle.internal.repoRoot
 
 // Only run custom detekt from the root build where build-logic:common exists.
-// Included builds (like included-builds/core) don't have access to this project.
+// Included builds (like core/) don't have access to this project.
 val isRootBuild = gradle.parent == null
 
 // Only register the detektCustomRules task once across all subprojects

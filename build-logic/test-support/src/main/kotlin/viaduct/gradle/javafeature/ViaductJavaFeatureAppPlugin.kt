@@ -44,7 +44,7 @@ abstract class ViaductJavaFeatureAppPlugin : ViaductFeatureAppPluginBase() {
 
     override fun apply(project: Project) {
         // Resolve the source root: for projects in included builds, project.rootDir points at the
-        // included-build's root (e.g., included-builds/core/), NOT the oss/ root. Walk up from
+        // included-build's root (e.g., core/), NOT the oss/ root. Walk up from
         // project.projectDir until a settings.gradle.kts is found to get the real OSS root.
         projectRoot = findSettingsRoot(project.projectDir) ?: project.rootDir
         // Ensure the configuration exists before super.apply() evaluates the build script

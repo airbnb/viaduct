@@ -23,9 +23,9 @@ includeBuild(".") {
     }
 }
 
-// All included-builds/core subprojects publish under names matching their Gradle project names,
+// All core subprojects publish under names matching their Gradle project names,
 // so auto-substitution handles them without any explicit rules.
-includeBuild("included-builds/core")
+includeBuild("core")
 
 // All gradle-plugins subprojects publish under names matching their Gradle project names,
 // so auto-substitution handles them without any explicit rules.
