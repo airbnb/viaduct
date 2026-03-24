@@ -29,6 +29,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.initialization.IncludedBuild
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.create
 
@@ -167,6 +168,12 @@ registerSubprojectAggregate(
     description = "[orchestration] Cleans all SUBPROJECTS in THIS build.",
     taskNames = setOf("clean")
 )
+// Also clean THIS build's root project build directory; subproject-only aggregates miss it.
+val cleanRootBuildDir = tasks.register<Delete>("orchestrationCleanRootBuildDir") {
+    description = "[orchestration] Cleans this build's root project build directory."
+    delete(layout.buildDirectory)
+}
+tasks.named("orchestrationCleanAll") { dependsOn(cleanRootBuildDir) }
 registerSubprojectAggregate(
     aggregateName = "orchestrationTestAll",
     description = "[orchestration] Tests all SUBPROJECTS in THIS build.",
