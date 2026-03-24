@@ -1,6 +1,8 @@
 package viaduct.gradle.classdiff
 
 import java.io.File
+import org.gradle.api.Named
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -16,51 +18,50 @@ import org.gradle.api.tasks.SourceSetContainer
  */
 open class ViaductClassDiffExtension(private val project: Project) {
     /**
-     * List of schema diff configurations.
-     * Each schema diff can have its own packages and schema resources.
+     * Container of schema diff configurations. Each call to [schemaDiff] registers
+     * tasks immediately — no afterEvaluate needed.
      */
-    val schemaDiffs: ListProperty<SchemaDiff> = project.objects.listProperty(SchemaDiff::class.java)
+    val schemaDiffs: NamedDomainObjectContainer<SchemaDiff> =
+        project.objects.domainObjectContainer(SchemaDiff::class.java) { name -> SchemaDiff(name, project) }
 
     /**
      * The source set to wire generated code into.
-     * Default: "test".
+     * Default: "test". Must be set before any [schemaDiff] calls if overriding the default.
      */
     val sourceSetName: Property<String> = project.objects.property(String::class.java)
         .convention("test")
 
     /**
-     * Create and configure a new schema diff.
+     * Create and configure a new schema diff, immediately registering its codegen tasks.
      */
     fun schemaDiff(
         name: String,
         configure: SchemaDiff.() -> Unit
-    ) {
-        val schemaDiff = SchemaDiff(name, project)
-        schemaDiff.configure()
-        schemaDiffs.add(schemaDiff)
-    }
+    ) = schemaDiffs.create(name, configure)
 }
 
 /**
  * Configuration for a single schema diff, including packages and schema resources.
  */
 class SchemaDiff(
-    val name: String,
+    private val diffName: String,
     private val project: Project
-) {
+) : Named {
+    override fun getName(): String = diffName
+
     /**
      * Package name for generated schema objects (actuals).
      * Default: "actuals.api.generated.{name}"
      */
     val actualPackage: Property<String> = project.objects.property(String::class.java)
-        .convention("actuals.api.generated.$name")
+        .convention("actuals.api.generated.$diffName")
 
     /**
      * Package name for generated GRT objects (expected).
      * Default: "viaduct.api.grts.{name}"
      */
     val expectedPackage: Property<String> = project.objects.property(String::class.java)
-        .convention("viaduct.api.grts.$name")
+        .convention("viaduct.api.grts.$diffName")
 
     /**
      * List of schema resource paths (relative paths within the source set resource dirs).
@@ -111,7 +112,7 @@ class SchemaDiff(
                 }
 
         if (selectedSets.isEmpty()) {
-            project.logger.warn("No valid source sets configured for schema diff '$name'.")
+            project.logger.warn("No valid source sets configured for schema diff '$diffName'.")
             return emptyList()
         }
 
@@ -122,7 +123,7 @@ class SchemaDiff(
 
         if (resourceRoots.isEmpty()) {
             project.logger.info(
-                "No resource directories found in source sets ${sourceSetNames.get()} for schema diff '$name'."
+                "No resource directories found in source sets ${sourceSetNames.get()} for schema diff '$diffName'."
             )
         }
 
@@ -140,7 +141,7 @@ class SchemaDiff(
             } else {
                 project.logger.warn(
                     "Schema resource '$resourcePath' not found in source sets ${sourceSetNames.get()} " +
-                        "for schema diff '$name'. Searched roots: ${resourceRoots.joinToString { it.absolutePath }}"
+                        "for schema diff '$diffName'. Searched roots: ${resourceRoots.joinToString { it.absolutePath }}"
                 )
             }
         }
