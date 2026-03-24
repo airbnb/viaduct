@@ -106,7 +106,7 @@ class ExecutionParametersTest {
         assertEquals(queryType, result.executionStepInfo.type)
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
         assertSame(parameters, result.parent)
-        assertEquals(childPlan.attribution, result.localContext.get<ExecutionObservabilityContext>()?.attribution)
+        assertEquals(childPlan.attribution, result.attribution)
     }
 
     @Test
@@ -136,7 +136,7 @@ class ExecutionParametersTest {
         assertEquals(fooType, result.executionStepInfo.type)
         assertEquals(ResultPath.rootPath().segment("foo"), result.executionStepInfo.path)
         assertEquals(childAst, result.executionStepInfo.field.singleField.selectionSet)
-        assertEquals(childPlan.attribution, result.localContext.get<ExecutionObservabilityContext>()?.attribution)
+        assertEquals(childPlan.attribution, result.attribution)
     }
 
     @Test
@@ -263,7 +263,7 @@ class ExecutionParametersTest {
         assertEquals(defaultRootValue, result.source)
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
         assertEquals(queryType, result.executionStepInfo.type)
-        assertEquals(childPlan.attribution, result.localContext.get<ExecutionObservabilityContext>()?.attribution)
+        assertEquals(childPlan.attribution, result.attribution)
     }
 
     @Test

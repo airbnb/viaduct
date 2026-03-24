@@ -31,7 +31,6 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandl
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.context.CompositeLocalContext
-import viaduct.engine.runtime.context.updateCompositeLocalContext
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 import viaduct.utils.slf4j.logger
 
@@ -85,6 +84,7 @@ data class ExecutionParameters(
     val field: QueryPlan.CollectedField? = null,
     val bypassChecksDuringCompletion: Boolean = false,
     val resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
+    val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
 ) : EngineExecutionContext.ExecutionHandle {
     // Each ExecutionParameters gets its own EEC copy to prevent cross-contamination
     // between different execution contexts (e.g., parent vs child field resolution).
@@ -99,7 +99,9 @@ data class ExecutionParameters(
 
     /** The ExecutionContext with the current local context applied */
     val executionContextWithLocalContext: ExecutionContext by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        constants.executionContext.transform { it.localContext(localContext) }
+        constants.executionContext.transform {
+            it.localContext(localContext.addOrUpdate(ExecutionObservabilityContext(attribution = attribution)))
+        }
     }
 
     val executionContext: ExecutionContext = constants.executionContext
@@ -336,11 +338,7 @@ data class ExecutionParameters(
         } else {
             // For object plans, we use the current local context
             localContext
-        }.addOrUpdate(
-            ExecutionObservabilityContext(
-                attribution = childPlan.attribution
-            )
-        )
+        }
 
         return copy(
             coercedVariables = variables,
@@ -353,6 +351,7 @@ data class ExecutionParameters(
             localContext = localContext,
             source = source,
             resolutionPolicy = resolutionPolicy,
+            attribution = childPlan.attribution,
         )
     }
 
@@ -442,15 +441,10 @@ data class ExecutionParameters(
                 log.debug("Built QueryPlan in $duration")
 
                 val currentCoroutineContext = currentCoroutineContext()
-                val localContext = executionContext.updateCompositeLocalContext<ExecutionObservabilityContext> {
-                    ExecutionObservabilityContext(
-                        attribution = planAttribution
-                    )
-                }
 
                 // Create the execution scope with all execution-wide dependencies
                 val constants = Constants(
-                    executionContext = executionContext.transform { it.localContext(localContext) },
+                    executionContext = executionContext,
                     rootEngineResult = rootEngineResult,
                     queryEngineResult = queryEngineResult,
                     supervisorScopeFactory = supervisorScopeFactory,
@@ -464,10 +458,11 @@ data class ExecutionParameters(
                     coercedVariables = executionContext.coercedVariables,
                     queryPlan = queryPlan,
                     source = executionContext.getRoot(),
-                    localContext = localContext,
+                    localContext = executionContext.getLocalContext(),
                     executionStepInfo = parameters.executionStepInfo,
                     selectionSet = queryPlan.selectionSet,
                     errorAccumulator = ErrorAccumulator(),
+                    attribution = planAttribution,
                 )
             }
         }

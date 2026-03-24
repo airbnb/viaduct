@@ -550,6 +550,61 @@ class FieldExecutionObservabilityTest {
         assertEquals("bar-value-resolver", resolvedByInstrumentation.getFieldResolvedBy("Bar", "value"))
     }
 
+    @Test
+    fun `required_by attribution is correct when multiple resolvers share the same required field`() {
+        val instrumentation = TestObservabilityInstrumentation()
+        val string1FooValueExecuted = CountDownLatch(1)
+        val string2FooValueExecuted = CountDownLatch(1)
+
+        // Counts down when Foo.value begins executing under each resolver's attribution.
+        // The resolvers wait for their own latch before returning, ensuring both child
+        // plan traversals have started before either resolver completes — preventing the
+        // race condition where fieldComplete cancels a still-running child plan.
+        val countDownInstrumentation = createCountDownInstrumentation(
+            "Foo" to "value",
+            mapOf(
+                "RESOLVER:string1-resolver" to string1FooValueExecuted,
+                "RESOLVER:string2-resolver" to string2FooValueExecuted
+            )
+        )
+
+        val instrumentations = ChainedModernGJInstrumentation(
+            listOf(instrumentation.asStandardInstrumentation, countDownInstrumentation.asStandardInstrumentation)
+        )
+
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentations)
+            .resolver("Query" to "foo", resolverName = "foo-resolver") {
+                Foo.Builder(it).build()
+            }
+            .resolver("Foo" to "value", resolverName = "foo-value-resolver") { "foo-value" }
+            .resolver(
+                "Query" to "string1",
+                objectValueFragment = "foo { value }",
+                resolveFn = { _: UntypedFieldContext ->
+                    string1FooValueExecuted.await(1, TimeUnit.SECONDS).toString()
+                },
+                resolverName = "string1-resolver"
+            )
+            .resolver(
+                "Query" to "string2",
+                objectValueFragment = "foo { value }",
+                resolveFn = { _: UntypedFieldContext ->
+                    string2FooValueExecuted.await(1, TimeUnit.SECONDS).toString()
+                },
+                resolverName = "string2-resolver"
+            )
+            .build()
+            .execute("query testQuery { string1, string2 }")
+
+        // Both resolvers require Foo.value through their shared foo fragment.
+        // Each traversal into Foo must carry the correct resolver attribution —
+        // not misattributed to the first resolver that fetched the cached FieldResolutionResult.
+        assertEquals(
+            setOf("RESOLVER:string1-resolver", "RESOLVER:string2-resolver"),
+            instrumentation.getFieldRequiredBy("Foo", "value").toSet()
+        )
+    }
+
     private fun createCountDownInstrumentation(
         coordinate: Coordinate,
         attributionToLatchMap: Map<String?, CountDownLatch>
