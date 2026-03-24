@@ -4,6 +4,7 @@ import graphql.ErrorClassification
 import graphql.GraphQLError
 import graphql.execution.ResultPath
 import graphql.language.SourceLocation
+import viaduct.errors.PassthroughException
 
 /**
  * Wraps exceptions that originate from field fetchers
@@ -13,7 +14,7 @@ class FieldFetchingException private constructor(
     val path: ResultPath,
     val location: SourceLocation,
     override val cause: Throwable? = null
-) : RuntimeException(cause?.message, cause) {
+) : RuntimeException(cause?.message, cause), PassthroughException {
     init {
         require(cause !is FieldFetchingException || this.path != cause.path) {
             "FieldFetchingException should not be recursively applied for the same field"
