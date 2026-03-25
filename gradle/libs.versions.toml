@@ -23,6 +23,7 @@ jmh = "1.37"
 junit5 = "5.11.3"
 kotest = "5.9.1"
 kotlin = "1.9.24"
+ksp = "1.9.10-1.0.13"
 kotlinx = "1.8.1"
 kotlinx-debug = "1.8.1"
 kotlinx-metadata = "0.9.0"
@@ -68,6 +69,7 @@ viaduct-engine-wiring = { module = "com.airbnb.viaduct:engine-wiring", version.r
 viaduct-tenant-api = { module = "com.airbnb.viaduct:tenant-api", version.ref = "project" }
 viaduct-tenant-runtime = { module = "com.airbnb.viaduct:tenant-runtime", version.ref = "project" }
 viaduct-tenant-codegen = { module = "com.airbnb.viaduct:tenant-codegen", version.ref = "project" }
+viaduct-tenant-ksp = { module = "com.airbnb.viaduct:tenant-ksp", version.ref = "project" }
 viaduct-tenant-wiring = { module = "com.airbnb.viaduct:tenant-wiring", version.ref = "project" }
 
 viaduct-javaapi-api = { module = "com.airbnb.viaduct:javaapi-api", version.ref = "project" }
@@ -97,6 +99,7 @@ viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version
 viaduct-serve = { module = "com.airbnb.viaduct:serve", version.ref = "project" }
 
 # Kotlin
+ksp-symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlinx-binary-compatibility-validator = { module = "org.jetbrains.kotlinx:binary-compatibility-validator", version.ref = "binaryCompatibility" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx" }
