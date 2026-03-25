@@ -41,9 +41,6 @@ Types marked with `@edge` must:
 1. Have a `node` field (any output type except list)
 2. Have a `cursor: String!` field (non-nullable String)
 
-!!! note
-    Full validation and builder utilities are under development. See the [Pagination guide](../pagination/index.md) for more details.
-
 ## Related
 
 - [`@connection` directive](connection.md) - Mark connection types

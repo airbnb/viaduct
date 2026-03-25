@@ -5,30 +5,103 @@ description: Relay-compliant pagination support in Viaduct.
 
 # Pagination
 
-!!! info "Coming Soon"
-    Full pagination support is under active development. This guide will be expanded as features are released.
+Viaduct implements the [Relay Connection specification](https://relay.dev/graphql/connections.htm), providing cursor-based pagination with built-in builder utilities.
 
-## Overview
+## Schema
 
-Viaduct provides utilities for implementing [Relay-style cursor pagination](https://relay.dev/graphql/connections.htm), the industry standard for GraphQL pagination.
+Define your connection and edge types using the [`@connection`](../directives/connection.md) and [`@edge`](../directives/edge.md) directives:
 
-## Current Status
+```graphqls
+type FilmConnection @connection {
+  edges: [FilmEdge!]!
+  pageInfo: PageInfo!
+}
 
-The foundation directives are available:
+type FilmEdge @edge {
+  node: Film!
+  cursor: String!
+}
+```
 
-- [`@connection`](../directives/connection.md) - Mark connection types
-- [`@edge`](../directives/edge.md) - Mark edge types
+Fields that return a connection accept standard Relay pagination arguments:
 
-## Planned Features
+```graphqls
+type Character implements Node {
+  id: ID!
+  name: String!
+  films(first: Int, after: String): FilmConnection!
+}
+```
 
-The following features are under development:
+## Building Connection Responses
 
-- **Connection validation** - Build-time validation of connection/edge type structure
-- **ConnectionBuilder** - Utilities for building connection responses
-- **Offset cursor support** - Convert offset/limit backends to cursor pagination
-- **Full list pagination** - Paginate in-memory lists automatically
+Connection builders provide three strategies depending on your backend:
+
+### `fromList` — in-memory list
+
+Use when your resolver has the full dataset. Viaduct handles slicing and cursor encoding automatically:
+
+```kotlin
+@Resolver
+class CharacterFilmsResolver : CharacterResolvers.Films() {
+  override suspend fun resolve(ctx: Context): FilmConnection {
+    val allFilms = filmRepository.getFilmsForCharacter(ctx.objectValue.id)
+    return FilmConnection.Builder(ctx)
+      .fromList(allFilms) { film -> Film.Builder(ctx).title(film.title).build() }
+      .build()
+  }
+}
+```
+
+### `fromSlice` — offset/limit backend
+
+Use when your backend accepts offset and limit. Over-fetch by one to detect `hasNextPage`:
+
+```kotlin
+@Resolver
+class CharacterFilmsResolver : CharacterResolvers.Films() {
+  override suspend fun resolve(ctx: Context): FilmConnection {
+    val (offset, limit) = ctx.arguments.toOffsetLimit()
+    val fetched = filmService.getFilms(offset, limit + 1)
+    return FilmConnection.Builder(ctx)
+      .fromSlice(fetched.take(limit), hasNextPage = fetched.size > limit) { film ->
+        Film.Builder(ctx).title(film.title).build()
+      }
+      .build()
+  }
+}
+```
+
+### `fromEdges` — native cursors or edge metadata
+
+Use when your backend returns native cursors, or when your edge type carries extra fields beyond `node` and `cursor`:
+
+```kotlin
+@Resolver
+class CharacterFilmsResolver : CharacterResolvers.Films() {
+  override suspend fun resolve(ctx: Context): FilmConnection {
+    val response = filmService.getFilms(cursor = ctx.arguments.after, limit = ctx.arguments.first ?: 20)
+    return FilmConnection.Builder(ctx)
+      .fromEdges(
+        edges = response.films.map { film ->
+          FilmEdge.Builder(ctx)
+            .node(Film.Builder(ctx).title(film.title).build())
+            .cursor(film.cursor)
+            .build()
+        },
+        hasNextPage = response.hasMore
+      )
+      .build()
+  }
+}
+```
+
+## Full Documentation
+
+For the complete pagination reference — argument types, `toOffsetLimit()`, cursor encoding, and `PageInfo` handling — see the [Pagination developer docs](../../../docs/developers/pagination/index.md).
 
 ## Resources
 
 - [Relay Connection Specification](https://relay.dev/graphql/connections.htm)
-- [Roadmap](../../../roadmap/index.md) - See "Connections" feature status
+- [`@connection` directive](../directives/connection.md)
+- [`@edge` directive](../directives/edge.md)

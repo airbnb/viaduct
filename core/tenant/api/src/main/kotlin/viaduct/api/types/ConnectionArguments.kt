@@ -4,7 +4,11 @@ import viaduct.api.connection.OffsetLimit
 import viaduct.apiannotations.ExperimentalApi
 
 /**
- * Base interface for connection pagination arguments.
+ * Typed access to the pagination inputs (`first`, `after`, `last`, `before`) of a connection field.
+ *
+ * Codegen picks the right sub-interface based on which arguments the schema declares.
+ * [viaduct.api.internal.ConnectionBuilder] calls [toOffsetLimit] internally — call it directly
+ * only when you need the offset/limit to query a backend before using the builder.
  *
  * @see ForwardConnectionArguments
  * @see BackwardConnectionArguments

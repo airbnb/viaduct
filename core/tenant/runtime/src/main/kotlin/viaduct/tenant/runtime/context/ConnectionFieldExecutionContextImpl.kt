@@ -12,6 +12,13 @@ import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineObjectData
 import viaduct.tenant.runtime.toObjectGRT
 
+/**
+ * Runtime implementation of [ConnectionFieldExecutionContext].
+ *
+ * Wires together the engine's execution data with the typed [ConnectionArguments] so that
+ * connection resolvers can access pagination arguments and the parent object value.
+ * Constructed by the Viaduct runtime; not instantiated directly by resolver code.
+ */
 @ExperimentalApi
 @Suppress("UNCHECKED_CAST")
 class ConnectionFieldExecutionContextImpl<Q : Query>(
@@ -37,6 +44,12 @@ class ConnectionFieldExecutionContextImpl<Q : Query>(
         syncQueryValueGetter,
         queryCls,
     ) {
+    /**
+     * Resolves and returns the parent object value for this connection field.
+     *
+     * @throws IllegalStateException if the sync object data is unavailable, which indicates
+     *   an internal Viaduct error rather than a resolver bug.
+     */
     override suspend fun getObjectValue(): Object {
         val resolvedSyncObjectValue = syncObjectValueGetter?.invoke()
             ?: throw IllegalStateException(

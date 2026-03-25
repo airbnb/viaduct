@@ -142,17 +142,17 @@ interface Edge<N> : Object
 interface ConnectionArguments : Arguments
 
 interface ForwardConnectionArguments : ConnectionArguments {
-    val first: Int?
-    val after: String?
+  val first: Int?
+  val after: String?
 }
 
 interface BackwardConnectionArguments : ConnectionArguments {
-    val last: Int?
-    val before: String?
+  val last: Int?
+  val before: String?
 }
 
 interface MultidirectionalConnectionArguments
-    : ForwardConnectionArguments, BackwardConnectionArguments
+  : ForwardConnectionArguments, BackwardConnectionArguments
 ```
 
 Generated argument types implement the appropriate interface based on which pagination arguments the field accepts.
@@ -176,9 +176,11 @@ This provides type-safe access to pagination arguments and ensures compatibility
 
 Connection GRT builders extend `ConnectionBuilder`, which provides utilities for common pagination scenarios.
 
-### From Edges (Native Cursors)
+### From Edges (Native Cursors or Edge Metadata)
 
-When your backend natively supports cursor-based pagination, use `fromEdges()`:
+Use `fromEdges()` when you need full control over edge construction. This is the right choice in two situations:
+
+**1. Backend returns native cursors:**
 
 ```kotlin
 @Resolver
@@ -205,25 +207,53 @@ class UsersResolver : QueryUsersResolver() {
 }
 ```
 
-### From Slice (Offset/Limit)
+**2. Edge type carries metadata fields beyond `node` and `cursor`:**
 
-When your backend uses offset/limit pagination, use `fromSlice()`. This automatically encodes offsets as cursors:
+When your edge has extra fields (such as `role`, `reason`, `score`), you must build the edges manually using `fromEdges()` since `fromSlice()` and `fromList()` only build the node. Use `OffsetCursor.fromOffset()` to encode cursors for offset/limit backends:
+
+```kotlin
+@Resolver
+class UsersByRoleResolver : QueryUsersByRoleResolver() {
+    override suspend fun resolve(ctx: Context): UserConnection {
+        val (offset, limit) = ctx.arguments.toOffsetLimit()
+        val fetched = userService.getUsers(offset, limit + 1)
+        val page = fetched.take(limit)
+
+        return UserConnection.Builder(ctx)
+            .fromEdges(
+                edges = page.mapIndexed { idx, user ->
+                    UserEdge.Builder(ctx)
+                        .node(ctx.nodeFor(user.id))
+                        .cursor(OffsetCursor.fromOffset(offset + idx).value)
+                        .role(user.role)
+                        .build()
+                },
+                hasNextPage = fetched.size > limit,
+                hasPreviousPage = offset > 0
+            )
+            .build()
+    }
+}
+```
+
+### From Slice (Offset/Limit, No Edge Metadata)
+
+When your backend uses offset/limit and your edge type has no extra fields beyond `node` and `cursor`, use `fromSlice()`. It handles cursor encoding automatically:
 
 ```kotlin
 @Resolver
 class UsersResolver : QueryUsersResolver() {
     override suspend fun resolve(ctx: Context): UserConnection {
         val (offset, limit) = ctx.arguments.toOffsetLimit()
-        val response = userService.getUsers(offset, limit + 1)
+        val fetched = userService.getUsers(offset, limit + 1)
 
         return UserConnection.Builder(ctx)
             .fromSlice(
-                items = response.users,
-                hasNextPage = response.users.size > limit
+                items = fetched,
+                hasNextPage = fetched.size > limit
             ) { user ->
                 ctx.nodeFor(user.id)
             }
-            .totalCount(response.totalCount)
             .build()
     }
 }
@@ -231,9 +261,12 @@ class UsersResolver : QueryUsersResolver() {
 
 The `fromSlice()` method:
 
-1. Converts pagination arguments to offset/limit via `toOffsetLimit()`
-2. Builds edges with automatically encoded offset cursors
+1. Trims `items` to at most `limit` entries (the extra item is only for `hasNextPage` detection)
+2. Builds edges with automatically encoded offset cursors (offset + index)
 3. Sets `pageInfo` with correct `hasNextPage` and `hasPreviousPage` values
+
+!!! note
+    `fromSlice()` only builds the node value per edge. If your edge type has additional fields, use `fromEdges()` instead.
 
 ### From List (Full Data)
 
@@ -249,6 +282,7 @@ class UsersResolver : QueryUsersResolver() {
             .fromList(allUsers) { user ->
                 ctx.nodeFor(user.id)
             }
+            .build()
     }
 }
 ```
@@ -283,8 +317,8 @@ When only `last` is specified (without `before`), the total count is needed:
 
 ```kotlin
 if (ctx.arguments.requiresTotalCountForOffsetLimit()) {
-    val totalCount = userService.getUserCount()
-    val (offset, limit) = ctx.arguments.toOffsetLimit(totalCount)
+  val totalCount = userService.getUserCount()
+  val (offset, limit) = ctx.arguments.toOffsetLimit(totalCount)
 }
 ```
 
@@ -294,19 +328,16 @@ Cursors are opaque strings that identify a position in a paginated list.
 
 ### Offset Cursors
 
-!!! note
-    This feature is still in development.
-
-For offset/limit backends, Viaduct provides `viaduct.api.types.OffsetCursor`:
+For offset/limit backends, Viaduct provides `viaduct.api.connection.OffsetCursor`:
 
 ```kotlin
 @JvmInline
 value class OffsetCursor(val value: String) {
-    fun toOffset(): Int
+  fun toOffset(): Int
 
-    companion object {
-        fun fromOffset(offset: Int): OffsetCursor
-    }
+  companion object {
+    fun fromOffset(offset: Int): OffsetCursor
+  }
 }
 ```
 
@@ -351,33 +382,36 @@ enum MemberRole {
 
 ```kotlin
 @Resolver
-class OrganizationMembersResolver : OrganizationMembersFieldResolver() {
-    @Inject lateinit var memberService: MemberService
+class OrganizationMembersResolver : OrganizationResolvers.Members() {
+  @Inject lateinit var memberService: MemberService
 
-    override suspend fun resolve(ctx: Context): MemberConnection {
-        val orgId = ctx.source.id
-        val (offset, limit) = ctx.arguments.toOffsetLimit()
+  override suspend fun resolve(ctx: Context): MemberConnection {
+    val orgId = ctx.objectValue.getId()
+    val (offset, limit) = ctx.arguments.toOffsetLimit()
 
-        val response = memberService.getMembers(
-            organizationId = orgId.internalID,
-            offset = offset,
-            limit = limit + 1
-        )
+    val response = memberService.getMembers(
+      organizationId = orgId.internalID,
+      offset = offset,
+      limit = limit + 1
+    )
 
-        return MemberConnection.Builder(ctx)
-            .fromSlice(
-                items = response.members,
-                hasNextPage = response.members.size > limit
-            ) { member ->
-                MemberEdge.Builder(ctx)
-                    .node(ctx.nodeFor(member.userId))
-                    .role(member.role)
-                    .joinedAt(member.joinedAt)
-                    .build()
-            }
-            .totalCount(response.totalCount)
+    val page = response.members.take(limit)
+    return MemberConnection.Builder(ctx)
+      .fromEdges(
+        edges = page.mapIndexed { idx, member ->
+          MemberEdge.Builder(ctx)
+            .node(ctx.nodeFor(member.userId))
+            .cursor(OffsetCursor.fromOffset(offset + idx).value)
+            .role(member.role)
+            .joinedAt(member.joinedAt)
             .build()
-    }
+        },
+        hasNextPage = response.members.size > limit,
+        hasPreviousPage = offset > 0
+      )
+      .totalCount(response.totalCount)
+      .build()
+  }
 }
 ```
 
@@ -409,16 +443,44 @@ query {
 
 ## Choosing an Approach
 
-| Backend Support | Method | Notes |
-|----------------|--------|-------|
-| Native cursors | `fromEdges()` | Pass through backend cursors directly |
-| Offset/limit | `fromSlice()` | Encodes offsets as cursors automatically |
-| Full list | `fromList()` | Handles slicing and cursor encoding |
+| Situation | Method | Notes |
+|-----------|--------|-------|
+| Backend returns native cursors | `fromEdges()` | Pass through backend cursors directly |
+| Offset/limit backend, edge has extra fields | `fromEdges()` | Build edges manually with `OffsetCursor.fromOffset()` |
+| Offset/limit backend, no extra edge fields | `fromSlice()` | Cursor encoding handled automatically |
+| Full in-memory list | `fromList()` | Slicing and cursor encoding handled automatically |
+
+## Testing
+
+Connection resolvers are tested like any other field resolver. Use `FieldResolverTester` with the generated connection arguments type:
+
+```kotlin
+class MyConnectionResolverTest {
+  private val tester = FieldResolverTester.create<
+      Query,                    // Object type (Query for root fields)
+      Query,                    // Query type
+      Users_Arguments,          // Must implement ConnectionArguments
+      UserConnection            // Return type
+      >(TesterConfig(schemaSDL = SCHEMA_SDL))
+
+  @Test
+  fun `first page returns correct edges`() = runBlocking {
+    val result = tester.test(UsersResolver()) {
+      objectValue = NullObject
+      arguments = Users_Arguments.Builder(tester.context).first(3).build()
+    }
+    assertEquals(3, result.getEdges().size)
+  }
+}
+```
+
+See the [resolver testing guide](../resolvers/index.md) for full testing documentation.
 
 ## Best Practices
 
-- **Fetch limit + 1** items to efficiently determine `hasNextPage`
-- **Include `totalCount`** when available for UI pagination controls
-- **Set reasonable defaults** for page size (typically 10-50 items)
-- **Keep cursors opaque**—don't expose internal format to clients
-- **Use `fromSlice()`** for offset/limit backends to get automatic cursor handling
+- **Fetch limit + 1** items to efficiently determine `hasNextPage` without a count query
+- **Trim to `limit` before building edges for `fromEdges()`** — over-fetching is only for detecting the next page
+- **Include `totalCount`** on the connection type when it is useful for UI pagination controls
+- **Set reasonable defaults** for page size (typically 10–50 items) via `toOffsetLimit(defaultPageSize = N)`
+- **Keep cursors opaque** — don't parse or construct `OffsetCursor` values in client code
+- **Use `fromEdges()` for edge metadata** — if your edge type has any field beyond `node` and `cursor`, `fromSlice()` and `fromList()` cannot populate those fields

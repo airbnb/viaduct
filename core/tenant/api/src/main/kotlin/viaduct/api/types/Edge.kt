@@ -3,10 +3,12 @@ package viaduct.api.types
 import viaduct.apiannotations.ExperimentalApi
 
 /**
- * Represents an edge in a GraphQL Relay-style connection.
+ * A wrapper around a node that also carries a `cursor` encoding the item's position in the list.
+ * Clients pass the cursor back as `after`/`before` to resume pagination from that point.
  *
- * An edge wraps a node and typically provides additional metadata
- * such as a cursor for pagination.
+ * [viaduct.api.internal.ConnectionBuilder.fromSlice] and [viaduct.api.internal.ConnectionBuilder.fromList]
+ * set `node` and `cursor` automatically. Use [viaduct.api.internal.ConnectionBuilder.fromEdges]
+ * when your edge type has additional custom fields.
  *
  * @param N The type of node this edge contains.
  * @see Connection

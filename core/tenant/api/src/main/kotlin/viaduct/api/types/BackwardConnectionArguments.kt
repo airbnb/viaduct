@@ -19,8 +19,13 @@ interface BackwardConnectionArguments : ConnectionArguments {
     /**
      * Converts backward pagination arguments to offset/limit.
      *
-     * - `last` determines the page size (defaults to [defaultPageSize])
-     * - `before` cursor is decoded to determine the ending position
+     * - `last` determines the page size (defaults to [defaultPageSize]).
+     * - `before` cursor encodes the index of the first item on the next page; the offset and
+     *   limit are computed to return the `last` items ending just before that position.
+     *   Both are clamped so the window never extends before index 0.
+     * - If `before` is absent, [OffsetLimit.backwards] is set to `true` and offset is 0,
+     *   signalling [viaduct.api.internal.ConnectionBuilder.fromList] to take from the tail of
+     *   the full list rather than the head.
      */
     @ExperimentalApi
     override fun toOffsetLimit(defaultPageSize: Int): OffsetLimit {

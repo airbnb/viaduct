@@ -7,18 +7,18 @@ import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
 
 /**
- * Execution context for resolving connection fields with pagination support.
+ * A [FieldExecutionContext] for connection fields, with typed access to [ConnectionArguments].
  *
- * Extends [FieldExecutionContext] to provide specialized handling for
- * GraphQL Relay-style connection fields.
+ * Resolvers typically don't interact with the arguments directly — [viaduct.api.internal.ConnectionBuilder]
+ * reads them internally when building edges and `pageInfo`. Call `ctx.arguments.toOffsetLimit()`
+ * directly only when you need the offset/limit to pass to a backend before using the builder.
  *
  * @param O The parent object type containing this connection field.
  * @param Q The query type for data fetching.
- * @param A The connection arguments type for pagination parameters.
+ * @param A The connection arguments type (`first`, `after`, `last`, `before`).
  * @param R The connection output type.
  * @see FieldExecutionContext
- * @see Connection
- * @see ConnectionArguments
+ * @see viaduct.api.internal.ConnectionBuilder
  */
 
 @ExperimentalApi

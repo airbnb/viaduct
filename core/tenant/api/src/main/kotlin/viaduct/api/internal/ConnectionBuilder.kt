@@ -50,24 +50,32 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
     private val edgeType: Type<E>,
 ) : ObjectBase.Builder<C>(connectionContext.internal, graphQLObjectType, baseEngineObjectData) {
     /**
-     * The connection arguments from the execution context.
-     * Used for pagination (offset/limit calculation).
+     * The pagination arguments from the current GraphQL request (`first`, `after`, `last`,
+     * `before`). Available for resolvers that need to fetch data before calling one of the
+     * builder methods, e.g. to pass `offset` and `limit` to a backend service.
+     * [fromSlice] and [fromList] read these arguments internally.
      */
     protected val arguments: ConnectionArguments
         get() = connectionContext.arguments
 
     /**
-     * Build connection from pre-constructed edges.
+     * Build a connection from pre-constructed edges.
      *
-     * Use this when you have already constructed Edge instances and want
-     * explicit control over PageInfo values.
+     * Use this when either:
+     * - your backend natively returns opaque cursors (pass them through directly), or
+     * - your edge type has custom fields beyond `node` and `cursor`
+     *   (e.g. a `relevanceScore` on a search edge).
      *
-     * Cursors for PageInfo are extracted from the first and last edges.
+     * You are responsible for setting the `cursor` field on each edge and for
+     * determining [hasNextPage] and [hasPreviousPage].
      *
-     * @param edges Pre-constructed list of edges
-     * @param hasNextPage Whether more items exist after this page
-     * @param hasPreviousPage Whether more items exist before this page
-     * @return The built Connection instance
+     * `pageInfo.startCursor` and `pageInfo.endCursor` are extracted automatically from the
+     * `cursor` field of the first and last edges respectively.
+     *
+     * @param edges Pre-constructed edges; each must have its `cursor` field set.
+     * @param hasNextPage Whether more items exist after this page.
+     * @param hasPreviousPage Whether more items exist before this page.
+     * @return This builder for chaining.
      */
     @ExperimentalApi
     fun fromEdges(
@@ -89,18 +97,30 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
     }
 
     /**
-     * Build connection from a slice of items.
+     * Build a connection from a backend-paginated slice of items.
+     *
+     * Use this when your backend handles pagination itself (e.g. a database query with
+     * `LIMIT` and `OFFSET`). The caller is responsible for passing the correct [hasNextPage]
+     * flag and for fetching the right slice.
+     *
+     * Common pattern — fetch one extra item to detect the next page:
+     * ```kotlin
+     * val (offset, limit) = ctx.arguments.toOffsetLimit()
+     * val fetched = repo.fetchPosts(offset = offset, limit = limit + 1)
+     * return PostsConnection {
+     *     fromSlice(fetched, hasNextPage = fetched.size > limit) { post -> PostNode { … } }
+     * }
+     * ```
      *
      * This method:
-     * 1. Uses the execution context's arguments to calculate offset/limit
-     * 2. Takes up to `limit` items from the provided slice
-     * 3. Constructs edges with automatically encoded cursors (offset + index)
-     * 4. Computes PageInfo based on hasNextPage and offset
+     * 1. Takes up to `limit` items from [items] (extras are discarded).
+     * 2. Encodes an [OffsetCursor] for each kept item based on `offset + index`.
+     * 3. Sets `hasPreviousPage` to `true` when `offset > 0`.
      *
-     * @param items The items to include (may be larger than limit if +1 fetched for hasNextPage detection)
-     * @param hasNextPage Whether more items exist after this slice
-     * @param buildNode Function to convert each item to the node value for the edge
-     * @return This builder for chaining
+     * @param items Items to paginate; may contain one extra item (for hasNextPage detection).
+     * @param hasNextPage Whether more items exist after this slice.
+     * @param buildNode Converts each item to the edge's node value; return `null` to omit.
+     * @return This builder for chaining.
      */
     @ExperimentalApi
     fun <I> fromSlice(
@@ -113,17 +133,22 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
     }
 
     /**
-     * Build connection from a full list with automatic pagination.
+     * Build a connection from a complete, unpaginated list.
+     *
+     * Use this when your backend returns the full dataset and you want Viaduct to handle
+     * slicing. Best suited for small in-memory collections; for large datasets prefer
+     * [fromSlice] with a backend-paginated query.
      *
      * This method:
-     * 1. Uses the execution context's arguments to calculate offset/limit
-     * 2. Extracts the appropriate slice from the full list
-     * 3. Constructs edges with automatically encoded cursors
-     * 4. Computes PageInfo based on list position
+     * 1. Derives `offset` and `limit` from the execution context's arguments.
+     * 2. For backward navigation without a cursor ([OffsetLimit.backwards] `= true`), slices
+     *    from the tail so `last N` returns the final N items.
+     * 3. Constructs edges with automatically encoded [OffsetCursor]s.
+     * 4. Sets `hasNextPage` / `hasPreviousPage` based on position within the full list.
      *
-     * @param items The complete list of items (not yet paginated)
-     * @param buildNode Function to convert each item to the node value for the edge
-     * @return The built Connection instance
+     * @param items The complete, unpaginated list of items.
+     * @param buildNode Converts each item to the edge's node value; return `null` to omit.
+     * @return This builder for chaining.
      */
     @ExperimentalApi
     fun <I> fromList(

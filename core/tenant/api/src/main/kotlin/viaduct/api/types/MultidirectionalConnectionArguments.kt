@@ -4,12 +4,13 @@ import viaduct.api.connection.OffsetLimit
 import viaduct.apiannotations.ExperimentalApi
 
 /**
- * Arguments supporting both forward and backward pagination.
+ * Arguments for connections that expose all four pagination args (`first`, `after`, `last`, `before`).
  *
- * Combines [ForwardConnectionArguments] and [BackwardConnectionArguments]
- * for connections that support bidirectional traversal.
+ * Forward args take precedence over backward in [toOffsetLimit]; passing neither returns the first
+ * page at the default size. Forward and backward args cannot be mixed in the same request.
  *
- * Note: Forward and backward pagination cannot be mixed in the same request.
+ * Prefer [ForwardConnectionArguments] or [BackwardConnectionArguments] when only one direction
+ * is needed.
  */
 @ExperimentalApi
 interface MultidirectionalConnectionArguments :

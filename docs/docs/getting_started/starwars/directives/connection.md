@@ -42,9 +42,6 @@ Types marked with `@connection` must:
 2. Have an `edges` field returning a list of edge types (marked with `@edge`)
 3. Have a `pageInfo: PageInfo!` field
 
-!!! note
-    Full validation and builder utilities are under development. See the [Pagination guide](../pagination/index.md) for more details.
-
 ## Related
 
 - [`@edge` directive](edge.md) - Mark edge types within connections
