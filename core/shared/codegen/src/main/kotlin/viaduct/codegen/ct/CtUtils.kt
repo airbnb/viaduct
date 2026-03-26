@@ -294,6 +294,8 @@ internal fun kmToJvmBoxedName(kmName: KmName): String =
         Km.DOUBLE -> "java/lang/Double"
         Km.ENUM -> "java/lang/Enum"
         Km.FLOAT -> "java/lang/Float"
+        // kotlin/Function1 (Kotlin metadata name) maps to the JVM interface kotlin/jvm/functions/Function1.
+        Km.FUNCTION1 -> "kotlin/jvm/functions/Function1"
         Km.INT -> "java/lang/Integer"
         Km.LIST -> "java/util/List"
         Km.LONG -> "java/lang/Long"

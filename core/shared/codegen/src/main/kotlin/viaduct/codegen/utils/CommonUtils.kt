@@ -22,6 +22,9 @@ object Km {
     val DOUBLE = KmName("kotlin/Double")
     val ENUM = KmName("kotlin/Enum")
     val FLOAT = KmName("kotlin/Float")
+
+    // Used for DSL-style lambda blocks, e.g. `Builder.() -> Unit` in GRT `of` factory objects.
+    val FUNCTION1 = KmName("kotlin/Function1")
     val INT = KmName("kotlin/Int")
     val KCLASS = KmName("kotlin/reflect/KClass")
     val LIST = KmName("kotlin/collections/List")
@@ -31,6 +34,7 @@ object Km {
     val SHORT = KmName("kotlin/Short")
     val STRING = KmName("kotlin/String")
     val UNIT = KmName("kotlin/Unit")
+
     val NOT_NULL = KmName("org/jetbrains/annotations/NotNull")
 }
 

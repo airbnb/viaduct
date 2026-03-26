@@ -59,11 +59,11 @@ class SimpleResolversFeatureAppTest : FeatureAppTestBase() {
                 else -> throw IllegalArgumentException("User not found: $internalID")
             }
 
-            return User.Builder(ctx)
-                .id(ctx.id) // Use the GlobalID passed in
-                .firstname(userData.first)
-                .lastname(userData.second)
-                .build()
+            return User.of(ctx) {
+                id(ctx.id)
+                firstname(userData.first)
+                lastname(userData.second)
+            }
         }
     }
 

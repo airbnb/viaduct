@@ -56,6 +56,13 @@ class ObjectV2(
         return getNestedListField(null)
     }
 
+    object of {
+        operator fun invoke(
+            context: ExecutionContext,
+            block: Builder.() -> Unit
+        ): ObjectV2 = Builder(context).apply(block).build()
+    }
+
     class Builder(context: ExecutionContext) :
         ObjectBase.Builder<ObjectV2>(
             context.internal,

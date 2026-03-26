@@ -141,6 +141,11 @@ private val objectSTGroup = stTemplate(
         fun toBuilder(): Builder =
             Builder(context, engineObject.type, toBuilderEOD())
 
+        object of {
+            operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): <mdl.className> =
+                Builder(context).apply(block).build()
+        }
+
         class Builder : ObjectBase.Builder\<<mdl.className>\> {
             constructor(context: ExecutionContext)
                 : super(
@@ -194,6 +199,11 @@ private val connectionObjectSTGroup = stTemplate(
 
         fun toBuilder(): Builder =
             Builder(context, engineObject.type, toBuilderEOD())
+
+        object of {
+            operator fun invoke(context: ConnectionFieldExecutionContext\<*, *, out ConnectionArguments, <mdl.className>\>, block: Builder.() -> Unit): <mdl.className> =
+                Builder(context).apply(block).build()
+        }
 
         class Builder : ConnectionBuilder\<<mdl.className>, <mdl.pkg>.<mdl.edgeTypeName>, <mdl.pkg>.<mdl.nodeTypeName>\> {
             constructor(context: ConnectionFieldExecutionContext\<*, *, out ConnectionArguments, <mdl.className>\>)

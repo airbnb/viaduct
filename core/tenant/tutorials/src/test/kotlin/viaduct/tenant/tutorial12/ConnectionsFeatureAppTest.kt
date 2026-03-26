@@ -106,10 +106,11 @@ class ConnectionsFeatureAppTest : FeatureAppTestBase() {
     @Resolver
     class BooksResolver : QueryResolvers.Books() {
         override suspend fun resolve(ctx: Context): BookConnection =
-            BookConnection.Builder(ctx)
-                .fromList(ALL_BOOKS) { item ->
+            BookConnection.of(ctx) {
+                fromList(ALL_BOOKS) { item ->
                     ctx.nodeFor(ctx.globalIDFor(Book.Reflection, item.id))
-                }.build()
+                }
+            }
     }
 
     // ── STRATEGY 2: fromEdges ─────────────────────────────────────────────────
@@ -127,11 +128,11 @@ class ConnectionsFeatureAppTest : FeatureAppTestBase() {
             val hasNextPage = fetched.size > offsetLimit.limit
             val page = fetched.take(offsetLimit.limit)
             val edges = page.mapIndexed { idx, item ->
-                BookEdge.Builder(ctx)
-                    .cursor(OffsetCursor.fromOffset(offsetLimit.offset + idx).value)
-                    .reason(genre.name)
-                    .node(ctx.nodeFor(ctx.globalIDFor(Book.Reflection, item.id)))
-                    .build()
+                BookEdge.of(ctx) {
+                    cursor(OffsetCursor.fromOffset(offsetLimit.offset + idx).value)
+                    reason(genre.name)
+                    node(ctx.nodeFor(ctx.globalIDFor(Book.Reflection, item.id)))
+                }
             }
             return BookConnection.Builder(ctx)
                 .fromEdges(edges, hasNextPage = hasNextPage, hasPreviousPage = offsetLimit.offset > 0)

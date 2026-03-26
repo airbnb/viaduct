@@ -1,6 +1,8 @@
 package viaduct.tenant.codegen.bytecode.exercise
 
 import kotlin.reflect.KClass
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -10,12 +12,15 @@ import viaduct.api.grts.MissingGetterObjectV2
 import viaduct.api.grts.MissingNonDefaultGetterObjectV2
 import viaduct.api.grts.MissingSetterObjectV2
 import viaduct.api.grts.ObjectV2
+import viaduct.api.mocks.MockInternalContext
+import viaduct.api.mocks.executionContext
 import viaduct.codegen.utils.JavaName
 import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.test.createGraphQLSchema
 import viaduct.graphql.schema.test.createSchema
 import viaduct.invariants.FailureCollector
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ExerciserForObjectV2Test {
@@ -123,4 +128,63 @@ class ExerciserForObjectV2Test {
                 MissingSetterObjectV2::class
             ).exerciseV2().assertContainsLabels("OBJECT_SETTER", "OBJECT_SETTER_MISSING")
         }
+
+    // DSL constructor tests
+
+    private val objectV2Sdl = """
+        type ObjectV2 {
+            stringField: String!
+            intField: Int
+        }
+    """.trimIndent()
+
+    private fun mkObjectV2Context() =
+        MockInternalContext(
+            ViaductGraphQLSchema(createGraphQLSchema(objectV2Sdl)),
+            GlobalIDCodecDefault
+        ).executionContext
+
+    @Test
+    fun `DSL-style builder produces same result as chained builder`() =
+        runTest {
+            val ctx = mkObjectV2Context()
+
+            val chained = ObjectV2.Builder(ctx)
+                .stringField("hello")
+                .intField(42)
+                .build()
+
+            val dsl = ObjectV2.of(ctx) {
+                stringField("hello")
+                intField(42)
+            }
+
+            assertEquals(chained.getStringField(), dsl.getStringField())
+            assertEquals(chained.getIntField(), dsl.getIntField())
+        }
+
+    @Test
+    fun `chained API is unaffected by DSL constructor addition`() =
+        runTest {
+            val ctx = mkObjectV2Context()
+
+            val obj = ObjectV2.Builder(ctx).stringField("legacy").build()
+            assertNotNull(obj)
+            assertEquals("legacy", obj.getStringField())
+        }
+
+    @Test
+    fun `adding of object does not add constructors to Builder`() {
+        assertEquals(1, ObjectV2.Builder::class.constructors.size)
+    }
+
+    @Test
+    fun `of nested object exists with invoke operator`() {
+        val ofClass = ObjectV2::class.nestedClasses.firstOrNull { it.simpleName == "of" }
+        assertNotNull(ofClass, "Expected ObjectV2 to have a nested class named 'of'")
+        assertNotNull(ofClass!!.objectInstance, "Expected ObjectV2.of to be a Kotlin object (singleton)")
+        val invokeMethod = ofClass.java.declaredMethods.filter { it.name == "invoke" }
+        assertEquals(1, invokeMethod.size, "Expected exactly one 'invoke' method on ObjectV2.of")
+        assertEquals(2, invokeMethod[0].parameterCount, "Expected invoke to take (ExecutionContext, block)")
+    }
 }

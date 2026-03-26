@@ -31,7 +31,17 @@ internal suspend fun Exerciser.exerciseObjectV2(
     }
     builderCls ?: return
     exerciseBuilderRoundtrip(expected, schema)
+    exerciseOfObject(cls.kotlin)
     exerciseReflectionObject(cls.kotlin, expected)
+}
+
+private fun Exerciser.exerciseOfObject(cls: kotlin.reflect.KClass<*>) {
+    check.withNestedClass(cls, "of", "OBJECT_OF_CLASS_EXISTS") { ofClass ->
+        check.withObjectInstance(ofClass, "OBJECT_OF_SINGLETON") { ofInstance ->
+            val invokeMethods = ofInstance::class.java.declaredMethods.filter { it.name == "invoke" }
+            check.isNotNull(invokeMethods.firstOrNull(), "OBJECT_OF_INVOKE_EXISTS")
+        }
+    }
 }
 
 private suspend fun Exerciser.exerciseBuilderRoundtrip(
