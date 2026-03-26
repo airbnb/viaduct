@@ -21,6 +21,10 @@ dependencies {
 
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)
+
+    // Testing
+    testImplementation(gradleTestKit())
+    testImplementation(project(":plugins-application"))
 }
 
 // Manifest with Implementation-Version for runtime access if you need it

@@ -2,6 +2,7 @@ package viaduct.gradle
 
 import centralSchemaDirectory
 import grtClassesDirectory
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.attributes.Category
@@ -156,7 +157,16 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         // Capture configuration-time values for use in task (configuration cache safe)
         val isContinuousMode = gradle.startParameter.isContinuous
         // Allow property overrides, but default to extension values
-        val servePort = project.findProperty("serve.port")?.toString()?.toIntOrNull() ?: appExt.servePort.get()
+        val servePortProp = project.findProperty("serve.port")?.toString()
+        val servePort = if (servePortProp != null) {
+            servePortProp.toIntOrNull()
+                ?: throw GradleException(
+                    "Invalid value '$servePortProp' for project property 'serve.port': expected an integer " +
+                        "(e.g. -Pserve.port=8080)."
+                )
+        } else {
+            appExt.servePort.get()
+        }
         val serveHost = project.findProperty("serve.host")?.toString() ?: appExt.serveHost.get()
 
         // Create configuration for serve runtime dependencies

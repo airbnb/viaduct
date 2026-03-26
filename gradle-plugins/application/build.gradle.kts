@@ -33,6 +33,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotest.assertions.core.jvm)
     testRuntimeOnly(libs.junit.engine)
+    testImplementation(gradleTestKit())
 }
 
 // Manifest with Implementation-Version for runtime access if you need it

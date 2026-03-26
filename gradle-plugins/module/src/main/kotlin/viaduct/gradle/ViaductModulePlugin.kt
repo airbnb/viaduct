@@ -127,7 +127,9 @@ class ViaductModulePlugin : Plugin<Project> {
 
     private fun Project.setupAssembleSchemaPartitionTask(moduleExt: ViaductModuleExtension): TaskProvider<AssembleSchemaPartitionTask> {
         return tasks.register<AssembleSchemaPartitionTask>("prepareViaductSchemaPartition") {
-            graphqlSrcDir.set(layout.projectDirectory.dir("src/main/viaduct/schema"))
+            val schemaDir = layout.projectDirectory.dir("src/main/viaduct/schema")
+            graphqlSrcDir.set(schemaDir)
+            schemaFiles.setFrom(fileTree(schemaDir).matching { include("**/*.graphqls") })
             prefixPath.set(
                 moduleExt.modulePackageSuffix.map { raw ->
                     val trimmed = raw.trim()
@@ -168,18 +170,46 @@ class ViaductModulePlugin : Plugin<Project> {
         moduleExt: ViaductModuleExtension,
         centralSchemaIncomingCfg: Configuration
     ): TaskProvider<GenerateResolverBasesTask> {
-        val appExt = rootProject.extensions.getByType(ViaductApplicationExtension::class.java)
-
-        return tasks.register<GenerateResolverBasesTask>("generateViaductResolverBases") {
+        val taskProvider = tasks.register<GenerateResolverBasesTask>("generateViaductResolverBases") {
             buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             centralSchemaFiles.from(
                 centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching { include("**/*.graphqls") }
             )
-            wireToExtensions(moduleExt, appExt)
             tenantFromSourceRegex.set("$centralSchemaDirectoryName/partition/(.*)/graphql")
             classpath.setFrom(files(ViaductPluginCommon.getClassPathElements(this@ViaductModulePlugin::class.java)))
             mainClass.set(RESOLVER_CODEGEN_MAIN_CLASS)
         }
+
+        // We intentionally validate here so same-project builds can finish configuring
+        // viaductApplication { ... } before we read modulePackagePrefix, while still
+        // failing during configuration (e.g. on `help`) instead of waiting for task execution.
+        //
+        // Keep this block narrow and "safe":
+        // - OK: plugin presence checks, reading final extension values, configuring already-registered tasks
+        // - NOT OK: filesystem probing, task registration, dependency resolution, task-graph inspection,
+        //           or any other late configuration unrelated to extension validation
+        afterEvaluate {
+            if (!rootProject.plugins.hasPlugin("com.airbnb.viaduct.application-gradle-plugin")) {
+                throw GradleException(
+                    "Apply 'com.airbnb.viaduct.application-gradle-plugin' to the root project before applying " +
+                        "'com.airbnb.viaduct.module-gradle-plugin'."
+                )
+            }
+            val appExt = rootProject.extensions.getByType(ViaductApplicationExtension::class.java)
+            val prefix = appExt.modulePackagePrefix.orNull
+            if (prefix.isNullOrBlank()) {
+                throw GradleException(
+                    "viaductApplication.modulePackagePrefix must be set in the root project. " +
+                        "Add it to your root build file:\n" +
+                        "  viaductApplication {\n" +
+                        "    modulePackagePrefix = \"com.example.myapp\"\n" +
+                        "  }"
+                )
+            }
+            taskProvider.configure { wireToExtensions(moduleExt, appExt) }
+        }
+
+        return taskProvider
     }
 
     private fun Project.enforceNoDirectModuleDeps() {
