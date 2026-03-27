@@ -202,6 +202,7 @@ class EngineImpl(
             val queryPlan = queryPlanFactory.buildFromSelections(
                 parameters = eecImpl.queryPlanParameters(),
                 rss = selectionSet,
+                attribution = options.attribution,
             )
             parentParams.forChildPlan(
                 queryPlan,

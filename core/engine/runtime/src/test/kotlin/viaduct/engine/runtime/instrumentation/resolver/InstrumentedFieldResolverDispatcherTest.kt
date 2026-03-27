@@ -5,6 +5,7 @@ package viaduct.engine.runtime.instrumentation.resolver
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -12,14 +13,21 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FieldResolverDispatcher
+import viaduct.engine.runtime.mocks.ContextMocks
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class InstrumentedFieldResolverDispatcherTest {
     private val stubSyncObjectValue: suspend () -> EngineObjectData.Sync = { mockk() }
     private val stubSyncQueryValue: suspend () -> EngineObjectData.Sync = { mockk() }
+
+    private val defaultContext: EngineExecutionContextImpl
+        get() = ContextMocks().engineExecutionContextImpl
 
     @Test
     fun `resolve calls instrumentation during execution`() =
@@ -42,7 +50,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
                 stubSyncObjectValue,
                 stubSyncQueryValue,
                 null,
-                mockk()
+                defaultContext
             )
 
             // Then
@@ -69,7 +77,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation, coordinate)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, mockk())
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then
             val executeContext = instrumentation.executeResolverContexts.first()
@@ -89,7 +97,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, mockk())
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then
             val executeContext = instrumentation.executeResolverContexts.first()
@@ -109,7 +117,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation, syncValueComputation = true)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, mockk())
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then
             val executeContext = instrumentation.executeResolverContexts.first()
@@ -129,7 +137,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, mockk())
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then
             val executeContext = instrumentation.executeResolverContexts.first()
@@ -159,7 +167,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
                     stubSyncObjectValue,
                     stubSyncQueryValue,
                     null,
-                    mockk()
+                    defaultContext
                 )
             }
             assertSame(exception, thrown)
@@ -193,8 +201,43 @@ internal class InstrumentedFieldResolverDispatcherTest {
                     stubSyncObjectValue,
                     stubSyncQueryValue,
                     null,
-                    mockk()
+                    defaultContext
                 )
             }
+        }
+
+    @Test
+    fun `resolve stamps resolver attribution on context passed to dispatcher`() =
+        runBlocking {
+            // Given
+            val resolverName = "my-field-resolver"
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+            val mockResolverMetadata = ResolverMetadata.forMock(resolverName)
+            val capturedContext = slot<EngineExecutionContext>()
+
+            every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
+            coEvery {
+                mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), capture(capturedContext))
+            } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
+
+            // When
+            testClass.resolve(
+                emptyMap(),
+                mockk(),
+                mockk(),
+                stubSyncObjectValue,
+                stubSyncQueryValue,
+                null,
+                defaultContext
+            )
+
+            // Then - the context passed to the underlying dispatcher must carry the resolver's attribution
+            assertEquals(
+                ExecutionAttribution.fromResolver(resolverName),
+                capturedContext.captured.fieldScope.attribution
+            )
         }
 }

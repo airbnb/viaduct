@@ -272,9 +272,15 @@ interface QueryPlanFactory {
                     underlying.buildFromParsedSelections(parameters, parsedSelections, attribution, ALWAYS_EXECUTE, RssBuildContext(rssPlanCache))
                 }
             }.await()
-            // Skip the copy when ALWAYS_EXECUTE is requested — the cached plan already has that
-            // condition, so no allocation is needed and cached-instance identity is preserved.
-            return if (executionCondition === ALWAYS_EXECUTE) cached else cached.copy(executionCondition = executionCondition)
+            // Patch executionCondition and attribution onto the cached plan. Both are pure metadata
+            // and not part of the cache key (executionCondition may be a SAM lambda with
+            // identity-based hashCode; attribution varies per calling resolver). Skip the copy
+            // when both already match to preserve cached-instance identity.
+            return if (executionCondition === ALWAYS_EXECUTE && cached.attribution == attribution) {
+                cached
+            } else {
+                cached.copy(executionCondition = executionCondition, attribution = attribution)
+            }
         }
     }
 }

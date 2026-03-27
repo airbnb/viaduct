@@ -1,10 +1,14 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
+import graphql.util.FpKit
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
+import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldScopeWithAttribution
 import viaduct.engine.runtime.NodeResolverDispatcher
 
 /**
@@ -31,8 +35,14 @@ class InstrumentedNodeResolverDispatcher(
             resolverMetadata = dispatcher.resolverMetadata
         )
 
+        val contextWithAttribution = context.copy(
+            fieldScopeSupplier = FpKit.intraThreadMemoize {
+                context.fieldScopeWithAttribution(ExecutionAttribution.fromResolver(resolverMetadata.name))
+            }
+        )
+
         val instrumentedResolver = instrumentation.instrumentResolverExecution(
-            resolver = ResolverFunction { dispatcher.resolve(id, selections, context) },
+            resolver = ResolverFunction { dispatcher.resolve(id, selections, contextWithAttribution) },
             parameters = resolverExecuteParam,
             state = state
         )

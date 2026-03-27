@@ -1,13 +1,17 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
+import graphql.util.FpKit
 import kotlinx.coroutines.withContext
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
+import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldScopeWithAttribution
 import viaduct.engine.runtime.FieldResolverDispatcher
 
 /**
@@ -59,6 +63,12 @@ class InstrumentedFieldResolverDispatcher(
             }
         }
 
+        val contextWithAttribution = context.copy(
+            fieldScopeSupplier = FpKit.intraThreadMemoize {
+                context.fieldScopeWithAttribution(ExecutionAttribution.fromResolver(resolverMetadata.name))
+            }
+        )
+
         return instrumentation.instrumentResolverExecution(
             ResolverFunction {
                 dispatcher.resolve(
@@ -68,7 +78,7 @@ class InstrumentedFieldResolverDispatcher(
                     instrumentedSyncObjectValue,
                     instrumentedSyncQueryValue,
                     selections,
-                    context
+                    contextWithAttribution
                 )
             },
             resolverExecuteParam,

@@ -149,8 +149,10 @@ class EngineExecutionContextImpl(
                     "or from a context that doesn't have access to the current execution."
             )
 
+        val effectiveOptions = options.copy(attribution = fieldScope.attribution)
+
         return executeWithMetrics {
-            engine.resolveSelectionSet(handle, selectionSet, options)
+            engine.resolveSelectionSet(handle, selectionSet, effectiveOptions)
         }
     }
 

@@ -4,6 +4,7 @@ import graphql.execution.instrumentation.Instrumentation
 import graphql.schema.DataFetchingEnvironment
 import java.util.function.Supplier
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ViaductSchema
 
 /**
@@ -68,6 +69,18 @@ object EngineExecutionContextExtensions {
             dataFetchingEnvironment = dataFetchingEnvironment,
         )
     }
+
+    /**
+     * Returns a new [EngineExecutionContextImpl.FieldExecutionScopeImpl] with [attribution] replaced,
+     * preserving all other field scope state from this context.
+     */
+    internal fun EngineExecutionContext.fieldScopeWithAttribution(attribution: ExecutionAttribution,): EngineExecutionContextImpl.FieldExecutionScopeImpl =
+        EngineExecutionContextImpl.FieldExecutionScopeImpl(
+            fragments = fieldScope.fragments,
+            variables = fieldScope.variables,
+            resolutionPolicy = fieldScope.resolutionPolicy,
+            attribution = attribution,
+        )
 
     /**
      * Returns true iff field coordinate has a tenant-defined resolver function.

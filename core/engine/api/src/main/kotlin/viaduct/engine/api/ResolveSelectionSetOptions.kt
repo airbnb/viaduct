@@ -28,10 +28,12 @@ import viaduct.engine.runtime.ObjectEngineResult
  * @property operationType Whether to execute against Query or Mutation root. Default is QUERY.
  * @property targetResult Optional [ObjectEngineResult] to populate with resolved field results.
  *           When null, a fresh result container is created for isolated execution.
+ * @property attribution Optional [ExecutionAttribution] for this subquery execution.
  */
 data class ResolveSelectionSetOptions(
     val operationType: Engine.OperationType = Engine.OperationType.QUERY,
     val targetResult: ObjectEngineResult? = null,
+    val attribution: ExecutionAttribution = ExecutionAttribution.DEFAULT,
 ) {
     companion object {
         val DEFAULT = ResolveSelectionSetOptions()

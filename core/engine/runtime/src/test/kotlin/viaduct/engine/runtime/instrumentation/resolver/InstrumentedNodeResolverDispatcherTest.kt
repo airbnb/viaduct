@@ -5,6 +5,7 @@ package viaduct.engine.runtime.instrumentation.resolver
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -12,12 +13,19 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.NodeResolverDispatcher
+import viaduct.engine.runtime.mocks.ContextMocks
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class InstrumentedNodeResolverDispatcherTest {
+    private val defaultContext: EngineExecutionContextImpl
+        get() = ContextMocks().engineExecutionContextImpl
+
     @Test
     fun `resolve calls instrumentation during execution`() =
         runBlocking {
@@ -33,7 +41,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
             val testClass = InstrumentedNodeResolverDispatcher(mockDispatcher, instrumentation)
 
             // When
-            val result = testClass.resolve("id123", mockk(), mockk())
+            val result = testClass.resolve("id123", mockk(), defaultContext)
 
             // Then
             assertSame(mockResult, result)
@@ -60,7 +68,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
 
             // When / Then
             val thrown = assertThrows<RuntimeException> {
-                testClass.resolve("id123", mockk(), mockk())
+                testClass.resolve("id123", mockk(), defaultContext)
             }
             assertSame(exception, thrown)
 
@@ -86,7 +94,33 @@ internal class InstrumentedNodeResolverDispatcherTest {
 
             // Make sure the exception is propagated to the top level when the instrumentation decides to throw
             assertThrows<RuntimeException> {
-                testClass.resolve("id123", mockk(), mockk())
+                testClass.resolve("id123", mockk(), defaultContext)
             }
+        }
+
+    @Test
+    fun `resolve stamps resolver attribution on context passed to dispatcher`() =
+        runBlocking {
+            // Given
+            val resolverName = "my-node-resolver"
+            val mockDispatcher: NodeResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+            val mockMetadata: ResolverMetadata = ResolverMetadata.forMock(resolverName)
+            val mockResult: EngineObjectData = mockk()
+            val capturedContext = slot<EngineExecutionContext>()
+
+            every { mockDispatcher.resolverMetadata } returns mockMetadata
+            coEvery { mockDispatcher.resolve(any(), any(), capture(capturedContext)) } returns mockResult
+
+            val testClass = InstrumentedNodeResolverDispatcher(mockDispatcher, instrumentation)
+
+            // When
+            testClass.resolve("id123", mockk(), defaultContext)
+
+            // Then - the context passed to the underlying dispatcher must carry the resolver's attribution
+            assertEquals(
+                ExecutionAttribution.fromResolver(resolverName),
+                capturedContext.captured.fieldScope.attribution
+            )
         }
 }

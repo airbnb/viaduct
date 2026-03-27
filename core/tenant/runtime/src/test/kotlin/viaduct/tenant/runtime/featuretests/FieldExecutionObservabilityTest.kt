@@ -463,6 +463,26 @@ class FieldExecutionObservabilityTest {
     }
 
     @Test
+    fun `fields fetched via ctx_query are attributed to the issuing resolver`() {
+        val instrumentation = TestObservabilityInstrumentation()
+
+        FeatureTestBuilder(FeatureTestSchemaFixture.sdl, instrumentation = instrumentation.asStandardInstrumentation())
+            .resolver("Query" to "string1", resolverName = "query-string1-resolver") { ctx ->
+                ctx.query("idField")
+                "result"
+            }
+            .resolver("Query" to "idField", resolverName = "query-id-field-resolver") { ctx ->
+                ctx.globalIDFor(Baz.Reflection, "1")
+            }
+            .build()
+            .execute("query testQuery { string1 }")
+            .assertJson("{data: {string1: \"result\"}}")
+
+        assertEquals(setOf("OPERATION:testQuery"), instrumentation.getFieldRequiredBy("Query", "string1").toSet())
+        assertEquals(setOf("RESOLVER:query-string1-resolver"), instrumentation.getFieldRequiredBy("Query", "idField").toSet())
+    }
+
+    @Test
     fun `test variable resolvers`() {
         val instrumentation = TestObservabilityInstrumentation()
 

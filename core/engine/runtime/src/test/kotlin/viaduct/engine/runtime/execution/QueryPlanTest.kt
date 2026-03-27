@@ -793,6 +793,32 @@ class QueryPlanTest {
     }
 
     @Test
+    fun `QueryPlanFactory_Cached -- buildFromParsedSelections preserves attribution per call`() {
+        val factory = QueryPlanFactory.Cached()
+        val schema = ViaductSchema("type Query { x:Int }".asSchema)
+        val params = mkQPParameters("{x}", schema)
+        val parsedSelections = SelectionsParser.parse("Query", "x")
+        val resolver1 = ExecutionAttribution.fromResolver("ResolverOne")
+        val resolver2 = ExecutionAttribution.fromResolver("ResolverTwo")
+
+        runExecutionTest {
+            val plan1 = factory.buildFromParsedSelections(
+                params,
+                parsedSelections,
+                attribution = resolver1,
+            )
+            val plan2 = factory.buildFromParsedSelections(
+                params,
+                parsedSelections,
+                attribution = resolver2,
+            )
+
+            expectThat(plan1.attribution).isEqualTo(resolver1)
+            expectThat(plan2.attribution).isEqualTo(resolver2)
+        }
+    }
+
+    @Test
     fun `QueryPlanBuilder -- cycle prevention in checker RSS chains`() {
         val varResolvers = VariablesResolver.fromSelectionSetVariables(
             SelectionsParser.parse("Query", "z"),
