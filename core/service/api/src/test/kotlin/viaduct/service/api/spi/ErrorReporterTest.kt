@@ -18,9 +18,7 @@ class ErrorReporterTest {
             resolvers = listOf("UserResolver", "ProfileResolver"),
             executionPath = listOf("user", "profile", 0),
             sourceLocation = sourceLocation,
-            source = "sourceObject",
-            context = "contextObject",
-            localContext = "localContextObject",
+            requestContext = "requestContextObject",
             componentName = "UserComponent"
         )
 
@@ -31,9 +29,7 @@ class ErrorReporterTest {
         assertEquals(listOf("UserResolver", "ProfileResolver"), metadata.resolvers)
         assertEquals(listOf("user", "profile", 0), metadata.executionPath)
         assertEquals(sourceLocation, metadata.sourceLocation)
-        assertEquals("sourceObject", metadata.source)
-        assertEquals("contextObject", metadata.context)
-        assertEquals("localContextObject", metadata.localContext)
+        assertEquals("requestContextObject", metadata.requestContext)
         assertEquals("UserComponent", metadata.componentName)
     }
 
@@ -48,9 +44,7 @@ class ErrorReporterTest {
         assertNull(metadata.resolvers)
         assertNull(metadata.executionPath)
         assertNull(metadata.sourceLocation)
-        assertNull(metadata.source)
-        assertNull(metadata.context)
-        assertNull(metadata.localContext)
+        assertNull(metadata.requestContext)
         assertNull(metadata.componentName)
     }
 

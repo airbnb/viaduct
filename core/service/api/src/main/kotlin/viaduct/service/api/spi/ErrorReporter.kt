@@ -15,9 +15,7 @@ fun interface ErrorReporter {
      * @param exception The exception that was thrown during data fetching.
      * @param errorMessage A human-readable error message describing what went wrong.
      * @param metadata Metadata about the error including execution path, field name, parent type,
-     *                 operation name, source location, source object, context (for accessing
-     *                 GraphQLContext/containerRequestContext), local context (for detecting
-     *                 derived fields/suboperations), and component name.
+     *                 operation name, source location, request context, and component name.
      */
     fun reportResolverError(
         exception: Throwable,
@@ -64,17 +62,9 @@ fun interface ErrorReporter {
          */
         val sourceLocation: SourceLocation? = null,
         /**
-         * The source object being resolved (the parent object).
+         * The request context provided as an input to [Viaduct.execute]
          */
-        val source: Any? = null,
-        /**
-         * The GraphQL context containing request-level data.
-         */
-        val context: Any? = null,
-        /**
-         * The local context for field-specific data.
-         */
-        val localContext: Any? = null,
+        val requestContext: Any? = null,
         /**
          * The component name associated with the field definition.
          */
@@ -82,9 +72,9 @@ fun interface ErrorReporter {
         /**
          * The DataFetchingEnvironment from graphql-java.
          *
-         * @deprecated Use the individual metadata fields instead (fieldName, parentType, context, etc.).
+         * @deprecated Use the individual metadata fields instead (fieldName, parentType, requestContext, etc.).
          *             This property exists only to ease migration and will be removed in a future version.
-         *             Access request context via `metadata.context as? GraphQLContext` instead.
+         *             Access request context via `metadata.requestContext as? GraphQLContext` instead.
          */
         @Deprecated(
             message = "Use the individual metadata fields instead. " +

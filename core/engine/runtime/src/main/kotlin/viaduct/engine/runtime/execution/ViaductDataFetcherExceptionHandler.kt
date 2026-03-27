@@ -89,14 +89,18 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
         val fieldName = params.fieldDefinition?.name
         val parentType = (params.dataFetchingEnvironment.parentType as? GraphQLNamedType)?.name
 
-        @Suppress("DEPRECATION")
+        val env = params.dataFetchingEnvironment
+        val graphqlSourceLocation = env.fieldDefinition?.definition?.sourceLocation
         return ErrorReporter.Metadata(
             fieldName = fieldName,
             parentType = parentType,
             operationName = operationName,
             isFrameworkError = isFrameworkError,
             resolvers = (exception as? TenantResolverException)?.let(::resolverCallChain),
-            dataFetchingEnvironment = params.dataFetchingEnvironment
+            executionPath = env.executionStepInfo.path.toList(),
+            sourceLocation = graphqlSourceLocation?.let {
+                viaduct.graphql.SourceLocation(it.line, it.column, it.sourceName)
+            }
         )
     }
 
