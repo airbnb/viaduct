@@ -22,6 +22,7 @@ import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.errors.FrameworkException
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault as DefaultCodec
@@ -73,13 +74,13 @@ class ExecutionContextImplTest : ContextTestBase() {
             override val kcls: KClass<out NodeObject> = String::class as KClass<out NodeObject>
         }
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<FrameworkException> {
             ctx.globalIDFor(fakeTypeWithWrongKClass, "123")
         }
 
         assertTrue(
-            exception.message?.contains("NodeObject") == true,
-            "Error message should mention 'NodeObject': ${exception.message}"
+            exception.cause?.message?.contains("NodeObject") == true,
+            "Error cause message should mention 'NodeObject': ${exception.cause?.message}"
         )
     }
 

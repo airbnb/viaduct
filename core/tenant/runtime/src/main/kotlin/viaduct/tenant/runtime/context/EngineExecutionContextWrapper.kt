@@ -10,6 +10,9 @@ import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.errors.FrameworkException
+import viaduct.errors.handleTenantAPIErrors
+import viaduct.errors.handleTenantAPIErrorsSuspend
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.toObjectGRT
 
@@ -51,43 +54,50 @@ class EngineExecutionContextWrapperImpl(
         ctx: InternalContext,
         selections: SelectionSet<T>
     ): T =
-        engineExecutionContext.resolveSelectionSet(
-            selections.getEngineSelectionSet(),
-            ResolveSelectionSetOptions.DEFAULT
-        ).toObjectGRT(ctx, selections.type.kcls)
+        handleTenantAPIErrorsSuspend("query") {
+            engineExecutionContext.resolveSelectionSet(
+                selections.getEngineSelectionSet(),
+                ResolveSelectionSetOptions.DEFAULT
+            ).toObjectGRT(ctx, selections.type.kcls)
+        }
 
     override suspend fun <T : Mutation> mutation(
         ctx: InternalContext,
         selections: SelectionSet<T>
     ): T =
-        engineExecutionContext.resolveSelectionSet(
-            selections.getEngineSelectionSet(),
-            ResolveSelectionSetOptions.MUTATION
-        ).toObjectGRT(ctx, selections.type.kcls)
+        handleTenantAPIErrorsSuspend("mutation") {
+            engineExecutionContext.resolveSelectionSet(
+                selections.getEngineSelectionSet(),
+                ResolveSelectionSetOptions.MUTATION
+            ).toObjectGRT(ctx, selections.type.kcls)
+        }
 
     private fun SelectionSet<*>.getEngineSelectionSet() =
         (this as? SelectionSetImpl)?.engineSelectionSet
-            ?: throw IllegalStateException("Unexpected implementation of SelectionSet: $this")
+            ?: throw FrameworkException("Unexpected implementation of SelectionSet: $this")
 
     override fun <T : CompositeOutput> selectionsFor(
         type: Type<T>,
         selections: String,
         variables: Map<String, Any?>
     ): SelectionSet<T> =
-        SelectionSetImpl(
-            type,
-            engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(typeName = type.name, selections, variables)
-        )
+        handleTenantAPIErrors("selectionsFor") {
+            SelectionSetImpl(
+                type,
+                engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(typeName = type.name, selections, variables)
+            )
+        }
 
     override fun <T : NodeObject> nodeFor(
         ctx: InternalContext,
         globalID: GlobalID<T>
-    ): T {
-        val typeName = globalID.type.name
-        val graphqlObjectType = ctx.schema.schema.getObjectType(typeName)
-        val id = ctx.globalIDCodec.serialize(globalID.type.name, globalID.internalID)
-        val nodeReference = engineExecutionContext.createNodeReference(id, graphqlObjectType)
+    ): T =
+        handleTenantAPIErrors("nodeFor(${globalID.type.name})") {
+            val typeName = globalID.type.name
+            val graphqlObjectType = ctx.schema.schema.getObjectType(typeName)
+            val id = ctx.globalIDCodec.serialize(globalID.type.name, globalID.internalID)
+            val nodeReference = engineExecutionContext.createNodeReference(id, graphqlObjectType)
 
-        return nodeReference.toObjectGRT(ctx, globalID.type.kcls)
-    }
+            nodeReference.toObjectGRT(ctx, globalID.type.kcls)
+        }
 }

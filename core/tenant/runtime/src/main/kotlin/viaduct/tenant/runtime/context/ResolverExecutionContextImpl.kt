@@ -8,6 +8,7 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Query
+import viaduct.errors.handleTenantAPIErrors
 
 sealed class ResolverExecutionContextImpl<Q : Query>(
     baseData: InternalContext,
@@ -35,5 +36,5 @@ sealed class ResolverExecutionContextImpl<Q : Query>(
     override fun <T : NodeObject> globalIDStringFor(
         type: Type<T>,
         internalID: String,
-    ) = globalIDCodec.serialize(type.name, internalID)
+    ) = handleTenantAPIErrors("globalIDStringFor(${type.name})") { globalIDCodec.serialize(type.name, internalID) }
 }

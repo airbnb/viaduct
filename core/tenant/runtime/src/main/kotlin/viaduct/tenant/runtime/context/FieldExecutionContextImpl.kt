@@ -9,6 +9,8 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineObjectData
+import viaduct.errors.FrameworkException
+import viaduct.errors.handleTenantAPIErrorsSuspend
 import viaduct.tenant.runtime.toObjectGRT
 
 /**
@@ -48,12 +50,13 @@ class FieldExecutionContextImpl<Q : Query>(
         syncQueryValueGetter,
         queryCls,
     ) {
-    override suspend fun getObjectValue(): Object {
-        val resolvedSyncObjectValue = syncObjectValueGetter?.invoke()
-            ?: throw IllegalStateException(
-                "Sync object value is not available. " +
-                    "This may indicate an internal error in Viaduct."
-            )
-        return resolvedSyncObjectValue.toObjectGRT(this, objectCls)
-    }
+    override suspend fun getObjectValue(): Object =
+        handleTenantAPIErrorsSuspend("getObjectValue") {
+            val resolvedSyncObjectValue = syncObjectValueGetter?.invoke()
+                ?: throw FrameworkException(
+                    "Sync object value is not available. " +
+                        "This may indicate an internal error in Viaduct."
+                )
+            resolvedSyncObjectValue.toObjectGRT(this, objectCls)
+        }
 }

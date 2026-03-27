@@ -120,6 +120,43 @@ suspend fun <T> handleTenantAPIErrorsSuspend(
 }
 
 /**
+ * Use this to wrap direct (non-reflection) calls into tenant code from the framework.
+ * Catches any exception and attributes it to tenant code unless it is already attributed
+ * as a [FrameworkException].
+ *
+ * See also: [wrapResolveException] for resolver invocations made via reflection.
+ */
+fun <T> wrapTenantErrors(
+    opName: String,
+    block: () -> T,
+): T {
+    @Suppress("Detekt.TooGenericExceptionCaught")
+    try {
+        return block()
+    } catch (e: Exception) {
+        if (e is FrameworkException) throw e
+        throw TenantResolverException(e, opName)
+    }
+}
+
+/**
+ * Same as [wrapTenantErrors] but for suspend functions.
+ */
+suspend fun <T> wrapTenantErrorsSuspend(
+    opName: String,
+    block: suspend () -> T,
+): T {
+    @Suppress("Detekt.TooGenericExceptionCaught")
+    try {
+        return block()
+    } catch (e: Exception) {
+        if (e is CancellationException) currentCoroutineContext().ensureActive()
+        if (e is FrameworkException) throw e
+        throw TenantResolverException(e, opName)
+    }
+}
+
+/**
  * Catches any exception thrown by [resolveFn] (which must be called via reflection) and wraps it
  * in [TenantResolverException] unless it's a [FrameworkException].
  */
