@@ -179,6 +179,16 @@ registerSubprojectAggregate(
     description = "[orchestration] Tests all SUBPROJECTS in THIS build.",
     taskTypes = listOf(Test::class.java)
 )
+registerSubprojectAggregate(
+    aggregateName = "orchestrationDetektAll",
+    description = "[orchestration] Runs detekt on all SUBPROJECTS in THIS build.",
+    taskNames = setOf("detekt")
+)
+registerSubprojectAggregate(
+    aggregateName = "orchestrationKtlintCheckAll",
+    description = "[orchestration] Runs ktlintCheck on all SUBPROJECTS in THIS build.",
+    taskNames = setOf("ktlintCheck")
+)
 
 // Publishing
 registerSubprojectAggregate(
@@ -232,6 +242,18 @@ if (gradle.parent != null) {
         group = "publishing",
         description = "Publishes all publishable subprojects in this included build to Maven Central."
     )
+    aliasConventionalTaskToAggregate(
+        conventionalName = "detekt",
+        aggregateName = "orchestrationDetektAll",
+        group = "verification",
+        description = "Runs detekt on all subprojects in this included build."
+    )
+    aliasConventionalTaskToAggregate(
+        conventionalName = "ktlintCheck",
+        aggregateName = "orchestrationKtlintCheckAll",
+        group = "verification",
+        description = "Runs ktlintCheck on all subprojects in this included build."
+    )
 }
 
 // ---------------- Workspace-wide tasks (ROOT ONLY) ----------------
@@ -272,5 +294,17 @@ if (gradle.parent == null) {
         dependsOn(tasksNamedInSubprojects("publishAllPublicationsToMavenCentralRepository"))
         dependsOn(tasksNamedInSubprojects("publishToMavenCentral"))
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToMavenCentral") })
+    }
+
+    // detekt: root subprojects + included builds' aggregate
+    ensureTask("detekt", "verification", "Runs detekt across root and participating included builds.") {
+        dependsOn(tasksNamedInSubprojects("detekt"))
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationDetektAll") })
+    }
+
+    // ktlintCheck: root subprojects + included builds' aggregate
+    ensureTask("ktlintCheck", "verification", "Runs ktlintCheck across root and participating included builds.") {
+        dependsOn(tasksNamedInSubprojects("ktlintCheck"))
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationKtlintCheckAll") })
     }
 }
