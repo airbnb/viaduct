@@ -97,6 +97,7 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
             operationName = operationName,
             isFrameworkError = isFrameworkError,
             resolvers = (exception as? TenantResolverException)?.let(::resolverCallChain),
+            dataFetchingEnvironment = params.dataFetchingEnvironment,
             executionPath = env.executionStepInfo.path.toList(),
             sourceLocation = graphqlSourceLocation?.let {
                 viaduct.graphql.SourceLocation(it.line, it.column, it.sourceName)
