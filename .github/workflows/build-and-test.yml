@@ -159,7 +159,7 @@ jobs:
           path: build/
 
       - name: Upload build scan URLs
-        if: ${{ steps.save_build_scan_url.conclusion == 'success' }}
+        if: ${{ always() && steps.save_build_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-build-${{ matrix.java }}-${{ matrix.os }}
@@ -260,7 +260,7 @@ jobs:
         shell: bash
 
       - name: Upload build scan URLs
-        if: ${{ steps.save_test_scan_url.conclusion == 'success' }}
+        if: ${{ always() && steps.save_test_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-test-${{ matrix.java }}-${{ matrix.os }}
@@ -314,7 +314,7 @@ jobs:
           path: '**/build/reports/detekt/**/*'
 
       - name: Upload build scan URLs
-        if: ${{ steps.save_detekt_scan_url.conclusion == 'success' }}
+        if: ${{ always() && steps.save_detekt_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-detekt-${{ matrix.java }}-${{ matrix.os }}
@@ -361,7 +361,7 @@ jobs:
         shell: bash
 
       - name: Upload build scan URLs
-        if: ${{ steps.save_ktlint_scan_url.conclusion == 'success' }}
+        if: ${{ always() && steps.save_ktlint_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-ktlint-${{ matrix.java }}-${{ matrix.os }}
@@ -410,7 +410,7 @@ jobs:
         shell: bash
 
       - name: Upload build scan URLs
-        if: ${{ steps.save_coverage_scan_url.conclusion == 'success' }}
+        if: ${{ always() && steps.save_coverage_scan_url.conclusion == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: build-scan-urls-coverage-${{ matrix.java }}-${{ matrix.os }}
