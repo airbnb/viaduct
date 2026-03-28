@@ -1,8 +1,8 @@
 package viaduct.gradle
 
-import java.io.File
-import java.net.URLClassLoader
+import java.util.Properties
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.plugins.ide.idea.model.IdeaModel
@@ -40,14 +40,48 @@ object ViaductPluginCommon {
         const val GRT_CLASSES_INCOMING = "viaductGRTClassesIn"
     }
 
-    // TODO: Must be a better way to do this.  Right now we are limited because we
-    // can't include the class loader as a dependency into this plugins project
-    // -- see note in settings.gradle.kts.
-    fun getClassPathElements(anchor: Class<*>): List<File> =
-        (anchor.classLoader as? URLClassLoader)
-            ?.urLs
-            ?.mapNotNull { url -> runCatching { File(url.toURI()) }.getOrNull() }
-            .orEmpty()
+    /**
+     * Reads the plugin version from `viaduct-plugin-version.properties`, which is written at
+     * build time by `processResources` and is present both in published JARs and in the
+     * compiled-resources directory used by Gradle TestKit's `withPluginClasspath()`.
+     */
+    fun pluginVersion(pluginClass: Class<*>): String {
+        val props = Properties()
+        pluginClass.getResourceAsStream("/viaduct-plugin-version.properties")
+            ?.use { props.load(it) }
+        return requireNotNull(props.getProperty("version")) {
+            "viaduct-plugin-version.properties not found or has no 'version' key. This is a packaging bug."
+        }
+    }
+
+    /**
+     * Creates (or retrieves) a resolvable tool-classpath Configuration backed by a single
+     * Maven coordinate with [defaultDependencies]. Consumer projects may override the default
+     * artifact by adding dependencies to the configuration explicitly.
+     *
+     * In composite builds Gradle auto-substitutes the coordinate with the local project.
+     * In external builds it resolves from whatever repository the consumer has configured.
+     */
+    fun Project.createOrGetToolClasspath(
+        configurationName: String,
+        notation: String
+    ): Configuration {
+        val existing = configurations.findByName(configurationName)
+        if (existing != null) return existing
+        return configurations.create(configurationName).apply {
+            setCanBeConsumed(false)
+            setCanBeResolved(true)
+            defaultDependencies { deps ->
+                deps.add(project.dependencies.create(notation))
+            }
+        }
+    }
+
+    /** Codegen tool classpath: `com.airbnb.viaduct:tenant-codegen:$pluginVersion`. */
+    fun Project.createOrGetCodegenClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductCodegenClasspath", "com.airbnb.viaduct:tenant-codegen:$pluginVersion")
+
+    /** Serve tool classpath: `com.airbnb.viaduct:serve:$pluginVersion`. */
+    fun Project.createOrGetServeClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductServeClasspath", "com.airbnb.viaduct:serve:$pluginVersion")
 
     fun Project.configureIdeaIntegration(generateGRTsTask: TaskProvider<*>) {
         pluginManager.apply("org.jetbrains.gradle.plugin.idea-ext")

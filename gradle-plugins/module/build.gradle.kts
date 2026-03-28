@@ -14,8 +14,9 @@ java {
 dependencies {
     implementation(project(":plugins-common"))
 
-    // Your runtime helpers used by the plugin implementation (keep as needed)
-    implementation(libs.viaduct.tenant.codegen)
+    // Libraries the plugin source imports directly (binary schema generation).
+    // tenant-codegen is NOT here — it is an external tool artifact resolved at
+    // build time via the viaductCodegenClasspath Configuration.
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.viaductschema)
 
@@ -27,7 +28,7 @@ dependencies {
     testImplementation(project(":plugins-application"))
 }
 
-// Manifest with Implementation-Version for runtime access if you need it
+// Include version in JAR manifest for JAR introspection and debugging
 tasks.jar {
     manifest {
         attributes(
@@ -49,6 +50,12 @@ gradlePlugin {
             description = "Module plugin for Viaduct tenant modules."
             tags.set(listOf("viaduct", "graphql", "kotlin"))
         }
+    }
+}
+
+tasks.named<ProcessResources>("processResources") {
+    filesMatching("viaduct-plugin-version.properties") {
+        expand("version" to project.version)
     }
 }
 

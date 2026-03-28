@@ -17,11 +17,12 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
-import org.gradle.process.ExecOperations
+import org.gradle.workers.WorkerExecutor
 import resolverBasesDirectory
 import viaduct.gradle.ViaductApplicationExtension
 import viaduct.gradle.ViaductModuleExtension
 import viaduct.gradle.ViaductPluginCommon
+import viaduct.gradle.runCodegen
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
@@ -30,7 +31,7 @@ import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 abstract class GenerateResolverBasesTask
     @Inject
     constructor(
-        private var execOperations: ExecOperations
+        private val workerExecutor: WorkerExecutor
     ) : DefaultTask() {
         init {
             group = "viaduct"
@@ -71,28 +72,26 @@ abstract class GenerateResolverBasesTask
             ViaductSchema.fromGraphQLSchema(centralSchemaFiles.files.toList())
                 .toBinaryFile(binarySchemaFile)
 
-            execOperations.javaexec {
-                classpath = this@GenerateResolverBasesTask.classpath
-                mainClass.set(this@GenerateResolverBasesTask.mainClass.get())
-                argumentProviders.add {
-                    listOf(
-                        "--schema_files",
-                        centralSchemaFiles.files.map { it.absolutePath }.sorted().joinToString(","),
-                        "--binary_schema_file",
-                        binarySchemaFile.absolutePath,
-                        "--tenant_package_prefix",
-                        tenantPackagePrefix.get(),
-                        "--flag_file",
-                        flagFile.absolutePath,
-                        "--tenant_pkg",
-                        tenantPackage.get(),
-                        "--resolver_generated_directory",
-                        outputDirectory.get().asFile.absolutePath,
-                        "--tenant_from_source_name_regex",
-                        tenantFromSourceRegex.get()
-                    )
-                }
-            }
+            workerExecutor.runCodegen(
+                classpath,
+                mainClass.get(),
+                listOf(
+                    "--schema_files",
+                    centralSchemaFiles.files.map { it.absolutePath }.sorted().joinToString(","),
+                    "--binary_schema_file",
+                    binarySchemaFile.absolutePath,
+                    "--tenant_package_prefix",
+                    tenantPackagePrefix.get(),
+                    "--flag_file",
+                    flagFile.absolutePath,
+                    "--tenant_pkg",
+                    tenantPackage.get(),
+                    "--resolver_generated_directory",
+                    outputDirectory.get().asFile.absolutePath,
+                    "--tenant_from_source_name_regex",
+                    tenantFromSourceRegex.get()
+                )
+            )
         }
 
         fun Project.wireToExtensions(

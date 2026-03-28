@@ -14,6 +14,8 @@ import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import schemaPartitionDirectory
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
+import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
+import viaduct.gradle.ViaductPluginCommon.pluginVersion
 import viaduct.gradle.task.AssembleSchemaPartitionTask
 import viaduct.gradle.task.GenerateResolverBasesTask
 
@@ -170,13 +172,15 @@ class ViaductModulePlugin : Plugin<Project> {
         moduleExt: ViaductModuleExtension,
         centralSchemaIncomingCfg: Configuration
     ): TaskProvider<GenerateResolverBasesTask> {
+        val version = pluginVersion(ViaductModulePlugin::class.java)
+        val codegenClasspath = createOrGetCodegenClasspath(version)
         val taskProvider = tasks.register<GenerateResolverBasesTask>("generateViaductResolverBases") {
             buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             centralSchemaFiles.from(
                 centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching { include("**/*.graphqls") }
             )
             tenantFromSourceRegex.set("$centralSchemaDirectoryName/partition/(.*)/graphql")
-            classpath.setFrom(files(ViaductPluginCommon.getClassPathElements(this@ViaductModulePlugin::class.java)))
+            classpath.setFrom(codegenClasspath)
             mainClass.set(RESOLVER_CODEGEN_MAIN_CLASS)
         }
 
@@ -216,9 +220,7 @@ class ViaductModulePlugin : Plugin<Project> {
         configurations.configureEach {
             withDependencies {
                 filterIsInstance<ProjectDependency>().forEach { pd ->
-                    // Find project by name - works for both flat and nested structures
-                    // since rootProject.allprojects includes all subprojects at any depth
-                    val target = rootProject.allprojects.find { it.name == pd.name }
+                    val target = this@enforceNoDirectModuleDeps.findProject(pd.path)
                     if (target != null &&
                         target.plugins.hasPlugin(ViaductModulePlugin::class.java) &&
                         this@enforceNoDirectModuleDeps != rootProject &&

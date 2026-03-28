@@ -15,8 +15,9 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
-import org.gradle.process.ExecOperations
+import org.gradle.workers.WorkerExecutor
 import viaduct.gradle.ViaductPluginCommon
+import viaduct.gradle.runCodegen
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
@@ -25,7 +26,7 @@ import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 abstract class GenerateGRTClassFilesTask
     @Inject
     constructor(
-        private var execOperations: ExecOperations
+        private val workerExecutor: WorkerExecutor
     ) : DefaultTask() {
         init {
             // No group: don't want this to appear in task list
@@ -60,23 +61,21 @@ abstract class GenerateGRTClassFilesTask
             ViaductSchema.fromGraphQLSchema(schemaFiles.files.toList())
                 .toBinaryFile(binarySchemaFile)
 
-            execOperations.javaexec {
-                classpath = this@GenerateGRTClassFilesTask.classpath
-                mainClass.set(this@GenerateGRTClassFilesTask.mainClass.get())
-                argumentProviders.add {
-                    listOf(
-                        "--schema_files",
-                        schemaFiles.files.map(File::getAbsolutePath).sorted().joinToString(","),
-                        "--binary_schema_file",
-                        binarySchemaFile.absolutePath,
-                        "--flag_file",
-                        flagFile.absolutePath,
-                        "--pkg_for_generated_classes",
-                        grtPackageName.get(),
-                        "--generated_directory",
-                        grtClassesDirectory.get().asFile.absolutePath
-                    )
-                }
-            }
+            workerExecutor.runCodegen(
+                classpath,
+                mainClass.get(),
+                listOf(
+                    "--schema_files",
+                    schemaFiles.files.map(File::getAbsolutePath).sorted().joinToString(","),
+                    "--binary_schema_file",
+                    binarySchemaFile.absolutePath,
+                    "--flag_file",
+                    flagFile.absolutePath,
+                    "--pkg_for_generated_classes",
+                    grtPackageName.get(),
+                    "--generated_directory",
+                    grtClassesDirectory.get().asFile.absolutePath
+                )
+            )
         }
     }

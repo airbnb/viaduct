@@ -6,6 +6,12 @@ import kotlin.test.assertTrue
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.io.TempDir
 
+/**
+ * TestKit functional tests for the application plugin.
+ *
+ * These tests cover diagnostics and configuration-time behavior only.
+ * Real execution (codegen, serve) is validated through demoapps.
+ */
 class ViaductApplicationPluginFunctionalTest {
     @TempDir
     lateinit var projectDir: File
