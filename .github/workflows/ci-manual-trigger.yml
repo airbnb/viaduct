@@ -9,6 +9,7 @@ name: CI (Manual Trigger)
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   build-and-test:
