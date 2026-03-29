@@ -12,30 +12,22 @@ from pathlib import Path
 COMMENT_MARKER = "<!-- viaduct-build-scan-comment -->"
 
 
-def read_metadata_scan_entry(file_path: Path) -> tuple[str, str] | None:
+def read_metadata_scan_entry(file_path: Path) -> tuple[int | None, str, str] | None:
     try:
         metadata = json.loads(file_path.read_text())
     except json.JSONDecodeError:
         return None
 
+    pr_number = metadata.get("pr_number")
     label = metadata.get("label")
     url = metadata.get("url")
     if not label or not url:
         return None
-    return label, url
-
-
-def read_legacy_scan_entry(relative_dir: str, file_path: Path) -> tuple[str, str] | None:
-    if file_path.name == "pr-number.txt" or file_path.suffix != ".txt":
-        return None
-
-    url = file_path.read_text().strip()
-    if not url or url == "null":
-        return None
-
-    job_name = file_path.stem
-    matrix_info = relative_dir.removeprefix("build-scan-urls-").replace(f"{job_name}-", "", 1)
-    return f"{job_name} ({matrix_info})", url
+    if isinstance(pr_number, str) and pr_number.isdigit():
+        pr_number = int(pr_number)
+    if pr_number is not None and not isinstance(pr_number, int):
+        pr_number = None
+    return pr_number, label, url
 
 
 def collect_build_scan_data(base_dir: Path) -> tuple[int | None, dict[str, str]]:
@@ -44,38 +36,14 @@ def collect_build_scan_data(base_dir: Path) -> tuple[int | None, dict[str, str]]
 
     pr_number = None
     scans_by_job: dict[str, str] = {}
-    artifact_dirs = sorted(entry for entry in base_dir.iterdir() if entry.is_dir())
-    candidate_dirs = artifact_dirs or [base_dir]
-
-    for dir_path in candidate_dirs:
-        if pr_number is None:
-            pr_file = dir_path / "pr-number.txt"
-            if pr_file.exists():
-                raw_pr_number = pr_file.read_text().strip()
-                if raw_pr_number and raw_pr_number != "null":
-                    try:
-                        pr_number = int(raw_pr_number)
-                    except ValueError:
-                        pass
-
-        files = sorted(entry for entry in dir_path.iterdir() if entry.is_file())
-        metadata_files = [entry for entry in files if entry.suffix == ".json"]
-        if metadata_files:
-            for file_path in metadata_files:
-                metadata_entry = read_metadata_scan_entry(file_path)
-                if metadata_entry is None:
-                    continue
-                label, url = metadata_entry
-                scans_by_job[label] = url
+    for file_path in sorted(base_dir.rglob("*.json")):
+        metadata_entry = read_metadata_scan_entry(file_path)
+        if metadata_entry is None:
             continue
-
-        relative_dir = "." if dir_path == base_dir else str(dir_path.relative_to(base_dir))
-        for file_path in files:
-            legacy_entry = read_legacy_scan_entry(relative_dir, file_path)
-            if legacy_entry is None:
-                continue
-            label, url = legacy_entry
-            scans_by_job[label] = url
+        file_pr_number, label, url = metadata_entry
+        if pr_number is None and file_pr_number is not None:
+            pr_number = file_pr_number
+        scans_by_job[label] = url
 
     return pr_number, scans_by_job
 
@@ -131,7 +99,7 @@ def build_comment_payload(
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-dir", default="build-scan-urls")
+    parser.add_argument("--base-dir", default="build-scan-artifacts")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--repository", required=True)
     parser.add_argument("--server-url", required=True)

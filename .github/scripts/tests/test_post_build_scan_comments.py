@@ -14,13 +14,12 @@ from post_build_scan_comments import (
 
 
 class TestPostBuildScanComments(unittest.TestCase):
-    def test_collect_build_scan_data_reads_explicit_metadata_labels(self):
+    def test_collect_build_scan_data_reads_single_json_payloads(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            artifact_dir = Path(tempdir) / "build-scan-urls-test-21-ubuntu-latest"
+            artifact_dir = Path(tempdir) / "build-scan-artifact-test-21-ubuntu-latest"
             artifact_dir.mkdir(parents=True)
-            (artifact_dir / "pr-number.txt").write_text("42\n")
-            (artifact_dir / "test.json").write_text(
-                '{"label": "Test (Java 21, ubuntu-latest)", "url": "https://scans.gradle.com/s/abc123"}'
+            (artifact_dir / "build-scan-artifact.json").write_text(
+                '{"pr_number": 42, "label": "Test (Java 21, ubuntu-latest)", "url": "https://scans.gradle.com/s/abc123"}'
             )
 
             pr_number, scans_by_job = collect_build_scan_data(Path(tempdir))
@@ -31,25 +30,11 @@ class TestPostBuildScanComments(unittest.TestCase):
                 "https://scans.gradle.com/s/abc123",
             )
 
-    def test_collect_build_scan_data_falls_back_to_legacy_text_file_parsing(self):
-        with tempfile.TemporaryDirectory() as tempdir:
-            artifact_dir = Path(tempdir) / "build-scan-urls-build-21-ubuntu-latest"
-            artifact_dir.mkdir(parents=True)
-            (artifact_dir / "build-assemble.txt").write_text("https://gradle.com/s/legacy123\n")
-
-            _, scans_by_job = collect_build_scan_data(Path(tempdir))
-
-            self.assertEqual(
-                scans_by_job["build-assemble (build-21-ubuntu-latest)"],
-                "https://gradle.com/s/legacy123",
-            )
-
     def test_collect_build_scan_data_handles_a_single_flat_downloaded_artifact(self):
         with tempfile.TemporaryDirectory() as tempdir:
             tempdir_path = Path(tempdir)
-            (tempdir_path / "pr-number.txt").write_text("7\n")
-            (tempdir_path / "build-assemble.json").write_text(
-                '{"label": "Build assemble (Java 11, ubuntu-latest)", "url": "https://gradle.com/s/flat123"}'
+            (tempdir_path / "build-scan-artifact.json").write_text(
+                '{"pr_number": 7, "label": "Build assemble (Java 11, ubuntu-latest)", "url": "https://gradle.com/s/flat123"}'
             )
 
             pr_number, scans_by_job = collect_build_scan_data(tempdir_path)
@@ -62,11 +47,11 @@ class TestPostBuildScanComments(unittest.TestCase):
 
     def test_collect_build_scan_data_skips_malformed_metadata_files(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            artifact_dir = Path(tempdir) / "build-scan-urls-test-21-ubuntu-latest"
+            artifact_dir = Path(tempdir) / "build-scan-artifact-test-21-ubuntu-latest"
             artifact_dir.mkdir(parents=True)
             (artifact_dir / "broken.json").write_text("{not json")
-            (artifact_dir / "test.json").write_text(
-                '{"label": "Test (Java 21, ubuntu-latest)", "url": "https://scans.gradle.com/s/valid123"}'
+            (artifact_dir / "build-scan-artifact.json").write_text(
+                '{"pr_number": 42, "label": "Test (Java 21, ubuntu-latest)", "url": "https://scans.gradle.com/s/valid123"}'
             )
 
             _, scans_by_job = collect_build_scan_data(Path(tempdir))
@@ -94,11 +79,10 @@ class TestPostBuildScanComments(unittest.TestCase):
 
     def test_build_comment_payload_renders_comment_body(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            artifact_dir = Path(tempdir) / "build-scan-urls-test-21-ubuntu-latest"
+            artifact_dir = Path(tempdir) / "build-scan-artifact-test-21-ubuntu-latest"
             artifact_dir.mkdir(parents=True)
-            (artifact_dir / "pr-number.txt").write_text("42\n")
-            (artifact_dir / "test.json").write_text(
-                '{"label": "Test (Java 21, ubuntu-latest)", "url": "https://scans.gradle.com/s/abc123"}'
+            (artifact_dir / "build-scan-artifact.json").write_text(
+                '{"pr_number": 42, "label": "Test (Java 21, ubuntu-latest)", "url": "https://scans.gradle.com/s/abc123"}'
             )
 
             payload = build_comment_payload(
@@ -115,10 +99,10 @@ class TestPostBuildScanComments(unittest.TestCase):
 
     def test_build_comment_payload_returns_empty_body_when_pr_number_is_missing(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            artifact_dir = Path(tempdir) / "build-scan-urls-test-21-ubuntu-latest"
+            artifact_dir = Path(tempdir) / "build-scan-artifact-test-21-ubuntu-latest"
             artifact_dir.mkdir(parents=True)
-            (artifact_dir / "test.json").write_text(
-                '{"label": "Test (Java 21, ubuntu-latest)", "url": "https://scans.gradle.com/s/abc123"}'
+            (artifact_dir / "build-scan-artifact.json").write_text(
+                '{"pr_number": null, "label": "Test (Java 21, ubuntu-latest)", "url": "https://scans.gradle.com/s/abc123"}'
             )
 
             payload = build_comment_payload(
@@ -134,9 +118,9 @@ class TestPostBuildScanComments(unittest.TestCase):
 
     def test_build_comment_payload_returns_empty_body_when_scans_are_missing(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            artifact_dir = Path(tempdir) / "build-scan-urls-test-21-ubuntu-latest"
+            artifact_dir = Path(tempdir) / "build-scan-artifact-test-21-ubuntu-latest"
             artifact_dir.mkdir(parents=True)
-            (artifact_dir / "pr-number.txt").write_text("42\n")
+            (artifact_dir / "build-scan-artifact.json").write_text('{"pr_number": 42, "label": "", "url": ""}')
 
             payload = build_comment_payload(
                 base_dir=Path(tempdir),
@@ -145,6 +129,6 @@ class TestPostBuildScanComments(unittest.TestCase):
                 server_url="https://github.com",
             )
 
-        self.assertEqual(payload["pr_number"], 42)
+        self.assertIsNone(payload["pr_number"])
         self.assertIsNone(payload["body"])
         self.assertEqual(payload["comment_marker"], COMMENT_MARKER)

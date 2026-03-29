@@ -19,20 +19,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download all build scan URL artifacts
+      - name: Download all build scan artifacts
         uses: actions/download-artifact@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
-          pattern: build-scan-urls-*
-          path: build-scan-urls
+          pattern: build-scan-artifact-*
+          path: build-scan-artifacts
           merge-multiple: false
 
       - name: Prepare build scan PR comment
         id: prepare_comment
         run: |
           comment_payload="$(python3 .github/scripts/post_build_scan_comments.py \
-            --base-dir build-scan-urls \
+            --base-dir build-scan-artifacts \
             --run-id "${{ github.event.workflow_run.id }}" \
             --repository "${{ github.repository }}" \
             --server-url "${{ github.server_url }}")"
