@@ -18,14 +18,12 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantResolverException
 import viaduct.errors.wrapResolveException
-import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 class NodeBatchResolverExecutorImpl(
     val resolver: Provider<out NodeResolverBase<*>>,
     private val batchResolveFunction: KFunction<*>,
     override val typeName: String,
-    private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     private val factory: NodeExecutionContextFactory,
     private val resolverName: String,

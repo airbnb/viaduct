@@ -34,7 +34,6 @@ class FieldBatchResolverExecutorImpl(
     internal val resolver: Provider<out @JvmSuppressWildcards ResolverBase<*>>, // internal for testing
     private val batchResolveFn: KFunction<*>,
     override val resolverId: String,
-    private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     private val resolverContextFactory: FieldExecutionContextFactory,
     private val resolverName: String,
@@ -75,10 +74,13 @@ class FieldBatchResolverExecutorImpl(
                 resolverId
             )
         }
-        return selectors.zip(results.map { unwrap(it) }).toMap()
+        return selectors.zip(results.map { unwrap(it, context.globalIDCodec) }).toMap()
     }
 
-    private suspend fun unwrap(fieldValue: Any?): Result<Any?> {
+    private suspend fun unwrap(
+        fieldValue: Any?,
+        globalIDCodec: GlobalIDCodec
+    ): Result<Any?> {
         if (fieldValue !is FieldValue<*>) {
             throw IllegalStateException("Unexpected result type that is not a FieldValue: $fieldValue")
         }

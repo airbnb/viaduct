@@ -18,9 +18,7 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
-import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.TenantCodeInjector
-import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
@@ -42,12 +40,11 @@ import viaduct.utils.slf4j.logger
 class ViaductTenantModuleBootstrapper(
     private val tenantCodeInjector: TenantCodeInjector,
     private val tenantResolverClassFinder: TenantResolverClassFinder,
-    private val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
     private val grtConvFactory: GRTConvFactory = DefaultGRTConvFactory,
 ) : TenantModuleBootstrapper {
     private val reflectionLoader = ReflectionLoaderImpl { name -> tenantResolverClassFinder.grtClassForName(name) }
 
-    private val requiredSelectionSetFactory = RequiredSelectionSetFactory(globalIDCodec, reflectionLoader)
+    private val requiredSelectionSetFactory = RequiredSelectionSetFactory(reflectionLoader)
 
     private val tenantMetadata: TenantModuleMetadata = tenantResolverClassFinder.tenantModuleMetadata()
 
@@ -126,7 +123,6 @@ class ViaductTenantModuleBootstrapper(
 
             val fieldExecutionContextFactory = FieldExecutionContextFactory.of(
                 resolverBaseClass = baseClass,
-                globalIDCodec = globalIDCodec,
                 reflectionLoader = reflectionLoader,
                 schema = schema,
                 typeName = typeName,
@@ -178,7 +174,6 @@ class ViaductTenantModuleBootstrapper(
                     resolver = resolverContainerProvider,
                     resolveFn = resolveFunction,
                     resolverId = formattedResolverId,
-                    globalIDCodec = globalIDCodec,
                     reflectionLoader = reflectionLoader,
                     resolverContextFactory = fieldExecutionContextFactory,
                     resolverName = resolverKClass.qualifiedName!!,
@@ -204,7 +199,6 @@ class ViaductTenantModuleBootstrapper(
                     resolver = resolverContainerProvider,
                     batchResolveFn = batchResolveFunction,
                     resolverId = formattedResolverId,
-                    globalIDCodec = globalIDCodec,
                     reflectionLoader = reflectionLoader,
                     resolverContextFactory = fieldExecutionContextFactory,
                     resolverName = resolverKClass.qualifiedName!!,
@@ -265,7 +259,7 @@ class ViaductTenantModuleBootstrapper(
             @Suppress("UNCHECKED_CAST")
             val reflectiveType = reflectionLoader.reflectionFor(typeName) as Type<NodeObject>
             val resolverContextFactory: NodeExecutionContextFactory =
-                NodeExecutionContextFactory(baseClass, globalIDCodec, reflectionLoader, reflectiveType, grtConvFactory)
+                NodeExecutionContextFactory(baseClass, reflectionLoader, reflectiveType, grtConvFactory)
 
             if (nodeResolverClasses.size != 1) {
                 throw TenantModuleException(
@@ -303,7 +297,6 @@ class ViaductTenantModuleBootstrapper(
                         resolver = resolverContainerProvider,
                         resolveFunction = resolveFunction,
                         typeName = typeName,
-                        globalIDCodec = globalIDCodec,
                         reflectionLoader = reflectionLoader,
                         factory = resolverContextFactory,
                         resolverName = resolverKClass.qualifiedName!!,
@@ -323,7 +316,6 @@ class ViaductTenantModuleBootstrapper(
                         resolver = resolverContainerProvider,
                         batchResolveFunction = batchResolveFunction,
                         typeName = typeName,
-                        globalIDCodec = globalIDCodec,
                         reflectionLoader = reflectionLoader,
                         factory = resolverContextFactory,
                         resolverName = resolverKClass.qualifiedName!!,

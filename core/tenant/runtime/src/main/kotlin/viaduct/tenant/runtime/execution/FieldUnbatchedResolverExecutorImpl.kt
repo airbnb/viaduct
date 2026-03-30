@@ -30,7 +30,6 @@ class FieldUnbatchedResolverExecutorImpl(
     val resolver: Provider<out @JvmSuppressWildcards ResolverBase<*>>,
     private val resolveFn: KFunction<*>,
     override val resolverId: String,
-    private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     private val resolverContextFactory: FieldExecutionContextFactory,
     private val resolverName: String,
@@ -68,7 +67,7 @@ class FieldUnbatchedResolverExecutorImpl(
         val result = wrapResolveException(resolverName) {
             resolveFn.callSuspend(resolver, ctx)
         }
-        return unwrapFieldResolverResult(result, globalIDCodec)
+        return unwrapFieldResolverResult(result, context.globalIDCodec)
     }
 
     private fun mkResolver(): ResolverBase<*> = resolver.get()

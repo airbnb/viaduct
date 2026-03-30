@@ -28,8 +28,6 @@ import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager.Flags
-import viaduct.service.api.spi.GlobalIDCodec
-import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
@@ -78,8 +76,6 @@ class FeatureTestBuilder(
             ReflectionLoaderImpl { name -> Class.forName("viaduct.tenant.runtime.featuretests.fixtures.$name").kotlin }
         }
     }
-
-    private val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault
 
     // These are all mutated by the resolver-setting functions below
     private val packageToResolverBases = mutableMapOf<String, Set<Class<*>>>()
@@ -260,7 +256,6 @@ class FeatureTestBuilder(
         val resolver = NodeUnbatchedResolverStub(
             NodeExecutionContextFactory(
                 NodeExecutionContextFactory.FakeResolverBase::class.java,
-                globalIDCodec,
                 reflectionLoaderForFeatureTestBootstrapper,
                 resultType,
                 DefaultGRTConvFactory
@@ -299,7 +294,6 @@ class FeatureTestBuilder(
         val resolver = NodeBatchResolverStub(
             NodeExecutionContextFactory(
                 NodeExecutionContextFactory.FakeResolverBase::class.java,
-                globalIDCodec,
                 reflectionLoaderForFeatureTestBootstrapper,
                 resultType,
                 DefaultGRTConvFactory,
@@ -403,7 +397,6 @@ class FeatureTestBuilder(
             nodeUnbatchedResolverStubs,
             nodeBatchResolverStubs,
             reflectionLoaderForFeatureTestBootstrapper,
-            globalIDCodec,
         )
 
         val builders = listOf(featureTestTenantAPIBootstrapperBuilder)

@@ -34,7 +34,6 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ViaductSchema
-import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.ConnectionFieldExecutionContextImpl
 import viaduct.tenant.runtime.context.EngineExecutionContextWrapperImpl
 import viaduct.tenant.runtime.context.FieldExecutionContextImpl
@@ -87,7 +86,6 @@ sealed class ResolverExecutionContextFactoryBase<R : CompositeOutput>(
 
 class NodeExecutionContextFactory(
     resolverBaseClass: Class<out NodeResolverBase<*>>,
-    private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     resultType: Type<NodeObject>,
     private val grtConvFactory: GRTConvFactory,
@@ -102,7 +100,7 @@ class NodeExecutionContextFactory(
         requestContext: Any?,
         id: String
     ): NodeExecutionContext<*> {
-        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader, grtConvFactory)
+        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, engineExecutionContext.globalIDCodec, reflectionLoader, grtConvFactory)
         val wrappedContext = NodeExecutionContextImpl(
             internalContext,
             EngineExecutionContextWrapperImpl(engineExecutionContext),
@@ -131,7 +129,6 @@ interface VariablesProviderContextFactory {
 class FieldExecutionContextFactory internal constructor(
     resolverBaseClass: Class<out ResolverBase<*>>,
     private val expectedContextInterface: Class<out BaseFieldExecutionContext<*, *, *>>,
-    private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     resultType: Type<CompositeOutput>,
     private val argumentsCls: KClass<Arguments>,
@@ -157,7 +154,7 @@ class FieldExecutionContextFactory internal constructor(
         syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)? = null,
         syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)? = null,
     ): BaseFieldExecutionContext<*, *, *> {
-        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader, grtConvFactory)
+        val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, engineExecutionContext.globalIDCodec, reflectionLoader, grtConvFactory)
         val engineExecutionContextWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext)
 
         val wrappedContext = when (expectedContextInterface) {
@@ -212,7 +209,7 @@ class FieldExecutionContextFactory internal constructor(
         requestContext: Any?,
         rawArguments: Map<String, Any?>
     ): VariablesProviderContext<Arguments> {
-        val ic = InternalContextImpl(engineExecutionContext.fullSchema, globalIDCodec, reflectionLoader, grtConvFactory)
+        val ic = InternalContextImpl(engineExecutionContext.fullSchema, engineExecutionContext.globalIDCodec, reflectionLoader, grtConvFactory)
         return VariablesProviderContextImpl(ic, requestContext, rawArguments.toInputLikeGRT(ic, argumentsCls, graphqlTypeName, graphqlFieldName))
     }
 
@@ -234,7 +231,6 @@ class FieldExecutionContextFactory internal constructor(
         @Suppress("UNCHECKED_CAST")
         fun of(
             resolverBaseClass: Class<out ResolverBase<*>>,
-            globalIDCodec: GlobalIDCodec,
             reflectionLoader: ReflectionLoader,
             schema: ViaductSchema,
             typeName: String,
@@ -282,7 +278,6 @@ class FieldExecutionContextFactory internal constructor(
             return FieldExecutionContextFactory(
                 resolverBaseClass,
                 expectedContextInterface,
-                globalIDCodec,
                 reflectionLoader,
                 resultType,
                 argumentsCls,

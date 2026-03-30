@@ -6,10 +6,8 @@ import kotlinx.coroutines.coroutineScope
 import viaduct.api.internal.GRTConvFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
-import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.TenantCodeInjector
-import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinder
@@ -32,7 +30,6 @@ open class ViaductTenantAPIBootstrapper
         private val tenantCodeInjector: TenantCodeInjector,
         private val tenantPackageFinder: TenantPackageFinder,
         private val tenantResolverClassFinderFactory: TenantResolverClassFinderFactory,
-        private val globalIDCodec: GlobalIDCodec,
         private val grtConvFactory: GRTConvFactory,
     ) : TenantAPIBootstrapper {
         /**
@@ -52,7 +49,6 @@ open class ViaductTenantAPIBootstrapper
                         ViaductTenantModuleBootstrapper(
                             tenantCodeInjector,
                             createResolverClassFinder(packageInfo),
-                            globalIDCodec,
                             grtConvFactory,
                         )
                     }
@@ -80,7 +76,6 @@ open class ViaductTenantAPIBootstrapper
             protected var tenantPackagePrefix: String? = null
             protected var tenantPackageFinder: TenantPackageFinder? = null
             protected var tenantResolverClassFinderFactory: TenantResolverClassFinderFactory? = null
-            protected var globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault
             protected var grtConvFactory: GRTConvFactory = CachingGRTConvFactory()
 
             fun tenantCodeInjector(tenantCodeInjector: TenantCodeInjector) =
@@ -105,18 +100,6 @@ open class ViaductTenantAPIBootstrapper
                     this.tenantResolverClassFinderFactory = tenantResolverClassFinderFactory
                 }
 
-            /**
-             * Configures the GlobalIDCodec for serializing and deserializing GlobalIDs.
-             * All tenant modules bootstrapped by this instance will share this codec.
-             *
-             * @param globalIDCodec The GlobalIDCodec instance to use
-             * @return This Builder instance for method chaining
-             */
-            fun globalIDCodec(globalIDCodec: GlobalIDCodec) =
-                apply {
-                    this.globalIDCodec = globalIDCodec
-                }
-
             fun grtConvFactory(grtConvFactory: GRTConvFactory) =
                 apply {
                     this.grtConvFactory = grtConvFactory
@@ -136,7 +119,6 @@ open class ViaductTenantAPIBootstrapper
                     tenantCodeInjector = tenantCodeInjector,
                     tenantPackageFinder = resolvedTenantPackageFinder(),
                     tenantResolverClassFinderFactory = resolvedTenantResolverClassFinderFactory(),
-                    globalIDCodec = globalIDCodec,
                     grtConvFactory = grtConvFactory,
                 )
         }

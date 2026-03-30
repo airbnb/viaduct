@@ -16,14 +16,12 @@ import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.TenantUsageException
 import viaduct.errors.wrapResolveException
-import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 class NodeUnbatchedResolverExecutorImpl(
     val resolver: Provider<out @JvmSuppressWildcards NodeResolverBase<*>>,
     private val resolveFunction: KFunction<*>,
     override val typeName: String,
-    private val globalIDCodec: GlobalIDCodec,
     private val reflectionLoader: ReflectionLoader,
     private val factory: NodeExecutionContextFactory,
     private val resolverName: String,

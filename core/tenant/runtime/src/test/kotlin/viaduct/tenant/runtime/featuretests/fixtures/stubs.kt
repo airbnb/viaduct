@@ -32,7 +32,6 @@ import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.api.spi.CheckerExecutor
-import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.bootstrap.RequiredSelectionSetFactory
 import viaduct.tenant.runtime.context.ConnectionFieldExecutionContextImpl
 import viaduct.tenant.runtime.context.FieldExecutionContextImpl
@@ -91,7 +90,6 @@ abstract class AbstractFieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContex
     ): FieldExecutionContextFactory =
         FieldExecutionContextFactory.of(
             resolverBaseClass = this::class.java,
-            globalIDCodec = GlobalIDCodecDefault,
             reflectionLoader = reflectionLoader,
             schema = schema,
             typeName = coord.first,
@@ -106,7 +104,7 @@ abstract class AbstractFieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContex
     ): Pair<RequiredSelectionSet?, RequiredSelectionSet?> {
         val variablesProviderContextFactory = resolverFactory(ViaductSchema(schema), reflectionLoader)
 
-        val factory = RequiredSelectionSetFactory(GlobalIDCodecDefault, reflectionLoader)
+        val factory = RequiredSelectionSetFactory(reflectionLoader)
         return factory.createRequiredSelectionSets(
             variablesProvider = variablesProvider,
             objectSelections = objectSelections,

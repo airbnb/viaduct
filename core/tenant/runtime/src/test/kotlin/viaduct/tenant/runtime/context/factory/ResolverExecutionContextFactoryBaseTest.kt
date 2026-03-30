@@ -16,7 +16,6 @@ import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.runtime.mocks.ContextMocks
-import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
 import viaduct.tenant.runtime.globalid.User
 
@@ -25,7 +24,6 @@ import viaduct.tenant.runtime.globalid.User
  */
 class ResolverExecutionContextFactoryBaseTest {
     private val contextMocks = ContextMocks(GlobalIdFeatureAppTest.schema)
-    private val globalIDCodec = GlobalIDCodecDefault
     private val reflectionLoader = mockReflectionLoader("viaduct.tenant.runtime.globalid")
 
     @Suppress("UNCHECKED_CAST")
@@ -35,7 +33,7 @@ class ResolverExecutionContextFactoryBaseTest {
     @Test
     fun `NodeExecutionContextFactory with Composite type and null selections throws IllegalArgumentException`() {
         val type = MockType("User", User::class)
-        val nodeFactory = NodeExecutionContextFactory(resolverBase, globalIDCodec, reflectionLoader, type, DefaultGRTConvFactory)
+        val nodeFactory = NodeExecutionContextFactory(resolverBase, reflectionLoader, type, DefaultGRTConvFactory)
 
         val exception = assertThrows<IllegalArgumentException> {
             // Call the factory to trigger toSelectionSet validation
@@ -58,7 +56,7 @@ class ResolverExecutionContextFactoryBaseTest {
         @Suppress("UNCHECKED_CAST")
         val notCompositeType = MockType("FakeNotComposite", CompositeOutput.NotComposite::class as KClass<out User>)
 
-        val nodeFactory = NodeExecutionContextFactory(resolverBase, globalIDCodec, reflectionLoader, notCompositeType, DefaultGRTConvFactory)
+        val nodeFactory = NodeExecutionContextFactory(resolverBase, reflectionLoader, notCompositeType, DefaultGRTConvFactory)
 
         // Create a mock EngineSelectionSet (non-null) to trigger the validation
         val mockEngineSelectionSet = mockk<EngineSelectionSet>()
@@ -85,7 +83,7 @@ class ResolverExecutionContextFactoryBaseTest {
         val type = MockType("User", User::class)
 
         val exception = assertThrows<IllegalArgumentException> {
-            NodeExecutionContextFactory(badResolverBase, globalIDCodec, reflectionLoader, type, DefaultGRTConvFactory)
+            NodeExecutionContextFactory(badResolverBase, reflectionLoader, type, DefaultGRTConvFactory)
         }
 
         assertTrue(

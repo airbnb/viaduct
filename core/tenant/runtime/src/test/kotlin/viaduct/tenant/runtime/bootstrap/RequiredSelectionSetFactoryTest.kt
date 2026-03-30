@@ -87,7 +87,6 @@ class RequiredSelectionSetFactoryTest {
 
     private fun mkFactory(): RequiredSelectionSetFactory =
         RequiredSelectionSetFactory(
-            GlobalIDCodecDefault,
             mockReflectionLoader("viaduct.api.bootstrap.test.grts"),
         )
 

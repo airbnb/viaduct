@@ -27,7 +27,6 @@ import viaduct.api.types.Query
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.runtime.mocks.ContextMocks
-import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.FakeMutation
 import viaduct.tenant.runtime.FakeObject
 import viaduct.tenant.runtime.FakeQuery
@@ -49,8 +48,6 @@ import viaduct.tenant.runtime.FakeQuery
  * - Variable resolution (tested in other tests)
  */
 class ResolverExecutionContextFactoryTest {
-    private val codec = GlobalIDCodecDefault
-
     // Create mock reflection types for Query
     private val queryReflection = object : Type<Query> {
         override val name = "Query"
@@ -95,7 +92,6 @@ class ResolverExecutionContextFactoryTest {
         // Should successfully construct factory when resolver has valid nested Context class
         val factory = NodeExecutionContextFactory(
             NodeExecutionContextFactory.FakeResolverBase::class.java,
-            codec,
             reflectionLoader,
             Type.ofClass(TestNode::class),
             DefaultGRTConvFactory
@@ -122,7 +118,6 @@ class ResolverExecutionContextFactoryTest {
         assertThrows<IllegalArgumentException> {
             NodeExecutionContextFactory(
                 InvalidNodeResolverWithoutContext::class.java,
-                codec,
                 reflectionLoader,
                 Type.ofClass(TestNode::class),
                 DefaultGRTConvFactory
@@ -136,7 +131,6 @@ class ResolverExecutionContextFactoryTest {
         assertThrows<IllegalArgumentException> {
             NodeExecutionContextFactory(
                 InvalidNodeResolverWrongContextType::class.java,
-                codec,
                 reflectionLoader,
                 Type.ofClass(TestNode::class),
                 DefaultGRTConvFactory
@@ -155,7 +149,6 @@ class ResolverExecutionContextFactoryTest {
         // The validation aspects are tested by the error case tests below
         val factory = FieldExecutionContextFactory.of(
             FieldExecutionContextFactory.FakeResolverBase::class.java,
-            codec,
             reflectionLoader,
             schema,
             "Query",
@@ -184,7 +177,6 @@ class ResolverExecutionContextFactoryTest {
         // The validation aspects are tested by the error case tests below
         val factory = FieldExecutionContextFactory.of(
             FakeMutationResolverBase::class.java,
-            codec,
             reflectionLoader,
             schema,
             "Mutation",
@@ -212,7 +204,6 @@ class ResolverExecutionContextFactoryTest {
         val exception = assertThrows<IllegalArgumentException> {
             FieldExecutionContextFactory.of(
                 FieldExecutionContextFactory.FakeResolverBase::class.java,
-                codec,
                 reflectionLoader,
                 schema,
                 "Query",
@@ -230,7 +221,6 @@ class ResolverExecutionContextFactoryTest {
         assertThrows<IllegalArgumentException> {
             FieldExecutionContextFactory.of(
                 InvalidFieldResolverWithoutContext::class.java,
-                codec,
                 reflectionLoader,
                 schema,
                 "Query",
@@ -246,7 +236,6 @@ class ResolverExecutionContextFactoryTest {
         assertThrows<IllegalArgumentException> {
             FieldExecutionContextFactory.of(
                 InvalidFieldResolverWrongContextType::class.java,
-                codec,
                 reflectionLoader,
                 schema,
                 "Query",
@@ -267,7 +256,6 @@ class ResolverExecutionContextFactoryTest {
         val factory = FieldExecutionContextFactory(
             FieldExecutionContextFactory.FakeResolverBase::class.java,
             FieldExecutionContext::class.java,
-            codec,
             reflectionLoader,
             Type.ofClass(CompositeOutput.NotComposite::class),
             Arguments.NoArguments::class as KClass<Arguments>,
@@ -296,7 +284,6 @@ class ResolverExecutionContextFactoryTest {
         val factory = FieldExecutionContextFactory(
             FakeMutationResolverBase::class.java,
             MutationFieldExecutionContext::class.java,
-            codec,
             reflectionLoader,
             Type.ofClass(CompositeOutput.NotComposite::class),
             Arguments.NoArguments::class as KClass<Arguments>,
@@ -327,7 +314,6 @@ class ResolverExecutionContextFactoryTest {
             FieldExecutionContextFactory(
                 InvalidFieldResolverWithoutContext::class.java,
                 FieldExecutionContext::class.java,
-                codec,
                 reflectionLoader,
                 Type.ofClass(CompositeOutput.NotComposite::class),
                 Arguments.NoArguments::class as KClass<Arguments>,
@@ -346,7 +332,6 @@ class ResolverExecutionContextFactoryTest {
             FieldExecutionContextFactory(
                 InvalidFieldResolverWrongContextType::class.java,
                 FieldExecutionContext::class.java,
-                codec,
                 reflectionLoader,
                 Type.ofClass(CompositeOutput.NotComposite::class),
                 Arguments.NoArguments::class as KClass<Arguments>,

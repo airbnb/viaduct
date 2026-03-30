@@ -7,7 +7,6 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
-import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl
@@ -19,7 +18,6 @@ class FeatureTestTenantAPIBootstrapperBuilder(
     val nodeUnbatchedResolverStubs: Map<String, NodeUnbatchedResolverStub>,
     val nodeBatchResolverStubs: Map<String, NodeBatchResolverStub>,
     val reflectionLoader: ReflectionLoader,
-    val globalIDCodec: GlobalIDCodec,
 ) : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
     override fun create() =
         object : TenantAPIBootstrapper {
@@ -28,7 +26,6 @@ class FeatureTestTenantAPIBootstrapperBuilder(
                 nodeUnbatchedResolverStubs,
                 nodeBatchResolverStubs,
                 reflectionLoader,
-                globalIDCodec,
             )
 
             override suspend fun tenantModuleBootstrappers() = listOf(module)
@@ -41,7 +38,6 @@ class FeatureTestTenantModuleBootstrapper(
     val nodeUnbatchedResolverStubs: Map<String, NodeUnbatchedResolverStub>,
     val nodeBatchResolverExecutorStubs: Map<String, NodeBatchResolverStub>,
     val reflectionLoader: ReflectionLoader,
-    val globalIDCodec: GlobalIDCodec,
 ) : TenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> =
         fieldUnbatchedResolverStubs.mapNotNull { (coord, stub) ->
@@ -60,7 +56,6 @@ class FeatureTestTenantModuleBootstrapper(
                 resolver = stub.resolver,
                 resolveFn = stub::resolve,
                 resolverId = "${coord.first}.${coord.second}",
-                globalIDCodec = globalIDCodec,
                 reflectionLoader = reflectionLoader,
                 resolverContextFactory = resolverFactory,
                 resolverName = stub.resolverName ?: "test-field-unbatched-resolver"
@@ -78,7 +73,6 @@ class FeatureTestTenantModuleBootstrapper(
                 resolver = stub.resolver,
                 resolveFunction = stub::resolve,
                 typeName = typeName,
-                globalIDCodec = globalIDCodec,
                 reflectionLoader = reflectionLoader,
                 factory = stub.resolverFactory,
                 resolverName = stub.resolverName ?: "test-node-unbatched-resolver",
@@ -94,7 +88,6 @@ class FeatureTestTenantModuleBootstrapper(
                 resolver = stub.resolver,
                 batchResolveFunction = stub::batchResolve,
                 typeName = typeName,
-                globalIDCodec = globalIDCodec,
                 reflectionLoader = reflectionLoader,
                 factory = stub.resolverFactory,
                 resolverName = stub.resolverName ?: "test-node-batch-resolver",
