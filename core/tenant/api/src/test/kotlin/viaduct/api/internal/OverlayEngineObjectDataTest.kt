@@ -5,8 +5,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ResolvedEngineObjectData
-import viaduct.engine.api.UnsetFieldException
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.errors.UnsetFieldException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OverlayEngineObjectDataTest {

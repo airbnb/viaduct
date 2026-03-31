@@ -95,7 +95,7 @@ fun <T> handleTenantAPIErrors(
     @Suppress("Detekt.TooGenericExceptionCaught")
     try {
         return block()
-    } catch (e: Throwable) {
+    } catch (e: Exception) {
         if (e is PassthroughException) throw e
         throw FrameworkException("$message ($e)", e)
     }
@@ -112,7 +112,7 @@ suspend fun <T> handleTenantAPIErrorsSuspend(
     @Suppress("Detekt.TooGenericExceptionCaught")
     try {
         return block()
-    } catch (e: Throwable) {
+    } catch (e: Exception) {
         if (e is CancellationException) currentCoroutineContext().ensureActive()
         if (e is PassthroughException) throw e
         throw FrameworkException("$message ($e)", e)

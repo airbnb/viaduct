@@ -2,7 +2,7 @@ package viaduct.engine.runtime
 
 import graphql.schema.GraphQLObjectType
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.UnsetFieldException
+import viaduct.errors.UnsetFieldException
 
 /**
  * A synchronous implementation of [EngineObjectData.Sync] that stores eagerly-resolved data

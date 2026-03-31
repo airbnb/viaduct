@@ -1,6 +1,7 @@
 package viaduct.engine.api
 
 import graphql.schema.GraphQLObjectType
+import viaduct.errors.UnsetFieldException
 
 /**
  * An implementation of [EngineObjectData.Sync], which models resolved untyped data.

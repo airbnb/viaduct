@@ -78,10 +78,11 @@ object JsonDomain {
 
             override fun invoke(jsonString: String): String {
                 val tree = mapper.readTree(jsonString)
-                val typeNameNode = ensureNotNull(tree["__typename"]) {
-                    "Cannot resolve typename for object when neither a type is programmatically provided " +
-                        "nor a __typename field is present in the input json"
-                }
+                val typeNameNode = tree["__typename"]
+                    ?: throw TenantUsageException(
+                        "Cannot resolve typename for object when neither a type is programmatically provided " +
+                            "nor a __typename field is present in the input json"
+                    )
                 return typeNameNode.asText()
             }
         }

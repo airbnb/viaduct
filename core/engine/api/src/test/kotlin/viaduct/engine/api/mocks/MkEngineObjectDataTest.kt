@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
-import viaduct.engine.api.UnsetFieldException
+import viaduct.errors.UnsetFieldException
 
 class MkEngineObjectDataTest {
     val schema = MockSchema.mk(

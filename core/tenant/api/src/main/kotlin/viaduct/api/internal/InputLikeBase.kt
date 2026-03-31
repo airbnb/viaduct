@@ -33,7 +33,7 @@ abstract class InputLikeBase : InputLike {
     fun isPresent(fieldName: String): Boolean = inputData.containsKey(fieldName)
 
     protected fun <T> get(fieldName: String): T =
-        handleTenantAPIErrors("InputLikeBase.get failed for ${graphQLInputObjectType.name}.$fieldName") {
+        handleTenantAPIErrors<T>("InputLikeBase.get failed for ${graphQLInputObjectType.name}.$fieldName") {
             val fieldDefinition = graphQLInputObjectType.getField(fieldName) ?: throw IllegalArgumentException(
                 "Field $fieldName not found on type ${graphQLInputObjectType.name}"
             )
@@ -78,12 +78,14 @@ abstract class InputLikeBase : InputLike {
         protected fun put(
             fieldName: String,
             value: Any?
-        ) = handleTenantAPIErrors("InputLikeBase.Builder.put failed for ${graphQLInputObjectType.name}.$fieldName") {
-            val field = requireNotNull(graphQLInputObjectType.getField(fieldName)) {
-                "Field $fieldName not found on type ${graphQLInputObjectType.name}"
+        ) {
+            handleTenantAPIErrors("InputLikeBase.Builder.put failed for ${graphQLInputObjectType.name}.$fieldName") {
+                val field = requireNotNull(graphQLInputObjectType.getField(fieldName)) {
+                    "Field $fieldName not found on type ${graphQLInputObjectType.name}"
+                }
+                val conv = context.grtConvFactory.createForInputField(context, field) andThen EngineValueConv(context.schema, field.type, null).inverse()
+                inputData.put(fieldName, conv(value))
             }
-            val conv = context.grtConvFactory.createForInputField(context, field) andThen EngineValueConv(context.schema, field.type, null).inverse()
-            inputData.put(fieldName, conv(value))
         }
 
         @Suppress("unused")

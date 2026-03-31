@@ -361,7 +361,7 @@ class FromFieldVariablesResolverTest {
             }
             .resolver("Query" to "z") { true }
             .build()
-            .assertJson("{data: {x: \"TenantUsageException\"}}", "{x}")
+            .assertJson("{data: {x: \"UnsetFieldException\"}}", "{x}")
 
         assertFalse(yResolved)
     }

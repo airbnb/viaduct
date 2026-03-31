@@ -26,10 +26,10 @@ import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.UnsetFieldException
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantException
 import viaduct.errors.TenantUsageException
+import viaduct.errors.UnsetFieldException
 import viaduct.errors.handleTenantAPIErrors
 
 /**
@@ -102,7 +102,6 @@ abstract class ObjectBase(
             } catch (ex: Exception) {
                 if (ex is CancellationException) currentCoroutineContext().ensureActive()
                 when (ex) {
-                    is UnsetFieldException -> throw TenantUsageException(ex.message, ex)
                     is TenantException, is FrameworkException -> throw ex
                     else -> throw EngineObjectDataFetchException("engineObjectData.fetch failed on field $fieldName", ex)
                 }
@@ -238,7 +237,7 @@ abstract class ObjectBase(
         private val wrapper = EODBuilderWrapper(type, context.globalIDCodec)
 
         protected fun buildEngineObjectData(): EngineObjectData =
-            handleTenantAPIErrors("ObjectBase.Builder.buildEngineObjectData failed") {
+            handleTenantAPIErrors<EngineObjectData>("ObjectBase.Builder.buildEngineObjectData failed") {
                 val overlay = wrapper.getEngineObjectData()
                 baseEngineObjectData?.let { base ->
                     OverlayEngineObjectData(overlay, base)

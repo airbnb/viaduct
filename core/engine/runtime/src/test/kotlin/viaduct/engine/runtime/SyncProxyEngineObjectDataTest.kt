@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.UnsetFieldException
 import viaduct.engine.api.mocks.createSchema
+import viaduct.errors.UnsetFieldException
 
 class SyncProxyEngineObjectDataTest {
     private val schema = createSchema(
@@ -70,7 +70,7 @@ class SyncProxyEngineObjectDataTest {
         val exception = assertThrows<UnsetFieldException> {
             eod.get("missing")
         }
-        assert(exception.message!!.contains(customMessage)) {
+        assert(exception.message?.contains(customMessage) == true) {
             "Expected message to contain custom error, but was: ${exception.message}"
         }
     }

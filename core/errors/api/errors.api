@@ -4,3 +4,8 @@ public abstract interface class viaduct/errors/PassthroughException {
 public abstract interface class viaduct/errors/TenantException : viaduct/errors/PassthroughException {
 }
 
+public final class viaduct/errors/UnsetFieldException : viaduct/errors/TenantUsageException {
+	public static final field Companion Lviaduct/errors/UnsetFieldException$Companion;
+	public final fun getTypeName ()Ljava/lang/String;
+}
+

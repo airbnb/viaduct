@@ -23,10 +23,10 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.UnsetFieldException
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantException
 import viaduct.errors.TenantUsageException
+import viaduct.errors.UnsetFieldException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ObjectBaseTest {
@@ -596,10 +596,7 @@ class ObjectBaseTest {
             assertEquals("O1", globalId.type.name)
             assertEquals("foo", globalId.internalID)
             assertThrows<FrameworkException> { o1.get("thisFieldDoesNotExist", String::class) }
-            assertInstanceOf(
-                UnsetFieldException::class.java,
-                assertThrows<TenantUsageException> { o1.getStringField() }.cause
-            )
+            assertThrows<UnsetFieldException> { o1.getStringField() }
         }
 
     fun `test various exceptions`(): Unit =

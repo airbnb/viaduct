@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.UnsetFieldException
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.FieldErrorsException
@@ -31,6 +30,7 @@ import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.createEngineSelectionSet
 import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
+import viaduct.errors.UnsetFieldException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProxyEngineObjectDataTest {
@@ -397,7 +397,7 @@ class ProxyEngineObjectDataTest {
         Fixture("type Query { x: Int }") {
             val o1 = mkProxy(null, "Query", emptyMap<String, Any>())
             val e = assertThrows<UnsetFieldException> { o1.fetch("invalidField") }
-            assertContains(e.message, "error msg")
+            assertContains(e.message!!, "error msg")
 
             // fetchSelections should return empty when no fragment is provided
             assertEquals(emptySet<String>(), o1.fetchSelections().toSet())

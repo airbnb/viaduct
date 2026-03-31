@@ -13,7 +13,6 @@ import viaduct.api.types.GRT
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.errors.TenantUsageException
-import viaduct.errors.ensureNotNull
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.Domain
 import viaduct.mapping.graphql.IR
@@ -48,7 +47,7 @@ class GRTDomain<T : GRT> private constructor(
             },
             inverse = {
                 val typeName = it.name
-                val type = ensureNotNull(ctx.schema.schema.getType(typeName)) {
+                val type = requireNotNull(ctx.schema.schema.getType(typeName)) {
                     "Unknown type: $typeName"
                 }
                 val conv = ctx.grtConvFactory.create(ctx, type, selectionSet, keyMapping)
