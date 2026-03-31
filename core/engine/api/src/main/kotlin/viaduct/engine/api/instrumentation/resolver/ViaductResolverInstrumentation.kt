@@ -45,6 +45,18 @@ interface ViaductResolverInstrumentation {
      */
     interface InstrumentationState
 
+    /**
+     * Whether this instrumentation performs any meaningful work in [instrumentFetchSelection] or
+     * [instrumentSyncFetchSelection] for a given request.
+     *
+     * When true, [viaduct.engine.runtime.instrumentation.resolver.InstrumentedEngineObjectData]
+     * wraps nested [viaduct.engine.api.EngineObjectData] values returned by fetch operations.
+     * When false, wrapping is skipped, avoiding unnecessary allocations on the hot path.
+     * Resolver instrumentation via [instrumentResolverExecution] is unaffected by this flag.
+     *
+     */
+    fun shouldInstrumentFetchSelections(state: InstrumentationState?): Boolean = false
+
     companion object {
         /** Default no-op instrumentation state */
         val DEFAULT_INSTRUMENTATION_STATE = object : InstrumentationState {}

@@ -22,6 +22,11 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 class ChainedResolverInstrumentation(
     val instrumentations: List<ViaductResolverInstrumentation>
 ) : ViaductResolverInstrumentation {
+    override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?): Boolean {
+        val chainedState = state as? ChainedInstrumentationState ?: return true
+        return instrumentations.any { it.shouldInstrumentFetchSelections(chainedState.getState(it)) }
+    }
+
     /**
      * Composite state that holds individual states for each instrumentation in the chain.
      */

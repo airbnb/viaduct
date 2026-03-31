@@ -49,18 +49,19 @@ class InstrumentedFieldResolverDispatcher(
             syncValueComputation = syncValueComputation,
         )
 
-        val instrumentedObjectValue = InstrumentedEngineObjectData(objectValue, instrumentation, state)
-        val instrumentedQueryValue = InstrumentedEngineObjectData(queryValue, instrumentation, state)
+        val wrapFetchSelections = instrumentation.shouldInstrumentFetchSelections(state)
+        val instrumentedObjectValue = if (wrapFetchSelections) InstrumentedEngineObjectData(objectValue, instrumentation, state) else objectValue
+        val instrumentedQueryValue = if (wrapFetchSelections) InstrumentedEngineObjectData(queryValue, instrumentation, state) else queryValue
         val instrumentationContext = ResolverInstrumentationContext(instrumentation, state)
-        val instrumentedSyncObjectValue: suspend () -> EngineObjectData.Sync = {
-            withContext(instrumentationContext) {
-                InstrumentedEngineObjectData.Sync(syncObjectValueGetter(), instrumentation, state)
-            }
+        val instrumentedSyncObjectValue: suspend () -> EngineObjectData.Sync = if (wrapFetchSelections) {
+            { withContext(instrumentationContext) { InstrumentedEngineObjectData.Sync(syncObjectValueGetter(), instrumentation, state) } }
+        } else {
+            syncObjectValueGetter
         }
-        val instrumentedSyncQueryValue: suspend () -> EngineObjectData.Sync = {
-            withContext(instrumentationContext) {
-                InstrumentedEngineObjectData.Sync(syncQueryValueGetter(), instrumentation, state)
-            }
+        val instrumentedSyncQueryValue: suspend () -> EngineObjectData.Sync = if (wrapFetchSelections) {
+            { withContext(instrumentationContext) { InstrumentedEngineObjectData.Sync(syncQueryValueGetter(), instrumentation, state) } }
+        } else {
+            syncQueryValueGetter
         }
 
         val contextWithAttribution = context.copy(

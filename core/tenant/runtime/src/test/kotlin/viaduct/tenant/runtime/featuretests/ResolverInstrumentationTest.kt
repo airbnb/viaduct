@@ -146,6 +146,8 @@ class ResolverInstrumentationTest {
             return resolver
         }
 
+        override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?): Boolean = true
+
         override fun <T> instrumentFetchSelection(
             fetchFn: FetchFunction<T>,
             parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
@@ -171,6 +173,8 @@ class ResolverInstrumentationTest {
         override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
             return State()
         }
+
+        override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?): Boolean = true
 
         override fun <T> instrumentFetchSelection(
             fetchFn: FetchFunction<T>,

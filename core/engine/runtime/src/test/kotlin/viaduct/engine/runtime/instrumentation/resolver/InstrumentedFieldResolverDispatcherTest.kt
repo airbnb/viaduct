@@ -9,6 +9,7 @@ import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -17,6 +18,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.mocks.ContextMocks
@@ -178,6 +180,33 @@ internal class InstrumentedFieldResolverDispatcherTest {
             assertEquals(mockResolverMetadata, executeContext.parameters.resolverMetadata)
             assertNull(executeContext.result)
             assertSame(exception, executeContext.error)
+        }
+
+    @Test
+    fun `resolve passes raw object and query values when shouldInstrumentFetchSelections is false`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val rawObjectValue: EngineObjectData = mockk()
+            val rawQueryValue: EngineObjectData = mockk()
+            val capturedObjectValue = slot<EngineObjectData>()
+            val capturedQueryValue = slot<EngineObjectData>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery {
+                mockDispatcher.resolve(any(), capture(capturedObjectValue), capture(capturedQueryValue), any(), any(), any(), any())
+            } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)
+
+            // When
+            testClass.resolve(emptyMap(), rawObjectValue, rawQueryValue, stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+
+            // Then — raw values passed through, not wrapped in InstrumentedEngineObjectData
+            assertSame(rawObjectValue, capturedObjectValue.captured)
+            assertSame(rawQueryValue, capturedQueryValue.captured)
+            assertFalse(capturedObjectValue.captured is InstrumentedEngineObjectData)
+            assertFalse(capturedQueryValue.captured is InstrumentedEngineObjectData)
         }
 
     @Test

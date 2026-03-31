@@ -34,8 +34,12 @@ class InstrumentedCheckerExecutor(
         val createStateParameter = ViaductResolverInstrumentation.CreateInstrumentationStateParameters()
         val state = instrumentation.createInstrumentationState(createStateParameter)
 
-        val instrumentedObjectDataMap = objectDataMap.mapValues { (_, engineObjectData) ->
-            InstrumentedEngineObjectData(engineObjectData, instrumentation, state)
+        val instrumentedObjectDataMap = if (instrumentation.shouldInstrumentFetchSelections(state)) {
+            objectDataMap.mapValues { (_, engineObjectData) ->
+                InstrumentedEngineObjectData(engineObjectData, instrumentation, state)
+            }
+        } else {
+            objectDataMap
         }
 
         val checkerExecuteParam = ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters(

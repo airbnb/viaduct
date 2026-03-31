@@ -9,6 +9,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Nested
@@ -132,6 +133,132 @@ internal class InstrumentedEngineObjectDataTest {
             assertNull(context.result)
             assertSame(fetchException, context.error)
         }
+
+    @Nested
+    inner class NestedEngineObjectDataWrappingTests {
+        @Test
+        @ExperimentalCoroutinesApi
+        fun `fetch wraps returned EngineObjectData with InstrumentedEngineObjectData`() =
+            runBlocking {
+                // Given
+                val nestedEngineObjectData: EngineObjectData = mockk()
+                val mockEngineObjectData: EngineObjectData = mockk()
+                val instrumentation = RecordingResolverInstrumentation()
+                val state = instrumentation.createInstrumentationState(parameters = mockk())
+
+                every { mockEngineObjectData.type } returns testGraphQLObjectType
+                every { nestedEngineObjectData.type } returns testGraphQLObjectType
+                coEvery { mockEngineObjectData.fetch("nestedField") } returns nestedEngineObjectData
+
+                val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
+
+                // When
+                val result = testClass.fetch("nestedField")
+
+                // Then
+                assertInstanceOf(InstrumentedEngineObjectData::class.java, result)
+                assertSame(nestedEngineObjectData, (result as InstrumentedEngineObjectData).engineObjectData)
+            }
+
+        @Test
+        @ExperimentalCoroutinesApi
+        fun `fetch wraps EngineObjectData values inside a list`() =
+            runBlocking {
+                // Given
+                val nestedEngineObjectData: EngineObjectData = mockk()
+                val mockEngineObjectData: EngineObjectData = mockk()
+                val instrumentation = RecordingResolverInstrumentation()
+                val state = instrumentation.createInstrumentationState(parameters = mockk())
+
+                every { mockEngineObjectData.type } returns testGraphQLObjectType
+                every { nestedEngineObjectData.type } returns testGraphQLObjectType
+                coEvery { mockEngineObjectData.fetch("listField") } returns listOf(nestedEngineObjectData)
+
+                val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
+
+                // When
+                val result = testClass.fetch("listField") as List<*>
+
+                // Then
+                assertEquals(1, result.size)
+                assertInstanceOf(InstrumentedEngineObjectData::class.java, result[0])
+                assertSame(nestedEngineObjectData, (result[0] as InstrumentedEngineObjectData).engineObjectData)
+            }
+
+        @Test
+        @ExperimentalCoroutinesApi
+        fun `fetch returns original list unchanged when no elements need wrapping`() =
+            runBlocking {
+                // Given
+                val mockEngineObjectData: EngineObjectData = mockk()
+                val instrumentation = RecordingResolverInstrumentation()
+                val state = instrumentation.createInstrumentationState(parameters = mockk())
+                val scalarList = listOf("a", "b", "c")
+
+                every { mockEngineObjectData.type } returns testGraphQLObjectType
+                coEvery { mockEngineObjectData.fetch("scalarListField") } returns scalarList
+
+                val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
+
+                // When
+                val result = testClass.fetch("scalarListField")
+
+                // Then — same instance returned, no new list allocated
+                assertSame(scalarList, result)
+            }
+
+        @Test
+        @ExperimentalCoroutinesApi
+        fun `fetch does not double-wrap an already instrumented EngineObjectData`() =
+            runBlocking {
+                // Given
+                val innerEngineObjectData: EngineObjectData = mockk()
+                val alreadyInstrumented = InstrumentedEngineObjectData(innerEngineObjectData, RecordingResolverInstrumentation(), mockk())
+                val mockEngineObjectData: EngineObjectData = mockk()
+                val instrumentation = RecordingResolverInstrumentation()
+                val state = instrumentation.createInstrumentationState(parameters = mockk())
+
+                every { mockEngineObjectData.type } returns testGraphQLObjectType
+                every { innerEngineObjectData.type } returns testGraphQLObjectType
+                coEvery { mockEngineObjectData.fetch("field") } returns alreadyInstrumented
+
+                val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
+
+                // When
+                val result = testClass.fetch("field")
+
+                // Then
+                assertSame(alreadyInstrumented, result)
+            }
+
+        @Test
+        @ExperimentalCoroutinesApi
+        fun `fetch on wrapped nested EngineObjectData also goes through instrumentation`() =
+            runBlocking {
+                // Given
+                val nestedEngineObjectData: EngineObjectData = mockk()
+                val mockEngineObjectData: EngineObjectData = mockk()
+                val instrumentation = RecordingResolverInstrumentation()
+                val state = instrumentation.createInstrumentationState(parameters = mockk())
+
+                every { mockEngineObjectData.type } returns testGraphQLObjectType
+                every { nestedEngineObjectData.type } returns testGraphQLObjectType
+                coEvery { mockEngineObjectData.fetch("nestedField") } returns nestedEngineObjectData
+                coEvery { nestedEngineObjectData.fetch("leafField") } returns "leafValue"
+
+                val testClass = InstrumentedEngineObjectData(mockEngineObjectData, instrumentation, state)
+
+                // When
+                val nested = testClass.fetch("nestedField") as InstrumentedEngineObjectData
+                val leafResult = nested.fetch("leafField")
+
+                // Then
+                assertEquals("leafValue", leafResult)
+                assertEquals(2, instrumentation.fetchSelectionContexts.size)
+                val selections = instrumentation.fetchSelectionContexts.map { it.parameters.selection }
+                assertEquals(listOf("nestedField", "leafField"), selections)
+            }
+    }
 
     @Nested
     inner class SyncTests {
