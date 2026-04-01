@@ -9,11 +9,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "test-slack verifies connectivity; push-failure-alert tests the full alert using a run_id"
+        description: "test-posts verifies connectivity; push-failure-alert tests the full alert using a run_id"
         required: true
         type: choice
         options:
-          - test-slack
+          - test-posts
           - push-failure-alert
       run_id:
         description: "Workflow run ID to report on (required for push-failure-alert mode)"
@@ -101,9 +101,18 @@ jobs:
 
               Failed jobs: ${{ steps.failures.outputs.failed_jobs }}
 
-  test-slack:
+      - name: Post to Discord
+        env:
+          DISCORD_CI_WEBHOOK_URL: ${{ secrets.DISCORD_CI_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_CI_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\": \":red_circle: **${{ steps.meta.outputs.run_name }}** failed on \`${{ steps.meta.outputs.branch }}\` ([view run](${{ steps.meta.outputs.run_url }}))\nFailed jobs: ${{ steps.failures.outputs.failed_jobs }}\"}"
+        shell: bash
+
+  test-posts:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'test-slack'
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'test-posts'
     steps:
       - name: Diagnose Slack channel
         env:
@@ -131,3 +140,12 @@ jobs:
             text: >-
               :test_tube: Test message from Post Slack Alerts workflow
               (triggered by ${{ github.actor }} on branch `${{ github.ref_name }}`)
+
+      - name: Post test message to Discord
+        env:
+          DISCORD_CI_WEBHOOK_URL: ${{ secrets.DISCORD_CI_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_CI_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\": \":test_tube: Test message from Post Slack Alerts workflow (triggered by ${{ github.actor }} on branch \`${{ github.ref_name }}\`)\"}"
+        shell: bash
