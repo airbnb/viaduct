@@ -2,20 +2,19 @@
 name: API Compatibility
 
 on:
-    push:
-        branches:
-            - main
-    pull_request:
-        branches:
-            - main
-        types: [opened, synchronize, reopened]
     workflow_dispatch:
     workflow_call:
+        outputs:
+            run_id:
+                description: "GitHub Actions run ID"
+                value: ${{ jobs.api-compatibility.outputs.run_id }}
 
 jobs:
     api-compatibility:
         runs-on: ubuntu-latest
         name: Binary API compatibility
+        outputs:
+            run_id: ${{ steps.emit.outputs.run_id }}
 
         steps:
             - name: Checkout
@@ -30,6 +29,11 @@ jobs:
                   java-version: '21'
                   cache: gradle
 
+            - name: Emit run ID
+              id: emit
+              run: echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+              shell: bash
+
             - name: Run binary API check (apiCheck)
               run: |
                   set -euo pipefail
@@ -41,7 +45,7 @@ jobs:
                     echo " "
                     echo "[api-check] Binary API check failed."
                     echo " "
-                    echo "This check validates the public Kotlin APIs definitions for modules that enforce binary compatibility (i.e., :api modules )."
+                    echo "This check validates the public Kotlin API definitions for modules that enforce binary compatibility (i.e., :api modules)."
                     echo "If you intentionally changed a public API covered by this check, you must:"
                     echo " "
                     echo "  1) Regenerate the API dumps locally:"
@@ -49,6 +53,7 @@ jobs:
                     echo " "
                     echo "  2) Commit the updated .api files"
                     echo " "
-                    echo "::warning title=Binary API changes detected::Public APIs covered by the binary compatibility check changed. If intentional, regenerate and commit updated .api dumps."
+                    echo "::error title=Binary API changes detected::Public APIs covered by the binary compatibility check changed. If intentional, regenerate and commit updated .api dumps."
                     exit 1
                   fi
+              shell: bash

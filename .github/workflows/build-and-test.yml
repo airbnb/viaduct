@@ -14,17 +14,17 @@ on:
         description: "Operating system (e.g. [\"ubuntu-24.04-arm\", \"macos-15-intel\"]).  Defaults to [\"ubuntu-latest\", \"macos-latest\"]."
         required: false
         type: string
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_call:
+    outputs:
+      run_id:
+        description: "GitHub Actions run ID"
+        value: ${{ jobs.validate-inputs.outputs.run_id }}
 
 jobs:
   validate-inputs:
     runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.emit.outputs.run_id }}
     steps:
       - uses: actions/checkout@v6
       - name: Validate inputs
@@ -32,6 +32,10 @@ jobs:
           OS_INPUT: ${{ inputs.os }}
           JAVA_INPUT: ${{ inputs.java_versions }}
         run: python3 .github/scripts/validate_inputs.py
+      - name: Emit run ID
+        id: emit
+        run: echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+        shell: bash
 
   build:
     needs: validate-inputs

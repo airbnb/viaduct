@@ -1,27 +1,24 @@
 name: Post Slack Alerts
 
 on:
-  workflow_run:
-    workflows: ["Build and Test (Gradle)", "Standalone Demo App Tests"]
-    branches: [main]
-    types: [completed]
-
   workflow_dispatch:
     inputs:
       mode:
-        description: "test-posts verifies connectivity; push-failure-alert tests the full alert using a run_id"
+        description: "test-posts verifies connectivity"
         required: true
         type: choice
         options:
           - test-posts
-          - push-failure-alert
-      run_id:
-        description: "Workflow run ID to report on (required for push-failure-alert mode)"
-        required: false
+
+  workflow_call:
+    inputs:
+      text:
+        description: "Alert text to post (produced by format_alert.py)"
+        required: true
         type: string
 
 concurrency:
-  group: post-slack-alerts-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  group: post-slack-alerts-${{ github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -29,91 +26,14 @@ permissions:
   actions: read
 
 jobs:
-  post-alert:
-    runs-on: ubuntu-latest
-    if: >-
-      (github.event_name == 'workflow_run'
-        && github.event.workflow_run.conclusion == 'failure'
-        && github.event.workflow_run.event == 'push')
-      || (github.event_name == 'workflow_dispatch'
-        && inputs.mode == 'push-failure-alert')
-    steps:
-      - name: Resolve run metadata
-        id: meta
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            run_id="${{ github.event.workflow_run.id }}"
-            run_name="${{ github.event.workflow_run.name }}"
-            run_url="${{ github.event.workflow_run.html_url }}"
-            sha="${{ github.event.workflow_run.head_sha }}"
-            actor="${{ github.event.workflow_run.actor.login }}"
-            branch="${{ github.event.workflow_run.head_branch }}"
-          else
-            run_id="${{ inputs.run_id }}"
-            if [ -z "$run_id" ]; then
-              echo "::error::run_id is required for push-failure-alert mode"
-              exit 1
-            fi
-            run_json=$(gh api "repos/${{ github.repository }}/actions/runs/${run_id}")
-            run_name=$(echo "$run_json" | jq -r '.name')
-            run_url=$(echo "$run_json" | jq -r '.html_url')
-            sha=$(echo "$run_json" | jq -r '.head_sha')
-            actor=$(echo "$run_json" | jq -r '.actor.login')
-            branch=$(echo "$run_json" | jq -r '.head_branch')
-          fi
-          {
-            echo "run_id=${run_id}"
-            echo "run_name=${run_name}"
-            echo "run_url=${run_url}"
-            echo "sha=${sha}"
-            echo "actor=${actor}"
-            echo "branch=${branch}"
-          } >> "$GITHUB_OUTPUT"
-        shell: bash
-
-      - name: Collect failed job names
-        id: failures
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          failed_jobs=$(gh api "repos/${{ github.repository }}/actions/runs/${{ steps.meta.outputs.run_id }}/jobs?per_page=100" \
-            --jq '[.jobs[] | select(.conclusion == "failure") | .name]
-                  | group_by(split("(")[0] | rtrimstr(" "))
-                  | map(.[0])
-                  | join(", ")')
-          echo "failed_jobs=${failed_jobs}" >> "$GITHUB_OUTPUT"
-        shell: bash
-
-      - name: Post to Slack
-        uses: slackapi/slack-github-action@v3.0.1
-        with:
-          method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          errors: true
-          payload: |
-            channel: ${{ vars.SLACK_CHANNEL_ID }}
-            text: >-
-              :red_circle: *${{ steps.meta.outputs.run_name }}* failed on `${{ steps.meta.outputs.branch }}`
-              (<${{ steps.meta.outputs.run_url }}|view run>)
-              — commit `${{ steps.meta.outputs.sha }}` by ${{ steps.meta.outputs.actor }}
-
-              Failed jobs: ${{ steps.failures.outputs.failed_jobs }}
-
-      - name: Post to Discord
-        env:
-          DISCORD_CI_WEBHOOK_URL: ${{ secrets.DISCORD_CI_WEBHOOK_URL }}
-        run: |
-          curl -s -X POST "$DISCORD_CI_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d "{\"content\": \":red_circle: **${{ steps.meta.outputs.run_name }}** failed on \`${{ steps.meta.outputs.branch }}\` ([view run](${{ steps.meta.outputs.run_url }}))\nFailed jobs: ${{ steps.failures.outputs.failed_jobs }}\"}"
-        shell: bash
-
-  test-posts:
+  format-test:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'test-posts'
+    outputs:
+      text: ${{ steps.fmt.outputs.text }}
     steps:
+      - uses: actions/checkout@v6
+
       - name: Diagnose Slack channel
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -129,23 +49,80 @@ jobs:
           echo "error: $(echo "$resp" | jq -r '.error // "none"')"
         shell: bash
 
-      - name: Post test message to Slack
-        uses: slackapi/slack-github-action@v3.0.1
-        with:
-          method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          errors: true
-          payload: |
-            channel: ${{ vars.SLACK_CHANNEL_ID }}
-            text: >-
-              :test_tube: Test message from Post Slack Alerts workflow
-              (triggered by ${{ github.actor }} on branch `${{ github.ref_name }}`)
+      - name: Format test alert
+        id: fmt
+        env:
+          BRANCH: ${{ github.ref_name }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          text=$(jq -n \
+            --arg branch "$BRANCH" \
+            --arg server_url "$SERVER_URL" \
+            --arg repository "$REPOSITORY" \
+            --arg actor "$ACTOR" \
+            --arg run_id "$RUN_ID" \
+            '{"branch": $branch, "server_url": $server_url, "repository": $repository, "actor": $actor, "jobs": [{"name": "Test", "run_id": $run_id}]}' | \
+            python3 .github/scripts/format_alert.py)
+          echo "text=${text}" >> "$GITHUB_OUTPUT"
+        shell: bash
 
-      - name: Post test message to Discord
+  test-post:
+    needs: [format-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to Slack
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ vars.SLACK_CHANNEL_ID }}
+          ALERT_TEXT: ${{ needs.format-test.outputs.text }}
+        run: |
+          jq -n --arg channel "$SLACK_CHANNEL_ID" --arg text "$ALERT_TEXT" \
+            '{"channel": $channel, "text": $text}' | \
+            curl -s -f -X POST "https://slack.com/api/chat.postMessage" \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d @-
+        shell: bash
+
+      - name: Post to Discord
         env:
           DISCORD_CI_WEBHOOK_URL: ${{ secrets.DISCORD_CI_WEBHOOK_URL }}
+          ALERT_TEXT: ${{ needs.format-test.outputs.text }}
         run: |
-          curl -s -X POST "$DISCORD_CI_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d "{\"content\": \":test_tube: Test message from Post Slack Alerts workflow (triggered by ${{ github.actor }} on branch \`${{ github.ref_name }}\`)\"}"
+          jq -n --arg text "$ALERT_TEXT" '{"content": $text}' | \
+            curl -s -f -X POST "$DISCORD_CI_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d @-
+        shell: bash
+
+  post-call:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_call'
+    steps:
+      - name: Post to Slack
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ vars.SLACK_CHANNEL_ID }}
+          ALERT_TEXT: ${{ inputs.text }}
+        run: |
+          jq -n --arg channel "$SLACK_CHANNEL_ID" --arg text "$ALERT_TEXT" \
+            '{"channel": $channel, "text": $text}' | \
+            curl -s -f -X POST "https://slack.com/api/chat.postMessage" \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d @-
+        shell: bash
+
+      - name: Post to Discord
+        env:
+          DISCORD_CI_WEBHOOK_URL: ${{ secrets.DISCORD_CI_WEBHOOK_URL }}
+          ALERT_TEXT: ${{ inputs.text }}
+        run: |
+          jq -n --arg text "$ALERT_TEXT" '{"content": $text}' | \
+            curl -s -f -X POST "$DISCORD_CI_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d @-
         shell: bash

@@ -1,0 +1,13 @@
+name: CI
+# Stub — logic will be migrated from ci-manual-trigger.yml in a follow-up PR.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "placeholder — logic not yet migrated from ci-manual-trigger.yml"
+        shell: bash

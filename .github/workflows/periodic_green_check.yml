@@ -1,4 +1,4 @@
-name: Hourly Green Check
+name: Periodic Green Check
 
 on:
   schedule:
@@ -34,37 +34,9 @@ jobs:
       github.event_name == 'schedule'
       || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'all' || inputs.mode == 'ci-check'))
     uses: ./.github/workflows/ci-manual-trigger.yml
-
-  notify-ci-failure:
-    needs: [ci-check]
-    runs-on: ubuntu-latest
-    if: >-
-      always()
-      && needs.ci-check.result == 'failure'
-    steps:
-      - name: Collect failed job names
-        id: failures
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          failed_jobs=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" \
-            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | join(", ")')
-          echo "failed_jobs=${failed_jobs}" >> "$GITHUB_OUTPUT"
-        shell: bash
-
-      - name: Post CI failure to Slack
-        uses: slackapi/slack-github-action@v3.0.1
-        with:
-          method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          errors: true
-          payload: |
-            channel: ${{ vars.SLACK_CHANNEL_ID }}
-            text: >-
-              :red_circle: Scheduled CI check failed on `${{ inputs.branch || 'main' }}`
-              (<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|view run>)
-
-              Failed jobs: ${{ steps.failures.outputs.failed_jobs }}
+    with:
+      send_alerts: true
+    secrets: inherit
 
   # ---------------------------------------------------------------------------
   # Staleness check — alert if main hasn't received commits recently
@@ -74,7 +46,12 @@ jobs:
     if: >-
       github.event_name == 'schedule'
       || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'all' || inputs.mode == 'staleness-check'))
+    outputs:
+      stale: ${{ steps.check.outputs.stale }}
+      text: ${{ steps.fmt.outputs.text }}
     steps:
+      - uses: actions/checkout@v6
+
       - name: Check for recent commits
         id: check
         env:
@@ -104,15 +81,29 @@ jobs:
           fi
         shell: bash
 
-      - name: Post staleness alert to Slack
+      - name: Format staleness alert
+        id: fmt
         if: steps.check.outputs.stale == 'true'
-        uses: slackapi/slack-github-action@v3.0.1
-        with:
-          method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          errors: true
-          payload: |
-            channel: ${{ vars.SLACK_CHANNEL_ID }}
-            text: >-
-              :warning: No commits on `${{ inputs.branch || 'main' }}` in the last 24 hours
-              — the sync from Airbnb may have stopped.
+        env:
+          BRANCH: ${{ inputs.branch || 'main' }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          text=$(jq -n \
+            --arg branch "$BRANCH" \
+            --arg server_url "$SERVER_URL" \
+            --arg repository "$REPOSITORY" \
+            --arg run_id "$RUN_ID" \
+            '{"branch": $branch, "server_url": $server_url, "repository": $repository, "jobs": [{"name": "Staleness Check", "run_id": $run_id}]}' | \
+            python3 .github/scripts/format_alert.py)
+          echo "text=${text}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+  send-staleness-alert:
+    needs: [staleness-check]
+    if: always() && needs.staleness-check.outputs.stale == 'true'
+    uses: ./.github/workflows/post-slack-alerts.yml
+    with:
+      text: ${{ needs.staleness-check.outputs.text }}
+    secrets: inherit
