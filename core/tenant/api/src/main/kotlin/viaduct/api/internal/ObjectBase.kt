@@ -30,7 +30,7 @@ import viaduct.errors.FrameworkException
 import viaduct.errors.TenantException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.UnsetFieldException
-import viaduct.errors.handleTenantAPIErrors
+import viaduct.errors.handleFrameworkErrors
 
 /**
  * Base class for object type GRTs
@@ -107,7 +107,7 @@ abstract class ObjectBase(
                 }
             }
 
-            handleTenantAPIErrors("ObjectBase.get wrap failed for ${objectType.name}.$fieldName") {
+            handleFrameworkErrors("ObjectBase.get wrap failed for ${objectType.name}.$fieldName") {
                 wrap(fieldDefinition.type, fieldValue, baseFieldTypeClass)
             } ?: NULL_VALUE
         }
@@ -237,7 +237,7 @@ abstract class ObjectBase(
         private val wrapper = EODBuilderWrapper(type, context.globalIDCodec)
 
         protected fun buildEngineObjectData(): EngineObjectData =
-            handleTenantAPIErrors<EngineObjectData>("ObjectBase.Builder.buildEngineObjectData failed") {
+            handleFrameworkErrors("ObjectBase.Builder.buildEngineObjectData failed") {
                 val overlay = wrapper.getEngineObjectData()
                 baseEngineObjectData?.let { base ->
                     OverlayEngineObjectData(overlay, base)
@@ -251,7 +251,7 @@ abstract class ObjectBase(
         protected fun putInternal(
             fieldName: String,
             value: Any?
-        ) = handleTenantAPIErrors("ObjectBase.Builder.putInternal failed") {
+        ) = handleFrameworkErrors("ObjectBase.Builder.putInternal failed") {
             wrapper.put(fieldName, value)
         }
 
@@ -263,7 +263,7 @@ abstract class ObjectBase(
             value: Any?,
         ): Builder<T> {
             typeCheck(name, value)
-            handleTenantAPIErrors("ObjectBase.Builder.put failed") {
+            handleFrameworkErrors("ObjectBase.Builder.put failed") {
                 wrapper.put(name, value)
             }
             return this
@@ -280,7 +280,7 @@ abstract class ObjectBase(
             alias: String? = null
         ): Builder<T> {
             typeCheck(name, value)
-            handleTenantAPIErrors("ObjectBase.Builder.put failed") {
+            handleFrameworkErrors("ObjectBase.Builder.put failed") {
                 wrapper.put(name, value, alias)
             }
             return this

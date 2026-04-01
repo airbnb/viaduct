@@ -48,7 +48,7 @@ object JsonDomain {
                 val conv = JsonConv(internal.schema, type, selectionSet)
                 conv.invert(ir)
             }
-        ).handleTenantAPIErrors("Error in JsonDomain.conv")
+        ).handleFrameworkErrors("Error in JsonDomain.conv")
 
         private fun objectishType(name: String): GraphQLType {
             val type = ensureNotNull(internal.schema.schema.getType(name)) {

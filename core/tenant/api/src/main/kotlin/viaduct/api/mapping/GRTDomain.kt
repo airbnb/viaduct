@@ -55,7 +55,7 @@ class GRTDomain<T : GRT> private constructor(
                 conv.invert(it) as T
             },
             "GRTDomain"
-        ).handleTenantAPIErrors("Error in GRTDomain.conv")
+        ).handleFrameworkErrors("Error in GRTDomain.conv")
 
     companion object {
         /** Create a [GRTDomain] that maps values for the provided [selectionSet] */

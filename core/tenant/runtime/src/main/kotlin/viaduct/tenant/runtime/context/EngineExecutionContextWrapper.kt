@@ -11,8 +11,8 @@ import viaduct.api.types.Query
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.errors.FrameworkException
-import viaduct.errors.handleTenantAPIErrors
-import viaduct.errors.handleTenantAPIErrorsSuspend
+import viaduct.errors.handleFrameworkErrors
+import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.toObjectGRT
 
@@ -54,7 +54,7 @@ class EngineExecutionContextWrapperImpl(
         ctx: InternalContext,
         selections: SelectionSet<T>
     ): T =
-        handleTenantAPIErrorsSuspend("query") {
+        handleFrameworkErrorsSuspend("query") {
             engineExecutionContext.resolveSelectionSet(
                 selections.getEngineSelectionSet(),
                 ResolveSelectionSetOptions.DEFAULT
@@ -65,7 +65,7 @@ class EngineExecutionContextWrapperImpl(
         ctx: InternalContext,
         selections: SelectionSet<T>
     ): T =
-        handleTenantAPIErrorsSuspend("mutation") {
+        handleFrameworkErrorsSuspend("mutation") {
             engineExecutionContext.resolveSelectionSet(
                 selections.getEngineSelectionSet(),
                 ResolveSelectionSetOptions.MUTATION
@@ -81,7 +81,7 @@ class EngineExecutionContextWrapperImpl(
         selections: String,
         variables: Map<String, Any?>
     ): SelectionSet<T> =
-        handleTenantAPIErrors("selectionsFor") {
+        handleFrameworkErrors("selectionsFor") {
             SelectionSetImpl(
                 type,
                 engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(typeName = type.name, selections, variables)
@@ -92,7 +92,7 @@ class EngineExecutionContextWrapperImpl(
         ctx: InternalContext,
         globalID: GlobalID<T>
     ): T =
-        handleTenantAPIErrors("nodeFor(${globalID.type.name})") {
+        handleFrameworkErrors("nodeFor(${globalID.type.name})") {
             val typeName = globalID.type.name
             val graphqlObjectType = ctx.schema.schema.getObjectType(typeName)
             val id = ctx.globalIDCodec.serialize(globalID.type.name, globalID.internalID)

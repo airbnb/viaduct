@@ -6,7 +6,7 @@ import viaduct.api.internal.InternalContext
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
-import viaduct.errors.handleTenantAPIErrors
+import viaduct.errors.handleFrameworkErrors
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
 
 /**
@@ -47,7 +47,7 @@ sealed class ExecutionContextImpl(
     override fun <T : NodeObject> globalIDFor(
         type: Type<T>,
         internalID: String
-    ) = handleTenantAPIErrors("globalIDFor(${type.name})") { GlobalIDImpl(type, internalID) }
+    ) = handleFrameworkErrors("globalIDFor(${type.name})") { GlobalIDImpl(type, internalID) }
 
     override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> = baseData.deserializeGlobalID(serialized)
 }

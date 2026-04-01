@@ -10,7 +10,7 @@ import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineObjectData
 import viaduct.errors.FrameworkException
-import viaduct.errors.handleTenantAPIErrorsSuspend
+import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.tenant.runtime.toObjectGRT
 
 /**
@@ -51,7 +51,7 @@ class FieldExecutionContextImpl<Q : Query>(
         queryCls,
     ) {
     override suspend fun getObjectValue(): Object =
-        handleTenantAPIErrorsSuspend("getObjectValue") {
+        handleFrameworkErrorsSuspend("getObjectValue") {
             val resolvedSyncObjectValue = syncObjectValueGetter?.invoke()
                 ?: throw FrameworkException(
                     "Sync object value is not available. " +

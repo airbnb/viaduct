@@ -8,7 +8,7 @@ import viaduct.api.context.ExecutionContext
 import viaduct.api.types.GRT
 import viaduct.apiannotations.InternalApi
 import viaduct.errors.TenantUsageException
-import viaduct.errors.handleTenantAPIErrors
+import viaduct.errors.handleFrameworkErrors
 
 /**
  * Used to dynamically create a Viaduct object without having a GRT class.
@@ -45,7 +45,7 @@ class ViaductObjectBuilder<T : GRT> private constructor(
         DynamicValueBuilderTypeChecker(context).checkType(fieldDefinition.type, value, fieldContext)
 
         val unwrappedType = GraphQLTypeUtil.unwrapNonNull(fieldDefinition.type)
-        handleTenantAPIErrors("ValueObjectBuilder.put failed") {
+        handleFrameworkErrors("ValueObjectBuilder.put failed") {
             if (isViaductObjectBuilderValue(unwrappedType, value)) {
                 underlyingWrapper.put(name, (value as ViaductObjectBuilder<*>).underlyingWrapper.getEngineObjectData())
             } else {
@@ -64,7 +64,7 @@ class ViaductObjectBuilder<T : GRT> private constructor(
     }
 
     override fun build(): T =
-        handleTenantAPIErrors("ViaductObjectBuilder.build failed") {
+        handleFrameworkErrors("ViaductObjectBuilder.build failed") {
             grtClazz.constructors.first().call(context, underlyingWrapper.getEngineObjectData())
         }
 

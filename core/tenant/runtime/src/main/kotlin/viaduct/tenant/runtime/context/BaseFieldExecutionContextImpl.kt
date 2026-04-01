@@ -9,7 +9,7 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineObjectData
 import viaduct.errors.FrameworkException
-import viaduct.errors.handleTenantAPIErrorsSuspend
+import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.tenant.runtime.toObjectGRT
 
 /**
@@ -43,7 +43,7 @@ sealed class BaseFieldExecutionContextImpl<Q : Query, A : Arguments, R : Composi
     override fun selections() = selections
 
     override suspend fun getQueryValue(): Q =
-        handleTenantAPIErrorsSuspend("getQueryValue") {
+        handleFrameworkErrorsSuspend("getQueryValue") {
             val resolvedSyncQueryValue = syncQueryValueGetter?.invoke()
                 ?: throw FrameworkException(
                     "Sync query value is not available. " +

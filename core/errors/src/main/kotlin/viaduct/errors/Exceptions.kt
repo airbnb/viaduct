@@ -88,7 +88,7 @@ fun <T : Any> ensureNotNull(
  * and attribute it to the framework unless it's a [PassthroughException].
  */
 @InternalApi
-fun <T> handleTenantAPIErrors(
+fun <T> handleFrameworkErrors(
     message: String,
     block: () -> T,
 ): T {
@@ -102,10 +102,10 @@ fun <T> handleTenantAPIErrors(
 }
 
 /**
- * Same as [handleTenantAPIErrors] but for suspend functions.
+ * Same as [handleFrameworkErrors] but for suspend functions.
  */
 @InternalApi
-suspend fun <T> handleTenantAPIErrorsSuspend(
+suspend fun <T> handleFrameworkErrorsSuspend(
     message: String,
     block: suspend () -> T,
 ): T {
@@ -126,7 +126,7 @@ suspend fun <T> handleTenantAPIErrorsSuspend(
  *
  * See also: [wrapResolveException] for resolver invocations made via reflection.
  */
-fun <T> wrapTenantErrors(
+fun <T> handleTenantErrors(
     opName: String,
     block: () -> T,
 ): T {
@@ -140,9 +140,9 @@ fun <T> wrapTenantErrors(
 }
 
 /**
- * Same as [wrapTenantErrors] but for suspend functions.
+ * Same as [handleTenantErrors] but for suspend functions.
  */
-suspend fun <T> wrapTenantErrorsSuspend(
+suspend fun <T> handleTenantErrorsSuspend(
     opName: String,
     block: suspend () -> T,
 ): T {

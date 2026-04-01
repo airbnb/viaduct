@@ -8,15 +8,15 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
-import viaduct.errors.handleTenantAPIErrors
-import viaduct.errors.handleTenantAPIErrorsSuspend
+import viaduct.errors.handleFrameworkErrors
+import viaduct.errors.handleFrameworkErrorsSuspend
 
 class ExceptionsTest {
     @Test
-    fun `test handleTenantAPIErrors with TenantException`() {
+    fun `test handleFrameworkErrors with TenantException`() {
         val exception = TenantUsageException("Tenant error")
         val thrown = assertThrows(TenantUsageException::class.java) {
-            handleTenantAPIErrors("Test message") {
+            handleFrameworkErrors("Test message") {
                 throw exception
             }
         }
@@ -24,10 +24,10 @@ class ExceptionsTest {
     }
 
     @Test
-    fun `test handleTenantAPIErrors passes through FrameworkException unchanged`() {
+    fun `test handleFrameworkErrors passes through FrameworkException unchanged`() {
         val exception = FrameworkException("Framework error")
         val thrown = assertThrows(FrameworkException::class.java) {
-            handleTenantAPIErrors("Test message") {
+            handleFrameworkErrors("Test message") {
                 throw exception
             }
         }
@@ -35,10 +35,10 @@ class ExceptionsTest {
     }
 
     @Test
-    fun `test handleTenantAPIErrors with other exception`() {
+    fun `test handleFrameworkErrors with other exception`() {
         val exception = RuntimeException("Runtime error")
         val thrown = assertThrows(FrameworkException::class.java) {
-            handleTenantAPIErrors("Test message") {
+            handleFrameworkErrors("Test message") {
                 throw exception
             }
         }
@@ -47,11 +47,11 @@ class ExceptionsTest {
     }
 
     @Test
-    fun `test handleTenantAPIErrorsSuspend with TenantException`() {
+    fun `test handleFrameworkErrorsSuspend with TenantException`() {
         val exception = TenantUsageException("Tenant error")
         val thrown = assertThrows(TenantUsageException::class.java) {
             runBlocking {
-                handleTenantAPIErrorsSuspend("Test message") {
+                handleFrameworkErrorsSuspend("Test message") {
                     throw exception
                 }
             }
@@ -60,11 +60,11 @@ class ExceptionsTest {
     }
 
     @Test
-    fun `test handleTenantAPIErrorsSuspend passes through FrameworkException unchanged`() {
+    fun `test handleFrameworkErrorsSuspend passes through FrameworkException unchanged`() {
         val exception = FrameworkException("Framework error")
         val thrown = assertThrows(FrameworkException::class.java) {
             runBlocking {
-                handleTenantAPIErrorsSuspend("Test message") {
+                handleFrameworkErrorsSuspend("Test message") {
                     throw exception
                 }
             }
@@ -73,11 +73,11 @@ class ExceptionsTest {
     }
 
     @Test
-    fun `test handleTenantAPIErrorsSuspend with other exception`() {
+    fun `test handleFrameworkErrorsSuspend with other exception`() {
         val exception = RuntimeException("Runtime error")
         val thrown = assertThrows(FrameworkException::class.java) {
             runBlocking {
-                handleTenantAPIErrorsSuspend("Test message") {
+                handleFrameworkErrorsSuspend("Test message") {
                     throw exception
                 }
             }
