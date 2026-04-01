@@ -193,9 +193,8 @@ jobs:
           bash .github/scripts/run_gradle_with_build_scan_capture.sh \
             --label "Test (Java ${{ matrix.java }}, ${{ matrix.os }})" \
             --start-message "🧪 Running tests..." \
-            --failure-message "⚠️ Some tests failed, but continuing" \
+            --failure-message "⚠️ Some tests failed" \
             --artifact-path build-scan-artifact.json \
-            --always-succeed \
             -- ./gradlew test --scan --continue
           echo "✅ Test execution completed"
         shell: bash

@@ -50,5 +50,5 @@ jobs:
                     echo "  2) Commit the updated .api files"
                     echo " "
                     echo "::warning title=Binary API changes detected::Public APIs covered by the binary compatibility check changed. If intentional, regenerate and commit updated .api dumps."
-                    exit 0
+                    exit 1
                   fi
