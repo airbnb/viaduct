@@ -73,7 +73,8 @@ jobs:
     strategy:
       matrix:
         demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter]
-    name: Test ${{ matrix.demoapp }}
+        java: ['17', '21']
+    name: Test ${{ matrix.demoapp }} (Java ${{ matrix.java }})
     env:
       GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
       BUILDSCAN_PUBLISH: "true"
@@ -83,7 +84,7 @@ jobs:
 
       - uses: ./.github/actions/setup-build
         with:
-          java-version: '17'
+          java-version: ${{ matrix.java }}
           cache-read-only: 'true'
 
       - name: Download Maven Local repository

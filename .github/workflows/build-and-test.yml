@@ -72,7 +72,6 @@ jobs:
         id: build_project
         run: |
           echo "🔨 Building project..."
-          ./gradlew clean || { echo "❌ Clean failed"; exit 1; }
           ./gradlew assemble --scan || { echo "❌ Assemble failed"; exit 1; }
           echo "✅ Project built successfully"
         shell: bash
