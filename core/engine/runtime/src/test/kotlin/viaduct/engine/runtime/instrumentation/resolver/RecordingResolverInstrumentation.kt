@@ -37,6 +37,8 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
         return RecordingInstrumentationState()
     }
 
+    override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?): Boolean = true
+
     override fun <T> instrumentResolverExecution(
         resolver: ResolverFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentExecuteResolverParameters,

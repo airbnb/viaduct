@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
@@ -268,5 +269,78 @@ internal class InstrumentedFieldResolverDispatcherTest {
                 ExecutionAttribution.fromResolver(resolverName),
                 capturedContext.captured.fieldScope.attribution
             )
+        }
+
+    @Test
+    fun `sync path does not wrap objectValue in InstrumentedEngineObjectData`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+            val rawObjectValue: EngineObjectData = mockk()
+            val rawQueryValue: EngineObjectData = mockk()
+            val capturedObjectValue = slot<EngineObjectData>()
+            val capturedQueryValue = slot<EngineObjectData>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery {
+                mockDispatcher.resolve(any(), capture(capturedObjectValue), capture(capturedQueryValue), any(), any(), any(), any())
+            } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(
+                mockDispatcher,
+                instrumentation,
+                syncValueComputation = true
+            )
+
+            // When
+            testClass.resolve(
+                emptyMap(),
+                rawObjectValue,
+                rawQueryValue,
+                stubSyncObjectValue,
+                stubSyncQueryValue,
+                null,
+                defaultContext
+            )
+
+            // Then — objectValue/queryValue passed through without wrapping
+            assertSame(rawObjectValue, capturedObjectValue.captured)
+            assertSame(rawQueryValue, capturedQueryValue.captured)
+        }
+
+    @Test
+    fun `non-sync path wraps objectValue in InstrumentedEngineObjectData`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+            val rawObjectValue: EngineObjectData = mockk()
+            val capturedObjectValue = slot<EngineObjectData>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery {
+                mockDispatcher.resolve(any(), capture(capturedObjectValue), any(), any(), any(), any(), any())
+            } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(
+                mockDispatcher,
+                instrumentation,
+                syncValueComputation = false
+            )
+
+            // When
+            testClass.resolve(
+                emptyMap(),
+                rawObjectValue,
+                mockk(),
+                stubSyncObjectValue,
+                stubSyncQueryValue,
+                null,
+                defaultContext
+            )
+
+            // Then — objectValue is wrapped
+            assertTrue(capturedObjectValue.captured is InstrumentedEngineObjectData)
         }
 }

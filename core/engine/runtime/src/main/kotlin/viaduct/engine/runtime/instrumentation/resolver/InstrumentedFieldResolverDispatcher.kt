@@ -49,17 +49,20 @@ class InstrumentedFieldResolverDispatcher(
             syncValueComputation = syncValueComputation,
         )
 
-        val wrapFetchSelections = instrumentation.shouldInstrumentFetchSelections(state)
-        val instrumentedObjectValue = if (wrapFetchSelections) InstrumentedEngineObjectData(objectValue, instrumentation, state) else objectValue
-        val instrumentedQueryValue = if (wrapFetchSelections) InstrumentedEngineObjectData(queryValue, instrumentation, state) else queryValue
         val instrumentationContext = ResolverInstrumentationContext(instrumentation, state)
-        val instrumentedSyncObjectValue: suspend () -> EngineObjectData.Sync = if (wrapFetchSelections) {
-            { withContext(instrumentationContext) { InstrumentedEngineObjectData.Sync(syncObjectValueGetter(), instrumentation, state) } }
+        val wrapFetchSelections = instrumentation.shouldInstrumentFetchSelections(state)
+        // In the sync path, ResolverInstrumentationContext is installed once around the entire
+        // dispatcher.resolve() call, so individual getters don't need wrapping.
+        val wrap = !syncValueComputation && wrapFetchSelections
+        val resolvedObjectValue = if (wrap) InstrumentedEngineObjectData(objectValue, instrumentation, state) else objectValue
+        val resolvedQueryValue = if (wrap) InstrumentedEngineObjectData(queryValue, instrumentation, state) else queryValue
+        val resolvedSyncObjectGetter: suspend () -> EngineObjectData.Sync = if (wrap) {
+            { InstrumentedEngineObjectData.Sync(syncObjectValueGetter(), instrumentation, state) }
         } else {
             syncObjectValueGetter
         }
-        val instrumentedSyncQueryValue: suspend () -> EngineObjectData.Sync = if (wrapFetchSelections) {
-            { withContext(instrumentationContext) { InstrumentedEngineObjectData.Sync(syncQueryValueGetter(), instrumentation, state) } }
+        val resolvedSyncQueryGetter: suspend () -> EngineObjectData.Sync = if (wrap) {
+            { InstrumentedEngineObjectData.Sync(syncQueryValueGetter(), instrumentation, state) }
         } else {
             syncQueryValueGetter
         }
@@ -72,15 +75,18 @@ class InstrumentedFieldResolverDispatcher(
 
         return instrumentation.instrumentResolverExecution(
             ResolverFunction {
-                dispatcher.resolve(
-                    arguments,
-                    instrumentedObjectValue,
-                    instrumentedQueryValue,
-                    instrumentedSyncObjectValue,
-                    instrumentedSyncQueryValue,
-                    selections,
-                    contextWithAttribution
-                )
+                val resolve = suspend {
+                    dispatcher.resolve(
+                        arguments,
+                        resolvedObjectValue,
+                        resolvedQueryValue,
+                        resolvedSyncObjectGetter,
+                        resolvedSyncQueryGetter,
+                        selections,
+                        contextWithAttribution
+                    )
+                }
+                if (syncValueComputation && wrapFetchSelections) withContext(instrumentationContext) { resolve() } else resolve()
             },
             resolverExecuteParam,
             state
