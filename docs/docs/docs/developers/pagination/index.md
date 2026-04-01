@@ -22,7 +22,7 @@ Use the `@connection` directive to define a connection type:
 
 ```graphqls
 type UserConnection @connection {
-  edges: [UserEdge!]!
+  edges: [UserEdge]
   pageInfo: PageInfo!
   totalCount: Int  # Optional additional fields
 }
@@ -31,7 +31,7 @@ type UserConnection @connection {
 A type with `@connection` must:
 
 - Have a name ending in `Connection`
-- Have an `edges` field with type `[<EdgeType>!]!` where the edge type has the `@edge` directive
+- Have an `edges` field with type `[<EdgeType>]` (nullability is flexible) where the edge type has the `@edge` directive
 - Have a `pageInfo: PageInfo!` field
 
 ### Edge Type
@@ -64,41 +64,7 @@ type PageInfo {
 }
 ```
 
-#### Automatic PageInfo Handling
-
-Viaduct automatically manages the `PageInfo` type in your schema:
-
-- **If PageInfo doesn't exist**: Viaduct creates it with the standard Relay fields shown above
-- **If PageInfo already exists**: Viaduct validates it conforms exactly to the Relay specification
-
-This ensures all connection types have access to a compliant `PageInfo` type without requiring manual definition.
-
-#### PageInfo Validation
-
-When a custom `PageInfo` type is defined, it must match the Relay specification exactly:
-
-- **Required fields only**: Only the four standard fields (`hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor`) are allowed
-- **No custom fields**: Additional fields such as `totalCount` are not permitted
-- **No custom directives**: Directives on the `PageInfo` type or its fields are not allowed
-
-**Field requirements:**
-
-| Field | Type | Nullability |
-|-------|------|-----------|
-| `hasNextPage` | `Boolean` | Non-nullable (`!`) required |
-| `hasPreviousPage` | `Boolean` | Non-nullable (`!`) required |
-| `startCursor` | `String` | Nullable |
-| `endCursor` | `String` | Nullable |
-
-Non-conforming `PageInfo` types result in a validation error:
-
-```
-PageInfo type does not conform to Relay Connection specification:
-  - Missing required field 'hasPreviousPage'
-  - Field 'hasNextPage' must be non-nullable (Boolean!)
-  - PageInfo type cannot have custom fields. Found extra fields: 'totalCount'.
-  - PageInfo type cannot have custom directives. Found directives: @deprecated.
-```
+Viaduct automatically provides the `PageInfo` type — you do not need to define it. For details on how `PageInfo` is managed and validated, see [Schema Extensions: PageInfo](https://viaduct.airbnb.tech/docs/service_engineers/schema_extensions/#pageinfo).
 
 ### Connection Field Arguments
 
@@ -311,17 +277,6 @@ val (offset, limit) = ctx.arguments.toOffsetLimit()
 - `first` and `last` must be > 0 if specified
 - `after` and `before` must be valid, decodable cursors
 
-### Backward Pagination with Total Count
-
-When only `last` is specified (without `before`), the total count is needed:
-
-```kotlin
-if (ctx.arguments.requiresTotalCountForOffsetLimit()) {
-  val totalCount = userService.getUserCount()
-  val (offset, limit) = ctx.arguments.toOffsetLimit(totalCount)
-}
-```
-
 ## Cursors
 
 Cursors are opaque strings that identify a position in a paginated list.
@@ -359,7 +314,7 @@ type Organization implements Node {
 }
 
 type MemberConnection @connection {
-  edges: [MemberEdge!]!
+  edges: [MemberEdge]
   pageInfo: PageInfo!
   totalCount: Int!
 }
