@@ -1,0 +1,109 @@
+name: Periodic Green Check
+
+on:
+  schedule:
+    - cron: '0 14 * * *' # daily at 2pm UTC
+
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to check (used by staleness check and as --ref for CI)"
+        required: false
+        default: main
+        type: string
+      mode:
+        description: "Which check to run (schedule runs both)"
+        required: false
+        type: choice
+        default: all
+        options:
+          - all
+          - ci-check
+          - staleness-check
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # CI health check — run the full CI suite and alert on failure
+  # ---------------------------------------------------------------------------
+  ci-check:
+    if: >-
+      github.event_name == 'schedule'
+      || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'all' || inputs.mode == 'ci-check'))
+    uses: ./.github/workflows/ci-manual-trigger.yml
+    with:
+      send_alerts: true
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # Staleness check — alert if main hasn't received commits recently
+  # ---------------------------------------------------------------------------
+  staleness-check:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'schedule'
+      || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'all' || inputs.mode == 'staleness-check'))
+    outputs:
+      stale: ${{ steps.check.outputs.stale }}
+      text: ${{ steps.fmt.outputs.text }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for recent commits
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch || 'main' }}
+        run: |
+          # Skip Sunday (7) and Monday (1) on scheduled runs — no changes
+          # expected from Saturday/Sunday. Manual runs always proceed.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            day_of_week=$(date -u +%u)
+            if [ "$day_of_week" = "7" ] || [ "$day_of_week" = "1" ]; then
+              echo "Skipping staleness check — no changes expected from the weekend"
+              echo "stale=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          since=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          commit_count=$(gh api "repos/${{ github.repository }}/commits?sha=${BRANCH}&since=${since}&per_page=1" --jq 'length')
+
+          if [ "$commit_count" -eq 0 ]; then
+            echo "No commits on ${BRANCH} in the last 24 hours"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found recent commits on ${BRANCH}"
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      - name: Format staleness alert
+        id: fmt
+        if: steps.check.outputs.stale == 'true'
+        env:
+          BRANCH: ${{ inputs.branch || 'main' }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          text=$(jq -n \
+            --arg branch "$BRANCH" \
+            --arg server_url "$SERVER_URL" \
+            --arg repository "$REPOSITORY" \
+            --arg run_id "$RUN_ID" \
+            '{"branch": $branch, "server_url": $server_url, "repository": $repository, "jobs": [{"name": "Staleness Check", "run_id": $run_id}]}' | \
+            python3 .github/scripts/format_alert.py)
+          echo "text=${text}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+  send-staleness-alert:
+    needs: [staleness-check]
+    if: always() && needs.staleness-check.outputs.stale == 'true'
+    uses: ./.github/workflows/post-slack-alerts.yml
+    with:
+      text: ${{ needs.staleness-check.outputs.text }}
+    secrets: inherit

@@ -1,0 +1,24 @@
+name: Post Alerts
+# Stub — logic will be migrated from post-slack-alerts.yml in a follow-up PR.
+
+on:
+  workflow_call:
+    inputs:
+      text:
+        description: "Alert text to post"
+        required: true
+        type: string
+
+  workflow_dispatch:
+    inputs:
+      text:
+        description: "Alert text to post"
+        required: true
+        type: string
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "placeholder — logic not yet migrated from post-slack-alerts.yml"
+        shell: bash

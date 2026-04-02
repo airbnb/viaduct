@@ -11,13 +11,11 @@ on:
         description: "Operating system (e.g. [\"ubuntu-24.04-arm\", \"macos-15-intel\"]).  Defaults to [\"ubuntu-latest\", \"macos-latest\"]."
         required: false
         type: string
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_call:
+    outputs:
+      run_id:
+        description: "GitHub Actions run ID"
+        value: ${{ jobs.validate-inputs.outputs.run_id }}
 
 permissions:
   contents: read
@@ -30,7 +28,13 @@ concurrency:
 jobs:
   validate-inputs:
     runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.emit.outputs.run_id }}
     steps:
+      - name: Emit run ID
+        id: emit
+        run: echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+        shell: bash
       - uses: actions/checkout@v6
       - name: Validate inputs
         env:
@@ -127,43 +131,3 @@ jobs:
         run: cd demoapps/starwars && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
         shell: bash
 
-  collect-failure-info:
-    runs-on: ubuntu-latest
-    needs: [publish-to-maven-local, test-demoapps, test-starwars]
-    if: failure()
-    steps:
-      - name: Collect failure metadata
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          run_id=${{ github.run_id }}
-
-          failed_jobs=$(gh api repos/${{ github.repository }}/actions/runs/$run_id/jobs \
-            --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")')
-
-          failed_steps=$(gh api repos/${{ github.repository }}/actions/runs/$run_id/jobs \
-            --jq '[.jobs[] | select(.conclusion=="failure") | .steps[] | select(.conclusion=="failure") | .name] | join(", ")')
-
-          mkdir -p slack-alert
-          cat > slack-alert/failure-info.json <<EOF
-          {
-            "workflow": "${{ github.workflow }}",
-            "run_number": "${{ github.run_number }}",
-            "repository": "${{ github.event.repository.name }}",
-            "failed_jobs": "$failed_jobs",
-            "failed_steps": "$failed_steps",
-            "branch": "${{ github.ref_name }}",
-            "actor": "${{ github.actor }}",
-            "sha": "${{ github.sha }}",
-            "server_url": "${{ github.server_url }}",
-            "repository_full": "${{ github.repository }}",
-            "run_id": "${{ github.run_id }}"
-          }
-          EOF
-        shell: bash
-
-      - name: Upload failure info artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: slack-alert
-          path: slack-alert/

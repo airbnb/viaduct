@@ -4,11 +4,22 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      run_id:
+        description: "GitHub Actions run ID"
+        value: ${{ jobs.validate-pr-title.outputs.run_id }}
 
 jobs:
   validate-pr-title:
     runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.emit.outputs.run_id }}
     steps:
+      - name: Emit run ID
+        id: emit
+        run: echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+        shell: bash
       - name: PR Conventional Commit Validation
         uses: ytanikin/pr-conventional-commits@1.4.0
         with:
