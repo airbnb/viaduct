@@ -1,60 +1,107 @@
-package viaduct.engine.api.select
+package viaduct.graphql.utils
 
 import graphql.language.AstPrinter
+import graphql.parser.Parser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
-class ParsedSelectionsImplTest {
+class ParsedSelectionsTest {
+    private fun parse(
+        typeName: String,
+        fragment: String
+    ): ParsedSelections = ParsedSelections.fromDocument(typeName, Parser.parse(fragment))
+
+    @Test
+    fun `empty`() {
+        val ps = ParsedSelections.empty("Query")
+        assertEquals(0, ps.selections.selections.size)
+        assertEquals(0, ps.fragmentMap.size)
+        assertEquals(0, ps.toDocument().definitions.size)
+        assertNull(ps.filterToPath(emptyList()))
+    }
+
+    @Test
+    fun `fromDocument rejects entrypoint fragment on wrong type`() {
+        assertThrows<IllegalArgumentException> {
+            parse("Foo", "fragment Main on Bar { x }")
+        }
+    }
+
+    @Test
+    fun `fromDocument rejects duplicate fragment definitions`() {
+        assertThrows<IllegalArgumentException> {
+            parse(
+                "Foo",
+                """
+                    fragment X on X { a }
+                    fragment X on X { b }
+                    fragment Main on Foo { c }
+                """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `fromDocument rejects non-fragment definitions`() {
+        assertThrows<IllegalArgumentException> {
+            parse(
+                "Query",
+                """
+                    fragment Query on Query { x }
+                    query Q { ...Query }
+                """.trimIndent()
+            )
+        }
+    }
+
     @Test
     fun `toDocument`() {
-        // simple field set
-        SelectionsParser.parse("Foo", "field").let { parsed ->
-            val docString = parsed.toDocument().render()
+        parse("Foo", "fragment Main on Foo { field }").let { parsed ->
             assertEquals(
                 "fragment Main on Foo {field}",
-                docString
+                parsed.render()
             )
         }
 
-        // multi-fragment document
-        SelectionsParser.parse(
+        parse(
             "Foo",
             """
                 fragment Main on Foo { field ...Other }
                 fragment Other on Foo { field }
             """.trimIndent()
         ).let { parsed ->
-            val docString = parsed.toDocument().render()
             assertEquals(
                 "fragment Main on Foo {field ...Other} fragment Other on Foo {field}",
-                docString
+                parsed.render()
             )
         }
     }
 
     @Test
     fun `filterToPath -- empty path`() {
-        val ps = SelectionsParser.parse("Query", "field")
+        val ps = parse("Query", "fragment Main on Query { field }")
         assertParsedSelectionsEqual(ps, ps.filterToPath(emptyList()))
     }
 
     @Test
     fun `filterToPath -- unselected segment`() {
-        val ps = SelectionsParser.parse("Query", "foo")
+        val ps = parse("Query", "fragment Main on Query { foo }")
         assertNull(ps.filterToPath(listOf("bar")))
     }
 
     @Test
     fun `filterToPath -- extra segments`() {
-        val ps = SelectionsParser.parse("Query", "foo")
+        val ps = parse("Query", "fragment Main on Query { foo }")
         assertNull(ps.filterToPath(listOf("foo", "bar")))
     }
 
     @Test
     fun `filterToPath -- simple`() {
-        val parsed = SelectionsParser.parse(
+        val parsed = parse(
             "Query",
             """
                 fragment Main on Query {
@@ -66,11 +113,10 @@ class ParsedSelectionsImplTest {
                 }
             """.trimIndent(),
         )
-        val filtered = parsed
-            .filterToPath(listOf("a1", "b2", "c4"))!!
+        val filtered = parsed.filterToPath(listOf("a1", "b2", "c4"))!!
 
         assertParsedSelectionsEqual(
-            SelectionsParser.parse("Query", "a1 { b2 { c4 } }"),
+            parse("Query", "fragment Main on Query { a1 { b2 { c4 } } }"),
             filtered
         )
         assertEquals(
@@ -81,7 +127,7 @@ class ParsedSelectionsImplTest {
 
     @Test
     fun `filterToPath -- partial filtering`() {
-        val parsed = SelectionsParser.parse(
+        val parsed = parse(
             "Query",
             """
                 fragment Main on Query {
@@ -96,14 +142,14 @@ class ParsedSelectionsImplTest {
         val filtered = parsed.filterToPath(listOf("a1", "b2"))!!
 
         assertParsedSelectionsEqual(
-            SelectionsParser.parse("Query", "a1 { b2 { c3 c4 } }"),
+            parse("Query", "fragment Main on Query { a1 { b2 { c3 c4 } } }"),
             filtered
         )
     }
 
     @Test
     fun `filterToPath -- fragmented docs`() {
-        val parsed = SelectionsParser.parse(
+        val parsed = parse(
             "Query",
             """
                 fragment Main on Query { a { ... A } }
@@ -113,19 +159,20 @@ class ParsedSelectionsImplTest {
         )
         val filtered = parsed.filterToPath(listOf("a", "b", "b1"))!!
 
-        // fragment spreads are converted to inline fragments
         assertParsedSelectionsEqual(
-            SelectionsParser.parse(
+            parse(
                 "Query",
                 """
-                    a {
-                      ... on A {
-                        b {
-                          ... on B {
-                            b1
+                    fragment Main on Query {
+                        a {
+                          ... on A {
+                            b {
+                              ... on B {
+                                b1
+                              }
+                            }
                           }
                         }
-                      }
                     }
                 """.trimIndent()
             ),
@@ -135,7 +182,7 @@ class ParsedSelectionsImplTest {
 
     @Test
     fun `filterToPath -- partial filtering of fragmented docs -- unfiltered fragments are inlined`() {
-        val parsed = SelectionsParser.parse(
+        val parsed = parse(
             "Query",
             """
                 fragment Main on Query { a { ... A } }
@@ -145,7 +192,7 @@ class ParsedSelectionsImplTest {
         )
         val filtered = parsed.filterToPath(listOf("a"))
         assertParsedSelectionsEqual(
-            SelectionsParser.parse(
+            parse(
                 "Query",
                 """
                     fragment Main on Query {
@@ -165,9 +212,9 @@ class ParsedSelectionsImplTest {
 
     @Test
     fun `filterToPath -- field directives are preserved`() {
-        val parsed = SelectionsParser.parse(
+        val parsed = parse(
             "Query",
-            "a @dir(a:1) { b @dir(b:2) }"
+            "fragment Main on Query { a @dir(a:1) { b @dir(b:2) } }"
         )
         val filtered = parsed.filterToPath(listOf("a", "b"))!!
         assertParsedSelectionsEqual(parsed, filtered)
@@ -175,7 +222,7 @@ class ParsedSelectionsImplTest {
 
     @Test
     fun `filterToPath -- fragment spread directives are mapped to directives on inline fragments`() {
-        val parsed = SelectionsParser.parse(
+        val parsed = parse(
             "Query",
             """
                 fragment Main on Query { ... A @dir(foo:1) }
@@ -184,38 +231,45 @@ class ParsedSelectionsImplTest {
         )
         val filtered = parsed.filterToPath(listOf("a1"))
         assertParsedSelectionsEqual(
-            SelectionsParser.parse("Query", "... on A @dir(foo:1) { a1 }"),
+            parse("Query", "fragment Main on Query { ... on A @dir(foo:1) { a1 } }"),
             filtered
         )
     }
 
     @Test
+    fun `filterToPath -- aliased field`() {
+        val parsed = parse("Query", "fragment Main on Query { myAlias: original { sub } }")
+        assertNotNull(parsed.filterToPath(listOf("myAlias", "sub")))
+        assertNull(parsed.filterToPath(listOf("original")))
+    }
+
+    @Test
     fun equals() {
         // not a ParsedSelections
-        assertNotEquals(this, SelectionsParser.parse("Query", "x"))
+        assertNotEquals(this, parse("Query", "fragment Main on Query { x }"))
 
         // different typename
         assertNotEquals(
-            SelectionsParser.parse("A", "x"),
-            SelectionsParser.parse("B", "x")
+            parse("A", "fragment Main on A { x }"),
+            parse("B", "fragment Main on B { x }")
         )
 
         // different selections
         assertNotEquals(
-            SelectionsParser.parse("A", "a"),
-            SelectionsParser.parse("A", "b")
+            parse("A", "fragment Main on A { a }"),
+            parse("A", "fragment Main on A { b }")
         )
 
         // different fragment names
         assertNotEquals(
-            SelectionsParser.parse(
+            parse(
                 "A",
                 """
                     fragment Main on A { a }
                     fragment B on B { b }
                 """.trimIndent()
             ),
-            SelectionsParser.parse(
+            parse(
                 "A",
                 """
                     fragment Main on A { a }
@@ -226,14 +280,14 @@ class ParsedSelectionsImplTest {
 
         // different fragment selections
         assertNotEquals(
-            SelectionsParser.parse(
+            parse(
                 "A",
                 """
                     fragment Main on A { a }
                     fragment B on B { b1 }
                 """.trimIndent()
             ),
-            SelectionsParser.parse(
+            parse(
                 "A",
                 """
                     fragment Main on A { a }
@@ -244,20 +298,20 @@ class ParsedSelectionsImplTest {
 
         // equals -- simple
         assertEquals(
-            SelectionsParser.parse("A", "a"),
-            SelectionsParser.parse("A", "a"),
+            parse("A", "fragment Main on A { a }"),
+            parse("A", "fragment Main on A { a }"),
         )
 
         // equals -- fragmented
         assertEquals(
-            SelectionsParser.parse(
+            parse(
                 "A",
                 """
                     fragment Main on A { a }
                     fragment B on B { b1 }
                 """.trimIndent()
             ),
-            SelectionsParser.parse(
+            parse(
                 "A",
                 """
                     fragment Main on A { a }
@@ -266,4 +320,13 @@ class ParsedSelectionsImplTest {
             )
         )
     }
+}
+
+private fun ParsedSelections.render(): String = AstPrinter.printAstCompact(toDocument())
+
+private fun assertParsedSelectionsEqual(
+    expected: ParsedSelections,
+    actual: ParsedSelections?
+) {
+    assertEquals(expected, actual, "Expected:\n$expected\nActual:\n$actual")
 }

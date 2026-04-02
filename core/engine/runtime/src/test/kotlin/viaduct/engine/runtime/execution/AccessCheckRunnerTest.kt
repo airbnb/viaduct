@@ -19,7 +19,6 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
@@ -34,6 +33,7 @@ import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.objectEngineResult
+import viaduct.graphql.utils.ParsedSelections
 
 class AccessCheckRunnerTest {
     val runner = AccessCheckRunner(DefaultCoroutineInterop)

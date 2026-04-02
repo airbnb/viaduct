@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.FromObjectFieldVariable
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.graphql.utils.ParsedSelections
 
 class MockRequiredSelectionSetRegistryTest {
     @Test

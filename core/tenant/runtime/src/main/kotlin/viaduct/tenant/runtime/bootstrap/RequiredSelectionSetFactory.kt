@@ -15,13 +15,13 @@ import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.checkDisjoint
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.collectVariableReferences
 import viaduct.service.api.spi.TenantCodeInjector
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory

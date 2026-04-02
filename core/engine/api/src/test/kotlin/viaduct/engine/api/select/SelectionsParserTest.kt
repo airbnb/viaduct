@@ -153,49 +153,8 @@ class SelectionsParserTest : Assertions() {
         }
     }
 
-    @Test
-    fun `throws on documents that are missing an entrypoint fragment on requested type`() {
-        assertThrows<IllegalArgumentException> {
-            SelectionsParser.parse("Foo", "fragment Main on Bar { x }")
-        }
-    }
-
-    @Test
-    fun `throws on documents with duplicate fragment definitions`() {
-        assertThrows<IllegalArgumentException> {
-            SelectionsParser.parse(
-                "Foo",
-                """
-                fragment X on X { a }
-                fragment X on X { b }
-                fragment Main on Foo { c }
-                """.trimIndent()
-            )
-        }
-    }
-
-    @Test
-    fun `throws on documents containing non-fragment definitions`() {
-        fun test(docString: String) {
-            assertThrows<IllegalArgumentException> {
-                SelectionsParser.parse("Foo", docString)
-            }
-        }
-
-        test(
-            """
-            fragment Query on Query { x }
-            query Q { ... Query }
-            """.trimIndent()
-        )
-
-        test(
-            """
-            fragment Query on Query { x }
-            scalar MyScalar
-            """.trimIndent()
-        )
-    }
+    // Validation tests (wrong type, duplicates, non-fragments) are in ParsedSelectionsTest
+    // since those checks now live in ParsedSelections.fromDocument()
 
     @Test
     fun `creates successfully from data fetching env -- single field`() {

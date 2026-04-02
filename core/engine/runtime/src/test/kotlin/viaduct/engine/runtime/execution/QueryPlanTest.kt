@@ -37,7 +37,6 @@ import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromObjectFieldVariable
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
@@ -55,6 +54,7 @@ import viaduct.engine.runtime.execution.QueryPlan.InlineFragment
 import viaduct.engine.runtime.execution.QueryPlan.Selection
 import viaduct.engine.runtime.execution.QueryPlan.SelectionSet
 import viaduct.engine.runtime.execution.constraints.Constraints
+import viaduct.graphql.utils.ParsedSelections
 
 class QueryPlanTest {
     @Test

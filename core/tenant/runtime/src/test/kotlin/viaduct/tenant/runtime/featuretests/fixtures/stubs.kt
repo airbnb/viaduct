@@ -27,12 +27,12 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.graphql.utils.ParsedSelections
 import viaduct.tenant.runtime.bootstrap.RequiredSelectionSetFactory
 import viaduct.tenant.runtime.context.ConnectionFieldExecutionContextImpl
 import viaduct.tenant.runtime.context.FieldExecutionContextImpl

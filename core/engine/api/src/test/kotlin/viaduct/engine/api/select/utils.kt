@@ -4,7 +4,7 @@ import graphql.language.AstPrinter
 import graphql.language.Document
 import graphql.language.Node
 import org.junit.jupiter.api.Assertions.assertEquals
-import viaduct.engine.api.ParsedSelections
+import viaduct.graphql.utils.ParsedSelections
 
 fun assertNodesEqual(
     expected: Node<*>?,

@@ -4,6 +4,7 @@ import graphql.language.Argument
 import graphql.language.SelectionSet
 import graphql.schema.DataFetchingEnvironment
 import viaduct.engine.api.fragment.Fragment
+import viaduct.graphql.utils.ParsedSelections
 
 /**
  * An untyped selection of an [EngineSelectionSet]

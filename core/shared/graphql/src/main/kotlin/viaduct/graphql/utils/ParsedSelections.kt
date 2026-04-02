@@ -1,4 +1,4 @@
-package viaduct.engine.api.select
+package viaduct.graphql.utils
 
 import graphql.language.AstPrinter
 import graphql.language.Document
@@ -10,20 +10,53 @@ import graphql.language.Node
 import graphql.language.Selection as GJSelection
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.TypeName
-import viaduct.engine.api.ParsedSelections
 import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
 
-data class ParsedSelectionsImpl(
-    override val typeName: String,
-    override val selections: GJSelectionSet,
-    override val fragmentMap: Map<String, FragmentDefinition>
-) : ParsedSelections {
-    override fun toDocument(): Document =
+/** A parsed representation of a GraphQL selections string */
+data class ParsedSelections(
+    /** the type described by [selections] */
+    val typeName: String,
+    /** a SelectionSet that selects over [typeName] */
+    val selections: GJSelectionSet,
+    /** a map of GraphQL fragment definitions that may be used by [selections] */
+    val fragmentMap: Map<String, FragmentDefinition>
+) {
+    /**
+     * Convert this ParsedSelections into a [Document]
+     * The document will include [FragmentDefinition]s for every fragment in [fragmentMap].
+     * The document will not include other kinds of definitions.
+     */
+    fun toDocument(): Document =
         Document.newDocument()
             .definitions(fragmentMap.values.toList())
             .build()
 
-    override fun filterToPath(path: List<String>): ParsedSelectionsImpl? = PathFilter(this).filter(path)
+    /**
+     * Filter this ParsedSelections such that it only includes the selections along the provided path.
+     * No filtering will be applied past the bounds of the provided path.
+     *
+     * The returned ParsedSelections may have a different language structure but will be semantically
+     * equivalent to a filtered view of the original selections. Two selection sets are considered
+     * semantically equivalent if they would produce the same result when executed.
+     * For example, the selection sets `{... {a1}}` and `{a1}` are semantically
+     * equivalent.
+     *
+     * **Example 1: Basic filtering**
+     *
+     * Given selections `{a1, a2 {b1, b2}}`,
+     * then filtering by path `[a2, b1]` will return selections semantically equivalent to
+     * `{a2 {b1}}`
+     *
+     * **Example 2: Path is shorter than selections**
+     *
+     * The provided [path] may be shorter than the depth of selections, in which case selections past
+     * the end of the path will be unfiltered.
+     *
+     * Given selections `{a1, a2 {b1, b2}}`,
+     * then filtering by path `[a2]` will return selections semantically equivalent to
+     * `{a2 {b1, b2}}`
+     */
+    fun filterToPath(path: List<String>): ParsedSelections? = PathFilter(this).filter(path)
 
     override fun equals(other: Any?): Boolean {
         if (other !is ParsedSelections) return false
@@ -44,10 +77,43 @@ data class ParsedSelectionsImpl(
     ): Boolean = AstPrinter.printAstCompact(a) == AstPrinter.printAstCompact(b)
 
     override fun toString(): String = AstPrinter.printAst(toDocument())
+
+    companion object {
+        fun empty(typeName: String): ParsedSelections =
+            ParsedSelections(
+                typeName,
+                GJSelectionSet(emptyList()),
+                emptyMap()
+            )
+
+        fun fromDocument(
+            typeName: String,
+            document: Document
+        ): ParsedSelections {
+            val fragments = document.definitions.map {
+                it as? FragmentDefinition
+                    ?: throw IllegalArgumentException("selections string may only contain fragment definitions. Found: $it")
+            }
+
+            val fragmentMap = fragments.associateBy { it.name }.also {
+                if (fragments.size != it.size) {
+                    val dupes = fragments.groupBy { it.name }.filter { it.value.size > 1 }.keys
+                    throw IllegalArgumentException("Document contains repeated definitions for fragments with names: $dupes")
+                }
+            }
+
+            val entryFragment = SelectionsParserUtils.findEntryPointFragment(fragments)
+            require(entryFragment.typeCondition.name == typeName) {
+                "Fragment ${entryFragment.name} must be on type $typeName"
+            }
+
+            return ParsedSelections(typeName, entryFragment.selectionSet, fragmentMap)
+        }
+    }
 }
 
-private class PathFilter(val parsedSelections: ParsedSelectionsImpl) {
-    fun filter(path: List<String>): ParsedSelectionsImpl? =
+private class PathFilter(val parsedSelections: ParsedSelections) {
+    fun filter(path: List<String>): ParsedSelections? =
         filterToPath(parsedSelections.selections, path)
             ?.let { filtered ->
                 val entrypointFragment = FragmentDefinition.newFragmentDefinition()

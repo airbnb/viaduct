@@ -14,12 +14,12 @@ import strikt.assertions.isNotNull
 import strikt.assertions.isNotSameInstanceAs
 import strikt.assertions.isSameInstanceAs
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
+import viaduct.graphql.utils.ParsedSelections
 
 /**
  * Tests for [QueryPlanFactory.buildFromSelections] which builds a QueryPlan from a EngineSelectionSet

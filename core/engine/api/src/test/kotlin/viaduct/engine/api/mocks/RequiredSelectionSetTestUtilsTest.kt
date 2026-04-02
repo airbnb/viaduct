@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import viaduct.engine.api.FromObjectFieldVariable
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.graphql.utils.ParsedSelections
 
 class RequiredSelectionSetTestUtilsTest {
     @Test

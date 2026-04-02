@@ -25,15 +25,14 @@ import kotlinx.coroutines.future.future
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
-import viaduct.engine.api.select.ParsedSelectionsImpl
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
 import viaduct.engine.runtime.execution.QueryPlan.Field
 import viaduct.engine.runtime.execution.constraints.Constraints
+import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.asNamedElement
 import viaduct.graphql.utils.collectVariableDefinitions
 import viaduct.graphql.utils.collectVariableReferences
@@ -91,7 +90,7 @@ interface QueryPlanFactory {
         }
         return buildFromParsedSelections(
             parameters = parameters,
-            parsedSelections = ParsedSelectionsImpl(
+            parsedSelections = ParsedSelections(
                 typeName = rss.type,
                 selections = rss.toSelectionSet(),
                 fragmentMap = fragmentsByName,

@@ -4,10 +4,10 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.dfe.engineExecutionContext
+import viaduct.graphql.utils.ParsedSelections
 
 class EngineSelectionSetFactoryImpl(
     private val fullSchema: ViaductSchema,

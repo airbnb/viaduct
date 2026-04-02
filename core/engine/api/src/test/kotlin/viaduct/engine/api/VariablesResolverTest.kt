@@ -17,6 +17,7 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.graphql.utils.ParsedSelections
 
 @ExperimentalCoroutinesApi
 class VariablesResolverTest {

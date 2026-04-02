@@ -22,7 +22,6 @@ import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
@@ -30,6 +29,7 @@ import viaduct.engine.api.fragment.FragmentVariables
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.graphql.utils.GraphQLTypeRelation
+import viaduct.graphql.utils.ParsedSelections
 
 data class EngineSelectionSetContext(
     val variables: Map<String, Any?>,

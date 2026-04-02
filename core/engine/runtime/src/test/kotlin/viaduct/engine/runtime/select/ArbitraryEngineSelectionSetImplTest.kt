@@ -12,7 +12,7 @@ import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.arbitrary.graphql.graphQLDocument
-import viaduct.engine.api.select.ParsedSelectionsImpl
+import viaduct.graphql.utils.ParsedSelections
 
 class ArbitraryEngineSelectionSetImplTest : KotestPropertyBase() {
     @Test
@@ -27,7 +27,7 @@ class ArbitraryEngineSelectionSetImplTest : KotestPropertyBase() {
 
             Arb.graphQLDocument(schema)
                 .checkAll { doc ->
-                    val parsed = ParsedSelectionsImpl(
+                    val parsed = ParsedSelections(
                         typeName = "Query",
                         selections = doc.getFirstDefinitionOfType(OperationDefinition::class.java).get().selectionSet,
                         fragmentMap = doc.getDefinitionsOfType(FragmentDefinition::class.java)

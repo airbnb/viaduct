@@ -3,6 +3,7 @@ package viaduct.engine.api
 import graphql.language.AstPrinter
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
+import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.collectVariableReferences
 
 /**

@@ -4,6 +4,7 @@ import graphql.language.AstPrinter
 import java.lang.IllegalStateException
 import kotlin.IllegalArgumentException
 import viaduct.engine.api.VariablesResolver.ResolveCtx
+import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.collectVariableReferences
 
 /** A VariablesResolver produces values for a fixed set of GraphQL variables */
