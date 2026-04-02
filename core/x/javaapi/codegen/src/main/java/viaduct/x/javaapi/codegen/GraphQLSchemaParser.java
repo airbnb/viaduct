@@ -123,9 +123,16 @@ public class GraphQLSchemaParser {
                 .map(ViaductSchema.Interface::getName)
                 .collect(Collectors.toCollection(ArrayList::new));
 
-        // Collect all fields (extensions are already merged)
+        // Add union types this object belongs to (union members implement the union interface)
+        for (ViaductSchema.Union union : objectDef.getUnions()) {
+          interfaces.add(union.getName());
+        }
+
+        // Collect all fields (extensions are already merged), skipping `_` which is a Java 9+
+        // keyword reserved by the language and cannot be used as an identifier.
         List<FieldModel> fields = new ArrayList<>();
         for (ViaductSchema.Field field : objectDef.getFields()) {
+          if (field.getName().equals("_")) continue;
           fields.add(createFieldModel(field, typeMapper));
         }
 
@@ -348,8 +355,9 @@ public class GraphQLSchemaParser {
     String fieldName = field.getName();
     String resolverClassName = capitalize(fieldName);
 
-    // Determine return type
-    String returnType = typeMapper.toJavaType(field.getType());
+    // Determine return type (always boxed since it appears inside CompletableFuture<> and
+    // FieldResolverBase<> generic parameters)
+    String returnType = typeMapper.toBoxedJavaType(field.getType());
 
     // Object type (the type containing this field)
     String objectType = grtPackage + "." + typeName;

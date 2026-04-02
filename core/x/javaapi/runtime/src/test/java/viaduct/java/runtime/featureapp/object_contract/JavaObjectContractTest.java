@@ -1,15 +1,22 @@
 package viaduct.java.runtime.featureapp.object_contract;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.Test;
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper;
+import viaduct.engine.api.spi.FieldResolverExecutor;
 import viaduct.engine.api.spi.TenantModuleBootstrapper;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder;
 import viaduct.java.runtime.bridge.JavaModuleBootstrapper;
 import viaduct.java.runtime.featureapp.object_contract.resolverbases.FooResolvers;
 import viaduct.java.runtime.featureapp.object_contract.resolverbases.NestedFooResolvers;
+import viaduct.java.runtime.featureapp.object_contract.resolverbases.PersonResolvers;
 import viaduct.java.runtime.featureapp.object_contract.resolverbases.QueryResolvers;
+import viaduct.service.api.SchemaId;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
@@ -124,5 +131,81 @@ public class JavaObjectContractTest extends ObjectContractTest {
     public CompletableFuture<String> resolve(Context ctx) {
       return CompletableFuture.completedFuture("message from resolver");
     }
+  }
+
+  @Resolver
+  public static class PersonByNameResolver extends QueryResolvers.PersonByName {
+    @Override
+    public CompletableFuture<Person> resolve(Context ctx) {
+      String name = ctx.getArguments().getName();
+      Address address =
+          Address.builder().street("123 Main St").city("San Francisco").country("USA").build();
+      Person person = Person.builder().name(name).age(30).address(address).build();
+      return CompletableFuture.completedFuture(person);
+    }
+  }
+
+  @Resolver(objectValueFragment = "address { street city country }")
+  public static class FullAddressResolver extends PersonResolvers.FullAddress {
+    @Override
+    public CompletableFuture<String> resolve(Context ctx) {
+      Person person = ctx.getObjectValue();
+      Address address = person.getAddress();
+      if (address == null) {
+        return CompletableFuture.completedFuture("No address");
+      }
+      String fullAddress =
+          address.getStreet() + ", " + address.getCity() + ", " + address.getCountry();
+      return CompletableFuture.completedFuture(fullAddress);
+    }
+  }
+
+  @Resolver
+  public static class PersonGreetingResolver extends PersonResolvers.Greeting {
+    @Override
+    public CompletableFuture<String> resolve(Context ctx) {
+      return CompletableFuture.completedFuture("Hello!");
+    }
+  }
+
+  // --- Java-only wiring tests ---
+
+  @Test
+  public void fullAddressResolverHasObjectSelectionSetWired() {
+    FieldResolverExecutor executor = getFieldResolverExecutor("Person", "fullAddress");
+
+    assertNotNull(executor, "Executor for Person.fullAddress should exist");
+    assertNotNull(
+        executor.getObjectSelectionSet(),
+        "FullAddressResolver should have objectSelectionSet wired from objectValueFragment");
+    assertNull(
+        executor.getQuerySelectionSet(),
+        "FullAddressResolver should have null querySelectionSet (no queryValueFragment)");
+  }
+
+  @Test
+  public void greetingResolverWithoutObjectValueFragmentHasNullSelectionSet() {
+    FieldResolverExecutor executor = getFieldResolverExecutor("Person", "greeting");
+
+    assertNotNull(executor, "Executor for Person.greeting should exist");
+    assertNull(
+        executor.getObjectSelectionSet(),
+        "GreetingResolver without objectValueFragment should have null objectSelectionSet");
+    assertNull(
+        executor.getQuerySelectionSet(),
+        "GreetingResolver without queryValueFragment should have null querySelectionSet");
+  }
+
+  private FieldResolverExecutor getFieldResolverExecutor(String typeName, String fieldName) {
+    tryBuildViaductService();
+    var schema = viaductService.getEngineRegistry().getSchema(SchemaId.Full.INSTANCE);
+    var executors = bootstrapper.fieldResolverExecutors(schema);
+    for (var entry : executors) {
+      var coordinate = entry.getFirst();
+      if (typeName.equals(coordinate.getFirst()) && fieldName.equals(coordinate.getSecond())) {
+        return entry.getSecond();
+      }
+    }
+    return null;
   }
 }

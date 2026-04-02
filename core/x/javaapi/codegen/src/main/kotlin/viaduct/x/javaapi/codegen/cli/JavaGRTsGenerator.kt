@@ -88,13 +88,11 @@ class JavaGRTsGenerator : CliktCommand(
         val grtsCodegen = JavaGRTsCodegen()
         val grtsResult = grtsCodegen.generate(schemaFiles, grtOutputDir, resolvedGrtPackage, includeRootTypes)
 
-        // Remove Mutation.java and Subscription.java when includeRootTypes is true:
-        // these types use `_` as a field name which is invalid in Java 9+.
+        // Remove Subscription.java when includeRootTypes is true: the viaduct.java.api.types
+        // package defines marker interfaces for Query and Mutation but not Subscription.
         if (includeRootTypes) {
             val packageSubdir = resolvedGrtPackage.replace('.', File.separatorChar)
-            listOf("Mutation.java", "Subscription.java").forEach { name ->
-                File(grtOutputDir, "$packageSubdir/$name").delete()
-            }
+            File(grtOutputDir, "$packageSubdir/Subscription.java").delete()
         }
 
         // Generate Resolvers (separate step)

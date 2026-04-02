@@ -1,15 +1,18 @@
 package viaduct.java.runtime.bridge
 
+import graphql.schema.GraphQLSchema
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.future.await
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.types.Arguments
+import viaduct.java.api.types.GraphQLObject
 
 /**
  * Kotlin bridge that wraps a Java resolver and implements [FieldResolverExecutor]
@@ -31,6 +34,11 @@ import viaduct.java.api.types.Arguments
  *        Person.fullAddress resolver). Used to convert engine object data to a typed Java instance
  *        when the resolver declares an objectValueFragment. Null if the resolver doesn't need
  *        object value access.
+ * @param queryValueClass The Java class for the Query GRT type. Used to convert engine query data
+ *        to a typed Java instance when the resolver declares a queryValueFragment. Null if the
+ *        resolver doesn't use query value access.
+ * @param graphqlSchema The GraphQL schema, used to look up object types when converting Java GRT
+ *        objects returned by resolvers back into EngineObjectData for the engine.
  */
 class JavaFieldResolverExecutor(
     private val resolveFunction: (FieldExecutionContext<*, *, *, *>) -> CompletableFuture<*>,
@@ -40,6 +48,8 @@ class JavaFieldResolverExecutor(
     override val objectSelectionSet: RequiredSelectionSet? = null,
     override val querySelectionSet: RequiredSelectionSet? = null,
     private val objectValueClass: Class<*>? = null,
+    private val queryValueClass: Class<*>? = null,
+    private val graphqlSchema: GraphQLSchema? = null,
 ) : FieldResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD)
     override val isBatching: Boolean = false
@@ -67,16 +77,88 @@ class JavaFieldResolverExecutor(
     ): Any? {
         val arguments = createArguments(selector.arguments)
         val objectValue = createObjectValue(selector)
+        val queryValue = createQueryValue(selector)
 
         val javaContext = SimpleFieldExecutionContext(
             requestContext = context.requestContext,
             arguments = arguments,
             objectValue = objectValue,
+            queryValue = queryValue,
         )
 
         // Call the Java resolver function and await the CompletableFuture
         val future = resolveFunction(javaContext)
-        return future.await()
+        val result = future.await()
+        // Convert Java GRT objects to EngineObjectData so the engine can process them
+        return convertResult(result)
+    }
+
+    /**
+     * Creates a typed Java query root object from the engine's sync query value getter.
+     *
+     * When a resolver declares a queryValueFragment, the engine pre-resolves those selections and
+     * provides them via the selector's syncQueryValueGetter. This method converts that engine data
+     * into the typed Java query object so the resolver can access it via ctx.getQueryValue().
+     *
+     * Returns null if no queryValueClass is configured or no sync getter is available.
+     */
+    private suspend fun createQueryValue(selector: FieldResolverExecutor.Selector): Any? {
+        if (queryValueClass == null) return null
+        val syncGetter = selector.syncQueryValueGetter ?: return null
+        val syncData = syncGetter()
+        return convertEngineDataToJavaObject(queryValueClass, syncData)
+    }
+
+    /**
+     * Converts a Java GRT result to a form the engine can process.
+     *
+     * Java GRT objects (implementing GraphQLObject) are plain Java POJOs, not EngineObjectData.
+     * The engine requires EngineObjectData for composite types. This method converts Java GRTs
+     * to ResolvedEngineObjectData by reflecting on their getters and looking up the GraphQL type
+     * from the schema.
+     *
+     * Lists are converted element-by-element. Scalars and nulls are returned as-is.
+     */
+    private fun convertResult(result: Any?): Any? {
+        return when (result) {
+            null -> null
+            is GraphQLObject -> convertJavaGRTToEngineObjectData(result)
+            is List<*> -> result.map { convertResult(it) }
+            else -> result
+        }
+    }
+
+    /**
+     * Converts a Java GRT object (plain POJO implementing GraphQLObject) to ResolvedEngineObjectData.
+     *
+     * Uses the class simple name as the GraphQL type name, looks up the GraphQLObjectType from the
+     * schema, and populates field values by reflecting on getter methods.
+     */
+    private fun convertJavaGRTToEngineObjectData(grt: GraphQLObject): EngineObjectData.Sync? {
+        val schema = graphqlSchema ?: return null
+        val typeName = grt.javaClass.simpleName
+        val graphqlType = schema.getObjectType(typeName) ?: return null
+
+        val data = mutableMapOf<String, Any?>()
+        for (method in grt.javaClass.methods) {
+            if (method.parameterCount != 0) continue
+            if (method.declaringClass == Any::class.java) continue
+            val fieldName = when {
+                method.name.startsWith("get") && method.name.length > 3 ->
+                    method.name[3].lowercaseChar() + method.name.substring(4)
+                method.name.startsWith("is") && method.name.length > 2 ->
+                    method.name[2].lowercaseChar() + method.name.substring(3)
+                else -> continue
+            }
+            try {
+                val value = method.invoke(grt)
+                data[fieldName] = convertResult(value)
+            } catch (_: Exception) {
+                // Skip fields that cannot be read
+            }
+        }
+
+        return ResolvedEngineObjectData(graphqlType, data)
     }
 
     /**

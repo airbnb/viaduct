@@ -4,13 +4,16 @@ import org.junit.jupiter.api.Test
 import viaduct.graphql.test.assertEquals
 
 /**
- * Contract test for basic object resolution patterns.
+ * Contract test for object resolution patterns.
  *
  * Defines the SDL and assertions for:
  * - Shorthand and fragment @Resolver patterns
  * - Object builders
  * - Field resolvers returning lists of objects
  * - Field resolvers with arguments
+ * - Object types with non-resolver data fields and nested objects
+ * - Computed field resolvers using objectValueFragment
+ * - Nullable field handling
  *
  * Extend this class and provide resolver implementations to verify that a given
  * runtime correctly supports these patterns.
@@ -35,6 +38,20 @@ abstract class ObjectContractTest : FeatureAppTestBase() {
             |   "Return a plain string value (e.g. \"nested_value\")"
             |   value: String @resolver
             | }
+            | type Address {
+            |   street: String!
+            |   city: String!
+            |   country: String
+            | }
+            | type Person {
+            |   name: String!
+            |   age: Int
+            |   address: Address
+            |   "Compute the full address string; use objectValueFragment with fragment on Person { address { street city country } }; return '<street>, <city>, <country>'"
+            |   fullAddress: String @resolver
+            |   "Return a simple greeting string without accessing any parent object fields"
+            |   greeting: String @resolver
+            | }
             | extend type Query {
             |   "Return a single Foo object"
             |   greeting: Foo @resolver
@@ -44,6 +61,8 @@ abstract class ObjectContractTest : FeatureAppTestBase() {
             |   nestedFooList: [NestedFoo] @resolver
             |   "Receive message (String) and count (Int) arguments via ctx.getArguments(); return a single Foo object"
             |   fooWithArgs(message: String, count: Int): Foo @resolver
+            |   "Receive name argument; return a Person with name=name, age=30, address={street='123 Main St', city='San Francisco', country='USA'}"
+            |   personByName(name: String!): Person @resolver
             | }
             | #END_SCHEMA
         """.trimMargin()
@@ -187,6 +206,72 @@ abstract class ObjectContractTest : FeatureAppTestBase() {
                 "fooWithArgs" to {
                     "message" to "message from resolver"
                     "baz" to "world"
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `personResolverReturnsObjectType`() {
+        execute(
+            query = "query(\$name: String!) { personByName(name: \$name) { name age } }",
+            variables = mapOf("name" to "Alice")
+        ).assertEquals {
+            "data" to {
+                "personByName" to {
+                    "name" to "Alice"
+                    "age" to 30
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `nestedObjectTypesAreAccessible`() {
+        execute(
+            query = "query(\$name: String!) { personByName(name: \$name) { name address { street city country } } }",
+            variables = mapOf("name" to "Bob")
+        ).assertEquals {
+            "data" to {
+                "personByName" to {
+                    "name" to "Bob"
+                    "address" to {
+                        "street" to "123 Main St"
+                        "city" to "San Francisco"
+                        "country" to "USA"
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `objectFieldResolverComputesValue`() {
+        execute(
+            query = "query(\$name: String!) { personByName(name: \$name) { name fullAddress } }",
+            variables = mapOf("name" to "Charlie")
+        ).assertEquals {
+            "data" to {
+                "personByName" to {
+                    "name" to "Charlie"
+                    "fullAddress" to "123 Main St, San Francisco, USA"
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `nullableFieldsHandledCorrectly`() {
+        execute(
+            query = "{ personByName(name: \"Dave\") { name age address { country } } }"
+        ).assertEquals {
+            "data" to {
+                "personByName" to {
+                    "name" to "Dave"
+                    "age" to 30
+                    "address" to {
+                        "country" to "USA"
+                    }
                 }
             }
         }

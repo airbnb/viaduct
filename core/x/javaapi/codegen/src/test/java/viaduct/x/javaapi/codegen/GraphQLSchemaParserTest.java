@@ -244,20 +244,23 @@ class GraphQLSchemaParserTest {
 
     List<ObjectModel> objects = parser.extractObjects(schema, "com.example.types");
 
-    // User implements Node
+    // User implements Node + SearchResult, ExtendableUnion, NodeResult (union membership)
     ObjectModel user =
         objects.stream().filter(o -> o.className().equals("User")).findFirst().orElseThrow();
-    assertThat(user.implementedInterfaces()).containsExactly("Node");
+    assertThat(user.implementedInterfaces())
+        .containsExactlyInAnyOrder("Node", "SearchResult", "ExtendableUnion", "NodeResult");
 
-    // Listing implements Node
+    // Listing implements Node + SearchResult, ExtendableUnion, NodeResult (union membership)
     ObjectModel listing =
         objects.stream().filter(o -> o.className().equals("Listing")).findFirst().orElseThrow();
-    assertThat(listing.implementedInterfaces()).containsExactly("Node");
+    assertThat(listing.implementedInterfaces())
+        .containsExactlyInAnyOrder("Node", "SearchResult", "ExtendableUnion", "NodeResult");
 
-    // Booking implements Node & Timestamped
+    // Booking implements Node & Timestamped + SearchResult, ExtendableUnion (union membership)
     ObjectModel booking =
         objects.stream().filter(o -> o.className().equals("Booking")).findFirst().orElseThrow();
-    assertThat(booking.implementedInterfaces()).containsExactlyInAnyOrder("Node", "Timestamped");
+    assertThat(booking.implementedInterfaces())
+        .containsExactlyInAnyOrder("Node", "Timestamped", "SearchResult", "ExtendableUnion");
   }
 
   @Test
@@ -479,13 +482,13 @@ class GraphQLSchemaParserTest {
     assertThat(activeBookings.returnType()).isEqualTo("List<Booking>");
     assertThat(activeBookings.includeBatchResolve()).isTrue();
 
-    // totalSpent resolver - non-null Float
+    // totalSpent resolver - non-null Float (boxed for use in CompletableFuture<T>)
     ResolverModel totalSpent =
         userResolvers.stream()
             .filter(r -> r.gqlFieldName().equals("totalSpent"))
             .findFirst()
             .orElseThrow();
-    assertThat(totalSpent.returnType()).isEqualTo("double");
+    assertThat(totalSpent.returnType()).isEqualTo("Double");
   }
 
   @Test

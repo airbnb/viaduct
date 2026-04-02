@@ -20,6 +20,18 @@ public class TypeMapper {
     return toJavaType(typeExpr, false);
   }
 
+  /**
+   * Maps a ViaductSchema.TypeExpr to its Java representation, always using boxed types for
+   * primitives. Use this when the type will appear as a generic type parameter (e.g., inside
+   * CompletableFuture or FieldResolverBase).
+   *
+   * @param typeExpr the type expression
+   * @return the boxed Java type string
+   */
+  public String toBoxedJavaType(ViaductSchema.TypeExpr<?> typeExpr) {
+    return toJavaType(typeExpr, true);
+  }
+
   private String toJavaType(ViaductSchema.TypeExpr<?> typeExpr, boolean insideGeneric) {
     if (typeExpr.isList()) {
       // Unwrap one level of list and get the inner type

@@ -195,7 +195,7 @@ class JavaGRTsGeneratorCliTest {
     }
 
     @Test
-    fun `includeRootTypes removes Mutation and Subscription files`() {
+    fun `includeRootTypes keeps Mutation but removes Subscription file`() {
         val schemaFile = tempDir.resolve("schema.graphqls")
         Files.writeString(
             schemaFile,
@@ -228,10 +228,10 @@ class JavaGRTsGeneratorCliTest {
             )
         )
 
-        // Query should be generated (root types included)
+        // Query and Mutation should be generated (root types included, _ field is skipped)
         assertThat(grtOutputDir.resolve("com/example/Query.java")).exists()
-        // Mutation and Subscription should be removed
-        assertThat(grtOutputDir.resolve("com/example/Mutation.java")).doesNotExist()
+        assertThat(grtOutputDir.resolve("com/example/Mutation.java")).exists()
+        // Subscription should be removed (no viaduct.java.api.types.Subscription marker interface)
         assertThat(grtOutputDir.resolve("com/example/Subscription.java")).doesNotExist()
         // Regular types should still exist
         assertThat(grtOutputDir.resolve("com/example/User.java")).exists()

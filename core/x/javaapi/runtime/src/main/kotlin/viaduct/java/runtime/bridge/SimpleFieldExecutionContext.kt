@@ -7,9 +7,7 @@ import viaduct.java.api.types.CompositeOutput
 import viaduct.java.api.types.GraphQLObject
 import viaduct.java.api.types.Query
 
-// Internal marker types for the context implementation
-object AnyQuery : Query
-
+// Internal marker type for the selections type parameter
 object AnySelections : CompositeOutput
 
 /**
@@ -25,14 +23,16 @@ object AnySelections : CompositeOutput
  * @param requestContext The request context from the engine
  * @param arguments The typed Arguments instance (populated from the engine's argument map), or null
  * @param objectValue The parent object value (e.g., a Person instance for a Person.fullAddress resolver), or null
+ * @param queryValue The query root value (populated from the queryValueFragment result), or null
  */
 @Suppress("UNCHECKED_CAST", "TooManyFunctions")
 class SimpleFieldExecutionContext(
     private val requestContext: Any?,
     private val arguments: Arguments? = null,
     private val objectValue: Any? = null,
-) : FieldExecutionContext<GraphQLObject, AnyQuery, Arguments, AnySelections>,
-    FieldResolverBase.Context<GraphQLObject, AnyQuery, Arguments, AnySelections> {
+    private val queryValue: Any? = null,
+) : FieldExecutionContext<GraphQLObject, Query, Arguments, AnySelections>,
+    FieldResolverBase.Context<GraphQLObject, Query, Arguments, AnySelections> {
     override fun getObjectValue(): GraphQLObject {
         if (objectValue != null) {
             return objectValue as GraphQLObject
@@ -42,7 +42,10 @@ class SimpleFieldExecutionContext(
         )
     }
 
-    override fun getQueryValue(): AnyQuery {
+    override fun getQueryValue(): Query {
+        if (queryValue != null) {
+            return queryValue as Query
+        }
         throw UnsupportedOperationException(
             "Query value access not yet implemented for Java resolvers"
         )

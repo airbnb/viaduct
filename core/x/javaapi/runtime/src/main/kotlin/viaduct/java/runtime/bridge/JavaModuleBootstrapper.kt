@@ -158,9 +158,10 @@ class JavaModuleBootstrapper(
                     "Resolver class $resolverClass does not have a 'resolve' method"
                 )
 
-            // Extract the Arguments and object value classes from the resolver base's generic type parameters
+            // Extract the Arguments, object value, and query value classes from the resolver base's generic type parameters
             val argumentsClass = extractArgumentsClass(baseClass)
             val objectValueClass = extractObjectValueClass(baseClass)
+            val queryValueClass = extractQueryValueClass(baseClass)
 
             // Create the executor
             val resolverId = "$typeName.$fieldName"
@@ -191,6 +192,8 @@ class JavaModuleBootstrapper(
                 objectSelectionSet = requiredSelections.objectSelections,
                 querySelectionSet = requiredSelections.querySelections,
                 objectValueClass = objectValueClass,
+                queryValueClass = queryValueClass,
+                graphqlSchema = schema.schema,
             )
 
             val coordinate = typeName to fieldName
@@ -224,6 +227,27 @@ class JavaModuleBootstrapper(
                     val objType = typeArgs[1]
                     if (objType is Class<*>) {
                         return objType
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Extracts the query value class from a resolver base class's generic type parameters.
+     *
+     * FieldResolverBase<T, O, Q, A, S> — Q (index 2) is the query value type.
+     * Returns null if the type cannot be determined.
+     */
+    private fun extractQueryValueClass(baseClass: Class<*>): Class<*>? {
+        for (iface in baseClass.genericInterfaces) {
+            if (iface is ParameterizedType && iface.rawType == FieldResolverBase::class.java) {
+                val typeArgs = iface.actualTypeArguments
+                if (typeArgs.size >= 3) {
+                    val queryType = typeArgs[2]
+                    if (queryType is Class<*>) {
+                        return queryType
                     }
                 }
             }

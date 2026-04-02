@@ -3,6 +3,7 @@ package viaduct.tenant.runtime.execution.objectcontract
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.objectcontract.resolverbases.FooResolvers
 import viaduct.tenant.runtime.execution.objectcontract.resolverbases.NestedFooResolvers
+import viaduct.tenant.runtime.execution.objectcontract.resolverbases.PersonResolvers
 import viaduct.tenant.runtime.execution.objectcontract.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.fixtures.ObjectContractTest
 
@@ -85,5 +86,33 @@ class KotlinObjectContractTest : ObjectContractTest() {
         override suspend fun resolve(ctx: Context): String {
             return "message from resolver"
         }
+    }
+
+    @Resolver
+    class Query_PersonByNameResolver : QueryResolvers.PersonByName() {
+        override suspend fun resolve(ctx: Context): Person {
+            val name = ctx.arguments.name
+            val address = Address.Builder(ctx).street("123 Main St").city("San Francisco").country("USA").build()
+            return Person.Builder(ctx).name(name).age(30).address(address).build()
+        }
+    }
+
+    @Resolver(
+        """
+        fragment _ on Person {
+            address { street city country }
+        }
+        """
+    )
+    class Person_FullAddressResolver : PersonResolvers.FullAddress() {
+        override suspend fun resolve(ctx: Context): String {
+            val address = ctx.objectValue.getAddress() ?: return "No address"
+            return "${address.getStreet()}, ${address.getCity()}, ${address.getCountry()}"
+        }
+    }
+
+    @Resolver
+    class Person_GreetingResolver : PersonResolvers.Greeting() {
+        override suspend fun resolve(ctx: Context): String = "Hello!"
     }
 }
