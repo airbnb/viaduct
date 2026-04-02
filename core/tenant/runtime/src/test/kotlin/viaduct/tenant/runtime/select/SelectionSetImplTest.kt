@@ -29,15 +29,15 @@ class SelectionSetImplTest {
     @Test
     fun `containsField -- object own fields`() {
         val ss = mk(Foo.Reflection, "id")
-        assertTrue(ss.contains(Foo.Reflection.Fields.id))
-        assertFalse(ss.contains(Foo.Reflection.Fields.fooSelf))
+        assertTrue(ss.contains(Foo.Fields.id))
+        assertFalse(ss.contains(Foo.Fields.fooSelf))
     }
 
     @Test
     fun `containsField -- interface own fields`() {
         val ss = mk(Node.Reflection, "id")
-        assertTrue(ss.contains(Node.Reflection.Fields.id))
-        assertFalse(ss.contains(Node.Reflection.Fields.nodeSelf))
+        assertTrue(ss.contains(Node.Fields.id))
+        assertFalse(ss.contains(Node.Fields.nodeSelf))
     }
 
     @Test
@@ -50,11 +50,11 @@ class SelectionSetImplTest {
          * to be included in the selections of any child types, but selections on child types
          * will not be considered to be included on parent types.
          */
-        assertTrue(ss.contains(Node.Reflection.Fields.id))
-        assertFalse(ss.contains(Node.Reflection.Fields.nodeSelf))
+        assertTrue(ss.contains(Node.Fields.id))
+        assertFalse(ss.contains(Node.Fields.nodeSelf))
 
-        assertTrue(ss.contains(Foo.Reflection.Fields.id))
-        assertTrue(ss.contains(Foo.Reflection.Fields.nodeSelf))
+        assertTrue(ss.contains(Foo.Fields.id))
+        assertTrue(ss.contains(Foo.Fields.nodeSelf))
     }
 
     @Test
@@ -166,37 +166,37 @@ class SelectionSetImplTest {
     fun `selectionSetFor field -- object`() {
         // subselecting an unselected field returns empty
         var ss: SelectionSetImpl<Foo> = mk(Foo.Reflection, "__typename @skip(if:true)")
-        assertTrue(ss.selectionSetFor(Foo.Reflection.Fields.fooSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).isEmpty())
 
         // subselecting a populated selection set contains selected fields
         ss = mk(Foo.Reflection, "fooSelf { id }")
-        assertTrue(ss.selectionSetFor(Foo.Reflection.Fields.fooSelf).contains(Foo.Reflection.Fields.id))
+        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).contains(Foo.Fields.id))
     }
 
     @Test
     fun `selectionSetFor field -- interface`() {
         // subselecting an unselected field returns empty
         var ss: SelectionSetImpl<Node> = mk(Node.Reflection, "__typename @skip(if:true)")
-        assertTrue(ss.selectionSetFor(Node.Reflection.Fields.nodeSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Node.Fields.nodeSelf).isEmpty())
 
         // subselecting an interface field contains selected fields
         ss = mk(Node.Reflection, "nodeSelf { id }")
-        assertTrue(ss.selectionSetFor(Node.Reflection.Fields.nodeSelf).contains(Node.Reflection.Fields.id))
+        assertTrue(ss.selectionSetFor(Node.Fields.nodeSelf).contains(Node.Fields.id))
 
         // subselecting an impl field traverses type conditions
         ss = mk(Node.Reflection, "... on Foo { nodeSelf { id } }")
-        assertTrue(ss.selectionSetFor(Foo.Reflection.Fields.nodeSelf).contains(Node.Reflection.Fields.id))
-        assertTrue(ss.selectionSetFor(Node.Reflection.Fields.nodeSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Foo.Fields.nodeSelf).contains(Node.Fields.id))
+        assertTrue(ss.selectionSetFor(Node.Fields.nodeSelf).isEmpty())
 
         // subselecting an impl field will merge interface and impl selections
         ss = mk(Node.Reflection, "nodeSelf { nodeSelf { id } } ... on Foo { nodeSelf { id } }")
-        ss.selectionSetFor(Foo.Reflection.Fields.nodeSelf).let {
-            assertTrue(it.contains(Node.Reflection.Fields.nodeSelf)) // interface selection
-            assertTrue(it.contains(Node.Reflection.Fields.id)) // impl selection
+        ss.selectionSetFor(Foo.Fields.nodeSelf).let {
+            assertTrue(it.contains(Node.Fields.nodeSelf)) // interface selection
+            assertTrue(it.contains(Node.Fields.id)) // impl selection
         }
-        ss.selectionSetFor(Node.Reflection.Fields.nodeSelf).let {
-            assertTrue(it.contains(Node.Reflection.Fields.nodeSelf)) // interface selection
-            assertFalse(it.contains(Node.Reflection.Fields.id)) // impl selection is excluded because it is guarded by a type condition
+        ss.selectionSetFor(Node.Fields.nodeSelf).let {
+            assertTrue(it.contains(Node.Fields.nodeSelf)) // interface selection
+            assertFalse(it.contains(Node.Fields.id)) // impl selection is excluded because it is guarded by a type condition
         }
     }
 
@@ -204,15 +204,15 @@ class SelectionSetImplTest {
     fun `selectionSetFor field -- union`() {
         // empty
         var ss: SelectionSetImpl<FooOrBar> = mk(FooOrBar.Reflection, "__typename @skip(if:true)")
-        assertTrue(ss.selectionSetFor(Foo.Reflection.Fields.fooSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).isEmpty())
 
         // empty fragment
         ss = mk(FooOrBar.Reflection, "... on Foo { fooSelf { id @skip(if:true) } }")
-        assertTrue(ss.selectionSetFor(Foo.Reflection.Fields.fooSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).isEmpty())
 
         // non-empty fragment
         ss = mk(FooOrBar.Reflection, "... on Foo { fooSelf { id } }")
-        assertTrue(ss.selectionSetFor(Foo.Reflection.Fields.fooSelf).contains(Foo.Reflection.Fields.id))
+        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).contains(Foo.Fields.id))
     }
 
     @Test
@@ -230,13 +230,13 @@ class SelectionSetImplTest {
 
         // an implementation can be projected even without type conditions
         ss = mk(Node.Reflection, "id")
-        assertTrue(ss.selectionSetFor(Foo.Reflection).contains(Foo.Reflection.Fields.id))
+        assertTrue(ss.selectionSetFor(Foo.Reflection).contains(Foo.Fields.id))
 
         // projecting an implementing type merges selections of impl and interface
         ss = mk(Node.Reflection, "id ... on Foo { fooSelf { id } }")
         ss.selectionSetFor(Foo.Reflection).let {
-            assertTrue(it.contains(Foo.Reflection.Fields.id))
-            assertTrue(it.contains(Foo.Reflection.Fields.fooSelf))
+            assertTrue(it.contains(Foo.Fields.id))
+            assertTrue(it.contains(Foo.Fields.fooSelf))
         }
     }
 
@@ -253,7 +253,7 @@ class SelectionSetImplTest {
 
         // a member can be projected with type conditions
         ss = mk(FooOrBar.Reflection, "... on Foo { id }")
-        assertTrue(ss.selectionSetFor(Foo.Reflection).contains(Foo.Reflection.Fields.id))
+        assertTrue(ss.selectionSetFor(Foo.Reflection).contains(Foo.Fields.id))
     }
 
     @Test
@@ -306,8 +306,8 @@ class SelectionSetImplTest {
             it.selectionSetFor(Foo.Reflection).also {
                 assertEquals(Foo.Reflection, it.type)
 
-                assertEquals(Node.Reflection, it.selectionSetFor(Foo.Reflection.Fields.nodeSelf).type)
-                assertEquals(Foo.Reflection, it.selectionSetFor(Foo.Reflection.Fields.fooSelf).type)
+                assertEquals(Node.Reflection, it.selectionSetFor(Foo.Fields.nodeSelf).type)
+                assertEquals(Foo.Reflection, it.selectionSetFor(Foo.Fields.fooSelf).type)
             }
         }
     }

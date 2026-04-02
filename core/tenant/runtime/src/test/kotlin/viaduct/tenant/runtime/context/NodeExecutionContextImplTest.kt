@@ -56,7 +56,7 @@ class NodeExecutionContextImplTest : ContextTestBase() {
     fun selectionsFor() {
         val ctx = mk()
         val ss = ctx.selectionsFor(Query.Reflection, "__typename", mapOf("var" to true))
-        assertTrue(ss.contains(Query.Reflection.Fields.__typename))
+        assertTrue(ss.contains(Query.Fields.__typename))
         val inner = (ss as SelectionSetImpl<*>).engineSelectionSet
         assertEquals(mapOf("var" to true), inner.variables())
     }

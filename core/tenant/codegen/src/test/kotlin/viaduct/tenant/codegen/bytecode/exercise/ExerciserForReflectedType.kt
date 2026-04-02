@@ -18,6 +18,14 @@ internal fun Exerciser.exerciseReflectionObject(
             exerciseType("REFLECTION_TYPE", def, type)
         }
     }
+
+    if (def is ViaductSchema.Record || def is ViaductSchema.Union) {
+        check.withNestedClass(container, "Fields", "REFLECTION_TYPE_FIELDS") { fieldsCls ->
+            check.withObjectInstance(fieldsCls, "REFLECTION_TYPE_FIELDS_IS_OBJECT") { fields ->
+                exerciseFieldsObject("REFLECTION_TYPE", def, fields)
+            }
+        }
+    }
 }
 
 /** Exercise a `Type` instance */
@@ -32,14 +40,6 @@ private fun Exerciser.exerciseType(
 
     type as Type<*>
     check.isEqualTo(exp.name, type.name, "${prefix}_TYPE_NAME")
-
-    if (exp is ViaductSchema.Record) {
-        check.withNestedClass(type::class, "Fields", "${prefix}_FIELDS") { fieldsCls ->
-            check.withObjectInstance(fieldsCls, "${prefix}_FIELDS_IS_OBJECT") { fields ->
-                exerciseFieldsObject(prefix, exp, fields)
-            }
-        }
-    }
 }
 
 /** Exercise the `Fields` object of a type */

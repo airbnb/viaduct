@@ -14,7 +14,8 @@ import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
 
 @VisibleForTest
-fun KotlinGRTFilesBuilder.interfaceKotlinGen(typeDef: ViaductSchema.Interface) = STContents(interfaceSTGroup, InterfaceModelImpl(typeDef, pkg, reflectedTypeGen(typeDef), baseTypeMapper))
+fun KotlinGRTFilesBuilder.interfaceKotlinGen(typeDef: ViaductSchema.Interface) =
+    STContents(interfaceSTGroup, InterfaceModelImpl(typeDef, pkg, reflectedTypeGen(typeDef), fieldsObjectGen(typeDef), baseTypeMapper))
 
 private interface InterfaceModel {
     /** Packege into which code will be generated. */
@@ -34,6 +35,9 @@ private interface InterfaceModel {
 
     /** A rendered template string that describes this types Reflection object */
     val reflection: String
+
+    /** A rendered template string that describes this type's Fields object */
+    val fieldsObject: String
 
     /** Submodel for "fields" in this type. */
     class FieldModel(
@@ -63,6 +67,7 @@ private val interfaceSTGroup =
         }; separator="\n">
 
         <mdl.reflection>
+        <mdl.fieldsObject>
     }
 """
     )
@@ -71,11 +76,13 @@ private class InterfaceModelImpl(
     private val typeDef: ViaductSchema.Interface,
     override val pkg: String,
     reflectedType: STContents,
+    fieldsObject: STContents,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper
 ) : InterfaceModel {
     override val className = typeDef.name
 
     override val reflection: String = reflectedType.toString()
+    override val fieldsObject: String = fieldsObject.toString()
 
     override val superTypes = run {
         val result = mutableListOf(cfg.INTERFACE_GRT.toString())

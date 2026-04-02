@@ -56,10 +56,6 @@ private class ReflectedTypeBuilder(
     fun build() {
         buildNameProperty()
         buildKclsProperty()
-        if (def is ViaductSchema.Record || def is ViaductSchema.Union) {
-            FieldsObjectBuilder(grtClassFilesBuilder, typeBuilder, def)
-                .build()
-        }
     }
 
     /**
@@ -111,6 +107,15 @@ private class ReflectedTypeBuilder(
                 }
             )
         }
+    }
+}
+
+internal fun GRTClassFilesBuilder.fieldsObjectGen(
+    def: ViaductSchema.TypeDef,
+    container: CustomClassBuilder
+) {
+    if (def is ViaductSchema.Record || def is ViaductSchema.Union) {
+        FieldsObjectBuilder(this, container, def).build()
     }
 }
 

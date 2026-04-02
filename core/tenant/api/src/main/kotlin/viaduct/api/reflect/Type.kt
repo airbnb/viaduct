@@ -38,7 +38,7 @@ interface Type<out T : GRT> {
 }
 
 /**
- * Marker interface for the `Fields` object nested within a type's `Reflection` object.
+ * Marker interface for the `Fields` object nested within a GRT class.
  * The `Fields` object contains [Field] descriptors for each field on the type.
  */
 @StableApi

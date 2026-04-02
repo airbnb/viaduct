@@ -24,6 +24,7 @@ fun KotlinGRTFilesBuilder.objectKotlinGen(typeDef: ViaductSchema.Object): STCont
         typeDef = typeDef,
         pkg = pkg,
         reflectedTypeGen = reflectedTypeGen(typeDef),
+        fieldsObjectGen = fieldsObjectGen(typeDef),
         baseTypeMapper = baseTypeMapper,
         isQueryType = typeDef.isQueryType(),
         isMutationType = typeDef.isMutationType(),
@@ -79,6 +80,9 @@ private interface ObjectModel {
 
     /** A rendered template string that describes this type's Reflection object. */
     val reflection: String
+
+    /** A rendered template string that describes this type's Fields object. */
+    val fieldsObject: String
 
     /** Whether this is a @connection type. */
     val isConnection: Boolean
@@ -168,6 +172,7 @@ private val objectSTGroup = stTemplate(
         }
 
         <mdl.reflection>
+        <mdl.fieldsObject>
     }
 """
 )
@@ -237,6 +242,7 @@ private val connectionObjectSTGroup = stTemplate(
         }
 
         <mdl.reflection>
+        <mdl.fieldsObject>
     }
 """
 )
@@ -245,6 +251,7 @@ private class ObjectModelImpl(
     private val typeDef: ViaductSchema.Object,
     override val pkg: String,
     reflectedTypeGen: STContents,
+    fieldsObjectGen: STContents,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
     private val isQueryType: Boolean,
     private val isMutationType: Boolean,
@@ -253,6 +260,7 @@ private class ObjectModelImpl(
     override val className: String get() = typeDef.name
 
     override val reflection: String = reflectedTypeGen.toString()
+    override val fieldsObject: String = fieldsObjectGen.toString()
 
     override val isConnection: Boolean = connectionInfo != null
 

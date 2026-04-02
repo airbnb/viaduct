@@ -234,7 +234,7 @@ class InputLikeBaseTest {
     @Test
     fun `test arguments type`() {
         val argumentName = O2_ArgumentedField_Arguments::class.simpleName!!
-        val coord = (O2.Reflection.name to O2.Reflection.Fields.argumentedField.name).gj
+        val coord = (O2.Reflection.name to O2.Fields.argumentedField.name).gj
         val arguments = gqlSchema.schema.getFieldDefinition(coord).arguments
         val fields = arguments.map {
             val builder = GraphQLInputObjectField.Builder()

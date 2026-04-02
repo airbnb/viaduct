@@ -33,6 +33,7 @@ fun KotlinGRTFilesBuilder.inputKotlinGen(
             desc.fields,
             taggingInterface,
             desc.def?.let(::reflectedTypeGen),
+            desc.def?.let(::fieldsObjectGen),
             baseTypeMapper,
             connectionArgumentsSupertype = connectionInfo.interfaceToAdd?.let { ", ${it.asJavaName}" } ?: "",
             overrideFieldNames = connectionInfo.overrideFieldNames,
@@ -59,6 +60,9 @@ private interface InputModel {
 
     /** A rendered template string that describes this types Reflection object */
     val reflection: String
+
+    /** A rendered template string that describes this type's Fields object */
+    val fieldsObject: String
 
     /**
      * Additional supertype for ConnectionArguments interfaces.
@@ -142,6 +146,7 @@ private val inputSTGroup =
         }
 
         <mdl.reflection>
+        <mdl.fieldsObject>
     }
 """
     )
@@ -152,6 +157,7 @@ private class InputModelImpl(
     fieldDefs: Iterable<ViaductSchema.HasDefaultValue>,
     override val taggingInterface: String,
     reflectedType: STContents?,
+    fieldsObject: STContents?,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
     override val connectionArgumentsSupertype: String = "",
     overrideFieldNames: Set<String> = emptySet(),
@@ -161,6 +167,7 @@ private class InputModelImpl(
         InputModel.FieldModel(pkg, it, baseTypeMapper, isOverride = it.name in overrideFieldNames)
     }
     override val reflection: String = reflectedType?.toString() ?: ""
+    override val fieldsObject: String = fieldsObject?.toString() ?: ""
     private val inputTypeMethod: String = InputTypeFactoryConfig.getFactoryMethodName(taggingInterface)
     override val inputTypeCall: String = if (containingField != null) {
         """InputTypeFactory.argumentsInputType("$className", "${containingField.containingDef.name}", "${containingField.name}", context.internal.schema)"""

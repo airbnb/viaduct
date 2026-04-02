@@ -72,7 +72,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
     fun `selectionsFor -- no variables`() {
         val ctx = mk()
         val ss = ctx.selectionsFor(Query.Reflection, "__typename")
-        assertTrue(ss.contains(Query.Reflection.Fields.__typename))
+        assertTrue(ss.contains(Query.Fields.__typename))
         val inner = (ss as SelectionSetImpl).engineSelectionSet
         assertTrue(inner.variables().isEmpty())
     }
@@ -81,7 +81,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
     fun `selectionsFor -- variables`() {
         val ctx = mk()
         val ss = ctx.selectionsFor(Query.Reflection, "__typename", mapOf("var" to true))
-        assertTrue(ss.contains(Query.Reflection.Fields.__typename))
+        assertTrue(ss.contains(Query.Fields.__typename))
         val inner = (ss as SelectionSetImpl).engineSelectionSet
         assertEquals(mapOf("var" to true), inner.variables())
     }
@@ -112,12 +112,12 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             emptyMap()
         )
 
-        assertTrue(ss.contains(Foo.Reflection.Fields.id))
-        assertTrue(ss.contains(Foo.Reflection.Fields.fooSelf))
-        assertTrue(ss.contains(Foo.Reflection.Fields.fooId))
+        assertTrue(ss.contains(Foo.Fields.id))
+        assertTrue(ss.contains(Foo.Fields.fooSelf))
+        assertTrue(ss.contains(Foo.Fields.fooId))
 
-        val subSelections = ss.selectionSetFor(Foo.Reflection.Fields.fooSelf)
-        assertTrue(subSelections.contains(Foo.Reflection.Fields.fooId))
+        val subSelections = ss.selectionSetFor(Foo.Fields.fooSelf)
+        assertTrue(subSelections.contains(Foo.Fields.fooId))
     }
 
     @Test
@@ -142,9 +142,9 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             emptyMap()
         )
 
-        assertTrue(selectionsSkip.contains(Foo.Reflection.Fields.id))
-        assertFalse(selectionsSkip.contains(Foo.Reflection.Fields.fooSelf))
-        assertFalse(selectionsSkip.contains(Foo.Reflection.Fields.fooId))
+        assertTrue(selectionsSkip.contains(Foo.Fields.id))
+        assertFalse(selectionsSkip.contains(Foo.Fields.fooSelf))
+        assertFalse(selectionsSkip.contains(Foo.Fields.fooId))
 
         val selectionsInclude = ctx.selectionsFor(
             Foo.Reflection,
@@ -152,9 +152,9 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             emptyMap()
         )
 
-        assertTrue(selectionsInclude.contains(Foo.Reflection.Fields.id))
-        assertTrue(selectionsInclude.contains(Foo.Reflection.Fields.fooSelf))
-        assertTrue(selectionsInclude.contains(Foo.Reflection.Fields.fooId))
+        assertTrue(selectionsInclude.contains(Foo.Fields.id))
+        assertTrue(selectionsInclude.contains(Foo.Fields.fooSelf))
+        assertTrue(selectionsInclude.contains(Foo.Fields.fooId))
     }
 
     @Test
@@ -167,8 +167,8 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             mapOf("skipIt" to true)
         )
 
-        assertTrue(selectionsSkipTrue.contains(Foo.Reflection.Fields.id))
-        assertFalse(selectionsSkipTrue.contains(Foo.Reflection.Fields.fooSelf))
+        assertTrue(selectionsSkipTrue.contains(Foo.Fields.id))
+        assertFalse(selectionsSkipTrue.contains(Foo.Fields.fooSelf))
 
         val selectionsSkipFalse = ctx.selectionsFor(
             Foo.Reflection,
@@ -176,8 +176,8 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             mapOf("skipIt" to false)
         )
 
-        assertTrue(selectionsSkipFalse.contains(Foo.Reflection.Fields.id))
-        assertTrue(selectionsSkipFalse.contains(Foo.Reflection.Fields.fooSelf))
+        assertTrue(selectionsSkipFalse.contains(Foo.Fields.id))
+        assertTrue(selectionsSkipFalse.contains(Foo.Fields.fooSelf))
 
         val selectionsIncludeTrue = ctx.selectionsFor(
             Foo.Reflection,
@@ -185,8 +185,8 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             mapOf("includeIt" to true)
         )
 
-        assertTrue(selectionsIncludeTrue.contains(Foo.Reflection.Fields.id))
-        assertTrue(selectionsIncludeTrue.contains(Foo.Reflection.Fields.fooSelf))
+        assertTrue(selectionsIncludeTrue.contains(Foo.Fields.id))
+        assertTrue(selectionsIncludeTrue.contains(Foo.Fields.fooSelf))
 
         val selectionsIncludeFalse = ctx.selectionsFor(
             Foo.Reflection,
@@ -194,8 +194,8 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             mapOf("includeIt" to false)
         )
 
-        assertTrue(selectionsIncludeFalse.contains(Foo.Reflection.Fields.id))
-        assertFalse(selectionsIncludeFalse.contains(Foo.Reflection.Fields.fooSelf))
+        assertTrue(selectionsIncludeFalse.contains(Foo.Fields.id))
+        assertFalse(selectionsIncludeFalse.contains(Foo.Fields.fooSelf))
     }
 
     @Test
@@ -207,8 +207,8 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             emptyMap()
         )
 
-        assertTrue(ss.contains(Foo.Reflection.Fields.id))
-        assertTrue(ss.contains(Foo.Reflection.Fields.fooSelf))
+        assertTrue(ss.contains(Foo.Fields.id))
+        assertTrue(ss.contains(Foo.Fields.fooSelf))
 
         val inner = (ss as SelectionSetImpl).engineSelectionSet
         assertTrue(inner.variables().isEmpty())

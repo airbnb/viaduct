@@ -9,7 +9,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 
 @VisibleForTest
-fun KotlinGRTFilesBuilder.unionKotlinGen(typeDef: ViaductSchema.Union) = STContents(unionSTGroup, UnionModelImpl(typeDef, pkg, reflectedTypeGen(typeDef)))
+fun KotlinGRTFilesBuilder.unionKotlinGen(typeDef: ViaductSchema.Union) = STContents(unionSTGroup, UnionModelImpl(typeDef, pkg, reflectedTypeGen(typeDef), fieldsObjectGen(typeDef)))
 
 private interface UnionModel {
     /** Packege into which code will be generated. */
@@ -20,6 +20,9 @@ private interface UnionModel {
 
     /** A rendered template string that describes this types Reflection object */
     val reflection: String
+
+    /** A rendered template string that describes this type's Fields object */
+    val fieldsObject: String
 }
 
 private val unionSTGroup = stTemplate(
@@ -33,6 +36,7 @@ private val unionSTGroup = stTemplate(
     @OptIn(InternalApi::class)
     interface <mdl.className> : ${cfg.UNION_GRT} {
       <mdl.reflection>
+      <mdl.fieldsObject>
     }
 """
 )
@@ -40,9 +44,11 @@ private val unionSTGroup = stTemplate(
 private class UnionModelImpl(
     private val typeDef: ViaductSchema.Union,
     override val pkg: String,
-    reflectedType: STContents
+    reflectedType: STContents,
+    fieldsObject: STContents,
 ) : UnionModel {
     override val reflection: String = reflectedType.toString()
+    override val fieldsObject: String = fieldsObject.toString()
 
     override val className = typeDef.name
 }

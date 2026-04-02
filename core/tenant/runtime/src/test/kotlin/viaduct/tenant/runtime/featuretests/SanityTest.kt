@@ -127,7 +127,7 @@ class SanityTest {
             .resolver(
                 "Query" to "foo",
                 { ctx: FieldExecutionContext<Query, Query, Arguments, Foo> ->
-                    assertTrue(ctx.selections().contains(Foo.Reflection.Fields.value))
+                    assertTrue(ctx.selections().contains(Foo.Fields.value))
                     null
                 }
             )

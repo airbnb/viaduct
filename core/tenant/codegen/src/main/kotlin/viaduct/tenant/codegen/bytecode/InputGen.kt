@@ -31,6 +31,7 @@ internal fun GRTClassFilesBuilder.inputGen(def: ViaductSchema.Input) {
         cfg.INPUT_GRT.asKmName
     ).let {
         this.reflectedTypeGen(def, it)
+        this.fieldsObjectGen(def, it)
     }
 }
 

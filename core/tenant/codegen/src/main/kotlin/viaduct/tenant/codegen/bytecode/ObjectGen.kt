@@ -42,6 +42,7 @@ internal fun GRTClassFilesBuilder.objectGenV2(def: ViaductSchema.Object) {
 
     this.objectBuilderGenV2(def, builder)
     this.reflectedTypeGen(def, builder)
+    this.fieldsObjectGen(def, builder)
 }
 
 /**

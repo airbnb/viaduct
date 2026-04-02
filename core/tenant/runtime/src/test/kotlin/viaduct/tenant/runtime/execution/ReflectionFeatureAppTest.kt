@@ -41,8 +41,8 @@ class ReflectionFeatureAppTest : FeatureAppTestBase() {
     class Query_CategoryResolver : QueryResolvers.Category() {
         override suspend fun resolve(ctx: Context) =
             Category.Builder(ctx).also { builder ->
-                if (ctx.selections().contains(Category.Reflection.Fields.id)) {
-                    builder.put(Category.Reflection.Fields.id.name, ctx.arguments.id)
+                if (ctx.selections().contains(Category.Fields.id)) {
+                    builder.put(Category.Fields.id.name, ctx.arguments.id)
                 }
             }.build()
     }

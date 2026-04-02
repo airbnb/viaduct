@@ -95,14 +95,14 @@ class ObjectV2(
     object Reflection : Type<ObjectV2> {
         override val kcls = ObjectV2::class
         override val name = "ObjectV2"
+    }
 
-        object Fields : TypeFields<ObjectV2> {
-            val __typename = FieldImpl("__typename", Reflection)
-            val intField = FieldImpl("intField", Reflection)
-            val stringField = FieldImpl("stringField", Reflection)
-            val listField = FieldImpl("listField", Reflection)
-            val nestedListField = FieldImpl("nestedListField", Reflection)
-        }
+    object Fields : TypeFields<ObjectV2> {
+        val __typename = FieldImpl("__typename", Reflection)
+        val intField = FieldImpl("intField", Reflection)
+        val stringField = FieldImpl("stringField", Reflection)
+        val listField = FieldImpl("listField", Reflection)
+        val nestedListField = FieldImpl("nestedListField", Reflection)
     }
 }
 
@@ -262,14 +262,14 @@ class InputV2 internal constructor(
     object Reflection : Type<InputV2> {
         override val name: String = "InputV2"
         override val kcls: KClass<out InputV2> = InputV2::class
+    }
 
-        object Fields : TypeFields<InputV2> {
-            val __typename = FieldImpl("__typename", Reflection)
-            val stringField = FieldImpl("stringField", Reflection)
-            val intField = FieldImpl("intField", Reflection)
-            val listField = FieldImpl("listField", Reflection)
-            val nestedField = FieldImpl("nestedField", Reflection)
-        }
+    object Fields : TypeFields<InputV2> {
+        val __typename = FieldImpl("__typename", Reflection)
+        val stringField = FieldImpl("stringField", Reflection)
+        val intField = FieldImpl("intField", Reflection)
+        val listField = FieldImpl("listField", Reflection)
+        val nestedField = FieldImpl("nestedField", Reflection)
     }
 }
 

@@ -11,5 +11,6 @@ internal fun GRTClassFilesBuilder.unionGenV2(def: ViaductSchema.Union) {
     ).also {
         it.addSupertype(cfg.UNION_GRT.asKmName.asType())
         reflectedTypeGen(def, it)
+        fieldsObjectGen(def, it)
     }
 }

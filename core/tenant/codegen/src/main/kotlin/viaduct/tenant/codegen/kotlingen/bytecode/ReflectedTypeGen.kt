@@ -16,6 +16,9 @@ import viaduct.tenant.codegen.bytecode.config.kmType
 @VisibleForTest
 fun KotlinGRTFilesBuilder.reflectedTypeGen(def: ViaductSchema.TypeDef): STContents = STContents(stGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper))
 
+@VisibleForTest
+fun KotlinGRTFilesBuilder.fieldsObjectGen(def: ViaductSchema.TypeDef): STContents = STContents(fieldsSTGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper))
+
 private interface ReflectedTypeModel {
     /** GraphQL name of this type */
     val name: String
@@ -63,13 +66,18 @@ private val typeST =
     object ${cfg.REFLECTION_NAME} : ${cfg.REFLECTED_TYPE}\<<mdl.grtFqName>\> {
         override final val name = "<mdl.name>"
         override final val kcls = <mdl.grtFqName>::class
-
-        <if(mdl.typeHasFieldsObject)>
-        object Fields : ${cfg.REFLECTED_TYPE_FIELDS}\<<mdl.grtFqName>\> {
-            <mdl.fields:field(); separator="\n">
-        }
-        <endif>
     }
+"""
+    )
+
+private val fieldsST =
+    stTemplate(
+        """
+    <if(mdl.typeHasFieldsObject)>
+    object Fields : ${cfg.REFLECTED_TYPE_FIELDS}\<<mdl.grtFqName>\> {
+        <mdl.fields:field(); separator="\n">
+    }
+    <endif>
 """
     )
 
@@ -99,7 +107,8 @@ private val fieldST =
 """
     )
 
-private val stGroup = typeST + fieldST
+private val stGroup = typeST
+private val fieldsSTGroup = fieldsST + fieldST
 
 private class ReflectedTypeModelImpl(
     val pkg: String,
