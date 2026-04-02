@@ -224,7 +224,7 @@ Selection execution wraps failures in `SubqueryExecutionException`:
 - **Plan build issues**: Wrapped in `queryPlanBuildFailed(e)`
 - **Field resolution failures**: Wrapped in `fieldResolutionFailed(e)`
 
-Note that `EngineSelectionSet.Empty` throws `IllegalArgumentException` (not `SubqueryExecutionException`) since it represents a programmer error rather than a runtime failure.
+Note that an empty `EngineSelectionSet` causes `IllegalArgumentException` (not `SubqueryExecutionException`) since it represents a programmer error rather than a runtime failure.
 
 Each `ExecutionParameters` has its own `ErrorAccumulator`, so selection errors flow back into `EngineResult.errors` with correct attribution. From the tenant side, failures surface as errors on the returned GRT object's result, just like top-level execution errors.
 

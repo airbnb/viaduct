@@ -39,6 +39,22 @@ internal class ProjectedEngineSelectionSet(
 ) : EngineSelectionSet {
     override val type: String get() = concreteType.name
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+
+        // Equality is defined by the projected backing impl, not by object identity or by the
+        // original abstract selection set this may have been derived from. A projection to Foo
+        // should compare equal to its canonical EngineSelectionSetImpl(def=Foo, ...), but not to
+        // a sibling projection of the same abstract parent onto a different concrete type.
+        return when (other) {
+            is ProjectedEngineSelectionSet -> sourceImpl == other.sourceImpl
+            is EngineSelectionSetImpl -> sourceImpl == other
+            else -> false
+        }
+    }
+
+    override fun hashCode(): Int = sourceImpl.hashCode()
+
     override fun containsField(
         type: String,
         field: String

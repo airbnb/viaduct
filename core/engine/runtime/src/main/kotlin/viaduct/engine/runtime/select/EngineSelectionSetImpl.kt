@@ -90,6 +90,31 @@ data class EngineSelectionSetImpl(
 ) : EngineSelectionSet {
     override val type: String get() = def.name
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+
+        val otherImpl = when (other) {
+            is EngineSelectionSetImpl -> other
+            is ProjectedEngineSelectionSet -> other.sourceImpl
+            else -> return false
+        }
+
+        return def == otherImpl.def &&
+            selections == otherImpl.selections &&
+            requestedTypes == otherImpl.requestedTypes &&
+            constraints == otherImpl.constraints &&
+            ctx == otherImpl.ctx
+    }
+
+    override fun hashCode(): Int {
+        var result = def.hashCode()
+        result = 31 * result + selections.hashCode()
+        result = 31 * result + requestedTypes.hashCode()
+        result = 31 * result + constraints.hashCode()
+        result = 31 * result + ctx.hashCode()
+        return result
+    }
+
     override fun selections(): List<EngineSelection> = selections.map { it.toEngineSelection() }
 
     override fun traversableSelections(): List<EngineSelection> {

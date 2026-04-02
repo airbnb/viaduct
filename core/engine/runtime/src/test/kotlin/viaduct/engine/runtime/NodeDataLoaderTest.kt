@@ -1,6 +1,7 @@
 package viaduct.engine.runtime
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -9,6 +10,7 @@ import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
+import viaduct.engine.runtime.select.ProjectedEngineSelectionSet
 
 class NodeDataLoaderTest {
     private val id1 = "1"
@@ -111,6 +113,21 @@ class NodeDataLoaderTest {
         val selector = NodeResolverExecutor.Selector("id1", selections)
         val other = NodeResolverExecutor.Selector("id2", selections)
         assertFalse(selector.covers(other, isSelective = true))
+    }
+
+    @Test
+    fun `selectors compare equal when one side holds a projected selection set`() {
+        val projectedSelections = selectionSetFactory
+            .engineSelectionSet("Node", "id ... on Test { bar }", emptyMap())
+            .selectionSetForType("Test")
+        assertTrue(projectedSelections is ProjectedEngineSelectionSet)
+
+        val sourceSelections = (projectedSelections as ProjectedEngineSelectionSet).sourceImpl
+        val selector = NodeResolverExecutor.Selector("id1", sourceSelections)
+        val other = NodeResolverExecutor.Selector("id1", projectedSelections)
+
+        assertEquals(selector, other)
+        assertEquals(selector.hashCode(), other.hashCode())
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

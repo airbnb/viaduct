@@ -19,8 +19,10 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcherImpl
 import viaduct.engine.runtime.DispatcherRegistry
@@ -35,6 +37,11 @@ import viaduct.engine.runtime.objectEngineResult
 
 class AccessCheckRunnerTest {
     val runner = AccessCheckRunner(DefaultCoroutineInterop)
+    private val emptyFooSelectionSet = createEngineSelectionSet(
+        ParsedSelections.empty("Foo"),
+        MockSchema.mk("type Foo { id: ID }"),
+        emptyMap()
+    )
 
     val mockSupplier = mockk<Supplier<DataFetchingEnvironment>>()
     val mockDataFetchingEnvironment = mockk<DataFetchingEnvironment>()
@@ -221,7 +228,7 @@ class AccessCheckRunnerTest {
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), typeChecks)
         val engineExecutionContext = mockk<EngineExecutionContextImpl> {
             every { dispatcherRegistry } returns registry
-            every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns EngineSelectionSet.empty("Foo")
+            every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns emptyFooSelectionSet
             every { activeSchema } returns mockk()
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
@@ -286,7 +293,7 @@ class AccessCheckRunnerTest {
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), checkerDispatchers)
         val engineExecutionContext = mockk<EngineExecutionContextImpl> {
             every { dispatcherRegistry } returns registry
-            every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns EngineSelectionSet.empty("Foo")
+            every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns emptyFooSelectionSet
             every { activeSchema } returns mockk()
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
@@ -317,7 +324,7 @@ class AccessCheckRunnerTest {
         val context = ContextMocks(
             myEngineExecutionContext = mockk<EngineExecutionContextImpl> {
                 every { dispatcherRegistry } returns registry
-                every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns EngineSelectionSet.empty("Foo")
+                every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns emptyFooSelectionSet
                 every { activeSchema } returns mockk()
                 every { fieldScopeSupplier } returns mockk()
                 every { dataFetchingEnvironment } returns null

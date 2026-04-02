@@ -5,13 +5,14 @@ import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.EngineSelectionSet
 
 @ExperimentalCoroutinesApi
 class SelectionSetFactoryImplTest : Assertions() {
     @Test
     fun `selectionsOn -- simple`() {
-        val emptyEngineSelectionSet = EngineSelectionSet.empty("id")
+        val emptyEngineSelectionSet = mockk<viaduct.engine.api.EngineSelectionSet> {
+            every { isTransitivelyEmpty() } returns true
+        }
         val factory = SelectionSetFactoryImpl(
             mockk {
                 every {

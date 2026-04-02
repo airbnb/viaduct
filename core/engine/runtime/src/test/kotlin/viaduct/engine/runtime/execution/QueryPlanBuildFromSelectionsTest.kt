@@ -14,11 +14,12 @@ import strikt.assertions.isNotNull
 import strikt.assertions.isNotSameInstanceAs
 import strikt.assertions.isSameInstanceAs
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ParsedSelections
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
-import viaduct.engine.runtime.select.EngineSelectionSetImpl
 
 /**
  * Tests for [QueryPlanFactory.buildFromSelections] which builds a QueryPlan from a EngineSelectionSet
@@ -26,7 +27,7 @@ import viaduct.engine.runtime.select.EngineSelectionSetImpl
  *
  * These tests validate:
  * - Basic QueryPlan building from EngineSelectionSet
- * - Error handling for EngineSelectionSet.Empty
+ * - Error handling for empty EngineSelectionSet values
  * - Caching behavior for identical selections
  * - Proper extraction of parent type and fragments
  */
@@ -70,11 +71,11 @@ class QueryPlanBuildFromSelectionsTest {
         typename: String,
         selections: String,
         vars: Map<String, Any?> = emptyMap()
-    ): EngineSelectionSetImpl =
-        EngineSelectionSetImpl.create(
+    ): EngineSelectionSet =
+        createEngineSelectionSet(
             SelectionsParser.parse(typename, selections),
-            vars,
-            schema
+            schema,
+            vars
         )
 
     private fun mkParameters(query: String = ""): QueryPlan.Parameters =
@@ -141,9 +142,9 @@ class QueryPlanBuildFromSelectionsTest {
         }
 
     @Test
-    fun `throws IllegalArgumentException for EngineSelectionSet Empty`(): Unit =
+    fun `throws IllegalArgumentException for empty EngineSelectionSet`(): Unit =
         runExecutionTest {
-            val emptyRss = EngineSelectionSet.empty("Query")
+            val emptyRss = createEngineSelectionSet(ParsedSelections.empty("Query"), schema, emptyMap())
             val params = mkParameters()
 
             val exception = assertThrows<IllegalArgumentException> {
@@ -153,7 +154,7 @@ class QueryPlanBuildFromSelectionsTest {
             }
 
             expectThat(exception.message).isNotNull().and {
-                contains("EngineSelectionSet.Empty")
+                contains("Empty EngineSelectionSet")
                 contains("not supported")
             }
         }

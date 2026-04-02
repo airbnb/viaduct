@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.ParsedSelections
@@ -30,6 +31,8 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
 import viaduct.engine.api.mocks.FieldUnbatchedResolverFn
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.runtime.EngineExecutionContextImpl
@@ -47,6 +50,7 @@ import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime.select.ProjectedEngineSelectionSet
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
 
@@ -350,6 +354,40 @@ class ResolverDataFetcherTest {
                 }
             }
         }
+
+    @Test
+    fun `FieldResolverExecutor Selector equality works with projected selection sets`() {
+        val schema = MockSchema.mk(
+            """
+                type Test implements Node { id: ID!, bar: Int }
+            """.trimIndent()
+        )
+        val projectedSelections = createEngineSelectionSet(
+            SelectionsParser.parse("Node", "id ... on Test { bar }"),
+            schema,
+            emptyMap()
+        ).selectionSetForType("Test")
+        assertTrue(projectedSelections is ProjectedEngineSelectionSet)
+
+        val sourceSelections = (projectedSelections as ProjectedEngineSelectionSet).sourceImpl
+        val objectValue = mockk<EngineObjectData>()
+        val queryValue = mockk<EngineObjectData>()
+        val selector = FieldResolverExecutor.Selector(
+            arguments = mapOf("arg1" to "param1"),
+            objectValue = objectValue,
+            queryValue = queryValue,
+            selections = sourceSelections
+        )
+        val other = FieldResolverExecutor.Selector(
+            arguments = mapOf("arg1" to "param1"),
+            objectValue = objectValue,
+            queryValue = queryValue,
+            selections = projectedSelections
+        )
+
+        assertEquals(selector, other)
+        assertEquals(selector.hashCode(), other.hashCode())
+    }
 }
 
 private class TestFieldUnbatchedResolverExecutor(

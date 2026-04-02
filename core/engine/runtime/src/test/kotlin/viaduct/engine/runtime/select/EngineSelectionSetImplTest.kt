@@ -8,6 +8,7 @@ import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.TypeName
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -1284,6 +1285,28 @@ class EngineSelectionSetImplTest {
     fun `selectionSetForType -- abstract types return EngineSelectionSetImpl`() {
         val result = mk("Foo", "id ... on Node { __typename }").selectionSetForType("Node")
         assertTrue(result is EngineSelectionSetImpl, "expected EngineSelectionSetImpl for interface, got ${result::class.simpleName}")
+    }
+
+    @Test
+    fun `equals -- equivalent impls compare equal when built from same schema instance`() {
+        val schema = MockSchema.mk(defaultSdl)
+        val parsedSelections = SelectionsParser.parse("Node", "id ... on Foo { int }")
+
+        val first = EngineSelectionSetImpl.create(parsedSelections, emptyMap(), schema)
+        val second = EngineSelectionSetImpl.create(parsedSelections, emptyMap(), schema)
+
+        assertEquals(first, second)
+        assertEquals(first.hashCode(), second.hashCode())
+    }
+
+    @Test
+    fun `equals -- equivalent impls from different schema instances are not equal`() {
+        val parsedSelections = SelectionsParser.parse("Node", "id ... on Foo { int }")
+
+        val first = EngineSelectionSetImpl.create(parsedSelections, emptyMap(), MockSchema.mk(defaultSdl))
+        val second = EngineSelectionSetImpl.create(parsedSelections, emptyMap(), MockSchema.mk(defaultSdl))
+
+        assertNotEquals(first, second)
     }
 
     @Test

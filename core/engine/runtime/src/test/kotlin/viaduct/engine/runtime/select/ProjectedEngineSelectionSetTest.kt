@@ -2,6 +2,7 @@ package viaduct.engine.runtime.select
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -150,6 +151,50 @@ class ProjectedEngineSelectionSetTest {
         assertTrue(projected is ProjectedEngineSelectionSet)
 
         assertEquals(impl.resolveSelection("Foo", "id"), projected.resolveSelection("Foo", "id"))
+    }
+
+    @Test
+    fun `ProjectedEngineSelectionSet -- equality is symmetric with source impl`() {
+        val projected = mk("Node", "id ... on Foo { int }").selectionSetForType("Foo")
+        assertTrue(projected is ProjectedEngineSelectionSet)
+
+        val projectedImpl = projected as ProjectedEngineSelectionSet
+        val sourceImpl = projectedImpl.sourceImpl
+        assertEquals(sourceImpl, projectedImpl)
+        assertEquals(projectedImpl, sourceImpl)
+        assertEquals(sourceImpl.hashCode(), projected.hashCode())
+    }
+
+    @Test
+    fun `ProjectedEngineSelectionSet -- equivalent projections compare equal`() {
+        val impl = mk("Node", "id ... on Foo { int }")
+        val projected1 = impl.selectionSetForType("Foo")
+        val projected2 = impl.selectionSetForType("Foo")
+
+        assertTrue(projected1 is ProjectedEngineSelectionSet)
+        assertTrue(projected2 is ProjectedEngineSelectionSet)
+        assertEquals(projected1, projected2)
+        assertEquals(projected1.hashCode(), projected2.hashCode())
+    }
+
+    @Test
+    fun `ProjectedEngineSelectionSet -- different concrete projections from same abstract source are not equal`() {
+        val impl = mk("Node", "id ... on Foo { int }")
+        val projectedFoo = impl.selectionSetForType("Foo")
+        val projectedBaz = impl.selectionSetForType("Baz")
+
+        assertTrue(projectedFoo is ProjectedEngineSelectionSet)
+        assertTrue(projectedBaz is ProjectedEngineSelectionSet)
+
+        val projectedFooImpl = projectedFoo as ProjectedEngineSelectionSet
+        val projectedBazImpl = projectedBaz as ProjectedEngineSelectionSet
+
+        assertNotEquals(projectedFooImpl, projectedBazImpl)
+        assertNotEquals(projectedFooImpl, impl)
+        assertNotEquals(projectedBazImpl, impl)
+        assertNotEquals(projectedFooImpl.sourceImpl, projectedBazImpl.sourceImpl)
+        assertNotEquals(projectedFooImpl, projectedBazImpl.sourceImpl)
+        assertNotEquals(projectedBazImpl, projectedFooImpl.sourceImpl)
     }
 
     @Test

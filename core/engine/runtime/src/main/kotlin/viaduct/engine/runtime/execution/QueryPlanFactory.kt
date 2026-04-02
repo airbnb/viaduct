@@ -87,7 +87,7 @@ interface QueryPlanFactory {
         fragmentsByName: Map<String, GJFragmentDefinition> = emptyMap()
     ): QueryPlan {
         if (rss.isEmpty()) {
-            throw IllegalArgumentException("EngineSelectionSet.Empty is not supported for subquery execution")
+            throw IllegalArgumentException("Empty EngineSelectionSet is not supported for subquery execution")
         }
         return buildFromParsedSelections(
             parameters = parameters,
