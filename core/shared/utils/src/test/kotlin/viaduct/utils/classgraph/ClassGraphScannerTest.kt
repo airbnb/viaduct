@@ -59,6 +59,46 @@ class ClassGraphScannerTest {
     }
 
     @Test
+    fun `test getSubTypesOf with partial prefix filter does not match without dot boundary`() {
+        // "viaduct.utils.classgrap" is a string prefix of "viaduct.utils.classgraph" but is NOT
+        // a parent package. Before the fix (startsWith only), this would have incorrectly matched.
+        val result = classGraphScanner.getSubTypesOf(
+            TestBaseClass::class.java,
+            packagesFilter = setOf("viaduct.utils.classgrap")
+        )
+        assertEquals(emptySet<Class<*>>(), result)
+    }
+
+    @Test
+    fun `test getSubTypesOf with parent package filter matches via dot boundary`() {
+        // "viaduct.utils" is a genuine parent package — "viaduct.utils.classgraph" starts with "viaduct.utils."
+        val result = classGraphScanner.getSubTypesOf(
+            TestBaseClass::class.java,
+            packagesFilter = setOf("viaduct.utils")
+        )
+        assertEquals(setOf(TestSubClass::class.java), result)
+    }
+
+    @Test
+    fun `test getTypesAnnotatedWith with partial prefix filter does not match without dot boundary`() {
+        // Same prefix-collision check for annotation scanning
+        val result = classGraphScanner.getTypesAnnotatedWith(
+            TestAnnotation::class.java,
+            packagesFilter = setOf("viaduct.utils.classgrap")
+        )
+        assertEquals(emptySet<Class<*>>(), result)
+    }
+
+    @Test
+    fun `test getTypesAnnotatedWith with parent package filter matches via dot boundary`() {
+        val result = classGraphScanner.getTypesAnnotatedWith(
+            TestAnnotation::class.java,
+            packagesFilter = setOf("viaduct.utils")
+        )
+        assertEquals(setOf(AnnotatedTestClass::class.java), result)
+    }
+
+    @Test
     fun `test invalidateCache does not throw`() {
         val scanner = ClassGraphScanner.forPackagePrefix("viaduct.utils.classgraph")
         // Invalidate cache when cache key is empty should not throw

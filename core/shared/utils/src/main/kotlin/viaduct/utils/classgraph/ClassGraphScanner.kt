@@ -147,7 +147,7 @@ class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
                 val subClasses =
                     if (!packagesFilter.isEmpty()) {
                         subClassInfos
-                            .filter { packagesFilter.any { pkg -> it.packageName.startsWith(pkg) } }
+                            .filter { packagesFilter.any { pkg -> it.packageName == pkg || it.packageName.startsWith("$pkg.") } }
                             .loadClasses()
                     } else {
                         subClassInfos.loadClasses()
@@ -155,7 +155,7 @@ class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
                 val implementors =
                     if (!packagesFilter.isEmpty()) {
                         implementorInfos
-                            .filter { packagesFilter.any { pkg -> it.packageName.startsWith(pkg) } }
+                            .filter { packagesFilter.any { pkg -> it.packageName == pkg || it.packageName.startsWith("$pkg.") } }
                             .loadClasses()
                     } else {
                         implementorInfos.loadClasses()
@@ -191,7 +191,7 @@ class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
                         .getClassesWithAnnotation(annotation.name)
                 val filteredInfos =
                     if (packagesFilter.isNotEmpty()) {
-                        infos.filter { packagesFilter.any { pkg -> it.packageName.startsWith(pkg) } }
+                        infos.filter { packagesFilter.any { pkg -> it.packageName == pkg || it.packageName.startsWith("$pkg.") } }
                     } else {
                         infos
                     }
