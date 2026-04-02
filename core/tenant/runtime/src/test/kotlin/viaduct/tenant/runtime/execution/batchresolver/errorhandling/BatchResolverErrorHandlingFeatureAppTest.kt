@@ -4,7 +4,6 @@ import kotlin.collections.get
 import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
-import viaduct.api.SelectiveResolver
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.runtime.execution.batchresolver.errorhandling.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.batchresolver.errorhandling.resolverbases.QueryResolvers
@@ -18,7 +17,7 @@ class BatchResolverErrorHandlingFeatureAppTest : FeatureAppTestBase() {
         |   foo(id: ID! @idOf(type: "Foo")): Foo @resolver
         | }
         |
-        | type Foo implements Node @resolver {
+        | type Foo implements Node @resolver(isSelective: true) {
         |   id: ID!
         |   a: String
         |   b: String
@@ -34,7 +33,7 @@ class BatchResolverErrorHandlingFeatureAppTest : FeatureAppTestBase() {
         }
     }
 
-    class FooResolver : NodeResolvers.Foo(), SelectiveResolver {
+    class FooResolver : NodeResolvers.Foo() {
         companion object {
             var shouldReturnWrongNumberOfResults = false
         }

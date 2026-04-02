@@ -26,9 +26,6 @@ public abstract interface annotation class viaduct/api/Resolver : java/lang/anno
 public abstract interface class viaduct/api/ResolverBase {
 }
 
-public abstract interface class viaduct/api/SelectiveResolver {
-}
-
 public abstract interface class viaduct/api/TenantModule {
 	public abstract fun getMetadata ()Ljava/util/Map;
 	public abstract fun getPackageName ()Ljava/lang/String;

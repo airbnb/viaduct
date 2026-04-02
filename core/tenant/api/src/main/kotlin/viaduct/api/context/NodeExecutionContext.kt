@@ -14,7 +14,6 @@ import viaduct.apiannotations.StableApi
  * expose the `selections()` method.
  *
  * @see SelectiveNodeExecutionContext for the extended context with `selections()` access
- * @see viaduct.api.SelectiveResolver marker interface for selective resolvers
  */
 @StableApi
 interface NodeExecutionContext<R : NodeObject> : ResolverExecutionContext<Query> {
@@ -28,11 +27,10 @@ interface NodeExecutionContext<R : NodeObject> : ResolverExecutionContext<Query>
  * Extended ExecutionContext for [Node] resolvers with access to selections.
  *
  * This interface extends [NodeExecutionContext] and adds the `selections()`
- * method. Only resolvers implementing [viaduct.api.SelectiveResolver] should use
- * this context to access the selection set.
+ * method. Generated resolver bases expose this context only for
+ * `@resolver(isSelective: true)` node resolvers.
  *
  * @see NodeExecutionContext for the base context without `selections()`
- * @see viaduct.api.SelectiveResolver marker interface for selective resolvers
  */
 @StableApi
 interface SelectiveNodeExecutionContext<R : NodeObject> : NodeExecutionContext<R> {

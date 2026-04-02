@@ -7,4 +7,5 @@ import viaduct.apiannotations.InternalApi
 @InternalApi
 annotation class NodeResolverFor(
     val typeName: String,
+    val isSelective: Boolean,
 )

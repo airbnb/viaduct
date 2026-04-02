@@ -22,7 +22,7 @@ import viaduct.service.runtime.SchemaConfiguration
 class ViaductBuilderTest {
     val schema = mkSchema(
         """
-             directive @resolver on FIELD_DEFINITION | OBJECT
+             directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
              directive @backingData(class: String!) on FIELD_DEFINITION
 
              type Query @scope(to: ["*"]) {

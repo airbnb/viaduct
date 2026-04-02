@@ -115,5 +115,5 @@ val testSchema = """
         delegateToParent: Boolean
     ) on OBJECT| FIELD_DEFINITION
 
-    directive @resolver on FIELD_DEFINITION
+    directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION
 """

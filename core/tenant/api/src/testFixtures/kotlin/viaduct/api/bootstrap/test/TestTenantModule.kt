@@ -141,7 +141,7 @@ class WhenMappingsTestResolver : TestTypeModernResolvers.WhenMappingsTest() {
 }
 
 @OptIn(InternalApi::class)
-@NodeResolverFor("TestNode")
+@NodeResolverFor("TestNode", isSelective = false)
 abstract class TestNodeResolverBase : NodeResolverBase<TestNode> {
     open suspend fun resolve(ctx: Context): TestNode = TODO()
 
@@ -155,7 +155,7 @@ class TestNodeResolver : TestNodeResolverBase() {
 }
 
 @OptIn(InternalApi::class)
-@NodeResolverFor("TestBatchNode")
+@NodeResolverFor("TestBatchNode", isSelective = false)
 abstract class TestBatchNodeResolverBase : NodeResolverBase<TestBatchNode> {
     open suspend fun batchResolve(ctx: List<Context>): List<TestBatchNode> = TODO()
 
@@ -169,7 +169,7 @@ class TestBatchNodeResolver : TestBatchNodeResolverBase() {
 }
 
 @OptIn(InternalApi::class)
-@NodeResolverFor("MissingNode")
+@NodeResolverFor("MissingNode", isSelective = false)
 abstract class TestMissingResolverBase : NodeResolverBase<TestNode> {
     open suspend fun resolve(ctx: Context): TestNode = TODO()
 

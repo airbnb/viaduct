@@ -6,14 +6,14 @@ description: Writing resolvers for nodes in Viaduct
 
 ## Schema
 
-Nodes are types that are resolvable by ID and implement the `Node` interface. Every object type that implements the `Node` interface has a corresponding node resolver.
+Nodes are types that are resolvable by ID and implement the `Node` interface. A node type gets a corresponding node resolver only when it also declares a type-level `@resolver`.
 
 ```graphql
 interface Node {
   id: ID!
 }
 
-type User implements Node {
+type User implements Node @resolver {
   id: ID!
   firstName: String
   lastName: String
@@ -21,9 +21,11 @@ type User implements Node {
 }
 ```
 
+If a type implements `Node` but omits the type-level `@resolver`, Viaduct does not generate a node resolver base class for it.
+
 ## Generated base class
 
-Viaduct generates an abstract base class for all object types that implement Node. For the `User` example above, Viaduct generates the following code:
+Viaduct generates an abstract base class for object types that both implement `Node` and declare `@resolver`. For the `User` example above, Viaduct generates the following code:
 
 ```kotlin
 object NodeResolvers {
@@ -73,17 +75,16 @@ Alternatively, if the user service provides a batch endpoint, you should impleme
 
 ## Context
 
-Both `resolve` and `batchResolve` take `Context` objects as input. This class is an instance of {{ kdoc("viaduct.api.context.NodeExecutionContext") }}:
+Both `resolve` and `batchResolve` take `Context` objects as input. For ordinary node resolvers this class is an instance of {{ kdoc("viaduct.api.context.NodeExecutionContext") }}:
 
 ```kotlin
 interface NodeExecutionContext<R: NodeObject>: ResolverExecutionContext {
   val id: GlobalID<R>
-  fun selections(): SelectionSet<R>
 }
 ```
 For the example `User` type, the `R` type would be the User [GRT](../generated_code/index.md).
 
-`NodeExecutionContext` includes the ID of the node to be resolved, and the selection set for the node being requested by the query. Most node resolvers are not "selective," i.e., they ignore this selection set and thus don’t call this function. In this case, as discussed above, it’s important that the node resolver returns its entire responsibility set.
+`NodeExecutionContext` includes the ID of the node to be resolved. Most node resolvers are non-selective, which means they should return the same data for a given node ID regardless of what fields were requested.
 
 Since `NodeExecutionContext` implements `ResolverExecutionContext`, it also includes the utilities provided there, which allow you to:
 
@@ -94,20 +95,26 @@ Since `NodeExecutionContext` implements `ResolverExecutionContext`, it also incl
 ### Non-Selective and Selective Node Resolvers
 There are two primary categories of Node Resolver:
 1. Non-Selective Node Resolvers: Serve most use cases and are the default option. These resolvers always return the same data for a given node ID and benefit from higher cache hit rates.
+2. Selective Node Resolvers: Can vary the response data returned for a given node ID based on the fields requested by the caller. These resolvers are declared directly in SDL with `@resolver(isSelective: true)`.
 
-**Note: Selective Node Resolvers are still under development and not ready for use. This section specifies how they are intended to function.**
-2. Selective Node Resolvers: Can vary the response data returned for a given node ID based on the fields selected via the `selections` function on the node. While these resolvers are not cached as efficiently they enable the conditional resolution of potentially expensive fields only when requested.
+Selective node resolvers opt in through schema, not by implementing a marker interface:
 
-Selective resolvers must extend the `SelectiveResolver` interface in order to access the `selections` function to read its selection set from the context:
+```graphql
+type User implements Node @resolver(isSelective: true) {
+  id: ID!
+  firstName: String
+  expensiveField: String
+}
+```
+
+When a node is declared with `@resolver(isSelective: true)`, the generated resolver `Context` implements {{ kdoc("viaduct.api.context.SelectiveNodeExecutionContext") }} and exposes `ctx.selections()`:
 
 ```kotlin
 class SelectiveUserNodeResolver @Inject constructor(
   val userService: UserServiceClient
-    // Extends SelectiveResolver to enable selections functionality
-): NodeResolvers.User(), SelectiveResolver{
+): NodeResolvers.User() {
   override suspend fun resolve(ctx: Context): User {
-    // Uses the selections function to get the selection set from context
-    val sel = selections(ctx)
+    val sel = ctx.selections()
     return User.builder(ctx)
       .id(ctx.id)
       .apply {
@@ -120,6 +127,9 @@ class SelectiveUserNodeResolver @Inject constructor(
   }
 }
 ```
+
+Non-selective node resolvers should not use `ctx.selections()`, and their generated `Context` does not expose that API.
+Field-level `@resolver(isSelective: true)` directives inside a node type do not change node resolver generation or make the node resolver selective.
 
 ## Responsibility set
 

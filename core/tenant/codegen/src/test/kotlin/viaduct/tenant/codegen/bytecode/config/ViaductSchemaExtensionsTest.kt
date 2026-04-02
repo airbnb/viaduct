@@ -10,6 +10,9 @@ import viaduct.codegen.km.KmClassFilesBuilder
 import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.binary.extensions.fromBinaryFile
+import viaduct.graphql.schema.binary.extensions.toBinaryFile
+import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.test.createSchema
 import viaduct.tenant.codegen.bytecode.util.assertKotlinTypeString
@@ -27,6 +30,62 @@ class ViaductSchemaExtensionsTest {
         schemaFile.createNewFile()
         schemaFile.writeText(schemaText)
         return ViaductSchema.fromTypeDefinitionRegistry(listOf(schemaFile))
+    }
+
+    private fun mkCompiledSchema(schemaText: String): ViaductSchema {
+        val schemaFile = File.createTempFile("schema", ".graphqls")
+        schemaFile.writeText(schemaText)
+        schemaFile.deleteOnExit()
+        return ViaductSchema.fromGraphQLSchema(listOf(schemaFile))
+    }
+
+    @Test
+    fun `isSelectiveResolver survives GraphQLSchema extension decoding`() {
+        val schema = mkCompiledSchema(
+            """
+                directive @resolver(isSelective: Boolean! = false) on OBJECT | FIELD_DEFINITION
+
+                type Query {
+                    ignored: String
+                }
+
+                extend type Query {
+                    foo: Foo @resolver(isSelective: true)
+                }
+
+                type Foo {
+                    value: String
+                }
+            """.trimIndent()
+        )
+
+        assertTrue(schema.field("Query", "foo").isSelectiveResolver)
+
+        val binaryFile = File.createTempFile("schema", ".bgql")
+        binaryFile.deleteOnExit()
+        schema.toBinaryFile(binaryFile)
+
+        val roundTripped = ViaductSchema.fromBinaryFile(binaryFile)
+        assertTrue(roundTripped.field("Query", "foo").isSelectiveResolver)
+    }
+
+    @Test
+    fun `isSelectiveResolver supports legacy selective directive arg`() {
+        val schema = mkCompiledSchema(
+            """
+                directive @resolver(selective: Boolean! = false) on OBJECT | FIELD_DEFINITION
+
+                type Query {
+                    foo: Foo @resolver(selective: true)
+                }
+
+                type Foo {
+                    value: String
+                }
+            """.trimIndent()
+        )
+
+        assertTrue(schema.field("Query", "foo").isSelectiveResolver)
     }
 
     @Test

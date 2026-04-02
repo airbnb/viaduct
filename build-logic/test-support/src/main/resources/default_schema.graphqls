@@ -5,7 +5,7 @@ directive @backingData(class: String!) on FIELD_DEFINITION
 directive @idOf(type: String!) on FIELD_DEFINITION | ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
 
 "@resolver directive"
-directive @resolver on OBJECT | FIELD_DEFINITION
+directive @resolver(isSelective: Boolean! = false) on OBJECT | FIELD_DEFINITION
 
 "@scope directive"
 directive @scope(to: [String!]!) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT

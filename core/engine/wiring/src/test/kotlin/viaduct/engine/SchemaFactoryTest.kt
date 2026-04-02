@@ -178,7 +178,7 @@ class SchemaFactoryTest {
         @Test
         fun `default schema test - should error when builtin schema components are redefined`() {
             val sdl = """
-                directive @resolver on FIELD_DEFINITION
+                directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION
                 directive @backingData(class: String!) on FIELD_DEFINITION
                 directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
 

@@ -269,8 +269,7 @@ class ViaductTenantModuleBootstrapper(
             }
             val resolverClass = nodeResolverClasses.first()
 
-            // Detect if the resolver implements SelectiveResolver marker interface
-            val isSelective = viaduct.api.SelectiveResolver::class.java.isAssignableFrom(resolverClass)
+            val isSelective = nodeResolverForAnnotation.isSelective
 
             // We register providers for the resolvers here, and this is the only place where we discover Resolver classes
             // for Viaduct, register their providers with the injector provided in the constructor for this class,

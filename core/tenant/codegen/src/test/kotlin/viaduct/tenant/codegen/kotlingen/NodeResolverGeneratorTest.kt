@@ -9,8 +9,12 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 
 class NodeResolverGeneratorTest {
-    private fun gen(vararg types: String): String? {
-        val contents = genNodeResolvers(types.toList(), "pkg.tenant", "pkg.grts")
+    private fun gen(vararg types: Pair<String, Boolean>): String? {
+        val contents = genNodeResolvers(
+            types.map { (typeName, isSelective) -> NodeResolverConfig(typeName, isSelective) },
+            "pkg.tenant",
+            "pkg.grts"
+        )
         return contents?.toString()
     }
 
@@ -21,16 +25,18 @@ class NodeResolverGeneratorTest {
 
     @Test
     fun `generates node resolvers`() {
-        val contents = gen("Foo", "Bar")
+        val contents = gen("Foo" to false, "Bar" to true)
 
         assertNotNull(contents)
         contents!!
 
         assertTrue(contents.contains("package pkg.tenant.resolverbases"))
-        assertTrue(contents.contains("NodeResolverFor(\"Foo\")"))
+        assertTrue(contents.contains("NodeResolverFor(typeName = \"Foo\", isSelective = false)"))
         assertTrue(contents.contains("abstract class Foo : NodeResolverBase"))
-        assertTrue(contents.contains("NodeResolverFor(\"Bar\")"))
+        assertTrue(contents.contains("NodeResolverFor(typeName = \"Bar\", isSelective = true)"))
         assertTrue(contents.contains("abstract class Bar : NodeResolverBase"))
+        assertTrue(contents.contains("viaduct.api.context.SelectiveNodeExecutionContext<pkg.grts.Bar>"))
+        assertTrue(contents.contains("override fun selections(): SelectionSet<pkg.grts.Bar> = inner.selections()"))
     }
 
     @Test
@@ -59,14 +65,14 @@ class NodeResolverGeneratorTest {
 
         schema.generateNodeResolvers(args)
 
-        val contents = gen("Foo", "Bar")
+        val contents = gen("Foo" to false, "Bar" to false)
         assertNotNull(contents)
         contents!!
 
         assertTrue(contents.contains("package pkg.tenant.resolverbases"))
-        assertTrue(contents.contains("NodeResolverFor(\"Foo\")"))
+        assertTrue(contents.contains("NodeResolverFor(typeName = \"Foo\", isSelective = false)"))
         assertTrue(contents.contains("abstract class Foo : NodeResolverBase"))
-        assertTrue(contents.contains("NodeResolverFor(\"Bar\")"))
+        assertTrue(contents.contains("NodeResolverFor(typeName = \"Bar\", isSelective = false)"))
         assertTrue(contents.contains("abstract class Bar : NodeResolverBase"))
     }
 
@@ -115,6 +121,6 @@ class NodeResolverGeneratorTest {
     }
 
     private fun mockAppliedDirective(): ViaductSchema.AppliedDirective<*> {
-        return ViaductSchema.AppliedDirective.of(mockDirective(), emptyMap())
+        return ViaductSchema.AppliedDirective.of(mockDirective(), mapOf("isSelective" to ViaductSchema.FALSE))
     }
 }

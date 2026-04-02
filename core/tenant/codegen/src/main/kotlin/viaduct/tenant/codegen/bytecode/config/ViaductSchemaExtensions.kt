@@ -262,6 +262,26 @@ val ViaductSchema.Object.typeOfNodeField: String
 val ViaductSchema.TypeDef.hasConnectionDirective: Boolean
     get() = this is ViaductSchema.Object && hasAppliedDirective("connection")
 
+data class ResolverDirectiveConfig(
+    val isSelective: Boolean,
+)
+
+fun ViaductSchema.Def.resolverDirectiveConfigOrNull(): ResolverDirectiveConfig? {
+    val resolverDirective = appliedDirectives.firstOrNull { it.name == "resolver" } ?: return null
+    // TODO: remove legacy `selective` support after tenants finish migrating to `isSelective`.
+    val isSelective = when (
+        val isSelectiveArg = resolverDirective.arguments["isSelective"] ?: resolverDirective.arguments["selective"]
+    ) {
+        null -> false
+        is ViaductSchema.BooleanLiteral -> isSelectiveArg.value
+        else -> error("Expected @resolver(isSelective:/selective:) to decode as a boolean on ${describe()}")
+    }
+    return ResolverDirectiveConfig(isSelective = isSelective)
+}
+
+val ViaductSchema.Def.isSelectiveResolver: Boolean
+    get() = resolverDirectiveConfigOrNull()?.isSelective ?: false
+
 /**
  * For a Connection type, extracts the Edge type name from the edges field.
  *

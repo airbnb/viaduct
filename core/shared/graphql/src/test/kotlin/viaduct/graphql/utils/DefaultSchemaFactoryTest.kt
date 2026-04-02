@@ -139,6 +139,71 @@ class DefaultSchemaFactoryTest {
             toArg!!.type is NonNullType || toArg.type is ListType,
             "'to' should be a list type (possibly non-null)"
         )
+
+        val resolver = registry.getDirectiveDefinition("resolver").get()
+        val isSelectiveArg = resolver.inputValueDefinitions.singleOrNull { it.name == "isSelective" }
+        assertTrue(isSelectiveArg != null, "@resolver must define 'isSelective' argument")
+        val isSelectiveType = isSelectiveArg!!.type as? NonNullType
+        assertTrue(isSelectiveType != null, "@resolver.isSelective should be non-null")
+        assertEquals("Boolean", (isSelectiveType!!.type as TypeName).name)
+        val defaultValue = isSelectiveArg.defaultValue as? graphql.language.BooleanValue
+        assertTrue(defaultValue != null, "@resolver.isSelective should default to a boolean literal")
+        assertFalse(defaultValue!!.isValue)
+    }
+
+    @Test
+    fun `addDefaults should decode bare resolver directive as isSelective false`() {
+        val bareRegistry = SchemaParser().parse(
+            """
+                extend type Query {
+                  foo: Foo @resolver
+                }
+
+                type Foo {
+                  id: ID!
+                }
+            """.trimIndent()
+        )
+        DefaultSchemaFactory.addDefaults(bareRegistry)
+        val bareSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(bareRegistry)
+        val bareSelective =
+            bareSchema.queryType
+                .getFieldDefinition("foo")
+                .getAppliedDirective("resolver")
+                .getArgument("isSelective")
+                .argumentValue
+                .value
+                as graphql.language.BooleanValue
+
+        assertFalse(bareSelective.isValue)
+
+        val explicitRegistry = SchemaParser().parse(
+            """
+                extend type Query {
+                  foo: Foo @resolver(isSelective: false)
+                }
+
+                type Foo {
+                  id: ID!
+                }
+            """.trimIndent()
+        )
+        DefaultSchemaFactory.addDefaults(explicitRegistry)
+        val explicitSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(explicitRegistry)
+        val explicitSelective =
+            explicitSchema.queryType
+                .getFieldDefinition("foo")
+                .getAppliedDirective("resolver")
+                .getArgument("isSelective")
+                .argumentValue
+                .value
+                as graphql.language.BooleanValue
+
+        assertEquals(
+            explicitSelective.isValue,
+            bareSelective.isValue,
+            "Bare @resolver should decode the same as @resolver(isSelective: false)"
+        )
     }
 
     @Test

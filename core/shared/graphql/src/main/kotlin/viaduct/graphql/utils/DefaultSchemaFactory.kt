@@ -2,6 +2,7 @@ package viaduct.graphql.utils
 
 import graphql.language.Argument
 import graphql.language.ArrayValue
+import graphql.language.BooleanValue
 import graphql.language.Description
 import graphql.language.Directive
 import graphql.language.DirectiveDefinition
@@ -56,6 +57,13 @@ object DefaultSchemaFactory {
         RESOLVER("resolver") {
             override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
                 val description = Description("@resolver directive", sourceLocation, false)
+                val isSelectiveArgument = InputValueDefinition
+                    .newInputValueDefinition()
+                    .name("isSelective")
+                    .type(NonNullType(TypeName("Boolean")))
+                    .defaultValue(BooleanValue(false))
+                    .sourceLocation(sourceLocation)
+                    .build()
 
                 return DirectiveDefinition
                     .newDirectiveDefinition()
@@ -63,6 +71,7 @@ object DefaultSchemaFactory {
                     .description(description)
                     .directiveLocation(DirectiveLocation("FIELD_DEFINITION"))
                     .directiveLocation(DirectiveLocation("OBJECT"))
+                    .inputValueDefinition(isSelectiveArgument)
                     .sourceLocation(sourceLocation)
                     .build()
             }

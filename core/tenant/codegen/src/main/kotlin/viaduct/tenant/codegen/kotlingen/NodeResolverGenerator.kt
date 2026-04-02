@@ -5,6 +5,7 @@ import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.isNode
+import viaduct.tenant.codegen.bytecode.config.isSelectiveResolver
 import viaduct.tenant.codegen.bytecode.config.tenantModule
 
 private const val RESOLVER_DIRECTIVE = "resolver"
@@ -42,7 +43,7 @@ private class NodeResolverGenerator(
             .filter {
                 isTenantOwnedNode(it) && hasResolverDirective(it)
             }
-            .map { it.name }
+            .map { NodeResolverConfig(it.name, it.isSelectiveResolver) }
 
         genNodeResolvers(tenantOwnedNodes, tenantPackage, grtPackage)?.let { contents ->
             val resolverbasesDir = File(resolverGeneratedDir, "resolverbases")
@@ -63,8 +64,13 @@ private class NodeResolverGenerator(
     private fun hasResolverDirective(def: ViaductSchema.TypeDef): Boolean = def.hasAppliedDirective(RESOLVER_DIRECTIVE)
 }
 
+internal data class NodeResolverConfig(
+    val typeName: String,
+    val isSelective: Boolean,
+)
+
 internal fun genNodeResolvers(
-    types: List<String>,
+    types: List<NodeResolverConfig>,
     tenantPackage: String,
     grtPackage: String
 ): STContents? =
@@ -82,17 +88,24 @@ private interface NodesModel {
 private interface NodeModel {
     val grtPackage: String
     val typeName: String
+    val selective: Boolean
+    val selectiveLiteral: String
     val ctxInterface: String
-    val selectiveCtxInterface: String
 }
 
-private class NodesModelImpl(override val tenantPackage: String, grtPackage: String, typeNames: List<String>) : NodesModel {
+private class NodesModelImpl(override val tenantPackage: String, grtPackage: String, typeNames: List<NodeResolverConfig>) : NodesModel {
     override val nodes: List<NodeModel> = typeNames.map { NodeModelImpl(it, grtPackage) }
 }
 
-private class NodeModelImpl(override val typeName: String, override val grtPackage: String) : NodeModel {
-    override val ctxInterface: String = "viaduct.api.context.NodeExecutionContext"
-    override val selectiveCtxInterface: String = "viaduct.api.context.SelectiveNodeExecutionContext"
+private class NodeModelImpl(config: NodeResolverConfig, override val grtPackage: String) : NodeModel {
+    override val typeName: String = config.typeName
+    override val selective: Boolean = config.isSelective
+    override val selectiveLiteral: String = selective.toString()
+    override val ctxInterface: String = if (selective) {
+        "viaduct.api.context.SelectiveNodeExecutionContext"
+    } else {
+        "viaduct.api.context.NodeExecutionContext"
+    }
 }
 
 private val nodesSt = stTemplate(
@@ -100,7 +113,6 @@ private val nodesSt = stTemplate(
         package <mdl.tenantPackage>.resolverbases
 
         import viaduct.api.FieldValue
-        import viaduct.api.SelectiveResolver
         import viaduct.apiannotations.InternalApi
         import viaduct.api.internal.InternalContext
         import viaduct.api.NodeResolverBase
@@ -117,7 +129,7 @@ private val nodesSt = stTemplate(
 private val nodeSt = stTemplate(
     "node(mdl)",
     """
-        @NodeResolverFor("<mdl.typeName>")
+        @NodeResolverFor(typeName = "<mdl.typeName>", isSelective = <mdl.selectiveLiteral>)
         abstract class <mdl.typeName> : NodeResolverBase\<<mdl.grtPackage>.<mdl.typeName>\> {
             open suspend fun resolve(ctx: Context): <mdl.grtPackage>.<mdl.typeName> =
                 throw NotImplementedError("Nodes.<mdl.typeName>.resolve not implemented")
@@ -126,10 +138,11 @@ private val nodeSt = stTemplate(
                 throw NotImplementedError("Nodes.<mdl.typeName>.batchResolve not implemented")
 
             class Context(
-                private val inner: <mdl.selectiveCtxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>
+                private val inner: <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>
             ) : <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\> by inner, InternalContext by (inner as InternalContext) {
-                context(SelectiveResolver)
-                fun selections(): SelectionSet\<<mdl.grtPackage>.<mdl.typeName>\> = inner.selections()
+                <if(mdl.selective)>
+                override fun selections(): SelectionSet\<<mdl.grtPackage>.<mdl.typeName>\> = inner.selections()
+                <endif>
             }
         }
     """.trimIndent()
