@@ -7,6 +7,7 @@ import viaduct.codegen.st.stTemplate
 import viaduct.codegen.utils.JavaName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
+import viaduct.tenant.codegen.bytecode.config.isSelectiveResolver
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.tenantModule
 import viaduct.utils.string.capitalize
@@ -90,8 +91,12 @@ private interface ResolverModel {
     val gqlTypeName: String
     val gqlFieldName: String
     val resolverName: String
+    val selective: Boolean
+    val selectiveLiteral: String
     val typeSpecifier: String
     val ctxInterface: String
+    val selectiveCtxInterface: String
+    val ctxOutputType: String
     val includeBatchResolve: Boolean
 }
 
@@ -118,6 +123,8 @@ private class ResolverModelImpl(
     override val gqlTypeName: String = this.field.containingDef.name
     override val gqlFieldName: String = this.field.name
     override val resolverName: String = gqlFieldName.capitalize()
+    override val selective: Boolean = field.isSelectiveResolver
+    override val selectiveLiteral: String = selective.toString()
     private val queryGrtTypeName: String = "$grtPackage.${queryTypeName ?: "Query"}"
     private val mutationGrtTypeName: String = if (mutationTypeName != null) "$grtPackage.$mutationTypeName" else "viaduct.api.types.Mutation"
     private val grtTypeName: String = "$grtPackage.$gqlTypeName"
@@ -141,6 +148,7 @@ private class ResolverModelImpl(
     private val isConnectionField: Boolean = field.type.baseTypeDef.hasConnectionDirective
 
     override val typeSpecifier: String = field.kmType(JavaName(grtPackage).asKmName, baseTypeMapper).kotlinTypeString
+    override val ctxOutputType: String = grtOutputName
     override val ctxInterface: String
         get() = when {
             mutationTypeName != null && this.field.containingDef.name == mutationTypeName ->
@@ -150,6 +158,7 @@ private class ResolverModelImpl(
             else ->
                 "viaduct.api.context.FieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
         }
+    override val selectiveCtxInterface: String = "viaduct.api.context.SelectiveFieldExecutionContext<$grtOutputName>"
     override val includeBatchResolve: Boolean = this.field.containingDef.name != "Mutation"
 }
 
@@ -178,11 +187,16 @@ private val resolversST = stTemplate(
 private val resolverST = stTemplate(
     "resolver(mdl)",
     """
-    @ResolverFor(typeName = "<mdl.gqlTypeName>", fieldName = "<mdl.gqlFieldName>")
+    @ResolverFor(typeName = "<mdl.gqlTypeName>", fieldName = "<mdl.gqlFieldName>", isSelective = <mdl.selectiveLiteral>)
     abstract class <mdl.resolverName> : ResolverBase\<<mdl.typeSpecifier>\> {
         class Context(
             private val inner: <mdl.ctxInterface>
-        ) : <mdl.ctxInterface> by inner, InternalContext by (inner as InternalContext)
+        ) : <mdl.ctxInterface> by inner<if(mdl.selective)>, <mdl.selectiveCtxInterface><endif>, InternalContext by (inner as InternalContext) {
+            <if(mdl.selective)>
+            override fun selections(): viaduct.api.select.SelectionSet\<<mdl.ctxOutputType>\> =
+                (inner as <mdl.selectiveCtxInterface>).selections()
+            <endif>
+        }
         open suspend fun resolve(ctx: Context): <mdl.typeSpecifier> =
             throw NotImplementedError("<mdl.gqlTypeName>.<mdl.gqlFieldName>.resolve not implemented")
         <if(mdl.includeBatchResolve)>

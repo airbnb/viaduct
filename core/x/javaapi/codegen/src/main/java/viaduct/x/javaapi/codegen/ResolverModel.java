@@ -45,6 +45,7 @@ package viaduct.x.javaapi.codegen;
  * @param hasArguments whether the GraphQL field has arguments defined.
  * @param isCompositeOutput whether the return type is a composite GraphQL type (object/interface)
  *     rather than a scalar.
+ * @param isSelective whether the resolver's generated Context should expose getSelections().
  * @param includeBatchResolve whether to generate the {@code batchResolve} method. Set to false for
  *     Mutation fields since batching mutations is not supported.
  */
@@ -59,6 +60,7 @@ public record ResolverModel(
     String selectionsType,
     boolean hasArguments,
     boolean isCompositeOutput,
+    boolean isSelective,
     boolean includeBatchResolve) {
 
   // ===== JavaBean-style getters for StringTemplate =====
@@ -156,6 +158,10 @@ public record ResolverModel(
     return isCompositeOutput;
   }
 
+  public boolean getIsSelective() {
+    return isSelective;
+  }
+
   /**
    * Returns whether to generate the batchResolve method.
    *
@@ -210,6 +216,14 @@ public record ResolverModel(
         + ", "
         + selectionsType
         + ">";
+  }
+
+  public String getSelectiveContextType() {
+    return "SelectiveFieldExecutionContext<" + selectionsType + ">";
+  }
+
+  public String getSelectiveLiteral() {
+    return Boolean.toString(isSelective);
   }
 
   /**

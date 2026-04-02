@@ -26,7 +26,7 @@ class SimpleResolverTest : DefaultAbstractResolverTestBase() {
     """
 
     object QueryResolvers {
-        @ResolverFor(typeName = "Query", fieldName = "field")
+        @ResolverFor(typeName = "Query", fieldName = "field", isSelective = false)
         abstract class Field : ResolverBase<String?> {
             // Context wraps MockFieldExecutionContext (the concrete mock type)
             // This matches the generated pattern: value class wrapping the concrete execution context impl

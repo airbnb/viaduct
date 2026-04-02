@@ -42,14 +42,4 @@ public interface FieldExecutionContext<
    * @return The arguments provided to this field
    */
   A getArguments();
-
-  /**
-   * Get the selection set that the caller provided for the output of this field. If this field does
-   * not have a selection set (i.e. it has a scalar or enum type), this would return a "no
-   * selections" marker.
-   *
-   * @return The selections requested by the caller
-   */
-  // TODO: Return type should be SelectionSet<O> once that class is implemented
-  Object getSelections();
 }

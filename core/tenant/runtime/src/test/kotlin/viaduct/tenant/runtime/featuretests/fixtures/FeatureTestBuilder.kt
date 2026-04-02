@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import viaduct.api.FieldValue
 import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
+import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.reflect.Type
@@ -174,6 +175,30 @@ class FeatureTestBuilder(
             resolveFn = resolveFn,
             resolverName = resolverName
         )
+
+    /**
+     * Configure a selective query field resolver at the provided [coordinate].
+     *
+     * The provided [resolveFn] receives only selection-set access. For resolvers that also need
+     * typed object/query/argument access, use the more general [resolver] overloads instead.
+     */
+    fun <O : CompositeOutput> selectiveResolver(
+        coordinate: Coordinate,
+        resolveFn: suspend (ctx: SelectiveFieldExecutionContext<O>) -> Any?,
+        resolverName: String? = null,
+    ): FeatureTestBuilder {
+        resolverStubs[coordinate] = SelectiveFieldUnbatchedResolverStub<SelectiveFieldExecutionContext<O>>(
+            coord = coordinate,
+            variables = emptyList(),
+            resolveFn = { ctx ->
+                @Suppress("UNCHECKED_CAST")
+                resolveFn(ctx as SelectiveFieldExecutionContext<O>)
+            },
+            variablesProvider = null,
+            resolverName = resolverName,
+        )
+        return this
+    }
 
     /**
      * Configure a simple mutation field resolver at the provided [coordinate].

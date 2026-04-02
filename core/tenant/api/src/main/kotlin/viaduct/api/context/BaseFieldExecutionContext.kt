@@ -46,7 +46,10 @@ interface BaseFieldExecutionContext<
      * resolver. If this field does not take arguments, this is [Arguments.NoArguments].
      */
     val arguments: A
+}
 
+@StableApi
+interface SelectiveFieldExecutionContext<R : CompositeOutput> {
     /**
      * The [SelectionSet] for [R] that the caller provided. If this field does not have a
      * selection set (i.e. it has a scalar or enum type), this returns [SelectionSet.NoSelections].

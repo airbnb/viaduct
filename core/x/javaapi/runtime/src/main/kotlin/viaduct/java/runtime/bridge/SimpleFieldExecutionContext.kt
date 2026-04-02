@@ -1,6 +1,7 @@
 package viaduct.java.runtime.bridge
 
 import viaduct.java.api.context.FieldExecutionContext
+import viaduct.java.api.context.SelectiveFieldExecutionContext
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
@@ -32,6 +33,7 @@ class SimpleFieldExecutionContext(
     private val objectValue: Any? = null,
     private val queryValue: Any? = null,
 ) : FieldExecutionContext<GraphQLObject, Query, Arguments, AnySelections>,
+    SelectiveFieldExecutionContext<AnySelections>,
     FieldResolverBase.Context<GraphQLObject, Query, Arguments, AnySelections> {
     override fun getObjectValue(): GraphQLObject {
         if (objectValue != null) {

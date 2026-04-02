@@ -378,6 +378,7 @@ public class GraphQLSchemaParser {
         isCompositeOutput
             ? grtPackage + "." + field.getType().getBaseTypeDef().getName()
             : "CompositeOutput.None";
+    boolean isSelective = isSelectiveResolver(field);
 
     // Exclude batchResolve for Mutation fields
     boolean includeBatchResolve = !typeName.equals(mutationTypeName);
@@ -393,7 +394,31 @@ public class GraphQLSchemaParser {
         selectionsType,
         hasArguments,
         isCompositeOutput,
+        isSelective,
         includeBatchResolve);
+  }
+
+  private boolean isSelectiveResolver(ViaductSchema.Def def) {
+    return def.getAppliedDirectives().stream()
+        .filter(directive -> directive.getName().equals("resolver"))
+        .findFirst()
+        .map(
+            directive -> {
+              ViaductSchema.Literal isSelectiveArg = directive.getArguments().get("isSelective");
+              if (isSelectiveArg == null) {
+                isSelectiveArg = directive.getArguments().get("selective");
+              }
+              if (isSelectiveArg == null) {
+                return false;
+              }
+              if (isSelectiveArg instanceof ViaductSchema.BooleanLiteral booleanLiteral) {
+                return booleanLiteral.getValue();
+              }
+              throw new IllegalArgumentException(
+                  "Expected @resolver(isSelective:/selective:) to decode as a boolean on "
+                      + def.describe());
+            })
+        .orElse(false);
   }
 
   // ===== Helper methods =====

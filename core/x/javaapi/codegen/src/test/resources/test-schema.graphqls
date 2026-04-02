@@ -62,13 +62,6 @@ enum LowercaseEnum {
 # ============================================================================
 
 """
-Node interface for objects with a globally unique ID.
-"""
-interface Node {
-  id: ID!
-}
-
-"""
 Timestamped interface for objects with creation and update timestamps.
 """
 interface Timestamped {
@@ -97,15 +90,6 @@ extend interface ExtendableInterface {
   extendedField: Int
 }
 
-"""
-Page Info type for connection
-"""
-type PageInfo {
-  hasNextPage: Boolean!
-  hasPreviousPage: Boolean!
-  startCursor: String
-  endCursor: String
-}
 # ============================================================================
 # Object Types
 # ============================================================================
@@ -262,10 +246,7 @@ union NodeResult = User | Listing
 # Root Types - Query and Mutation
 # ============================================================================
 
-"""
-Root query type.
-"""
-type Query {
+extend type Query {
   "Get a user by ID"
   user(id: ID!): User
 
@@ -282,10 +263,7 @@ type Query {
   userBookings(userId: ID!, status: BookingStatus): [Booking!]!
 }
 
-"""
-Root mutation type.
-"""
-type Mutation {
+extend type Mutation {
   "Create a new user"
   createUser(input: CreateUserInput!): User!
 
@@ -307,11 +285,6 @@ type Mutation {
 # ============================================================================
 
 """
-@resolver directive marks a field as having a custom resolver
-"""
-directive @resolver on OBJECT | FIELD_DEFINITION
-
-"""
 Review type for testing resolver return types.
 """
 type Review {
@@ -324,7 +297,7 @@ type Review {
 # User type extensions with resolver fields
 extend type User {
   "Resolver field: User's profile picture URL"
-  profilePicture: String @resolver
+  profilePicture: String @resolver(isSelective: true)
 
   "Resolver field: User's active bookings"
   activeBookings: [Booking!]! @resolver

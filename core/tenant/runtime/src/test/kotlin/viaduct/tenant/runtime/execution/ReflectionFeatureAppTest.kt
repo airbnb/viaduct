@@ -17,11 +17,11 @@ class ReflectionFeatureAppTest : FeatureAppTestBase() {
         |
         | type Category {
         |   id: Int!
-        |   products: [Product] @resolver
+        |   products: [Product] @resolver(isSelective: true)
         | }
         |
         | extend type Query {
-        |   category(id: Int!): Category @resolver
+        |   category(id: Int!): Category @resolver(isSelective: true)
         | }
         |
         | type Toy {
@@ -50,6 +50,7 @@ class ReflectionFeatureAppTest : FeatureAppTestBase() {
     @Resolver
     class Category_ProductsResolver : CategoryResolvers.Products() {
         override suspend fun resolve(ctx: Context): List<Product> {
+            val selections = ctx.selections()
             val products = listOf<Product>(
                 Toy.Builder(ctx)
                     .id(123)
@@ -60,12 +61,12 @@ class ReflectionFeatureAppTest : FeatureAppTestBase() {
             )
             // Fake find and build of products using reflection
             return products.map { product ->
-                if (ctx.selections().requestsType(Toy.Reflection) && product is Toy) {
+                if (selections.requestsType(Toy.Reflection) && product is Toy) {
                     Toy.Builder(ctx)
                         .id(product.getId())
                         .prodType("Toy")
                         .build()
-                } else if (ctx.selections().requestsType(Fruit.Reflection) && product is Fruit) {
+                } else if (selections.requestsType(Fruit.Reflection) && product is Fruit) {
                     Fruit.Builder(ctx)
                         .id(product.getId())
                         .prodType("Fruit")

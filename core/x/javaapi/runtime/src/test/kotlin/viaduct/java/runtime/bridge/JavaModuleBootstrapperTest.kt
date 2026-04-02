@@ -23,7 +23,7 @@ class JavaModuleBootstrapperTest {
     // Test fixtures
     interface TestQuery : Query
 
-    @ResolverFor(typeName = "TestType", fieldName = "testField")
+    @ResolverFor(typeName = "TestType", fieldName = "testField", isSelective = false)
     abstract class TestResolverBase :
         FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
 
@@ -35,7 +35,7 @@ class JavaModuleBootstrapperTest {
     }
 
     // Test fixtures for required selections tests
-    @ResolverFor(typeName = "Person", fieldName = "fullName")
+    @ResolverFor(typeName = "Person", fieldName = "fullName", isSelective = false)
     abstract class PersonFullNameResolverBase :
         FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
 
@@ -47,7 +47,7 @@ class JavaModuleBootstrapperTest {
     }
 
     // Test fixture for resolver without required selections (plain @Resolver)
-    @ResolverFor(typeName = "Person", fieldName = "age")
+    @ResolverFor(typeName = "Person", fieldName = "age", isSelective = false)
     abstract class PersonAgeResolverBase :
         FieldResolverBase<Int, TestQuery, TestQuery, Arguments.None, CompositeOutput>
 

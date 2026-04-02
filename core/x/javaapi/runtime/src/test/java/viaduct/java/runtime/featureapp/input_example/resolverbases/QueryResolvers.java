@@ -33,7 +33,7 @@ public final class QueryResolvers {
    * <p>Note: Uses Query_userByName_Arguments instead of Arguments.None to demonstrate typed
    * arguments with nested input objects.
    */
-  @ResolverFor(typeName = "Query", fieldName = "userByName")
+  @ResolverFor(typeName = "Query", fieldName = "userByName", isSelective = false)
   public abstract static class UserByName
       implements FieldResolverBase<
           User, Query, Query, Query_userByName_Arguments, CompositeOutput.None> {
@@ -69,11 +69,6 @@ public final class QueryResolvers {
       @Override
       public Query_userByName_Arguments getArguments() {
         return inner.getArguments();
-      }
-
-      @Override
-      public Object getSelections() {
-        return inner.getSelections();
       }
 
       @Override

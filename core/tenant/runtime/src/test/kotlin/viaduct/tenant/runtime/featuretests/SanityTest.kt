@@ -10,6 +10,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldValue
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
+import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.graphql.test.assertJson
@@ -120,13 +121,13 @@ class SanityTest {
     fun `resolver accesses selections via explicit grt`() {
         FeatureTestBuilder(
             """
-                extend type Query { foo: Foo }
+                extend type Query { foo: Foo @resolver(isSelective: true) }
                 type Foo { value: String }
             """.trimIndent()
         )
-            .resolver(
+            .selectiveResolver(
                 "Query" to "foo",
-                { ctx: FieldExecutionContext<Query, Query, Arguments, Foo> ->
+                { ctx: SelectiveFieldExecutionContext<Foo> ->
                     assertTrue(ctx.selections().contains(Foo.Fields.value))
                     null
                 }

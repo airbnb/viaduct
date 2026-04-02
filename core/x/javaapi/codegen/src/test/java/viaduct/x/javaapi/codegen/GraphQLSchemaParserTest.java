@@ -2,6 +2,7 @@ package viaduct.x.javaapi.codegen;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import graphql.schema.idl.SchemaParser;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -13,6 +14,9 @@ import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import viaduct.graphql.schema.ViaductSchema;
+import viaduct.graphql.utils.DefaultSchemaFactory;
+import viaduct.graphql.utils.Predicates;
+import viaduct.graphql.utils.TypeDefinitionRegistryExtensionsKt;
 
 class GraphQLSchemaParserTest {
 
@@ -443,9 +447,11 @@ class GraphQLSchemaParserTest {
     Map<String, List<ResolverModel>> resolversByType =
         parser.extractResolvers(schema, "com.example.types", "Mutation");
 
-    // Should have resolvers for User, Listing, and Mutation types
-    assertThat(resolversByType).hasSize(3);
-    assertThat(resolversByType).containsKeys("User", "Listing", "Mutation");
+    // Shared default schema contributes Query.node and Query.nodes.
+    assertThat(resolversByType).hasSize(4);
+    assertThat(resolversByType).containsKeys("Query", "User", "Listing", "Mutation");
+    assertThat(resolversByType.get("Query").stream().map(ResolverModel::gqlFieldName))
+        .containsExactlyInAnyOrder("node", "nodes");
   }
 
   @Test
@@ -471,6 +477,7 @@ class GraphQLSchemaParserTest {
     assertThat(profilePicture.queryType()).isEqualTo("com.example.types.Query");
     assertThat(profilePicture.argumentsType()).isEqualTo("Arguments.None");
     assertThat(profilePicture.hasArguments()).isFalse();
+    assertThat(profilePicture.isSelective()).isTrue();
     assertThat(profilePicture.includeBatchResolve()).isTrue();
 
     // activeBookings resolver - list return type
@@ -480,6 +487,7 @@ class GraphQLSchemaParserTest {
             .findFirst()
             .orElseThrow();
     assertThat(activeBookings.returnType()).isEqualTo("List<Booking>");
+    assertThat(activeBookings.isSelective()).isFalse();
     assertThat(activeBookings.includeBatchResolve()).isTrue();
 
     // totalSpent resolver - non-null Float (boxed for use in CompletableFuture<T>)
@@ -489,6 +497,31 @@ class GraphQLSchemaParserTest {
             .findFirst()
             .orElseThrow();
     assertThat(totalSpent.returnType()).isEqualTo("Double");
+  }
+
+  @Test
+  void extractsSelectiveResolversWithLegacyDirectiveArg() throws IOException {
+    ViaductSchema schema =
+        parser.parse(
+            new StringReader(
+                """
+                directive @resolver(selective: Boolean! = false) on OBJECT | FIELD_DEFINITION
+
+                type Query {
+                  user: User @resolver(selective: true)
+                }
+
+                type User {
+                  id: ID!
+                }
+                """));
+
+    Map<String, List<ResolverModel>> resolversByType =
+        parser.extractResolvers(schema, "com.example.types", null);
+
+    ResolverModel userResolver = resolversByType.get("Query").get(0);
+    assertThat(userResolver.gqlFieldName()).isEqualTo("user");
+    assertThat(userResolver.isSelective()).isTrue();
   }
 
   @Test
@@ -601,6 +634,38 @@ class GraphQLSchemaParserTest {
     InputStream inputStream =
         Objects.requireNonNull(
             getClass().getClassLoader().getResourceAsStream("test-schema.graphqls"));
-    return new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+    String sdl;
+    try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
+      sdl =
+          TypeDefinitionRegistryExtensionsKt.toSDL(
+              withDefaults(new SchemaParser().parse(readAll(reader))),
+              Predicates.INSTANCE.alwaysTrue(),
+              Predicates.INSTANCE.alwaysTrue());
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to load test-schema.graphqls", e);
+    }
+    return new StringReader(sdl);
+  }
+
+  private static graphql.schema.idl.TypeDefinitionRegistry withDefaults(
+      graphql.schema.idl.TypeDefinitionRegistry registry) {
+    DefaultSchemaFactory.INSTANCE.addDefaults(
+        registry,
+        DefaultSchemaFactory.IncludeNodeSchema.IfUsed,
+        DefaultSchemaFactory.IncludeNodeSchema.IfUsed,
+        false,
+        false,
+        false);
+    return registry;
+  }
+
+  private static String readAll(Reader reader) throws IOException {
+    StringBuilder sb = new StringBuilder();
+    char[] buffer = new char[4096];
+    int n;
+    while ((n = reader.read(buffer)) != -1) {
+      sb.append(buffer, 0, n);
+    }
+    return sb.toString();
   }
 }

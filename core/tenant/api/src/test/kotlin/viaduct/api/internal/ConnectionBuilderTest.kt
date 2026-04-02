@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.connection.OffsetCursor
 import viaduct.api.context.ConnectionFieldExecutionContext
+import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.reflect.Type
@@ -113,7 +114,9 @@ class ConnectionBuilderTest {
     private inner class MockConnectionFieldExecutionContext(
         private val internalCtx: InternalContext,
         override val arguments: ConnectionArguments
-    ) : ConnectionFieldExecutionContext<Object, Query, ConnectionArguments, TestConnection>, InternalContext by internalCtx {
+    ) : ConnectionFieldExecutionContext<Object, Query, ConnectionArguments, TestConnection>,
+        SelectiveFieldExecutionContext<TestConnection>,
+        InternalContext by internalCtx {
         override val objectValue: Object
             get() = throw NotImplementedError("Not needed for tests")
 

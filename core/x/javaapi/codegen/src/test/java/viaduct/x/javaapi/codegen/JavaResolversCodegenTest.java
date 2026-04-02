@@ -2,6 +2,7 @@ package viaduct.x.javaapi.codegen;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import graphql.schema.idl.SchemaParser;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,6 +11,9 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import viaduct.graphql.utils.DefaultSchemaFactory;
+import viaduct.graphql.utils.Predicates;
+import viaduct.graphql.utils.TypeDefinitionRegistryExtensionsKt;
 
 /** Tests for JavaResolversCodegen resolver-only code generation. */
 class JavaResolversCodegenTest {
@@ -26,16 +30,14 @@ class JavaResolversCodegenTest {
     // Create a test schema file with resolver fields
     String schema =
         """
-        directive @resolver on FIELD_DEFINITION
-
-        type Query {
+        extend type Query {
           user(id: ID!): User @resolver
         }
 
         type User {
           id: ID!
           name: String!
-          profile: Profile @resolver
+          profile: Profile @resolver(isSelective: true)
         }
 
         type Profile {
@@ -43,8 +45,7 @@ class JavaResolversCodegenTest {
         }
         """;
 
-    schemaFile = tempDir.resolve("schema.graphqls");
-    Files.writeString(schemaFile, schema);
+    schemaFile = writeSchemaWithDefaults("schema.graphqls", schema);
   }
 
   @Test
@@ -75,13 +76,14 @@ class JavaResolversCodegenTest {
     assertThat(queryResolverContent)
         .contains("package com.example.tenant.resolverbases;")
         .contains("public final class QueryResolvers")
-        .contains("@ResolverFor(typeName = \"Query\", fieldName = \"user\")");
+        .contains("@ResolverFor(typeName = \"Query\", fieldName = \"user\", isSelective = false)");
 
     String userResolverContent = Files.readString(resolverPackageDir.resolve("UserResolvers.java"));
     assertThat(userResolverContent)
         .contains("package com.example.tenant.resolverbases;")
         .contains("public final class UserResolvers")
-        .contains("@ResolverFor(typeName = \"User\", fieldName = \"profile\")");
+        .contains("@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = true)")
+        .contains("public Object getSelections()");
   }
 
   @Test
@@ -117,7 +119,7 @@ class JavaResolversCodegenTest {
     // Create a schema without resolver fields
     String schemaWithoutResolvers =
         """
-        type Query {
+        extend type Query {
           hello: String
         }
 
@@ -127,8 +129,8 @@ class JavaResolversCodegenTest {
         }
         """;
 
-    Path noResolverSchemaFile = tempDir.resolve("no-resolvers.graphqls");
-    Files.writeString(noResolverSchemaFile, schemaWithoutResolvers);
+    Path noResolverSchemaFile =
+        writeSchemaWithDefaults("no-resolvers.graphqls", schemaWithoutResolvers);
 
     File resolverOutputDir = tempDir.resolve("resolver-output").toFile();
 
@@ -142,5 +144,23 @@ class JavaResolversCodegenTest {
     assertThat(result.resolverFileCount()).isEqualTo(0);
     assertThat(result.resolverCount()).isEqualTo(0);
     assertThat(result.generatedFiles()).isEmpty();
+  }
+
+  private Path writeSchemaWithDefaults(String fileName, String schema) throws IOException {
+    var registry = new SchemaParser().parse(schema);
+    DefaultSchemaFactory.INSTANCE.addDefaults(
+        registry,
+        DefaultSchemaFactory.IncludeNodeSchema.IfUsed,
+        DefaultSchemaFactory.IncludeNodeSchema.IfUsed,
+        false,
+        false,
+        false);
+
+    Path path = tempDir.resolve(fileName);
+    Files.writeString(
+        path,
+        TypeDefinitionRegistryExtensionsKt.toSDL(
+            registry, Predicates.INSTANCE.alwaysTrue(), Predicates.INSTANCE.alwaysTrue()));
+    return path;
   }
 }

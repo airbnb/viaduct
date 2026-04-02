@@ -32,7 +32,7 @@ import viaduct.tenant.runtime.toObjectGRT
 sealed class BaseFieldExecutionContextImpl<Q : Query, A : Arguments, R : CompositeOutput>(
     baseData: InternalContext,
     engineExecutionContextWrapper: EngineExecutionContextWrapper,
-    private val selections: SelectionSet<R>,
+    private val selectionSet: SelectionSet<R>,
     override val requestContext: Any?,
     override val arguments: A,
     override val queryValue: Q,
@@ -40,7 +40,7 @@ sealed class BaseFieldExecutionContextImpl<Q : Query, A : Arguments, R : Composi
     private val queryCls: KClass<Q>,
 ) : BaseFieldExecutionContext<Q, A, R>,
     ResolverExecutionContextImpl<Q>(baseData, engineExecutionContextWrapper) {
-    override fun selections() = selections
+    protected fun selectionSet(): SelectionSet<R> = selectionSet
 
     override suspend fun getQueryValue(): Q =
         handleFrameworkErrorsSuspend("getQueryValue") {

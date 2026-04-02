@@ -27,7 +27,7 @@ public final class QueryResolvers {
    * <p>The {@code @ResolverFor} annotation is read by the bootstrapper to determine which field
    * this resolver handles.
    */
-  @ResolverFor(typeName = "Query", fieldName = "greeting")
+  @ResolverFor(typeName = "Query", fieldName = "greeting", isSelective = false)
   public abstract static class Greeting
       implements FieldResolverBase<String, Query, Query, Arguments.None, CompositeOutput.None> {
 
@@ -58,11 +58,6 @@ public final class QueryResolvers {
       @Override
       public Arguments.None getArguments() {
         return inner.getArguments();
-      }
-
-      @Override
-      public Object getSelections() {
-        return inner.getSelections();
       }
 
       @Override

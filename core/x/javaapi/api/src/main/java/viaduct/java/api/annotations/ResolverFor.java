@@ -18,7 +18,7 @@ import java.lang.annotation.Target;
  * <p>Example generated code:
  *
  * <pre>{@code
- * @ResolverFor(typeName = "Query", fieldName = "user")
+ * @ResolverFor(typeName = "Query", fieldName = "user", isSelective = false)
  * public abstract class QueryUserResolverBase
  *     implements FieldResolverBase<User, Query, QueryUserArguments, UserSelections> {
  *   // Generated methods
@@ -54,4 +54,11 @@ public @interface ResolverFor {
    * @return the field name (e.g., "user", "name", "price")
    */
   String fieldName();
+
+  /**
+   * Whether the resolver varies its result based on the requested selection set.
+   *
+   * @return true when the generated Context should expose getSelections()
+   */
+  boolean isSelective();
 }

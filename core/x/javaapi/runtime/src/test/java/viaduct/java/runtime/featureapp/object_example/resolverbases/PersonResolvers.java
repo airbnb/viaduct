@@ -36,7 +36,7 @@ public final class PersonResolvers {
    * <p>The resolver receives the Person instance via ctx.getObjectValue() and can compute a derived
    * field value from its properties.
    */
-  @ResolverFor(typeName = "Person", fieldName = "fullAddress")
+  @ResolverFor(typeName = "Person", fieldName = "fullAddress", isSelective = false)
   public abstract static class FullAddressResolver
       implements FieldResolverBase<String, Person, Query, Arguments.None, CompositeOutput.None> {
 
@@ -73,11 +73,6 @@ public final class PersonResolvers {
       @Override
       public Arguments.None getArguments() {
         return inner.getArguments();
-      }
-
-      @Override
-      public Object getSelections() {
-        return inner.getSelections();
       }
 
       @Override
@@ -119,7 +114,7 @@ public final class PersonResolvers {
    * a contrast to FullAddressResolver to verify that resolvers without required selections have
    * null objectSelectionSet.
    */
-  @ResolverFor(typeName = "Person", fieldName = "greeting")
+  @ResolverFor(typeName = "Person", fieldName = "greeting", isSelective = false)
   public abstract static class GreetingResolver
       implements FieldResolverBase<String, Person, Query, Arguments.None, CompositeOutput.None> {
 
@@ -151,11 +146,6 @@ public final class PersonResolvers {
       @Override
       public Arguments.None getArguments() {
         return inner.getArguments();
-      }
-
-      @Override
-      public Object getSelections() {
-        return inner.getSelections();
       }
 
       @Override

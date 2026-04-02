@@ -21,6 +21,7 @@ class ResolverGeneratorTest {
             "com.example.types.Profile",
             false,
             true,
+            false,
             true);
 
     ResolversFileModel fileModel =
@@ -31,7 +32,7 @@ class ResolverGeneratorTest {
     assertThat(generated)
         .contains("package com.example.tenant.resolverbases;")
         .contains("public final class UserResolvers")
-        .contains("@ResolverFor(typeName = \"User\", fieldName = \"profile\")")
+        .contains("@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = false)")
         .contains("public abstract static class Profile")
         .contains(
             "implements FieldResolverBase<Profile, com.example.types.User, com.example.types.Query,"
@@ -54,6 +55,7 @@ class ResolverGeneratorTest {
             "com.example.types.User",
             true,
             true,
+            false,
             true);
 
     ResolversFileModel fileModel =
@@ -62,7 +64,7 @@ class ResolverGeneratorTest {
     String generated = JavaResolverGenerator.generate(fileModel);
 
     assertThat(generated)
-        .contains("@ResolverFor(typeName = \"Query\", fieldName = \"user\")")
+        .contains("@ResolverFor(typeName = \"Query\", fieldName = \"user\", isSelective = false)")
         .contains("com.example.types.Query_User_Arguments");
   }
 
@@ -80,6 +82,7 @@ class ResolverGeneratorTest {
             "com.example.types.User",
             true,
             true,
+            false,
             false); // includeBatchResolve = false for mutations
 
     ResolversFileModel fileModel =
@@ -88,7 +91,9 @@ class ResolverGeneratorTest {
     String generated = JavaResolverGenerator.generate(fileModel);
 
     assertThat(generated)
-        .contains("@ResolverFor(typeName = \"Mutation\", fieldName = \"createUser\")")
+        .contains(
+            "@ResolverFor(typeName = \"Mutation\", fieldName = \"createUser\", isSelective ="
+                + " false)")
         .contains("public abstract CompletableFuture<User> resolve(Context ctx)")
         .doesNotContain("batchResolve");
   }
@@ -107,6 +112,7 @@ class ResolverGeneratorTest {
             "com.example.types.Profile",
             false,
             true,
+            false,
             true);
 
     ResolverModel resolver2 =
@@ -121,6 +127,7 @@ class ResolverGeneratorTest {
             "com.example.types.Order",
             false,
             true,
+            false,
             true);
 
     ResolversFileModel fileModel =
@@ -130,9 +137,9 @@ class ResolverGeneratorTest {
 
     assertThat(generated)
         .contains("public final class UserResolvers")
-        .contains("@ResolverFor(typeName = \"User\", fieldName = \"profile\")")
+        .contains("@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = false)")
         .contains("public abstract static class Profile")
-        .contains("@ResolverFor(typeName = \"User\", fieldName = \"orders\")")
+        .contains("@ResolverFor(typeName = \"User\", fieldName = \"orders\", isSelective = false)")
         .contains("public abstract static class Orders");
   }
 
@@ -150,6 +157,7 @@ class ResolverGeneratorTest {
             "CompositeOutput.None",
             false,
             false,
+            false,
             true);
 
     ResolversFileModel fileModel =
@@ -158,7 +166,8 @@ class ResolverGeneratorTest {
     String generated = JavaResolverGenerator.generate(fileModel);
 
     assertThat(generated)
-        .contains("@ResolverFor(typeName = \"User\", fieldName = \"fullName\")")
+        .contains(
+            "@ResolverFor(typeName = \"User\", fieldName = \"fullName\", isSelective = false)")
         .contains("CompositeOutput.None")
         .contains("public abstract CompletableFuture<String> resolve(Context ctx)");
   }
@@ -177,6 +186,7 @@ class ResolverGeneratorTest {
             "com.example.types.Profile",
             false,
             true,
+            true,
             true);
 
     ResolversFileModel fileModel =
@@ -189,6 +199,11 @@ class ResolverGeneratorTest {
         .contains("public com.example.types.User getObjectValue()")
         .contains("public com.example.types.Query getQueryValue()")
         .contains("public Arguments.None getArguments()")
+        .contains("@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = true)")
+        .contains(
+            "implements FieldResolverBase.Context<com.example.types.User, com.example.types.Query,"
+                + " Arguments.None, com.example.types.Profile>,"
+                + " SelectiveFieldExecutionContext<com.example.types.Profile>")
         .contains("public Object getSelections()")
         .contains(
             "public <T extends NodeCompositeOutput> GlobalID<T> globalIDFor(Type<T> type, String"

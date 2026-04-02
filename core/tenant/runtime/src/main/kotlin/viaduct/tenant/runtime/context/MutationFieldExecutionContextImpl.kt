@@ -2,6 +2,7 @@ package viaduct.tenant.runtime.context
 
 import kotlin.reflect.KClass
 import viaduct.api.context.MutationFieldExecutionContext
+import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
@@ -34,6 +35,7 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     queryCls: KClass<Q>,
 ) : MutationFieldExecutionContext<Q, M, Arguments, CompositeOutput>,
+    SelectiveFieldExecutionContext<CompositeOutput>,
     BaseFieldExecutionContextImpl<Q, Arguments, CompositeOutput>(
         baseData,
         engineExecutionContextWrapper,
@@ -44,6 +46,8 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
         syncQueryValueGetter,
         queryCls,
     ) {
+    override fun selections(): SelectionSet<CompositeOutput> = selectionSet()
+
     @Suppress("UNCHECKED_CAST")
     override suspend fun mutation(
         selections: String,

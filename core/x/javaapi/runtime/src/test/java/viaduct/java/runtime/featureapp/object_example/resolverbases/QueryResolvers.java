@@ -32,7 +32,7 @@ public final class QueryResolvers {
    *
    * <p>Note: Uses Query_person_Arguments to demonstrate typed arguments with a name parameter.
    */
-  @ResolverFor(typeName = "Query", fieldName = "person")
+  @ResolverFor(typeName = "Query", fieldName = "person", isSelective = false)
   public abstract static class PersonResolver
       implements FieldResolverBase<
           Person, Query, Query, Query_person_Arguments, CompositeOutput.None> {
@@ -67,11 +67,6 @@ public final class QueryResolvers {
       @Override
       public Query_person_Arguments getArguments() {
         return inner.getArguments();
-      }
-
-      @Override
-      public Object getSelections() {
-        return inner.getSelections();
       }
 
       @Override

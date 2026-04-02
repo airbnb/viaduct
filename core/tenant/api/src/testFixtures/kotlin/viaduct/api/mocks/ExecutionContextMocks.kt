@@ -8,6 +8,7 @@ import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.ResolverExecutionContext
+import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.context.SelectiveNodeExecutionContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.DefaultGRTConvFactory
@@ -203,7 +204,8 @@ class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     selectionSetFactory: SelectionSetFactory? = null,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory),
-    FieldExecutionContext<O, Q, A, R> {
+    FieldExecutionContext<O, Q, A, R>,
+    SelectiveFieldExecutionContext<R> {
     override fun selections() = selectionsValue
 
     // In mock contexts, sync and lazy values are the same
@@ -224,7 +226,8 @@ class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionA
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     selectionSetFactory: SelectionSetFactory? = null,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory),
-    ConnectionFieldExecutionContext<O, Q, A, R> {
+    ConnectionFieldExecutionContext<O, Q, A, R>,
+    SelectiveFieldExecutionContext<R> {
     override fun selections() = selectionsValue
 
     // In mock contexts, sync and lazy values are the same
@@ -245,7 +248,8 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
     private val mutationResults: PrebakedResults<Mutation> = EmptyPrebakedResults<Mutation>(),
     selectionSetFactory: SelectionSetFactory? = null,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory),
-    MutationFieldExecutionContext<Q, M, A, R> {
+    MutationFieldExecutionContext<Q, M, A, R>,
+    SelectiveFieldExecutionContext<R> {
     override fun selections() = selectionsValue
 
     // In mock contexts, sync and lazy values are the same

@@ -152,7 +152,7 @@ interface ResolverTestBase {
      * @param objectValue The value of `ctx.objectValue` -- the result of the required selection set defined in @Resolver
      * @param queryValue The value of `ctx.queryValue` -- the query value
      * @param arguments The value of `ctx.arguments` -- the field arguments
-     * @param selections The value of `ctx.selections()` -- the selection set of the field
+     * @param selections The selection set available to selective field resolver contexts
      * @param contextQueryValues List of Query objects to mock results from ctx.query()
      * @return The return value of resolver.resolve()
      */
@@ -182,7 +182,7 @@ interface ResolverTestBase {
      * @param resolver The resolver to execute
      * @param queryValue The value of `ctx.queryValue` -- the query value
      * @param arguments The value of `ctx.arguments` -- the field arguments
-     * @param selections The value of `ctx.selections()` -- the selection set of the field
+     * @param selections The selection set available to selective mutation field resolver contexts
      * @param contextQueryValues List of Query objects to mock results from ctx.query()
      * @param contextMutationValues List of Mutation objects to mock results from ctx.mutation()
      * @return The return value of resolver.resolve()
@@ -213,7 +213,7 @@ interface ResolverTestBase {
      * @param resolver The resolver to execute
      * @param objectValues The values of `ctx.objectValue` -- the result of the required selection set defined in @Resolver
      * @param queryValues The values of `ctx.queryValue` -- the query values
-     * @param selections The value of `ctx.selections()` -- the selection set of the field
+     * @param selections The selection set available to selective field resolver contexts
      * @param contextQueryValues List of Query objects to mock results from ctx.query()
      * @return The return value of resolver.resolve()
      */
@@ -253,7 +253,7 @@ interface ResolverTestBase {
      *
      * @param resolver The resolver to execute
      * @param id The value of `ctx.id` -- the node's ID
-     * @param selections The value of `ctx.selections()` -- the selection set of the node field
+     * @param selections The value of `ctx.selections()` for a selective node resolver context
      * @return The return value of resolver.resolve()
      */
     suspend fun <T : NodeObject> runNodeResolver(
@@ -278,7 +278,7 @@ interface ResolverTestBase {
      *
      * @param resolver The resolver to execute
      * @param ids The value of `id` in each context in `contexts` -- the node IDs
-     * @param selections The value of `selections()` -- the selection set of the node field. If you want to use different
+     * @param selections The value of `ctx.selections()` for a selective node resolver context. If you want to use different
      *        selections, use [createNodeResolverContext] instead to construct individual Context objects
      * @return The return value of resolver.batchResolve()
      */

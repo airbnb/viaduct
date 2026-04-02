@@ -29,6 +29,7 @@ public final class JavaResolverGenerator {
           import java.util.concurrent.CompletableFuture;
           import viaduct.java.api.annotations.ResolverFor;
           import viaduct.java.api.context.FieldExecutionContext;
+          import viaduct.java.api.context.SelectiveFieldExecutionContext;
           import viaduct.java.api.globalid.GlobalID;
           import viaduct.java.api.reflect.Type;
           import viaduct.java.api.resolvers.FieldResolverBase;
@@ -47,7 +48,7 @@ public final class JavaResolverGenerator {
               }
 
               <mdl.resolvers:{r |
-              @ResolverFor(typeName = "<r.gqlTypeName>", fieldName = "<r.gqlFieldName>")
+              @ResolverFor(typeName = "<r.gqlTypeName>", fieldName = "<r.gqlFieldName>", isSelective = <r.selectiveLiteral>)
               public abstract static class <r.resolverClassName>
                   implements <r.fieldResolverBaseType> {
 
@@ -56,7 +57,7 @@ public final class JavaResolverGenerator {
                    * Provides type-safe access to object value, query value, arguments, and selections.
                    */
                   public static class Context
-                      implements <r.contextBaseType> {
+                      implements <r.contextBaseType><if(r.isSelective)>, <r.selectiveContextType><endif> {
 
                       private final <r.fieldExecutionContextType> inner;
 
@@ -79,10 +80,12 @@ public final class JavaResolverGenerator {
                           return inner.getArguments();
                       \\}
 
+                      <if(r.isSelective)>
                       @Override
                       public Object getSelections() {
-                          return inner.getSelections();
+                          return ((<r.selectiveContextType>) inner).getSelections();
                       \\}
+                      <endif>
 
                       @Override
                       public \\<T extends NodeCompositeOutput> GlobalID\\<T> globalIDFor(Type\\<T> type, String internalID) {

@@ -17,7 +17,7 @@ class DefaultJavaResolverClassFinderTest {
 
     interface TestQuery : Query
 
-    @ResolverFor(typeName = "TestType", fieldName = "testField")
+    @ResolverFor(typeName = "TestType", fieldName = "testField", isSelective = false)
     abstract class TestResolverBase :
         FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
 

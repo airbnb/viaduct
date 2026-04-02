@@ -19,6 +19,17 @@ type User implements Node {
 }
 ```
 
+If a field resolver needs access to the caller's field selection set, declare that explicitly in SDL:
+
+```graphql
+type Query {
+  profile: Profile @resolver(isSelective: true)
+}
+```
+
+That causes the generated resolver `Context` to expose `ctx.selections()`. Without `isSelective: true`, the generated field-resolver context does not expose selection access.
+On a field of a node type, this only affects that field resolver. It does not make the enclosing node resolver selective.
+
 ### When to use @resolver
 
 Field resolvers are typically used in the following scenarios:
@@ -104,9 +115,9 @@ Both `resolve` and `batchResolve` take `Context` objects as input. This class is
 
 * `arguments` gives access to the arguments to the resolver. When a field takes arguments, the Viaduct build system will generate a GRT representing the values of those arguments. If `User.displayName` took arguments, for example, Viaduct would generate a type `User_DisplayName_Arguments` having one property per argument taken by `displayName`. In our example, the field execution context for `displayName` is parameterized by the special type `NoArguments` indicating that the field takes no arguments.
 
-* `selections()` returns the selections being requested for this field in the query, same as the `selections` function for the node resolver. The `SelectionSet` type is parameterized by the type of the selection set. For example, in the case of `User`'s node resolver, `selections` returned `SelectionSet<User>`. In the case of `displayName`, `selections` returns `SelectionSet<NotComposite>`, where the special type `NotComposite` indicates that `displayName` does not return a composite type (it returns a scalar instead).
+* For fields declared with `@resolver(isSelective: true)`, the generated `Context` also implements `SelectiveFieldExecutionContext<R>`, which exposes `selections()`. This returns the selections being requested for the field in the query. The `SelectionSet` type is parameterized by the field's output type. For example, if a resolver returns `Profile`, `selections()` returns `SelectionSet<Profile>`. If the field returns a scalar or enum, `selections()` returns `SelectionSet<NotComposite>`.
 
-Since {{ kdoc("viaduct.api.context.NodeExecutionContext") }} implements {{ kdoc("viaduct.api.context.ResolverExecutionContext") }}, it also includes the utilities provided there, which allow you to:
+Since {{ kdoc("viaduct.api.context.FieldExecutionContext") }} implements {{ kdoc("viaduct.api.context.ResolverExecutionContext") }}, it also includes the utilities provided there, which allow you to:
 
 * Execute [subqueries](subqueries.md)
 * Construct [node references](node_references.md)

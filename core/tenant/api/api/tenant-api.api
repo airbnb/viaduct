@@ -59,7 +59,6 @@ public abstract interface class viaduct/api/VariablesProvider {
 public abstract interface class viaduct/api/context/BaseFieldExecutionContext : viaduct/api/context/ResolverExecutionContext {
 	public abstract fun getArguments ()Lviaduct/api/types/Arguments;
 	public abstract fun getQueryValue ()Lviaduct/api/types/Query;
-	public abstract fun selections ()Lviaduct/api/select/SelectionSet;
 }
 
 public abstract interface class viaduct/api/context/ExecutionContext {
@@ -93,6 +92,10 @@ public abstract interface class viaduct/api/context/ResolverExecutionContext : v
 public final class viaduct/api/context/ResolverExecutionContext$DefaultImpls {
 	public static synthetic fun query$default (Lviaduct/api/context/ResolverExecutionContext;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun selectionsFor$default (Lviaduct/api/context/ResolverExecutionContext;Lviaduct/api/reflect/Type;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lviaduct/api/select/SelectionSet;
+}
+
+public abstract interface class viaduct/api/context/SelectiveFieldExecutionContext {
+	public abstract fun selections ()Lviaduct/api/select/SelectionSet;
 }
 
 public abstract interface class viaduct/api/context/SelectiveNodeExecutionContext : viaduct/api/context/NodeExecutionContext {

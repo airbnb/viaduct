@@ -255,6 +255,29 @@ class FieldResolverGeneratorTest {
     }
 
     @Test
+    fun `generates selective field contexts when resolver is selective`() {
+        val contents = gen(
+            """
+                directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
+                type Query { foo: Foo @resolver(isSelective: true) }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
+                type Foo {
+                    value: String
+                }
+            """.trimIndent(),
+            "Query"
+        )
+
+        assertContains(contents, "@ResolverFor(typeName = \"Query\", fieldName = \"foo\", isSelective = true)")
+        assertContains(
+            contents,
+            "FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.Foo> by inner, viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.Foo>"
+        )
+        assertContains(contents, "override fun selections(): viaduct.api.select.SelectionSet<viaduct.api.grts.Foo>")
+    }
+
+    @Test
     fun `generates resolvers that return ID scalars`() {
         gen(
             """

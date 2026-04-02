@@ -9,6 +9,7 @@ import viaduct.api.VariablesProvider
 import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.FieldExecutionContext
+import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.InternalContext
@@ -68,7 +69,7 @@ interface FieldResolverStub {
  * create a [FieldExecutionContextImpl] or [ConnectionFieldExecutionContextImpl].
  */
 @Suppress("UNUSED_PARAMETER", "UNCHECKED_CAST")
-abstract class AbstractFieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContext<*, *, *>>(
+abstract class AbstractFieldUnbatchedResolverStub<Ctx : Any>(
     val objectSelections: ParsedSelections? = null,
     val querySelections: ParsedSelections? = null,
     override val coord: Coordinate,
@@ -128,6 +129,22 @@ class FieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContext<*, *, *>>(
 ) : AbstractFieldUnbatchedResolverStub<Ctx>(objectSelections, querySelections, coord, variables, resolveFn, variablesProvider, resolverName) {
     class Context(ctx: FieldExecutionContext<*, *, *, *>) :
         FieldExecutionContext<Object, Query, Arguments, CompositeOutput> by (ctx as FieldExecutionContext<Object, Query, Arguments, CompositeOutput>),
+        InternalContext by (ctx as InternalContext)
+}
+
+class SelectiveFieldUnbatchedResolverStub<Ctx : SelectiveFieldExecutionContext<*>>(
+    objectSelections: ParsedSelections? = null,
+    querySelections: ParsedSelections? = null,
+    coord: Coordinate,
+    variables: List<SelectionSetVariable>,
+    resolveFn: (suspend (ctx: Any) -> Any?),
+    variablesProvider: VariablesProviderInfo?,
+    resolverName: String?
+) : AbstractFieldUnbatchedResolverStub<Ctx>(objectSelections, querySelections, coord, variables, resolveFn, variablesProvider, resolverName) {
+    @Suppress("UNCHECKED_CAST")
+    class Context<R : CompositeOutput>(ctx: FieldExecutionContext<*, *, *, *>) :
+        FieldExecutionContext<Object, Query, Arguments, R> by (ctx as FieldExecutionContext<Object, Query, Arguments, R>),
+        SelectiveFieldExecutionContext<R> by (ctx as SelectiveFieldExecutionContext<R>),
         InternalContext by (ctx as InternalContext)
 }
 

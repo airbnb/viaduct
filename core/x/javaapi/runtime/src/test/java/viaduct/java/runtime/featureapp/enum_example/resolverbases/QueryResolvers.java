@@ -30,7 +30,7 @@ public final class QueryResolvers {
    * <p>The {@code @ResolverFor} annotation is read by the bootstrapper to determine which field
    * this resolver handles.
    */
-  @ResolverFor(typeName = "Query", fieldName = "currentStatus")
+  @ResolverFor(typeName = "Query", fieldName = "currentStatus", isSelective = false)
   public abstract static class CurrentStatus
       implements FieldResolverBase<Status, Query, Query, Arguments.None, CompositeOutput.None> {
 
@@ -61,11 +61,6 @@ public final class QueryResolvers {
       @Override
       public Arguments.None getArguments() {
         return inner.getArguments();
-      }
-
-      @Override
-      public Object getSelections() {
-        return inner.getSelections();
       }
 
       @Override

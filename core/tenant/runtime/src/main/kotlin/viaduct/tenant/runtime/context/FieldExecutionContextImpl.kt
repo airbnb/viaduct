@@ -2,6 +2,7 @@ package viaduct.tenant.runtime.context
 
 import kotlin.reflect.KClass
 import viaduct.api.context.FieldExecutionContext
+import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
@@ -40,6 +41,7 @@ class FieldExecutionContextImpl<Q : Query>(
     private val objectCls: KClass<Object>,
     queryCls: KClass<Q>,
 ) : FieldExecutionContext<Object, Q, Arguments, CompositeOutput>,
+    SelectiveFieldExecutionContext<CompositeOutput>,
     BaseFieldExecutionContextImpl<Q, Arguments, CompositeOutput>(
         baseData,
         engineExecutionContextWrapper,
@@ -50,6 +52,8 @@ class FieldExecutionContextImpl<Q : Query>(
         syncQueryValueGetter,
         queryCls,
     ) {
+    override fun selections(): SelectionSet<CompositeOutput> = selectionSet()
+
     override suspend fun getObjectValue(): Object =
         handleFrameworkErrorsSuspend("getObjectValue") {
             val resolvedSyncObjectValue = syncObjectValueGetter?.invoke()

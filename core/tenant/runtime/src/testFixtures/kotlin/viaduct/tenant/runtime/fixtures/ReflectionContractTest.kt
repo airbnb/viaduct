@@ -25,12 +25,12 @@ abstract class ReflectionContractTest : FeatureAppTestBase() {
             | type Category {
             |   id: Int!
             |   "Use ctx.selections() to check requested types; return [Toy(id=category.id, prodType=\"Toy\"), Fruit(id=category.id, prodType=\"Fruit\")] for each requested union member"
-            |   products: [Product] @resolver
+            |   products: [Product] @resolver(isSelective: true)
             | }
             |
             | extend type Query {
             |   "Return Category with id=<id argument>"
-            |   categoryById(id: Int!): Category @resolver
+            |   categoryById(id: Int!): Category @resolver(isSelective: true)
             | }
             |
             | type Toy {

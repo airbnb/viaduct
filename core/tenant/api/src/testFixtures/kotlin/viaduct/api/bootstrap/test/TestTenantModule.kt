@@ -29,7 +29,7 @@ class TestTenantModule : TenantModule {
 
 @OptIn(InternalApi::class)
 object TestTypeModernResolvers {
-    @ResolverFor("TestType", "aField")
+    @ResolverFor("TestType", "aField", isSelective = false)
     abstract class AField : ResolverBase<String> {
         open suspend fun resolve(ctx: Context): String = TODO()
 
@@ -38,7 +38,7 @@ object TestTypeModernResolvers {
         ) : FieldExecutionContext<TestType, Query, Arguments.NoArguments, CompositeOutput.NotComposite> by innerCtx
     }
 
-    @ResolverFor("TestType", "bIntField")
+    @ResolverFor("TestType", "bIntField", isSelective = false)
     abstract class BIntField : ResolverBase<Int> {
         open suspend fun resolve(ctx: Context): Int = TODO()
 
@@ -47,7 +47,7 @@ object TestTypeModernResolvers {
         ) : FieldExecutionContext<TestType, Query, Arguments.NoArguments, CompositeOutput.NotComposite> by innerCtx
     }
 
-    @ResolverFor("TestType", "parameterizedField")
+    @ResolverFor("TestType", "parameterizedField", isSelective = false)
     abstract class ParameterizedField : ResolverBase<Boolean> {
         open suspend fun resolve(ctx: Context): Boolean = TODO()
 
@@ -56,7 +56,7 @@ object TestTypeModernResolvers {
         ) : FieldExecutionContext<TestType, Query, TestType_ParameterizedField_Arguments, CompositeOutput.NotComposite> by innerCtx
     }
 
-    @ResolverFor("TestType", "dField")
+    @ResolverFor("TestType", "dField", isSelective = false)
     abstract class DField : ResolverBase<String> {
         open suspend fun resolve(ctx: Context): String = TODO()
 
@@ -65,7 +65,7 @@ object TestTypeModernResolvers {
         ) : FieldExecutionContext<TestType, Query, Arguments.NoArguments, CompositeOutput.NotComposite> by innerCtx
     }
 
-    @ResolverFor("TestType", "whenMappingsTest")
+    @ResolverFor("TestType", "whenMappingsTest", isSelective = false)
     abstract class WhenMappingsTest : ResolverBase<String> {
         open suspend fun resolve(ctx: Context): String = TODO()
 
