@@ -1,6 +1,6 @@
 plugins {
     `kotlin-dsl`
-    id("conventions.kotlin")
+    id("conventions.gradle-plugin-kotlin")
     id("conventions.kotlin-static-analysis")
     id("com.gradle.plugin-publish") version "2.0.0"
     id("conventions.viaduct-publishing")
@@ -24,11 +24,8 @@ dependencies {
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)
 
-    // Testing
-    testImplementation(libs.kotlin.test)
-    testImplementation(libs.junit)
+    // Testing (kotlin-test, junit, junit-engine, junit-launcher provided by conventions.gradle-plugin-kotlin)
     testImplementation(libs.kotest.assertions.core.jvm)
-    testRuntimeOnly(libs.junit.engine)
     testImplementation(gradleTestKit())
 }
 

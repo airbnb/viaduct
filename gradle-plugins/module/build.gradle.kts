@@ -1,6 +1,6 @@
 plugins {
     `kotlin-dsl`
-    id("conventions.kotlin")
+    id("conventions.gradle-plugin-kotlin")
     id("conventions.kotlin-static-analysis")
     id("com.gradle.plugin-publish") version "2.0.0"
     id("conventions.viaduct-publishing")

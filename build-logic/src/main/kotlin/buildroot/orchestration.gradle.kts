@@ -199,8 +199,7 @@ registerSubprojectAggregate(
 registerSubprojectAggregate(
     aggregateName = "orchestrationPublishAllToMavenCentral",
     description = "[orchestration] Publishes all publishable SUBPROJECTS in THIS build to Maven Central.",
-    taskNames = setOf("publishAllPublicationsToMavenCentralRepository"),
-    optionalTaskNames = setOf("publishToMavenCentral")
+    taskNames = setOf("publishAllPublicationsToMavenCentralRepository")
 )
 
 // ---------------- In INCLUDED BUILDS: alias conventional tasks to aggregates ----------------
@@ -292,7 +291,6 @@ if (gradle.parent == null) {
     // publish central: root subprojects + included builds' aggregate (NO dependency on root aggregate)
     ensureTask("publishToMavenCentral", "publishing", "Publishes root subprojects + participating included builds to Maven Central.") {
         dependsOn(tasksNamedInSubprojects("publishAllPublicationsToMavenCentralRepository"))
-        dependsOn(tasksNamedInSubprojects("publishToMavenCentral"))
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToMavenCentral") })
     }
 
