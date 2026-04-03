@@ -37,7 +37,7 @@ jobs:
     uses: ./.github/workflows/standalone-demoapp-tests.yml
 
   bcv-api-check:
-    uses: ./.github/workflows/bcv_api_check.yaml
+    uses: ./.github/workflows/bcv-api-check.yml
 
   format-alerts:
     needs: [build-and-test, standalone-demoapp-tests, bcv-api-check]

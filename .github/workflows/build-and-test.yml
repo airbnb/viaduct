@@ -50,8 +50,6 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v6
-
       - uses: ./.github/actions/setup-build
         with:
           java-version: ${{ matrix.java }}
@@ -172,8 +170,6 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v6
-
       - uses: ./.github/actions/setup-build
         with:
           java-version: ${{ matrix.java }}
@@ -258,8 +254,6 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v6
-
       - uses: ./.github/actions/setup-build
         with:
           java-version: ${{ matrix.java }}
@@ -297,8 +291,6 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v6
-
       - uses: ./.github/actions/setup-build
         with:
           java-version: ${{ matrix.java }}
@@ -330,8 +322,6 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
-      - uses: actions/checkout@v6
-
       - uses: ./.github/actions/setup-build
         with:
           java-version: ${{ matrix.java }}

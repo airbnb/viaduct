@@ -2,6 +2,18 @@ name: Setup Build
 description: Common setup steps for checkout, Java, and Gradle
 
 inputs:
+  ref:
+    description: 'Git ref to checkout (defaults to the triggering event ref)'
+    required: false
+    default: ''
+  fetch-depth:
+    description: 'Number of commits to fetch (0 = full history)'
+    required: false
+    default: '1'
+  fetch-tags:
+    description: 'Whether to fetch tags'
+    required: false
+    default: 'false'
   java-version:
     description: 'Java version to use'
     required: false
@@ -14,6 +26,13 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ inputs.ref }}
+        fetch-depth: ${{ inputs.fetch-depth }}
+        fetch-tags: ${{ inputs.fetch-tags }}
+
     - name: Setup JDK
       uses: actions/setup-java@v5
       with:

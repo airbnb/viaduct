@@ -41,11 +41,12 @@ jobs:
         run: |
           echo "RELEASE_REF=main" >> "$GITHUB_ENV"
 
-      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-build
         with:
           ref: ${{ env.RELEASE_REF }}
-          fetch-depth: 0
-          fetch-tags: true
+          fetch-depth: '0'
+          fetch-tags: 'true'
+          java-version: '21'
 
       - name: Verify Gradle wrapper
         run: |
@@ -56,29 +57,12 @@ jobs:
           chmod +x ./gradlew
           echo "✅ Gradle wrapper ready"
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
       - name: Install Python dependencies
         run: pip install -r .github/scripts/requirements.txt
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            .gradle
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/build.gradle.kts') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
       - name: Download dependencies
         run: |
           echo "📥 Downloading Gradle dependencies..."
@@ -120,7 +104,7 @@ jobs:
         id: generate_changelog
         if: ${{ !inputs.publish_snapshot }}
         run: |
-          echo "## Changelog\n\n" > ${{ github.workspace }}-CHANGELOG.txt
+          printf "## Changelog\n\n" > ${{ github.workspace }}-CHANGELOG.txt
           python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "HEAD" >> ${{ github.workspace }}-CHANGELOG.txt
           cat ${{ github.workspace }}-CHANGELOG.txt
       - name: Create Draft Release
