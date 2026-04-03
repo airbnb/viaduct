@@ -147,7 +147,7 @@ abstract class GenerateResolverBasesTask
                             (if (pkg.isBlank()) pfx else "$pfx.$pkg").trim('.').replace('.', '/')
                         }
                     }
-                    .map { rel -> base.asFile.toPath().resolve(rel).toFile().apply { mkdirs() } }
+                    .map { rel -> base.asFile.toPath().resolve(rel).toFile() }
                     .map { dir -> objects.directoryProperty().apply { set(dir) }.get() }
             }
             return outputAugmentedDir

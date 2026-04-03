@@ -58,25 +58,19 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         val assembleCentralSchemaTask = tasks.register<AssembleCentralSchemaTask>("assembleViaductCentralSchema") {
             schemaPartitions.setFrom(allPartitions.incoming.artifactView {}.files)
 
-            val baseSchemaDir = project.file("src/main/viaduct/schemabase")
-            if (baseSchemaDir.exists()) {
-                baseSchemaFiles.setFrom(
-                    project.fileTree(baseSchemaDir) {
-                        include("**/*.graphqls")
-                    }
-                )
-            }
+            baseSchemaFiles.setFrom(
+                project.fileTree("src/main/viaduct/schemabase") {
+                    include("**/*.graphqls")
+                }
+            )
 
             // Root types schema files: global Query/Mutation/Subscription extensions
             // for the entire project (not module-specific)
-            val commonSchemaDir = project.file("src/viaduct/schema")
-            if (commonSchemaDir.exists()) {
-                commonSchemaFiles.setFrom(
-                    project.fileTree(commonSchemaDir) {
-                        include("**/*.graphqls")
-                    }
-                )
-            }
+            commonSchemaFiles.setFrom(
+                project.fileTree("src/viaduct/schema") {
+                    include("**/*.graphqls")
+                }
+            )
 
             outputDirectory.set(centralSchemaDirectory())
         }

@@ -84,7 +84,6 @@ private fun Project.registerSubprojectAggregate(
     aggregateName: String,
     description: String,
     taskNames: Set<String> = emptySet(),
-    optionalTaskNames: Set<String> = emptySet(),
     taskTypes: List<Class<out Task>> = emptyList()
 ) {
     val agg = tasks.register(aggregateName) {
@@ -96,11 +95,6 @@ private fun Project.registerSubprojectAggregate(
     subprojects {
         if (taskNames.isNotEmpty()) {
             tasks.matching { it.name in taskNames }.configureEach {
-                agg.configure { dependsOn(this@configureEach) }
-            }
-        }
-        if (optionalTaskNames.isNotEmpty()) {
-            tasks.matching { it.name in optionalTaskNames }.configureEach {
                 agg.configure { dependsOn(this@configureEach) }
             }
         }
@@ -116,9 +110,6 @@ private fun Project.registerSubprojectAggregate(
         val depPaths = mutableListOf<String>()
         subprojects.forEach { sp ->
             taskNames.forEach { n ->
-                if (sp.tasks.findByName(n) != null) depPaths += "${sp.path}:$n"
-            }
-            optionalTaskNames.forEach { n ->
                 if (sp.tasks.findByName(n) != null) depPaths += "${sp.path}:$n"
             }
             taskTypes.forEach { t ->
