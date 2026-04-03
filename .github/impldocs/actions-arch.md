@@ -296,15 +296,10 @@ Not all workflows currently declare explicit `permissions:` blocks or `concurren
 
 - **Concurrency:** workflows that mutate shared state (publish artifacts, push branches) need `concurrency` groups keyed to the branch or publication target. Use `cancel-in-progress: true` only when the old run's results are genuinely stale and incomplete work is harmless — CI checks qualify; a half-finished publication does not.
 
-### Build scan infrastructure
+### Build scan infrastructure — DONE
 
-The current build scan surfacing pipeline (`post-build-scan-comments.yml` + `run_gradle_with_build_scan_capture.sh` + `maybe_capture_build_scan_artifact.py` + `extract_build_scan_url.py` + `post_build_scan_comments.py`) should be replaced. The `gradle/actions/setup-gradle@v5` action (already used via `setup-build`) automatically captures build scan URLs and writes them to `$GITHUB_STEP_SUMMARY`. This makes the custom artifact-and-comment pipeline redundant.
+The custom build scan artifact pipeline has been removed (Slice B). Build scan URLs are now surfaced automatically via `$GITHUB_STEP_SUMMARY` by `gradle/actions/setup-gradle@v5`.
 
-Cleanup steps:
-
-- Delete `post-build-scan-comments.yml` (dead code — its `workflow_run` trigger cannot fire since `build-and-test.yml` no longer has direct `pull_request` triggers)
-- Delete `post_build_scan_comments.py`, `maybe_capture_build_scan_artifact.py`, `extract_build_scan_url.py`
-- Remove the `build-scan-artifact.json` upload steps from `build-and-test.yml`
-- Simplify `run_gradle_with_build_scan_capture.sh` — strip the artifact capture call, keep the structured logging
-
-Before removing the PR comment approach entirely, verify that `$GITHUB_STEP_SUMMARY` provides adequate visibility by examining the UI on a real failure. A deliberate test failure may be needed to evaluate the experience.
+- Deleted `post-build-scan-comments.yml`, `post_build_scan_comments.py`, `maybe_capture_build_scan_artifact.py`, `extract_build_scan_url.py` and their tests
+- Removed `build-scan-artifact.json` upload steps from `build-and-test.yml`
+- Deleted `run_gradle_with_build_scan_capture.sh` and inlined Gradle invocations directly into `build-and-test.yml`
