@@ -72,7 +72,7 @@ An orchestrator helper is a reusable workflow that orchestrators delegate to for
 
 | Workflow | Purpose | Runs on |
 |---|---|---|
-| `post-slack-alerts.yml` | Post pre-formatted alert text to Slack and Discord | called by orchestrators on failure, manual (test mode) |
+| `post-alerts.yml` | Post pre-formatted alert text to Slack and Discord | called by orchestrators on failure, manual (test mode) |
 
 ### Release Workflow
 
@@ -173,9 +173,9 @@ Orchestrators do not post to Slack or Discord directly. Instead they:
 
 1. **Format** the alert text by piping JSON through `format_alert.py`. The JSON is constructed safely using `jq -n --arg` to prevent injection.
 2. **Set** the text as a job output. Multi-line output (from multi-job alerts) requires heredoc syntax in `$GITHUB_OUTPUT`.
-3. **Call** `post-slack-alerts.yml` via `workflow_call` with the `text` input.
+3. **Call** `post-alerts.yml` via `workflow_call` with the `text` input.
 
-`post-slack-alerts.yml` is the sole workflow that holds Slack and Discord credentials. Its `post-call` job posts the text to both Slack (`chat.postMessage` API with `SLACK_BOT_TOKEN`) and Discord (webhook with `DISCORD_CI_WEBHOOK_URL`). Callers pass `secrets: inherit`.
+`post-alerts.yml` is the sole workflow that holds Slack and Discord credentials. Its `post-call` job posts the text to both Slack (`chat.postMessage` API with `SLACK_BOT_TOKEN`) and Discord (webhook with `DISCORD_CI_WEBHOOK_URL`). Callers pass `secrets: inherit`.
 
 The orchestrator pattern in YAML:
 
@@ -202,7 +202,7 @@ format-alerts:
 send-alerts:
   needs: [format-alerts]
   if: always() && needs.format-alerts.result == 'success'
-  uses: ./.github/workflows/post-slack-alerts.yml
+  uses: ./.github/workflows/post-alerts.yml
   with:
     text: ${{ needs.format-alerts.outputs.text }}
   secrets: inherit
@@ -232,7 +232,7 @@ ci-manual-trigger.yml  [orchestrator]
   |      api-compatibility
   |
   '--- [on push, if any atomic failed]
-         format-alerts --> send-alerts --> post-slack-alerts.yml [helper] --> Slack + Discord
+         format-alerts --> send-alerts --> post-alerts.yml [helper] --> Slack + Discord
 ```
 
 ### Daily Schedule (2pm UTC)
@@ -253,12 +253,12 @@ periodic-green-check.yml  [orchestrator]
   |      |--- bcv_api_check.yaml  [atomic]
   |      |
   |      '--- [if any atomic failed]
-  |             format-alerts --> send-alerts --> post-slack-alerts.yml [helper] --> Slack + Discord
+  |             format-alerts --> send-alerts --> post-alerts.yml [helper] --> Slack + Discord
   |
   '--- staleness-check  [inline job]
          |
          '-- [if stale]
-               format-alert --> send-staleness-alert --> post-slack-alerts.yml [helper] --> Slack + Discord
+               format-alert --> send-staleness-alert --> post-alerts.yml [helper] --> Slack + Discord
 ```
 
 ### Manual Dispatch
@@ -274,7 +274,7 @@ Notifications are suppressed on manual dispatch — the person who triggered the
 | `bcv_api_check.yaml` | Check API compatibility on a branch | — |
 | `ci-manual-trigger.yml` | Run the full CI suite on demand | `send_alerts` (default: off) |
 | `periodic-green-check.yml` | Run scheduled checks without waiting for cron | `branch`, `mode` (ci-check / staleness-check / all) |
-| `post-slack-alerts.yml` | Verify Slack and Discord connectivity | `mode: test-posts` |
+| `post-alerts.yml` | Verify Slack and Discord connectivity | `mode: test-posts` |
 | `conventional-commit.yml` | Test the PR title validator itself | — |
 | `release.yml` | Publish artifacts and create a GitHub release (see [RELEASE-RUNBOOK.md](../../RELEASE-RUNBOOK.md)) | `release_version`, `previous_release_version`, `publish_snapshot`, `skip_check`, `skip_publish` |
 
@@ -285,9 +285,8 @@ Notifications are suppressed on manual dispatch — the person who triggered the
 Move logic from current workflows to their renamed replacements, then delete the originals:
 
 - `ci-manual-trigger.yml` --> `ci-trigger.yml`
-- `post-slack-alerts.yml` --> `post-alerts.yml`
 
-Empty stubs for the new names already exist.
+An empty stub for the new name already exists.
 
 ### Explicit permissions and concurrency
 

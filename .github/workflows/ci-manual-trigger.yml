@@ -97,7 +97,7 @@ jobs:
   send-alerts:
     needs: [format-alerts]
     if: always() && needs.format-alerts.result == 'success'
-    uses: ./.github/workflows/post-slack-alerts.yml
+    uses: ./.github/workflows/post-alerts.yml
     with:
       text: ${{ needs.format-alerts.outputs.text }}
     secrets: inherit

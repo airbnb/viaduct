@@ -103,7 +103,7 @@ jobs:
   send-staleness-alert:
     needs: [staleness-check]
     if: always() && needs.staleness-check.outputs.stale == 'true'
-    uses: ./.github/workflows/post-slack-alerts.yml
+    uses: ./.github/workflows/post-alerts.yml
     with:
       text: ${{ needs.staleness-check.outputs.text }}
     secrets: inherit
