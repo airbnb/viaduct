@@ -26,7 +26,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
     }
 
     @Resolver
-    class ObjectContainingNodeResolver : QueryResolvers.ObjectContainingNode() {
+    class ObjectWithNodeFieldResolver : QueryResolvers.ObjectWithNodeField() {
         override suspend fun resolve(ctx: Context): ObjectWithNodeField? {
             return ObjectWithNodeField.Builder(ctx)
                 .node(ctx.nodeFor(ctx.globalIDFor(NodeObj.Reflection, "nestedNode")))

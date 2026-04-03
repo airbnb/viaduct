@@ -12,9 +12,6 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  * - Resolver returns a node reference via ctx.nodeFor()
  * - Resolver returns a nested node reference on an object field
  *
- * SDL note: The root query field `objectContainingNode` was renamed from `objectWithNodeField`
- * to avoid the Java codegen name-shadowing issue.
- *
  * Extend this class and provide resolver implementations to verify that a given
  * runtime correctly supports these patterns.
  */
@@ -41,7 +38,7 @@ abstract class NodeResolverContractTest : FeatureAppTestBase() {
             |     "Return a node reference via ctx.nodeFor(\"NodeObj\", \"tenant1\"); resolved NodeObj has value=\"foo\""
             |     nodeReference(id: String!): NodeObj! @resolver
             |     "Return ObjectWithNodeField with node=nodeFor(\"NodeObj\", \"nestedNode\"); resolved node has value=\"foo\""
-            |     objectContainingNode: ObjectWithNodeField @resolver
+            |     objectWithNodeField: ObjectWithNodeField @resolver
             | }
             | #END_SCHEMA
         """.trimMargin()
@@ -100,7 +97,7 @@ abstract class NodeResolverContractTest : FeatureAppTestBase() {
         execute(
             query = """
                 query TestQuery {
-                    objectContainingNode {
+                    objectWithNodeField {
                         node {
                             id
                             value
@@ -110,7 +107,7 @@ abstract class NodeResolverContractTest : FeatureAppTestBase() {
             """.trimIndent()
         ).assertEquals {
             "data" to {
-                "objectContainingNode" to {
+                "objectWithNodeField" to {
                     "node" to {
                         "id" to generatedId
                         "value" to "foo"

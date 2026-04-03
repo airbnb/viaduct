@@ -28,7 +28,7 @@ class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
     }
 
     @Resolver
-    class Query_UserByIdResolver : QueryResolvers.UserById() {
+    class Query_UserResolver : QueryResolvers.User() {
         override suspend fun resolve(ctx: Context): User {
             val userId = ctx.arguments.id
             return User.Builder(ctx)
@@ -76,14 +76,14 @@ class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
     }
 
     @Resolver(
-        queryValueFragment = "fragment _ on Query { viewer { id name } userById(id: \$userId) { id name } }",
+        queryValueFragment = "fragment _ on Query { viewer { id name } user(id: \$userId) { id name } }",
         variables = [Variable(name = "userId", fromArgument = "userId")]
     )
     class Mutation_UpdateUserWithViewerInfoResolver : MutationResolvers.UpdateUserWithViewerInfo() {
         override suspend fun resolve(ctx: Context): UpdateResult {
             val userId = ctx.arguments.userId
             val viewer = ctx.queryValue.getViewer()
-            val user = ctx.queryValue.getUserById()
+            val user = ctx.queryValue.getUser()
 
             val success = viewer != null && user != null
             val message = when {

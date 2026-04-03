@@ -21,9 +21,9 @@ abstract class IncludeDirectiveContractTest : FeatureAppTestBase() {
             | #START_SCHEMA
             | extend type Query {
             |  "Return a Foo object"
-            |  fooResult: Foo @resolver
+            |  foo: Foo @resolver
             |  "Return a Thrower object (only tested with @include(if:false), so resolver may throw)"
-            |  throwingResult: Thrower @resolver
+            |  thrower: Thrower @resolver
             |  "Return false"
             |  booleanValue: Boolean @resolver
             | }
@@ -48,7 +48,7 @@ abstract class IncludeDirectiveContractTest : FeatureAppTestBase() {
         execute(
             query = """
                 query {
-                    fooResult @include(if:false) {
+                    foo @include(if:false) {
                       intValue
                       sValue
                     }
@@ -64,7 +64,7 @@ abstract class IncludeDirectiveContractTest : FeatureAppTestBase() {
         execute(
             query = """
                 query {
-                    fooResult @include(if:true) {
+                    foo @include(if:true) {
                       intValue
                       sValue
                     }
@@ -72,7 +72,7 @@ abstract class IncludeDirectiveContractTest : FeatureAppTestBase() {
             """.trimIndent()
         ).assertEquals {
             "data" to {
-                "fooResult" to {
+                "foo" to {
                     "intValue" to 10
                     "sValue" to "result value"
                 }
@@ -85,18 +85,18 @@ abstract class IncludeDirectiveContractTest : FeatureAppTestBase() {
         execute(
             query = """
                 query {
-                    fooResult @include(if:true) {
+                    foo @include(if:true) {
                       intValue
                       sValue
                     }
-                    throwingResult @include(if:false) {
+                    thrower @include(if:false) {
                         willThrow
                     }
                  }
             """.trimIndent()
         ).assertEquals {
             "data" to {
-                "fooResult" to {
+                "foo" to {
                     "intValue" to 10
                     "sValue" to "result value"
                 }
@@ -110,11 +110,11 @@ abstract class IncludeDirectiveContractTest : FeatureAppTestBase() {
             query = """
                 query MyQuery(${'$'}includeFoo: Boolean!){
                     booleanValue
-                    fooResult @include(if: ${'$'}includeFoo) {
+                    foo @include(if: ${'$'}includeFoo) {
                       intValue
                       sValue
                     }
-                    throwingResult @include(if:false) {
+                    thrower @include(if:false) {
                         willThrow
                     }
                  }

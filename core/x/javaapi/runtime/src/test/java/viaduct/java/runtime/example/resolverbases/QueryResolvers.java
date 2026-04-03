@@ -1,5 +1,6 @@
 package viaduct.java.runtime.example.resolverbases;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import viaduct.java.api.annotations.ResolverFor;
 import viaduct.java.api.context.FieldExecutionContext;
@@ -79,6 +80,18 @@ public final class QueryResolvers {
       @Override
       public <T extends NodeCompositeOutput> T nodeFor(GlobalID<T> id) {
         return inner.nodeFor(id);
+      }
+
+      @Override
+      public <T> CompletableFuture<T> query(
+          String selections, Map<String, Object> variables, Class<T> targetClass) {
+        return inner.query(selections, variables, targetClass);
+      }
+
+      @Override
+      public <T> CompletableFuture<T> mutation(
+          String selections, Map<String, Object> variables, Class<T> targetClass) {
+        return inner.mutation(selections, variables, targetClass);
       }
     }
 

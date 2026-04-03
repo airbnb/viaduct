@@ -10,9 +10,6 @@ import viaduct.graphql.test.assertEquals
  * - Static reflective types: requestsType() on union member types
  * - Dynamic reflective types: only id field requested, no products
  *
- * SDL note: The root query field is named `categoryById` (not `category`) to avoid
- * the Java codegen name-shadowing issue where a field name matches its return type.
- *
  * Extend this class and provide resolver implementations to verify that a given
  * runtime correctly supports these patterns.
  */
@@ -30,7 +27,7 @@ abstract class ReflectionContractTest : FeatureAppTestBase() {
             |
             | extend type Query {
             |   "Return Category with id=<id argument>"
-            |   categoryById(id: Int!): Category @resolver(isSelective: true)
+            |   category(id: Int!): Category @resolver
             | }
             |
             | type Toy {
@@ -52,7 +49,7 @@ abstract class ReflectionContractTest : FeatureAppTestBase() {
         execute(
             query = """
                 query {
-                    categoryById(id: 123) {
+                    category(id: 123) {
                         id
                         products {
                             ... on Toy {
@@ -69,7 +66,7 @@ abstract class ReflectionContractTest : FeatureAppTestBase() {
             """.trimIndent()
         ).assertEquals {
             "data" to {
-                "categoryById" to {
+                "category" to {
                     "id" to 123
                     "products" to arrayOf(
                         {
@@ -91,14 +88,14 @@ abstract class ReflectionContractTest : FeatureAppTestBase() {
         execute(
             query = """
                 query {
-                    categoryById(id: 123) {
+                    category(id: 123) {
                         id
                     }
                 }
             """.trimIndent()
         ).assertEquals {
             "data" to {
-                "categoryById" to {
+                "category" to {
                     "id" to 123
                 }
             }

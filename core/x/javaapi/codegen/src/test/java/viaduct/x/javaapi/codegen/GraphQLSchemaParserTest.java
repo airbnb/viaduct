@@ -486,7 +486,7 @@ class GraphQLSchemaParserTest {
             .filter(r -> r.gqlFieldName().equals("activeBookings"))
             .findFirst()
             .orElseThrow();
-    assertThat(activeBookings.returnType()).isEqualTo("List<Booking>");
+    assertThat(activeBookings.returnType()).isEqualTo("List<com.example.types.Booking>");
     assertThat(activeBookings.isSelective()).isFalse();
     assertThat(activeBookings.includeBatchResolve()).isTrue();
 

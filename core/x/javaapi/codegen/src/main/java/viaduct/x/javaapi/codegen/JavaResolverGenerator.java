@@ -56,7 +56,7 @@ public final class JavaResolverGenerator {
                    * Context for <r.gqlTypeName>.<r.gqlFieldName> resolver.
                    * Provides type-safe access to object value, query value, arguments, and selections.
                    */
-                  public static class Context
+                  public static final class Context
                       implements <r.contextBaseType><if(r.isSelective)>, <r.selectiveContextType><endif> {
 
                       private final <r.fieldExecutionContextType> inner;
@@ -106,6 +106,33 @@ public final class JavaResolverGenerator {
                       public \\<T extends NodeCompositeOutput> T nodeFor(GlobalID\\<T> id) {
                           return inner.nodeFor(id);
                       \\}
+
+                      @Override
+                      public \\<T> CompletableFuture\\<T> query(String selections, Map\\<String, Object> variables, Class\\<T> targetClass) {
+                          return inner.query(selections, variables, targetClass);
+                      \\}
+
+                      @Override
+                      public \\<T> CompletableFuture\\<T> mutation(String selections, Map\\<String, Object> variables, Class\\<T> targetClass) {
+                          return inner.mutation(selections, variables, targetClass);
+                      \\}
+
+                      public CompletableFuture\\<<r.queryType>\\> query(String selections) {
+                          return inner.query(selections, java.util.Map.of(), <r.queryType>.class);
+                      \\}
+
+                      public CompletableFuture\\<<r.queryType>\\> query(String selections, Map\\<String, Object> variables) {
+                          return inner.query(selections, variables, <r.queryType>.class);
+                      \\}
+                      <if(r.hasMutationType)>
+                      public CompletableFuture\\<<r.mutationType>\\> mutation(String selections) {
+                          return inner.mutation(selections, java.util.Map.of(), <r.mutationType>.class);
+                      \\}
+
+                      public CompletableFuture\\<<r.mutationType>\\> mutation(String selections, Map\\<String, Object> variables) {
+                          return inner.mutation(selections, variables, <r.mutationType>.class);
+                      \\}
+                      <endif>
                   \\}
 
                   /**

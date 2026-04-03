@@ -10,6 +10,23 @@ import viaduct.graphql.schema.ViaductSchema;
  */
 public class TypeMapper {
 
+  private final String grtPackage;
+
+  /** Creates a TypeMapper that returns simple type names for custom types. */
+  public TypeMapper() {
+    this.grtPackage = null;
+  }
+
+  /**
+   * Creates a TypeMapper that returns fully qualified names for custom types. Use this when
+   * generating code in a package different from the GRT package (e.g., resolver base classes).
+   *
+   * @param grtPackage the package name of the GRT types (e.g., {@code "com.example.grt"})
+   */
+  public TypeMapper(String grtPackage) {
+    this.grtPackage = grtPackage;
+  }
+
   /**
    * Maps a ViaductSchema.TypeExpr to its Java representation.
    *
@@ -57,8 +74,8 @@ public class TypeMapper {
       case "Float" -> useBoxedType ? "Double" : "double";
       case "Boolean" -> useBoxedType ? "Boolean" : "boolean";
       case "ID" -> "String";
-      // For custom types (enums, objects, interfaces), use the type name directly
-      default -> graphqlType;
+      // For custom types (enums, objects, interfaces), use FQN if a package was provided
+      default -> grtPackage != null ? grtPackage + "." + graphqlType : graphqlType;
     };
   }
 }

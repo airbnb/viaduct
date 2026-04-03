@@ -10,14 +10,14 @@ import viaduct.tenant.runtime.fixtures.IncludeDirectiveContractTest
 
 class KotlinIncludeDirectiveContractTest : IncludeDirectiveContractTest() {
     @Resolver
-    class Query_FooResultResolver : QueryResolvers.FooResult() {
+    class Query_FooResolver : QueryResolvers.Foo() {
         override suspend fun resolve(ctx: Context): Foo {
             return Foo.Builder(ctx).build()
         }
     }
 
     @Resolver
-    class Query_ThrowingResultResolver : QueryResolvers.ThrowingResult() {
+    class Query_ThrowerResolver : QueryResolvers.Thrower() {
         override suspend fun resolve(ctx: Context): Thrower {
             return Thrower.Builder(ctx).build()
         }

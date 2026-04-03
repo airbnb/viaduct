@@ -112,17 +112,17 @@ public final class JavaGRTGenerator {
             public class <mdl.className> implements <mdl.implementsClause> {
 
                 <mdl.fields: {f |
-                private <f.javaType> <f.name>;
+                private <f.javaType> <f.safeName>;
                 }; separator="
             ">
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    return this.<f.name>;
+                    return this.<f.safeName>;
                 \\}
 
-                public void <f.setterName>(<f.javaType> <f.name>) {
-                    this.<f.name> = <f.name>;
+                public void <f.setterName>(<f.javaType> <f.safeName>) {
+                    this.<f.safeName> = <f.safeName>;
                 \\}
                 }; separator="
             ">
@@ -133,13 +133,13 @@ public final class JavaGRTGenerator {
 
                 public static class Builder {
                     <mdl.fields: {f |
-                    private <f.javaType> <f.name>;
+                    private <f.javaType> <f.safeName>;
                     }; separator="
             ">
 
                     <mdl.fields: {f |
-                    public Builder <f.name>(<f.javaType> <f.name>) {
-                        this.<f.name> = <f.name>;
+                    public Builder <f.safeName>(<f.javaType> <f.safeName>) {
+                        this.<f.safeName> = <f.safeName>;
                         return this;
                     \\}
                     }; separator="
@@ -148,7 +148,7 @@ public final class JavaGRTGenerator {
                     public <mdl.className> build() {
                         <mdl.className> obj = new <mdl.className>();
                         <mdl.fields: {f |
-                        obj.<f.name> = this.<f.name>;
+                        obj.<f.safeName> = this.<f.safeName>;
                         }; separator="
             ">
                         return obj;
@@ -202,16 +202,16 @@ public final class JavaGRTGenerator {
             public class <mdl.className> implements GraphQLInput {
 
                 <mdl.fields: {f |
-                private <f.javaType> <f.name>;
+                private <f.javaType> <f.safeName>;
                 }; separator="\\n">
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    return this.<f.name>;
+                    return this.<f.safeName>;
                 \\}
 
-                public void <f.setterName>(<f.javaType> <f.name>) {
-                    this.<f.name> = <f.name>;
+                public void <f.setterName>(<f.javaType> <f.safeName>) {
+                    this.<f.safeName> = <f.safeName>;
                 \\}
                 }; separator="\\n">
 
@@ -221,12 +221,12 @@ public final class JavaGRTGenerator {
 
                 public static class Builder {
                     <mdl.fields: {f |
-                    private <f.javaType> <f.name>;
+                    private <f.javaType> <f.safeName>;
                     }; separator="\\n">
 
                     <mdl.fields: {f |
-                    public Builder <f.name>(<f.javaType> <f.name>) {
-                        this.<f.name> = <f.name>;
+                    public Builder <f.safeName>(<f.javaType> <f.safeName>) {
+                        this.<f.safeName> = <f.safeName>;
                         return this;
                     \\}
                     }; separator="\\n">
@@ -234,7 +234,7 @@ public final class JavaGRTGenerator {
                     public <mdl.className> build() {
                         <mdl.className> obj = new <mdl.className>();
                         <mdl.fields: {f |
-                        obj.<f.name> = this.<f.name>;
+                        obj.<f.safeName> = this.<f.safeName>;
                         }; separator="\\n">
                         return obj;
                     }
@@ -333,16 +333,16 @@ public final class JavaGRTGenerator {
             public class <mdl.className> implements Arguments {
 
                 <mdl.fields: {f |
-                private <f.javaType> <f.name>;
+                private <f.javaType> <f.safeName>;
                 }; separator="\\n">
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    return this.<f.name>;
+                    return this.<f.safeName>;
                 \\}
 
-                public void <f.setterName>(<f.javaType> <f.name>) {
-                    this.<f.name> = <f.name>;
+                public void <f.setterName>(<f.javaType> <f.safeName>) {
+                    this.<f.safeName> = <f.safeName>;
                 \\}
                 }; separator="\\n">
             }

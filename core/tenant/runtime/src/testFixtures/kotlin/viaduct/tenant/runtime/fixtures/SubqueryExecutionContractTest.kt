@@ -18,9 +18,6 @@ import viaduct.graphql.test.assertEquals
  * - ctx.mutation() result combined with a field argument
  * - ctx.query(selections, variables) from a mutation context
  *
- * Note: This contract test is Kotlin-only because ctx.query() and ctx.mutation()
- * are not available in the Java Tenant API.
- *
  * Extend this class and provide resolver implementations to verify that a given
  * runtime correctly supports these patterns.
  */

@@ -50,7 +50,7 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
   }
 
   @Resolver
-  public static class UserByIdResolver extends QueryResolvers.UserById {
+  public static class UserResolver extends QueryResolvers.User {
     @Override
     public CompletableFuture<User> resolve(Context ctx) {
       String userId = ctx.getArguments().getId();
@@ -106,7 +106,7 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
 
   @Resolver(
       queryValueFragment =
-          "fragment _ on Query { viewer { id name } userById(id: $userId) { id name } }",
+          "fragment _ on Query { viewer { id name } user(id: $userId) { id name } }",
       variables = {@Variable(name = "userId", fromArgument = "userId")})
   public static class UpdateUserWithViewerInfoResolver
       extends MutationResolvers.UpdateUserWithViewerInfo {
@@ -114,7 +114,7 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
     public CompletableFuture<UpdateResult> resolve(Context ctx) {
       String userId = ctx.getArguments().getUserId();
       User viewer = ctx.getQueryValue().getViewer();
-      User user = ctx.getQueryValue().getUserById();
+      User user = ctx.getQueryValue().getUser();
 
       boolean success = viewer != null && user != null;
       String message;

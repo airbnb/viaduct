@@ -32,7 +32,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   // --- Resolvers ---
 
   @Resolver
-  public static class FooResultResolver extends QueryResolvers.FooResult {
+  public static class FooResolver extends QueryResolvers.Foo {
     @Override
     public CompletableFuture<Foo> resolve(Context ctx) {
       return CompletableFuture.completedFuture(Foo.builder().build());
@@ -40,7 +40,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   }
 
   @Resolver
-  public static class ThrowingResultResolver extends QueryResolvers.ThrowingResult {
+  public static class ThrowerResolver extends QueryResolvers.Thrower {
     @Override
     public CompletableFuture<Thrower> resolve(Context ctx) {
       return CompletableFuture.completedFuture(Thrower.builder().build());

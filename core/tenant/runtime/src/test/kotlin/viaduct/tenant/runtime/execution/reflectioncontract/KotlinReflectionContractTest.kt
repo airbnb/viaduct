@@ -9,12 +9,10 @@ import viaduct.tenant.runtime.fixtures.ReflectionContractTest
 
 class KotlinReflectionContractTest : ReflectionContractTest() {
     @Resolver
-    class Query_CategoryByIdResolver : QueryResolvers.CategoryById() {
+    class Query_CategoryResolver : QueryResolvers.Category() {
         override suspend fun resolve(ctx: Context) =
             Category.Builder(ctx).also { builder ->
-                if (ctx.selections().contains(Category.Fields.id)) {
-                    builder.put(Category.Fields.id.name, ctx.arguments.id)
-                }
+                builder.put(Category.Fields.id.name, ctx.arguments.id)
             }.build()
     }
 

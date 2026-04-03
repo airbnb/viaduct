@@ -304,7 +304,7 @@ public class GraphQLSchemaParser {
    */
   public Map<String, List<ResolverModel>> extractResolvers(
       ViaductSchema schema, String grtPackage, String mutationTypeName) {
-    TypeMapper typeMapper = new TypeMapper();
+    TypeMapper typeMapper = new TypeMapper(grtPackage);
     Map<String, List<ResolverModel>> result = new java.util.LinkedHashMap<>();
 
     for (ViaductSchema.TypeDef typeDef : schema.getTypes().values()) {
@@ -365,6 +365,9 @@ public class GraphQLSchemaParser {
     // Query type is always the Query GRT
     String queryType = grtPackage + ".Query";
 
+    // Mutation type is the Mutation GRT if the schema has a Mutation type, otherwise null
+    String mutationType = mutationTypeName != null ? grtPackage + "." + mutationTypeName : null;
+
     // Arguments type - use Arguments.None if field has no arguments
     boolean hasArguments = field.getHasArgs();
     String argumentsType =
@@ -390,6 +393,7 @@ public class GraphQLSchemaParser {
         returnType,
         objectType,
         queryType,
+        mutationType,
         argumentsType,
         selectionsType,
         hasArguments,

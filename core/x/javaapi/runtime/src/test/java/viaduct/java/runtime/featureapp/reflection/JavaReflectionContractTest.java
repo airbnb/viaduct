@@ -32,7 +32,7 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
   // --- Resolvers ---
 
   @Resolver
-  public static class CategoryByIdResolver extends QueryResolvers.CategoryById {
+  public static class CategoryResolver extends QueryResolvers.Category {
     @Override
     public CompletableFuture<Category> resolve(Context ctx) {
       return CompletableFuture.completedFuture(

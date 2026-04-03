@@ -36,6 +36,8 @@ package viaduct.x.javaapi.codegen;
  *     "com.example.types.User"). Used as the first type parameter in Context.
  * @param queryType the fully qualified Java type for the Query root (e.g.,
  *     "com.example.types.Query"). Always points to the Query GRT type.
+ * @param mutationType the fully qualified Java type for the Mutation root (e.g.,
+ *     "com.example.types.Mutation"), or null if the schema has no Mutation type.
  * @param argumentsType the fully qualified Java type for field arguments. Either
  *     "Arguments.NoArguments" if the field has no arguments, or a generated arguments class like
  *     "com.example.types.Query_User_Arguments".
@@ -56,6 +58,7 @@ public record ResolverModel(
     String returnType,
     String objectType,
     String queryType,
+    String mutationType,
     String argumentsType,
     String selectionsType,
     boolean hasArguments,
@@ -119,6 +122,25 @@ public record ResolverModel(
    */
   public String getQueryType() {
     return queryType;
+  }
+
+  /**
+   * Returns the fully qualified Java type for the Mutation root, or null if none.
+   *
+   * @return the mutation type (e.g., "com.example.types.Mutation"), or null
+   */
+  public String getMutationType() {
+    return mutationType;
+  }
+
+  /**
+   * Returns true if this schema has a Mutation type. Used by StringTemplate for conditional
+   * generation of {@code mutation()} methods.
+   *
+   * @return true if the mutation type is non-null
+   */
+  public boolean getHasMutationType() {
+    return mutationType != null;
   }
 
   /**

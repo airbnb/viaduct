@@ -12,10 +12,6 @@ import viaduct.graphql.test.assertEquals
  * - Recursive resolver dependencies through Query Selections
  * - Mutation fields that load Query selections with variables
  *
- * SDL note: The root query field for looking up a user by ID is named `userById`
- * (not `user`) to avoid the Java codegen name-shadowing issue where a field name
- * matches its return type.
- *
  * Extend this class and provide resolver implementations to verify that a given
  * runtime correctly supports these patterns.
  */
@@ -29,11 +25,11 @@ abstract class QuerySelectionsContractTest : FeatureAppTestBase() {
             |     "Return null"
             |     viewerOrNull: User @resolver
             |     "Return a User with id=<id>, name=\"User-<id>\""
-            |     userById(id: ID!): User @resolver
+            |     user(id: ID!): User @resolver
             | }
             |
             | extend type Mutation {
-            |     "Use queryValueFragment to fetch viewer and userById(id: userId); return UpdateResult(success=true, message=\"Updated user User-<userId> (<userId>) with info from viewer ViewerUser (viewer-123)\")"
+            |     "Use queryValueFragment to fetch viewer and user(id: userId); return UpdateResult(success=true, message=\"Updated user User-<userId> (<userId>) with info from viewer ViewerUser (viewer-123)\")"
             |     updateUserWithViewerInfo(userId: ID!): UpdateResult! @resolver
             | }
             |
@@ -61,14 +57,14 @@ abstract class QuerySelectionsContractTest : FeatureAppTestBase() {
         execute(
             """
             query {
-                userById(id: "test-user") {
+                user(id: "test-user") {
                     displayName
                 }
             }
         """
         ).assertEquals {
             "data" to {
-                "userById" to {
+                "user" to {
                     "displayName" to "test-user-displayedBy-ViewerUser"
                 }
             }
@@ -80,14 +76,14 @@ abstract class QuerySelectionsContractTest : FeatureAppTestBase() {
         execute(
             """
             query {
-                userById(id: "complex-user") {
+                user(id: "complex-user") {
                     greeting
                 }
             }
         """
         ).assertEquals {
             "data" to {
-                "userById" to {
+                "user" to {
                     "greeting" to "Hello User-complex-user, from viewer-123 (displayed by viewer-123-displayedBy-ViewerUser)"
                 }
             }
@@ -99,14 +95,14 @@ abstract class QuerySelectionsContractTest : FeatureAppTestBase() {
         execute(
             """
             query {
-                userById(id: "null-test") {
+                user(id: "null-test") {
                     displayNameFromNullViewer
                 }
             }
         """
         ).assertEquals {
             "data" to {
-                "userById" to {
+                "user" to {
                     "displayNameFromNullViewer" to "null-test-displayedBy-Unknown"
                 }
             }

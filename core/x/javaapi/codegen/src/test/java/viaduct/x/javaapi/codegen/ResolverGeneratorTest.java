@@ -17,6 +17,7 @@ class ResolverGeneratorTest {
             "Profile",
             "com.example.types.User",
             "com.example.types.Query",
+            "com.example.types.Mutation",
             "Arguments.None",
             "com.example.types.Profile",
             false,
@@ -37,7 +38,7 @@ class ResolverGeneratorTest {
         .contains(
             "implements FieldResolverBase<Profile, com.example.types.User, com.example.types.Query,"
                 + " Arguments.None, com.example.types.Profile>")
-        .contains("public static class Context")
+        .contains("public static final class Context")
         .contains("public abstract CompletableFuture<Profile> resolve(Context ctx)");
   }
 
@@ -51,6 +52,7 @@ class ResolverGeneratorTest {
             "User",
             "com.example.types.Query",
             "com.example.types.Query",
+            "com.example.types.Mutation",
             "com.example.types.Query_User_Arguments",
             "com.example.types.User",
             true,
@@ -78,6 +80,7 @@ class ResolverGeneratorTest {
             "User",
             "com.example.types.Mutation",
             "com.example.types.Query",
+            "com.example.types.Mutation",
             "com.example.types.Mutation_CreateUser_Arguments",
             "com.example.types.User",
             true,
@@ -108,6 +111,7 @@ class ResolverGeneratorTest {
             "Profile",
             "com.example.types.User",
             "com.example.types.Query",
+            "com.example.types.Mutation",
             "Arguments.None",
             "com.example.types.Profile",
             false,
@@ -123,6 +127,7 @@ class ResolverGeneratorTest {
             "List<Order>",
             "com.example.types.User",
             "com.example.types.Query",
+            "com.example.types.Mutation",
             "Arguments.None",
             "com.example.types.Order",
             false,
@@ -153,6 +158,7 @@ class ResolverGeneratorTest {
             "String",
             "com.example.types.User",
             "com.example.types.Query",
+            "com.example.types.Mutation",
             "Arguments.None",
             "CompositeOutput.None",
             false,
@@ -182,6 +188,7 @@ class ResolverGeneratorTest {
             "Profile",
             "com.example.types.User",
             "com.example.types.Query",
+            "com.example.types.Mutation",
             "Arguments.None",
             "com.example.types.Profile",
             false,
@@ -211,5 +218,73 @@ class ResolverGeneratorTest {
         .contains("public <T extends NodeCompositeOutput> String serialize(GlobalID<T> globalID)")
         .contains("public Object getRequestContext()")
         .contains("public <T extends NodeCompositeOutput> T nodeFor(GlobalID<T> id)");
+  }
+
+  @Test
+  void generatesContextWithQueryAndMutationMethods() {
+    ResolverModel resolverModel =
+        new ResolverModel(
+            "Container",
+            "derivedFromQuery",
+            "DerivedFromQuery",
+            "Integer",
+            "com.example.types.Container",
+            "com.example.types.Query",
+            "com.example.types.Mutation",
+            "Arguments.None",
+            "CompositeOutput.None",
+            false,
+            false,
+            true,
+            true);
+
+    ResolversFileModel fileModel =
+        new ResolversFileModel("com.example.tenant", "Container", List.of(resolverModel));
+
+    String generated = JavaResolverGenerator.generate(fileModel);
+
+    // Check that Context has typed query() and mutation() convenience methods
+    assertThat(generated)
+        .contains("public CompletableFuture<com.example.types.Query> query(String selections)")
+        .contains(
+            "public CompletableFuture<com.example.types.Query> query(String selections,"
+                + " Map<String, Object> variables)")
+        .contains(
+            "public CompletableFuture<com.example.types.Mutation> mutation(String selections)")
+        .contains(
+            "public CompletableFuture<com.example.types.Mutation> mutation(String selections,"
+                + " Map<String, Object> variables)")
+        .contains("inner.query(selections, java.util.Map.of(), com.example.types.Query.class)")
+        .contains(
+            "inner.mutation(selections, java.util.Map.of(), com.example.types.Mutation.class)");
+  }
+
+  @Test
+  void omitsMutationMethodsWhenNoMutationType() {
+    ResolverModel resolverModel =
+        new ResolverModel(
+            "Container",
+            "derivedFromQuery",
+            "DerivedFromQuery",
+            "Integer",
+            "com.example.types.Container",
+            "com.example.types.Query",
+            null, // no mutation type
+            "Arguments.None",
+            "CompositeOutput.None",
+            false,
+            false,
+            true,
+            true);
+
+    ResolversFileModel fileModel =
+        new ResolversFileModel("com.example.tenant", "Container", List.of(resolverModel));
+
+    String generated = JavaResolverGenerator.generate(fileModel);
+
+    // Should have query() methods but not mutation() methods
+    assertThat(generated)
+        .contains("public CompletableFuture<com.example.types.Query> query(String selections)")
+        .doesNotContain("mutation(String selections)");
   }
 }
