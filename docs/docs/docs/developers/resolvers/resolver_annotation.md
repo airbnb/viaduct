@@ -14,6 +14,8 @@ annotation class Resolver(
 )
 ```
 
+`@Resolver` is a Kotlin annotation class, so you use its constructor like any other Kotlin class constructor — you can specify parameter names explicitly, or omit them and pass arguments positionally in the declared parameter order. For example, `@Resolver("firstName lastName")` is equivalent to `@Resolver(objectValueFragment = "firstName lastName")` because `objectValueFragment` is the first declared parameter.
+
 **objectValueFragment**: a GraphQL fragment on the object type that contains the field being resolved. In the `User.displayName` example below, the fragment must be on the `User` type.
 
 **queryValueFragment**: a GraphQL fragment on the root query type.
@@ -26,7 +28,7 @@ A resolver can optionally specify one or both of `objectValueFragment` and `quer
 
 ### Shorthand syntax
 
-The shorthand fragment syntax just includes the selections within the fragment body.
+The shorthand fragment syntax omits the `fragment ... on Type { }` declaration and just includes the selections within the fragment body.
 
 Here's an example of what this looks like for a `User.displayName` field. The selections must be on the `User` type:
 
@@ -37,7 +39,10 @@ class UserDisplayNameResolver : UserResolvers.DisplayName()
 The shorthand fragment syntax can also be used for `queryValueFragment`. The selections must be on the root query type:
 
 ```kotlin
-@Resolver(queryValueFragment = "user { firstName lastName }")
+@Resolver(
+  queryValueFragment = "node(id: \$userId) { ... on User { firstName lastName } }",
+  variables = [Variable("userId", fromArgument = "userId")]
+)
 ```
 
 ### Full fragment syntax
@@ -48,18 +53,20 @@ The full fragment syntax is the regular GraphQL fragment syntax. You can name th
 @Resolver("fragment _ on User { firstName lastName }")
 ```
 
-You can define multiple named fragments and reference them within your main fragment:
+You can define multiple named fragments and reference them within your main fragment using the standard GraphQL fragment spread syntax (`...FragmentName`):
 ```kotlin
 @Resolver(
   queryValueFragment = """
   fragment _ on Query {
-    listing {
-      cover: coverImage {
-        ...ImageDetails
-      }
-      rooms {
-        images {
+    node(id: ${'$'}listingId) {
+      ... on Listing {
+        cover: coverImage {
           ...ImageDetails
+        }
+        rooms {
+          images {
+            ...ImageDetails
+          }
         }
       }
     }
@@ -68,7 +75,8 @@ You can define multiple named fragments and reference them within your main frag
     url
     caption
   }
-  """
+  """,
+  variables = [Variable("listingId", fromArgument = "listingId")]
 )
 ```
 
@@ -93,11 +101,22 @@ Note that if you have multiple fragments on the type of the main fragment (eithe
 ```
 
 ## Accessing required selection set values
-You can access the required selection set values via the [`Context` object](field_resolvers.md#context) given as input to the field resolver. `Context.objectValue` and `Context.queryValue` are [GRTs](../generated_code/index.md) of the object and Query types, e.g.
+You can access the required selection set values via the [`Context` object](field_resolvers.md#context) given as input to the field resolver. `Context.objectValue` and `Context.queryValue` are [GRTs](../generated_code/index.md) of the object and Query types respectively.
+
+The GRT getter methods correspond to the **schema types**, not the fragment structure. For example, given the listing `queryValueFragment` above:
 
 ```kotlin
-ctx.objectValue.getFirstName()
-ctx.queryValue.getListing().getCoverImage(alias = "cover")
+// Query.node` field:
+val listing = ctx.queryValue.getNode() as? Listing
+
+// Get Listing.coverImage, aliased as "cover" in the fragment:
+val coverImage = listing?.getCoverImage(alias = "cover")
+
+// Get the caption field (since GRTs are based on schema types, fragments are irrelevant):
+val coverCaption = coverImage?.getCaption()
+
+// Access room images
+val roomImages = listing?.getRooms()?.flatMap { it.getImages() }
 ```
 
 If the resolver tries to access a field not included within its required selection set, it results in an `UnsetFieldException` at runtime.
@@ -113,25 +132,28 @@ The fragments in `@Resolver` annotations can contain variables. These variables 
 
 #### @Resolver variables parameter
 
-Variables may be bound using the `variables` parameter of `@Resolver`, which is an array of `@Variable` annotations. For example, consider this resolver configuration for the field `MyType.foo` that takes an argument `include`:
+Variables may be bound using the `variables` parameter of `@Resolver`, which is an array of `@Variable` annotations. For example, consider this resolver configuration for a field on `MyType` that conditionally includes a field based on a value from the object:
 
 ```kotlin
 @Resolver(
   objectValueFragment = """
     fragment _ on MyType {
+      settings {
+        isActive
+      }
       field @include(if: ${'$'}shouldInclude)
     }
   """,
-  variables = [Variable("shouldInclude", fromArgument = "includeMe")]
+  variables = [Variable("shouldInclude", fromObjectField = "settings.isActive")]
 )
 ```
 
-This resolver fragment uses a `shouldInclude` variable. At runtime, the value for this variable will be determined by the value of the `includeMe` argument to `MyType.foo`. To support nested GraphQL input types, the `fromArgument` string can contain a dot-separated path.
+This resolver fragment uses a `shouldInclude` variable. At runtime, the value for this variable will be determined by the value of `settings.isActive` on `MyType`'s object value. The `fromObjectField` parameter takes a dot-separated path relative to the object value, and the referenced path must be a selection defined in the resolver's `objectValueFragment`.
 
 There are three mutually-exclusive parameters to the `@Variable` class that can be used to set the value of a variable:
 
-1. the `fromArgument` parameter just illustrated
-2. the `fromObjectField` parameter, which takes a dot-separated path relative to the `objectValue` of an execution. If used, the path must be a selection defined in the resolver's objectValueFragment.
+1. the `fromArgument` parameter, which binds the variable to a field argument value (i.e. from `ctx.arguments`). To support nested GraphQL input types, the `fromArgument` string can contain a dot-separated path.
+2. the `fromObjectField` parameter just illustrated, which takes a dot-separated path relative to the `objectValue` of an execution. If used, the path must be a selection defined in the resolver's objectValueFragment.
 3. the `fromQueryField` parameter. This parameter is analogous to `fromObjectField`, but the path describes a selection in the resolver's `queryValueFragment`.
 
 #### VariablesProvider
