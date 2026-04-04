@@ -13,6 +13,7 @@ import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.engine.runtime.CheckerDispatcher
@@ -30,7 +31,8 @@ class DispatcherRegistryFactory(
     private val tenantAPIBootstrapper: TenantAPIBootstrapper,
     private val validator: Validator<ExecutorValidatorContext>,
     private val checkerExecutorFactory: CheckerExecutorFactory,
-    private val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT
+    private val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
+    private val proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
 ) {
     companion object {
         private fun log() = getLogger(this::class.java.name.substringBefore("\$Companion"))
@@ -68,13 +70,19 @@ class DispatcherRegistryFactory(
 
             var tenantContributesExecutors = false
             for ((fieldCoord, executor) in tenantFieldResolverExecutors) {
-                fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(executor)
-                fieldResolverExecutorsToValidate[fieldCoord] = executor
+                val finalExecutor = proxyResolverFactory.proxyField(executor) ?: executor
+                fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(finalExecutor)
+                // The proxy executor is validated because the engine uses the proxy's RSS and type
+                // contract at runtime. Validating the original would check RSS that is no longer
+                // in effect when a proxy overrides it.
+                fieldResolverExecutorsToValidate[fieldCoord] = finalExecutor
                 tenantContributesExecutors = true
             }
             for ((typeName, executor) in tenantNodeResolverExecutors) {
-                nodeResolverDispatchers[typeName] = InstrumentedNodeResolverDispatcher(NodeResolverDispatcherImpl(executor), resolverInstrumentation)
-                nodeResolverExecutorsToValidate[typeName] = executor
+                val finalExecutor = proxyResolverFactory.proxyNode(executor) ?: executor
+                nodeResolverDispatchers[typeName] = InstrumentedNodeResolverDispatcher(NodeResolverDispatcherImpl(finalExecutor), resolverInstrumentation)
+                // Same reasoning as field executors above: the proxy is validated.
+                nodeResolverExecutorsToValidate[typeName] = finalExecutor
                 tenantContributesExecutors = true
             }
             if (!tenantContributesExecutors) {

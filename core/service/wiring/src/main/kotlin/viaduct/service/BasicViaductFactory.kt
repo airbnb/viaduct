@@ -3,6 +3,7 @@ package viaduct.service
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
+import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.TenantCodeInjector
@@ -37,14 +38,23 @@ object BasicViaductFactory {
      *    injector to be used to instantiate resolvers and other tenant code.  The injector
      *    defaults to using reflection and assuming that there are no-arg constructors
      *    for all tenant code. The tenantPackagePrefix is always configurable.
+     *
+     * @param proxyResolverFactory factory for wrapping resolvers with proxies (e.g., for remote execution).
+     *    Defaults to [ProxyResolverFactory.NO_OP], which leaves all resolvers executing locally.
      */
+    @JvmOverloads
     fun create(
         schemaRegistrationInfo: SchemaRegistrationInfo = SchemaRegistrationInfo(),
         tenantRegistrationInfo: TenantRegistrationInfo,
+        proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
     ): Viaduct {
         val builder = builderWithTenantInfo(tenantRegistrationInfo)
         val schemaConfiguration = applySchemaRegistry(schemaRegistrationInfo)
-        return builder.withSchemaConfiguration(schemaConfiguration).build()
+
+        return builder
+            .withProxyResolverFactory(proxyResolverFactory)
+            .withSchemaConfiguration(schemaConfiguration)
+            .build()
     }
 
     /**

@@ -16,6 +16,7 @@ import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CheckerExecutorFactoryCreator
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.NoOpCheckerExecutorFactoryImpl
+import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
@@ -34,6 +35,7 @@ class StandardViaductModule(
     private val checkerExecutorFactory: CheckerExecutorFactory?,
     private val checkerExecutorFactoryCreator: CheckerExecutorFactoryCreator?,
     private val documentProviderFactory: DocumentProviderFactory?,
+    private val proxyResolverFactory: ProxyResolverFactory?,
 ) : AbstractModule() {
     override fun configure() {
         bind(StandardViaduct.Factory::class.java)
@@ -64,6 +66,8 @@ class StandardViaductModule(
                 checkerExecutorFactory ?: NoOpCheckerExecutorFactoryImpl()
             }
         bind(CheckerExecutorFactoryCreator::class.java).toInstance(resolvedCheckerExecutorFactoryCreator)
+
+        bind(ProxyResolverFactory::class.java).toInstance(proxyResolverFactory ?: ProxyResolverFactory.NO_OP)
     }
 
     @Provides

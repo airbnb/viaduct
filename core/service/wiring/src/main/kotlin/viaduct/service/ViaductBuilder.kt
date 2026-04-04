@@ -4,6 +4,7 @@ import graphql.execution.DataFetcherExceptionHandler
 import io.micrometer.core.instrument.MeterRegistry
 import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
+import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
@@ -138,6 +139,12 @@ class ViaductBuilder {
     fun withGlobalIDCodec(globalIDCodec: GlobalIDCodec) =
         apply {
             builder.withGlobalIDCodec(globalIDCodec)
+        }
+
+    /** @see StandardViaduct.Builder.withProxyResolverFactory */
+    fun withProxyResolverFactory(proxyResolverFactory: ProxyResolverFactory) =
+        apply {
+            builder.withProxyResolverFactory(proxyResolverFactory)
         }
 
     /**

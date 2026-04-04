@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory
 import org.slf4j.LoggerFactory.getLogger
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
@@ -42,6 +43,7 @@ import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
@@ -564,5 +566,49 @@ class DispatcherRegistryTest {
         assertNull(registry.getFieldCheckerDispatcher("TestType", "__typename"))
         assertNull(registry.getFieldCheckerDispatcher("Query", "__typename"))
         assertNull(registry.getFieldCheckerDispatcher("Query", "__schema"))
+    }
+
+    @Test
+    fun `proxyField executor replaces original field executor at bootstrap`() {
+        val proxyFactory = object : ProxyResolverFactory {
+            override fun proxyField(executor: FieldResolverExecutor): FieldResolverExecutor =
+                object : FieldResolverExecutor by executor {
+                    override val metadata = ResolverMetadata.forMock("proxied:${executor.metadata.name}")
+                }
+
+            override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor? = null
+        }
+
+        val registry = DispatcherRegistryFactory(
+            bootstrapper,
+            Validator.Unvalidated,
+            checkerExecutorFactory,
+            proxyResolverFactory = proxyFactory
+        ).create(Samples.testSchema) as DispatcherRegistry.Impl
+
+        assertTrue(registry.fieldResolverDispatchers.values.isNotEmpty())
+        assertTrue(registry.fieldResolverDispatchers.values.all { it.resolverMetadata.name.startsWith("proxied:") })
+    }
+
+    @Test
+    fun `proxyNode executor replaces original node executor at bootstrap`() {
+        val proxyFactory = object : ProxyResolverFactory {
+            override fun proxyField(executor: FieldResolverExecutor): FieldResolverExecutor? = null
+
+            override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor =
+                object : NodeResolverExecutor by executor {
+                    override val metadata = ResolverMetadata.forMock("proxied:${executor.metadata.name}")
+                }
+        }
+
+        val registry = DispatcherRegistryFactory(
+            bootstrapper,
+            Validator.Unvalidated,
+            checkerExecutorFactory,
+            proxyResolverFactory = proxyFactory
+        ).create(Samples.testSchema) as DispatcherRegistry.Impl
+
+        assertTrue(registry.nodeResolverDispatchers.values.isNotEmpty())
+        assertTrue(registry.nodeResolverDispatchers.values.all { it.resolverMetadata.name.startsWith("proxied:") })
     }
 }

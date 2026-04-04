@@ -12,6 +12,7 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CheckerExecutorFactoryCreator
+import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
@@ -104,11 +105,18 @@ internal class SchemaScopedModule(
         checkerExecutorFactory: CheckerExecutorFactory,
         schema: ViaductSchema,
         tenantBootstrapper: BaseTenantAPIBootstrapper<TenantModuleBootstrapper>,
+        proxyResolverFactory: ProxyResolverFactory,
         resolverInstrumentation: ViaductResolverInstrumentation
     ): DispatcherRegistry {
         log.info("Creating DispatcherRegistry for Viaduct Modern")
         val startTime = System.currentTimeMillis()
-        val dispatcherRegistry = DispatcherRegistryFactory(tenantBootstrapper, validator, checkerExecutorFactory, resolverInstrumentation).create(schema)
+        val dispatcherRegistry = DispatcherRegistryFactory(
+            tenantBootstrapper,
+            validator,
+            checkerExecutorFactory,
+            resolverInstrumentation = resolverInstrumentation,
+            proxyResolverFactory = proxyResolverFactory,
+        ).create(schema)
         val elapsedTime = System.currentTimeMillis() - startTime
         log.info("Created DispatcherRegistry for Viaduct Modern after [{}] ms", elapsedTime)
         return dispatcherRegistry

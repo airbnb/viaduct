@@ -13,6 +13,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.FlagManager.Flag
@@ -161,6 +162,7 @@ class ViaductBuilderTest {
             .withResolverErrorReporter(errorReporter)
             .withDataFetcherErrorBuilder(errorBuilder)
             .withDataFetcherExceptionHandler(exceptionHandler)
+            .withProxyResolverFactory(ProxyResolverFactory.NO_OP)
 
         // Verify that method chaining returns the same builder instance
         assertSame(builder, result)

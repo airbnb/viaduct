@@ -27,6 +27,7 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.flatten
@@ -127,6 +128,7 @@ class StandardViaduct
             private var resolverInstrumentation: ViaductResolverInstrumentation? = null
             private var allowSubscriptions: Boolean = false
             private var globalIDCodec: GlobalIDCodec? = null
+            private var proxyResolverFactory: ProxyResolverFactory? = null
 
             fun enableAirbnbBypassDoNotUse(tenantNameResolver: TenantNameResolver,): Builder =
                 apply {
@@ -264,6 +266,18 @@ class StandardViaduct
                 }
 
             /**
+             * Wraps tenant resolvers at bootstrap time using [proxyResolverFactory].
+             *
+             * The factory is called for every field and node executor. A non-null return value
+             * replaces the original executor. Use cases include remote execution, instrumentation,
+             * and caching.
+             */
+            fun withProxyResolverFactory(proxyResolverFactory: ProxyResolverFactory): Builder =
+                apply {
+                    this.proxyResolverFactory = proxyResolverFactory
+                }
+
+            /**
              * Builds the Guice Module within Viaduct and gets Viaduct from the injector.
              * Uses the factory pattern for proper dependency injection.
              *
@@ -308,6 +322,7 @@ class StandardViaduct
                     checkerExecutorFactory = checkerExecutorFactory,
                     checkerExecutorFactoryCreator = checkerExecutorFactoryCreator,
                     documentProviderFactory = documentProviderFactory,
+                    proxyResolverFactory = proxyResolverFactory,
                 )
 
                 try {

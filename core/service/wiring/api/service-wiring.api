@@ -1,7 +1,9 @@
 public final class viaduct/service/BasicViaductFactory {
 	public static final field INSTANCE Lviaduct/service/BasicViaductFactory;
 	public final fun create (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/TenantRegistrationInfo;)Lviaduct/service/api/Viaduct;
-	public static synthetic fun create$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/TenantRegistrationInfo;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
+	public final fun create (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/TenantRegistrationInfo;Lviaduct/engine/api/spi/ProxyResolverFactory;)Lviaduct/service/api/Viaduct;
+	public final fun create (Lviaduct/service/TenantRegistrationInfo;)Lviaduct/service/api/Viaduct;
+	public static synthetic fun create$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/TenantRegistrationInfo;Lviaduct/engine/api/spi/ProxyResolverFactory;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
 }
 
 public final class viaduct/service/BasicViaductFactoryKt {
@@ -63,6 +65,7 @@ public final class viaduct/service/ViaductBuilder {
 	public final fun withFlagManager (Lviaduct/service/api/spi/FlagManager;)Lviaduct/service/ViaductBuilder;
 	public final fun withGlobalIDCodec (Lviaduct/service/api/spi/GlobalIDCodec;)Lviaduct/service/ViaductBuilder;
 	public final fun withMeterRegistry (Lio/micrometer/core/instrument/MeterRegistry;)Lviaduct/service/ViaductBuilder;
+	public final fun withProxyResolverFactory (Lviaduct/engine/api/spi/ProxyResolverFactory;)Lviaduct/service/ViaductBuilder;
 	public final fun withResolverErrorReporter (Lviaduct/service/api/spi/ErrorReporter;)Lviaduct/service/ViaductBuilder;
 	public final fun withSchemaConfiguration (Lviaduct/service/runtime/SchemaConfiguration;)Lviaduct/service/ViaductBuilder;
 	public final fun withTenantAPIBootstrapperBuilder (Lviaduct/service/api/spi/TenantAPIBootstrapperBuilder;)Lviaduct/service/ViaductBuilder;
