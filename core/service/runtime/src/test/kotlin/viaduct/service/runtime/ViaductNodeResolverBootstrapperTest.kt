@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.service.runtime.noderesolvers.ViaductQueryNodeResolverModuleBootstrapper
+import viaduct.service.runtime.builtinresolvers.ViaductQueryNodeResolverModuleBootstrapper
 
 class ViaductNodeResolverBootstrapperTest {
     companion object {

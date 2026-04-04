@@ -45,7 +45,7 @@ import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.service.runtime.noderesolvers.ViaductNodeResolverAPIBootstrapper
+import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrapper
 
 /**
  * An immutable implementation of Viaduct interface, it configures and executes queries against the Viaduct runtime
@@ -297,7 +297,7 @@ class StandardViaduct
                 val tenantBootstrappers = buildList {
                     addAll(tenantAPIBootstrapperBuilders)
                     if (defaultQueryNodeResolversEnabled) {
-                        add(ViaductNodeResolverAPIBootstrapper.Builder())
+                        add(ViaductBuiltInResolversBootstrapper.Builder())
                     }
                 }.map { it.create() }.flatten()
 

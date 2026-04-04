@@ -18,7 +18,7 @@ import viaduct.engine.runtime.tenantloading.ExecutorValidator
 import viaduct.graphql.test.assertJson as realAssertJson
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.mocks.MockFlagManager
-import viaduct.service.runtime.noderesolvers.ViaductNodeResolverAPIBootstrapper
+import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrapper
 
 /**
  * Test harness for the Viaduct engine configured with in-memory resolvers.
@@ -97,7 +97,7 @@ private fun MockTenantModuleBootstrapper.toEngineFactory(
     val tenantAPIBootstrapper = buildList {
         add(MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(mods)))
         if (!withoutDefaultQueryNodeResolvers) {
-            add(ViaductNodeResolverAPIBootstrapper.Builder())
+            add(ViaductBuiltInResolversBootstrapper.Builder())
         }
     }.map { it.create() }.flatten()
 

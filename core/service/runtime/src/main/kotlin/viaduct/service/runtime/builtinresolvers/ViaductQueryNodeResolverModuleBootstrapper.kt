@@ -1,4 +1,4 @@
-package viaduct.service.runtime.noderesolvers
+package viaduct.service.runtime.builtinresolvers
 
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
@@ -60,7 +60,7 @@ class ViaductQueryNodeResolverModuleBootstrapper : TenantModuleBootstrapper {
             override val objectSelectionSet: RequiredSelectionSet? = null
             override val querySelectionSet: RequiredSelectionSet? = null
             override val resolverId: String = "Query.nodes"
-            override val metadata: ResolverMetadata = ResolverMetadata.forModern("query-nodes-resolver", ResolverType.NODE)
+            override val metadata: ResolverMetadata = ResolverMetadata.forModern("query-nodes-resolver", ResolverType.FIELD)
             override val isBatching: Boolean = false
 
             override suspend fun batchResolve(

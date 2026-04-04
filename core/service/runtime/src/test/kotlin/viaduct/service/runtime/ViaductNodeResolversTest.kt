@@ -16,7 +16,7 @@ import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.service.runtime.noderesolvers.ViaductQueryNodeResolverModuleBootstrapper
+import viaduct.service.runtime.builtinresolvers.ViaductQueryNodeResolverModuleBootstrapper
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ViaductNodeResolversTest {

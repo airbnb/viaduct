@@ -182,6 +182,23 @@ object DefaultSchemaFactory {
                     .sourceLocation(sourceLocation)
                     .build()
             }
+        },
+
+        NAMESPACE_TYPE("namespaceType") {
+            override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
+                val description = Description(
+                    "Marks an object type as purely for organizing fields into a namespace under a root type",
+                    sourceLocation,
+                    true
+                )
+                return DirectiveDefinition
+                    .newDirectiveDefinition()
+                    .name(directiveName)
+                    .description(description)
+                    .directiveLocation(DirectiveLocation("OBJECT"))
+                    .sourceLocation(sourceLocation)
+                    .build()
+            }
         };
 
         /**

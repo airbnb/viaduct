@@ -145,7 +145,7 @@ abstract class FeatureAppTestBase : AbstractFeatureAppTestBase() {
 
         // Check field resolvers (@ResolverFor base classes need a @Resolver subclass).
         // Exclude built-in Viaduct resolvers (Query.node, Query.nodes) that are provided
-        // by ViaductNodeResolverAPIBootstrapper rather than by tenant @Resolver classes.
+        // by ViaductBuiltInResolversBootstrapper rather than by tenant @Resolver classes.
         val builtInResolverFields = setOf("Query" to "node", "Query" to "nodes")
         for (baseClass in classFinder.resolverClassesInPackage()) {
             val annotation = baseClass.annotations.firstOrNull { it is ResolverFor } as? ResolverFor
