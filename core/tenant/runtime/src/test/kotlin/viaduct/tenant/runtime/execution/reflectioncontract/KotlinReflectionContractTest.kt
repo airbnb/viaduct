@@ -5,7 +5,7 @@ package viaduct.tenant.runtime.execution.reflectioncontract
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.reflectioncontract.resolverbases.CategoryResolvers
 import viaduct.tenant.runtime.execution.reflectioncontract.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.ReflectionContractTest
+import viaduct.tenant.runtime.fixtures.reflectioncontract.ReflectionContractTest
 
 class KotlinReflectionContractTest : ReflectionContractTest() {
     @Resolver

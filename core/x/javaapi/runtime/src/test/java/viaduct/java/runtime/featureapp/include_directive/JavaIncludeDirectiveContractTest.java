@@ -13,7 +13,7 @@ import viaduct.java.runtime.featureapp.include_directive.resolverbases.ThrowerRe
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
-import viaduct.tenant.runtime.fixtures.IncludeDirectiveContractTest;
+import viaduct.tenant.runtime.fixtures.includedirectivecontract.IncludeDirectiveContractTest;
 
 public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTest {
 

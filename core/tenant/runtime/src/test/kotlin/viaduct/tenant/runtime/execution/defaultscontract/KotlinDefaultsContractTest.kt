@@ -5,7 +5,7 @@ package viaduct.tenant.runtime.execution.defaultscontract
 import viaduct.api.Resolver
 import viaduct.api.Variable
 import viaduct.tenant.runtime.execution.defaultscontract.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.DefaultsContractTest
+import viaduct.tenant.runtime.fixtures.defaultscontract.DefaultsContractTest
 
 class KotlinDefaultsContractTest : DefaultsContractTest() {
     @Resolver("fragment _ on Query { inner(inp: {}) }")

@@ -1,7 +1,8 @@
-package viaduct.tenant.runtime.fixtures
+package viaduct.tenant.runtime.fixtures.defaultscontract
 
 import org.junit.jupiter.api.Test
 import viaduct.graphql.test.assertEquals
+import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for resolvers that exercise inputs with default values.

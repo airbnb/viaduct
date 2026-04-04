@@ -6,7 +6,7 @@ import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.FooResolvers
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.ThrowerResolvers
-import viaduct.tenant.runtime.fixtures.IncludeDirectiveContractTest
+import viaduct.tenant.runtime.fixtures.includedirectivecontract.IncludeDirectiveContractTest
 
 class KotlinIncludeDirectiveContractTest : IncludeDirectiveContractTest() {
     @Resolver

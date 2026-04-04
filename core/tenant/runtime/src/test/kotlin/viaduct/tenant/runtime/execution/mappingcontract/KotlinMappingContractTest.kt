@@ -11,7 +11,7 @@ import viaduct.api.mapping.JsonDomain
 import viaduct.tenant.runtime.execution.mappingcontract.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.mappingcontract.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.mappingcontract.resolverbases.UserResolvers
-import viaduct.tenant.runtime.fixtures.MappingContractTest
+import viaduct.tenant.runtime.fixtures.mappingcontract.MappingContractTest
 
 class KotlinMappingContractTest : MappingContractTest() {
     @Resolver

@@ -5,7 +5,7 @@ package viaduct.tenant.runtime.execution.backingdatacontract
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.backingdatacontract.resolverbases.FooResolvers
 import viaduct.tenant.runtime.execution.backingdatacontract.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.BackingDataContractTest
+import viaduct.tenant.runtime.fixtures.backingdatacontract.BackingDataContractTest
 
 data class BackingDataValue(val i: Int, val s: String)
 

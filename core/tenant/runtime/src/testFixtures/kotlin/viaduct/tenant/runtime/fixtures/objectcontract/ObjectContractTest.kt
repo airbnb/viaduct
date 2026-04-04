@@ -1,7 +1,8 @@
-package viaduct.tenant.runtime.fixtures
+package viaduct.tenant.runtime.fixtures.objectcontract
 
 import org.junit.jupiter.api.Test
 import viaduct.graphql.test.assertEquals
+import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for object resolution patterns.

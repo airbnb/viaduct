@@ -1,4 +1,6 @@
-package viaduct.tenant.runtime.fixtures
+package viaduct.tenant.runtime.fixtures.scopescontract
+
+import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for the @scope directive.

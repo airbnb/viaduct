@@ -14,7 +14,7 @@ import viaduct.java.runtime.featureapp.enum_contract.resolverbases.QueryResolver
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
-import viaduct.tenant.runtime.fixtures.EnumContractTest;
+import viaduct.tenant.runtime.fixtures.enumcontract.EnumContractTest;
 
 public class JavaEnumContractTest extends EnumContractTest {
 

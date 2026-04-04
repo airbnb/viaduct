@@ -11,7 +11,7 @@ import viaduct.java.runtime.featureapp.input_type_contract.resolverbases.QueryRe
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
-import viaduct.tenant.runtime.fixtures.InputTypeContractTest;
+import viaduct.tenant.runtime.fixtures.inputtypecontract.InputTypeContractTest;
 
 public class JavaInputTypeContractTest extends InputTypeContractTest {
 

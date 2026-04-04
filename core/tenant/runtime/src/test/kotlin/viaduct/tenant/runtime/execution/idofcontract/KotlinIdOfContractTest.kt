@@ -8,7 +8,7 @@ import viaduct.api.globalid.GlobalID
 import viaduct.tenant.runtime.execution.idofcontract.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.idofcontract.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.idofcontract.resolverbases.UserResolvers
-import viaduct.tenant.runtime.fixtures.IdOfContractTest
+import viaduct.tenant.runtime.fixtures.idofcontract.IdOfContractTest
 
 class KotlinIdOfContractTest : IdOfContractTest() {
     @Resolver

@@ -12,7 +12,7 @@ import viaduct.service.api.SchemaId
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.toScopeConfig
 import viaduct.tenant.runtime.contract.scopes.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.ScopesContractTest
+import viaduct.tenant.runtime.fixtures.scopescontract.ScopesContractTest
 
 class KotlinScopesContractTest : ScopesContractTest() {
     @Resolver

@@ -19,7 +19,7 @@ import viaduct.java.runtime.featureapp.subquery_execution.resolverbases.UserReso
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
-import viaduct.tenant.runtime.fixtures.SubqueryExecutionContractTest;
+import viaduct.tenant.runtime.fixtures.subqueryexecutioncontract.SubqueryExecutionContractTest;
 
 public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContractTest {
 

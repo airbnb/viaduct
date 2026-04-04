@@ -12,7 +12,7 @@ import viaduct.java.runtime.featureapp.defaults.resolverbases.QueryResolvers;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
-import viaduct.tenant.runtime.fixtures.DefaultsContractTest;
+import viaduct.tenant.runtime.fixtures.defaultscontract.DefaultsContractTest;
 
 public class JavaDefaultsContractTest extends DefaultsContractTest {
 

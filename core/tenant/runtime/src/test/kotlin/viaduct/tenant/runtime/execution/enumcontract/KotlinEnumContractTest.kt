@@ -2,7 +2,7 @@ package viaduct.tenant.runtime.execution.enumcontract
 
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.enumcontract.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.EnumContractTest
+import viaduct.tenant.runtime.fixtures.enumcontract.EnumContractTest
 
 class KotlinEnumContractTest : EnumContractTest() {
     @Resolver

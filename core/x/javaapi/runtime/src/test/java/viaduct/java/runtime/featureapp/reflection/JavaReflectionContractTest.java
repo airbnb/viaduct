@@ -13,7 +13,7 @@ import viaduct.java.runtime.featureapp.reflection.resolverbases.QueryResolvers;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
-import viaduct.tenant.runtime.fixtures.ReflectionContractTest;
+import viaduct.tenant.runtime.fixtures.reflectioncontract.ReflectionContractTest;
 
 public class JavaReflectionContractTest extends ReflectionContractTest {
 

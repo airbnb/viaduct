@@ -20,7 +20,7 @@ import viaduct.service.api.SchemaId;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
-import viaduct.tenant.runtime.fixtures.ObjectContractTest;
+import viaduct.tenant.runtime.fixtures.objectcontract.ObjectContractTest;
 
 public class JavaObjectContractTest extends ObjectContractTest {
 

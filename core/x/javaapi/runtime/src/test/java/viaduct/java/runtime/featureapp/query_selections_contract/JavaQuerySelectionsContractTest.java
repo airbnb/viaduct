@@ -14,7 +14,7 @@ import viaduct.java.runtime.featureapp.query_selections_contract.resolverbases.U
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
-import viaduct.tenant.runtime.fixtures.QuerySelectionsContractTest;
+import viaduct.tenant.runtime.fixtures.queryselectionscontract.QuerySelectionsContractTest;
 
 public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest {
 

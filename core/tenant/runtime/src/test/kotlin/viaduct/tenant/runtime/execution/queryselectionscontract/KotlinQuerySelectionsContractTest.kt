@@ -7,7 +7,7 @@ import viaduct.api.Variable
 import viaduct.tenant.runtime.execution.queryselectionscontract.resolverbases.MutationResolvers
 import viaduct.tenant.runtime.execution.queryselectionscontract.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.queryselectionscontract.resolverbases.UserResolvers
-import viaduct.tenant.runtime.fixtures.QuerySelectionsContractTest
+import viaduct.tenant.runtime.fixtures.queryselectionscontract.QuerySelectionsContractTest
 
 class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
     @Resolver

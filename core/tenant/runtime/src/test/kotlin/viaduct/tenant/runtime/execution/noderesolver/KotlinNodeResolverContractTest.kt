@@ -5,7 +5,7 @@ package viaduct.tenant.runtime.execution.noderesolver
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.NodeResolverContractTest
+import viaduct.tenant.runtime.fixtures.noderesolvercontract.NodeResolverContractTest
 
 class KotlinNodeResolverContractTest : NodeResolverContractTest() {
     @Resolver

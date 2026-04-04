@@ -9,7 +9,7 @@ import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.types.Arguments
 import viaduct.tenant.runtime.execution.variablesprovidercontract.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.VariablesProviderContractTest
+import viaduct.tenant.runtime.fixtures.variablesprovidercontract.VariablesProviderContractTest
 
 class KotlinVariablesProviderContractTest : VariablesProviderContractTest() {
     @Resolver(

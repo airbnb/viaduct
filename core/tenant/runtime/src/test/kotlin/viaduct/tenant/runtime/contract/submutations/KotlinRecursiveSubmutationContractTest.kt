@@ -4,7 +4,7 @@ package viaduct.tenant.runtime.contract.submutations
 
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.contract.submutations.resolverbases.MutationResolvers
-import viaduct.tenant.runtime.fixtures.RecursiveSubmutationContractTest
+import viaduct.tenant.runtime.fixtures.recursivesubmutationcontract.RecursiveSubmutationContractTest
 
 class KotlinRecursiveSubmutationContractTest : RecursiveSubmutationContractTest() {
     @Resolver

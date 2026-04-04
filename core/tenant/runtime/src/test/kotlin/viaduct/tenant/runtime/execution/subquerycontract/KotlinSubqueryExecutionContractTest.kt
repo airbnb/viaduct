@@ -11,7 +11,7 @@ import viaduct.tenant.runtime.execution.subquerycontract.resolverbases.Level2Res
 import viaduct.tenant.runtime.execution.subquerycontract.resolverbases.MutationResolvers
 import viaduct.tenant.runtime.execution.subquerycontract.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.subquerycontract.resolverbases.UserResolvers
-import viaduct.tenant.runtime.fixtures.SubqueryExecutionContractTest
+import viaduct.tenant.runtime.fixtures.subqueryexecutioncontract.SubqueryExecutionContractTest
 
 class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     companion object {

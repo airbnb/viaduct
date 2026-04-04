@@ -5,7 +5,7 @@ import viaduct.tenant.runtime.execution.objectcontract.resolverbases.FooResolver
 import viaduct.tenant.runtime.execution.objectcontract.resolverbases.NestedFooResolvers
 import viaduct.tenant.runtime.execution.objectcontract.resolverbases.PersonResolvers
 import viaduct.tenant.runtime.execution.objectcontract.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.ObjectContractTest
+import viaduct.tenant.runtime.fixtures.objectcontract.ObjectContractTest
 
 class KotlinObjectContractTest : ObjectContractTest() {
     @Resolver

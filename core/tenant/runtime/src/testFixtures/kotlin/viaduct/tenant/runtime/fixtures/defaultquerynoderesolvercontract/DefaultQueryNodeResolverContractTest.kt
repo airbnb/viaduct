@@ -1,8 +1,9 @@
-package viaduct.tenant.runtime.fixtures
+package viaduct.tenant.runtime.fixtures.defaultquerynoderesolvercontract
 
 import org.junit.jupiter.api.Test
 import viaduct.graphql.test.assertEquals
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
+import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for the built-in Query.node and Query.nodes resolvers.

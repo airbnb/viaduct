@@ -2,7 +2,7 @@ package viaduct.tenant.runtime.execution.inputtypecontract
 
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.inputtypecontract.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.InputTypeContractTest
+import viaduct.tenant.runtime.fixtures.inputtypecontract.InputTypeContractTest
 
 class KotlinInputTypeContractTest : InputTypeContractTest() {
     @Resolver
