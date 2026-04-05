@@ -6,7 +6,6 @@ import viaduct.api.FieldValue
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.fieldbatch.resolverbases.ItemResolvers
 import viaduct.tenant.runtime.execution.fieldbatch.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.fieldbatchresolvercontract.FieldBatchResolverContractTest
 
 class KotlinFieldBatchResolverContractTest : FieldBatchResolverContractTest() {
     @Resolver

@@ -59,8 +59,13 @@ import viaduct.tenant.runtime.bootstrap.ViaductTenantResolverClassFinderFactory
  *```
  */
 abstract class FeatureAppTestBase : AbstractFeatureAppTestBase() {
-    open lateinit var sdl: String
-        protected set
+    protected open lateinit var sdl: String
+
+    init {
+        this::class.java.getAnnotation(TestSchema::class.java)?.let {
+            sdl = it.value.trimIndent()
+        }
+    }
 
     /**
      * When true, validates before build that all schema-declared resolvers have corresponding

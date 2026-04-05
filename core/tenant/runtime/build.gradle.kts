@@ -3,11 +3,8 @@ plugins {
     id("conventions.kotlin-static-analysis")
     id("conventions.viaduct-publishing")
     id("test-feature-app")
+    id("feature-app-contract-tests")
     `java-test-fixtures`
-}
-
-viaductFeatureApp {
-    fileNamePattern.set(".*(FeatureApp|FeatureAppTest|ContractTest).*")
 }
 
 viaductPublishing {

@@ -2,11 +2,7 @@ plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     id("conventions.viaduct-publishing")
-    id("test-java-feature-app")
-}
-
-viaductJavaFeatureApp {
-    fileNamePattern.set(".*(FeatureApp|FeatureAppTest|ContractTest).*")
+    id("java-feature-app-contract-tests")
 }
 
 description = "Java Tenant API runtime implementation - bridges Java API to Kotlin engine"

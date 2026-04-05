@@ -251,6 +251,8 @@ abstract class ViaductFeatureAppPluginBase : Plugin<Project> {
                 } catch (_: Exception) {
                     return null
                 }
+                // Skip base framework classes (their KDoc examples contain marker text)
+                if (file.name == "FeatureAppTestBase.kt" || file.name == "AbstractFeatureAppTestBase.kt") return null
                 if (content.contains("#START_SCHEMA") && content.contains("#END_SCHEMA")) return file
                 val parentName = extractSuperclassName(content) ?: return null
                 file = ktFileIndex[parentName] ?: return null
