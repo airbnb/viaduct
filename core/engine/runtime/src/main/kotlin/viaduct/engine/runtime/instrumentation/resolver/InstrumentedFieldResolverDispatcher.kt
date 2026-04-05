@@ -28,6 +28,7 @@ class InstrumentedFieldResolverDispatcher(
 ) : FieldResolverDispatcher {
     override val objectSelectionSet get() = dispatcher.objectSelectionSet
     override val querySelectionSet get() = dispatcher.querySelectionSet
+    override val isSelective get() = dispatcher.isSelective
     override val hasRequiredSelectionSets get() = dispatcher.hasRequiredSelectionSets
     override val resolverMetadata get() = dispatcher.resolverMetadata
 

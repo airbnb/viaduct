@@ -27,10 +27,21 @@ class JavaModuleBootstrapperTest {
     abstract class TestResolverBase :
         FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
 
+    @ResolverFor(typeName = "TestType", fieldName = "selectiveField", isSelective = true)
+    abstract class SelectiveResolverBase :
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
+
     @Resolver
     class TestResolver : TestResolverBase() {
         override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String> {
             return CompletableFuture.completedFuture("test result")
+        }
+    }
+
+    @Resolver
+    class SelectiveResolver : SelectiveResolverBase() {
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String> {
+            return CompletableFuture.completedFuture("selective result")
         }
     }
 
@@ -89,20 +100,29 @@ class JavaModuleBootstrapperTest {
     @Test
     fun `fieldResolverExecutors registers resolver for valid field`() {
         val mockClassFinder = mockk<JavaResolverClassFinder>()
-        every { mockClassFinder.resolverClassesInPackage() } returns setOf(TestResolverBase::class.java)
+        every { mockClassFinder.resolverClassesInPackage() } returns setOf(
+            TestResolverBase::class.java,
+            SelectiveResolverBase::class.java
+        )
         every { mockClassFinder.getSubTypesOf(FieldResolverBase::class.java) } returns
-            setOf(TestResolver::class.java, TestResolverBase::class.java)
+            setOf(
+                TestResolver::class.java,
+                TestResolverBase::class.java,
+                SelectiveResolver::class.java,
+                SelectiveResolverBase::class.java
+            )
 
         val bootstrapper = JavaModuleBootstrapper(mockClassFinder, TenantCodeInjector.Naive)
         val schema = createMockSchemaWithTestType()
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
 
-        assertThat(executors).hasSize(1)
-        val (coordinate, executor) = executors.first()
-        assertThat(coordinate.first).isEqualTo("TestType")
-        assertThat(coordinate.second).isEqualTo("testField")
-        assertThat(executor.resolverId).isEqualTo("TestType.testField")
+        assertThat(executors).hasSize(2)
+        val executorsByCoordinate = executors.toMap()
+        assertThat(executorsByCoordinate.getValue("TestType" to "testField").resolverId).isEqualTo("TestType.testField")
+        assertThat(executorsByCoordinate.getValue("TestType" to "testField").isSelective).isFalse()
+        assertThat(executorsByCoordinate.getValue("TestType" to "selectiveField").resolverId).isEqualTo("TestType.selectiveField")
+        assertThat(executorsByCoordinate.getValue("TestType" to "selectiveField").isSelective).isTrue()
     }
 
     @Test
@@ -183,6 +203,11 @@ class JavaModuleBootstrapperTest {
             .field(
                 GraphQLFieldDefinition.newFieldDefinition()
                     .name("testField")
+                    .type(Scalars.GraphQLString)
+            )
+            .field(
+                GraphQLFieldDefinition.newFieldDefinition()
+                    .name("selectiveField")
                     .type(Scalars.GraphQLString)
             )
             .build()

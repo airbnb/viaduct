@@ -395,7 +395,12 @@ private class TestFieldUnbatchedResolverExecutor(
     override val querySelectionSet: RequiredSelectionSet? = null,
     override val resolverId: String,
     override val unbatchedResolveFn: FieldUnbatchedResolverFn = { _, _, _, _, _ -> null },
-) : MockFieldUnbatchedResolverExecutor(objectSelectionSet, querySelectionSet, resolverId = resolverId, unbatchedResolveFn = unbatchedResolveFn) {
+) : MockFieldUnbatchedResolverExecutor(
+        objectSelectionSet = objectSelectionSet,
+        querySelectionSet = querySelectionSet,
+        resolverId = resolverId,
+        unbatchedResolveFn = unbatchedResolveFn
+    ) {
     var lastReceivedLocalContext: EngineExecutionContextImpl? = null
         private set
 

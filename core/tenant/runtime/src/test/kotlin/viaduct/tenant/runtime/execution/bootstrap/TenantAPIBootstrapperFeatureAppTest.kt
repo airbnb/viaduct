@@ -24,7 +24,7 @@ class TenantAPIBootstrapperFeatureAppTest : FeatureAppTestBase() {
     override var sdl = """
         | #START_SCHEMA
         | extend type Query {
-        |   field: String @resolver
+        |   field: String @resolver(isSelective: true)
         |   batchField: String @resolver
         | }
         |
@@ -84,8 +84,10 @@ class TenantAPIBootstrapperFeatureAppTest : FeatureAppTestBase() {
 
             assert(("Query" to "field") in fieldResolverExecutors.keys)
             assert(fieldResolverExecutors.get(("Query" to "field")) is FieldUnbatchedResolverExecutorImpl)
+            assertEquals(true, fieldResolverExecutors.getValue("Query" to "field").isSelective)
             assert(("Query" to "batchField") in fieldResolverExecutors.keys)
             assert(fieldResolverExecutors.get(("Query" to "batchField")) is FieldBatchResolverExecutorImpl)
+            assertEquals(false, fieldResolverExecutors.getValue("Query" to "batchField").isSelective)
             assert("TestNode" in nodeResolverExecutors.keys)
             assert(nodeResolverExecutors.get("TestNode") is NodeUnbatchedResolverExecutorImpl)
             assert("TestBatchNode" in nodeResolverExecutors.keys)

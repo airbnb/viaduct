@@ -31,6 +31,7 @@ import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 class FieldBatchResolverExecutorImpl(
     override val objectSelectionSet: RequiredSelectionSet?,
     override val querySelectionSet: RequiredSelectionSet?,
+    override val isSelective: Boolean,
     internal val resolver: Provider<out @JvmSuppressWildcards ResolverBase<*>>, // internal for testing
     private val batchResolveFn: KFunction<*>,
     override val resolverId: String,

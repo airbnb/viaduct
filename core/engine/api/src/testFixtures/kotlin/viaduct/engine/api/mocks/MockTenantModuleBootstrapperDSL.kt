@@ -211,20 +211,20 @@ class MockTenantModuleBootstrapperDSL<F : Any>(
                     }
                     r.unbatchedResolveFn != null -> {
                         MockFieldUnbatchedResolverExecutor(
-                            r.objectSelections?.toRSS(),
-                            r.querySelections?.toRSS(),
-                            r.resolverName,
-                            resolverId,
-                            r.unbatchedResolveFn!!
+                            objectSelectionSet = r.objectSelections?.toRSS(),
+                            querySelectionSet = r.querySelections?.toRSS(),
+                            resolverName = r.resolverName,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = r.unbatchedResolveFn!!
                         )
                     }
                     r.batchResolveFn != null -> {
                         MockFieldBatchResolverExecutor(
-                            r.objectSelections?.toRSS(),
-                            r.querySelections?.toRSS(),
-                            r.resolverName,
-                            resolverId,
-                            r.batchResolveFn!!
+                            objectSelectionSet = r.objectSelections?.toRSS(),
+                            querySelectionSet = r.querySelections?.toRSS(),
+                            resolverName = r.resolverName,
+                            resolverId = resolverId,
+                            batchResolveFn = r.batchResolveFn!!
                         )
                     }
                     else -> {

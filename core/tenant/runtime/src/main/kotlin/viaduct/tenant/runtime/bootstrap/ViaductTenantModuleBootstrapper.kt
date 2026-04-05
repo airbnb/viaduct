@@ -141,6 +141,7 @@ class ViaductTenantModuleBootstrapper(
 
             val resolverId = typeName to fieldName
             val formattedResolverId = formatResolverId(resolverId)
+            val isSelective = resolverForAnnotation.isSelective
 
             // Java classes do not have the `resolve` function since it is suspended,
             // The implementation should be using a proxy class that hides that complexity
@@ -171,6 +172,7 @@ class ViaductTenantModuleBootstrapper(
                 val resolverExecutor = FieldUnbatchedResolverExecutorImpl(
                     objectSelectionSet = objectSelectionSet,
                     querySelectionSet = querySelectionSet,
+                    isSelective = isSelective,
                     resolver = resolverContainerProvider,
                     resolveFn = resolveFunction,
                     resolverId = formattedResolverId,
@@ -196,6 +198,7 @@ class ViaductTenantModuleBootstrapper(
                 val resolverExecutor = FieldBatchResolverExecutorImpl(
                     objectSelectionSet = objectSelectionSet,
                     querySelectionSet = querySelectionSet,
+                    isSelective = isSelective,
                     resolver = resolverContainerProvider,
                     batchResolveFn = batchResolveFunction,
                     resolverId = formattedResolverId,

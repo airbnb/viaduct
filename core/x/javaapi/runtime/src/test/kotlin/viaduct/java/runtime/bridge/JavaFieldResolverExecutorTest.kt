@@ -63,6 +63,7 @@ class JavaFieldResolverExecutorTest {
         assertThat(executor.metadata.name).isEqualTo("GreetingResolver")
         assertThat(executor.metadata.flavor).isEqualTo("modern")
         assertThat(executor.isBatching).isFalse()
+        assertThat(executor.isSelective).isFalse()
         assertThat(executor.objectSelectionSet).isNull()
         assertThat(executor.querySelectionSet).isNull()
     }

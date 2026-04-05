@@ -161,6 +161,7 @@ object MockSchema {
 open class MockFieldUnbatchedResolverExecutor(
     override val objectSelectionSet: RequiredSelectionSet? = null,
     override val querySelectionSet: RequiredSelectionSet? = null,
+    override val isSelective: Boolean = false,
     val resolverName: String = "mock-field-unbatched-resolver",
     override val resolverId: String,
     open val unbatchedResolveFn: FieldUnbatchedResolverFn = { _, _, _, _, _ -> null }
@@ -186,6 +187,7 @@ open class MockFieldUnbatchedResolverExecutor(
 open class MockFieldBatchResolverExecutor(
     override val objectSelectionSet: RequiredSelectionSet? = null,
     override val querySelectionSet: RequiredSelectionSet? = null,
+    override val isSelective: Boolean = false,
     val resolverName: String = "mock-field-batch-resolver",
     override val resolverId: String,
     open val batchResolveFn: FieldBatchResolverFn = { _, _ -> throw NotImplementedError() }

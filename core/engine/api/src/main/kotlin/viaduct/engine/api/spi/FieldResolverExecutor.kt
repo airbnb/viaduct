@@ -16,6 +16,9 @@ interface FieldResolverExecutor {
     /** The query selection set for the resolver **/
     val querySelectionSet: RequiredSelectionSet?
 
+    /** Whether the resolver's result varies based on the requested field selections. */
+    val isSelective: Boolean
+
     /** Same as field coordinate. Uniquely identifies a resolver function **/
     val resolverId: String
 

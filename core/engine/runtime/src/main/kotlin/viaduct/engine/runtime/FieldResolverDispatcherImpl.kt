@@ -24,6 +24,8 @@ class FieldResolverDispatcherImpl(
 
     override val querySelectionSet: RequiredSelectionSet? = resolver.querySelectionSet
 
+    override val isSelective: Boolean = resolver.isSelective
+
     override val hasRequiredSelectionSets: Boolean = resolver.hasRequiredSelectionSets()
 
     override val resolverMetadata: ResolverMetadata = resolver.metadata

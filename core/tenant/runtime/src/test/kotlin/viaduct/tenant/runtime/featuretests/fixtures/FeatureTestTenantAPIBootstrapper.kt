@@ -53,6 +53,7 @@ class FeatureTestTenantModuleBootstrapper(
             coord to FieldUnbatchedResolverExecutorImpl(
                 objectSelectionSet = objectSelectionSet,
                 querySelectionSet = querySelectionSet,
+                isSelective = false,
                 resolver = stub.resolver,
                 resolveFn = stub::resolve,
                 resolverId = "${coord.first}.${coord.second}",

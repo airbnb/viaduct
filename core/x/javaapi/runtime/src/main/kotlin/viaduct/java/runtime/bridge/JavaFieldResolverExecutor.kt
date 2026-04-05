@@ -44,6 +44,7 @@ class JavaFieldResolverExecutor(
     private val argumentsClass: Class<out Arguments>? = null,
     override val objectSelectionSet: RequiredSelectionSet? = null,
     override val querySelectionSet: RequiredSelectionSet? = null,
+    override val isSelective: Boolean = false,
     private val objectValueClass: Class<*>? = null,
     private val queryValueClass: Class<*>? = null,
     private val graphqlSchema: GraphQLSchema? = null,

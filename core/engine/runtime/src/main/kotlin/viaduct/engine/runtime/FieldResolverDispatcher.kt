@@ -16,6 +16,9 @@ interface FieldResolverDispatcher {
     /** The query selection set for the resolver **/
     val querySelectionSet: RequiredSelectionSet?
 
+    /** Whether the resolver's result varies based on the requested field selections. */
+    val isSelective: Boolean
+
     val hasRequiredSelectionSets: Boolean
 
     /** The metadata associated with this resolver **/

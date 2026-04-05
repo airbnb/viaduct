@@ -72,6 +72,7 @@ private class NamespaceTypeFieldResolver(
 ) : FieldResolverExecutor {
     override val objectSelectionSet: RequiredSelectionSet? = null
     override val querySelectionSet: RequiredSelectionSet? = null
+    override val isSelective: Boolean = false
     override val resolverId: String = "$parentTypeName.$fieldName"
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(
         "namespace-type-resolver",

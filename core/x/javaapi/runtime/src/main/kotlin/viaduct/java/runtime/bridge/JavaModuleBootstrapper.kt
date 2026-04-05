@@ -191,6 +191,7 @@ class JavaModuleBootstrapper(
                 argumentsClass = argumentsClass,
                 objectSelectionSet = requiredSelections.objectSelections,
                 querySelectionSet = requiredSelections.querySelections,
+                isSelective = resolverForAnnotation.isSelective,
                 objectValueClass = objectValueClass,
                 queryValueClass = queryValueClass,
                 graphqlSchema = schema.schema,

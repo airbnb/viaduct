@@ -34,6 +34,7 @@ class ViaductQueryNodeResolverModuleBootstrapper : TenantModuleBootstrapper {
         internal val queryNodeResolver = object : FieldResolverExecutor {
             override val objectSelectionSet: RequiredSelectionSet? = null
             override val querySelectionSet: RequiredSelectionSet? = null
+            override val isSelective: Boolean = false
             override val resolverId: String = "Query.node"
             override val metadata: ResolverMetadata = ResolverMetadata.forModern("query-node-resolver", ResolverType.NODE)
             override val isBatching: Boolean = false
@@ -59,6 +60,7 @@ class ViaductQueryNodeResolverModuleBootstrapper : TenantModuleBootstrapper {
         internal val queryNodesResolver = object : FieldResolverExecutor {
             override val objectSelectionSet: RequiredSelectionSet? = null
             override val querySelectionSet: RequiredSelectionSet? = null
+            override val isSelective: Boolean = false
             override val resolverId: String = "Query.nodes"
             override val metadata: ResolverMetadata = ResolverMetadata.forModern("query-nodes-resolver", ResolverType.FIELD)
             override val isBatching: Boolean = false
