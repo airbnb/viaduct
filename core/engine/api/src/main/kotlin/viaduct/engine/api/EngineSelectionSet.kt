@@ -4,6 +4,7 @@ import graphql.language.Argument
 import graphql.language.SelectionSet
 import graphql.schema.DataFetchingEnvironment
 import viaduct.engine.api.fragment.Fragment
+import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.graphql.utils.ParsedSelections
 
 /**
@@ -27,9 +28,15 @@ data class EngineSelection(val typeCondition: String, val fieldName: String, val
  * - operations that involve projecting from an interface into an implementation, or a union into a
  *   member, will inherit selected fields from the parent type.
  */
-interface EngineSelectionSet {
+interface EngineSelectionSet : ObjectEngineResult.Selections {
     /** the type condition of this selection set */
-    val type: String
+    override val type: String
+
+    override val document: String
+        get() = toFragment().document
+
+    override val variables: Map<String, Any?>
+        get() = toFragment().variables.asMap()
 
     /**
      * Return a list of [EngineSelection]s selected in this EngineSelectionSet

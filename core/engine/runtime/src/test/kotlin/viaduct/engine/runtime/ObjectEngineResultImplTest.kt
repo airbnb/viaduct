@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
@@ -39,6 +40,12 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 
 class ObjectEngineResultImplTest {
+    private data class TestSelections(
+        override val type: String,
+        override val document: String,
+        override val variables: Map<String, Any?> = emptyMap(),
+    ) : ObjectEngineResult.Selections
+
     private val testScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private val graphQLObjectType: GraphQLObjectType = mockk()
 
@@ -193,6 +200,61 @@ class ObjectEngineResultImplTest {
             assertTrue(checkerResult1 is CheckerResult.Success)
             assertTrue((checkerResult2 as MockCheckerErrorResult).error is IllegalAccessException)
         }
+    }
+
+    @Test
+    fun `test fetch with selection set`() {
+        runBlocking {
+            val engine = newOER()
+            val selectionSet1 = TestSelections(type = "Query", document = "fragment _ on Query { test { a } }")
+            val selectionSet2 = TestSelections(type = "Query", document = "fragment _ on Query { test { b } }")
+            val key1 = ObjectEngineResult.Key("test", selectionSet = selectionSet1)
+            val key2 = ObjectEngineResult.Key("test", selectionSet = selectionSet2)
+
+            engine.computeIfAbsent(key1) { setter ->
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value1"))
+                setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
+            }
+            engine.computeIfAbsent(key2) { setter ->
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("value2"))
+                setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
+            }
+
+            assertEquals("value1", engine.fetch(key1, RAW_VALUE_SLOT))
+            assertEquals("value2", engine.fetch(key2, RAW_VALUE_SLOT))
+        }
+    }
+
+    @Test
+    fun `test key equality with selection set`() {
+        val key1 = ObjectEngineResult.Key(
+            "test",
+            selectionSet = TestSelections(
+                type = "Query",
+                document = "fragment _ on Query { test { a } }",
+                variables = mapOf("x" to 1)
+            )
+        )
+        val key2 = ObjectEngineResult.Key(
+            "test",
+            selectionSet = TestSelections(
+                type = "Query",
+                document = "fragment _ on Query { test { a } }",
+                variables = mapOf("x" to 1)
+            )
+        )
+        val key3 = ObjectEngineResult.Key(
+            "test",
+            selectionSet = TestSelections(
+                type = "Query",
+                document = "fragment _ on Query { test { b } }",
+                variables = mapOf("x" to 1)
+            )
+        )
+
+        assertEquals(key1, key2)
+        assertEquals(key1.hashCode(), key2.hashCode())
+        assertNotEquals(key1, key3)
     }
 
     @Test
