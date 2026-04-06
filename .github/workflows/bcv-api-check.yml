@@ -17,9 +17,11 @@ jobs:
             run_id: ${{ steps.emit.outputs.run_id }}
 
         steps:
-            - uses: ./.github/actions/setup-build
+            - uses: actions/checkout@v6
               with:
-                  fetch-depth: '0'
+                  fetch-depth: 0
+
+            - uses: ./.github/actions/setup-build
 
             - name: Emit run ID
               id: emit

@@ -41,11 +41,14 @@ jobs:
         run: |
           echo "RELEASE_REF=main" >> "$GITHUB_ENV"
 
-      - uses: ./.github/actions/setup-build
+      - uses: actions/checkout@v6
         with:
           ref: ${{ env.RELEASE_REF }}
-          fetch-depth: '0'
-          fetch-tags: 'true'
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: ./.github/actions/setup-build
+        with:
           java-version: '21'
 
       - name: Verify Gradle wrapper

@@ -51,6 +51,8 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
+      - uses: actions/checkout@v6
+
       - uses: ./.github/actions/setup-build
         with:
           # Java 17 matches our minimum published artifact target, making this
@@ -82,6 +84,8 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
+      - uses: actions/checkout@v6
+
       - uses: ./.github/actions/setup-build
         with:
           java-version: ${{ matrix.java }}
@@ -110,6 +114,8 @@ jobs:
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
+      - uses: actions/checkout@v6
+
       - uses: ./.github/actions/setup-build
         with:
           java-version: ${{ matrix.java }}
