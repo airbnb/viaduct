@@ -68,6 +68,12 @@ object SyncEngineObjectDataFactory {
      * is wrapped with [ViaductResolverInstrumentation.instrumentFetchSelection] for observability.
      * This context is set by [viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher]
      * when invoking sync value getters. Without it, selections resolve without instrumentation.
+     *
+     * Batched awaitAll: cell slot [Value]s are collected non-suspendingly in a first pass, then
+     * awaited together in a single [Value.waitAll] call. This collapses 2×N serial suspend-resume
+     * cycles (one per slot per cell) down to a single suspension point per resolver invocation.
+     * After [Value.waitAll] completes, the cell slots are synchronously available and
+     * [unwrap] does not suspend for the [Cell] case.
      */
     private suspend fun resolveImpl(
         objectEngineResult: ObjectEngineResultImpl,
@@ -81,6 +87,17 @@ object SyncEngineObjectDataFactory {
         val selections = selectionSet
             .selectionSetForType(objectEngineResult.type.name)
             .selections()
+
+        // Phase 1: collect per-selection state and pre-fetch cell slot Values (non-suspending).
+        data class SelectionState(
+            val selectionName: String,
+            val selectionPath: ResultPath?,
+            val cell: Any?,
+            val subselections: EngineSelectionSet?,
+        )
+
+        val selectionStates = ArrayList<SelectionState>(selections.size)
+        val cellValues = mutableListOf<Value<Any?>>()
 
         for (selection in selections) {
             val selectionName = selection.selectionName
@@ -99,19 +116,35 @@ object SyncEngineObjectDataFactory {
             )
 
             val cell = objectEngineResult.getCellOptimistically(oerKey(selectionSet, engineSelection))
-            data[selectionName] = if (instrumentationCtx != null) {
+            selectionStates += SelectionState(selectionName, selectionPath, cell, subselections)
+
+            if (cell is Cell) {
+                @Suppress("UNCHECKED_CAST")
+                cellValues += cell.getValue(RAW_VALUE_SLOT) as Value<Any?>
+                @Suppress("UNCHECKED_CAST")
+                cellValues += cell.getValue(ACCESS_CHECK_SLOT) as Value<Any?>
+            }
+        }
+
+        // Single suspension point: await all incomplete cell slot values concurrently.
+        Value.waitAll(cellValues).await()
+
+        // Phase 2: assemble results. Cell slots are now complete; unwrap() does not suspend
+        // for the Cell case.
+        for (state in selectionStates) {
+            data[state.selectionName] = if (instrumentationCtx != null) {
                 val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
-                    selection = selectionName,
+                    selection = state.selectionName,
                     parentTypeName = objectEngineResult.type.name,
-                    resultPath = selectionPath
+                    resultPath = state.selectionPath
                 )
                 instrumentationCtx.instrumentation.instrumentFetchSelection(
-                    FetchFunction { unwrap(cell, subselections, errorMessage, selectionPath) },
+                    FetchFunction { unwrap(state.cell, state.subselections, errorMessage, state.selectionPath) },
                     params,
                     instrumentationCtx.state
                 ).fetch()
             } else {
-                unwrap(cell, subselections, errorMessage, selectionPath)
+                unwrap(state.cell, state.subselections, errorMessage, state.selectionPath)
             }
         }
 

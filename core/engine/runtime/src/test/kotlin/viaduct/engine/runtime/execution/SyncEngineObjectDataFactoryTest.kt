@@ -3,6 +3,9 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.ResultPath
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -766,6 +769,59 @@ class SyncEngineObjectDataFactoryTest {
             // Level 3: O3 selections (path extends through o2/o3)
             assertEquals(ResultPath.parse("/query/root/o2/o3/value"), pathsBySelection["value"]?.path)
             assertEquals("O3", pathsBySelection["value"]?.parentType)
+        }
+    }
+
+    // ============================================================================
+    // Batched await tests
+    // ============================================================================
+
+    @Test
+    fun `resolve awaits all incomplete cell values concurrently before assembling results`() {
+        Fixture("type Query { a: String, b: String, c: String }") {
+            val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
+
+            // Create three cells backed by CompletableDeferred — not yet complete when resolve() starts.
+            val deferredA = CompletableDeferred<FieldResolutionResult>()
+            val deferredB = CompletableDeferred<FieldResolutionResult>()
+            val deferredC = CompletableDeferred<FieldResolutionResult>()
+
+            fun makeResult(
+                value: String,
+                fieldName: String
+            ) = FieldResolutionResult(value, emptyList(), CompositeLocalContext.empty, emptyMap(), fieldName)
+
+            oer.computeIfAbsent(ObjectEngineResult.Key("a")) { slotSetter ->
+                slotSetter.setRawValue(Value.fromDeferred(deferredA))
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+            oer.computeIfAbsent(ObjectEngineResult.Key("b")) { slotSetter ->
+                slotSetter.setRawValue(Value.fromDeferred(deferredB))
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+            oer.computeIfAbsent(ObjectEngineResult.Key("c")) { slotSetter ->
+                slotSetter.setRawValue(Value.fromDeferred(deferredC))
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            val selectionSet = mkSelectionSet("Query", "a b c")
+
+            // Complete all three deferreds concurrently while resolve() is suspended on waitAll.
+            // coroutineScope runs the launcher and resolve() concurrently; resolve() suspends on
+            // waitAll until the launcher completes the deferreds.
+            lateinit var syncData: SyncProxyEngineObjectData
+            coroutineScope {
+                launch {
+                    deferredA.complete(makeResult("alpha", "a"))
+                    deferredB.complete(makeResult("beta", "b"))
+                    deferredC.complete(makeResult("gamma", "c"))
+                }
+                syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            }
+
+            assertEquals("alpha", syncData.get("a"))
+            assertEquals("beta", syncData.get("b"))
+            assertEquals("gamma", syncData.get("c"))
         }
     }
 
