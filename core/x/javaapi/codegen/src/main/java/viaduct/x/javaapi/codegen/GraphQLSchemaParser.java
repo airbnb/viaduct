@@ -128,11 +128,14 @@ public class GraphQLSchemaParser {
           interfaces.add(union.getName());
         }
 
-        // Collect all fields (extensions are already merged), skipping `_` which is a Java 9+
-        // keyword reserved by the language and cannot be used as an identifier.
+        // Collect all fields (extensions are already merged), skipping:
+        // - `_` which is a Java 9+ keyword reserved by the language
+        // - BackingData-typed fields (opaque at the GRT level, mirrors Kotlin's
+        //   codegenIncludedFields in BackingData.kt)
         List<FieldModel> fields = new ArrayList<>();
         for (ViaductSchema.Field field : objectDef.getFields()) {
           if (field.getName().equals("_")) continue;
+          if (isBackingDataField(field)) continue;
           fields.add(createFieldModel(field, typeMapper));
         }
 
@@ -165,9 +168,10 @@ public class GraphQLSchemaParser {
       if (typeDef instanceof ViaductSchema.Input inputDef) {
         String name = inputDef.getName();
 
-        // Collect all fields (extensions are already merged)
+        // Collect all fields (extensions are already merged), excluding BackingData
         List<FieldModel> fields = new ArrayList<>();
         for (ViaductSchema.Field field : inputDef.getFields()) {
+          if (isBackingDataField(field)) continue;
           fields.add(createFieldModel(field, typeMapper));
         }
 
@@ -199,9 +203,10 @@ public class GraphQLSchemaParser {
                 .map(ViaductSchema.Interface::getName)
                 .collect(Collectors.toCollection(ArrayList::new));
 
-        // Collect all fields (extensions are already merged)
+        // Collect all fields (extensions are already merged), excluding BackingData
         List<FieldModel> fields = new ArrayList<>();
         for (ViaductSchema.Field field : interfaceDef.getFields()) {
+          if (isBackingDataField(field)) continue;
           fields.add(createFieldModel(field, typeMapper));
         }
 
@@ -437,6 +442,18 @@ public class GraphQLSchemaParser {
       }
     }
     return sb.toString();
+  }
+
+  /**
+   * Returns true if the field's base type is the BackingData scalar. BackingData fields are
+   * excluded from GRT codegen — they are opaque containers whose runtime type is specified
+   * per-field via the @backingData directive. Mirrors Kotlin's codegenIncludedFields in
+   * BackingData.kt.
+   */
+  private boolean isBackingDataField(ViaductSchema.Field field) {
+    ViaductSchema.TypeDef baseDef = field.getType().getBaseTypeDef();
+    return baseDef.getKind() == ViaductSchema.TypeDefKind.SCALAR
+        && baseDef.getName().equals("BackingData");
   }
 
   /** Creates a FieldModel from a ViaductSchema.Field. */

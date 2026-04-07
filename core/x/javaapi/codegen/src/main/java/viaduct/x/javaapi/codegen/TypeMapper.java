@@ -69,11 +69,20 @@ public class TypeMapper {
     // Inside generics (e.g., List<>), we must use boxed types, not primitives
     boolean useBoxedType = nullable || insideGeneric;
     return switch (graphqlType) {
-      case "String" -> "String";
+      // Built-in GraphQL scalars
+      case "String", "ID" -> "String";
       case "Int" -> useBoxedType ? "Integer" : "int";
       case "Float" -> useBoxedType ? "Double" : "double";
       case "Boolean" -> useBoxedType ? "Boolean" : "boolean";
-      case "ID" -> "String";
+      // Custom Viaduct scalars → standard Java types
+      // (mirrors baseGraphqlScalarTypeMapping in GraphqlTypeMappings.kt)
+      case "Date" -> "LocalDate";
+      case "DateTime" -> "Instant";
+      case "Time" -> "OffsetTime";
+      case "Long" -> useBoxedType ? "Long" : "long";
+      case "Short" -> useBoxedType ? "Short" : "short";
+      case "Byte" -> useBoxedType ? "Byte" : "byte";
+      case "JSON", "BackingData" -> "Object";
       // For custom types (enums, objects, interfaces), use FQN if a package was provided
       default -> grtPackage != null ? grtPackage + "." + graphqlType : graphqlType;
     };

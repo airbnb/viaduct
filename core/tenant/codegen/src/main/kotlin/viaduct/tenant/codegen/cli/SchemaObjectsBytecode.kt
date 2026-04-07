@@ -18,6 +18,7 @@ import viaduct.tenant.codegen.bytecode.GRTClassFilesBuilderBase
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.tenant.codegen.graphql.schema.ScopedSchemaFilter
 import viaduct.tenant.codegen.util.ZipUtil.zipAndWriteDirectories
+import viaduct.tenant.codegen.util.hasBinarySchemaFlag
 import viaduct.tenant.codegen.util.shouldUseBinarySchema
 import viaduct.utils.timer.Timer
 
@@ -36,8 +37,8 @@ class SchemaObjectsBytecode : CliktCommand() {
     private val schemaFiles: List<File> by option("--schema_files")
         .file(mustExist = true, canBeDir = false).split(",").required()
 
-    private val binarySchemaFile: File by option("--binary_schema_file")
-        .file(mustExist = true, canBeDir = false).required()
+    private val binarySchemaFile: File? by option("--binary_schema_file")
+        .file(mustExist = true, canBeDir = false)
 
     private val moduleName: String? by option("--module_name")
 
@@ -62,21 +63,32 @@ class SchemaObjectsBytecode : CliktCommand() {
         )
     val compilationSchema: File? by option("--compilation_schema").file(mustExist = false, canBeDir = false)
     val compilationSchemaBinary: File? by option("--compilation_schema_binary").file(mustExist = false, canBeDir = false)
-    val flagFile: File by option("--flag_file").file(mustExist = true, canBeDir = false).required()
+    val flagFile: File? by option("--flag_file").file(mustExist = true, canBeDir = false)
 
     override fun run() {
+        // Validation:
+        // - If flag file has enable_binary_schema (True or False): --binary_schema_file required
+        // - If flag file missing or doesn't mention enable_binary_schema: --binary_schema_file
+        //   optional, but at least one of --schema_files or --binary_schema_file must be present
+        if (hasBinarySchemaFlag(flagFile)) {
+            require(binarySchemaFile != null) {
+                "--binary_schema_file is required when --flag_file contains enable_binary_schema"
+            }
+        } else {
+            require(binarySchemaFile != null || schemaFiles.isNotEmpty()) {
+                "At least one of --schema_files or --binary_schema_file must be provided"
+            }
+        }
+
         if (generatedDir.exists()) generatedDir.deleteRecursively()
         generatedDir.mkdirs()
         val scopeSet = appliedScopes?.toSet()
 
         val timer = Timer()
+        val useBinary = shouldUseBinarySchema(flagFile)
         val schema = timer.time("schemaFromFiles") {
-            if (shouldUseBinarySchema(flagFile)) {
-                val schemaFile = if (compilationSchemaBinary != null) {
-                    compilationSchemaBinary
-                } else {
-                    binarySchemaFile
-                }
+            if (useBinary) {
+                val schemaFile = compilationSchemaBinary ?: binarySchemaFile
                 ViaductSchema.fromBinaryFile(schemaFile!!)
             } else {
                 val schemaFileList = if (compilationSchema != null) {

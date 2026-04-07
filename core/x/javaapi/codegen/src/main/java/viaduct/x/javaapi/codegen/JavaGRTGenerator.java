@@ -102,6 +102,9 @@ public final class JavaGRTGenerator {
             package <mdl.packageName>;
 
             import viaduct.java.api.types.GraphQLObject;
+            import java.time.Instant;
+            import java.time.LocalDate;
+            import java.time.OffsetTime;
             import java.util.List;
 
             <if(mdl.hasDescription)>
@@ -192,6 +195,9 @@ public final class JavaGRTGenerator {
             package <mdl.packageName>;
 
             import viaduct.java.api.types.GraphQLInput;
+            import java.time.Instant;
+            import java.time.LocalDate;
+            import java.time.OffsetTime;
             import java.util.List;
 
             <if(mdl.hasDescription)>
@@ -277,6 +283,9 @@ public final class JavaGRTGenerator {
             package <mdl.packageName>;
 
             import viaduct.java.api.types.GraphQLInterface;
+            import java.time.Instant;
+            import java.time.LocalDate;
+            import java.time.OffsetTime;
             import java.util.List;
 
             <if(mdl.hasDescription)>
@@ -326,6 +335,9 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
+            import java.time.Instant;
+            import java.time.LocalDate;
+            import java.time.OffsetTime;
             import java.util.List;
             import viaduct.java.api.types.Arguments;
 

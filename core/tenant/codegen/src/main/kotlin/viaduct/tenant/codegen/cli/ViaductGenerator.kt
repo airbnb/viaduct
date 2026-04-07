@@ -17,6 +17,7 @@ import viaduct.tenant.codegen.kotlingen.Args
 import viaduct.tenant.codegen.kotlingen.generateFieldResolvers
 import viaduct.tenant.codegen.kotlingen.generateNodeResolvers
 import viaduct.tenant.codegen.util.ZipUtil.zipAndWriteDirectories
+import viaduct.tenant.codegen.util.hasBinarySchemaFlag
 import viaduct.tenant.codegen.util.shouldUseBinarySchema
 
 /**
@@ -37,10 +38,10 @@ class ViaductGenerator : CliktCommand() {
     // schema args
     private val schemaFiles: List<File> by option("--schema_files")
         .file(mustExist = true, canBeDir = false).split(",").required()
-    private val binarySchemaFile: File by option("--binary_schema_file")
-        .file(mustExist = true, canBeDir = false).required()
-    private val flagFile: File by option("--flag_file")
-        .file(mustExist = true, canBeDir = false).required()
+    private val binarySchemaFile: File? by option("--binary_schema_file")
+        .file(mustExist = true, canBeDir = false)
+    private val flagFile: File? by option("--flag_file")
+        .file(mustExist = true, canBeDir = false)
 
     // resolver args
     private val resolverGeneratedDir: File by option("--resolver_generated_directory")
@@ -62,8 +63,16 @@ class ViaductGenerator : CliktCommand() {
             "Provided directories to store the archives must be either null or non-null together"
         }
 
-        val schema = if (shouldUseBinarySchema(flagFile)) {
-            ViaductSchema.fromBinaryFile(binarySchemaFile)
+        // Validate binary schema file requirement
+        if (hasBinarySchemaFlag(flagFile)) {
+            require(binarySchemaFile != null) {
+                "--binary_schema_file is required when --flag_file contains enable_binary_schema"
+            }
+        }
+
+        val useBinary = shouldUseBinarySchema(flagFile)
+        val schema = if (useBinary) {
+            ViaductSchema.fromBinaryFile(binarySchemaFile!!)
         } else {
             ViaductSchema.fromTypeDefinitionRegistry(schemaFiles)
         }

@@ -5,6 +5,10 @@ plugins {
     id("java-feature-app-contract-tests")
 }
 
+viaductJavaFeatureAppContracts {
+    contractsFrom(":tenant:tenant-runtime")
+}
+
 description = "Java Tenant API runtime implementation - bridges Java API to Kotlin engine"
 
 dependencies {
