@@ -624,6 +624,83 @@ interface ViaductSchemaContract {
     }
 
     @Test
+    fun `appliedDirectives on directive args are populated`() {
+        this@ViaductSchemaContract.createSchema(
+            """
+                directive @meta(info: String!) on ARGUMENT_DEFINITION
+                directive @validated(min: Int @meta(info: "test")) on FIELD_DEFINITION
+                type Query { f: String @validated(min: 0) }
+            """.trimIndent()
+        ).apply {
+            val validated = this.directives["validated"]!!
+            val minArg = validated.args.first { it.name == "min" }
+            assertEquals(
+                listOf("meta"),
+                minArg.appliedDirectives.map { it.name },
+                "DirectiveArg.appliedDirectives should include @meta"
+            )
+            // Verify the argument value was decoded correctly
+            val metaApp = minArg.appliedDirectives.first()
+            assertInstanceOf(ViaductSchema.StringLiteral::class.java, metaApp.arguments["info"])
+            assertEquals("test", (metaApp.arguments["info"] as ViaductSchema.StringLiteral).value)
+        }
+    }
+
+    @Test
+    fun `appliedDirectiveDefs returns directive definitions`() {
+        this@ViaductSchemaContract.createSchema(
+            """
+                directive @d1 on OBJECT | FIELD_DEFINITION | ENUM_VALUE
+                directive @d2 on OBJECT | FIELD_DEFINITION | ENUM_VALUE
+                directive @d3 repeatable on OBJECT
+                type Query @d1 @d2 {
+                    f1: String @d1
+                    f2: String @d2
+                }
+                type Tagged @d3 @d3 {
+                    stub: String
+                }
+                enum E {
+                    V1 @d1
+                    V2
+                }
+            """.trimIndent()
+        ).apply {
+            // Type with two different directives
+            val query = this.types["Query"]!!
+            assertEquals(
+                setOf("d1", "d2"),
+                query.appliedDirectiveDefs().map { it.name }.toSet()
+            )
+
+            // Field with one directive
+            val f1 = (query as ViaductSchema.Record).field("f1")!!
+            assertEquals(
+                listOf("d1"),
+                f1.appliedDirectiveDefs().map { it.name }
+            )
+
+            // Repeatable directive: same directive appears once in defs
+            val tagged = this.types["Tagged"]!!
+            assertEquals(
+                listOf("d3", "d3"),
+                tagged.appliedDirectiveDefs().map { it.name }
+            )
+
+            // Enum value with directive
+            val v1 = (this.types["E"]!! as ViaductSchema.Enum).value("V1")!!
+            assertEquals(
+                listOf("d1"),
+                v1.appliedDirectiveDefs().map { it.name }
+            )
+
+            // Enum value with no directive
+            val v2 = (this.types["E"]!! as ViaductSchema.Enum).value("V2")!!
+            assertTrue(v2.appliedDirectiveDefs().isEmpty())
+        }
+    }
+
+    @Test
     fun `test containingSchema referential integrity`() {
         this@ViaductSchemaContract.createSchema(
             """

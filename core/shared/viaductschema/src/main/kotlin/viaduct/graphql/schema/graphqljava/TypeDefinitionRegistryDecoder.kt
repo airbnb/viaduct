@@ -199,7 +199,7 @@ internal class TypeDefinitionRegistryDecoder(
             } else {
                 null
             }
-            SchemaWithData.DirectiveArg(directive, it.name, decodeTypeExpr(it.type), emptyList(), hasDefault, default, it)
+            SchemaWithData.DirectiveArg(directive, it.name, decodeTypeExpr(it.type), decodeAppliedDirectives(it.directives), hasDefault, default, it)
         }
         directive.populate(isRepeatable, allowedLocations, sourceLocation, args)
     }

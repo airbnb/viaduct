@@ -332,6 +332,16 @@ interface ViaductSchema {
 
         fun hasAppliedDirective(name: String) = appliedDirectives.any { it.name == name }
 
+        /**
+         * Returns the [Directive] definitions that have been applied to this
+         * definition, extracted from [appliedDirectives].
+         *
+         * This is a convenience function — it walks [appliedDirectives] and
+         * maps each entry to its directive definition.  Callers who need to
+         * access this repeatedly should cache the result.
+         */
+        fun appliedDirectiveDefs(): Collection<Directive> = appliedDirectives.map { it.directive }
+
         fun describe(): String
 
         /** Override this in schema implementations that wrap other definitions, e.g. FilteredSchema */

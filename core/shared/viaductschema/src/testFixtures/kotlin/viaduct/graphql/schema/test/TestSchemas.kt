@@ -1475,6 +1475,24 @@ object TestSchemas {
 
             type Query { user: User }
             """.trimIndent()
+        ),
+        Case(
+            "self-referential type",
+            "OBJECT",
+            """
+            type Node { children: [Node] }
+
+            type Query { root: Node }
+            """.trimIndent()
+        ),
+        Case(
+            "unreferenced type",
+            "OBJECT",
+            """
+            type Unreferenced { id: ID! }
+
+            type Query { field: String }
+            """.trimIndent()
         )
     )
 

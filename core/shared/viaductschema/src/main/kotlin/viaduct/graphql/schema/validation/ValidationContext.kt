@@ -1,5 +1,6 @@
 package viaduct.graphql.schema.validation
 
+import viaduct.graphql.schema.ViaductReverseSchema
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -10,6 +11,16 @@ import viaduct.graphql.schema.ViaductSchema
  * for specialized validation use cases.
  */
 open class ValidationContext(val schema: ViaductSchema) {
+    /**
+     * Reverse (inbound) navigation over the schema.  Constructed
+     * lazily so that validation rules that don't need it pay no
+     * cost.  Once constructed, shared across all rules for the
+     * duration of the validation pass.
+     */
+    val reverseSchema: ViaductReverseSchema by lazy {
+        ViaductReverseSchema.from(schema)
+    }
+
     private val _errors = mutableListOf<SchemaValidationError>()
 
     val errors: List<SchemaValidationError> get() = _errors.toList()

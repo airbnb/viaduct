@@ -470,7 +470,7 @@ internal class GraphQLSchemaDecoder(
                 directive,
                 argDef.name,
                 decodeTypeExpr(argDef.type),
-                emptyList(), // Directive args don't have applied directives
+                decodeAppliedDirectives(argDef),
                 decodeHasDefault(argDef),
                 decodeDefaultValue(argDef),
                 argDef, // data is GraphQLArgument
