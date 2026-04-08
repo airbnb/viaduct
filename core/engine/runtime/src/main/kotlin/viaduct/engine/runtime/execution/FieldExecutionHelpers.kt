@@ -33,6 +33,7 @@ import java.util.function.Supplier
 import kotlin.collections.plus
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
@@ -42,6 +43,7 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
@@ -64,12 +66,24 @@ object FieldExecutionHelpers {
      * Builds the key for the [ObjectEngineResultImpl] for a given field.
      *
      * @param field The field for which to build the key.
+     * @param selectionSet The field selection set to include in the key. When non-null, it is
+     * always included in the resulting [ObjectEngineResult.Key]. Callers that want the key to be
+     * independent of subselections must pass null.
      * @return The constructed key.
      */
     fun buildOERKeyForField(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField
-    ): ObjectEngineResult.Key = ObjectEngineResult.Key(field.fieldName, field.alias, parameters.executionStepInfo.arguments)
+        field: QueryPlan.CollectedField,
+        selectionSet: EngineSelectionSet? = null,
+    ): ObjectEngineResult.Key =
+        ObjectEngineResult.Key(
+            field.fieldName,
+            field.alias,
+            parameters.executionStepInfo.arguments,
+            selectionSet
+        )
+
+    fun QueryPlan.CollectedField.isResolvedSelectively(isResolverSelective: IsResolverSelective): Boolean = collectedFieldMetadata?.resolverCoordinate?.let(isResolverSelective::invoke) == true
 
     /**
      * Builds a DataFetchingEnvironment for the given field execution.
@@ -316,6 +330,7 @@ object FieldExecutionHelpers {
         locale: Locale
     ): CoercedVariables =
         variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
+            val isResolverSelective = IsResolverSelective.fromRegistry(engineExecutionContext.dispatcherRegistry)
             val variablesData: EngineObjectData = vr.requiredSelectionSet?.let { vrss ->
                 // VariablesResolvers may have required selection sets which have their own variables resolvers.
                 // Recursively resolve them
@@ -343,11 +358,11 @@ object FieldExecutionHelpers {
                     currentEngineData
                 }
                 if (vrss.forChecker) {
-                    CheckerProxyEngineObjectData(engineResult, "missing from variable RSS", vss)
+                    CheckerProxyEngineObjectData(engineResult, "missing from variable RSS", vss, isResolverSelective)
                 } else {
-                    ProxyEngineObjectData(engineResult, "missing from variable RSS", vss)
+                    ProxyEngineObjectData(engineResult, "missing from variable RSS", vss, isResolverSelective)
                 }
-            } ?: ProxyEngineObjectData(currentEngineData, "missing from variable RSS", null)
+            } ?: ProxyEngineObjectData(currentEngineData, "missing from variable RSS", null, isResolverSelective)
 
             val resolved = vr.resolve(VariablesResolver.ResolveCtx(variablesData, arguments), engineExecutionContext)
             acc + resolved

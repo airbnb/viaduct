@@ -31,9 +31,11 @@ import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.runtime.Cell
+import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.LazyEngineObjectData
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -47,6 +49,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingE
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.collectFields
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoFactory
+import viaduct.engine.runtime.execution.FieldExecutionHelpers.isResolvedSelectively
 import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
@@ -320,16 +323,24 @@ class FieldResolver(
 
         // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
         val parentOER = parameters.parentEngineResult
-        val oerKey = buildOERKeyForField(parameters, field)
         val executionStepInfoForField = parameters.executionStepInfo
 
         val fieldInstrumentationCtx = parameters.instrumentation.beginFieldExecution(
             InstrumentationFieldParameters(parameters.executionContextWithLocalContext) { executionStepInfoForField },
             parameters.executionContext.instrumentationState
         ) ?: FieldFetchingInstrumentationContext.NOOP
+        val isResolverSelective = IsResolverSelective.fromRegistry(parameters.engineExecutionContext.dispatcherRegistry)
 
         val dataFetchingEnvironmentProvider =
             FpKit.intraThreadMemoize { buildDataFetchingEnvironment(parameters, field, parentOER) }
+        val isSelective = field.isResolvedSelectively(isResolverSelective)
+        val fieldSelectionSet = if (isSelective) {
+            dataFetchingEnvironmentProvider.get()
+                .let(parameters.engineExecutionContext.engineSelectionSetFactory::engineSelectionSet)
+        } else {
+            null
+        }
+        val oerKey = buildOERKeyForField(parameters, field, fieldSelectionSet)
 
         fieldInstrumentationCtx.onDispatched()
 

@@ -156,10 +156,11 @@ object ObjectEngineResultTestHelper {
 
             // Objects become nested ObjectEngineResults
             is GraphQLObjectType -> {
-                val subSelectionSet = selectionSet.selectionSetForSelection(
-                    (parentType as GraphQLCompositeType).name,
-                    key.alias ?: key.name
-                )
+                val subSelectionSet =
+                    (key.selectionSet as? EngineSelectionSet) ?: selectionSet.selectionSetForSelection(
+                        (parentType as GraphQLCompositeType).name,
+                        key.alias ?: key.name
+                    )
                 newFromMap(
                     unwrappedType,
                     (value as Map<*, Any?>).rekey(unwrappedType, subSelectionSet),
@@ -177,10 +178,11 @@ object ObjectEngineResultTestHelper {
                 val valueMap = value as Map<String, Any?>
                 val typeName = valueMap["__typename"] as String
                 val concreteType = schema.schema.getObjectType(typeName)
-                val subSelectionSet = selectionSet.selectionSetForSelection(
-                    (parentType as GraphQLCompositeType).name,
-                    key.alias ?: key.name
-                )
+                val subSelectionSet =
+                    (key.selectionSet as? EngineSelectionSet) ?: selectionSet.selectionSetForSelection(
+                        (parentType as GraphQLCompositeType).name,
+                        key.alias ?: key.name
+                    )
 
                 newFromMap(
                     concreteType,
@@ -203,6 +205,9 @@ object ObjectEngineResultTestHelper {
      * This allows us to handle field aliases and arguments correctly; ignoring this and simply using the key name
      * can lead to mismatched keys, which in turn can lead to the engine resolution hanging.
      *
+     * Synthesized keys intentionally do not include nested selection sets. Tests that need selective
+     * resolver keying should provide explicit [ObjectEngineResult.Key] instances with a selection set.
+     *
      * Note that this rekeys just the top-level keys of the map; nested objects will not be rekeyed.
      */
     private fun Map<*, Any?>.rekey(
@@ -223,7 +228,11 @@ object ObjectEngineResultTestHelper {
             }
             selectionsByName[keyString]?.let { sel ->
                 val arguments = selectionSet.argumentsOfSelection(type.name, sel.selectionName) ?: emptyMap()
-                val objectEngineResultKey = ObjectEngineResult.Key(name = sel.fieldName, alias = sel.selectionName, arguments = arguments)
+                val objectEngineResultKey = ObjectEngineResult.Key(
+                    name = sel.fieldName,
+                    alias = sel.selectionName,
+                    arguments = arguments,
+                )
                 map[objectEngineResultKey] = value
             }
         }

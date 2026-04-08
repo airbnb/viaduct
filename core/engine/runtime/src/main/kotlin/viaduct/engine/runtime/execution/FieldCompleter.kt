@@ -24,7 +24,9 @@ import viaduct.deferred.waitAllDeferreds
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.Cell
+import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
@@ -34,6 +36,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingE
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.collectFields
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoFactory
+import viaduct.engine.runtime.execution.FieldExecutionHelpers.isResolvedSelectively
 import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
@@ -134,11 +137,19 @@ class FieldCompleter(
     private fun objectFieldMap(parameters: ExecutionParameters): Value<Map<String, Any?>> {
         val parentOER = parameters.parentEngineResult
         val fields = collectFields(parentOER.type, parameters).selections
+        val isResolverSelective = IsResolverSelective.fromRegistry(parameters.engineExecutionContext.dispatcherRegistry)
         val fieldValues = fields.map { field ->
             field as QueryPlan.CollectedField
 
             val newParams = parameters.forField(parentOER.type, field)
-            val fieldKey = buildOERKeyForField(newParams, field)
+            val isSelective = field.isResolvedSelectively(isResolverSelective)
+            val fieldSelectionSet = if (isSelective) {
+                buildDataFetchingEnvironment(newParams, field, parentOER)
+                    .let(newParams.engineExecutionContext.engineSelectionSetFactory::engineSelectionSet)
+            } else {
+                null
+            }
+            val fieldKey = buildOERKeyForField(newParams, field, fieldSelectionSet)
             val bypassChecker = temporaryBypassAccessCheck.shouldBypassCheck(field.mergedField.singleField, parameters.bypassChecksDuringCompletion)
 
             // Obtain a result for this field
