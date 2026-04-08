@@ -9,7 +9,7 @@ import org.gradle.kotlin.dsl.register
 /**
  * Publisher plugin for contract test schemas.
  *
- * Extracts GraphQL schemas from `@TestSchema` annotations in testFixtures source files
+ * Extracts GraphQL schemas from `@TestSchema` annotations in compiled testFixtures class files
  * and exposes them via a `contractSchemas` Gradle configuration for consumer plugins.
  *
  * The outgoing configuration is created eagerly (consumers need it to exist at configuration
@@ -34,9 +34,9 @@ class ViaductContractSchemaPublisherPlugin : Plugin<Project> {
                 "extractContractSchemas"
             ) {
                 group = "viaduct-feature-app"
-                description = "Extracts GraphQL schemas from @TestSchema annotations"
+                description = "Extracts GraphQL schemas from @TestSchema annotations in compiled testFixtures"
 
-                sourceFiles.from(testFixturesSS.allSource)
+                classesDirs.from(testFixturesSS.output.classesDirs)
                 outputDir.set(
                     project.layout.buildDirectory.dir("extracted-contract-schemas")
                 )

@@ -10,9 +10,13 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.objectweb.asm.AnnotationVisitor
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.Opcodes
 
 /**
- * Extracts GraphQL schemas from `@TestSchema` annotations in testFixtures source files
+ * Extracts GraphQL schemas from `@TestSchema` annotations in compiled testFixtures class files
  * and writes one `schema.graphql` file per contract, keyed by package path.
  *
  * Output layout:
@@ -25,9 +29,10 @@ import org.gradle.api.tasks.TaskAction
  */
 @CacheableTask
 abstract class ViaductContractSchemaExtractTask : DefaultTask() {
+    /** Compiled testFixtures class directories. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val sourceFiles: ConfigurableFileCollection
+    abstract val classesDirs: ConfigurableFileCollection
 
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -38,98 +43,73 @@ abstract class ViaductContractSchemaExtractTask : DefaultTask() {
         outDir.deleteRecursively()
         outDir.mkdirs()
 
-        val packagesSeen = mutableMapOf<String, File>()
+        val packagesSeen = mutableMapOf<String, String>()
 
-        for (file in sourceFiles) {
-            if (!file.isFile) continue
-            if (!hasTestSchemaAnnotation(file)) continue
+        for (classesDir in classesDirs) {
+            if (!classesDir.isDirectory) continue
+            classesDir.walkTopDown()
+                .filter { it.isFile && it.extension == "class" }
+                .forEach { classFile ->
+                    val schema = extractSchemaFromClassFile(classFile) ?: return@forEach
 
-            val info = validateContractFile(file, packagesSeen)
-            packagesSeen[info.pkgPath] = file
+                    val relPath = classFile.relativeTo(classesDir).path
+                    val pkgPath = classFile.parentFile.relativeTo(classesDir).path
+                    val className = relPath.removeSuffix(".class").replace(File.separatorChar, '.')
 
-            val schemaFile = File(outDir, "${info.pkgPath}/schema.graphql")
-            schemaFile.parentFile.mkdirs()
-            extractSchemaFromAnnotation(file, schemaFile)
+                    val existing = packagesSeen[pkgPath]
+                    if (existing != null) {
+                        error(
+                            "Two contracts in package '${pkgPath.replace(File.separatorChar, '.')}': " +
+                                "$existing and $className"
+                        )
+                    }
+                    packagesSeen[pkgPath] = className
+
+                    val schemaFile = File(outDir, "$pkgPath/schema.graphql")
+                    schemaFile.parentFile.mkdirs()
+                    schemaFile.writeText(schema.trimIndent().trim())
+                }
         }
 
         logger.info("Extracted {} contract schemas", packagesSeen.size)
     }
 }
 
-// ── Pure helper functions ────────────────────────────────────────────────────
+// ── ASM-based extraction ────────────────────────────────────────────────────
 
-data class ContractFileInfo(val pkg: String, val pkgPath: String)
-
-/**
- * Returns `true` if the file contains an `@TestSchema(` annotation.
- */
-fun hasTestSchemaAnnotation(file: File): Boolean {
-    return try {
-        file.readText().contains("@TestSchema(")
-    } catch (_: java.io.IOException) {
-        false
-    }
-}
+internal const val TEST_SCHEMA_DESCRIPTOR = "Lviaduct/tenant/runtime/fixtures/TestSchema;"
 
 /**
- * Validates that a contract file has a package declaration and that no other
- * contract in [packagesSeen] already occupies that package (Invariant 2).
+ * Reads a `.class` file and returns the `@TestSchema` value if the annotation is present,
+ * or `null` if the class doesn't carry the annotation.
  */
-fun validateContractFile(
-    file: File,
-    packagesSeen: Map<String, File>
-): ContractFileInfo {
-    val pkg = extractPackageFromFile(file)
-        ?: error("Contract file '${file.name}' has no package declaration.")
-    val pkgPath = pkg.replace('.', '/')
+fun extractSchemaFromClassFile(classFile: File): String? {
+    val reader = ClassReader(classFile.readBytes())
+    var schema: String? = null
 
-    val existing = packagesSeen[pkgPath]
-    if (existing != null) {
-        error(
-            "Two contract files in package '$pkg': " +
-                "${existing.name} and ${file.name}. " +
-                "Each contract must be in its own package."
-        )
-    }
-    return ContractFileInfo(pkg, pkgPath)
-}
-
-/**
- * Extracts the package declaration from a Kotlin or Java source file.
- */
-fun extractPackageFromFile(file: File): String? {
-    return try {
-        val content = file.readText()
-        val packagePattern = Regex("^\\s*package\\s+([\\w.]+)", RegexOption.MULTILINE)
-        packagePattern.find(content)?.groupValues?.get(1)
-    } catch (_: java.io.IOException) {
-        null
-    }
-}
-
-/**
- * Extracts the GraphQL SDL from a `@TestSchema("""...""")` annotation and writes it
- * to [outputFile].
- */
-fun extractSchemaFromAnnotation(
-    sourceFile: File,
-    outputFile: File
-) {
-    val content = sourceFile.readText()
-
-    val annotationPattern = Regex(
-        """@TestSchema\(\s*"{3}(.*?)"{3}\s*\)""",
-        setOf(RegexOption.DOT_MATCHES_ALL)
+    reader.accept(
+        object : ClassVisitor(Opcodes.ASM9) {
+            override fun visitAnnotation(
+                descriptor: String,
+                visible: Boolean
+            ): AnnotationVisitor? {
+                if (descriptor == TEST_SCHEMA_DESCRIPTOR && visible) {
+                    return object : AnnotationVisitor(Opcodes.ASM9) {
+                        override fun visit(
+                            name: String?,
+                            value: Any?
+                        ) {
+                            if (name == "value" && value is String) {
+                                schema = value
+                            }
+                        }
+                    }
+                }
+                return null
+            }
+        },
+        ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES
     )
 
-    val match = annotationPattern.find(content)
-        ?: error("No @TestSchema annotation found in ${sourceFile.name}")
-
-    val schemaContent = match.groupValues[1].trimIndent().trim()
-    require(schemaContent.isNotBlank()) {
-        "@TestSchema annotation in ${sourceFile.name} has empty schema content."
-    }
-
-    outputFile.parentFile.mkdirs()
-    outputFile.writeText(schemaContent)
+    return schema
 }

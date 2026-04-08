@@ -3,6 +3,7 @@
 project = "INCLUDED"
 
 # Libraries
+asm = "9.7.1"
 assertj = "3.27.6"
 antlr-st4 = "4.3.1"
 binaryCompatibility = "0.18.1"
@@ -114,6 +115,7 @@ kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", v
 dokka-all-modules-page-plugin = { module = "org.jetbrains.dokka:all-modules-page-plugin", version.ref = "dokka" }
 
 # Other libraries
+asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
 antlr-st4 = { module = "org.antlr:ST4", version.ref = "antlr-st4" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 classgraph = { module = "io.github.classgraph:classgraph", version.ref = "classgraph" }
