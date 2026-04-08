@@ -29,6 +29,9 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     uses: ./.github/workflows/build-and-test.yml

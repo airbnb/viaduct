@@ -25,8 +25,16 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false  # never cancel a release mid-flight
+
 jobs:
   publish-artifacts:
+    environment: release
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
@@ -113,7 +121,7 @@ jobs:
       - name: Create Draft Release
         id: create_release
         if: ${{ !inputs.publish_snapshot }}
-        uses: softprops/action-gh-release@v2.5.0
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2.5.0
         with:
           tag_name: "v${{ inputs.release_version }}"
           name: Release ${{ inputs.release_version }}

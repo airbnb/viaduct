@@ -9,6 +9,13 @@ on:
                 description: "GitHub Actions run ID"
                 value: ${{ jobs.api-compatibility.outputs.run_id }}
 
+permissions:
+    contents: read
+
+concurrency:
+    group: bcv-api-check-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
     api-compatibility:
         runs-on: ubuntu-latest

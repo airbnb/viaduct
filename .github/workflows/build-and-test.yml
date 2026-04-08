@@ -1,8 +1,5 @@
 name: Build and Test (Gradle)
 
-env:
-  PR_NUMBER: ${{ github.event.pull_request.number || '' }}
-
 on:
   workflow_dispatch:
     inputs:
@@ -19,6 +16,14 @@ on:
       run_id:
         description: "GitHub Actions run ID"
         value: ${{ jobs.validate-inputs.outputs.run_id }}
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: build-and-test-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate-inputs:
@@ -68,7 +73,7 @@ jobs:
 
       # Pinned 3.13 due to incompatibility between djlint and 3.14
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
