@@ -21,4 +21,24 @@ object GraphQLBuiltIns {
      * actual scalar definitions.
      */
     val VIADUCT_SCALARS: Set<String> = Scalars.viaductStandardScalars.map { it.name }.toSet()
+
+    /**
+     * The built-in GraphQL directive names as defined in the GraphQL specification.
+     * @see <a href="https://spec.graphql.org/October2021/#sec-Type-System.Directives.Built-in-Directives">GraphQL Spec</a>
+     */
+    val DIRECTIVES: Set<String> = setOf("skip", "include", "deprecated", "specifiedBy", "oneOf")
+
+    /**
+     * Directive names provided by the Viaduct framework (not defined in the GraphQL spec).
+     * These are the default directives added by DefaultSchemaFactory.
+     */
+    val VIADUCT_DIRECTIVES: Set<String> = setOf(
+        "resolver",
+        "backingData",
+        "scope",
+        "idOf",
+        "connection",
+        "edge",
+        "namespaceType"
+    )
 }

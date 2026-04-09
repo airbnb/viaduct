@@ -80,9 +80,10 @@ class DefaultSchemaValidatorTest {
 
         val errors = DefaultSchemaValidator.validate(schema)
 
-        errors shouldHaveSize 3
+        errors shouldHaveSize 4
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
             ValidationErrorCodes.DIRECTIVE_DEFINED_IN_MODULE,
+            ValidationErrorCodes.CUSTOM_DIRECTIVE_NOT_ALLOWED,
             ValidationErrorCodes.SCALAR_DEFINED_IN_MODULE,
             ValidationErrorCodes.CUSTOM_SCALAR_NOT_ALLOWED
         )
