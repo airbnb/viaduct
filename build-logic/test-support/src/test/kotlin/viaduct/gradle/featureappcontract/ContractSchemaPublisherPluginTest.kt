@@ -65,11 +65,11 @@ class ContractSchemaPublisherPluginTest {
         """.trimIndent()
 
         override fun writeAnnotation(projectDir: File) {
-            val dir = projectDir.resolve("src/testFixtures/java/viaduct/tenant/runtime/fixtures")
+            val dir = projectDir.resolve("src/testFixtures/java/viaduct/api/testing")
             dir.mkdirs()
             dir.resolve("TestSchema.java").writeText(
                 """
-                package viaduct.tenant.runtime.fixtures;
+                package viaduct.api.testing;
 
                 import java.lang.annotation.ElementType;
                 import java.lang.annotation.Retention;
@@ -122,11 +122,11 @@ class ContractSchemaPublisherPluginTest {
         override val buildExtra = "repositories { mavenCentral() }"
 
         override fun writeAnnotation(projectDir: File) {
-            val dir = projectDir.resolve("src/testFixtures/kotlin/viaduct/tenant/runtime/fixtures")
+            val dir = projectDir.resolve("src/testFixtures/kotlin/viaduct/api/testing")
             dir.mkdirs()
             dir.resolve("TestSchema.kt").writeText(
                 """
-                package viaduct.tenant.runtime.fixtures
+                package viaduct.api.testing
 
                 @Retention(AnnotationRetention.RUNTIME)
                 @Target(AnnotationTarget.CLASS)

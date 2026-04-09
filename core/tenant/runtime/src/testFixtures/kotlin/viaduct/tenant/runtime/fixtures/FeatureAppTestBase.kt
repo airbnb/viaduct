@@ -10,6 +10,7 @@ import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
 import viaduct.api.reflect.Type
+import viaduct.api.testing.TestSchema
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest

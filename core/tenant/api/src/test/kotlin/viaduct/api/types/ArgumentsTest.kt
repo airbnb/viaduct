@@ -3,10 +3,10 @@ package viaduct.api.types
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.internal.InputTypeFactory
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 
 class ArgumentsTest {
-    private val schema = SchemaUtils.getSchema()
+    private val schema = ApiTestSchema.schema
 
     @Test
     fun testInputType() {

@@ -11,7 +11,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.internal.ViaductObjectBuilder
 import viaduct.api.mocks.MockInternalContext
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.I1
 import viaduct.api.testschema.O1
@@ -21,7 +21,7 @@ import viaduct.errors.TenantUsageException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ViaductObjectBuilderTest {
-    private val context = MockInternalContext.create(SchemaUtils.getSchema(), "viaduct.api.testschema")
+    private val context = MockInternalContext.create(ApiTestSchema.schema, "viaduct.api.testschema")
 
     @Test
     fun testBasicBuild(): Unit =

@@ -77,7 +77,7 @@ abstract class ViaductContractSchemaExtractTask : DefaultTask() {
 
 // ── ASM-based extraction ────────────────────────────────────────────────────
 
-internal const val TEST_SCHEMA_DESCRIPTOR = "Lviaduct/tenant/runtime/fixtures/TestSchema;"
+internal const val TEST_SCHEMA_DESCRIPTOR = "Lviaduct/api/testing/TestSchema;"
 
 /**
  * Reads a `.class` file and returns the `@TestSchema` value if the annotation is present,

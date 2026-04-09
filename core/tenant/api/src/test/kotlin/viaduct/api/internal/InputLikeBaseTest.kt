@@ -16,7 +16,7 @@ import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.api.mocks.testGlobalId
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.Input1
 import viaduct.api.testschema.Input2
@@ -31,7 +31,7 @@ import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 
 class InputLikeBaseTest {
-    private val gqlSchema = SchemaUtils.getSchema()
+    private val gqlSchema = ApiTestSchema.schema
     private val internalContext = MockInternalContext.create(gqlSchema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 

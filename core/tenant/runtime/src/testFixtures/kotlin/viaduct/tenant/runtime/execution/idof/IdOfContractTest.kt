@@ -1,11 +1,11 @@
 package viaduct.tenant.runtime.execution.idof
 
 import org.junit.jupiter.api.Test
+import viaduct.api.testing.TestSchema
 import viaduct.graphql.test.assertEquals
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
-import viaduct.tenant.runtime.fixtures.TestSchema
 
 /**
  * Contract test for the @idOf directive.

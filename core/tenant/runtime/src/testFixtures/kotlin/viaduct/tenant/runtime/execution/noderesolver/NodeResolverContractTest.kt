@@ -1,10 +1,10 @@
 package viaduct.tenant.runtime.execution.noderesolver
 
 import org.junit.jupiter.api.Test
+import viaduct.api.testing.TestSchema
 import viaduct.graphql.test.assertEquals
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
-import viaduct.tenant.runtime.fixtures.TestSchema
 
 /**
  * Contract test for GlobalID-based node resolver patterns.

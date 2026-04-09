@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.reflect.Type
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.O1
 import viaduct.api.types.Input
 import viaduct.api.types.Object
@@ -24,7 +24,7 @@ import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.DomainValidator
 
 class JsonDomainTest : KotestPropertyBase() {
-    private val schema = SchemaUtils.getSchema()
+    private val schema = ApiTestSchema.schema
     private val internal = MockInternalContext.create(schema, grtPackage = "viaduct.api.testschema")
     private val executionContext = MockExecutionContext(internal)
     private val domain = JsonDomain(executionContext)

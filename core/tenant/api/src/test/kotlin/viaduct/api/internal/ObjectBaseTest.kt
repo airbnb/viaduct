@@ -14,7 +14,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.api.mocks.testGlobalId
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.I1
 import viaduct.api.testschema.O1
@@ -30,7 +30,7 @@ import viaduct.errors.UnsetFieldException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ObjectBaseTest {
-    private val gqlSchema = SchemaUtils.getSchema()
+    private val gqlSchema = ApiTestSchema.schema
     private val internalContext = MockInternalContext.create(gqlSchema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 
@@ -275,7 +275,7 @@ class ObjectBaseTest {
             //    because it's valid in runtime schema, even though E1.valueOf("C") would fail
 
             // Create a schema with enum E1 having additional value "C" not in compiled enum
-            val schemaWithNewEnumValue = SchemaUtils.createSchema(
+            val schemaWithNewEnumValue = ApiTestSchema.createSchema(
                 """
                 enum E1 {
                   A

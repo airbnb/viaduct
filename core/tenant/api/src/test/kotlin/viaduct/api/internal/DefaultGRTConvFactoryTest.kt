@@ -20,7 +20,7 @@ import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.api.mocks.testGlobalId
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.Concrete
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.HasAbstractField
@@ -53,7 +53,7 @@ import viaduct.mapping.graphql.IR
 
 class DefaultGRTConvFactoryTest : KotestPropertyBase() {
     private val factory = DefaultGRTConvFactory
-    private val schema = SchemaUtils.getSchema()
+    private val schema = ApiTestSchema.schema
     private val internalContext = MockInternalContext.create(schema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 

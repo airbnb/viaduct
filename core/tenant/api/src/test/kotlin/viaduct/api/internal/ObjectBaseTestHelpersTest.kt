@@ -9,13 +9,13 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.O1
 import viaduct.errors.TenantUsageException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ObjectBaseTestHelpersTest {
-    private val gqlSchema = SchemaUtils.getSchema()
+    private val gqlSchema = ApiTestSchema.schema
     private val internalContext = MockInternalContext.create(gqlSchema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 

@@ -8,14 +8,14 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.mocks.MockInternalContext
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.Input2
 import viaduct.api.testschema.TestType
 import viaduct.engine.api.ResolvedEngineObjectData
 
 class WrapUtilsTest {
-    private val schema = SchemaUtils.getSchema()
+    private val schema = ApiTestSchema.schema
     private val internalContext = MockInternalContext.create(schema, "viaduct.api.testschema")
 
     @Test

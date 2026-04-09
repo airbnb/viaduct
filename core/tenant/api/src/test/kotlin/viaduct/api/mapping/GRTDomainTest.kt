@@ -11,7 +11,7 @@ import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.putWithAlias
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.Input1
 import viaduct.api.testschema.Input2
@@ -27,7 +27,7 @@ import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.DomainValidator
 
 class GRTDomainTest : KotestPropertyBase() {
-    private val schema = SchemaUtils.getSchema()
+    private val schema = ApiTestSchema.schema
     private val internalContext = MockInternalContext.create(schema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
 

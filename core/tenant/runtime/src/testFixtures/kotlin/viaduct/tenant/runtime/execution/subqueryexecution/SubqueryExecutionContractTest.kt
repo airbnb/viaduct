@@ -1,9 +1,9 @@
 package viaduct.tenant.runtime.execution.subqueryexecution
 
 import org.junit.jupiter.api.Test
+import viaduct.api.testing.TestSchema
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
-import viaduct.tenant.runtime.fixtures.TestSchema
 
 /**
  * Contract test for the ctx.query() and ctx.mutation() subquery execution APIs.

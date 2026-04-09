@@ -7,14 +7,14 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 
 /**
  * Unit tests for InputTypeFactory - the internal factory for creating
  * GraphQLInputObjectType instances for Arguments and Input GRTs.
  */
 class InputTypeFactoryTest {
-    private val schema = SchemaUtils.getSchema()
+    private val schema = ApiTestSchema.schema
 
     // ========== Tests for argumentsInputType ==========
 

@@ -8,6 +8,8 @@ plugins {
     id("conventions.bcv-api")
     id("conventions.viaduct-publishing")
     id("test-feature-app")
+    id("feature-app-contracts")
+    id("feature-app-contract-tests")
     id("me.champeau.jmh").version("0.7.3")
 }
 
@@ -17,6 +19,10 @@ viaductPublishing {
 }
 
 viaductFeatureApp {}
+
+viaductFeatureAppContracts {
+    contractsFrom(":tenant:tenant-api")
+}
 
 dependencies {
     /** Viaduct dependencies **/
@@ -36,6 +42,7 @@ dependencies {
 
     /** Test fixtures - Viaduct dependencies **/
     testFixturesImplementation(testFixtures(libs.viaduct.engine.api))
+    testFixturesImplementation(libs.viaduct.shared.graphql)
     testFixturesImplementation(libs.viaduct.tenant.runtime)
 
     /** Test fixtures - External dependencies **/

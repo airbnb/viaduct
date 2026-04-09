@@ -1,12 +1,12 @@
 package viaduct.tenant.runtime.execution.scopes
 
 import org.junit.jupiter.api.Test
+import viaduct.api.testing.TestSchema
 import viaduct.graphql.test.assertEquals
 import viaduct.service.api.SchemaId
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.toScopeConfig
 import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
-import viaduct.tenant.runtime.fixtures.TestSchema
 
 /**
  * Contract test for the @scope directive.

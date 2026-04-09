@@ -7,7 +7,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
-import viaduct.api.schemautils.SchemaUtils
+import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
@@ -15,7 +15,7 @@ import viaduct.api.testschema.TestUser
 import viaduct.errors.TenantUsageException
 
 class DynamicValueBuilderTypeCheckerTest {
-    private val graphqlSchema = SchemaUtils.getSchema()
+    private val graphqlSchema = ApiTestSchema.schema
     private val context = MockInternalContext.create(graphqlSchema, "viaduct.api.testschema")
     private val checker = DynamicValueBuilderTypeChecker(context)
     private val o1Type = graphqlSchema.schema.getObjectType(O1.Reflection.name)
@@ -185,7 +185,7 @@ class DynamicValueBuilderTypeCheckerTest {
         //    even though conversion to Java enum E1.valueOf("C") would fail
 
         // Create a schema with enum E1 having an additional value "C" not in compiled enum
-        val schemaWithNewEnumValue = SchemaUtils.createSchema(
+        val schemaWithNewEnumValue = ApiTestSchema.createSchema(
             """
             enum E1 {
               A
