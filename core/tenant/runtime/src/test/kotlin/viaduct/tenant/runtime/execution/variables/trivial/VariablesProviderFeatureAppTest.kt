@@ -2,41 +2,15 @@
 
 package viaduct.tenant.runtime.execution.variables.trivial
 
-import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.api.Variable
 import viaduct.api.Variables
 import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.types.Arguments
-import viaduct.graphql.test.assertEquals
 import viaduct.tenant.runtime.execution.variables.trivial.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
-class VariablesProviderFeatureAppTest : FeatureAppTestBase() {
-    override var sdl =
-        """
-        | #START_SCHEMA
-        | extend type Query {
-        |   fromArgumentField(arg: Int!): Int @resolver
-        |   intermediary(arg: Int!): Int @resolver
-        |   intermediaryTakesInput(input: MyInput!): Int @resolver
-        |   intermediaryTakesGlobalID(input: ID!): String @resolver
-        |   intermediaryTakesNestedComplexInput(input: InputWithNestedInput!): String @resolver
-        |   fromVariablesProvider: Int @resolver
-        |   fromVariablesProviderWithInput: Int @resolver
-        |   fromVariablesProviderWithGlobalID: String @resolver
-        |   fromVariablesProviderWithNestedComplexInput: String @resolver
-        | }
-        | type MyType implements Node { id: ID!, x: Int! } # Just used to have a valid type for a global ID
-        | input MyInput { x: Int! }
-        | input MyInputWithGlobalID { globalId: ID! }
-        | enum Color { RED, GREEN, BLUE }
-        | input ComplexInput { color: Color!, intArray: [Int!]! }
-        | input InputWithNestedInput { complexInput: ComplexInput! }
-        | #END_SCHEMA
-        """.trimMargin()
-
+class VariablesProviderFeatureAppTest : VariablesProviderContractTest() {
     @Resolver(
         """
         fragment _ on Query {
@@ -143,49 +117,6 @@ class VariablesProviderFeatureAppTest : FeatureAppTestBase() {
                     .build()
                 return mapOf("x" to InputWithNestedInput.Builder(context).complexInput(complexInput).build())
             }
-        }
-    }
-
-    @Test
-    fun `variables via variables parameter`() {
-        execute(
-            query = """
-                query {
-                    fromArgumentField(arg: 7)
-                }
-            """.trimIndent()
-        ).assertEquals {
-            "data" to {
-                "fromArgumentField" to 7
-            }
-        }
-    }
-
-    @Test
-    fun `variables via VariablesProvider`() {
-        execute("{ fromVariablesProvider }").assertEquals {
-            "data" to { "fromVariablesProvider" to 123 }
-        }
-    }
-
-    @Test
-    fun `variable with Input type via VariablesProvider`() {
-        execute("{ fromVariablesProviderWithInput }").assertEquals {
-            "data" to { "fromVariablesProviderWithInput" to 456 }
-        }
-    }
-
-    @Test
-    fun `variable with Global ID type via VariablesProvider`() {
-        execute("{ fromVariablesProviderWithGlobalID }").assertEquals {
-            "data" to { "fromVariablesProviderWithGlobalID" to "TXlUeXBlOjEyMw==" }
-        }
-    }
-
-    @Test
-    fun `variable with complex data elements in a nested input via VariablesProvider`() {
-        execute("{ fromVariablesProviderWithNestedComplexInput }").assertEquals {
-            "data" to { "fromVariablesProviderWithNestedComplexInput" to "Color: RED, Values: 1,2,3" }
         }
     }
 }
