@@ -9,14 +9,17 @@ import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.NodeResolverDispatcher
 import viaduct.engine.runtime.mocks.ContextMocks
@@ -122,5 +125,44 @@ internal class InstrumentedNodeResolverDispatcherTest {
                 ExecutionAttribution.fromResolver(resolverName),
                 capturedContext.captured.fieldScope.attribution
             )
+        }
+
+    @Test
+    fun `resolve wraps context in InstrumentedEngineExecutionContext when shouldInstrumentFetchSelections is true`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: NodeResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation() // shouldInstrumentFetchSelections = true
+            val capturedContext = slot<EngineExecutionContext>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery { mockDispatcher.resolve(any(), any(), capture(capturedContext)) } returns mockk()
+
+            val testClass = InstrumentedNodeResolverDispatcher(mockDispatcher, instrumentation)
+
+            // When
+            testClass.resolve("id123", mockk(), defaultContext)
+
+            // Then - context must be wrapped for resolveSelectionSet instrumentation
+            assertTrue(capturedContext.captured is InstrumentedEngineExecutionContext)
+        }
+
+    @Test
+    fun `resolve does not wrap context in InstrumentedEngineExecutionContext when shouldInstrumentFetchSelections is false`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: NodeResolverDispatcher = mockk()
+            val capturedContext = slot<EngineExecutionContext>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery { mockDispatcher.resolve(any(), any(), capture(capturedContext)) } returns mockk()
+
+            val testClass = InstrumentedNodeResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)
+
+            // When
+            testClass.resolve("id123", mockk(), defaultContext)
+
+            // Then - context must not be wrapped when fetch selection instrumentation is inactive
+            assertFalse(capturedContext.captured is InstrumentedEngineExecutionContext)
         }
 }

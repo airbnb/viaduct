@@ -78,12 +78,16 @@ class InstrumentedFieldResolverDispatcher(
         } else {
             syncQueryValueGetter
         }
-
-        val contextWithAttribution = context.copy(
+        val implWithAttribution = context.copy(
             fieldScopeSupplier = FpKit.intraThreadMemoize {
                 context.fieldScopeWithAttribution(ExecutionAttribution.fromResolver(resolverMetadata.name))
-            }
+            },
         )
+        val instrumentedContext = if (wrapFetchSelections) {
+            InstrumentedEngineExecutionContext(implWithAttribution, instrumentation, state)
+        } else {
+            implWithAttribution
+        }
 
         return instrumentation.instrumentResolverExecution(
             ResolverFunction {
@@ -95,7 +99,7 @@ class InstrumentedFieldResolverDispatcher(
                         resolvedSyncObjectGetter,
                         resolvedSyncQueryGetter,
                         selections,
-                        contextWithAttribution
+                        instrumentedContext
                     )
                 }
                 if (syncValueComputation && wrapFetchSelections) withContext(instrumentationContext) { resolve() } else resolve()

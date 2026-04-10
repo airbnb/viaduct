@@ -6,6 +6,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 
 /**
  * Initialized via DispathcerRegistry and resolves a single node for a node type whose
@@ -39,10 +40,8 @@ class FieldResolverDispatcherImpl(
         selections: EngineSelectionSet?,
         context: EngineExecutionContext,
     ): Any? {
-        context as? EngineExecutionContextImpl ?: throw IllegalArgumentException(
-            "Expected EngineExecutionContextImpl, got ${context::class.qualifiedName}"
-        )
-        val loader = context.fieldDataLoader(resolver)
+        val impl = context.asImpl()
+        val loader = impl.fieldDataLoader(resolver)
 
         val selector = FieldResolverExecutor.Selector(
             arguments = arguments,

@@ -35,14 +35,20 @@ class InstrumentedNodeResolverDispatcher(
             resolverMetadata = dispatcher.resolverMetadata
         )
 
-        val contextWithAttribution = context.copy(
+        val wrapFetchSelections = instrumentation.shouldInstrumentFetchSelections(state)
+        val implWithAttribution = context.copy(
             fieldScopeSupplier = FpKit.intraThreadMemoize {
                 context.fieldScopeWithAttribution(ExecutionAttribution.fromResolver(resolverMetadata.name))
             }
         )
+        val instrumentedContext = if (wrapFetchSelections) {
+            InstrumentedEngineExecutionContext(implWithAttribution, instrumentation, state)
+        } else {
+            implWithAttribution
+        }
 
         val instrumentedResolver = instrumentation.instrumentResolverExecution(
-            resolver = ResolverFunction { dispatcher.resolve(id, selections, contextWithAttribution) },
+            resolver = ResolverFunction { dispatcher.resolve(id, selections, instrumentedContext) },
             parameters = resolverExecuteParam,
             state = state
         )

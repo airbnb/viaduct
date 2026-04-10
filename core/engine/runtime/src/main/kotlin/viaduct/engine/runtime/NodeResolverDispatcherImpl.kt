@@ -5,6 +5,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 
 /**
  * Initialized via DispatcherRegistry and resolves a single node for a node type whose
@@ -26,10 +27,8 @@ class NodeResolverDispatcherImpl(
         selections: EngineSelectionSet,
         context: EngineExecutionContext
     ): EngineObjectData {
-        context as? EngineExecutionContextImpl ?: throw IllegalArgumentException(
-            "Expected EngineExecutionContextImpl, got ${context::class.qualifiedName}"
-        )
-        val loader = context.nodeDataLoader(resolver)
+        val impl = context.asImpl()
+        val loader = impl.nodeDataLoader(resolver)
         return loader.loadByKey(NodeResolverExecutor.Selector(id, selections), context).getOrThrow()
     }
 }

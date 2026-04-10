@@ -10,6 +10,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -339,5 +340,75 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             // Then — objectValue is wrapped
             assertTrue(capturedObjectValue.captured is InstrumentedEngineObjectData)
+        }
+
+    @Test
+    fun `resolve wraps context in InstrumentedEngineExecutionContext when shouldInstrumentFetchSelections is true`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+            val capturedContext = slot<EngineExecutionContext>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery {
+                mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), capture(capturedContext))
+            } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+
+            // Then — the context passed to the inner dispatcher is wrapped in InstrumentedEngineExecutionContext
+            assertInstanceOf(InstrumentedEngineExecutionContext::class.java, capturedContext.captured)
+        }
+
+    @Test
+    fun `resolve does not wrap context in InstrumentedEngineExecutionContext when shouldInstrumentFetchSelections is false`() =
+        runBlocking {
+            // Given — ViaductResolverInstrumentation.DEFAULT returns false for shouldInstrumentFetchSelections
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val capturedContext = slot<EngineExecutionContext>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery {
+                mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), capture(capturedContext))
+            } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+
+            // Then — context is a plain EngineExecutionContextImpl, not wrapped
+            assertFalse(capturedContext.captured is InstrumentedEngineExecutionContext)
+            assertInstanceOf(EngineExecutionContextImpl::class.java, capturedContext.captured)
+        }
+
+    @Test
+    fun `sync path still wraps context in InstrumentedEngineExecutionContext`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+            val capturedContext = slot<EngineExecutionContext>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery {
+                mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), capture(capturedContext))
+            } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(
+                mockDispatcher,
+                instrumentation,
+                syncValueComputation = true
+            )
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+
+            // Then — even in the sync path, the context is wrapped in InstrumentedEngineExecutionContext
+            assertInstanceOf(InstrumentedEngineExecutionContext::class.java, capturedContext.captured)
         }
 }
