@@ -13,15 +13,13 @@ class CheckerProxyEngineObjectData(
     val objectEngineResult: ObjectEngineResult,
     private val errorMessage: String,
     private val selectionSet: EngineSelectionSet? = null,
-    private val isResolverSelective: IsResolverSelective,
-) : ProxyEngineObjectData(objectEngineResult, errorMessage, selectionSet, isResolverSelective) {
+) : ProxyEngineObjectData(objectEngineResult, errorMessage, selectionSet) {
     override fun createInstance(
         objectEngineResult: ObjectEngineResult,
         errorMessage: String,
-        selectionSet: EngineSelectionSet?,
-        isResolverSelective: IsResolverSelective,
+        selectionSet: EngineSelectionSet?
     ): CheckerProxyEngineObjectData {
-        return CheckerProxyEngineObjectData(objectEngineResult, errorMessage, selectionSet, isResolverSelective)
+        return CheckerProxyEngineObjectData(objectEngineResult, errorMessage, selectionSet)
     }
 
     override suspend fun ObjectEngineResult.fetchCheckedValue(key: ObjectEngineResult.Key): Any? {

@@ -16,7 +16,6 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.executeAccessChecksInModstrat
 import viaduct.engine.runtime.FieldResolutionResult
-import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
@@ -162,7 +161,6 @@ class AccessCheckRunner(
         val localExecutionContext = parameters.engineExecutionContext.copy(
             dataFetchingEnvironment = dataFetchingEnvironment
         )
-        val isResolverSelective = IsResolverSelective.fromRegistry(localExecutionContext.dispatcherRegistry)
         val instrumentedDispatcher = parameters.instrumentation.instrumentAccessCheck(
             dispatcher.executor,
             dataFetchingEnvironment,
@@ -194,7 +192,6 @@ class AccessCheckRunner(
                     oerToWrap,
                     "missing from checker RSS",
                     selectionSet,
-                    isResolverSelective,
                 )
             }
             log.ifDebug {

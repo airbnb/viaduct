@@ -10,10 +10,8 @@ import viaduct.engine.api.EngineObjectData as EngineObjectDataApi
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
-import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolverDispatcher
-import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
@@ -79,7 +77,6 @@ class ResolverDataFetcher(
         engineResults: EngineResults,
     ): EngineObjectData {
         val selectionSetFactory = localExecutionContext.engineSelectionSetFactory
-        val isResolverSelective = IsResolverSelective.fromRegistry(localExecutionContext.dispatcherRegistry)
 
         val objectErrorMessage =
             "add it to @Resolver's objectValueFragment before accessing it via Context.objectValue"
@@ -98,16 +95,14 @@ class ResolverDataFetcher(
         val objectValue = ProxyEngineObjectData(
             engineResults.parentResult,
             objectErrorMessage,
-            objectSelectionSet,
-            isResolverSelective,
+            objectSelectionSet
         )
         val syncObjectValueGetter: suspend () -> EngineObjectDataApi.Sync = {
             SyncEngineObjectDataFactory.resolve(
                 engineResults.parentResult,
                 objectErrorMessage,
                 objectSelectionSet,
-                parentPath = environment.executionStepInfo.path.parent,
-                isResolverSelective = isResolverSelective,
+                parentPath = environment.executionStepInfo.path.parent
             )
         }
 
@@ -128,16 +123,14 @@ class ResolverDataFetcher(
         val queryValue = ProxyEngineObjectData(
             engineResults.queryResult,
             queryErrorMessage,
-            querySelectionSet,
-            isResolverSelective,
+            querySelectionSet
         )
         val syncQueryValueGetter: suspend () -> EngineObjectDataApi.Sync = {
             SyncEngineObjectDataFactory.resolve(
                 engineResults.queryResult,
                 queryErrorMessage,
                 querySelectionSet,
-                parentPath = ResultPath.rootPath(),
-                isResolverSelective = isResolverSelective,
+                parentPath = ResultPath.rootPath()
             )
         }
 

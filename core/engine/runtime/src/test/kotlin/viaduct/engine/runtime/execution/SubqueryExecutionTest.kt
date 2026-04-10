@@ -5,11 +5,9 @@ import java.util.Collections
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
@@ -1068,81 +1066,6 @@ class SubqueryExecutionTest {
                     }
                     """
                 )
-        }
-    }
-
-    @Test
-    fun `ctx query preserves selective resolver keying in returned EngineObjectData`() {
-        MockTenantModuleBootstrapper(
-            """
-            extend type Query {
-                details: Details
-                container: Container
-            }
-
-            type Details {
-                a: Int
-                b: Int
-            }
-
-            type Container {
-                selectiveValue: Int
-            }
-            """.trimIndent()
-        ) {
-            field("Query" to "details") {
-                resolverExecutor {
-                    MockFieldUnbatchedResolverExecutor(
-                        isSelective = true,
-                        resolverId = resolverId,
-                        unbatchedResolveFn = { _, _, _, selections, _ ->
-                            val requestedSelections = selections
-                                ?.selections()
-                                ?.map { it.selectionName }
-                                ?.toSet()
-                                .orEmpty()
-                            createEngineObjectData(
-                                schema.schema.getObjectType("Details"),
-                                buildMap {
-                                    if ("a" in requestedSelections) put("a", 1)
-                                    if ("b" in requestedSelections) put("b", 2)
-                                }
-                            )
-                        }
-                    )
-                }
-            }
-
-            field("Query" to "container") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        createEngineObjectData(
-                            schema.schema.getObjectType("Container"),
-                            mapOf()
-                        )
-                    }
-                }
-            }
-
-            field("Container" to "selectiveValue") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        val rss = ctx.engineSelectionSetFactory
-                            .engineSelectionSet("Query", "details { a }", emptyMap())
-
-                        val queryResult = ctx.query(selectionSet = rss)
-
-                        withTimeout(1_000) {
-                            queryResult
-                                .fetchAs<EngineObjectData>("details")
-                                .fetchAs<Int>("a")
-                        }
-                    }
-                }
-            }
-        }.runFeatureTest {
-            runQuery("{ container { selectiveValue } }")
-                .assertJson("""{"data": {"container": {"selectiveValue": 1}}}""")
         }
     }
 

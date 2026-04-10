@@ -19,7 +19,6 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.select.loader.SelectTestSchemaFixture
 
@@ -119,48 +118,6 @@ class EngineSelectionSetFactoryImplTest {
             assertFalse(ss.containsField("Foo", "__typename"))
             assertTrue(ss.selectionSetForField("Foo", "fooSelf").containsField("Foo", "fooId"))
         }
-    }
-
-    @Test
-    fun `create from DataFetchingEnvironment -- produces key-compatible selections`() {
-        val fieldExecutionScope = mockk<EngineExecutionContext.FieldExecutionScope>()
-        every { fieldExecutionScope.fragments }.returns(emptyMap())
-        every { fieldExecutionScope.variables }.returns(emptyMap())
-        val engineExecutionContext = mockk<EngineExecutionContext>()
-        every { engineExecutionContext.fieldScope }.returns(fieldExecutionScope)
-        val env = mockk<ViaductDataFetchingEnvironment>()
-        val envField = Field(
-            "field",
-            SelectionSet(
-                listOf(
-                    Field("id"),
-                    Field(
-                        "fooSelf",
-                        SelectionSet(
-                            listOf(
-                                Field("fooId")
-                            )
-                        )
-                    )
-                )
-            )
-        )
-        every { env.mergedField }.returns(MergedField.newMergedField(envField).build())
-        every { env.engineExecutionContext }.returns(engineExecutionContext)
-        every { env.executionStepInfo }.returns(
-            ExecutionStepInfo.newExecutionStepInfo()
-                .type(SelectTestSchemaFixture.schema.getObjectType("Foo"))
-                .build()
-        )
-
-        val fromDfe = requireNotNull(factory.engineSelectionSet(env))
-        val fromParsed = factory.engineSelectionSet("Foo", "id fooSelf { fooId }", emptyMap())
-
-        val fromDfeKey = ObjectEngineResult.Key("field", selectionSet = fromDfe)
-        val fromParsedKey = ObjectEngineResult.Key("field", selectionSet = fromParsed)
-
-        assertEquals(fromParsedKey, fromDfeKey)
-        assertEquals(fromParsedKey.hashCode(), fromDfeKey.hashCode())
     }
 
     @Test

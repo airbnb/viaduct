@@ -30,7 +30,6 @@ import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
-import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
@@ -72,7 +71,6 @@ class EngineImpl(
     private val meterRegistry: MeterRegistry? = config.meterRegistry
     private val additionalInstrumentation: Instrumentation? = config.additionalInstrumentation
     private val flagManager: FlagManager = config.flagManager
-    private val isResolverSelective = IsResolverSelective.fromRegistry(dispatcherRegistry)
 
     private val resolverDataFetcherInstrumentation = ResolverDataFetcherInstrumentation(
         dispatcherRegistry,
@@ -227,8 +225,7 @@ class EngineImpl(
         return ProxyEngineObjectData(
             targetOER,
             "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result",
-            selectionSet,
-            isResolverSelective,
+            selectionSet
         )
     }
 

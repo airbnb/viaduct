@@ -24,17 +24,15 @@ open class ProxyEngineObjectData(
     private val objectEngineResult: ObjectEngineResult,
     private val errorMessage: String,
     private val selectionSet: EngineSelectionSet? = null,
-    private val isResolverSelective: IsResolverSelective,
 ) : EngineObjectData {
     override val type = objectEngineResult.type
 
     protected open fun createInstance(
         objectEngineResult: ObjectEngineResult,
         errorMessage: String,
-        selectionSet: EngineSelectionSet?,
-        isResolverSelective: IsResolverSelective,
+        selectionSet: EngineSelectionSet?
     ): ProxyEngineObjectData {
-        return ProxyEngineObjectData(objectEngineResult, errorMessage, selectionSet, isResolverSelective)
+        return ProxyEngineObjectData(objectEngineResult, errorMessage, selectionSet)
     }
 
     /**
@@ -43,7 +41,7 @@ open class ProxyEngineObjectData(
     override suspend fun fetch(selection: String): Any? {
         val selections = checkSelectionIsInSelectionSet(selection)
         val subselections = maybeSubselections(selection, selections)
-        val key = buildOerKey(selection, selections, subselections)
+        val key = buildOerKey(selection, selections)
         val value = objectEngineResult.fetchCheckedValue(key)
 
         return marshal(value, subselections)
@@ -59,7 +57,7 @@ open class ProxyEngineObjectData(
             selectionSet
         }
         val subselections = maybeSubselections(selection, selections)
-        val key = buildOerKey(selection, selections, subselections)
+        val key = buildOerKey(selection, selections)
         val value = objectEngineResult.fetchCheckedValue(key)
 
         return marshal(value, subselections)
@@ -81,23 +79,12 @@ open class ProxyEngineObjectData(
      */
     private fun buildOerKey(
         selection: String,
-        selections: EngineSelectionSet,
-        subselections: EngineSelectionSet?
+        selections: EngineSelectionSet
     ): ObjectEngineResult.Key {
         val engineSelection = selections.resolveSelection(objectEngineResult.type.name, selection)
         val args = selections.argumentsOfSelection(engineSelection.typeCondition, engineSelection.selectionName)
             ?: emptyMap()
-        val keySelectionSet = if (isResolverSelective(objectEngineResult.type.name to engineSelection.fieldName)) {
-            subselections
-        } else {
-            null
-        }
-        return ObjectEngineResult.Key(
-            engineSelection.fieldName,
-            engineSelection.selectionName,
-            args,
-            keySelectionSet
-        )
+        return ObjectEngineResult.Key(engineSelection.fieldName, engineSelection.selectionName, args)
     }
 
     /** @throws UnsetFieldException if the field is not in the selection set */
@@ -141,7 +128,7 @@ open class ProxyEngineObjectData(
             is ObjectEngineResultImpl -> {
                 val exception = value.resolvedExceptionOrNull()
                 if (exception != null) throw exception
-                createInstance(value, errorMessage, subselections, isResolverSelective)
+                createInstance(value, errorMessage, subselections)
             }
             is List<*> -> value.map { marshal(it, subselections) }
             is FieldResolutionResult -> {
