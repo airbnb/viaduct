@@ -18,28 +18,8 @@ import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.batchresolver.bootstrap.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.batchresolver.bootstrap.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
-class TenantAPIBootstrapperFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        | extend type Query {
-        |   field: String @resolver(isSelective: true)
-        |   batchField: String @resolver
-        | }
-        |
-        | type TestNode implements Node @resolver {
-        |   id: ID!
-        |   value: String
-        | }
-        |
-        | type TestBatchNode implements Node @resolver {
-        |   id: ID!
-        |   value: String
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class TenantAPIBootstrapperFeatureAppTest : TenantAPIBootstrapperContractTest() {
     @Resolver
     class Query_FieldResolver : QueryResolvers.Field() {
         override suspend fun resolve(ctx: Context): String {

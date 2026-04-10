@@ -12,9 +12,8 @@ import viaduct.service.runtime.toScopeConfig
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
 import viaduct.tenant.runtime.execution.filtertest.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
-class TenantPackageFilteringFeatureAppTest : FeatureAppTestBase() {
+class TenantPackageFilteringFeatureAppTest : TenantPackageFilteringContractTest() {
     override val validateResolverCompleteness = false
 
     @Resolver
@@ -25,25 +24,6 @@ class TenantPackageFilteringFeatureAppTest : FeatureAppTestBase() {
                 .build()
         }
     }
-
-    override var sdl = """
-        | #START_SCHEMA
-        |   type TestScope1Object @scope(to: ["SCOPE1"]) {
-        |       strValue: String!
-        |   }
-        |   type TestScope2Object @scope(to: ["SCOPE2"]) {
-        |     strValue: String!
-        |   }
-        |
-        |   extend type Query @scope(to: ["SCOPE1"]) {
-        |     scope1Value: TestScope1Object @resolver
-        |   }
-        |
-        |   extend type Query @scope(to: ["SCOPE2"]) {
-        |     scope2Value: TestScope2Object @resolver
-        |   }
-        | #END_SCHEMA
-    """.trimMargin()
 
     private val schemaId1 = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
     private val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))

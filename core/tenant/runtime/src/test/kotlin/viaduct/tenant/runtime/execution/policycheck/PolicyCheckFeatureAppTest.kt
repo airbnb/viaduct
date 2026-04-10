@@ -19,33 +19,8 @@ import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.tenant.runtime.execution.policycheck.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.policycheck.resolverbases.QueryResolvers
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
-class PolicyCheckFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        #START_SCHEMA
-        directive @policyCheck(canAccess: Boolean) on FIELD_DEFINITION | OBJECT
-
-        extend type Query @scope(to: ["SCOPE1"]) {
-          canAccessField: String @resolver @policyCheck(canAccess: true)
-          canNotAccessField: String @resolver @policyCheck(canAccess: false)
-          canNotAccessType: CanNotAccessPerson @resolver @policyCheck(canAccess: false)
-        }
-
-        type CanAccessPerson implements Node @resolver @scope(to: ["SCOPE1"]) @policyCheck(canAccess: true) {
-          id: ID!
-          name: String!
-          ssn: String!
-        }
-
-        type CanNotAccessPerson implements Node @resolver @scope(to: ["SCOPE1"]) @policyCheck(canAccess: false) {
-          id: ID!
-          name: String!
-          ssn: String!
-        }
-        #END_SCHEMA
-    """.trimIndent()
-
+class PolicyCheckFeatureAppTest : PolicyCheckContractTest() {
     @Resolver
     class Query_CanAccessFieldResolver : QueryResolvers.CanAccessField() {
         override suspend fun resolve(ctx: Context): String {
