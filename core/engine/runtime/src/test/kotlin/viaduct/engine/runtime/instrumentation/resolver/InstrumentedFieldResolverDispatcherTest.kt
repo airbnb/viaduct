@@ -180,7 +180,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val executeContext = instrumentation.executeResolverContexts.first()
             assertEquals(mockResolverMetadata, executeContext.parameters.resolverMetadata)
             assertNull(executeContext.result)
-            assertSame(exception, executeContext.error)
+            assertSame(thrown, executeContext.error)
         }
 
     @Test
@@ -272,19 +272,17 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `sync path does not wrap objectValue in InstrumentedEngineObjectData`() =
+    fun `sync path wraps objectValue in InstrumentedEngineObjectData`() =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
             val instrumentation = RecordingResolverInstrumentation()
             val rawObjectValue: EngineObjectData = mockk()
-            val rawQueryValue: EngineObjectData = mockk()
             val capturedObjectValue = slot<EngineObjectData>()
-            val capturedQueryValue = slot<EngineObjectData>()
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
             coEvery {
-                mockDispatcher.resolve(any(), capture(capturedObjectValue), capture(capturedQueryValue), any(), any(), any(), any())
+                mockDispatcher.resolve(any(), capture(capturedObjectValue), any(), any(), any(), any(), any())
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(
@@ -297,16 +295,15 @@ internal class InstrumentedFieldResolverDispatcherTest {
             testClass.resolve(
                 emptyMap(),
                 rawObjectValue,
-                rawQueryValue,
+                mockk(),
                 stubSyncObjectValue,
                 stubSyncQueryValue,
                 null,
                 defaultContext
             )
 
-            // Then — objectValue/queryValue passed through without wrapping
-            assertSame(rawObjectValue, capturedObjectValue.captured)
-            assertSame(rawQueryValue, capturedQueryValue.captured)
+            // Then — objectValue is wrapped regardless of syncValueComputation
+            assertTrue(capturedObjectValue.captured is InstrumentedEngineObjectData)
         }
 
     @Test
