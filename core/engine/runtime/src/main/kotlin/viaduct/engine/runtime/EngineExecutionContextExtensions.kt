@@ -19,9 +19,9 @@ object EngineExecutionContextExtensions {
      * Use this instead of bare `as` casts throughout the extensions to provide
      * consistent error handling if an unexpected implementation is encountered.
      */
-    private fun EngineExecutionContext.asImpl(): EngineExecutionContextImpl {
-        return this as? EngineExecutionContextImpl
-            ?: error("Expected EngineExecutionContextImpl but got ${this::class.qualifiedName}")
+    internal fun EngineExecutionContext.asImpl(): EngineExecutionContextImpl {
+        return (this as? InternalEngineExecutionContext)?.impl
+            ?: error("Expected InternalEngineExecutionContext but got ${this::class.qualifiedName}")
     }
 
     val EngineExecutionContext.executeAccessChecksInModstrat: Boolean

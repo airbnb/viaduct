@@ -103,7 +103,9 @@ class EngineExecutionContextImpl(
     override val activeSchema: ViaductSchema = fullSchema,
     internal val fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = FpKit.intraThreadMemoize { FieldExecutionScopeImpl() },
     executionHandle: EngineExecutionContext.ExecutionHandle? = null,
-) : EngineExecutionContext {
+) : InternalEngineExecutionContext {
+    public override val impl: EngineExecutionContextImpl get() = this
+
     companion object {
         const val SUBQUERY_EXECUTION_METER_NAME = "viaduct.subquery.execution"
     }

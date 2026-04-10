@@ -227,6 +227,7 @@ class AccessCheckRunnerTest {
         val typeChecks = mapOf("Foo" to CheckerDispatcherImpl(successCheckerExecutor))
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), typeChecks)
         val engineExecutionContext = mockk<EngineExecutionContextImpl> {
+            every { impl } returns this
             every { dispatcherRegistry } returns registry
             every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns emptyFooSelectionSet
             every { activeSchema } returns mockk()
@@ -292,6 +293,7 @@ class AccessCheckRunnerTest {
         val checkerDispatchers = if (checker != null) mapOf("Foo" to CheckerDispatcherImpl(checker)) else emptyMap()
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), checkerDispatchers)
         val engineExecutionContext = mockk<EngineExecutionContextImpl> {
+            every { impl } returns this
             every { dispatcherRegistry } returns registry
             every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns emptyFooSelectionSet
             every { activeSchema } returns mockk()
@@ -323,6 +325,7 @@ class AccessCheckRunnerTest {
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), checkerDispatchers, emptyMap())
         val context = ContextMocks(
             myEngineExecutionContext = mockk<EngineExecutionContextImpl> {
+                every { impl } returns this
                 every { dispatcherRegistry } returns registry
                 every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns emptyFooSelectionSet
                 every { activeSchema } returns mockk()

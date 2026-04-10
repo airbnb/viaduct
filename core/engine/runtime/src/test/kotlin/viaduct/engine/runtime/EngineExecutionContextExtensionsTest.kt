@@ -267,6 +267,6 @@ class EngineExecutionContextExtensionsTest {
         val exception = assertFailsWith<IllegalStateException> {
             fakeContext.executeAccessChecksInModstrat
         }
-        assertTrue(exception.message!!.contains("Expected EngineExecutionContextImpl"))
+        assertTrue(exception.message!!.contains("Expected InternalEngineExecutionContext"))
     }
 }
