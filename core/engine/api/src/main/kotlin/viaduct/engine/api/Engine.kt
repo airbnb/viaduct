@@ -45,6 +45,25 @@ interface Engine {
     ): EngineObjectData
 
     /**
+     * Executes a selection set from within a resolver using an existing execution context,
+     * returning a synchronous [EngineObjectData.Sync] with all fields eagerly resolved.
+     *
+     * This is the sync counterpart to [resolveSelectionSet]. All fields are resolved before
+     * this method returns, so callers can access field values without suspending.
+     *
+     * @param executionHandle The opaque handle from the current execution context.
+     * @param selectionSet The [EngineSelectionSet] containing the fields to resolve.
+     * @param options The [ResolveSelectionSetOptions] controlling execution behavior.
+     * @return The resolved [EngineObjectData.Sync] wrapping the target result.
+     * @throws SubqueryExecutionException on execution failures.
+     */
+    suspend fun resolveSelectionSetSync(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions,
+    ): EngineObjectData.Sync
+
+    /**
      * Completes a selection set against an ObjectEngineResult, transforming already-resolved
      * field values into an [ExecutionResult].
      *

@@ -33,6 +33,7 @@ import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
+import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.AccessCheckRunner
 import viaduct.engine.runtime.execution.ExecutionParameters
@@ -170,6 +171,42 @@ class EngineImpl(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
     ): EngineObjectData {
+        val targetOER = executeSelectionSet(executionHandle, selectionSet, options)
+
+        return ProxyEngineObjectData(
+            targetOER,
+            "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result",
+            selectionSet,
+        )
+    }
+
+    override suspend fun resolveSelectionSetSync(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions,
+    ): EngineObjectData.Sync {
+        val targetOER = executeSelectionSet(executionHandle, selectionSet, options)
+
+        val errorMessage = "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result"
+
+        return SyncEngineObjectDataFactory.resolve(
+            objectEngineResult = targetOER,
+            errorMessage = errorMessage,
+            selectionSet = selectionSet,
+        )
+    }
+
+    /**
+     * Shared implementation that validates inputs, builds the query plan, and executes
+     * field resolution. Returns the populated OER and execution parameters.
+     *
+     * This is the common preamble extracted from the two flavors of resolveSelectionSet.
+     */
+    private suspend fun executeSelectionSet(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions,
+    ): ObjectEngineResultImpl {
         val parentParams = executionHandle.asExecutionParameters()
 
         // Determine root type from operation type
@@ -222,11 +259,7 @@ class EngineImpl(
             throw SubqueryExecutionException.fieldResolutionFailed(e)
         }
 
-        return ProxyEngineObjectData(
-            targetOER,
-            "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result",
-            selectionSet
-        )
+        return targetOER
     }
 
     override suspend fun completeSelectionSet(

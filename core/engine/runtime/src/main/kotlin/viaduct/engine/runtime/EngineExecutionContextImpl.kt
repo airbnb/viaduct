@@ -156,6 +156,24 @@ class EngineExecutionContextImpl(
         }
     }
 
+    override suspend fun resolveSelectionSetSync(
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions,
+    ): EngineObjectData.Sync {
+        val handle = executionHandle
+            ?: throw SubqueryExecutionException(
+                "resolveSelectionSetSync requires an executionHandle. " +
+                    "This typically means resolveSelectionSetSync was called before execution started " +
+                    "or from a context that doesn't have access to the current execution."
+            )
+
+        val effectiveOptions = options.copy(attribution = fieldScope.attribution)
+
+        return executeWithMetrics {
+            engine.resolveSelectionSetSync(handle, selectionSet, effectiveOptions)
+        }
+    }
+
     override suspend fun completeSelectionSet(
         selectionSet: RequiredSelectionSet,
         arguments: Map<String, Any?>,
@@ -185,7 +203,7 @@ class EngineExecutionContextImpl(
         return engine.completeSelectionSet(handle, selectionSet, targetResult, arguments, options)
     }
 
-    private suspend inline fun executeWithMetrics(block: () -> EngineObjectData): EngineObjectData {
+    private suspend inline fun <T : EngineObjectData> executeWithMetrics(block: () -> T): T {
         return try {
             block().also { incrementSubqueryExecutionCounter(success = true) }
         } catch (e: Exception) {
