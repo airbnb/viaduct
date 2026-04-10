@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial08.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial08.resolverbases.QueryResolvers
 
@@ -33,24 +32,24 @@ import viaduct.tenant.tutorial08.resolverbases.QueryResolvers
  *
  * PREVIOUS: [viaduct.tenant.tutorial07.SimpleBatchResolverFeatureAppTest]
  * NEXT: [viaduct.tenant.tutorial09.VariablesDirectivesFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * type Product implements Node @resolver {
+ *   id: ID!
+ *   name: String!
+ *   price: Float!
+ *   category: String!
+ * }
+ *
+ * extend type Query {
+ *   products(ids: [String!]!): [Product!]! @resolver
+ *   product(id: String!): Product! @resolver
+ * }
+ * ```
  */
-class BatchNodeResolverFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        | type Product implements Node @resolver {
-        |   id: ID!
-        |   name: String!
-        |   price: Float!
-        |   category: String!
-        | }
-        |
-        | extend type Query {
-        |   products(ids: [String!]!): [Product!]! @resolver
-        |   product(id: String!): Product! @resolver
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
     companion object {
         // PERFORMANCE TRACKING
         val batchResolveCalls = ConcurrentLinkedQueue<Int>()

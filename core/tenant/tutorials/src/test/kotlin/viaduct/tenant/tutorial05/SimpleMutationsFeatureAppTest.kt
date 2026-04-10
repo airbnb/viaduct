@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial05.resolverbases.MutationResolvers
 import viaduct.tenant.tutorial05.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial05.resolverbases.QueryResolvers
@@ -34,32 +33,32 @@ import viaduct.tenant.tutorial05.resolverbases.QueryResolvers
  *
  * PREVIOUS: [viaduct.tenant.tutorial04.SimpleBackingDataFeatureAppTest]
  * NEXT: [viaduct.tenant.tutorial06.SimpleScopesFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * type User implements Node @resolver {
+ *   id: ID!
+ *   name: String
+ *   email: String
+ * }
+ *
+ * input UserInput {
+ *   name: String!
+ *   email: String!
+ * }
+ *
+ * extend type Query {
+ *   user(id: String!): User @resolver
+ * }
+ *
+ * extend type Mutation {
+ *   createUser(input: UserInput!): User @resolver
+ *   updateUser(id: String!, input: UserInput!): User @resolver
+ * }
+ * ```
  */
-class SimpleMutationsFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        | type User implements Node @resolver {  # Node interface for GlobalID system
-        |   id: ID!
-        |   name: String
-        |   email: String
-        | }
-        |
-        | input UserInput {               # Input type for mutations
-        |   name: String!
-        |   email: String!
-        | }
-        |
-        | extend type Query {
-        |   user(id: String!): User @resolver
-        | }
-        |
-        | extend type Mutation {         # Mutation operations
-        |   createUser(input: UserInput!): User @resolver     # MutationResolvers.CreateUser()
-        |   updateUser(id: String!, input: UserInput!): User @resolver   # MutationResolvers.UpdateUser()
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class SimpleMutationsFeatureAppTest : SimpleMutationsContractTest() {
     companion object {
         // TEST-ONLY DATA STORAGE - In production, replace with database
         private val users = ConcurrentHashMap<String, Pair<String, String>>() // id -> (name, email)

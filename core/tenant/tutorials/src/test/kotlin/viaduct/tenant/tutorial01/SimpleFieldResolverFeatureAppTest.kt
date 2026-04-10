@@ -5,7 +5,6 @@ package viaduct.tenant.tutorial01
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial01.resolverbases.QueryResolvers
 
 /**
@@ -25,18 +24,16 @@ import viaduct.tenant.tutorial01.resolverbases.QueryResolvers
  * - Context.resolve() pattern
  *
  * NEXT: [viaduct.tenant.tutorial02.SimpleNodeResolverFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * extend type Query {
+ *   foo: String! @resolver  # <- @resolver tells Viaduct to generate QueryResolvers.Foo()
+ * }
+ * ```
  */
-class SimpleFieldResolverFeatureAppTest : FeatureAppTestBase() {
-    // SCHEMA DEFINITION:
-    // This SDL defines what your GraphQL API looks like to clients
-    override var sdl = """
-        | #START_SCHEMA
-        | extend type Query {
-        |   foo: String! @resolver  # <- @resolver tells Viaduct to generate QueryResolvers.Foo()
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class SimpleFieldResolverFeatureAppTest : SimpleFieldResolverContractTest() {
     /**
      * USER-IMPLEMENTED RESOLVER
      *

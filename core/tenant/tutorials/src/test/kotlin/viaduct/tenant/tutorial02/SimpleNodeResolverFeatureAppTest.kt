@@ -5,7 +5,6 @@ package viaduct.tenant.tutorial02
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial02.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial02.resolverbases.QueryResolvers
 
@@ -28,21 +27,21 @@ import viaduct.tenant.tutorial02.resolverbases.QueryResolvers
  *
  * PREVIOUS: [viaduct.tenant.tutorial01.SimpleFieldResolverFeatureAppTest]
  * NEXT: [viaduct.tenant.tutorial03.SimpleResolversFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * type Foo implements Node @resolver {  # <- Node interface + @resolver = generate NodeResolvers.Foo()
+ *   id: ID!        # Required by Node interface
+ *   bar: String!   # Your custom field
+ * }
+ *
+ * extend type Query {
+ *   foo(id: String!): Foo! @resolver  # Query that returns a Node
+ * }
+ * ```
  */
-class SimpleNodeResolverFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        | type Foo implements Node @resolver {  # <- Node interface + @resolver = generate NodeResolvers.Foo()
-        |   id: ID!        # Required by Node interface
-        |   bar: String!   # Your custom field
-        | }
-        |
-        | extend type Query {
-        |   foo(id: String!): Foo! @resolver  # Query that returns a Node
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class SimpleNodeResolverFeatureAppTest : SimpleNodeResolverContractTest() {
     /**
      * NODE RESOLVER - Creates objects by GlobalID
      *

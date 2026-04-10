@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial07.resolverbases.QueryResolvers
 import viaduct.tenant.tutorial07.resolverbases.UserResolvers
 
@@ -33,23 +32,23 @@ import viaduct.tenant.tutorial07.resolverbases.UserResolvers
  *
  * PREVIOUS: [viaduct.tenant.tutorial06.SimpleScopesFeatureAppTest]
  * NEXT: [viaduct.tenant.tutorial08.BatchNodeResolverFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * extend type Query {
+ *   users: [User!]! @resolver
+ *   user(id: String!): User @resolver
+ * }
+ *
+ * type User {
+ *   id: String!
+ *   name: String!
+ *   department: String @resolver
+ * }
+ * ```
  */
-class SimpleBatchResolverFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        | extend type Query {
-        |   users: [User!]! @resolver
-        |   user(id: String!): User @resolver
-        | }
-        |
-        | type User {
-        |   id: String!
-        |   name: String!
-        |   department: String @resolver    # This will be batch resolved
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class SimpleBatchResolverFeatureAppTest : SimpleBatchResolverContractTest() {
     companion object {
         // PERFORMANCE TRACKING - proves batching efficiency
         val batchResolveCalls = ConcurrentLinkedQueue<Int>()

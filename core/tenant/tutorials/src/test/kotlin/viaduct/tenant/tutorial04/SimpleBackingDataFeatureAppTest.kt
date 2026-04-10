@@ -5,7 +5,6 @@ package viaduct.tenant.tutorial04
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial04.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial04.resolverbases.QueryResolvers
 import viaduct.tenant.tutorial04.resolverbases.UserResolvers
@@ -31,27 +30,27 @@ import viaduct.tenant.tutorial04.resolverbases.UserResolvers
  *
  * PREVIOUS: [viaduct.tenant.tutorial03.SimpleResolversFeatureAppTest]
  * NEXT: [viaduct.tenant.tutorial05.SimpleMutationsFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * extend type Query {
+ *   user(id: String!): User! @resolver
+ * }
+ *
+ * type User implements Node @resolver {
+ *   id: ID!
+ *   name: String!
+ *   email: String!
+ *   averageStars: Float! @resolver      # Computed from backing data
+ *   reviewsCount: Int! @resolver        # Computed from backing data
+ *   reviewsData: BackingData            # The expensive operation
+ *     @resolver
+ *     @backingData(class: "UserReviewsData")  # Your custom Kotlin class
+ * }
+ * ```
  */
-class SimpleBackingDataFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        | extend type Query {
-        |   user(id: String!): User! @resolver
-        | }
-        |
-        | type User implements Node @resolver {
-        |   id: ID!
-        |   name: String!
-        |   email: String!
-        |   averageStars: Float! @resolver      # Computed from backing data
-        |   reviewsCount: Int! @resolver        # Computed from backing data
-        |   reviewsData: BackingData            # The expensive operation
-        |     @resolver
-        |     @backingData(class: "UserReviewsData")  # Your custom Kotlin class
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class SimpleBackingDataFeatureAppTest : SimpleBackingDataContractTest() {
     /**
      * NODE RESOLVER - Handles basic User data
      *

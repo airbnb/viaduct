@@ -10,7 +10,6 @@ import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.types.Arguments
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial09.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial09.resolverbases.QueryResolvers
 import viaduct.tenant.tutorial09.resolverbases.UserResolvers
@@ -36,8 +35,26 @@ import viaduct.tenant.tutorial09.resolverbases.UserResolvers
  *
  * PREVIOUS: [viaduct.tenant.tutorial08.BatchNodeResolverFeatureAppTest]
  * NEXT: [viaduct.tenant.tutorial10.VariablesForArgumentsFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * type User implements Node @resolver {
+ *   id: ID!
+ *   name: String!
+ *   anonymousReviews: [String!]! @resolver
+ *   verifiedReviews: [String!]! @resolver
+ *   reviews(anonymous: Boolean!): [String!]! @resolver
+ *   computedReviews: [String!]! @resolver
+ *   computedReviewsWithArgs(userType: String!): [String!]! @resolver
+ * }
+ *
+ * extend type Query {
+ *   user(id: String!): User! @resolver
+ * }
+ * ```
  */
-class VariablesDirectivesFeatureAppTest : FeatureAppTestBase() {
+class VariablesDirectivesFeatureAppTest : VariablesDirectivesContractTest() {
     companion object {
         // TEST DATA
         data class UserModel(val id: String, val name: String)
@@ -49,24 +66,6 @@ class VariablesDirectivesFeatureAppTest : FeatureAppTestBase() {
         val REVIEWS_USER_2_ANONYMOUS = listOf("Bad Quality", "Fast delivery")
         val REVIEWS_USER_2_VERIFIED = listOf("Defective Product", "Fast delivery")
     }
-
-    override var sdl = """
-        | #START_SCHEMA
-        | type User implements Node @resolver {
-        |   id: ID!
-        |   name: String!
-        |   anonymousReviews: [String!]! @resolver
-        |   verifiedReviews: [String!]! @resolver
-        |   reviews(anonymous: Boolean!): [String!]! @resolver
-        |   computedReviews: [String!]! @resolver
-        |   computedReviewsWithArgs(userType: String!): [String!]! @resolver
-        | }
-        |
-        | extend type Query {
-        |   user(id: String!): User! @resolver
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
 
     class UserNodeResolver : NodeResolvers.User() {
         override suspend fun resolve(ctx: Context): User {

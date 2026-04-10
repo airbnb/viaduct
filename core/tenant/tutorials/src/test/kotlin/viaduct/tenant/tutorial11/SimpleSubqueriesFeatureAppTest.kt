@@ -5,7 +5,6 @@ package viaduct.tenant.tutorial11
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial11.resolverbases.EnrichedGreetingResolvers
 import viaduct.tenant.tutorial11.resolverbases.MutationResolvers
 import viaduct.tenant.tutorial11.resolverbases.QueryResolvers
@@ -31,30 +30,29 @@ import viaduct.tenant.tutorial11.resolverbases.QueryResolvers
  *
  * PREVIOUS: [viaduct.tenant.tutorial10.VariablesForArgumentsFeatureAppTest]
  * NEXT: [viaduct.tenant.tutorial12.ConnectionsFeatureAppTest]
+ *
+ * ## Schema
+ * ```graphql
+ * extend type Query {
+ *   greeting: String @resolver          # Returns a static greeting string
+ *   multiply(n: Int!): Int @resolver    # Returns n * 2
+ *   enriched: EnrichedGreeting @resolver
+ * }
+ *
+ * type EnrichedGreeting {
+ *   # ctx.query() — fetches data from the Query root at runtime
+ *   message: String @resolver
+ *   # ctx.query(selections, variables) — passes a computed value as a subquery variable
+ *   doubled(input: Int!): Int @resolver
+ * }
+ *
+ * extend type Mutation {
+ *   step: Int @resolver              # Increments and returns counter
+ *   pipeline: String @resolver       # Uses ctx.mutation() + ctx.query() together
+ * }
+ * ```
  */
-class SimpleSubqueriesFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        | extend type Query {
-        |   greeting: String @resolver          # Returns a static greeting string
-        |   multiply(n: Int!): Int @resolver    # Returns n * 2
-        |   enriched: EnrichedGreeting @resolver
-        | }
-        |
-        | type EnrichedGreeting {
-        |   # ctx.query() — fetches data from the Query root at runtime
-        |   message: String @resolver
-        |   # ctx.query(selections, variables) — passes a computed value as a subquery variable
-        |   doubled(input: Int!): Int @resolver
-        | }
-        |
-        | extend type Mutation {
-        |   step: Int @resolver              # Increments and returns counter
-        |   pipeline: String @resolver       # Uses ctx.mutation() + ctx.query() together
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
     companion object {
         var counter = 0
     }

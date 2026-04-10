@@ -8,7 +8,6 @@ import viaduct.graphql.test.assertEquals
 import viaduct.service.api.SchemaId
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.toScopeConfig
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial06.resolverbases.QueryResolvers
 
 /**
@@ -32,20 +31,20 @@ import viaduct.tenant.tutorial06.resolverbases.QueryResolvers
  *
  * PREVIOUS: [viaduct.tenant.tutorial05.SimpleMutationsFeatureAppTest]
  * NEXT: [viaduct.tenant.tutorial07.SimpleBatchResolverFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * extend type Query @scope(to: ["USER"]) {
+ *   myOrders(userId: String!): [String!]! @resolver
+ * }
+ *
+ * extend type Query @scope(to: ["ADMIN"]) {
+ *   allUserData: [String!]! @resolver
+ * }
+ * ```
  */
-class SimpleScopesFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        | extend type Query @scope(to: ["USER"]) {          # Only USER scope can access
-        |   myOrders(userId: String!): [String!]! @resolver
-        | }
-        |
-        | extend type Query @scope(to: ["ADMIN"]) {         # Only ADMIN scope can access
-        |   allUserData: [String!]! @resolver
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
     /**
      * USER-SCOPED RESOLVER - Customer-facing functionality
      *

@@ -10,7 +10,6 @@ import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.types.Arguments
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial10.resolverbases.QueryResolvers
 
 /**
@@ -34,19 +33,19 @@ import viaduct.tenant.tutorial10.resolverbases.QueryResolvers
  *
  * PREVIOUS: [viaduct.tenant.tutorial09.VariablesDirectivesFeatureAppTest]
  * NEXT: [viaduct.tenant.tutorial11.SimpleSubqueriesFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * extend type Query {
+ *   getPosts(userId: String!, status: String!): String @resolver
+ *   userPosts(userId: String!): String @resolver
+ *   latestPosts: String @resolver
+ *   dashboardPosts(userType: String!): String @resolver
+ * }
+ * ```
  */
-class VariablesForArgumentsFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        | extend type Query {
-        |   getPosts(userId: String!, status: String!): String @resolver
-        |   userPosts(userId: String!): String @resolver
-        |   latestPosts: String @resolver
-        |   dashboardPosts(userType: String!): String @resolver
-        | }
-        | #END_SCHEMA
-    """.trimMargin()
-
+class VariablesForArgumentsFeatureAppTest : VariablesForArgumentsContractTest() {
     /**
      * BASE RESOLVER - The target resolver that receives arguments
      *

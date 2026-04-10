@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.graphql.test.assertHasError
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial03.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial03.resolverbases.QueryResolvers
 import viaduct.tenant.tutorial03.resolverbases.UserResolvers
@@ -18,32 +17,30 @@ import viaduct.tenant.tutorial03.resolverbases.UserResolvers
  * while Field Resolvers compute individual field values. The objectValueFragment
  * feature ensures that computed fields automatically get the parent data they need,
  * even when the query doesn't explicitly request those fields.
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * interface Person {
+ *   firstname: String!
+ *   lastname: String!
+ * }
+ *
+ * type User implements Node & Person @resolver {
+ *   id: ID!
+ *   firstname: String!
+ *   lastname: String!
+ *   fullName: String! @resolver
+ * }
+ *
+ * extend type Query {
+ *   user(id: String!): User! @resolver
+ *   person: Person! @resolver
+ *   userWithArgs(firstname: String, lastname: String): User! @resolver
+ * }
+ * ```
  */
-class SimpleResolversFeatureAppTest : FeatureAppTestBase() {
-    override var sdl =
-        """
-        | #START_SCHEMA
-        |
-        | interface Person {
-        |   firstname: String!
-        |   lastname: String!
-        | }
-        |
-        | type User implements Node & Person @resolver {
-        |   id: ID!
-        |   firstname: String!
-        |   lastname: String!
-        |   fullName: String! @resolver
-        | }
-        |
-        | extend type Query {
-        |   user(id: String!): User! @resolver
-        |   person: Person! @resolver
-        |   userWithArgs(firstname: String, lastname: String): User! @resolver
-        | }
-        | #END_SCHEMA
-        """.trimMargin()
-
+class SimpleResolversFeatureAppTest : SimpleResolversContractTest() {
     /**
      * Node Resolver for User objects. Viaduct generates Nodes.User() base class
      * and calls this resolver when ctx.nodeFor() is used with a User GlobalID.

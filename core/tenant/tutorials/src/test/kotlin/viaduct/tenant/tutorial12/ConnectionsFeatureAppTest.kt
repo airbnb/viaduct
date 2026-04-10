@@ -8,7 +8,6 @@ import viaduct.api.Resolver
 import viaduct.api.connection.OffsetCursor
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 import viaduct.tenant.tutorial12.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial12.resolverbases.QueryResolvers
 
@@ -29,40 +28,38 @@ import viaduct.tenant.tutorial12.resolverbases.QueryResolvers
  * - Forward (first/after) and backward (last/before) pagination
  *
  * PREVIOUS: [viaduct.tenant.tutorial11.SimpleSubqueriesFeatureAppTest]
+ *
+ * ## Schema
+ *
+ * ```graphql
+ * enum Genre { FICTION NON_FICTION SCIENCE }
+ *
+ * type Book implements Node @resolver {
+ *   id: ID!
+ *   title: String!
+ *   genre: Genre!
+ *   year: Int!
+ * }
+ *
+ * type BookEdge @edge {
+ *   node: Book
+ *   cursor: String!
+ *   reason: String
+ * }
+ *
+ * type BookConnection @connection {
+ *   edges: [BookEdge!]!
+ *   pageInfo: PageInfo!
+ * }
+ *
+ * extend type Query {
+ *   books(first: Int, after: String, last: Int, before: String): BookConnection! @resolver
+ *   booksByGenre(genre: Genre!, first: Int, after: String): BookConnection! @resolver
+ *   highlightedBooks(first: Int, after: String): BookConnection! @resolver
+ * }
+ * ```
  */
-class ConnectionsFeatureAppTest : FeatureAppTestBase() {
-    override var sdl = """
-        | #START_SCHEMA
-        |
-        | enum Genre { FICTION NON_FICTION SCIENCE }
-        |
-        | type Book implements Node @resolver {
-        |   id: ID!
-        |   title: String!
-        |   genre: Genre!
-        |   year: Int!
-        | }
-        |
-        | type BookEdge @edge {
-        |   node: Book
-        |   cursor: String!
-        |   reason: String
-        | }
-        |
-        | type BookConnection @connection {
-        |   edges: [BookEdge!]!
-        |   pageInfo: PageInfo!
-        | }
-        |
-        | extend type Query {
-        |   books(first: Int, after: String, last: Int, before: String): BookConnection! @resolver
-        |   booksByGenre(genre: Genre!, first: Int, after: String): BookConnection! @resolver
-        |   highlightedBooks(first: Int, after: String): BookConnection! @resolver
-        | }
-        |
-        | #END_SCHEMA
-    """.trimMargin()
-
+class ConnectionsFeatureAppTest : ConnectionsContractTest() {
     companion object {
         data class BookData(val id: String, val title: String, val genre: String, val year: Int)
 
