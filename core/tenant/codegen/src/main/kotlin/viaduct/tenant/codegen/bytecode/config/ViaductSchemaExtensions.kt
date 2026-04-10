@@ -232,6 +232,13 @@ val ViaductSchema.TypeDef.hasReflectedType: Boolean
     // scalar types do not support reflection because they are outside the GRT model
     get() = this !is ViaductSchema.Scalar
 
+/**
+ * True if a field on a root type should emit [RootCompositeField] instead of [CompositeField].
+ * Requires: the containing type is a root type, the field's return type is composite (object/interface/union,
+ * NOT enum), and the field is not list-wrapped (CompositeField.type strips list wrappers).
+ */
+fun ViaductSchema.Field.isRootCompositeFieldEligible(isRootField: Boolean): Boolean = isRootField && !type.isList && type.baseTypeDef.isComposite
+
 val ViaductSchema.SourceLocation.tenantModule: String?
     get() = this.sourceName.let {
         cfg.moduleExtractor.find(it)?.groups?.get(1)?.value

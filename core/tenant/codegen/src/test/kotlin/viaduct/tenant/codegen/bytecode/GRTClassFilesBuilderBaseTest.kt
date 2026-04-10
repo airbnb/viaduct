@@ -100,38 +100,72 @@ class GRTClassFilesBuilderBaseTest {
     }
 
     @Test
-    fun `isRootType returns true for query type`() {
+    fun `isRootFieldEligibleType returns true for query type`() {
         val schema = createSchema("")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
         val queryType = schema.types["Query"] as ViaductSchema.Object
         with(builder) {
-            assertTrue(queryType.isRootType())
+            assertTrue(queryType.isRootFieldEligibleType())
         }
     }
 
     @Test
-    fun `isRootType returns true for mutation type`() {
+    fun `isRootFieldEligibleType returns false for mutation type`() {
         val schema = createSchema("")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
         val mutationType = schema.types["Mutation"] as ViaductSchema.Object
         with(builder) {
-            assertTrue(mutationType.isRootType())
+            assertFalse(mutationType.isRootFieldEligibleType())
         }
     }
 
     @Test
-    fun `isRootType returns false for non-root types`() {
+    fun `isRootFieldEligibleType returns false for non-root types`() {
         val schema = createSchema("type User { name: String }")
         val builder = createBuilder(schema)
         builder.initSchemaForTest(schema)
 
         val userType = schema.types["User"] as ViaductSchema.Object
         with(builder) {
-            assertFalse(userType.isRootType())
+            assertFalse(userType.isRootFieldEligibleType())
+        }
+    }
+
+    @Test
+    fun `isRootFieldEligibleType returns true for namespace types`() {
+        val schema = createSchema(
+            """
+            directive @namespaceType on OBJECT
+            type Listings @namespaceType { availableRoomTypes: String }
+            """.trimIndent()
+        )
+        val builder = createBuilder(schema)
+        builder.initSchemaForTest(schema)
+
+        val listingsType = schema.types["Listings"] as ViaductSchema.Object
+        with(builder) {
+            assertTrue(listingsType.isRootFieldEligibleType())
+        }
+    }
+
+    @Test
+    fun `isRootFieldEligibleType returns false for subscription type`() {
+        val schema = createSchema(
+            """
+            extend schema { subscription: Subscription }
+            type Subscription { event: String }
+            """.trimIndent()
+        )
+        val builder = createBuilder(schema)
+        builder.initSchemaForTest(schema)
+
+        val subscriptionType = schema.types["Subscription"] as ViaductSchema.Object
+        with(builder) {
+            assertFalse(subscriptionType.isRootFieldEligibleType())
         }
     }
 

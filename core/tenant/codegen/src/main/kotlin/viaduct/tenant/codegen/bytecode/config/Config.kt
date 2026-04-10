@@ -180,6 +180,12 @@ object cfg {
         JavaBinaryName("viaduct.api.reflect.CompositeField")
     val REFLECTED_COMPOSITE_FIELD_IMPL =
         JavaBinaryName("viaduct.api.internal.CompositeFieldImpl")
+    val REFLECTED_ROOT_COMPOSITE_FIELD =
+        JavaBinaryName("viaduct.api.reflect.RootCompositeField")
+    val REFLECTED_ROOT_COMPOSITE_FIELD_IMPL =
+        JavaBinaryName("viaduct.api.internal.RootCompositeFieldImpl")
+    val ARGUMENTS_NO_ARGUMENTS =
+        JavaBinaryName("viaduct.api.types.Arguments\$NoArguments")
     val REFLECTED_TYPE_FIELDS =
         JavaBinaryName("viaduct.api.reflect.TypeFields")
     val EDGE_GRT = JavaBinaryName("viaduct.api.types.Edge")

@@ -17,6 +17,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.hasReflectedType
+import viaduct.tenant.codegen.bytecode.config.isRootCompositeFieldEligible
 
 internal fun GRTClassFilesBuilder.reflectedTypeGen(
     def: ViaductSchema.TypeDef,
@@ -112,17 +113,19 @@ private class ReflectedTypeBuilder(
 
 internal fun GRTClassFilesBuilder.fieldsObjectGen(
     def: ViaductSchema.TypeDef,
-    container: CustomClassBuilder
+    container: CustomClassBuilder,
+    isRootField: Boolean = false
 ) {
     if (def is ViaductSchema.Record || def is ViaductSchema.Union) {
-        FieldsObjectBuilder(this, container, def).build()
+        FieldsObjectBuilder(this, container, def, isRootField).build()
     }
 }
 
 private class FieldsObjectBuilder(
     override val grtClassFilesBuilder: GRTClassFilesBuilder,
     container: CustomClassBuilder,
-    private val def: ViaductSchema.TypeDef
+    private val def: ViaductSchema.TypeDef,
+    private val isRootField: Boolean = false
 ) : MirrorUtils {
     private val fieldsBuilder =
         container.nestedClassBuilder(
@@ -148,7 +151,9 @@ private class FieldsObjectBuilder(
                 }
                 val reflectedType = f.type.baseTypeDef.takeIf { it.hasReflectedType }
 
-                if (reflectedType != null) {
+                if (reflectedType != null && f.isRootCompositeFieldEligible(isRootField)) {
+                    buildRootCompositeFieldProperty(f, unwrappedType, reflectedType)
+                } else if (reflectedType != null) {
                     buildCompositeFieldProperty(f.name, unwrappedType, reflectedType)
                 } else {
                     buildSimpleFieldProperty(f.name)
@@ -221,6 +226,51 @@ private class FieldsObjectBuilder(
                         append("return new ${cfg.REFLECTED_COMPOSITE_FIELD_IMPL}(\n")
                         // name
                         append("\"${name}\",\n")
+                        // containingType
+                        append(def.instanceExpr)
+                        append(",\n")
+                        // type
+                        append(reflectedType.instanceExpr)
+                        append("\n);\n")
+                        append("}")
+                    }
+                )
+            }
+        )
+    }
+
+    /** build a [viaduct.api.reflect.RootCompositeField] property for a root type field with a composite return type */
+    private fun buildRootCompositeFieldProperty(
+        field: ViaductSchema.Field,
+        unwrappedFieldType: KmType,
+        reflectedType: ViaductSchema.TypeDef
+    ) {
+        val argsKmType = if (field.hasArgs) {
+            KmName("${grtClassFilesBuilder.pkg}/${cfg.argumentTypeName(field)}".replace('.', '/')).asType()
+        } else {
+            cfg.ARGUMENTS_NO_ARGUMENTS.asKmName.asType()
+        }
+
+        val fieldType = cfg.REFLECTED_ROOT_COMPOSITE_FIELD.asKmName.asType().also {
+            // RootCompositeField<Parent: GRT, UnwrappedType: CompositeOutput, A: Arguments>
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, def.grtType)
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, unwrappedFieldType)
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, argsKmType)
+        }
+        fieldsBuilder.addProperty(
+            KmPropertyBuilder(
+                name = JavaIdName(field.name),
+                type = fieldType,
+                inputType = fieldType,
+                isVariable = false,
+                constructorProperty = true
+            ).also {
+                it.getterBody(
+                    buildString {
+                        append("{\n")
+                        append("return new ${cfg.REFLECTED_ROOT_COMPOSITE_FIELD_IMPL}(\n")
+                        // name
+                        append("\"${field.name}\",\n")
                         // containingType
                         append(def.instanceExpr)
                         append(",\n")

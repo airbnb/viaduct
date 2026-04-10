@@ -61,9 +61,11 @@ abstract class GRTClassFilesBuilderBase protected constructor(
     internal fun ViaductSchema.Object.isSubscriptionType(): Boolean = this === schema.subscriptionTypeDef
 
     /**
-     * Returns true if the given object type is any root type (query, mutation, or subscription).
+     * Returns true if the given object type is eligible for [RootCompositeField] emission.
+     * Includes the query root type and namespace types (marked with `@namespaceType`).
+     * Excludes mutation and subscription to prevent invoking mutations from non-mutation resolvers.
      */
-    internal fun ViaductSchema.Object.isRootType(): Boolean = isQueryType() || isMutationType() || isSubscriptionType()
+    internal fun ViaductSchema.Object.isRootFieldEligibleType(): Boolean = isQueryType() || hasAppliedDirective("namespaceType")
 
     /**
      * Initialize the schema for tests that call individual gen methods directly without going through [addAll].
