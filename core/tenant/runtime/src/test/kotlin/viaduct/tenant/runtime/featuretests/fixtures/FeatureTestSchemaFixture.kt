@@ -14,11 +14,5 @@ object FeatureTestSchemaFixture {
         )
     }
 
-    val sdl: String by lazy {
-        val featureAppTest = FeatureTestSchemaFeatureAppTest()
-        featureAppTest.sdl
-            .substringAfter("#START_SCHEMA")
-            .substringBefore("#END_SCHEMA")
-            .trim()
-    }
+    val sdl: String = FeatureTestSchema.sdl()
 }

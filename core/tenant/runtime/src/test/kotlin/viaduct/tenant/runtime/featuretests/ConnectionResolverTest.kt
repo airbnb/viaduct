@@ -11,7 +11,7 @@ import viaduct.api.types.MultidirectionalConnectionArguments
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
-import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestSchemaFeatureAppTest
+import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestSchema
 import viaduct.tenant.runtime.featuretests.fixtures.Item
 import viaduct.tenant.runtime.featuretests.fixtures.ItemEdge
 import viaduct.tenant.runtime.featuretests.fixtures.ItemsConnection
@@ -33,7 +33,7 @@ import viaduct.tenant.runtime.featuretests.fixtures.UntypedConnectionContext
  */
 @ExperimentalCoroutinesApi
 class ConnectionResolverTest {
-    private val schema = FeatureTestSchemaFeatureAppTest().sdl
+    private val schema = FeatureTestSchema.sdl()
 
     // ==================== fromList tests (field: items) ====================
 
