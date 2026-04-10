@@ -42,6 +42,24 @@ jobs:
           JAVA_INPUT: ${{ inputs.java_versions }}
         run: python3 .github/scripts/validate_inputs.py
 
+  python-tests:
+    runs-on: ubuntu-latest
+    name: Python Script Tests
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      # Required: test_generate_changelog.py imports semantic_release
+      - name: Install dependencies
+        run: pip install -r .github/scripts/requirements.txt
+
+      - name: Run tests
+        run: python3 -m unittest discover -s .github/scripts/tests
+        shell: bash
+
   build:
     needs: validate-inputs
     strategy:
@@ -233,22 +251,6 @@ jobs:
           name: all-reports-java-${{ matrix.java }}-${{ matrix.os }}
           path: build/reports
 
-      - name: Setup Python
-        if: always()
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      - name: Install Python dependencies
-        if: always()
-        run: pip install -r .github/scripts/requirements.txt
-
-      - name: Running Python Script Tests
-        if: always()
-        run: |
-          cd .github/scripts/tests
-          python3 -m unittest discover
-        shell: bash
 
   detekt:
     runs-on: ${{ matrix.os }}

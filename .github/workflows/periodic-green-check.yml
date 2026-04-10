@@ -88,21 +88,12 @@ jobs:
       - name: Format staleness alert
         id: fmt
         if: steps.check.outputs.stale == 'true'
-        env:
-          BRANCH: ${{ inputs.branch || 'main' }}
-          SERVER_URL: ${{ github.server_url }}
-          REPOSITORY: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          text=$(jq -n \
-            --arg branch "$BRANCH" \
-            --arg server_url "$SERVER_URL" \
-            --arg repository "$REPOSITORY" \
-            --arg run_id "$RUN_ID" \
-            '{"branch": $branch, "server_url": $server_url, "repository": $repository, "jobs": [{"name": "Staleness Check", "run_id": $run_id}]}' | \
-            python3 .github/scripts/format_alert.py)
-          echo "text=${text}" >> "$GITHUB_OUTPUT"
-        shell: bash
+        uses: ./.github/actions/collect-failure-info
+        with:
+          jobs_json: '[{"name": "Staleness Check", "run_id": "${{ github.run_id }}"}]'
+          branch: ${{ inputs.branch || 'main' }}
+          server_url: ${{ github.server_url }}
+          repository: ${{ github.repository }}
 
   send-staleness-alert:
     needs: [staleness-check]

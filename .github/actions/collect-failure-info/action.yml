@@ -1,0 +1,64 @@
+name: Collect Failure Info
+description: Formats CI failure metadata into an alert message using format_alert.py
+
+inputs:
+  jobs_json:
+    description: 'JSON array of failed jobs, each with "name" and "run_id" fields'
+    required: true
+  branch:
+    description: 'Branch name'
+    required: true
+  server_url:
+    description: 'GitHub server URL'
+    required: true
+  repository:
+    description: 'Full repository name (owner/repo)'
+    required: true
+  sha:
+    description: 'Commit SHA (optional)'
+    required: false
+    default: ''
+  actor:
+    description: 'GitHub actor (optional)'
+    required: false
+    default: ''
+
+outputs:
+  text:
+    description: 'Formatted alert text'
+    value: ${{ steps.fmt.outputs.text }}
+
+runs:
+  using: composite
+  steps:
+    - name: Format alert
+      id: fmt
+      shell: bash
+      env:
+        JOBS_JSON: ${{ inputs.jobs_json }}
+        BRANCH: ${{ inputs.branch }}
+        SERVER_URL: ${{ inputs.server_url }}
+        REPOSITORY: ${{ inputs.repository }}
+        SHA: ${{ inputs.sha }}
+        ACTOR: ${{ inputs.actor }}
+      run: |
+        # Build the full payload — format_alert.py handles empty sha/actor
+        # gracefully via .get() + truthiness checks.
+        text=$(jq -n \
+          --arg branch "$BRANCH" \
+          --arg server_url "$SERVER_URL" \
+          --arg repository "$REPOSITORY" \
+          --arg sha "$SHA" \
+          --arg actor "$ACTOR" \
+          --argjson jobs "$JOBS_JSON" \
+          '{ branch: $branch, server_url: $server_url, repository: $repository,
+             jobs: $jobs }
+           + (if $sha  != "" then { sha: $sha }   else {} end)
+           + (if $actor != "" then { actor: $actor } else {} end)' | \
+          python3 .github/scripts/format_alert.py)
+
+        {
+          echo "text<<ALERT_EOF"
+          echo "$text"
+          echo "ALERT_EOF"
+        } >> "$GITHUB_OUTPUT"
