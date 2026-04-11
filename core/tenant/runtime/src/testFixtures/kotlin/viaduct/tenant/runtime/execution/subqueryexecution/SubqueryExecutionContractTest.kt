@@ -70,6 +70,8 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
         viaCtxQuery: Int @resolver
         "Use ctx.query() with variables to call multiply(n: multiplier); return multiplier * 2"
         queryWithVariables(multiplier: Int!): Int @resolver
+        "Use ctx.query() to fetch profile { firstName }; return profile.firstName (\"Jane\")"
+        derivedFromNestedQuery: String @resolver
     }
 
     type User {
@@ -90,6 +92,16 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     type Level2 {
         "Use ctx.query() to fetch baseValue; return baseValue * 3 (=30)"
         derivedValue: Int @resolver
+    }
+
+    type Profile {
+        firstName: String
+        lastName: String
+    }
+
+    extend type Query {
+        "Return a Profile with firstName=\"Jane\", lastName=\"Doe\""
+        profile: Profile @resolver
     }
 """
 )
@@ -239,6 +251,25 @@ abstract class SubqueryExecutionContractTest : FeatureAppTestBase() {
                     "level2" to {
                         "derivedValue" to 30
                     }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `ctx query with nested object dereferences nested getters`() {
+        execute(
+            query = """
+                query {
+                    container {
+                        derivedFromNestedQuery
+                    }
+                }
+            """.trimIndent()
+        ).assertEquals {
+            "data" to {
+                "container" to {
+                    "derivedFromNestedQuery" to "Jane"
                 }
             }
         }

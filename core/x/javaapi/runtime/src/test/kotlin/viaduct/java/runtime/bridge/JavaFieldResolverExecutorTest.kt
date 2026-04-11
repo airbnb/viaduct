@@ -14,6 +14,7 @@ import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.errors.TenantResolverException
 
 class JavaFieldResolverExecutorTest {
     @Test
@@ -99,8 +100,10 @@ class JavaFieldResolverExecutorTest {
             val result = results[selector]
             assertThat(result).isNotNull
             assertThat(result!!.isFailure).isTrue()
-            assertThat(result.exceptionOrNull()).isInstanceOf(RuntimeException::class.java)
-            assertThat(result.exceptionOrNull()?.message).isEqualTo("Test error")
+            assertThat(result.exceptionOrNull())
+                .isInstanceOf(TenantResolverException::class.java)
+                .hasCauseInstanceOf(RuntimeException::class.java)
+                .hasRootCauseMessage("Test error")
         }
 
     @Test

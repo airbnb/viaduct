@@ -1,27 +1,22 @@
 package viaduct.x.javaapi.codegen.exercise.grts;
 
-import viaduct.java.api.types.GraphQLInput;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import viaduct.java.api.internal.JavaInputBase;
 
 /** A simple input with basic fields. */
-public class SimpleInput implements GraphQLInput {
+public class SimpleInput extends JavaInputBase {
 
-  private String name;
-  private Integer count;
-
-  public String getName() {
-    return this.name;
+  public SimpleInput(Map<String, Object> data) {
+    super(data);
   }
 
-  public void setName(String name) {
-    this.name = name;
+  public String getName() {
+    return get("name");
   }
 
   public Integer getCount() {
-    return this.count;
-  }
-
-  public void setCount(Integer count) {
-    this.count = count;
+    return get("count");
   }
 
   public static Builder builder() {
@@ -29,24 +24,20 @@ public class SimpleInput implements GraphQLInput {
   }
 
   public static class Builder {
-    private String name;
-    private Integer count;
+    private final Map<String, Object> data = new LinkedHashMap<>();
 
     public Builder name(String name) {
-      this.name = name;
+      data.put("name", name);
       return this;
     }
 
     public Builder count(Integer count) {
-      this.count = count;
+      data.put("count", count);
       return this;
     }
 
     public SimpleInput build() {
-      SimpleInput obj = new SimpleInput();
-      obj.name = this.name;
-      obj.count = this.count;
-      return obj;
+      return new SimpleInput(data);
     }
   }
 }

@@ -15,9 +15,9 @@ class ObjectGeneratorTest {
             "User",
             List.of(),
             List.of(
-                new FieldModel("id", "String", false),
-                new FieldModel("name", "String", false),
-                new FieldModel("email", "String", true)),
+                FieldModel.simple("id", "String", false),
+                FieldModel.simple("name", "String", false),
+                FieldModel.simple("email", "String", true)),
             null,
             false);
 
@@ -25,12 +25,12 @@ class ObjectGeneratorTest {
 
     assertThat(generated)
         .contains("package com.example.types;")
-        .contains("public class User implements GraphQLObject")
-        .contains("private String id;")
-        .contains("private String name;")
-        .contains("private String email;")
+        .contains("public class User extends JavaObjectBase")
+        .doesNotContain("implements GraphQLObject")
         .contains("public String getId()")
-        .contains("public void setId(String id)")
+        .contains("return fetchScalar(\"id\")")
+        .doesNotContain("private String id;")
+        .doesNotContain("public void setId(")
         .contains("public static Builder builder()")
         .contains("public static class Builder");
   }
@@ -42,7 +42,7 @@ class ObjectGeneratorTest {
             "com.example.types",
             "Booking",
             List.of(),
-            List.of(new FieldModel("id", "String", false)),
+            List.of(FieldModel.simple("id", "String", false)),
             "A booking for a listing.",
             false);
 
@@ -62,13 +62,16 @@ class ObjectGeneratorTest {
             "com.example.types",
             "Human",
             List.of("Character", "Node"),
-            List.of(new FieldModel("id", "String", false), new FieldModel("name", "String", false)),
+            List.of(
+                FieldModel.simple("id", "String", false),
+                FieldModel.simple("name", "String", false)),
             null,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated).contains("public class Human implements GraphQLObject, Character, Node");
+    assertThat(generated)
+        .contains("public class Human extends JavaObjectBase implements Character, Node");
   }
 
   @Test
@@ -79,21 +82,94 @@ class ObjectGeneratorTest {
             "Listing",
             List.of(),
             List.of(
-                new FieldModel("host", "User", false),
-                new FieldModel("amenities", "List<String>", false),
-                new FieldModel("pricePerNight", "double", false)),
+                new FieldModel("host", "User", false, true, false, false, false, "User"),
+                FieldModel.simple("amenities", "List<String>", false),
+                FieldModel.simple("pricePerNight", "double", false)),
             null,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertThat(generated)
-        .contains("private User host;")
-        .contains("private List<String> amenities;")
-        .contains("private double pricePerNight;")
         .contains("public User getHost()")
+        .contains("return fetchObject(\"host\", User::new)")
         .contains("public List<String> getAmenities()")
+        .contains("return fetchScalar(\"amenities\")")
         .contains("public double getPricePerNight()");
+  }
+
+  @Test
+  void generatesObjectWithScalarListField() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "Listing",
+            List.of(),
+            List.of(new FieldModel("tags", "List<String>", true, false, true, false, false, null)),
+            null,
+            false);
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertThat(generated)
+        .contains("public List<String> getTags()")
+        .contains("return fetchScalarList(\"tags\")");
+  }
+
+  @Test
+  void generatesObjectWithListFields() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "Author",
+            List.of(),
+            List.of(
+                new FieldModel("books", "List<Book>", true, true, true, false, false, "Book"),
+                new FieldModel("tags", "List<Tag>", true, false, true, true, false, "Tag")),
+            null,
+            false);
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertThat(generated)
+        .contains("public List<Book> getBooks()")
+        .contains("return fetchObjectList(\"books\", Book::new)")
+        .contains("public List<Tag> getTags()")
+        .contains("return fetchEnumList(\"tags\", Tag.class)");
+  }
+
+  @Test
+  void generatesObjectWithAbstractFields() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "SearchContainer",
+            List.of(),
+            List.of(
+                new FieldModel("topNode", "Node", true, false, false, false, true, "Node"),
+                new FieldModel(
+                    "topResult", "SearchResult", true, false, false, false, true, "SearchResult"),
+                new FieldModel(
+                    "allResults",
+                    "List<SearchResult>",
+                    false,
+                    false,
+                    true,
+                    false,
+                    true,
+                    "SearchResult")),
+            null,
+            false);
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertThat(generated)
+        .contains("public Node getTopNode()")
+        .contains("return fetchAbstractObject(\"topNode\", Node.class)")
+        .contains("public SearchResult getTopResult()")
+        .contains("return fetchAbstractObject(\"topResult\", SearchResult.class)")
+        .contains("public List<SearchResult> getAllResults()")
+        .contains("return fetchAbstractObjectList(\"allResults\", SearchResult.class)");
   }
 
   @Test
@@ -104,7 +180,8 @@ class ObjectGeneratorTest {
             "User",
             List.of(),
             List.of(
-                new FieldModel("name", "String", false), new FieldModel("age", "Integer", true)),
+                FieldModel.simple("name", "String", false),
+                FieldModel.simple("age", "Integer", true)),
             null,
             false);
 
@@ -114,5 +191,76 @@ class ObjectGeneratorTest {
         .contains("public Builder name(String name)")
         .contains("public Builder age(Integer age)")
         .contains("public User build()");
+  }
+
+  @Test
+  void generatesObjectWithTemporalScalarFields() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "Event",
+            List.of(),
+            List.of(
+                FieldModel.simple("createdAt", "Instant", true),
+                FieldModel.simple("eventDate", "LocalDate", true),
+                FieldModel.simple("startTime", "OffsetTime", true),
+                FieldModel.simple("label", "String", true)),
+            null,
+            false);
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertThat(generated)
+        .contains("public Instant getCreatedAt()")
+        .contains("return fetchScalar(\"createdAt\", \"DateTime\")")
+        .contains("public LocalDate getEventDate()")
+        .contains("return fetchScalar(\"eventDate\", \"Date\")")
+        .contains("public OffsetTime getStartTime()")
+        .contains("return fetchScalar(\"startTime\", \"Time\")")
+        .contains("public String getLabel()")
+        .contains("return fetchScalar(\"label\")");
+  }
+
+  @Test
+  void generatesObjectWithTemporalScalarListFields() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "Schedule",
+            List.of(),
+            List.of(
+                new FieldModel(
+                    "timestamps", "List<Instant>", true, false, true, false, false, null),
+                new FieldModel("dates", "List<LocalDate>", true, false, true, false, false, null)),
+            null,
+            false);
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertThat(generated)
+        .contains("public List<Instant> getTimestamps()")
+        .contains("return fetchScalarList(\"timestamps\", \"DateTime\")")
+        .contains("public List<LocalDate> getDates()")
+        .contains("return fetchScalarList(\"dates\", \"Date\")");
+  }
+
+  @Test
+  void generatesConstructors() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "User",
+            List.of(),
+            List.of(FieldModel.simple("id", "String", false)),
+            null,
+            false);
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertThat(generated)
+        .contains("public User(EngineObjectData.Sync data)")
+        .contains("private User(Map<String, Object> data)")
+        .contains("private final Map<String, Object> data = new LinkedHashMap<>")
+        .contains("return new User(new LinkedHashMap<>(data))");
   }
 }

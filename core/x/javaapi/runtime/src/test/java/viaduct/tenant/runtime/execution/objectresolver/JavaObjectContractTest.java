@@ -1,5 +1,6 @@
 package viaduct.tenant.runtime.execution.objectresolver;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -165,6 +166,23 @@ public class JavaObjectContractTest extends ObjectContractTest {
     public CompletableFuture<String> resolve(Context ctx) {
       return CompletableFuture.completedFuture("Hello!");
     }
+  }
+
+  // --- Builder reuse tests ---
+
+  @Test
+  public void builderReuseDoesNotAliasObjects() {
+    Address.Builder builder = Address.builder().street("123 Main").city("SF").country("US");
+    Address first = builder.build();
+    builder.street("456 Oak").city("NYC");
+    Address second = builder.build();
+
+    assertEquals("123 Main", first.getStreet());
+    assertEquals("SF", first.getCity());
+    assertEquals("US", first.getCountry());
+    assertEquals("456 Oak", second.getStreet());
+    assertEquals("NYC", second.getCity());
+    assertEquals("US", second.getCountry());
   }
 
   // --- Java-only wiring tests ---

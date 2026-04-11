@@ -20,7 +20,8 @@ class EnumGeneratorTest {
 
     assertThat(generated)
         .contains("package com.example.types;")
-        .contains("public enum BookingStatus")
+        .contains("import viaduct.java.api.types.GraphQLEnum;")
+        .contains("public enum BookingStatus implements GraphQLEnum")
         .contains("PENDING,")
         .contains("CONFIRMED,")
         .contains("CANCELLED");

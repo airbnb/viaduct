@@ -1,18 +1,18 @@
 package viaduct.x.javaapi.codegen.exercise.grts;
 
-import viaduct.java.api.types.GraphQLInput;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import viaduct.java.api.internal.JavaInputBase;
 
 /** An input with a description to test Javadoc generation. */
-public class InputWithDescription implements GraphQLInput {
+public class InputWithDescription extends JavaInputBase {
 
-  private String value;
-
-  public String getValue() {
-    return this.value;
+  public InputWithDescription(Map<String, Object> data) {
+    super(data);
   }
 
-  public void setValue(String value) {
-    this.value = value;
+  public String getValue() {
+    return get("value");
   }
 
   public static Builder builder() {
@@ -20,17 +20,15 @@ public class InputWithDescription implements GraphQLInput {
   }
 
   public static class Builder {
-    private String value;
+    private final Map<String, Object> data = new LinkedHashMap<>();
 
     public Builder value(String value) {
-      this.value = value;
+      data.put("value", value);
       return this;
     }
 
     public InputWithDescription build() {
-      InputWithDescription obj = new InputWithDescription();
-      obj.value = this.value;
-      return obj;
+      return new InputWithDescription(data);
     }
   }
 }

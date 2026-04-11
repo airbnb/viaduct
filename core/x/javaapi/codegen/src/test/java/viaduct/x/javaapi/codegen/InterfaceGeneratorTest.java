@@ -14,7 +14,7 @@ class InterfaceGeneratorTest {
             "com.example.types",
             "Node",
             List.of(),
-            List.of(new FieldModel("id", "String", false)),
+            List.of(FieldModel.simple("id", "String", false)),
             null);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
@@ -33,8 +33,8 @@ class InterfaceGeneratorTest {
             "Timestamped",
             List.of(),
             List.of(
-                new FieldModel("createdAt", "String", false),
-                new FieldModel("updatedAt", "String", true)),
+                FieldModel.simple("createdAt", "String", false),
+                FieldModel.simple("updatedAt", "String", true)),
             "Interface for objects with timestamps.");
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
@@ -54,9 +54,9 @@ class InterfaceGeneratorTest {
             "Auditable",
             List.of("Node", "Timestamped"),
             List.of(
-                new FieldModel("id", "String", false),
-                new FieldModel("createdAt", "String", false),
-                new FieldModel("createdBy", "String", false)),
+                FieldModel.simple("id", "String", false),
+                FieldModel.simple("createdAt", "String", false),
+                FieldModel.simple("createdBy", "String", false)),
             null);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
@@ -73,8 +73,8 @@ class InterfaceGeneratorTest {
             "HasOwner",
             List.of(),
             List.of(
-                new FieldModel("owner", "User", false),
-                new FieldModel("collaborators", "List<User>", true)),
+                FieldModel.simple("owner", "User", false),
+                FieldModel.simple("collaborators", "List<User>", true)),
             null);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
@@ -90,9 +90,9 @@ class InterfaceGeneratorTest {
             "Entity",
             List.of(),
             List.of(
-                new FieldModel("id", "String", false),
-                new FieldModel("name", "String", false),
-                new FieldModel("isActive", "boolean", false)),
+                FieldModel.simple("id", "String", false),
+                FieldModel.simple("name", "String", false),
+                FieldModel.simple("isActive", "boolean", false)),
             null);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);

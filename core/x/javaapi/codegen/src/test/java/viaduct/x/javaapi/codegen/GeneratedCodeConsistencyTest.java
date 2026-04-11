@@ -24,26 +24,26 @@ class GeneratedCodeConsistencyTest {
   }
 
   @Test
-  void objectGenerator_usesGraphQLObject() {
+  void objectGenerator_usesJavaObjectBase() {
     ObjectModel model =
         new ObjectModel("com.example", "TestObject", List.of(), List.of(), null, false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertThat(generated)
-        .contains("import viaduct.java.api.types.GraphQLObject;")
-        .contains("implements GraphQLObject");
+        .contains("import viaduct.java.api.internal.JavaObjectBase;")
+        .contains("extends JavaObjectBase");
   }
 
   @Test
-  void inputGenerator_usesGraphQLInput() {
+  void inputGenerator_usesJavaInputBase() {
     InputModel model = new InputModel("com.example", "TestInput", List.of(), null);
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
     assertThat(generated)
-        .contains("import viaduct.java.api.types.GraphQLInput;")
-        .contains("implements GraphQLInput");
+        .contains("import viaduct.java.api.internal.JavaInputBase;")
+        .contains("extends JavaInputBase");
   }
 
   @Test

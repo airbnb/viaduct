@@ -100,6 +100,19 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     }
 
     @Resolver
+    class Query_ProfileResolver : QueryResolvers.Profile() {
+        override suspend fun resolve(ctx: Context): Profile = Profile.Builder(ctx).firstName("Jane").lastName("Doe").build()
+    }
+
+    @Resolver
+    class Container_DerivedFromNestedQueryResolver : ContainerResolvers.DerivedFromNestedQuery() {
+        override suspend fun resolve(ctx: Context): String {
+            val queryResult = ctx.query("profile { firstName }")
+            return queryResult.getProfile()?.getFirstName() ?: ""
+        }
+    }
+
+    @Resolver
     class Container_DerivedFromQueryResolver : ContainerResolvers.DerivedFromQuery() {
         override suspend fun resolve(ctx: Context): Int {
             val queryResult = ctx.query("rootValue")

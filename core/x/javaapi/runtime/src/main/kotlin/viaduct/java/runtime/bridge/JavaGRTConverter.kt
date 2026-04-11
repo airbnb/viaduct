@@ -1,7 +1,11 @@
 package viaduct.java.runtime.bridge
 
 import graphql.schema.GraphQLSchema
+import org.slf4j.LoggerFactory
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.errors.FrameworkException
+import viaduct.java.api.internal.JavaObjectBase
 import viaduct.java.api.types.GraphQLObject
 
 /**
@@ -9,13 +13,13 @@ import viaduct.java.api.types.GraphQLObject
  * and the engine's [EngineObjectData] format.
  */
 
+private val logger = LoggerFactory.getLogger("viaduct.java.runtime.bridge.JavaGRTConverter")
+
 /**
  * Converts a Java resolver result to a form the engine can process.
  *
- * Java GRT objects (implementing [GraphQLObject]) are plain Java POJOs, not [EngineObjectData].
- * The engine requires [EngineObjectData] for composite types. This function converts Java GRTs
- * to [viaduct.engine.api.ResolvedEngineObjectData] by reflecting on their getters and looking
- * up the GraphQL type from the schema.
+ * Java GRT objects (implementing [GraphQLObject]) now wrap [EngineObjectData.Sync] directly
+ * (via [JavaObjectBase]). This function extracts the backing data without reflection.
  *
  * Lists are converted element-by-element. Scalars and nulls are returned as-is.
  */
@@ -25,103 +29,72 @@ internal fun convertResult(
 ): Any? {
     return when (result) {
         null -> null
-        is GraphQLObject -> convertJavaGRTToEngineObjectData(result, graphqlSchema)
+        is JavaObjectBase -> convertJavaGRTToEngineObjectData(result, graphqlSchema)
+        is GraphQLObject -> throw FrameworkException(
+            "Resolver returned a GraphQLObject that does not extend JavaObjectBase: ${result.javaClass.name}. " +
+                "All Java GRT object types must extend JavaObjectBase."
+        )
         is List<*> -> result.map { convertResult(it, graphqlSchema) }
         else -> result
     }
 }
 
 /**
- * Converts a Java GRT object (plain POJO implementing [GraphQLObject]) to
- * [viaduct.engine.api.ResolvedEngineObjectData].
+ * Converts a [JavaObjectBase] GRT to [EngineObjectData.Sync].
  *
- * Uses the class simple name as the GraphQL type name, looks up the [graphql.schema.GraphQLObjectType]
- * from the schema, and populates field values by reflecting on getter methods.
+ * For engine-path GRTs (created from engine data), returns the backing [EngineObjectData.Sync] directly.
+ * For builder-path GRTs (created via builder), converts the backing map to [ResolvedEngineObjectData].
  */
 internal fun convertJavaGRTToEngineObjectData(
-    grt: GraphQLObject,
+    grt: JavaObjectBase,
     graphqlSchema: GraphQLSchema?
-): viaduct.engine.api.EngineObjectData.Sync? {
+): EngineObjectData.Sync? {
+    // Engine-provided data: pass through directly (no copying needed)
+    grt.engineObjectData?.let { return it }
+
+    // Builder-created data: wrap map with proper GraphQL type from schema
+    val map = grt.mapData ?: return null
     val schema = graphqlSchema ?: return null
     val typeName = grt.javaClass.simpleName
-    val graphqlType = schema.getObjectType(typeName) ?: return null
-
-    val data = mutableMapOf<String, Any?>()
-    for (method in grt.javaClass.methods) {
-        if (method.parameterCount != 0) continue
-        if (method.declaringClass == Any::class.java) continue
-        val fieldName = when {
-            method.name.startsWith("get") && method.name.length > 3 ->
-                method.name[3].lowercaseChar() + method.name.substring(4)
-            method.name.startsWith("is") && method.name.length > 2 ->
-                method.name[2].lowercaseChar() + method.name.substring(3)
-            else -> continue
-        }
-        try {
-            val value = method.invoke(grt)
-            data[fieldName] = convertResult(value, graphqlSchema)
-        } catch (_: Exception) {
-            // Skip fields that cannot be read
-        }
+    val graphqlType = schema.getObjectType(typeName)
+    if (graphqlType == null) {
+        logger.warn(
+            "Could not find GraphQL type '{}' in schema when converting builder-created GRT. " +
+                "Ensure the Java class simple name matches the GraphQL type name.",
+            typeName
+        )
+        return null
     }
-
-    return viaduct.engine.api.ResolvedEngineObjectData(graphqlType, data)
+    val convertedMap = map.mapValues { (_, v) -> convertValue(v, graphqlSchema) }
+    return ResolvedEngineObjectData(graphqlType, convertedMap)
 }
 
+/** Recursively converts nested builder-created GRTs in a map value. */
+private fun convertValue(
+    value: Any?,
+    schema: GraphQLSchema?
+): Any? =
+    when (value) {
+        null -> null
+        is JavaObjectBase -> convertJavaGRTToEngineObjectData(value, schema)
+        is GraphQLObject -> throw FrameworkException(
+            "Nested value is a GraphQLObject that does not extend JavaObjectBase: ${value.javaClass.name}. " +
+                "All Java GRT object types must extend JavaObjectBase."
+        )
+        is List<*> -> value.map { convertValue(it, schema) }
+        else -> value
+    }
+
 /**
- * Converts an [EngineObjectData.Sync] into a Java object instance using reflection.
+ * Converts an [EngineObjectData.Sync] into a Java object instance using a single constructor call.
  *
- * Iterates over the available selections in the engine data and populates the Java object
- * via setter methods. Nested composite types (where the value is another [EngineObjectData.Sync])
- * are recursively converted to the setter's parameter type.
+ * The target class must have a public constructor accepting [EngineObjectData.Sync] (generated
+ * by the new wrapping-based codegen). No reflection over fields or setters.
  */
-@Suppress("UNCHECKED_CAST")
 internal fun convertSyncEngineDataToJavaObject(
     clazz: Class<*>,
     data: EngineObjectData.Sync
 ): Any {
-    val instance = clazz.getDeclaredConstructor().newInstance()
-    for (selection in data.getSelections()) {
-        val value = data.getOrNull(selection) ?: continue
-        val setterName = "set${selection.replaceFirstChar { it.uppercase() }}"
-        val setter = clazz.methods.firstOrNull { it.name == setterName && it.parameterCount == 1 }
-            ?: continue
-        val paramType = setter.parameterTypes[0]
-        val convertedValue = when {
-            value is EngineObjectData.Sync && !EngineObjectData::class.java.isAssignableFrom(paramType) ->
-                convertSyncEngineDataToJavaObject(paramType, value)
-            else -> value
-        }
-        setter.invoke(instance, convertedValue)
-    }
-    return instance
-}
-
-/**
- * Converts an [EngineObjectData] (async) into a Java object instance using reflection.
- *
- * Unlike [convertSyncEngineDataToJavaObject], this version awaits field values using the async
- * API ([EngineObjectData.fetchSelections] and [EngineObjectData.fetchOrNull]). Used for subquery
- * results returned by [viaduct.engine.api.EngineExecutionContext.resolveSelectionSet].
- */
-@Suppress("UNCHECKED_CAST")
-internal suspend fun convertAsyncEngineDataToJavaObject(
-    clazz: Class<*>,
-    data: EngineObjectData
-): Any {
-    val instance = clazz.getDeclaredConstructor().newInstance()
-    for (selection in data.fetchSelections()) {
-        val value = data.fetchOrNull(selection) ?: continue
-        val setterName = "set${selection.replaceFirstChar { it.uppercase() }}"
-        val setter = clazz.methods.firstOrNull { it.name == setterName && it.parameterCount == 1 }
-            ?: continue
-        val paramType = setter.parameterTypes[0]
-        val convertedValue = when {
-            value is EngineObjectData && !EngineObjectData::class.java.isAssignableFrom(paramType) ->
-                convertAsyncEngineDataToJavaObject(paramType, value)
-            else -> value
-        }
-        setter.invoke(instance, convertedValue)
-    }
-    return instance
+    val constructor = clazz.getDeclaredConstructor(EngineObjectData.Sync::class.java)
+    return constructor.newInstance(data)
 }

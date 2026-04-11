@@ -294,6 +294,18 @@ type Review {
   author: User!
 }
 
+"""
+Container for testing interface/union-typed fields.
+"""
+type SearchContainer {
+  "Single interface-typed field"
+  topNode: Node
+  "Single union-typed field"
+  topResult: SearchResult
+  "List of union-typed field"
+  allResults: [SearchResult!]!
+}
+
 # User type extensions with resolver fields
 extend type User {
   "Resolver field: User's profile picture URL"

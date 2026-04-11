@@ -188,7 +188,30 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
     }
   }
 
+  @Resolver
+  public static class ProfileResolver extends QueryResolvers.Profile {
+    @Override
+    public CompletableFuture<Profile> resolve(Context ctx) {
+      return CompletableFuture.completedFuture(
+          Profile.builder().firstName("Jane").lastName("Doe").build());
+    }
+  }
+
   // --- Container resolvers ---
+
+  @Resolver
+  public static class DerivedFromNestedQueryResolver
+      extends ContainerResolvers.DerivedFromNestedQuery {
+    @Override
+    public CompletableFuture<String> resolve(Context ctx) {
+      return ctx.query("profile { firstName }")
+          .thenApply(
+              q -> {
+                Profile profile = q.getProfile();
+                return profile != null ? profile.getFirstName() : "";
+              });
+    }
+  }
 
   @Resolver
   public static class DerivedFromQueryResolver extends ContainerResolvers.DerivedFromQuery {

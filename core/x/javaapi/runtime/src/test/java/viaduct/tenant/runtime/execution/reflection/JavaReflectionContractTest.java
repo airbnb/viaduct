@@ -13,6 +13,7 @@ import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.TenantCodeInjector;
 import viaduct.tenant.runtime.execution.reflection.resolverbases.CategoryResolvers;
 import viaduct.tenant.runtime.execution.reflection.resolverbases.QueryResolvers;
+import viaduct.tenant.runtime.execution.reflection.resolverbases.ShelfResolvers;
 
 public class JavaReflectionContractTest extends ReflectionContractTest {
 
@@ -36,6 +37,46 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
     public CompletableFuture<Category> resolve(Context ctx) {
       return CompletableFuture.completedFuture(
           Category.builder().id(ctx.getArguments().getId()).build());
+    }
+  }
+
+  @Resolver
+  public static class ShelfResolver extends QueryResolvers.Shelf {
+    @Override
+    public CompletableFuture<Shelf> resolve(Context ctx) {
+      return CompletableFuture.completedFuture(Shelf.builder().build());
+    }
+  }
+
+  @Resolver
+  public static class TopProductResolver extends ShelfResolvers.TopProduct {
+    @Override
+    public CompletableFuture<Product> resolve(Context ctx) {
+      return CompletableFuture.completedFuture(
+          Toy.builder().id(1).prodType("action_figure").build());
+    }
+  }
+
+  @Resolver(
+      objectValueFragment =
+          """
+          fragment _ on Shelf {
+            topProduct {
+              ... on Toy { id prodType }
+              ... on Fruit { id prodType }
+            }
+          }
+          """)
+  public static class TopProductDescriptionResolver extends ShelfResolvers.TopProductDescription {
+    @Override
+    public CompletableFuture<String> resolve(Context ctx) {
+      Product product = ctx.getObjectValue().getTopProduct();
+      if (product instanceof Toy toy) {
+        return CompletableFuture.completedFuture("Toy: " + toy.getProdType());
+      } else if (product instanceof Fruit fruit) {
+        return CompletableFuture.completedFuture("Fruit: " + fruit.getProdType());
+      }
+      return CompletableFuture.completedFuture("Unknown");
     }
   }
 

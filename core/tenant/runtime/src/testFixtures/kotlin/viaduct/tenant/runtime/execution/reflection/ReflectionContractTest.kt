@@ -39,6 +39,18 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
       id: Int!
       prodType: String
     }
+
+    type Shelf {
+      "Return a Product (Toy with id=1, prodType=\"action_figure\")"
+      topProduct: Product @resolver
+      "Use objectValueFragment to access topProduct; cast to concrete type and return \"Toy: <prodType>\""
+      topProductDescription: String @resolver
+    }
+
+    extend type Query {
+      "Return a Shelf object"
+      shelf: Shelf @resolver
+    }
 """
 )
 abstract class ReflectionContractTest : FeatureAppTestBase() {
@@ -76,6 +88,25 @@ abstract class ReflectionContractTest : FeatureAppTestBase() {
                             "prodType" to "Fruit"
                         }
                     )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `engine-backed abstract getter dereferences concrete fields`() {
+        execute(
+            query = """
+                query {
+                    shelf {
+                        topProductDescription
+                    }
+                }
+            """.trimIndent()
+        ).assertEquals {
+            "data" to {
+                "shelf" to {
+                    "topProductDescription" to "Toy: action_figure"
                 }
             }
         }

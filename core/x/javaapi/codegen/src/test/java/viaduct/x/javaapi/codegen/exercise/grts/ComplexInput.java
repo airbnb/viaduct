@@ -1,28 +1,23 @@
 package viaduct.x.javaapi.codegen.exercise.grts;
 
+import java.util.LinkedHashMap;
 import java.util.List;
-import viaduct.java.api.types.GraphQLInput;
+import java.util.Map;
+import viaduct.java.api.internal.JavaInputBase;
 
 /** An input with enum and list fields. */
-public class ComplexInput implements GraphQLInput {
+public class ComplexInput extends JavaInputBase {
 
-  private StatusEnum status;
-  private List<String> tags;
-
-  public StatusEnum getStatus() {
-    return this.status;
+  public ComplexInput(Map<String, Object> data) {
+    super(data);
   }
 
-  public void setStatus(StatusEnum status) {
-    this.status = status;
+  public StatusEnum getStatus() {
+    return getEnum("status", StatusEnum.class);
   }
 
   public List<String> getTags() {
-    return this.tags;
-  }
-
-  public void setTags(List<String> tags) {
-    this.tags = tags;
+    return getScalarList("tags");
   }
 
   public static Builder builder() {
@@ -30,24 +25,20 @@ public class ComplexInput implements GraphQLInput {
   }
 
   public static class Builder {
-    private StatusEnum status;
-    private List<String> tags;
+    private final Map<String, Object> data = new LinkedHashMap<>();
 
     public Builder status(StatusEnum status) {
-      this.status = status;
+      data.put("status", status);
       return this;
     }
 
     public Builder tags(List<String> tags) {
-      this.tags = tags;
+      data.put("tags", tags);
       return this;
     }
 
     public ComplexInput build() {
-      ComplexInput obj = new ComplexInput();
-      obj.status = this.status;
-      obj.tags = this.tags;
-      return obj;
+      return new ComplexInput(data);
     }
   }
 }

@@ -3,6 +3,7 @@ package viaduct.java.runtime.bridge
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import viaduct.errors.FrameworkException
 import viaduct.java.api.types.GraphQLObject
 
 class SimpleFieldExecutionContextTest {
@@ -26,13 +27,13 @@ class SimpleFieldExecutionContextTest {
     }
 
     @Test
-    fun `getObjectValue throws UnsupportedOperationException when no object value provided`() {
+    fun `getObjectValue throws FrameworkException when no object value provided`() {
         val context = SimpleFieldExecutionContext(
             requestContext = null
         )
 
         assertThatThrownBy { context.getObjectValue() }
-            .isInstanceOf(UnsupportedOperationException::class.java)
+            .isInstanceOf(FrameworkException::class.java)
             .hasMessageContaining("Object value not available")
     }
 
@@ -48,14 +49,14 @@ class SimpleFieldExecutionContextTest {
     }
 
     @Test
-    fun `getQueryValue throws UnsupportedOperationException`() {
+    fun `getQueryValue throws FrameworkException when no query value provided`() {
         val context = SimpleFieldExecutionContext(
             requestContext = null
         )
 
         assertThatThrownBy { context.getQueryValue() }
-            .isInstanceOf(UnsupportedOperationException::class.java)
-            .hasMessageContaining("Query value access not yet implemented")
+            .isInstanceOf(FrameworkException::class.java)
+            .hasMessageContaining("Query value not available")
     }
 
     @Test
@@ -79,13 +80,13 @@ class SimpleFieldExecutionContextTest {
     }
 
     @Test
-    fun `getSelections throws UnsupportedOperationException`() {
+    fun `getSelections throws FrameworkException`() {
         val context = SimpleFieldExecutionContext(
             requestContext = null
         )
 
         assertThatThrownBy { context.getSelections() }
-            .isInstanceOf(UnsupportedOperationException::class.java)
+            .isInstanceOf(FrameworkException::class.java)
             .hasMessageContaining("Selections access not yet implemented")
     }
 }

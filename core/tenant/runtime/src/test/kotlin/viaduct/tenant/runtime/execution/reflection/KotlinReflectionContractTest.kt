@@ -5,6 +5,7 @@ package viaduct.tenant.runtime.execution.reflection
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.reflection.resolverbases.CategoryResolvers
 import viaduct.tenant.runtime.execution.reflection.resolverbases.QueryResolvers
+import viaduct.tenant.runtime.execution.reflection.resolverbases.ShelfResolvers
 
 class KotlinReflectionContractTest : ReflectionContractTest() {
     @Resolver
@@ -13,6 +14,37 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
             Category.Builder(ctx).also { builder ->
                 builder.put(Category.Fields.id.name, ctx.arguments.id)
             }.build()
+    }
+
+    @Resolver
+    class Query_ShelfResolver : QueryResolvers.Shelf() {
+        override suspend fun resolve(ctx: Context) = Shelf.Builder(ctx).build()
+    }
+
+    @Resolver
+    class Shelf_TopProductResolver : ShelfResolvers.TopProduct() {
+        override suspend fun resolve(ctx: Context): Product = Toy.Builder(ctx).id(1).prodType("action_figure").build()
+    }
+
+    @Resolver(
+        """
+        fragment _ on Shelf {
+            topProduct {
+                ... on Toy { id prodType }
+                ... on Fruit { id prodType }
+            }
+        }
+        """
+    )
+    class Shelf_TopProductDescriptionResolver : ShelfResolvers.TopProductDescription() {
+        override suspend fun resolve(ctx: Context): String {
+            val product = ctx.objectValue.getTopProduct()
+            return when (product) {
+                is Toy -> "Toy: ${product.getProdType()}"
+                is Fruit -> "Fruit: ${product.getProdType()}"
+                else -> "Unknown"
+            }
+        }
     }
 
     @Resolver

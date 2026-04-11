@@ -7,6 +7,8 @@ plugins {
 description = "Java Tenant API interfaces"
 
 dependencies {
+    api(libs.viaduct.engine.api)
+
     compileOnly(libs.jspecify)
     compileOnly(libs.spotbugs.annotations)
 

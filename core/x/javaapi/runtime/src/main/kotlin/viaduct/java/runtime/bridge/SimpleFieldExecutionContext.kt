@@ -4,7 +4,12 @@ import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.errors.FrameworkException
+import viaduct.errors.handleFrameworkErrors
+import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.context.SelectiveFieldExecutionContext
 import viaduct.java.api.resolvers.FieldResolverBase
@@ -44,32 +49,26 @@ class SimpleFieldExecutionContext(
 ) : FieldExecutionContext<GraphQLObject, Query, Arguments, AnySelections>,
     SelectiveFieldExecutionContext<AnySelections>,
     FieldResolverBase.Context<GraphQLObject, Query, Arguments, AnySelections> {
-    override fun getObjectValue(): GraphQLObject {
-        if (objectValue != null) {
-            return objectValue as GraphQLObject
+    override fun getObjectValue(): GraphQLObject =
+        handleFrameworkErrors("getObjectValue") {
+            objectValue as? GraphQLObject
+                ?: throw FrameworkException(
+                    "Object value not available. Ensure the resolver declares an objectValueFragment."
+                )
         }
-        throw UnsupportedOperationException(
-            "Object value not available. Ensure the resolver declares an objectValueFragment."
-        )
-    }
 
-    override fun getQueryValue(): Query {
-        if (queryValue != null) {
-            return queryValue as Query
+    override fun getQueryValue(): Query =
+        handleFrameworkErrors("getQueryValue") {
+            queryValue as? Query
+                ?: throw FrameworkException("Query value not available.")
         }
-        throw UnsupportedOperationException(
-            "Query value access not yet implemented for Java resolvers"
-        )
-    }
 
     override fun getArguments(): Arguments {
         return arguments ?: Arguments.NoArguments
     }
 
     override fun getSelections(): Any {
-        throw UnsupportedOperationException(
-            "Selections access not yet implemented for Java resolvers"
-        )
+        throw FrameworkException("Selections access not yet implemented for Java resolvers")
     }
 
     override fun getRequestContext(): Any? = requestContext
@@ -78,21 +77,15 @@ class SimpleFieldExecutionContext(
         type: viaduct.java.api.reflect.Type<T>,
         internalID: String
     ): viaduct.java.api.globalid.GlobalID<T> {
-        throw UnsupportedOperationException(
-            "globalIDFor not yet implemented for Java resolvers"
-        )
+        throw FrameworkException("globalIDFor not yet implemented for Java resolvers")
     }
 
     override fun <T : viaduct.java.api.types.NodeCompositeOutput> serialize(globalID: viaduct.java.api.globalid.GlobalID<T>): String {
-        throw UnsupportedOperationException(
-            "serialize not yet implemented for Java resolvers"
-        )
+        throw FrameworkException("serialize not yet implemented for Java resolvers")
     }
 
     override fun <T : viaduct.java.api.types.NodeCompositeOutput> nodeFor(id: viaduct.java.api.globalid.GlobalID<T>): T {
-        throw UnsupportedOperationException(
-            "nodeFor not yet implemented for Java resolvers"
-        )
+        throw FrameworkException("nodeFor not yet implemented for Java resolvers")
     }
 
     override fun <T : Any> query(
@@ -100,23 +93,24 @@ class SimpleFieldExecutionContext(
         variables: Map<String, Any?>,
         targetClass: Class<T>
     ): CompletableFuture<T> {
-        val engineCtx = engineExecutionContext ?: throw UnsupportedOperationException(
-            "ctx.query() requires engineExecutionContext. Ensure the resolver is running within a live execution context."
-        )
-        val scope = coroutineScope ?: throw UnsupportedOperationException(
-            "ctx.query() requires a coroutineScope."
-        )
-        return scope.future {
-            val queryTypeName = engineCtx.activeSchema.schema.queryType.name
-            val selectionSet = engineCtx.engineSelectionSetFactory.engineSelectionSet(
-                queryTypeName,
-                selections,
-                variables
+        val engineCtx = engineExecutionContext
+            ?: throw FrameworkException(
+                "ctx.query() requires engineExecutionContext. Ensure the resolver is running within a live execution context."
             )
-            val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
-            // TODO(RFC-265): Wrap result in wrapFrameworkErrors to properly attribute subquery errors
-            @Suppress("UNCHECKED_CAST")
-            convertAsyncEngineDataToJavaObject(targetClass, result) as T
+        val scope = coroutineScope
+            ?: throw FrameworkException("ctx.query() requires a coroutineScope.")
+        return scope.future {
+            handleFrameworkErrorsSuspend("query") {
+                val queryTypeName = engineCtx.activeSchema.schema.queryType.name
+                val selectionSet = engineCtx.engineSelectionSetFactory.engineSelectionSet(
+                    queryTypeName,
+                    selections,
+                    variables
+                )
+                val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
+                @Suppress("UNCHECKED_CAST")
+                convertSyncEngineDataToJavaObject(targetClass, materializeToSync(result)) as T
+            }
         }
     }
 
@@ -125,26 +119,60 @@ class SimpleFieldExecutionContext(
         variables: Map<String, Any?>,
         targetClass: Class<T>
     ): CompletableFuture<T> {
-        val engineCtx = engineExecutionContext ?: throw UnsupportedOperationException(
-            "ctx.mutation() requires engineExecutionContext. Ensure the resolver is running within a live execution context."
-        )
-        val scope = coroutineScope ?: throw UnsupportedOperationException(
-            "ctx.mutation() requires a coroutineScope."
-        )
-        return scope.future {
-            val mutationType = engineCtx.activeSchema.schema.mutationType
-                ?: throw UnsupportedOperationException(
-                    "ctx.mutation() is not available: the schema has no Mutation type."
-                )
-            val selectionSet = engineCtx.engineSelectionSetFactory.engineSelectionSet(
-                mutationType.name,
-                selections,
-                variables
+        val engineCtx = engineExecutionContext
+            ?: throw FrameworkException(
+                "ctx.mutation() requires engineExecutionContext. Ensure the resolver is running within a live execution context."
             )
-            val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.MUTATION)
-            // TODO(RFC-265): Wrap result in wrapFrameworkErrors to properly attribute subquery errors
-            @Suppress("UNCHECKED_CAST")
-            convertAsyncEngineDataToJavaObject(targetClass, result) as T
+        val scope = coroutineScope
+            ?: throw FrameworkException("ctx.mutation() requires a coroutineScope.")
+        return scope.future {
+            handleFrameworkErrorsSuspend("mutation") {
+                val mutationType = engineCtx.activeSchema.schema.mutationType
+                    ?: throw FrameworkException("ctx.mutation() is not available: the schema has no Mutation type.")
+                val selectionSet = engineCtx.engineSelectionSetFactory.engineSelectionSet(
+                    mutationType.name,
+                    selections,
+                    variables
+                )
+                val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.MUTATION)
+                @Suppress("UNCHECKED_CAST")
+                convertSyncEngineDataToJavaObject(targetClass, materializeToSync(result)) as T
+            }
         }
     }
+
+    /**
+     * Materializes all top-level selections from an async [EngineObjectData] into a
+     * [ResolvedEngineObjectData] ([EngineObjectData.Sync]).
+     *
+     * [EngineExecutionContext.resolveSelectionSet] returns [EngineObjectData] rather than
+     * [EngineObjectData.Sync], even though all fields are already resolved by the time it returns.
+     * Java GRT constructors require [EngineObjectData.Sync] because Java cannot call Kotlin
+     * suspend functions. This helper bridges the gap until the engine is updated to return
+     * [EngineObjectData.Sync] directly from [EngineExecutionContext.resolveSelectionSet].
+     */
+    private suspend fun materializeToSync(data: EngineObjectData): EngineObjectData.Sync {
+        val selections = data.fetchSelections()
+        val map = mutableMapOf<String, Any?>()
+        for (selection in selections) {
+            map[selection] = materializeValue(data.fetchOrNull(selection))
+        }
+        return ResolvedEngineObjectData(data.type, map)
+    }
+
+    /**
+     * Recursively materializes nested [EngineObjectData] values to [EngineObjectData.Sync].
+     *
+     * The engine contract ([EngineObjectData] docs) states that nested composite-typed fields
+     * are represented as [EngineObjectData] instances. This helper ensures they are all
+     * materialized to [EngineObjectData.Sync] so that [JavaObjectBase.fetchObject] can
+     * wrap them via the `EngineObjectData.Sync` constructor path.
+     */
+    private suspend fun materializeValue(value: Any?): Any? =
+        when (value) {
+            is EngineObjectData.Sync -> value
+            is EngineObjectData -> materializeToSync(value)
+            is List<*> -> value.map { materializeValue(it) }
+            else -> value
+        }
 }

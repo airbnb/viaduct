@@ -128,13 +128,11 @@ public class GraphQLSchemaParser {
           interfaces.add(union.getName());
         }
 
-        // Collect all fields (extensions are already merged), skipping:
-        // - `_` which is a Java 9+ keyword reserved by the language
-        // - BackingData-typed fields (opaque at the GRT level, mirrors Kotlin's
-        //   codegenIncludedFields in BackingData.kt)
+        // Collect all fields (extensions are already merged), skipping BackingData-typed
+        // fields (opaque at the GRT level, mirrors Kotlin's codegenIncludedFields in
+        // BackingData.kt)
         List<FieldModel> fields = new ArrayList<>();
         for (ViaductSchema.Field field : objectDef.getFields()) {
-          if (field.getName().equals("_")) continue;
           if (isBackingDataField(field)) continue;
           fields.add(createFieldModel(field, typeMapper));
         }
@@ -281,11 +279,29 @@ public class GraphQLSchemaParser {
             String className = fqClassName.substring(fqClassName.lastIndexOf('.') + 1);
             List<FieldModel> fields = new ArrayList<>();
             for (ViaductSchema.FieldArg arg : field.getArgs()) {
+              ViaductSchema.TypeDef argBaseTypeDef = arg.getType().getBaseTypeDef();
+              boolean argCompositeType =
+                  (argBaseTypeDef instanceof ViaductSchema.Object)
+                      || (argBaseTypeDef instanceof ViaductSchema.Input);
+              boolean argList = arg.getType().isList();
+              boolean argEnumType = argBaseTypeDef instanceof ViaductSchema.Enum;
+              boolean argAbstractType =
+                  (argBaseTypeDef instanceof ViaductSchema.Interface)
+                      || (argBaseTypeDef instanceof ViaductSchema.Union);
+              String argBaseTypeName =
+                  (argCompositeType || argEnumType || argAbstractType)
+                      ? argBaseTypeDef.getName()
+                      : null;
               fields.add(
                   new FieldModel(
                       arg.getName(),
                       typeMapper.toJavaType(arg.getType()),
-                      arg.getType().isNullable()));
+                      arg.getType().isNullable(),
+                      argCompositeType,
+                      argList,
+                      argEnumType,
+                      argAbstractType,
+                      argBaseTypeName));
             }
             arguments.add(new ArgumentModel(packageName, className, fields));
           }
@@ -460,7 +476,29 @@ public class GraphQLSchemaParser {
   private FieldModel createFieldModel(ViaductSchema.Field field, TypeMapper typeMapper) {
     String javaType = typeMapper.toJavaType(field.getType());
     boolean nullable = field.getType().isNullable();
-    return new FieldModel(field.getName(), javaType, nullable);
+    ViaductSchema.TypeDef baseTypeDef = field.getType().getBaseTypeDef();
+    // Only concrete object types and input types can be instantiated via constructor reference.
+    // Interface and union types become Java interfaces, so they use fetchAbstractObject instead.
+    boolean compositeType =
+        (baseTypeDef instanceof ViaductSchema.Object)
+            || (baseTypeDef instanceof ViaductSchema.Input);
+    boolean list = field.getType().isList();
+    boolean enumType = baseTypeDef instanceof ViaductSchema.Enum;
+    // Interface and union types require runtime type resolution (like Kotlin's wrapObject).
+    boolean abstractType =
+        (baseTypeDef instanceof ViaductSchema.Interface)
+            || (baseTypeDef instanceof ViaductSchema.Union);
+    String baseTypeName =
+        (compositeType || enumType || abstractType) ? baseTypeDef.getName() : null;
+    return new FieldModel(
+        field.getName(),
+        javaType,
+        nullable,
+        compositeType,
+        list,
+        enumType,
+        abstractType,
+        baseTypeName);
   }
 
   /** Extracts description from a type definition. Returns null for now. */

@@ -10,6 +10,9 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.errors.handleFrameworkErrors
+import viaduct.errors.handleFrameworkErrorsSuspend
+import viaduct.errors.wrapResolveException
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.types.Arguments
 
@@ -73,9 +76,16 @@ class JavaFieldResolverExecutor(
         selector: FieldResolverExecutor.Selector,
         context: EngineExecutionContext,
     ): Any? {
-        val arguments = createArguments(selector.arguments)
-        val objectValue = createObjectValue(selector)
-        val queryValue = createQueryValue(selector)
+        // ── Framework→Tenant boundary: context setup ──
+        val arguments = handleFrameworkErrors("$resolverId: createArguments") {
+            createArguments(selector.arguments)
+        }
+        val objectValue = handleFrameworkErrorsSuspend("$resolverId: createObjectValue") {
+            createObjectValue(selector)
+        }
+        val queryValue = handleFrameworkErrorsSuspend("$resolverId: createQueryValue") {
+            createQueryValue(selector)
+        }
         val scope = CoroutineScope(currentCoroutineContext())
 
         val javaContext = SimpleFieldExecutionContext(
@@ -87,11 +97,16 @@ class JavaFieldResolverExecutor(
             coroutineScope = scope,
         )
 
-        // Call the Java resolver function and await the CompletableFuture
-        val future = resolveFunction(javaContext)
-        val result = future.await()
-        // Convert Java GRT objects to EngineObjectData so the engine can process them
-        return convertResult(result, graphqlSchema)
+        // ── Tenant→Framework boundary: resolver call ──
+        val result = wrapResolveException(resolverId) {
+            val future = resolveFunction(javaContext)
+            future.await()
+        }
+
+        // ── Framework→Tenant boundary: result conversion ──
+        return handleFrameworkErrors("$resolverId: convertResult") {
+            convertResult(result, graphqlSchema)
+        }
     }
 
     /**
@@ -128,10 +143,10 @@ class JavaFieldResolverExecutor(
     }
 
     /**
-     * Creates a typed Arguments instance from the engine's argument map using reflection.
+     * Creates a typed Arguments instance from the engine's argument map.
      *
-     * For each entry in the map, finds a matching setter on the Arguments class and invokes it.
-     * Nested maps are recursively converted to the setter's expected parameter type.
+     * The arguments class must have a public constructor accepting Map<String, Any?> (generated
+     * by the new wrapping-based codegen). No reflection over fields or setters.
      * Returns null if no arguments class is configured (resolver takes no arguments).
      */
     private fun createArguments(argumentMap: Map<String, Any?>): Arguments? {
@@ -139,33 +154,8 @@ class JavaFieldResolverExecutor(
             return null
         }
 
-        return populateFromMap(argumentsClass, argumentMap) as Arguments
-    }
-
-    /**
-     * Creates an instance of the given class and populates it from a map using setter reflection.
-     *
-     * Handles nested maps by recursively creating instances of the setter's parameter type.
-     */
-    @Suppress("UNCHECKED_CAST")
-    private fun populateFromMap(
-        clazz: Class<*>,
-        map: Map<String, Any?>
-    ): Any {
-        val instance = clazz.getDeclaredConstructor().newInstance()
-        for ((key, value) in map) {
-            val setterName = "set${key.replaceFirstChar { it.uppercase() }}"
-            val setter = clazz.methods.firstOrNull { it.name == setterName && it.parameterCount == 1 }
-                ?: continue
-            val paramType = setter.parameterTypes[0]
-            val convertedValue = when {
-                value == null -> null
-                value is Map<*, *> && !Map::class.java.isAssignableFrom(paramType) ->
-                    populateFromMap(paramType, value as Map<String, Any?>)
-                else -> value
-            }
-            setter.invoke(instance, convertedValue)
-        }
-        return instance
+        @Suppress("UNCHECKED_CAST")
+        val constructor = argumentsClass.getDeclaredConstructor(Map::class.java)
+        return constructor.newInstance(argumentMap) as Arguments
     }
 }

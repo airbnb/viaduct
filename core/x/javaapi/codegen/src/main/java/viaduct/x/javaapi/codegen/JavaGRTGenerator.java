@@ -56,12 +56,14 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
+            import viaduct.java.api.types.GraphQLEnum;
+
             <if(mdl.hasDescription)>
             /**
              * <mdl.description>
              */
             <endif>
-            public enum <mdl.className> {
+            public enum <mdl.className> implements GraphQLEnum {
                 <mdl.valueNames: {valueName | <valueName>}; separator=",
             ">
             }
@@ -101,31 +103,33 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
-            import viaduct.java.api.types.GraphQLObject;
+            import viaduct.engine.api.EngineObjectData;
+            import viaduct.java.api.internal.JavaObjectBase;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
+            import java.util.LinkedHashMap;
             import java.util.List;
+            import java.util.Map;
 
             <if(mdl.hasDescription)>
             /**
              * <mdl.description>
              */
             <endif>
-            public class <mdl.className> implements <mdl.implementsClause> {
+            public class <mdl.className> extends JavaObjectBase<if(mdl.hasImplementsClause)> implements <mdl.implementsClause><endif> {
 
-                <mdl.fields: {f |
-                private <f.javaType> <f.safeName>;
-                }; separator="
-            ">
+                public <mdl.className>(EngineObjectData.Sync data) {
+                    super(data);
+                }
+
+                private <mdl.className>(Map\\<String, Object> data) {
+                    super(data);
+                }
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    return this.<f.safeName>;
-                \\}
-
-                public void <f.setterName>(<f.javaType> <f.safeName>) {
-                    this.<f.safeName> = <f.safeName>;
+                    <if(f.abstractList)>return fetchAbstractObjectList("<f.name>", <f.baseTypeName>.class);<elseif(f.abstractType)>return fetchAbstractObject("<f.name>", <f.baseTypeName>.class);<elseif(f.compositeList)>return fetchObjectList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return fetchObject("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return fetchEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return fetchEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return fetchScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return fetchScalar("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return fetchScalarList("<f.name>");<else>return fetchScalar("<f.name>");<endif>
                 \\}
                 }; separator="
             ">
@@ -135,26 +139,18 @@ public final class JavaGRTGenerator {
                 }
 
                 public static class Builder {
-                    <mdl.fields: {f |
-                    private <f.javaType> <f.safeName>;
-                    }; separator="
-            ">
+                    private final Map\\<String, Object> data = new LinkedHashMap\\<>();
 
                     <mdl.fields: {f |
                     public Builder <f.safeName>(<f.javaType> <f.safeName>) {
-                        this.<f.safeName> = <f.safeName>;
+                        data.put("<f.name>", <f.safeName>);
                         return this;
                     \\}
                     }; separator="
             ">
 
                     public <mdl.className> build() {
-                        <mdl.className> obj = new <mdl.className>();
-                        <mdl.fields: {f |
-                        obj.<f.safeName> = this.<f.safeName>;
-                        }; separator="
-            ">
-                        return obj;
+                        return new <mdl.className>(new LinkedHashMap\\<>(data));
                     }
                 }
             }
@@ -194,30 +190,28 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
-            import viaduct.java.api.types.GraphQLInput;
+            import viaduct.java.api.internal.JavaInputBase;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
+            import java.util.LinkedHashMap;
             import java.util.List;
+            import java.util.Map;
 
             <if(mdl.hasDescription)>
             /**
              * <mdl.description>
              */
             <endif>
-            public class <mdl.className> implements GraphQLInput {
+            public class <mdl.className> extends JavaInputBase {
 
-                <mdl.fields: {f |
-                private <f.javaType> <f.safeName>;
-                }; separator="\\n">
+                public <mdl.className>(Map\\<String, Object> data) {
+                    super(data);
+                }
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    return this.<f.safeName>;
-                \\}
-
-                public void <f.setterName>(<f.javaType> <f.safeName>) {
-                    this.<f.safeName> = <f.safeName>;
+                    <if(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
                 \\}
                 }; separator="\\n">
 
@@ -226,23 +220,17 @@ public final class JavaGRTGenerator {
                 }
 
                 public static class Builder {
-                    <mdl.fields: {f |
-                    private <f.javaType> <f.safeName>;
-                    }; separator="\\n">
+                    private final Map\\<String, Object> data = new LinkedHashMap\\<>();
 
                     <mdl.fields: {f |
                     public Builder <f.safeName>(<f.javaType> <f.safeName>) {
-                        this.<f.safeName> = <f.safeName>;
+                        data.put("<f.name>", <f.safeName>);
                         return this;
                     \\}
                     }; separator="\\n">
 
                     public <mdl.className> build() {
-                        <mdl.className> obj = new <mdl.className>();
-                        <mdl.fields: {f |
-                        obj.<f.safeName> = this.<f.safeName>;
-                        }; separator="\\n">
-                        return obj;
+                        return new <mdl.className>(new LinkedHashMap\\<>(data));
                     }
                 }
             }
@@ -339,22 +327,20 @@ public final class JavaGRTGenerator {
             import java.time.LocalDate;
             import java.time.OffsetTime;
             import java.util.List;
+            import java.util.Map;
             import viaduct.java.api.types.Arguments;
+            import viaduct.java.api.internal.JavaInputBase;
 
             /** Generated arguments class for resolver field. */
-            public class <mdl.className> implements Arguments {
+            public class <mdl.className> extends JavaInputBase implements Arguments {
 
-                <mdl.fields: {f |
-                private <f.javaType> <f.safeName>;
-                }; separator="\\n">
+                public <mdl.className>(Map\\<String, Object> data) {
+                    super(data);
+                }
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    return this.<f.safeName>;
-                \\}
-
-                public void <f.setterName>(<f.javaType> <f.safeName>) {
-                    this.<f.safeName> = <f.safeName>;
+                    <if(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
                 \\}
                 }; separator="\\n">
             }

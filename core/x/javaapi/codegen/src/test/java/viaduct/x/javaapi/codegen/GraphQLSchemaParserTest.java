@@ -84,7 +84,8 @@ class GraphQLSchemaParserTest {
 
     List<ObjectModel> objects = parser.extractObjects(schema, "com.example.types");
 
-    assertThat(objects).hasSize(6); // User, Listing, Booking, PrimitiveListTest, Review, PageInfo
+    // User, Listing, Booking, PrimitiveListTest, Review, PageInfo, SearchContainer
+    assertThat(objects).hasSize(7);
 
     // User object (includes 5 base fields + 3 resolver fields from extend type)
     ObjectModel user =
@@ -134,6 +135,50 @@ class GraphQLSchemaParserTest {
     ObjectModel booking =
         objects.stream().filter(o -> o.className().equals("Booking")).findFirst().orElseThrow();
     assertThat(booking.fields()).hasSize(9); // 7 original + createdAt + updatedAt
+  }
+
+  @Test
+  void extractsAbstractTypedFields() throws IOException {
+    ViaductSchema schema = parser.parse(getTestSchemaReader());
+
+    List<ObjectModel> objects = parser.extractObjects(schema, "com.example.types");
+
+    ObjectModel searchContainer =
+        objects.stream()
+            .filter(o -> o.className().equals("SearchContainer"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(searchContainer.fields()).hasSize(3);
+
+    // Interface-typed field
+    FieldModel topNode =
+        searchContainer.fields().stream()
+            .filter(f -> f.name().equals("topNode"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(topNode.abstractType()).isTrue();
+    assertThat(topNode.compositeType()).isFalse();
+    assertThat(topNode.baseTypeName()).isEqualTo("Node");
+
+    // Union-typed field
+    FieldModel topResult =
+        searchContainer.fields().stream()
+            .filter(f -> f.name().equals("topResult"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(topResult.abstractType()).isTrue();
+    assertThat(topResult.compositeType()).isFalse();
+    assertThat(topResult.baseTypeName()).isEqualTo("SearchResult");
+
+    // Union-typed list field
+    FieldModel allResults =
+        searchContainer.fields().stream()
+            .filter(f -> f.name().equals("allResults"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(allResults.abstractType()).isTrue();
+    assertThat(allResults.list()).isTrue();
+    assertThat(allResults.baseTypeName()).isEqualTo("SearchResult");
   }
 
   @Test

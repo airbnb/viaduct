@@ -10,7 +10,8 @@ class ArgumentModelTest {
   @Test
   void recordAccessorsReturnConstructorValues() {
     List<FieldModel> fields =
-        List.of(new FieldModel("id", "String", false), new FieldModel("count", "Integer", true));
+        List.of(
+            FieldModel.simple("id", "String", false), FieldModel.simple("count", "Integer", true));
 
     ArgumentModel model = new ArgumentModel("com.example", "MyArgs", fields);
 
@@ -21,7 +22,7 @@ class ArgumentModelTest {
 
   @Test
   void gettersReturnSameValuesAsRecordAccessors() {
-    List<FieldModel> fields = List.of(new FieldModel("name", "String", false));
+    List<FieldModel> fields = List.of(FieldModel.simple("name", "String", false));
 
     ArgumentModel model = new ArgumentModel("com.airbnb.types", "SearchArgs", fields);
 
