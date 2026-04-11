@@ -2,6 +2,7 @@
 
 package viaduct.arbitrary.graphql
 
+import graphql.Scalars
 import graphql.introspection.Introspection
 import graphql.language.ArrayValue
 import graphql.language.NullValue
@@ -10,17 +11,22 @@ import graphql.language.Value
 import graphql.schema.GraphQLAppliedDirective
 import graphql.schema.GraphQLArgument
 import graphql.schema.GraphQLDirective
+import graphql.schema.GraphQLEnumType
+import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLInputType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLNonNull
+import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLSchemaElement
+import graphql.schema.GraphQLTypeReference
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.GraphQLTypeVisitorStub
 import graphql.schema.InputValueWithState
+import graphql.schema.SchemaTransformer
 import graphql.schema.SchemaTraverser
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.SchemaPrinter
@@ -31,7 +37,9 @@ import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.next
+import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CompoundingWeight
@@ -39,6 +47,8 @@ import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.engine.api.ViaductSchema
+import viaduct.graphql.schema.binary.extensions.toBinaryFile
+import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 
 class GraphQLSchemasTest : KotestPropertyBase() {
     // It's useful to have a directive that can be applied to any element
@@ -168,6 +178,104 @@ class GraphQLSchemasTest : KotestPropertyBase() {
                     dirs.isEmpty()
                 }
         }
+
+    @Test
+    fun `regression -- applied directives can be binary encoded without directive cycles`(): Unit =
+        runBlocking {
+            val seedSchema = """
+                directive @a(arg: Int) on ARGUMENT_DEFINITION
+                directive @b(arg: Int) on ARGUMENT_DEFINITION
+
+                type Query {
+                    placeholder(arg: Int): Int
+                }
+            """.trimIndent().asSchema
+
+            val cfg =
+                Config.default +
+                    (AppliedDirectiveWeight to CompoundingWeight.Always) +
+                    (DirectiveIsRepeatable to 0.0) +
+                    (DefaultValueWeight to 0.0)
+            val types = GraphQLTypes.empty.copy(
+                directives = seedSchema.directives.associateBy { it.name },
+                objects = mapOf("Query" to seedSchema.queryType)
+            )
+
+            Arb.graphQLSchema(types, cfg).forAll { schema ->
+                ByteArrayOutputStream().use { out ->
+                    viaduct.graphql.schema.ViaductSchema
+                        .fromGraphQLSchema(schema)
+                        .toBinaryFile(out)
+                }
+                true
+            }
+        }
+
+    @Test
+    fun `AddAppliedDirectives prevents direct cycles between directive arguments`() {
+        val transformed = controlSchema(
+            directives = listOf(
+                controlDirective("a", GraphQLNonNull.nonNull(Scalars.GraphQLInt), Introspection.DirectiveLocation.ARGUMENT_DEFINITION),
+                controlDirective("b", GraphQLNonNull.nonNull(Scalars.GraphQLInt), Introspection.DirectiveLocation.ARGUMENT_DEFINITION),
+            )
+        ).transformAppliedDirectives()
+
+        val aArgDirectives = transformed.directiveArgumentAppliedDirectiveNames("a", "arg")
+        val bArgDirectives = transformed.directiveArgumentAppliedDirectiveNames("b", "arg")
+
+        assertEquals(true, aArgDirectives.contains("b") xor bArgDirectives.contains("a"))
+        assertBinaryEncodes(transformed)
+    }
+
+    @Test
+    fun `AddAppliedDirectives prevents cycles through directive argument input fields`() {
+        val transformed = controlSchema(
+            directives = listOf(
+                controlDirective("a", GraphQLTypeReference.typeRef("InputA"), Introspection.DirectiveLocation.ARGUMENT_DEFINITION),
+                controlDirective("b", GraphQLNonNull.nonNull(Scalars.GraphQLInt), Introspection.DirectiveLocation.INPUT_FIELD_DEFINITION),
+            ),
+            inputs = listOf(
+                GraphQLInputObjectType
+                    .newInputObject()
+                    .name("InputA")
+                    .field(
+                        GraphQLInputObjectField
+                            .newInputObjectField()
+                            .name("field")
+                            .type(GraphQLNonNull.nonNull(Scalars.GraphQLInt))
+                    ).build()
+            )
+        ).transformAppliedDirectives()
+
+        val fieldHasB = transformed.inputFieldAppliedDirectiveNames("InputA", "field").contains("b")
+        val bArgHasA = transformed.directiveArgumentAppliedDirectiveNames("b", "arg").contains("a")
+
+        assertEquals(true, fieldHasB xor bArgHasA)
+        assertBinaryEncodes(transformed)
+    }
+
+    @Test
+    fun `AddAppliedDirectives prevents cycles through directive argument enum values`() {
+        val transformed = controlSchema(
+            directives = listOf(
+                controlDirective("a", GraphQLTypeReference.typeRef("E"), Introspection.DirectiveLocation.ARGUMENT_DEFINITION),
+                controlDirective("b", GraphQLNonNull.nonNull(Scalars.GraphQLInt), Introspection.DirectiveLocation.ENUM_VALUE),
+            ),
+            enums = listOf(
+                GraphQLEnumType
+                    .newEnum()
+                    .name("E")
+                    .value("X")
+                    .build()
+            )
+        ).transformAppliedDirectives()
+
+        val valueHasB = transformed.enumValueAppliedDirectiveNames("E", "X").contains("b")
+        val bArgHasA = transformed.directiveArgumentAppliedDirectiveNames("b", "arg").contains("a")
+
+        assertEquals(true, valueHasB xor bArgHasA)
+        assertBinaryEncodes(transformed)
+    }
 
     @Test
     fun `generates inhabited OneOf types`(): Unit =
@@ -433,4 +541,98 @@ class GraphQLSchemasTest : KotestPropertyBase() {
                 TraversalControl.CONTINUE
             }
     }
+
+    private fun GraphQLSchema.transformAppliedDirectives(
+        seed: Long = 0L,
+        cfg: Config =
+            Config.default +
+                (AppliedDirectiveWeight to CompoundingWeight.Always) +
+                (DirectiveIsRepeatable to 0.0) +
+                (DefaultValueWeight to 0.0)
+    ): GraphQLSchema = SchemaTransformer.transformSchema(this, AddAppliedDirectives(ViaductSchema(this), cfg, RandomSource.seeded(seed)))
+
+    private fun GraphQLSchema.directiveArgumentAppliedDirectiveNames(
+        directiveName: String,
+        argName: String
+    ): Set<String> =
+        getDirective(directiveName)
+            .getArgument(argName)
+            .appliedDirectives
+            .mapTo(mutableSetOf()) { it.name }
+
+    private fun GraphQLSchema.inputFieldAppliedDirectiveNames(
+        inputName: String,
+        fieldName: String
+    ): Set<String> =
+        getTypeAs<GraphQLInputObjectType>(inputName)
+            .getField(fieldName)
+            .appliedDirectives
+            .mapTo(mutableSetOf()) { it.name }
+
+    private fun GraphQLSchema.enumValueAppliedDirectiveNames(
+        enumName: String,
+        valueName: String
+    ): Set<String> =
+        getTypeAs<graphql.schema.GraphQLEnumType>(enumName)
+            .getValue(valueName)
+            .appliedDirectives
+            .mapTo(mutableSetOf()) { it.name }
+
+    private fun assertBinaryEncodes(schema: GraphQLSchema) {
+        ByteArrayOutputStream().use { out ->
+            viaduct.graphql.schema.ViaductSchema
+                .fromGraphQLSchema(schema)
+                .toBinaryFile(out)
+        }
+    }
+
+    private fun controlSchema(
+        directives: List<GraphQLDirective>,
+        inputs: List<GraphQLInputObjectType> = emptyList(),
+        enums: List<GraphQLEnumType> = emptyList()
+    ): GraphQLSchema {
+        val cfg =
+            Config.default +
+                (AppliedDirectiveWeight to CompoundingWeight.Never) +
+                (DefaultValueWeight to 0.0)
+        val query = GraphQLObjectType
+            .newObject()
+            .name("Query")
+            .field(
+                GraphQLFieldDefinition
+                    .newFieldDefinition()
+                    .name("placeholder")
+                    .type(Scalars.GraphQLInt)
+                    .argument(
+                        GraphQLArgument
+                            .newArgument()
+                            .name("arg")
+                            .type(Scalars.GraphQLInt)
+                    )
+            ).build()
+
+        val types = GraphQLTypes.empty.copy(
+            directives = directives.associateBy { it.name },
+            objects = mapOf(query.name to query),
+            inputs = inputs.associateBy { it.name },
+            enums = enums.associateBy { it.name }
+        )
+        return SchemaGenerator(cfg, RandomSource.seeded(0)).createSchema(types)
+    }
+
+    private fun controlDirective(
+        name: String,
+        argType: GraphQLInputType,
+        vararg locations: Introspection.DirectiveLocation
+    ): GraphQLDirective =
+        GraphQLDirective
+            .newDirective()
+            .name(name)
+            .argument(
+                GraphQLArgument
+                    .newArgument()
+                    .name("arg")
+                    .type(argType)
+            ).validLocations(*locations)
+            .build()
 }

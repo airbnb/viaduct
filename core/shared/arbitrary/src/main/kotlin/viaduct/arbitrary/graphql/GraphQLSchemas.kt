@@ -11,7 +11,6 @@ import graphql.schema.GraphQLAppliedDirective
 import graphql.schema.GraphQLArgument
 import graphql.schema.GraphQLCodeRegistry
 import graphql.schema.GraphQLDirective
-import graphql.schema.GraphQLDirectiveContainer
 import graphql.schema.GraphQLEnumType
 import graphql.schema.GraphQLEnumValueDefinition
 import graphql.schema.GraphQLFieldDefinition
@@ -34,7 +33,9 @@ import graphql.schema.TypeResolver
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaParser
 import graphql.util.TraversalControl
+import graphql.util.Traverser
 import graphql.util.TraverserContext
+import graphql.util.TraverserVisitorStub
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
@@ -212,6 +213,11 @@ internal class AddDefaults(private val schema: ViaductSchema, private val cfg: C
 }
 
 internal class AddAppliedDirectives(private val schema: ViaductSchema, private val cfg: Config, private val rs: RandomSource) : GraphQLTypeVisitorStub() {
+    private data class DirectiveDependencyInfo(
+        val directives: Set<String>,
+        val referencedInputLikeTypes: Set<String>
+    )
+
     private val directivesByLocation =
         schema.schema.directives.fold(emptyMap<DirectiveLocation, Set<GraphQLDirective>>()) { acc, dir ->
             // @oneOf is applied during type generation, we can skip applying it here
@@ -223,6 +229,29 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
                     acc + (loc to newDirs)
                 }
             }
+        }
+    private val directivesByName =
+        schema.schema.directives
+            .filterNot { it.name in builtinDirectives }
+            .associateBy { it.name }
+
+    private val directiveDependencyInfoByName =
+        directivesByName.mapValues { (_, directive) ->
+            buildDirectiveDependencyInfo(directive)
+        }
+
+    private val directivesByReferencedInputLikeType: Map<String, Set<String>> =
+        directiveDependencyInfoByName.entries
+            .fold(mutableMapOf<String, MutableSet<String>>()) { acc, (directiveName, info) ->
+                info.referencedInputLikeTypes.forEach { typeName ->
+                    acc.getOrPut(typeName) { mutableSetOf() }.add(directiveName)
+                }
+                acc
+            }
+
+    private val directiveDependencies: MutableMap<String, MutableSet<String>> =
+        directiveDependencyInfoByName.mapValuesTo(mutableMapOf()) { (_, info) ->
+            info.directives.toMutableSet()
         }
 
     // don't traverse into built-in directives
@@ -336,17 +365,31 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
             }
         }
 
-    private fun <T : GraphQLDirectiveContainer> replaceAppliedDirectives(
+    private fun replaceAppliedDirectives(
         ctx: TraverserContext<GraphQLSchemaElement>,
         loc: DirectiveLocation,
         allowDeprecated: Boolean = true,
-        doReplace: (dirs: List<GraphQLAppliedDirective>) -> T
+        doReplace: (dirs: List<GraphQLAppliedDirective>) -> GraphQLSchemaElement
     ): TraversalControl =
         ctx.unlessIntrospection {
-            val dirs = genAppliedDirectives(loc, ctx.collectTraversedDirectives(), allowDeprecated)
+            val ownerDirectives = ctx.ownerDirectiveNames()
+            val dirs = genAppliedDirectives(
+                loc = loc,
+                traversedDirectives = ctx.collectTraversedDirectives(),
+                allowDeprecated = allowDeprecated,
+                ownerDirectives = ownerDirectives
+            )
             if (dirs.isEmpty()) {
                 TraversalControl.CONTINUE
             } else {
+                if (ownerDirectives.isNotEmpty()) {
+                    val newDependencies = dirs.map { it.name }
+                    ownerDirectives.forEach { ownerDirective ->
+                        directiveDependencies
+                            .getOrPut(ownerDirective) { mutableSetOf() }
+                            .addAll(newDependencies)
+                    }
+                }
                 changeNode(ctx, doReplace(dirs))
             }
         }
@@ -354,7 +397,8 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
     private fun genAppliedDirectives(
         loc: DirectiveLocation,
         traversedDirectives: Set<String>,
-        allowDeprecated: Boolean
+        allowDeprecated: Boolean,
+        ownerDirectives: Set<String>
     ): List<GraphQLAppliedDirective> {
         tailrec fun loop(
             acc: List<GraphQLAppliedDirective>,
@@ -385,7 +429,17 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
                 acc
             }
 
-        val pool = (directivesByLocation[loc] ?: emptySet())
+        val pool = candidateDirectives(loc, traversedDirectives, allowDeprecated, ownerDirectives)
+        return loop(emptyList(), pool.toSet())
+    }
+
+    private fun candidateDirectives(
+        loc: DirectiveLocation,
+        traversedDirectives: Set<String>,
+        allowDeprecated: Boolean,
+        ownerDirectives: Set<String>
+    ): Set<GraphQLDirective> =
+        (directivesByLocation[loc] ?: emptySet())
             .let { pool ->
                 // some locations don't allow application of @deprecated.
                 // Remove it from the pool if necessary
@@ -403,9 +457,114 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
                 } else {
                     pool
                 }
+            }.let { pool ->
+                // Some input and enum nodes are shared across multiple directive definitions.
+                // Remove any directive that would make any owning directive depend on itself.
+                // This keeps the generated directive dependency graph acyclic.
+                if (ownerDirectives.isNotEmpty()) {
+                    pool.filterNot { candidate ->
+                        ownerDirectives.any { ownerDirective ->
+                            wouldCreateDirectiveCycle(ownerDirective, candidate.name)
+                        }
+                    }.toSet()
+                } else {
+                    pool
+                }
             }
-        return loop(emptyList(), pool.toSet())
+
+    private fun wouldCreateDirectiveCycle(
+        hostDirective: String,
+        candidateDirective: String
+    ): Boolean {
+        if (hostDirective == candidateDirective) {
+            return true
+        }
+
+        val seen = mutableSetOf<String>()
+
+        fun canReach(current: String): Boolean {
+            if (!seen.add(current)) {
+                return false
+            }
+            if (current == hostDirective) {
+                return true
+            }
+            return directiveDependencies[current]?.any(::canReach) == true
+        }
+
+        return canReach(candidateDirective)
     }
+
+    private fun buildDirectiveDependencyInfo(directive: GraphQLDirective): DirectiveDependencyInfo {
+        val dependencies = mutableSetOf<String>()
+        val traversedDirectiveDefs = mutableSetOf<String>()
+        val referencedInputLikeTypes = mutableSetOf<String>()
+        val traversedInputLikeTypes = mutableSetOf<String>()
+        val traverser =
+            Traverser.depthFirstWithNamedChildren<GraphQLSchemaElement>(
+                { element ->
+                    dependencyChildren(
+                        element = element,
+                        dependencies = dependencies,
+                        referencedInputLikeTypes = referencedInputLikeTypes,
+                        traversedDirectiveDefs = traversedDirectiveDefs,
+                        traversedInputLikeTypes = traversedInputLikeTypes
+                    )
+                },
+                null,
+                null
+            )
+        val visitor = object : TraverserVisitorStub<GraphQLSchemaElement>() {}
+
+        directive.arguments.forEach { arg ->
+            traverser.traverse(arg, visitor)
+        }
+
+        return DirectiveDependencyInfo(
+            directives = dependencies,
+            referencedInputLikeTypes = referencedInputLikeTypes
+        )
+    }
+
+    private fun dependencyChildren(
+        element: GraphQLSchemaElement,
+        dependencies: MutableSet<String>,
+        referencedInputLikeTypes: MutableSet<String>,
+        traversedDirectiveDefs: MutableSet<String>,
+        traversedInputLikeTypes: MutableSet<String>
+    ): Map<String, List<GraphQLSchemaElement>> =
+        when (element) {
+            is GraphQLAppliedDirective -> {
+                dependencies.add(element.name)
+                val directiveDef = directivesByName[element.name]
+                if (directiveDef != null && traversedDirectiveDefs.add(directiveDef.name)) {
+                    mapOf("directiveDefinition" to listOf(directiveDef))
+                } else {
+                    emptyMap()
+                }
+            }
+            is GraphQLInputObjectType, is GraphQLEnumType -> {
+                val namedType = element as GraphQLNamedType
+                referencedInputLikeTypes.add(namedType.name)
+                if (traversedInputLikeTypes.add(namedType.name)) {
+                    resolvedChildren(element)
+                } else {
+                    emptyMap()
+                }
+            }
+            else -> resolvedChildren(element)
+        }
+
+    private fun resolvedChildren(element: GraphQLSchemaElement): Map<String, List<GraphQLSchemaElement>> =
+        element.childrenWithTypeReferences.children.mapValues { (_, children) ->
+            children.mapNotNull { child ->
+                when (child) {
+                    is GraphQLTypeReference -> schema.schema.getType(child.name)
+                    is GraphQLSchemaElement -> child
+                    else -> null
+                }
+            }
+        }
 
     private val GraphQLInputType.asReference: GraphQLInputType
         get() =
@@ -431,4 +590,29 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
     }
 
     private fun TraverserContext<GraphQLSchemaElement>.collectTraversedDirectives(): Set<String> = parentNodes.mapNotNull { (it as? GraphQLDirective)?.name }.toSet()
+
+    private fun TraverserContext<GraphQLSchemaElement>.containingDirectiveName(): String? = parentNodes.firstNotNullOfOrNull { (it as? GraphQLDirective)?.name }
+
+    private fun TraverserContext<GraphQLSchemaElement>.ownerDirectiveNames(): Set<String> =
+        mutableSetOf<String>().also { names ->
+            containingDirectiveName()?.let(names::add)
+            collectContainingInputLikeTypeNames().forEach { typeName ->
+                names.addAll(directivesByReferencedInputLikeType[typeName].orEmpty())
+            }
+        }
+
+    private fun TraverserContext<GraphQLSchemaElement>.collectContainingInputLikeTypeNames(): Set<String> =
+        mutableSetOf<String>().also { names ->
+            parentNodes.forEach { element ->
+                element.inputLikeTypeName()?.let(names::add)
+            }
+            thisNode().inputLikeTypeName()?.let(names::add)
+        }
+
+    private fun GraphQLSchemaElement.inputLikeTypeName(): String? =
+        when (this) {
+            is GraphQLInputObjectType -> name
+            is GraphQLEnumType -> name
+            else -> null
+        }
 }
