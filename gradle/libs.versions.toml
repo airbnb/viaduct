@@ -71,6 +71,7 @@ viaduct-tenant-api = { module = "com.airbnb.viaduct:tenant-api", version.ref = "
 viaduct-tenant-runtime = { module = "com.airbnb.viaduct:tenant-runtime", version.ref = "project" }
 viaduct-tenant-codegen = { module = "com.airbnb.viaduct:tenant-codegen", version.ref = "project" }
 viaduct-tenant-ksp = { module = "com.airbnb.viaduct:tenant-ksp", version.ref = "project" }
+viaduct-tenant-validation = { module = "com.airbnb.viaduct:tenant-validation", version.ref = "project" }
 viaduct-tenant-wiring = { module = "com.airbnb.viaduct:tenant-wiring", version.ref = "project" }
 
 viaduct-javaapi-api = { module = "com.airbnb.viaduct:javaapi-api", version.ref = "project" }
