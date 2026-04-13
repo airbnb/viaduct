@@ -163,5 +163,47 @@ class TestMainErrorHandling(unittest.TestCase):
         sys.stdin = sys.__stdin__
 
 
+class TestJobsJsonCompactness(unittest.TestCase):
+    """Regression tests for the jq -c requirement in ci-manual-trigger.yml.
+
+    The 'Build failed jobs list' step writes jobs_json to $GITHUB_OUTPUT
+    using the single-line echo "key=value" format.  If the JSON spans
+    multiple lines (i.e., jq is called without -c), the value is silently
+    truncated at the first newline.
+    """
+
+    def test_single_job_json_is_single_line(self):
+        """A single-element jobs array must serialize to one line."""
+        jobs = [{"name": "Build and Test", "run_id": "123"}]
+        compact = json.dumps(jobs, separators=(",", ":"))
+        self.assertEqual(1, len(compact.splitlines()))
+
+    def test_multi_job_json_is_single_line(self):
+        """A multi-element jobs array must serialize to one line."""
+        jobs = [
+            {"name": "Build and Test", "run_id": "111"},
+            {"name": "Demo App Tests", "run_id": "222"},
+            {"name": "API Compatibility", "run_id": "333"},
+        ]
+        compact = json.dumps(jobs, separators=(",", ":"))
+        self.assertEqual(1, len(compact.splitlines()))
+
+    def test_compact_json_round_trips_through_format_alert(self):
+        """Compact JSON fed to format_alert must produce valid output."""
+        jobs = [
+            {"name": "Build and Test", "run_id": "111"},
+            {"name": "Demo App Tests", "run_id": "222"},
+        ]
+        data = {
+            "branch": "main",
+            "server_url": "https://github.com",
+            "repository": "example/repo",
+            "jobs": jobs,
+        }
+        result = format_alert(data)
+        self.assertIn("Build and Test", result)
+        self.assertIn("Demo App Tests", result)
+
+
 if __name__ == "__main__":
     unittest.main()
