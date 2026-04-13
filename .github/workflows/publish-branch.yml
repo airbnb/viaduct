@@ -1,0 +1,179 @@
+name: Publish Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Publication mode: snapshot or release"
+        required: true
+        type: choice
+        options:
+          - snapshot
+          - release
+      ref:
+        description: "Git ref to checkout and publish"
+        required: true
+        type: string
+      run_checks:
+        description: "Run ./gradlew check before publishing"
+        required: false
+        default: true
+        type: boolean
+      confirm_versions:
+        description: "Run ./gradlew confirmDemoAppVersions"
+        required: false
+        default: true
+        type: boolean
+
+  workflow_call:
+    inputs:
+      mode:
+        required: true
+        type: string
+      ref:
+        required: true
+        type: string
+      run_checks:
+        required: false
+        default: true
+        type: boolean
+      confirm_versions:
+        required: false
+        default: true
+        type: boolean
+    outputs:
+      source_sha:
+        description: "SHA of the published commit"
+        value: ${{ jobs.publish.outputs.source_sha }}
+      version:
+        description: "Version from VERSION file"
+        value: ${{ jobs.validate.outputs.effective_version }}
+      snapshot_tag:
+        description: "Suggested snapshot tag"
+        value: ${{ jobs.validate.outputs.snapshot_tag }}
+    secrets:
+      VIADUCT_GRADLE_PUBLISH_KEY:
+        required: false
+      VIADUCT_GRADLE_PUBLISH_SECRET:
+        required: false
+      VIADUCT_SONATYPE_USERNAME:
+        required: true
+      VIADUCT_SONATYPE_PASSWORD:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ inputs.ref }}-${{ inputs.mode }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      effective_version: ${{ steps.validate.outputs.effective_version }}
+      snapshot_tag: ${{ steps.validate.outputs.snapshot_tag }}
+      is_release_branch: ${{ steps.validate.outputs.is_release_branch }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Validate branch and version state
+        id: validate
+        run: |
+          python3 .github/scripts/validate_release_state.py \
+            --mode "${{ inputs.mode }}" \
+            --branch "${{ inputs.ref }}"
+        shell: bash
+
+  confirm-versions:
+    if: inputs.confirm_versions
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+
+      - name: Confirm demoapp versions match VERSION
+        run: ./gradlew confirmDemoAppVersions --no-daemon
+        shell: bash
+
+  check:
+    if: inputs.run_checks
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+
+      - name: Run checks
+        run: ./gradlew check --no-daemon --stacktrace
+        shell: bash
+
+  publish:
+    needs: [validate, confirm-versions, check]
+    if: |
+      always()
+      && needs.validate.result == 'success'
+      && (needs.confirm-versions.result == 'success' || needs.confirm-versions.result == 'skipped')
+      && (needs.check.result == 'success' || needs.check.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.mode == 'release' && 'release' || '' }}
+    outputs:
+      source_sha: ${{ steps.sha.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+
+      - name: Capture source SHA
+        id: sha
+        run: echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Publish artifacts
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+          GRADLE_PUBLISH_KEY: ${{ secrets.VIADUCT_GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.VIADUCT_GRADLE_PUBLISH_SECRET }}
+        run: |
+          set -euo pipefail
+          MODE="${{ inputs.mode }}"
+
+          if [ "$MODE" = "release" ]; then
+            echo "Publishing RELEASE artifacts..."
+            export RELEASE=true
+            # Publish to Gradle Plugin Portal (release only)
+            ./gradlew gradle-plugins:publishPlugins --no-daemon --stacktrace
+            # Publish to Maven Central
+            ./gradlew publishToMavenCentral --no-daemon --stacktrace
+          else
+            echo "Publishing SNAPSHOT artifacts..."
+            export RELEASE=false
+            # Snapshots only go to Sonatype OSSRH, not Gradle Plugin Portal
+            ./gradlew publishToMavenCentral --no-daemon --stacktrace
+          fi
+        shell: bash
