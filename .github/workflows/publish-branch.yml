@@ -134,6 +134,7 @@ jobs:
       && (needs.confirm-versions.result == 'success' || needs.confirm-versions.result == 'skipped')
       && (needs.check.result == 'success' || needs.check.result == 'skipped')
     runs-on: ubuntu-latest
+    environment: ${{ inputs.mode == 'release' && 'release' || '' }}
     outputs:
       source_sha: ${{ steps.sha.outputs.source_sha }}
     steps:
@@ -152,8 +153,6 @@ jobs:
 
       - name: Publish artifacts
         env:
-          VIADUCT_SONATYPE_USERNAME: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
-          VIADUCT_SONATYPE_PASSWORD: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
