@@ -51,23 +51,13 @@ jobs:
 
       - name: Format test alert
         id: fmt
-        env:
-          BRANCH: ${{ github.ref_name }}
-          SERVER_URL: ${{ github.server_url }}
-          REPOSITORY: ${{ github.repository }}
-          ACTOR: ${{ github.actor }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          text=$(jq -n \
-            --arg branch "$BRANCH" \
-            --arg server_url "$SERVER_URL" \
-            --arg repository "$REPOSITORY" \
-            --arg actor "$ACTOR" \
-            --arg run_id "$RUN_ID" \
-            '{"branch": $branch, "server_url": $server_url, "repository": $repository, "actor": $actor, "jobs": [{"name": "Test", "run_id": $run_id}]}' | \
-            python3 .github/scripts/format_alert.py)
-          echo "text=${text}" >> "$GITHUB_OUTPUT"
-        shell: bash
+        uses: ./.github/actions/collect-failure-info
+        with:
+          jobs_json: '[{"name": "Test", "run_id": "${{ github.run_id }}"}]'
+          branch: ${{ github.ref_name }}
+          server_url: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          actor: ${{ github.actor }}
 
   test-post:
     needs: [format-test]

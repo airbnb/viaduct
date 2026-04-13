@@ -57,14 +57,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Format alert
-        id: fmt
+      - name: Build failed jobs list
+        id: jobs
         env:
-          BRANCH: ${{ github.ref_name }}
-          SERVER_URL: ${{ github.server_url }}
-          REPOSITORY: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
           BAT_RESULT: ${{ needs.build-and-test.result }}
           BAT_RUN_ID: ${{ needs.build-and-test.outputs.run_id }}
           SDT_RESULT: ${{ needs.standalone-demoapp-tests.result }}
@@ -74,29 +69,27 @@ jobs:
         run: |
           jobs_json='[]'
           if [ "$BAT_RESULT" = "failure" ]; then
-            jobs_json=$(echo "$jobs_json" | jq --arg name "Build and Test" --arg run_id "$BAT_RUN_ID" '. + [{"name": $name, "run_id": $run_id}]')
+            jobs_json=$(echo "$jobs_json" | jq -c --arg name "Build and Test" --arg run_id "$BAT_RUN_ID" '. + [{"name": $name, "run_id": $run_id}]')
           fi
           if [ "$SDT_RESULT" = "failure" ]; then
-            jobs_json=$(echo "$jobs_json" | jq --arg name "Demo App Tests" --arg run_id "$SDT_RUN_ID" '. + [{"name": $name, "run_id": $run_id}]')
+            jobs_json=$(echo "$jobs_json" | jq -c --arg name "Demo App Tests" --arg run_id "$SDT_RUN_ID" '. + [{"name": $name, "run_id": $run_id}]')
           fi
           if [ "$BCV_RESULT" = "failure" ]; then
-            jobs_json=$(echo "$jobs_json" | jq --arg name "API Compatibility" --arg run_id "$BCV_RUN_ID" '. + [{"name": $name, "run_id": $run_id}]')
+            jobs_json=$(echo "$jobs_json" | jq -c --arg name "API Compatibility" --arg run_id "$BCV_RUN_ID" '. + [{"name": $name, "run_id": $run_id}]')
           fi
-          text=$(jq -n \
-            --arg branch "$BRANCH" \
-            --arg server_url "$SERVER_URL" \
-            --arg repository "$REPOSITORY" \
-            --arg sha "$SHA" \
-            --arg actor "$ACTOR" \
-            --argjson jobs "$jobs_json" \
-            '{"branch": $branch, "server_url": $server_url, "repository": $repository, "sha": $sha, "actor": $actor, "jobs": $jobs}' | \
-            python3 .github/scripts/format_alert.py)
-          {
-            echo "text<<ALERT_EOF"
-            echo "$text"
-            echo "ALERT_EOF"
-          } >> "$GITHUB_OUTPUT"
+          echo "jobs_json=$jobs_json" >> "$GITHUB_OUTPUT"
         shell: bash
+
+      - name: Format alert
+        id: fmt
+        uses: ./.github/actions/collect-failure-info
+        with:
+          jobs_json: ${{ steps.jobs.outputs.jobs_json }}
+          branch: ${{ github.ref_name }}
+          server_url: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          sha: ${{ github.sha }}
+          actor: ${{ github.actor }}
 
   send-alerts:
     needs: [format-alerts]
