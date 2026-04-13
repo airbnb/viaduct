@@ -1,0 +1,130 @@
+name: Demoapp CI Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      java_versions:
+        description: "Java versions array. Defaults to [\"17\",\"21\"]."
+        required: false
+        type: string
+      os:
+        description: "OS array. Defaults to [\"ubuntu-latest\",\"macos-latest\"]."
+        required: false
+        type: string
+  workflow_call:
+    outputs:
+      run_id:
+        description: "GitHub Actions run ID"
+        value: ${{ jobs.validate-inputs.outputs.run_id }}
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: demoapps-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-inputs:
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.emit.outputs.run_id }}
+    steps:
+      - name: Emit run ID
+        id: emit
+        run: echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+        shell: bash
+      - uses: actions/checkout@v6
+      - name: Validate inputs
+        env:
+          OS_INPUT: ${{ inputs.os }}
+          JAVA_INPUT: ${{ inputs.java_versions }}
+        run: python3 .github/scripts/validate_inputs.py
+
+  publish-to-maven-local:
+    needs: validate-inputs
+    runs-on: ubuntu-latest
+    name: Publish to Maven Local
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '17'
+
+      - name: Publish to Maven Local
+        run: ./gradlew publishToMavenLocal -PpublishMinimal --no-daemon
+        shell: bash
+
+      - name: Upload Maven Local repository
+        uses: actions/upload-artifact@v6
+        with:
+          name: maven-local-repo
+          path: ~/.m2/repository
+          compression-level: 0
+          retention-days: 1
+
+  test-starters:
+    needs: publish-to-maven-local
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter]
+        java: ['17', '21']
+    name: Test ${{ matrix.demoapp }} (Java ${{ matrix.java }})
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+          cache-read-only: 'true'
+
+      - name: Download Maven Local repository
+        uses: actions/download-artifact@v7
+        with:
+          name: maven-local-repo
+          path: ~/.m2/repository
+
+      - name: Test ${{ matrix.demoapp }}
+        run: cd demoapps/${{ matrix.demoapp }} && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
+        shell: bash
+
+  test-starwars:
+    needs: publish-to-maven-local
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["17","21"]') }}
+    name: Test starwars (Java ${{ matrix.java }}) ${{ matrix.os }}
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+          cache-read-only: 'true'
+
+      - name: Download Maven Local repository
+        uses: actions/download-artifact@v7
+        with:
+          name: maven-local-repo
+          path: ~/.m2/repository
+
+      - name: Test starwars
+        run: cd demoapps/starwars && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
+        shell: bash
