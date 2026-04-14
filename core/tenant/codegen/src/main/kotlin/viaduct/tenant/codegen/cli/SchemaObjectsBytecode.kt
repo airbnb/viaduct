@@ -17,7 +17,7 @@ import viaduct.tenant.codegen.bytecode.CodeGenArgs
 import viaduct.tenant.codegen.bytecode.GRTClassFilesBuilderBase
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.tenant.codegen.graphql.schema.ScopedSchemaFilter
-import viaduct.tenant.codegen.util.ZipUtil.zipAndWriteDirectories
+import viaduct.tenant.codegen.util.ZipUtil.zipAndWriteChildrenAsRoot
 import viaduct.tenant.codegen.util.hasBinarySchemaFlag
 import viaduct.tenant.codegen.util.shouldUseBinarySchema
 import viaduct.utils.timer.Timer
@@ -27,6 +27,10 @@ import viaduct.utils.timer.Timer
  * It doesnt require a version(It will use GRTClassFilesBuilder).
  */
 class SchemaObjectsBytecode : CliktCommand() {
+    companion object {
+        private const val DEFAULT_MANIFEST = "Manifest-Version: 1.0\r\nCreated-By: singlejar\r\n\r\n"
+    }
+
     // Files & Directories
     private val generatedDir: File by option("--generated_directory")
         .file(mustExist = false, canBeFile = false).required()
@@ -130,7 +134,9 @@ class SchemaObjectsBytecode : CliktCommand() {
 
         timer.time("fileManipulation") {
             outputArchive?.let {
-                it.zipAndWriteDirectories(generatedDir)
+                val manifestDir = generatedDir.resolve("META-INF").apply { mkdirs() }
+                manifestDir.resolve("MANIFEST.MF").writeText(DEFAULT_MANIFEST)
+                it.zipAndWriteChildrenAsRoot(generatedDir)
                 generatedDir.deleteRecursively()
             }
         }

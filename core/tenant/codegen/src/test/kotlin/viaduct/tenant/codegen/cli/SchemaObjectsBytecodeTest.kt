@@ -7,9 +7,11 @@ import io.mockk.slot
 import io.mockk.unmockkAll
 import io.mockk.verify
 import java.io.File
+import java.util.jar.JarFile
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -142,6 +144,13 @@ class SchemaObjectsBytecodeTest {
 
     @Test
     fun `test with output archive`() {
+        every { mockGRTBuilder.buildClassfiles(generatedDir) } answers {
+            generatedDir.resolve("Root.class").writeText("root")
+            generatedDir.resolve("nested").apply { mkdirs() }
+                .resolve("Nested.class")
+                .writeText("nested")
+        }
+
         SchemaObjectsBytecode().main(
             listOf("--generated_directory", generatedDir.absolutePath) +
                 listOf("--schema_files", schemaFile.absolutePath) +
@@ -153,5 +162,20 @@ class SchemaObjectsBytecodeTest {
         )
 
         verify { mockGRTBuilder.buildClassfiles(generatedDir) }
+        assertTrue(outputArchive.exists())
+        assertFalse(generatedDir.exists())
+
+        JarFile(outputArchive).use { jar ->
+            assertNull(jar.getEntry("/"))
+            assertTrue(jar.getEntry("META-INF/") != null)
+            assertTrue(jar.getEntry("META-INF/MANIFEST.MF") != null)
+            assertTrue(jar.getEntry("Root.class") != null)
+            assertTrue(jar.getEntry("nested/") != null)
+            assertTrue(jar.getEntry("nested/Nested.class") != null)
+            assertEquals(
+                "Manifest-Version: 1.0\r\nCreated-By: singlejar\r\n\r\n",
+                jar.getInputStream(jar.getEntry("META-INF/MANIFEST.MF")).bufferedReader().readText()
+            )
+        }
     }
 }

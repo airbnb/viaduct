@@ -14,6 +14,23 @@ object ZipUtil {
     // Sometimes we want to zip the contents of a temporary directory without including the temporary directory name
     fun File.zipAndWriteChildren(source: File) = zipAndWriteDirectories(stripPrefix = source.name, source)
 
+    // Similar to zipAndWriteChildren, but avoids emitting an entry for the source directory itself.
+    // This is useful when producing a jar-like archive rooted at the children of a temp output dir.
+    fun File.zipAndWriteChildrenAsRoot(source: File) {
+        ZipOutputStream(outputStream()).use { out ->
+            for (item in source.listFiles().orEmpty().sortedBy(File::getAbsolutePath)) {
+                if (item.isDirectory) {
+                    item.listTopDownFiles().sortedBy(File::getAbsolutePath).forEach { sourceFile ->
+                        val zipPath = if (sourceFile == item) item.name else item.name + "/" + sourceFile.relativeTo(item)
+                        out.addZipEntry(zipPath, sourceFile)
+                    }
+                } else {
+                    out.addZipEntry(item.name, item)
+                }
+            }
+        }
+    }
+
     fun File.zipAndWriteDirectories(vararg sources: File?) = zipAndWriteDirectories("", *sources)
 
     /**
