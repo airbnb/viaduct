@@ -24,7 +24,7 @@ on:
     outputs:
       destination_branch:
         description: "Branch pushed to in viaduct-dev repos"
-        value: ${{ jobs.push.outputs.destination_branch }}
+        value: ${{ jobs.compute-dest.outputs.destination_branch }}
     secrets:
       VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN:
         required: true
@@ -37,33 +37,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  push:
+  compute-dest:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.release_mode && 'release' || '' }}
     outputs:
       destination_branch: ${{ steps.compute-dest.outputs.destination_branch }}
     steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref }}
-
-      - uses: ./.github/actions/setup-build
-        with:
-          java-version: '21'
-
       - name: Compute destination branch
         id: compute-dest
+        env:
+          REF: ${{ inputs.ref }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
         run: |
           set -euo pipefail
-          REF="${{ inputs.ref }}"
-          RELEASE_MODE="${{ inputs.release_mode }}"
 
           if [ "$REF" = "main" ]; then
             DEST_BRANCH="snapshot"
           elif [[ "$REF" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ "$RELEASE_MODE" = "true" ]; then
             DEST_BRANCH="main"
-          elif [[ "$REF" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            DEST_BRANCH="tmp/${REF}"
           else
+            # Non-release refs and release refs without release_mode both go to tmp/
             DEST_BRANCH="tmp/${REF}"
           fi
 
@@ -76,16 +69,29 @@ jobs:
           echo "Destination branch: ${DEST_BRANCH}"
         shell: bash
 
-      - name: Push demo apps via Copybara
+  push:
+    needs: compute-dest
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter, starwars]
+    name: Push ${{ matrix.demoapp }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Push ${{ matrix.demoapp }} via Copybara
         env:
           VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+          SOURCE_REF: ${{ inputs.ref }}
+          DEST_BRANCH: ${{ needs.compute-dest.outputs.destination_branch }}
         run: |
-          set -euo pipefail
-          DEST_BRANCH="${{ steps.compute-dest.outputs.destination_branch }}"
-
-          for APP in cli-starter jetty-starter ktor-starter micronaut-starter starwars; do
-            echo "::group::Pushing ${APP} to ${DEST_BRANCH}"
-            .github/copydemoapps/copy "$APP" "${{ inputs.ref }}" --target-ref="${DEST_BRANCH}"
-            echo "::endgroup::"
-          done
+          .github/copydemoapps/copy "${{ matrix.demoapp }}" "$SOURCE_REF" --target-ref="${DEST_BRANCH}"
         shell: bash

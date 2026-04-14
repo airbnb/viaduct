@@ -30,9 +30,12 @@ jobs:
     name: Test ${{ matrix.demoapp }}
     steps:
       - name: Clone standalone repo
+        env:
+          REF: ${{ inputs.ref }}
+          DEMOAPP: ${{ matrix.demoapp }}
         run: |
-          git clone --branch "${{ inputs.ref }}" --depth 1 \
-            "https://github.com/viaduct-dev/${{ matrix.demoapp }}.git" app
+          git clone --branch "$REF" --depth 1 \
+            "https://github.com/viaduct-dev/${DEMOAPP}.git" app
         shell: bash
 
       - uses: actions/setup-java@v5
