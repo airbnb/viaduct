@@ -19,6 +19,7 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.resolve
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.errors.TenantResolverException
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.VariablesProviderContextImpl
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
@@ -165,13 +166,13 @@ class RequiredselectionSetFactoryVariablesProviderTest {
                 variables = emptyList(),
             ).first
 
-            // The exception should be propagated up from the resolve call
-            val thrownException = assertThrows<RuntimeException> {
+            // The exception should be wrapped in TenantResolverException and propagated up
+            val thrownException = assertThrows<TenantResolverException> {
                 rss!!.variablesResolvers.resolve(vresolveCtx, mockEngineExecutionContext)
             }
 
-            // Verify it's the same exception we threw
-            assertEquals("Test exception from VariablesProvider", thrownException.message)
+            // Verify the cause is the original RuntimeException
+            assertEquals("Test exception from VariablesProvider", thrownException.cause.message)
         }
 
     @Test

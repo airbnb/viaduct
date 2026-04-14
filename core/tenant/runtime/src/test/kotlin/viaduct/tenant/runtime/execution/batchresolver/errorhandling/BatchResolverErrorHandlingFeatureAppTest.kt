@@ -88,7 +88,7 @@ class BatchResolverErrorHandlingFeatureAppTest : FeatureAppTestBase() {
             }
             "errors" to arrayOf(
                 {
-                    "message" to "java.lang.IllegalStateException: The batchResolve function in the Node resolver for Foo was given a batch of size 2 but returned 1 elements"
+                    "message" to "viaduct.errors.TenantUsageException: The batchResolve function in the Node resolver for Foo was given a batch of size 2 but returned 1 elements"
                     "locations" to arrayOf(
                         {
                             "line" to 2
@@ -100,13 +100,12 @@ class BatchResolverErrorHandlingFeatureAppTest : FeatureAppTestBase() {
                         "fieldName" to "foo"
                         "parentType" to "Foo"
                         "isFrameworkError" to "false"
-                        "resolvers" to "Foo"
-                        "fullyQualifiedErrorClass" to "java.lang.IllegalStateException"
+                        "fullyQualifiedErrorClass" to "viaduct.errors.TenantUsageException"
                         "classification" to "DataFetchingException"
                     }
                 },
                 {
-                    "message" to "java.lang.IllegalStateException: The batchResolve function in the Node resolver for Foo was given a batch of size 2 but returned 1 elements"
+                    "message" to "viaduct.errors.TenantUsageException: The batchResolve function in the Node resolver for Foo was given a batch of size 2 but returned 1 elements"
                     "locations" to arrayOf(
                         {
                             "line" to 6
@@ -118,8 +117,7 @@ class BatchResolverErrorHandlingFeatureAppTest : FeatureAppTestBase() {
                         "fieldName" to "foo"
                         "parentType" to "Foo"
                         "isFrameworkError" to "false"
-                        "resolvers" to "Foo"
-                        "fullyQualifiedErrorClass" to "java.lang.IllegalStateException"
+                        "fullyQualifiedErrorClass" to "viaduct.errors.TenantUsageException"
                         "classification" to "DataFetchingException"
                     }
                 }

@@ -2,7 +2,6 @@ package viaduct.tenant.runtime.execution
 
 import javax.inject.Provider
 import kotlin.reflect.KFunction
-import kotlin.reflect.full.callSuspend
 import viaduct.api.NodeResolverBase
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
@@ -15,7 +14,7 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.TenantUsageException
-import viaduct.errors.wrapResolveException
+import viaduct.errors.resultOfSuspend
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 class NodeUnbatchedResolverExecutorImpl(
@@ -38,7 +37,10 @@ class NodeUnbatchedResolverExecutorImpl(
         // Only handle single selector case because this is an unbatched resolver
         require(selectors.size == 1) { "Unbatched resolver should only receive single selector, got {}".format(selectors.size) }
         val selector = selectors.first()
-        return mapOf(selector to runCatching { resolve(selector.id, selector.selections, context) })
+        val result = resultOfSuspend {
+            resolve(selector.id, selector.selections, context)
+        }
+        return mapOf(selector to result)
     }
 
     private suspend fun resolve(
@@ -48,9 +50,7 @@ class NodeUnbatchedResolverExecutorImpl(
     ): EngineObjectData {
         val ctx = factory(context, selections, context.requestContext, id)
         val resolver = resolver.get()
-        val result = wrapResolveException(typeName) {
-            resolveFunction.callSuspend(resolver, ctx)
-        }
+        val result: Any? = callResolverAndHandleTenantErrors(typeName, resolveFunction, resolver, ctx)
         return unwrapNodeResolverResult(result)
     }
 

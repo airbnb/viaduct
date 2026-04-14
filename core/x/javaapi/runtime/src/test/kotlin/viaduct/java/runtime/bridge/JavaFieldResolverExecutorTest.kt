@@ -5,9 +5,12 @@ package viaduct.java.runtime.bridge
 import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
@@ -105,6 +108,38 @@ class JavaFieldResolverExecutorTest {
                 .hasCauseInstanceOf(RuntimeException::class.java)
                 .hasRootCauseMessage("Test error")
         }
+
+    @Test
+    fun `resolver cancellation propagates instead of becoming failure result`() {
+        val blockedFuture = CompletableFuture<Any?>()
+
+        val executor = JavaFieldResolverExecutor(
+            resolveFunction = { blockedFuture },
+            resolverId = "Query.cancelled",
+            resolverName = "CancelledResolver"
+        )
+
+        val mockObjectValue = mockk<EngineObjectData>()
+        val mockQueryValue = mockk<EngineObjectData>()
+        val mockEngineContext = mockk<EngineExecutionContext> {
+            every { requestContext } returns null
+        }
+
+        val selector = FieldResolverExecutor.Selector(
+            arguments = emptyMap(),
+            objectValue = mockObjectValue,
+            queryValue = mockQueryValue,
+            selections = null
+        )
+
+        assertThrows<CancellationException> {
+            runBlocking {
+                withTimeout(50) {
+                    executor.batchResolve(listOf(selector), mockEngineContext)
+                }
+            }
+        }
+    }
 
     @Test
     fun `executor with objectSelectionSet has correct value`() {

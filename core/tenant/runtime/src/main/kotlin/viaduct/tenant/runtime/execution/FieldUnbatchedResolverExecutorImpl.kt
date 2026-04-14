@@ -2,7 +2,6 @@ package viaduct.tenant.runtime.execution
 
 import javax.inject.Provider
 import kotlin.reflect.KFunction
-import kotlin.reflect.full.callSuspend
 import viaduct.api.ResolverBase
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.ObjectBase
@@ -14,7 +13,7 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
-import viaduct.errors.wrapResolveException
+import viaduct.errors.resultOfSuspend
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
@@ -47,7 +46,10 @@ class FieldUnbatchedResolverExecutorImpl(
         // Only handle single selector case because this is an unbatched resolver
         require(selectors.size == 1) { "Unbatched resolver should only receive single selector, got ${selectors.size}" }
         val selector = selectors.first()
-        return mapOf(selector to runCatching { resolve(selector, context) })
+        val result = resultOfSuspend {
+            resolve(selector, context)
+        }
+        return mapOf(selector to result)
     }
 
     private suspend fun resolve(
@@ -65,9 +67,7 @@ class FieldUnbatchedResolverExecutorImpl(
             syncQueryValueGetter = selector.syncQueryValueGetter,
         )
         val resolver = mkResolver()
-        val result = wrapResolveException(resolverName) {
-            resolveFn.callSuspend(resolver, ctx)
-        }
+        val result: Any? = callResolverAndHandleTenantErrors(resolverName, resolveFn, resolver, ctx)
         return unwrapFieldResolverResult(result, context.globalIDCodec)
     }
 

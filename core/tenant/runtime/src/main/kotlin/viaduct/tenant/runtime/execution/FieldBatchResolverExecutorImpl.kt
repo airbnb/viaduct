@@ -2,10 +2,6 @@ package viaduct.tenant.runtime.execution
 
 import javax.inject.Provider
 import kotlin.reflect.KFunction
-import kotlin.reflect.full.callSuspend
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import viaduct.api.FieldValue
 import viaduct.api.ResolverBase
 import viaduct.api.internal.ReflectionLoader
@@ -16,9 +12,8 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
-import viaduct.errors.FrameworkException
-import viaduct.errors.TenantResolverException
-import viaduct.errors.wrapResolveException
+import viaduct.errors.TenantUsageException
+import viaduct.errors.handleTenantErrorsResultSuspend
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
@@ -61,20 +56,16 @@ class FieldBatchResolverExecutorImpl(
             )
         }
         val resolver = resolver.get()
-        val results = wrapResolveException(resolverName) {
-            batchResolveFn.callSuspend(resolver, contexts)
-        }
+        val results: Any? = callResolverAndHandleTenantErrors(resolverName, batchResolveFn, resolver, contexts)
         if (results !is List<*>) {
-            throw IllegalStateException("Unexpected return value from batchResolve function for field $resolverId: $results")
+            throw TenantUsageException("Unexpected return value from batchResolve function for field $resolverId: $results")
         }
         if (selectors.size != results.size) {
-            throw TenantResolverException(
-                IllegalStateException(
-                    "The batchResolve function in the field resolver for $resolverId was given a batch of size ${selectors.size} but returned ${results.size} elements"
-                ),
-                resolverId
+            throw TenantUsageException(
+                "The batchResolve function in the field resolver for $resolverId was given a batch of size ${selectors.size} but returned ${results.size} elements"
             )
         }
+        // If a Result is exceptional, its exception must already be one of the executor-allowed types.
         return selectors.zip(results.map { unwrap(it, context.globalIDCodec) }).toMap()
     }
 
@@ -86,12 +77,8 @@ class FieldBatchResolverExecutorImpl(
             throw IllegalStateException("Unexpected result type that is not a FieldValue: $fieldValue")
         }
 
-        try {
-            return Result.success(FieldUnbatchedResolverExecutorImpl.unwrapFieldResolverResult(fieldValue.get(), globalIDCodec))
-        } catch (e: Exception) {
-            if (e is CancellationException) currentCoroutineContext().ensureActive()
-            if (e is FrameworkException) return Result.failure(e)
-            return Result.failure(TenantResolverException(e, resolverId))
+        return handleTenantErrorsResultSuspend(resolverId) {
+            FieldUnbatchedResolverExecutorImpl.unwrapFieldResolverResult(fieldValue.get(), globalIDCodec)
         }
     }
 }

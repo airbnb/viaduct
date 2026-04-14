@@ -12,7 +12,8 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
-import viaduct.errors.wrapResolveException
+import viaduct.errors.handleTenantErrorsSuspend
+import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.types.Arguments
 
@@ -65,7 +66,7 @@ class JavaFieldResolverExecutor(
         }
 
         val selector = selectors.first()
-        val result = runCatching {
+        val result = resultOfSuspend {
             resolveOne(selector = selector, context = context)
         }
 
@@ -98,7 +99,7 @@ class JavaFieldResolverExecutor(
         )
 
         // ── Tenant→Framework boundary: resolver call ──
-        val result = wrapResolveException(resolverId) {
+        val result = handleTenantErrorsSuspend(resolverId) {
             val future = resolveFunction(javaContext)
             future.await()
         }

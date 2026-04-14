@@ -82,6 +82,7 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
         if (params.fieldDefinition == null) return ErrorReporter.Metadata.EMPTY
         val isFrameworkError = when (exception) {
             is FrameworkException -> true
+            is TenantResolverException -> false
             is TenantException -> false
             else -> null
         }

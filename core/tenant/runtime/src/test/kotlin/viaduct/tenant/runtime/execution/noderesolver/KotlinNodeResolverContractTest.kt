@@ -2,6 +2,10 @@
 
 package viaduct.tenant.runtime.execution.noderesolver
 
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.QueryResolvers
@@ -34,8 +38,40 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
     }
 
     class NodeObjResolver : NodeResolvers.NodeObj() {
+        companion object {
+            var shouldReturnNodeReference = false
+        }
+
         override suspend fun resolve(ctx: Context): NodeObj {
+            if (shouldReturnNodeReference) {
+                return ctx.nodeFor(ctx.globalIDFor(NodeObj.Reflection, "tenant1"))
+            }
             return NodeObj.Builder(ctx).value("foo").build()
+        }
+    }
+
+    @Test
+    fun `node resolver may not return a NodeReference`() {
+        NodeObjResolver.shouldReturnNodeReference = true
+        try {
+            val result = execute(
+                query = """
+                    query TestQuery {
+                        nodeReference(id: "tenant1") {
+                            id
+                            value
+                        }
+                    }
+                """.trimIndent()
+            )
+
+            assertEquals(1, result.errors.size)
+            val error = result.errors.single()
+            assertTrue(error.message.contains("NodeReference returned from node resolver"))
+            assertEquals("viaduct.errors.TenantUsageException", error.extensions["fullyQualifiedErrorClass"])
+            assertFalse(error.extensions.containsKey("resolvers"))
+        } finally {
+            NodeObjResolver.shouldReturnNodeReference = false
         }
     }
 }

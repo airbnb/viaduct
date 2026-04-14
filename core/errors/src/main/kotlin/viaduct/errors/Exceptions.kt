@@ -1,7 +1,6 @@
 package viaduct.errors
 
 import graphql.GraphQLError
-import java.lang.reflect.InvocationTargetException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -20,7 +19,7 @@ interface PassthroughException
  * Marker interface for exceptions that should be attributed to tenant code.
  */
 @StableApi
-interface TenantException : PassthroughException
+interface TenantException
 
 /**
  * Used in the tenant API and dependencies to indicate that an error is due to framework code
@@ -50,7 +49,7 @@ open class TenantUsageException(
 class TenantResolverException(
     override val cause: Throwable,
     val resolver: String,
-) : Exception(cause), TenantException {
+) : Exception(cause), PassthroughException {
     // The call chain of resolvers, e.g. "User.fullName > User.firstName" means
     // User.fullName's resolver called User.firstName's resolver which threw an exception
     val resolversCallChain: String by lazy {
@@ -96,7 +95,7 @@ fun <T> handleFrameworkErrors(
     try {
         return block()
     } catch (e: Exception) {
-        if (e is PassthroughException) throw e
+        if (e is PassthroughException || e is TenantException) throw e
         throw FrameworkException("$message ($e)", e)
     }
 }
@@ -114,17 +113,14 @@ suspend fun <T> handleFrameworkErrorsSuspend(
         return block()
     } catch (e: Exception) {
         if (e is CancellationException) currentCoroutineContext().ensureActive()
-        if (e is PassthroughException) throw e
+        if (e is PassthroughException || e is TenantException) throw e
         throw FrameworkException("$message ($e)", e)
     }
 }
 
 /**
- * Use this to wrap direct (non-reflection) calls into tenant code from the framework.
- * Catches any exception and attributes it to tenant code unless it is already attributed
- * as a [FrameworkException].
- *
- * See also: [wrapResolveException] for resolver invocations made via reflection.
+ * Use this to wrap calls into tenant code from the framework. Catches any exception and
+ * attributes it to tenant code unless it is already a [PassthroughException].
  */
 fun <T> handleTenantErrors(
     opName: String,
@@ -134,7 +130,7 @@ fun <T> handleTenantErrors(
     try {
         return block()
     } catch (e: Exception) {
-        if (e is FrameworkException) throw e
+        if (e is PassthroughException) throw e
         throw TenantResolverException(e, opName)
     }
 }
@@ -151,32 +147,50 @@ suspend fun <T> handleTenantErrorsSuspend(
         return block()
     } catch (e: Exception) {
         if (e is CancellationException) currentCoroutineContext().ensureActive()
-        if (e is FrameworkException) throw e
+        if (e is PassthroughException) throw e
         throw TenantResolverException(e, opName)
     }
 }
 
 /**
- * Catches any exception thrown by [resolveFn] (which must be called via reflection) and wraps it
- * in [TenantResolverException] unless it's a [FrameworkException].
+ * Evaluates [block] and returns its value as [Result.success].
+ *
+ * If [block] throws an [Exception], [mapException] determines the throwable stored in
+ * [Result.failure]. The default behavior preserves the original exception unchanged.
  */
 @InternalApi
-suspend fun wrapResolveException(
-    resolverId: String,
-    resolveFn: suspend () -> Any?,
-): Any? {
+suspend fun <T> resultOfSuspend(
+    mapException: (Exception) -> Throwable = { it },
+    block: suspend () -> T,
+): Result<T> {
+    @Suppress("Detekt.TooGenericExceptionCaught")
     return try {
-        resolveFn()
+        Result.success(block())
     } catch (e: Exception) {
         if (e is CancellationException) currentCoroutineContext().ensureActive()
-        // Since the resolver function is called via reflection, exceptions thrown from inside
-        // the resolver may be wrapped in an InvocationTargetException.
-        val resolverException = if (e is InvocationTargetException) {
-            e.targetException
-        } else {
-            e
-        }
-        if (resolverException is FrameworkException) throw resolverException
-        throw TenantResolverException(resolverException, resolverId)
+        Result.failure(mapException(e))
     }
 }
+
+/**
+ * Produces a [Result] whose failure value is already attributed for executor result paths.
+ *
+ * [PassthroughException] (including [FrameworkException]) and [TenantException] are returned
+ * unchanged in [Result.failure].
+ * Any other [Exception] is wrapped in [TenantResolverException].
+ */
+@InternalApi
+suspend fun <T> handleTenantErrorsResultSuspend(
+    opName: String,
+    block: suspend () -> T,
+): Result<T> =
+    resultOfSuspend(
+        mapException = { e ->
+            if (e is PassthroughException || e is TenantException) {
+                e
+            } else {
+                TenantResolverException(e, opName)
+            }
+        },
+        block = block,
+    )

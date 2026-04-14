@@ -7,6 +7,7 @@ import viaduct.api.internal.internal
 import viaduct.api.types.Arguments
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver
+import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
@@ -29,7 +30,10 @@ class VariablesProviderExecutor(
         )
 
         @Suppress("UNCHECKED_CAST")
-        return (provider as VariablesProvider<Arguments>).provide(variablesProviderCtx).mapValues {
+        val providedVars = handleTenantErrorsSuspend("VariablesProvider") {
+            (provider as VariablesProvider<Arguments>).provide(variablesProviderCtx)
+        }
+        return providedVars.mapValues {
             // The Viaduct engine expects the values to be scalar types or maps, so converting InputLikeBase and GlobalID to their internal representations
             when (val value = it.value) {
                 is GlobalID<*> -> variablesProviderCtx.internal.globalIDCodec.serialize(value.type.name, value.internalID)
