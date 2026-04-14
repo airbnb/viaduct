@@ -81,6 +81,18 @@ object Scalars {
                             locale
                         )
 
+                    override fun valueToLiteral(
+                        input: Any,
+                        ctx: GraphQLContext?,
+                        locale: Locale?
+                    ): Value<*> =
+                        StringValue.newStringValue(
+                            when (input) {
+                                is Instant -> convertToOffsetDateTime(input).toString()
+                                else -> input.toString()
+                            }
+                        ).build()
+
                     private fun convertToOffsetDateTime(value: Any): OffsetDateTime = OffsetDateTime.ofInstant(value as Instant?, ZoneOffset.UTC)
                 }
             ).build()

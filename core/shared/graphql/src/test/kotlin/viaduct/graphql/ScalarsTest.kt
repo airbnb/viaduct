@@ -80,6 +80,32 @@ class ScalarsTest {
         }
 
         @Test
+        fun `valueToLiteral with OffsetDateTime returns StringValue`() {
+            val offsetDateTime = OffsetDateTime.of(2023, 6, 15, 10, 30, 0, 0, ZoneOffset.UTC)
+            val result = coercing.valueToLiteral(offsetDateTime, ctx, locale)
+            assertTrue(result is StringValue)
+            assertNotNull((result as StringValue).value)
+        }
+
+        @Test
+        fun `valueToLiteral with Instant returns StringValue`() {
+            val instant = Instant.parse("2023-06-15T10:30:00Z")
+            val result = coercing.valueToLiteral(instant, ctx, locale)
+            assertTrue(result is StringValue)
+            assertNotNull((result as StringValue).value)
+        }
+
+        @Test
+        fun `valueToLiteral with null ctx and locale does not throw`() {
+            // ValuesResolver#valueToLiteral (called from DelegatedSelectionsForCacheKeyVisitor)
+            // passes null for ctx and locale, so this must not NPE.
+            val offsetDateTime = OffsetDateTime.of(2023, 6, 15, 10, 30, 0, 0, ZoneOffset.UTC)
+            val result = coercing.valueToLiteral(offsetDateTime, null, null)
+            assertTrue(result is StringValue)
+            assertNotNull((result as StringValue).value)
+        }
+
+        @Test
         fun `scalar has correct name`() {
             assertEquals(ExtendedScalars.DateTime.name, Scalars.DateTimeScalar.name)
         }
