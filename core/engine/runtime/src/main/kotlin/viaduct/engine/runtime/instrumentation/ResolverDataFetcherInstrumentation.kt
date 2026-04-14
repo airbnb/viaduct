@@ -10,7 +10,6 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcher
-import viaduct.engine.runtime.SyncFieldResolverDispatcher
 import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ResolverDataFetcher
@@ -20,7 +19,7 @@ import viaduct.graphql.utils.asNamedElement
 import viaduct.service.api.spi.FlagManager
 
 private data class ResolverDataFetcherState(
-    val enableSyncValueComputation: Boolean
+    val enableSyncValueComputation: Boolean,
 ) : InstrumentationState
 
 /**
@@ -35,7 +34,7 @@ class ResolverDataFetcherInstrumentation(
 ) : ViaductModernGJInstrumentation {
     override fun createState(parameters: InstrumentationCreateStateParameters): InstrumentationState {
         return ResolverDataFetcherState(
-            enableSyncValueComputation = flagManager.isEnabled(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION)
+            enableSyncValueComputation = flagManager.isEnabled(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION),
         )
     }
 
@@ -57,12 +56,7 @@ class ResolverDataFetcherInstrumentation(
         val resolverDispatcher = resolverDispatcher(typeName, fieldName) ?: return dataFetcher
 
         val enableSync = (state as? ResolverDataFetcherState)?.enableSyncValueComputation == true
-        val innerDispatcher = if (enableSync) {
-            SyncFieldResolverDispatcher(resolverDispatcher)
-        } else {
-            resolverDispatcher
-        }
-        val instrumentedDispatcher = InstrumentedFieldResolverDispatcher(innerDispatcher, resolverInstrumentation, coordinate = typeName to fieldName, syncValueComputation = enableSync)
+        val instrumentedDispatcher = InstrumentedFieldResolverDispatcher(resolverDispatcher, resolverInstrumentation, coordinate = typeName to fieldName, syncValueComputation = enableSync)
 
         return ResolverDataFetcher(
             typeName = typeName,
@@ -70,6 +64,7 @@ class ResolverDataFetcherInstrumentation(
             fieldResolverDispatcher = instrumentedDispatcher,
             coroutineInterop = coroutineInterop,
             tenantNameResolver = tenantNameResolver,
+            syncValueComputationEnabled = enableSync,
         )
     }
 

@@ -182,3 +182,56 @@ open class ProxyEngineObjectData(
 }
 
 class FieldErrorsException(val graphQLErrors: List<GraphQLError>) : RuntimeException()
+
+/**
+ * Wraps this [ProxyEngineObjectData] as an [EngineObjectData.Sync] that delegates all suspend
+ * [fetch] calls to the underlying lazy proxy.
+ *
+ * Used when sync value getters are disabled (treb off). Eagerly fetches all selected fields at
+ * construction time so that [get] works for [getObjectValue] callers without invoking
+ * [SyncEngineObjectDataFactory]. Suspend [fetch]/[fetchOrNull] delegate to the underlying proxy.
+ *
+ * [get] returns the pre-fetched value for selected fields; throws [viaduct.errors.UnsetFieldException]
+ * for non-selected fields. [getOrNull] returns null for both missing and null values (graceful
+ * degradation — e.g. Java resolvers iterating selections receive null rather than crashing).
+ * [getSelections] returns the selections snapshotted at construction time.
+ */
+internal suspend fun ProxyEngineObjectData.asLazySyncPassthrough(): EngineObjectData.Sync {
+    val selections = fetchSelections().toList()
+    val data = selections.associateWith { fetch(it).toSync() }
+    return object : EngineObjectData.Sync {
+        override val type = this@asLazySyncPassthrough.type
+
+        override suspend fun fetch(selection: String) = this@asLazySyncPassthrough.fetch(selection)
+
+        override suspend fun fetchOrNull(selection: String) = this@asLazySyncPassthrough.fetchOrNull(selection)
+
+        override suspend fun fetchSelections(): Iterable<String> = selections
+
+        override fun get(selection: String): Any? {
+            if (!data.containsKey(selection)) {
+                throw UnsetFieldException(
+                    selection,
+                    type,
+                    "please declare $selection in the objectValueFragment or queryValueFragment"
+                )
+            }
+            return data[selection]
+        }
+
+        override fun getOrNull(selection: String): Any? = data[selection]
+
+        override fun getSelections(): Iterable<String> = selections
+    }
+}
+
+/**
+ * Recursively converts [ProxyEngineObjectData] instances (and lists thereof) to
+ * [EngineObjectData.Sync] so that nested GRT field accessors can use [EngineObjectData.Sync.get].
+ */
+private suspend fun Any?.toSync(): Any? =
+    when (this) {
+        is ProxyEngineObjectData -> asLazySyncPassthrough()
+        is List<*> -> map { it.toSync() }
+        else -> this
+    }

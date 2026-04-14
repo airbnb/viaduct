@@ -41,8 +41,6 @@ import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
-import viaduct.engine.runtime.SyncFieldResolverDispatcher
-import viaduct.engine.runtime.SyncProxyEngineObjectData
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
@@ -119,12 +117,9 @@ class ResolverDataFetcherTest {
         val resolverDataFetcher = ResolverDataFetcher(
             typeName = testType,
             fieldName = testField,
-            fieldResolverDispatcher = if (flagManager.isEnabled(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION)) {
-                SyncFieldResolverDispatcher(FieldResolverDispatcherImpl(executor))
-            } else {
-                FieldResolverDispatcherImpl(executor)
-            },
+            fieldResolverDispatcher = FieldResolverDispatcherImpl(executor),
             tenantNameResolver = tenantNameResolver,
+            syncValueComputationEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION),
         )
 
         val dataFetchingEnvironment: ViaductDataFetchingEnvironment = mockk()
@@ -199,7 +194,7 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test sync value computation enabled passes SyncProxyEngineObjectData to resolver`(): Unit =
+    fun `test sync value computation enabled passes ProxyEngineObjectData as objectValue to resolver`(): Unit =
         runBlocking(Dispatchers.Default) {
             withThreadLocalCoroutineContext {
                 Fixture(
@@ -233,7 +228,7 @@ class ResolverDataFetcherTest {
                     val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
                     assertEquals(expectedResult, receivedResult)
                     assertTrue(resolverRan)
-                    assertTrue(lastReceivedObjectValue is SyncProxyEngineObjectData)
+                    assertTrue(lastReceivedObjectValue is ProxyEngineObjectData)
                 }
             }
         }
