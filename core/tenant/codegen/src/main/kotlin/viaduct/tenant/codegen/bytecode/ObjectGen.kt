@@ -103,7 +103,7 @@ private class ObjectClassGenV2(
     private fun addConnectionInterface() {
         val edgeTypeName = def.connectionEdgeTypeName ?: return
         val edgeTypeDef = grtClassFilesBuilder.getType(edgeTypeName) as? ViaductSchema.Object ?: return
-        val nodeTypeName = edgeTypeDef.typeOfNodeField ?: return
+        val nodeTypeName = edgeTypeDef.typeOfNodeField
 
         val edgeKmType = KmName("$pkg/$edgeTypeName").asType()
         val nodeKmType = KmName("$pkg/$nodeTypeName").asType()
