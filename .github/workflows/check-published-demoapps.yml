@@ -1,0 +1,52 @@
+name: Check Published Demo Apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch in viaduct-dev/* repos to test (NOT an airbnb/viaduct ref)"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-demoapps-${{ inputs.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter, starwars]
+    name: Test ${{ matrix.demoapp }}
+    steps:
+      - name: Clone standalone repo
+        run: |
+          git clone --branch "${{ inputs.ref }}" --depth 1 \
+            "https://github.com/viaduct-dev/${{ matrix.demoapp }}.git" app
+        shell: bash
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          build-root-directory: app
+
+      - name: Test ${{ matrix.demoapp }}
+        working-directory: app
+        env:
+          USE_VIADUCT_SNAPSHOT_REPO: ${{ inputs.ref != 'main' && 'true' || 'false' }}
+        run: ./gradlew test --no-daemon
+        shell: bash

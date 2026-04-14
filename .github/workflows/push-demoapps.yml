@@ -1,0 +1,91 @@
+name: Push Demo Apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref in airbnb/viaduct to copy from"
+        required: true
+        type: string
+      release_mode:
+        description: "If true and ref is release/vX.Y.Z, pushes to main in viaduct-dev"
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+      release_mode:
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      destination_branch:
+        description: "Branch pushed to in viaduct-dev repos"
+        value: ${{ jobs.push.outputs.destination_branch }}
+    secrets:
+      VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: push-demoapps-${{ inputs.ref }}-${{ inputs.release_mode }}
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    outputs:
+      destination_branch: ${{ steps.compute-dest.outputs.destination_branch }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+
+      - name: Compute destination branch
+        id: compute-dest
+        run: |
+          set -euo pipefail
+          REF="${{ inputs.ref }}"
+          RELEASE_MODE="${{ inputs.release_mode }}"
+
+          if [ "$REF" = "main" ]; then
+            DEST_BRANCH="snapshot"
+          elif [[ "$REF" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ "$RELEASE_MODE" = "true" ]; then
+            DEST_BRANCH="main"
+          elif [[ "$REF" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            DEST_BRANCH="tmp/${REF}"
+          else
+            DEST_BRANCH="tmp/${REF}"
+          fi
+
+          if [ -z "$DEST_BRANCH" ]; then
+            echo "::error::Failed to compute destination branch"
+            exit 1
+          fi
+
+          echo "destination_branch=${DEST_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Destination branch: ${DEST_BRANCH}"
+        shell: bash
+
+      - name: Push demo apps via Copybara
+        env:
+          VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          DEST_BRANCH="${{ steps.compute-dest.outputs.destination_branch }}"
+
+          for APP in cli-starter jetty-starter ktor-starter micronaut-starter starwars; do
+            echo "::group::Pushing ${APP} to ${DEST_BRANCH}"
+            .github/copydemoapps/copy "$APP" "${{ inputs.ref }}" --target-ref="${DEST_BRANCH}"
+            echo "::endgroup::"
+          done
+        shell: bash
