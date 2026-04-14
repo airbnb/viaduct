@@ -59,6 +59,7 @@ public abstract interface class viaduct/api/VariablesProvider {
 public abstract interface class viaduct/api/context/BaseFieldExecutionContext : viaduct/api/context/ResolverExecutionContext {
 	public abstract fun getArguments ()Lviaduct/api/types/Arguments;
 	public abstract fun getQueryValue ()Lviaduct/api/types/Query;
+	public abstract fun getQueryValue (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class viaduct/api/context/ExecutionContext {
@@ -68,6 +69,7 @@ public abstract interface class viaduct/api/context/ExecutionContext {
 
 public abstract interface class viaduct/api/context/FieldExecutionContext : viaduct/api/context/BaseFieldExecutionContext {
 	public abstract fun getObjectValue ()Lviaduct/api/types/Object;
+	public abstract fun getObjectValue (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class viaduct/api/context/MutationFieldExecutionContext : viaduct/api/context/BaseFieldExecutionContext {

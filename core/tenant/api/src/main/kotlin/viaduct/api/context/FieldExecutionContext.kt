@@ -4,7 +4,6 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 
 /**
@@ -34,6 +33,5 @@ interface FieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
      * Use this when you need to ensure all object value data is available before proceeding,
      * or when passing the object value to non-suspending code.
      */
-    @ExperimentalApi
     suspend fun getObjectValue(): O
 }

@@ -4,7 +4,6 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Query
-import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 
 /**
@@ -38,7 +37,6 @@ interface BaseFieldExecutionContext<
      * Use this when you need to ensure all query value data is available before proceeding,
      * or when passing the query value to non-suspending code.
      */
-    @ExperimentalApi
     suspend fun getQueryValue(): Q
 
     /**
