@@ -63,7 +63,10 @@ An orchestrator composes atomics (and possibly inline jobs) into a higher-level 
 
 | Workflow | Purpose | Runs on |
 |---|---|---|
-| `ci-manual-trigger.yml` | Full CI suite: build-and-test + demoapp tests + API compat check | PR, merge to main, daily schedule (via periodic-green-check), manual |
+| `ci-manual-trigger.yml` | Full CI suite: build-and-test + standalone-demoapp-tests + API compat check | PR, merge to main, daily schedule (via periodic-green-check), manual |
+| `ci-trigger.yml` | Full CI suite: build-and-test + demoapps-ci-check + API compat check | manual, workflow_call (push/PR triggers to be added when `ci-manual-trigger.yml` is deleted) |
+| `demoapps-nightly-check.yml` | End-to-end snapshot validation: publish → push → wait → verify → cleanup | manual, workflow_call |
+| `nightly-build.yml` | Nightly cron wrapper, delegates to `demoapps-nightly-check.yml` | weekday schedule (6am UTC), manual |
 | `periodic-green-check.yml` | Scheduled CI health check + branch staleness detection | daily schedule, manual |
 
 ### Orchestrator Helpers
@@ -261,6 +264,53 @@ periodic-green-check.yml  [orchestrator]
                format-alert --> send-staleness-alert --> post-alerts.yml [helper] --> Slack + Discord
 ```
 
+### Nightly Build (6am UTC weekdays)
+
+```
+schedule / manual dispatch
+  |
+  v
+nightly-build.yml  [orchestrator, thin wrapper]
+  |
+  v
+demoapps-nightly-check.yml  [orchestrator]
+  |
+  |--- ci-precheck (if run_ci_check)
+  |      v
+  |    demoapps-ci-check.yml  [atomic]
+  |
+  |--- publish-snapshot
+  |      v
+  |    publish-branch.yml  [atomic, mode=snapshot]
+  |
+  |--- push-demoapps (parallel)       wait-for-publication (parallel)
+  |      v                               v
+  |    push-demoapps.yml  [atomic]     (poll Sonatype until 200)
+  |
+  |--- check-demoapps
+  |      v
+  |    check-published-demoapps.yml  [atomic]
+  |
+  '--- cleanup (if tmp/* branch)
+         delete tmp branches from viaduct-dev/* repos
+```
+
+### CI Check (via `ci-trigger.yml`)
+
+```
+manual dispatch / workflow_call
+  |
+  v
+ci-trigger.yml  [orchestrator]
+  |
+  |--- build-and-test.yml  [atomic]
+  |--- demoapps-ci-check.yml  [atomic]
+  |--- bcv-api-check.yml  [atomic]
+  |
+  '--- [if any atomic failed && send_alerts]
+         format-alerts --> send-alerts --> post-alerts.yml [helper] --> Slack + Discord
+```
+
 ### Manual Dispatch
 
 Every workflow supports `workflow_dispatch` so it can be run by hand independently. This serves two purposes: **testing** (validate a workflow change on a branch before merging) and **on-demand execution** (run a check or suite without waiting for its automatic trigger).
@@ -272,7 +322,10 @@ Notifications are suppressed on manual dispatch — the person who triggered the
 | `build-and-test.yml` | Test a specific OS/Java combination | `os`, `java_versions` |
 | `standalone-demoapp-tests.yml` | Test demoapps against a specific OS/Java combination | `os`, `java_versions` |
 | `bcv_api_check.yaml` | Check API compatibility on a branch | — |
-| `ci-manual-trigger.yml` | Run the full CI suite on demand | `send_alerts` (default: off) |
+| `ci-manual-trigger.yml` | Run the full CI suite on demand (legacy) | `send_alerts` (default: off) |
+| `ci-trigger.yml` | Run the full CI suite using new atomics | `send_alerts` (default: off) |
+| `demoapps-nightly-check.yml` | Run the end-to-end snapshot validation loop | `ref`, `run_ci_check` (default: off) |
+| `nightly-build.yml` | Trigger the nightly validation without waiting for cron | — |
 | `periodic-green-check.yml` | Run scheduled checks without waiting for cron | `branch`, `mode` (ci-check / staleness-check / all) |
 | `post-alerts.yml` | Verify Slack and Discord connectivity | `mode: test-posts` |
 | `conventional-commit.yml` | Test the PR title validator itself | — |

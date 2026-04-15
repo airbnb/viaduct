@@ -1,0 +1,143 @@
+name: Demoapp Nightly Check
+# End-to-end snapshot validation orchestrator.
+# Exercises the exact artifact path downstream users consume:
+#   publish snapshots -> push demoapps -> wait for visibility -> verify standalone repos
+#
+# This is the centerpiece of RFC-267 — it closes the mavenLocal/Maven Central gap.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to validate"
+        required: true
+        type: string
+        default: main
+      run_ci_check:
+        description: "Run CI precheck before snapshot publication"
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+      run_ci_check:
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-check-${{ inputs.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Optional CI precheck — stop early if mavenLocal tests are broken
+  # ---------------------------------------------------------------------------
+  ci-precheck:
+    if: inputs.run_ci_check
+    uses: ./.github/workflows/demoapps-ci-check.yml
+
+  # ---------------------------------------------------------------------------
+  # Publish snapshot artifacts to Sonatype OSSRH
+  # ---------------------------------------------------------------------------
+  publish-snapshot:
+    needs: [ci-precheck]
+    if: always() && (needs.ci-precheck.result == 'success' || needs.ci-precheck.result == 'skipped')
+    uses: ./.github/workflows/publish-branch.yml
+    with:
+      mode: snapshot
+      ref: ${{ inputs.ref }}
+      run_checks: false
+      confirm_versions: true
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # Push demoapp code to viaduct-dev/* repos via Copybara
+  # Runs in parallel with wait-for-publication (both depend on publish-snapshot)
+  # ---------------------------------------------------------------------------
+  push-demoapps:
+    needs: [publish-snapshot]
+    uses: ./.github/workflows/push-demoapps.yml
+    with:
+      ref: ${{ inputs.ref }}
+      release_mode: false
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # Poll Sonatype until snapshot artifacts are visible
+  # Runs in parallel with push-demoapps
+  # ---------------------------------------------------------------------------
+  wait-for-publication:
+    needs: [publish-snapshot]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Sonatype snapshot visibility
+        env:
+          VERSION: ${{ needs.publish-snapshot.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Use build-shared as the canary artifact (coordinates: com.airbnb.viaduct:build-shared)
+          URL="https://s01.oss.sonatype.org/content/repositories/snapshots/com/airbnb/viaduct/build-shared/${VERSION}/"
+          echo "Waiting for ${URL} to return 200..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+            if [ "$STATUS" = "200" ]; then
+              echo "Artifacts visible after ${i} attempts"
+              exit 0
+            fi
+            echo "Attempt ${i}: HTTP ${STATUS}, waiting 30s..."
+            sleep 30
+          done
+          echo "::error::Timed out waiting for Sonatype snapshot visibility after 15 minutes"
+          exit 1
+        shell: bash
+
+  # ---------------------------------------------------------------------------
+  # Verify standalone repos build against published snapshot artifacts
+  # ---------------------------------------------------------------------------
+  check-demoapps:
+    needs: [push-demoapps, wait-for-publication]
+    uses: ./.github/workflows/check-published-demoapps.yml
+    with:
+      ref: ${{ needs.push-demoapps.outputs.destination_branch }}
+
+  # ---------------------------------------------------------------------------
+  # Delete temporary branches in viaduct-dev/* repos (ephemeral refs only)
+  # ---------------------------------------------------------------------------
+  cleanup:
+    needs: [push-demoapps, check-demoapps]
+    if: always() && needs.push-demoapps.result == 'success' && startsWith(needs.push-demoapps.outputs.destination_branch, 'tmp/')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter, starwars]
+    name: Cleanup ${{ matrix.demoapp }}
+    steps:
+      - name: Delete temporary branch
+        env:
+          GH_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+          DEST_BRANCH: ${{ needs.push-demoapps.outputs.destination_branch }}
+          DEMOAPP: ${{ matrix.demoapp }}
+        run: |
+          set -euo pipefail
+          echo "Deleting branch '${DEST_BRANCH}' from viaduct-dev/${DEMOAPP}..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X DELETE \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/viaduct-dev/${DEMOAPP}/git/refs/heads/${DEST_BRANCH}")
+          if [ "$STATUS" = "204" ]; then
+            echo "Deleted successfully"
+          elif [ "$STATUS" = "422" ]; then
+            echo "Branch already deleted or never existed — skipping"
+          else
+            echo "::warning::Unexpected status ${STATUS} deleting branch"
+          fi
+        shell: bash

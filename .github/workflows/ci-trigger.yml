@@ -1,16 +1,99 @@
-name: CI
-# Stub — logic will be migrated from ci-manual-trigger.yml in a follow-up PR.
+name: CI Check
+# Orchestrator that composes CI atomics into a single "run everything" check.
+# Replaces ci-manual-trigger.yml — push/PR triggers will be added in Slice 14
+# when ci-manual-trigger.yml is deleted.
 
 on:
   workflow_dispatch:
+    inputs:
+      send_alerts:
+        description: "Send Slack/Discord alerts on failure"
+        required: false
+        default: false
+        type: boolean
   workflow_call:
+    inputs:
+      send_alerts:
+        description: "Send Slack/Discord alerts on failure"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
 
 permissions:
   contents: read
 
 jobs:
-  placeholder:
+  build-and-test:
+    uses: ./.github/workflows/build-and-test.yml
+
+  demoapps-ci-check:
+    uses: ./.github/workflows/demoapps-ci-check.yml
+
+  bcv-api-check:
+    uses: ./.github/workflows/bcv-api-check.yml
+
+  format-alerts:
+    needs: [build-and-test, demoapps-ci-check, bcv-api-check]
     runs-on: ubuntu-latest
+    if: >-
+      always()
+      && (needs.build-and-test.result == 'failure'
+          || needs.demoapps-ci-check.result == 'failure'
+          || needs.bcv-api-check.result == 'failure')
+      && inputs.send_alerts == true
+    outputs:
+      text: ${{ steps.fmt.outputs.text }}
     steps:
-      - run: echo "placeholder — logic not yet migrated from ci-manual-trigger.yml"
+      - uses: actions/checkout@v6
+
+      - name: Format alert
+        id: fmt
+        env:
+          BRANCH: ${{ github.ref_name }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          BAT_RESULT: ${{ needs.build-and-test.result }}
+          BAT_RUN_ID: ${{ needs.build-and-test.outputs.run_id }}
+          DCC_RESULT: ${{ needs.demoapps-ci-check.result }}
+          DCC_RUN_ID: ${{ needs.demoapps-ci-check.outputs.run_id }}
+          BCV_RESULT: ${{ needs.bcv-api-check.result }}
+          BCV_RUN_ID: ${{ needs.bcv-api-check.outputs.run_id }}
+        run: |
+          jobs_json='[]'
+          if [ "$BAT_RESULT" = "failure" ]; then
+            jobs_json=$(echo "$jobs_json" | jq -c --arg name "Build and Test" --arg run_id "$BAT_RUN_ID" '. + [{"name": $name, "run_id": $run_id}]')
+          fi
+          if [ "$DCC_RESULT" = "failure" ]; then
+            jobs_json=$(echo "$jobs_json" | jq -c --arg name "Demo App Tests" --arg run_id "$DCC_RUN_ID" '. + [{"name": $name, "run_id": $run_id}]')
+          fi
+          if [ "$BCV_RESULT" = "failure" ]; then
+            jobs_json=$(echo "$jobs_json" | jq -c --arg name "API Compatibility" --arg run_id "$BCV_RUN_ID" '. + [{"name": $name, "run_id": $run_id}]')
+          fi
+          text=$(jq -n \
+            --arg branch "$BRANCH" \
+            --arg server_url "$SERVER_URL" \
+            --arg repository "$REPOSITORY" \
+            --arg sha "$SHA" \
+            --arg actor "$ACTOR" \
+            --argjson jobs "$jobs_json" \
+            '{"branch": $branch, "server_url": $server_url, "repository": $repository, "sha": $sha, "actor": $actor, "jobs": $jobs}' | \
+            python3 .github/scripts/format_alert.py)
+          {
+            echo "text<<ALERT_EOF"
+            echo "$text"
+            echo "ALERT_EOF"
+          } >> "$GITHUB_OUTPUT"
         shell: bash
+
+  send-alerts:
+    needs: [format-alerts]
+    if: always() && needs.format-alerts.result == 'success'
+    uses: ./.github/workflows/post-alerts.yml
+    with:
+      text: ${{ needs.format-alerts.outputs.text }}
+    secrets: inherit
