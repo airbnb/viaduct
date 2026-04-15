@@ -112,7 +112,7 @@ jobs:
   # ---------------------------------------------------------------------------
   cleanup:
     needs: [push-demoapps, check-demoapps]
-    if: always() && needs.push-demoapps.result == 'success' && startsWith(needs.push-demoapps.outputs.destination_branch, 'tmp/')
+    if: always() && startsWith(needs.push-demoapps.outputs.destination_branch, 'tmp/')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -127,17 +127,23 @@ jobs:
           DEMOAPP: ${{ matrix.demoapp }}
         run: |
           set -euo pipefail
-          echo "Deleting branch '${DEST_BRANCH}' from viaduct-dev/${DEMOAPP}..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X DELETE \
-            -H "Authorization: token ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/viaduct-dev/${DEMOAPP}/git/refs/heads/${DEST_BRANCH}")
-          if [ "$STATUS" = "204" ]; then
-            echo "Deleted successfully"
-          elif [ "$STATUS" = "422" ]; then
-            echo "Branch already deleted or never existed — skipping"
-          else
-            echo "::warning::Unexpected status ${STATUS} deleting branch"
+
+          # Defense-in-depth: verify this is a tmp/ branch
+          if [[ "$DEST_BRANCH" != tmp/* ]]; then
+            echo "::error::Refusing to delete non-temporary branch '${DEST_BRANCH}'"
+            exit 1
           fi
+
+          # Log current SHA for recovery before deleting
+          SHA=$(gh api "repos/viaduct-dev/${DEMOAPP}/git/refs/heads/${DEST_BRANCH}" \
+            --jq '.object.sha' 2>/dev/null || echo "")
+          if [ -z "$SHA" ]; then
+            echo "Branch '${DEST_BRANCH}' does not exist in viaduct-dev/${DEMOAPP} — skipping"
+            exit 0
+          fi
+          echo "Branch '${DEST_BRANCH}' in viaduct-dev/${DEMOAPP} points to ${SHA}"
+
+          # Delete the branch
+          gh api -X DELETE "repos/viaduct-dev/${DEMOAPP}/git/refs/heads/${DEST_BRANCH}"
+          echo "Deleted successfully (recoverable via: git update-ref refs/heads/${DEST_BRANCH} ${SHA})"
         shell: bash
