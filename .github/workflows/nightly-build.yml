@@ -1,0 +1,23 @@
+name: Nightly Build
+# Thin cron wrapper — delegates to demoapps-nightly-check.yml.
+# No domain logic belongs here. This is just a scheduling entrypoint.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1-5'  # 6 AM UTC, weekdays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    uses: ./.github/workflows/demoapps-nightly-check.yml
+    with:
+      ref: main
+      run_ci_check: true
+    secrets: inherit
