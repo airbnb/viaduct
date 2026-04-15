@@ -75,7 +75,7 @@ class UpdateAndPublishResolver @Inject constructor(
             "{ publishListing(id: \$id) { id title } }",
             variables = mapOf("id" to ctx.arguments.id)
         )
-        return ctx.nodeFor(ctx.arguments.id)
+        return ctx.nodeRef(ctx.arguments.id)
     }
 }
 ```

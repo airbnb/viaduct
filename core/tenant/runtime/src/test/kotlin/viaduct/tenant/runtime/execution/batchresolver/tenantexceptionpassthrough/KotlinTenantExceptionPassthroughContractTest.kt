@@ -34,7 +34,7 @@ class KotlinTenantExceptionPassthroughContractTest : TenantExceptionPassthroughC
 
     @Resolver
     class Query_ItemResolver : QueryResolvers.Item() {
-        override suspend fun resolve(ctx: Context): Item = ctx.nodeFor(ctx.arguments.id)
+        override suspend fun resolve(ctx: Context): Item = ctx.nodeRef(ctx.arguments.id)
     }
 
     @Resolver(objectValueFragment = "fragment _ on Item { id }")

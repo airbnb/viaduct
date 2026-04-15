@@ -70,10 +70,10 @@ class NodeExecutionContextImplTest : ContextTestBase() {
         }
 
     @Test
-    fun nodeFor() {
+    fun nodeRef() {
         val ctx = mk()
         // Just verify the method can be called without throwing - actual node resolution
         // would require more complex setup of engine execution context mocking
-        ctx.nodeFor(userId)
+        ctx.nodeRef(userId)
     }
 }

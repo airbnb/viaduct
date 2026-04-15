@@ -16,7 +16,7 @@ import viaduct.tenant.tutorial02.resolverbases.QueryResolvers
  *
  * VIADUCT FEATURES DEMONSTRATED:
  * - Node Resolvers (NodeResolvers.Foo())
- * - GlobalID system (ctx.globalIDFor, ctx.nodeFor)
+ * - GlobalID system (ctx.globalIDFor, ctx.nodeRef)
  * - Object builders (Foo.Builder)
  * - Node interface implementation
  *
@@ -93,7 +93,7 @@ class SimpleNodeResolverFeatureAppTest : SimpleNodeResolverContractTest() {
 
             // USE NODE RESOLVER SYSTEM
             // This automatically routes to FooNodeResolver.resolve()
-            return ctx.nodeFor(globalId)
+            return ctx.nodeRef(globalId)
         }
     }
 
@@ -125,7 +125,7 @@ class SimpleNodeResolverFeatureAppTest : SimpleNodeResolverContractTest() {
      * 1. Client: foo(id: "foo-123")
      * 2. fooResolver.resolve() called with arguments.id = "foo-123"
      * 3. Creates GlobalID from string: ctx.globalIDFor(Foo.Reflection, "foo-123")
-     * 4. ctx.nodeFor(globalId) routes to FooNodeResolver.resolve()
+     * 4. ctx.nodeRef(globalId) routes to FooNodeResolver.resolve()
      * 5. FooNodeResolver extracts "foo-123" from GlobalID
      * 6. Looks up data and builds Foo object
      * 7. Returns object to client with encoded GlobalID
@@ -134,6 +134,6 @@ class SimpleNodeResolverFeatureAppTest : SimpleNodeResolverContractTest() {
      * - Node Resolvers handle object creation by ID
      * - GlobalIDs provide type safety and encoding
      * - Clean separation: Query resolvers route, Node resolvers create
-     * - Use ctx.nodeFor() to leverage the Node Resolver system
+     * - Use ctx.nodeRef() to leverage the Node Resolver system
      */
 }

@@ -45,7 +45,7 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
      * created reference. Attempting to access other fields will result in an exception.
      * This can be used to construct resolver responses for fields with Node types.
      */
-    fun <T : NodeObject> nodeFor(id: GlobalID<T>): T
+    fun <T : NodeObject> nodeRef(id: GlobalID<T>): T
 
     /**
      * Creates a GlobalID and returns it as a String. Example usage:

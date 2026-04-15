@@ -11,7 +11,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  *
  * Defines the SDL and assertions for:
  * - Resolver returns GlobalID structured type
- * - Resolver returns a node reference via ctx.nodeFor()
+ * - Resolver returns a node reference via ctx.nodeRef()
  * - Resolver returns a nested node reference on an object field
  *
  * Extend this class and provide resolver implementations to verify that a given
@@ -31,9 +31,9 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
     extend type Query {
         "Return NodeObj with id=GlobalID(\"NodeObj\", id), value=id"
         nodeObj(id: String!): NodeObj! @resolver
-        "Return a node reference via ctx.nodeFor(\"NodeObj\", \"tenant1\"); resolved NodeObj has value=\"foo\""
+        "Return a node reference via ctx.nodeRef(\"NodeObj\", \"tenant1\"); resolved NodeObj has value=\"foo\""
         nodeReference(id: String!): NodeObj! @resolver
-        "Return ObjectWithNodeField with node=nodeFor(\"NodeObj\", \"nestedNode\"); resolved node has value=\"foo\""
+        "Return ObjectWithNodeField with node=nodeRef(\"NodeObj\", \"nestedNode\"); resolved node has value=\"foo\""
         objectWithNodeField: ObjectWithNodeField @resolver
     }
 """

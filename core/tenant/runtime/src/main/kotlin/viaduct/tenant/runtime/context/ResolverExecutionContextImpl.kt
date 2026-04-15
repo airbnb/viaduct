@@ -31,7 +31,7 @@ sealed class ResolverExecutionContextImpl<Q : Query>(
         variables: Map<String, Any?>
     ) = engineExecutionContextWrapper.selectionsFor(type, selections, variables)
 
-    override fun <T : NodeObject> nodeFor(id: GlobalID<T>) = engineExecutionContextWrapper.nodeFor(this, id)
+    override fun <T : NodeObject> nodeRef(id: GlobalID<T>) = engineExecutionContextWrapper.nodeRef(this, id)
 
     override fun <T : NodeObject> globalIDStringFor(
         type: Type<T>,

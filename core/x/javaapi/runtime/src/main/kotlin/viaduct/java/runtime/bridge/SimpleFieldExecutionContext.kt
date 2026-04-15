@@ -84,8 +84,8 @@ class SimpleFieldExecutionContext(
         throw FrameworkException("serialize not yet implemented for Java resolvers")
     }
 
-    override fun <T : viaduct.java.api.types.NodeCompositeOutput> nodeFor(id: viaduct.java.api.globalid.GlobalID<T>): T {
-        throw FrameworkException("nodeFor not yet implemented for Java resolvers")
+    override fun <T : viaduct.java.api.types.NodeCompositeOutput> nodeRef(id: viaduct.java.api.globalid.GlobalID<T>): T {
+        throw FrameworkException("nodeRef not yet implemented for Java resolvers")
     }
 
     override fun <T : Any> query(

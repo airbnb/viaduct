@@ -1,10 +1,10 @@
 # Viaduct Node Reference Pattern (Relationships)
 
-When a field returns another Node type (like `createdBy: User`), **always use `ctx.nodeFor()`**:
+When a field returns another Node type (like `createdBy: User`), **always use `ctx.nodeRef()`**:
 
 ```kotlin
 // ✅ CORRECT - delegates to User's node resolver
-return ctx.nodeFor(ctx.globalIDFor(User.Reflection, createdById))
+return ctx.nodeRef(ctx.globalIDFor(User.Reflection, createdById))
 
 // ❌ WRONG - building User directly bypasses node resolution
 return User.Builder(ctx)
@@ -12,7 +12,7 @@ return User.Builder(ctx)
     .build()
 ```
 
-**Why this matters:** `nodeFor()` delegates to Viaduct's node resolution system, enabling batching, caching, and consistent data fetching. Building objects directly bypasses this and causes inconsistent behavior.
+**Why this matters:** `nodeRef()` delegates to Viaduct's node resolution system, enabling batching, caching, and consistent data fetching. Building objects directly bypasses this and causes inconsistent behavior.
 
 ## Schema
 
@@ -39,7 +39,7 @@ class TagCreatedByResolver : TagResolvers.CreatedBy() {
         val createdById = ctx.objectValue.getCreatedById()
             ?: return null
 
-        return ctx.nodeFor(
+        return ctx.nodeRef(
             ctx.globalIDFor(User.Reflection, createdById)
         )
     }
@@ -48,7 +48,7 @@ class TagCreatedByResolver : TagResolvers.CreatedBy() {
 
 ## ⚠️ CRITICAL: Target Must Implement Node
 
-For `ctx.nodeFor()` to work, the target type MUST:
+For `ctx.nodeRef()` to work, the target type MUST:
 
 1. Have `implements Node` in schema
 2. Have `@resolver` directive on the type
@@ -57,13 +57,13 @@ For `ctx.nodeFor()` to work, the target type MUST:
 **Check the target type's schema first!**
 
 ```graphql
-# ✅ User can be used with nodeFor
+# ✅ User can be used with nodeRef
 type User implements Node @resolver @scope(to: ["default"]) {
   id: ID!
   email: String
 }
 
-# ❌ User WITHOUT Node - nodeFor won't work
+# ❌ User WITHOUT Node - nodeRef won't work
 type User @scope(to: ["default"]) {
   id: ID!
   email: String
@@ -112,5 +112,5 @@ import com.viaduct.resolvers.resolverbases.UserResolvers
 
 ```kotlin
 // Create node reference (delegates fetching to Viaduct)
-ctx.nodeFor(ctx.globalIDFor(TargetType.Reflection, rawId))
+ctx.nodeRef(ctx.globalIDFor(TargetType.Reflection, rawId))
 ```

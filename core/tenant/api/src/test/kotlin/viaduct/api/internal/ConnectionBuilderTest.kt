@@ -140,7 +140,7 @@ class ConnectionBuilderTest {
             variables: Map<String, Any?>
         ): SelectionSet<T> = throw NotImplementedError("Not needed for tests")
 
-        override fun <T : NodeObject> nodeFor(id: GlobalID<T>): T = throw NotImplementedError("Not needed for tests")
+        override fun <T : NodeObject> nodeRef(id: GlobalID<T>): T = throw NotImplementedError("Not needed for tests")
 
         override fun <T : NodeObject> globalIDStringFor(
             type: Type<T>,

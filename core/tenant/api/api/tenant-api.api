@@ -86,7 +86,7 @@ public abstract interface class viaduct/api/context/NodeExecutionContext : viadu
 
 public abstract interface class viaduct/api/context/ResolverExecutionContext : viaduct/api/context/ExecutionContext {
 	public abstract fun globalIDStringFor (Lviaduct/api/reflect/Type;Ljava/lang/String;)Ljava/lang/String;
-	public abstract fun nodeFor (Lviaduct/api/globalid/GlobalID;)Lviaduct/api/types/NodeObject;
+	public abstract fun nodeRef (Lviaduct/api/globalid/GlobalID;)Lviaduct/api/types/NodeObject;
 	public abstract fun query (Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun selectionsFor (Lviaduct/api/reflect/Type;Ljava/lang/String;Ljava/util/Map;)Lviaduct/api/select/SelectionSet;
 }

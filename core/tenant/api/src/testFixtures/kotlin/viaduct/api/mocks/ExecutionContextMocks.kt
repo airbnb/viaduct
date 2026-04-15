@@ -171,7 +171,7 @@ open class MockResolverExecutionContext<Q : Query>(
     }
 
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
-    override fun <T : NodeObject> nodeFor(globalID: GlobalID<T>): T {
+    override fun <T : NodeObject> nodeRef(globalID: GlobalID<T>): T {
         val id = globalIDCodec.serialize(globalID.type.name, globalID.internalID)
         val graphqlObjectType = schema.schema.getObjectType(globalID.type.name)
         return MockNodeEngineObjectData(id, graphqlObjectType).toObjectGRT(this, globalID.type.kcls)

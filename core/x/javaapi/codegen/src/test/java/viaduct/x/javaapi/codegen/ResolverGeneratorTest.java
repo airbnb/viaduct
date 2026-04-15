@@ -217,7 +217,7 @@ class ResolverGeneratorTest {
                 + " internalID)")
         .contains("public <T extends NodeCompositeOutput> String serialize(GlobalID<T> globalID)")
         .contains("public Object getRequestContext()")
-        .contains("public <T extends NodeCompositeOutput> T nodeFor(GlobalID<T> id)");
+        .contains("public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id)");
   }
 
   @Test

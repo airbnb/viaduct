@@ -43,7 +43,7 @@ import viaduct.tenant.tutorial03.resolverbases.UserResolvers
 class SimpleResolversFeatureAppTest : SimpleResolversContractTest() {
     /**
      * Node Resolver for User objects. Viaduct generates Nodes.User() base class
-     * and calls this resolver when ctx.nodeFor() is used with a User GlobalID.
+     * and calls this resolver when ctx.nodeRef() is used with a User GlobalID.
      * Handles creating/fetching User objects with their basic data.
      */
     class UserNodeResolver : NodeResolvers.User() {
@@ -73,7 +73,7 @@ class SimpleResolversFeatureAppTest : SimpleResolversContractTest() {
     class GetUserResolver : QueryResolvers.User() {
         override suspend fun resolve(ctx: Context): User {
             // Get ID from query arguments and create GlobalID for Node Resolver lookup
-            return ctx.nodeFor(ctx.globalIDFor(User.Reflection, ctx.arguments.id))
+            return ctx.nodeRef(ctx.globalIDFor(User.Reflection, ctx.arguments.id))
         }
     }
 
@@ -87,7 +87,7 @@ class SimpleResolversFeatureAppTest : SimpleResolversContractTest() {
     class GetPersonResolver : QueryResolvers.Person() {
         override suspend fun resolve(ctx: Context): Person {
             // Return a User object that implements Person interface
-            return ctx.nodeFor(ctx.globalIDFor(User.Reflection, "john-doe"))
+            return ctx.nodeRef(ctx.globalIDFor(User.Reflection, "john-doe"))
         }
     }
 
@@ -252,7 +252,7 @@ class SimpleResolversFeatureAppTest : SimpleResolversContractTest() {
      *
      * 1. GetUserResolver.resolve() called with arguments.id = "john-doe"
      * 2. Creates GlobalID: ctx.globalIDFor(User.Reflection, "john-doe")
-     * 3. ctx.nodeFor() routes to UserNodeResolver.resolve()
+     * 3. ctx.nodeRef() routes to UserNodeResolver.resolve()
      * 4. UserNodeResolver creates User with firstname="John", lastname="Doe"
      * 5. Viaduct sees fullName requested in query
      * 6. Checks User_FullNameResolver.objectValueFragment

@@ -144,7 +144,7 @@ class SanityTest {
                 extend type Query { baz: Baz }
             """.trimIndent()
         )
-            .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
+            .resolver("Query" to "baz") { it.nodeRef(it.globalIDFor(Baz.Reflection, "")) }
             .nodeResolver("Baz") { ctx ->
                 Baz.Builder(ctx).build()
             }
@@ -159,7 +159,7 @@ class SanityTest {
                 extend type Query { baz: Baz }
             """.trimIndent()
         )
-            .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
+            .resolver("Query" to "baz") { it.nodeRef(it.globalIDFor(Baz.Reflection, "")) }
             .nodeResolver("Baz") { ctx: NodeExecutionContext<Baz> ->
                 Baz.Builder(ctx).build()
             }
@@ -174,7 +174,7 @@ class SanityTest {
                 extend type Query { baz: Baz }
             """.trimIndent()
         )
-            .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
+            .resolver("Query" to "baz") { it.nodeRef(it.globalIDFor(Baz.Reflection, "")) }
             .nodeBatchResolver("Baz") { ctxs ->
                 ctxs.map { ctx -> FieldValue.ofValue(Baz.Builder(ctx).build()) }
             }
@@ -190,7 +190,7 @@ class SanityTest {
                 extend type Query { baz: Baz }
             """.trimIndent()
         )
-            .resolver("Query" to "baz") { it.nodeFor(it.globalIDFor(Baz.Reflection, "")) }
+            .resolver("Query" to "baz") { it.nodeRef(it.globalIDFor(Baz.Reflection, "")) }
             .nodeBatchResolver("Baz") { ctxs: List<NodeExecutionContext<Baz>> ->
                 ctxs.map { ctx -> FieldValue.ofValue(Baz.Builder(ctx).build()) }
             }

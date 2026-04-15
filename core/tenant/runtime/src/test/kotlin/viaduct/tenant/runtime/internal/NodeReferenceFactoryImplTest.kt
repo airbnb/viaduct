@@ -29,7 +29,7 @@ import viaduct.tenant.runtime.globalid.User
 @OptIn(ExperimentalCoroutinesApi::class)
 class NodeReferenceFactoryImplTest {
     @Test
-    fun `nodeFor returns a Node Reference`(): Unit =
+    fun `nodeRef returns a Node Reference`(): Unit =
         runBlocking {
             val schema = GlobalIdTestSchema.schema
             val globalId = GlobalIDImpl(User.Reflection, "123")
@@ -40,7 +40,7 @@ class NodeReferenceFactoryImplTest {
             }
 
             val reflectionLoader = ReflectionLoaderImpl { TODO("unused") }
-            val result = factory.nodeFor(globalId, InternalContextImpl(schema, GlobalIDCodecDefault, reflectionLoader, DefaultGRTConvFactory))
+            val result = factory.nodeRef(globalId, InternalContextImpl(schema, GlobalIDCodecDefault, reflectionLoader, DefaultGRTConvFactory))
             expectThat(result.engineObject).isA<NodeReference>()
         }
 
@@ -66,7 +66,7 @@ class NodeReferenceFactoryImplTest {
     }
 
     @Test
-    fun `nodeFor - valid User type with proper constructor succeeds`() {
+    fun `nodeRef - valid User type with proper constructor succeeds`() {
         val globalId = GlobalIDImpl(User.Reflection, "123")
 
         val nodeEngineObjectData = createDefaultNodeReference(globalId)
@@ -77,14 +77,14 @@ class NodeReferenceFactoryImplTest {
         val factory = NodeReferenceGRTFactoryImpl(nodeReferenceFactory)
         val internalContext = createMockInternalContext()
 
-        val result = factory.nodeFor(globalId, internalContext)
+        val result = factory.nodeRef(globalId, internalContext)
 
-        assertNotNull(result, "nodeFor should return a non-null result for valid NodeObject type")
+        assertNotNull(result, "nodeRef should return a non-null result for valid NodeObject type")
         assertEquals(User::class, result::class, "Result should be an instance of User")
     }
 
     @Test
-    fun `nodeFor - type name not found in schema, throws exception`() {
+    fun `nodeRef - type name not found in schema, throws exception`() {
         val invalidNameUserType = MockType("TypeThatDoesNotExist", User::class)
         val globalId = GlobalIDImpl(invalidNameUserType, "123")
 
@@ -100,12 +100,12 @@ class NodeReferenceFactoryImplTest {
         val internalContext = createMockInternalContext()
 
         assertThrows<Exception> {
-            factory.nodeFor(globalId, internalContext)
+            factory.nodeRef(globalId, internalContext)
         }
     }
 
     @Test
-    fun `nodeFor - type is invalid, throws exception for constructor not found`() {
+    fun `nodeRef - type is invalid, throws exception for constructor not found`() {
         val userNameInvalidType = MockType("User", NodeObject::class)
         val globalId = GlobalIDImpl(userNameInvalidType, "123")
         val nodeReferenceFactory: (String, GraphQLObjectType) -> NodeReference = { _, _ ->
@@ -116,12 +116,12 @@ class NodeReferenceFactoryImplTest {
         val internalContext = createMockInternalContext()
 
         assertThrows<Exception> {
-            factory.nodeFor(globalId, internalContext)
+            factory.nodeRef(globalId, internalContext)
         }
     }
 
     @Test
-    fun `nodeFor - user returned from function can get the id `() {
+    fun `nodeRef - user returned from function can get the id `() {
         val internalId = "123"
         val globalId = GlobalIDImpl(User.Reflection, internalId)
         val nodeReferenceFactory: (String, GraphQLObjectType) -> NodeReference = { _, _ ->
@@ -131,7 +131,7 @@ class NodeReferenceFactoryImplTest {
         val factory = NodeReferenceGRTFactoryImpl(nodeReferenceFactory)
         val internalContext = createMockInternalContext()
 
-        val user = factory.nodeFor(globalId, internalContext)
+        val user = factory.nodeRef(globalId, internalContext)
 
         runBlocking {
             val userInternalId = user.getId().internalID

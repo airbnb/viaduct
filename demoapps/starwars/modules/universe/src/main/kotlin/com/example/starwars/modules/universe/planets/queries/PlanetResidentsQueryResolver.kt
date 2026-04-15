@@ -4,7 +4,7 @@ import com.example.starwars.modules.universe.planets.models.PlanetsResidentsRepo
 import com.example.starwars.universe.resolverbases.PlanetResolvers
 import jakarta.inject.Inject
 import viaduct.api.Resolver
-import viaduct.api.context.nodeFor
+import viaduct.api.context.nodeRef
 import viaduct.api.grts.Character
 
 /**
@@ -32,7 +32,7 @@ class PlanetResidentsQueryResolver
 
             return residents.map {
                 // Request Viaduct to resolve the Character node using the global ID.
-                ctx.nodeFor<Character>(it.characterId)
+                ctx.nodeRef<Character>(it.characterId)
             }
         }
     }

@@ -68,10 +68,10 @@ abstract class ContextTestBase {
                 return realWrapper.mutation(ctx, selections)
             }
 
-            override fun <T : NodeObject> nodeFor(
+            override fun <T : NodeObject> nodeRef(
                 ctx: InternalContext,
                 globalID: GlobalID<T>
-            ): T = realWrapper.nodeFor(ctx, globalID)
+            ): T = realWrapper.nodeRef(ctx, globalID)
 
             override fun <T : CompositeOutput> selectionsFor(
                 type: Type<T>,

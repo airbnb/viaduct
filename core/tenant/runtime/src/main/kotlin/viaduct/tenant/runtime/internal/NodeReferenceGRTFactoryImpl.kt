@@ -15,14 +15,14 @@ import viaduct.tenant.runtime.toObjectGRT
  * referenced type from the passed-in `InternalContext` instance and from the
  * result of invoking @nodeReferenceFactory, with the global ID of the
  * referenced node and its type as arguments.  So, for example, given a
- * `GlobalID<Wishlist>("Wishlist:1234")`, the `nodeFor` method will return an
+ * `GlobalID<Wishlist>("Wishlist:1234")`, the `nodeRef` method will return an
  * instance of `Wishlist` that has ID 1234 in it, as well as the resolution
  * mechanism that @nodeReferenceFactory contains, to resolve its fields.
  */
 class NodeReferenceGRTFactoryImpl(
     private val nodeReferenceFactory: (String, GraphQLObjectType) -> NodeReference,
 ) : NodeReferenceGRTFactory {
-    override fun <T : NodeObject> nodeFor(
+    override fun <T : NodeObject> nodeRef(
         id: GlobalID<T>,
         internalContext: InternalContext
     ): T {

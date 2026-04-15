@@ -86,7 +86,7 @@ class SimpleBackingDataFeatureAppTest : SimpleBackingDataContractTest() {
     @Resolver
     class UserQueryResolver : QueryResolvers.User() {
         override suspend fun resolve(ctx: Context): User {
-            return ctx.nodeFor(ctx.globalIDFor(User.Reflection, ctx.arguments.id))
+            return ctx.nodeRef(ctx.globalIDFor(User.Reflection, ctx.arguments.id))
         }
     }
 

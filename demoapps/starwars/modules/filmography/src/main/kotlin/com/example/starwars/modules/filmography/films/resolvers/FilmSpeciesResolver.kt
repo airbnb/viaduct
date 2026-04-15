@@ -31,7 +31,7 @@ class FilmSpeciesResolver
 
             return speciesIds.map {
                 val globalId = ctx.globalIDFor<Species>(it)
-                ctx.nodeFor(globalId)
+                ctx.nodeRef(globalId)
             }
         }
     }

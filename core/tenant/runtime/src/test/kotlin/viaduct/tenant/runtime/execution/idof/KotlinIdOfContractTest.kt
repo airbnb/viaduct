@@ -26,7 +26,7 @@ import viaduct.tenant.runtime.execution.idof.resolverbases.UserResolvers
  * expressions in all the places we generate them, and also that those
  * type expressions should interoperate.  I should be able to take a
  * `GlobalID` from a field-argument, for example, and pass it to
- * `nodeFor` and get the expected typing.  We also want to test that
+ * `nodeRef` and get the expected typing.  We also want to test that
  * subtyping is working the way we're expecting it to.
  *
  * The testing here is compile-time testing: the resolver implementations
@@ -39,7 +39,7 @@ import viaduct.tenant.runtime.execution.idof.resolverbases.UserResolvers
  * ExecutionContext functions:
  * * (O) NodeExecutionContext.id
  * * (O) ExecutionContext.globalIDFor
- * * (I) ResolverExecutionContext.nodeFor
+ * * (I) ResolverExecutionContext.nodeRef
  * * (I) ExecutionContext.query with idOf field arguments (future)
  *
  * **GRT fields (all IO)**
@@ -70,7 +70,7 @@ class KotlinIdOfContractTest : IdOfContractTest() {
 
             // Test consumption of this in various ways
             // Again, just checking that all of this compiles
-            ctx.nodeFor(id)
+            ctx.nodeRef(id)
             User.Builder(ctx).id(id) // Node.id
             User.Builder(ctx).cohostID(id) // output field
             Query_UserFromArgument_Arguments.Builder(ctx).id(id) // input field
@@ -83,7 +83,7 @@ class KotlinIdOfContractTest : IdOfContractTest() {
 
             // Test consumption of ExecutionContext.globalIDFor
             val alice = ctx.globalIDFor(User.Reflection, "alice@yahoo.com")
-            ctx.nodeFor(alice)
+            ctx.nodeRef(alice)
             User.Builder(ctx).id(alice) // Node.id
             User.Builder(ctx).cohostID(alice) // output field
             Query_UserFromArgument_Arguments.Builder(ctx).id(alice) // input field
@@ -128,7 +128,7 @@ class KotlinIdOfContractTest : IdOfContractTest() {
     @Resolver(" cohostID ")
     class User_CohostResolver : UserResolvers.Cohost() {
         override suspend fun resolve(ctx: Context): User {
-            return ctx.nodeFor(ctx.objectValue.getCohostID()!!)
+            return ctx.nodeRef(ctx.objectValue.getCohostID()!!)
         }
     }
 
@@ -138,7 +138,7 @@ class KotlinIdOfContractTest : IdOfContractTest() {
     @Resolver
     class Query_UserFromInputResolver : QueryResolvers.UserFromInput() {
         override suspend fun resolve(ctx: Context): User {
-            return ctx.nodeFor(ctx.arguments.id!!.id)
+            return ctx.nodeRef(ctx.arguments.id!!.id)
         }
     }
 
@@ -165,8 +165,8 @@ class KotlinIdOfContractTest : IdOfContractTest() {
             if (!id.type.kcls.isSubclassOf(Entity.Reflection.kcls)) throw IllegalArgumentException("Non-entity ID ($id)")
             if (id.type != User.Reflection) throw IllegalArgumentException("Can only handle user entities ($id)")
             @Suppress("UNCHECKED_CAST")
-            // TODO: relax bounds of nodeFor (https://app.asana.com/1/150975571430/task/1211504668132957)
-            return ctx.nodeFor(id as GlobalID<User>)
+            // TODO: relax bounds of nodeRef (https://app.asana.com/1/150975571430/task/1211504668132957)
+            return ctx.nodeRef(id as GlobalID<User>)
         }
     }
 }

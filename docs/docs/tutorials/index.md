@@ -106,7 +106,7 @@ Viaduct's built-in global object identification:
 
 - **Type-safe**: Can't accidentally use wrong ID for wrong type
 
-- **Utilities**: `ctx.globalIDFor()` to create, `ctx.nodeFor()` to resolve
+- **Utilities**: `ctx.globalIDFor()` to create, `ctx.nodeRef()` to resolve
 
 - **Standard**: Follows Relay specification for global object identification
 

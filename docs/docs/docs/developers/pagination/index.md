@@ -161,7 +161,7 @@ class UsersResolver : QueryUsersResolver() {
             .fromEdges(
                 edges = response.users.map { user ->
                     UserEdge.Builder(ctx)
-                        .node(ctx.nodeFor(user.id))
+                        .node(ctx.nodeRef(user.id))
                         .cursor(user.cursor)
                         .build()
                 },
@@ -189,7 +189,7 @@ class UsersByRoleResolver : QueryUsersByRoleResolver() {
             .fromEdges(
                 edges = page.mapIndexed { idx, user ->
                     UserEdge.Builder(ctx)
-                        .node(ctx.nodeFor(user.id))
+                        .node(ctx.nodeRef(user.id))
                         .cursor(OffsetCursor.fromOffset(offset + idx).value)
                         .role(user.role)
                         .build()
@@ -218,7 +218,7 @@ class UsersResolver : QueryUsersResolver() {
                 items = fetched,
                 hasNextPage = fetched.size > limit
             ) { user ->
-                ctx.nodeFor(user.id)
+                ctx.nodeRef(user.id)
             }
             .build()
     }
@@ -246,7 +246,7 @@ class UsersResolver : QueryUsersResolver() {
 
         return UserConnection.Builder(ctx)
             .fromList(allUsers) { user ->
-                ctx.nodeFor(user.id)
+                ctx.nodeRef(user.id)
             }
             .build()
     }
@@ -355,7 +355,7 @@ class OrganizationMembersResolver : OrganizationResolvers.Members() {
       .fromEdges(
         edges = page.mapIndexed { idx, member ->
           MemberEdge.Builder(ctx)
-            .node(ctx.nodeFor(member.userId))
+            .node(ctx.nodeRef(member.userId))
             .cursor(OffsetCursor.fromOffset(offset + idx).value)
             .role(member.role)
             .joinedAt(member.joinedAt)

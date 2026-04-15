@@ -21,7 +21,7 @@ class PublishListingResolver @Inject constructor(
 ) : MutationResolvers.PublishListing() {
   override suspend fun resolve(ctx: Context): Listing {
     client.publish(ctx.arguments.id.internalID)
-    return ctx.nodeFor(ctx.arguments.id) // Creates a Listing node reference
+    return ctx.nodeRef(ctx.arguments.id) // Creates a Listing node reference
   }
 }
 ```

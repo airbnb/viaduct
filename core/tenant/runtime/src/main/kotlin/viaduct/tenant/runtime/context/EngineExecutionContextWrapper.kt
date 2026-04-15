@@ -35,7 +35,7 @@ interface EngineExecutionContextWrapper {
         selections: SelectionSet<T>
     ): T
 
-    fun <T : NodeObject> nodeFor(
+    fun <T : NodeObject> nodeRef(
         ctx: InternalContext,
         globalID: GlobalID<T>
     ): T
@@ -88,11 +88,11 @@ class EngineExecutionContextWrapperImpl(
             )
         }
 
-    override fun <T : NodeObject> nodeFor(
+    override fun <T : NodeObject> nodeRef(
         ctx: InternalContext,
         globalID: GlobalID<T>
     ): T =
-        handleFrameworkErrors("nodeFor(${globalID.type.name})") {
+        handleFrameworkErrors("nodeRef(${globalID.type.name})") {
             val typeName = globalID.type.name
             val graphqlObjectType = ctx.schema.schema.getObjectType(typeName)
             val id = ctx.globalIDCodec.serialize(globalID.type.name, globalID.internalID)

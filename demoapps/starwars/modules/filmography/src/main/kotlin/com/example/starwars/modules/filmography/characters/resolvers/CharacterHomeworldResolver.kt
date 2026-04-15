@@ -73,7 +73,7 @@ class CharacterHomeworldResolver
                 // Lookup the character and its homeworld data
                 val character = charactersById[characterId]
                 val planet = character?.homeworldId?.let {
-                    ctx.nodeFor(ctx.globalIDFor<Planet>(it))
+                    ctx.nodeRef(ctx.globalIDFor<Planet>(it))
                 }
 
                 // Build and return the Planet object or null

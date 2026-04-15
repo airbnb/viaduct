@@ -28,7 +28,7 @@ class NoReflectionNode : NodeObject
 
 class ResolverExecutionContextExtensionsTest {
     @Test
-    fun `nodeFor T forwards to ctx with Type from nested Reflection`() {
+    fun `nodeRef T forwards to ctx with Type from nested Reflection`() {
         val ctx = mockk<ResolverExecutionContext<*>>()
         val gid = mockk<GlobalID<DummyNode>>()
         val returned = DummyNode()
@@ -36,11 +36,11 @@ class ResolverExecutionContextExtensionsTest {
         val typeSlot = slot<Type<DummyNode>>()
 
         every { ctx.globalIDFor(capture(typeSlot), "42") } returns gid
-        every { ctx.nodeFor(gid) } returns returned
+        every { ctx.nodeRef(gid) } returns returned
 
-        val result = ctx.nodeFor<DummyNode>("42")
+        val result = ctx.nodeRef<DummyNode>("42")
 
-        assertSame(returned, result, "Extension should return the value from ctx.nodeFor(GlobalID).")
+        assertSame(returned, result, "Extension should return the value from ctx.nodeRef(GlobalID).")
         assertSame(
             DummyNode.Reflection,
             typeSlot.captured,
@@ -67,11 +67,11 @@ class ResolverExecutionContextExtensionsTest {
     }
 
     @Test
-    fun `nodeFor T throws a descriptive error when no nested Reflection exists`() {
+    fun `nodeRef T throws a descriptive error when no nested Reflection exists`() {
         val ctx = mockk<ResolverExecutionContext<*>>()
 
         val ex = assertFailsWith<Throwable> {
-            ctx.nodeFor<NoReflectionNode>("id-1")
+            ctx.nodeRef<NoReflectionNode>("id-1")
         }
 
         val message = ex.message ?: ""
@@ -87,7 +87,7 @@ class ResolverExecutionContextExtensionsTest {
     }
 
     @Test
-    fun `nodeFor T reuses the same Type instance across calls (singleton Reflection)`() {
+    fun `nodeRef T reuses the same Type instance across calls (singleton Reflection)`() {
         val ctx = mockk<ResolverExecutionContext<*>>()
         val gid1 = mockk<GlobalID<DummyNode>>()
         val gid2 = mockk<GlobalID<DummyNode>>()
@@ -98,13 +98,13 @@ class ResolverExecutionContextExtensionsTest {
         val typeSlot2 = slot<Type<DummyNode>>()
 
         every { ctx.globalIDFor(capture(typeSlot1), "1") } returns gid1
-        every { ctx.nodeFor(gid1) } returns ret1
+        every { ctx.nodeRef(gid1) } returns ret1
 
         every { ctx.globalIDFor(capture(typeSlot2), "2") } returns gid2
-        every { ctx.nodeFor(gid2) } returns ret2
+        every { ctx.nodeRef(gid2) } returns ret2
 
-        val r1 = ctx.nodeFor<DummyNode>("1")
-        val r2 = ctx.nodeFor<DummyNode>("2")
+        val r1 = ctx.nodeRef<DummyNode>("1")
+        val r2 = ctx.nodeRef<DummyNode>("2")
 
         assertSame(ret1, r1)
         assertSame(ret2, r2)

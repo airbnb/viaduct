@@ -24,6 +24,6 @@ class SpeciesHomeworldResolver
 
             val planetId = ctx.globalIDFor<Planet>(homeWorldId)
 
-            return ctx.nodeFor(planetId)
+            return ctx.nodeRef(planetId)
         }
     }

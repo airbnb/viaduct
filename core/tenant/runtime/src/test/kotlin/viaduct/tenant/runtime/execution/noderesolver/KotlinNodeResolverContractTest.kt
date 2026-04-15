@@ -24,7 +24,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
     @Resolver
     class NodeReferenceResolver : QueryResolvers.NodeReference() {
         override suspend fun resolve(ctx: Context): NodeObj {
-            return ctx.nodeFor(ctx.globalIDFor(NodeObj.Reflection, ctx.arguments.id))
+            return ctx.nodeRef(ctx.globalIDFor(NodeObj.Reflection, ctx.arguments.id))
         }
     }
 
@@ -32,7 +32,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
     class ObjectWithNodeFieldResolver : QueryResolvers.ObjectWithNodeField() {
         override suspend fun resolve(ctx: Context): ObjectWithNodeField? {
             return ObjectWithNodeField.Builder(ctx)
-                .node(ctx.nodeFor(ctx.globalIDFor(NodeObj.Reflection, "nestedNode")))
+                .node(ctx.nodeRef(ctx.globalIDFor(NodeObj.Reflection, "nestedNode")))
                 .build()
         }
     }
@@ -44,7 +44,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
 
         override suspend fun resolve(ctx: Context): NodeObj {
             if (shouldReturnNodeReference) {
-                return ctx.nodeFor(ctx.globalIDFor(NodeObj.Reflection, "tenant1"))
+                return ctx.nodeRef(ctx.globalIDFor(NodeObj.Reflection, "tenant1"))
             }
             return NodeObj.Builder(ctx).value("foo").build()
         }

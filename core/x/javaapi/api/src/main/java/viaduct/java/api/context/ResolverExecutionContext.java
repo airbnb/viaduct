@@ -7,7 +7,7 @@ import viaduct.java.api.types.NodeCompositeOutput;
 
 /** A generic context for resolving fields or types. */
 public interface ResolverExecutionContext extends ExecutionContext {
-  <T extends NodeCompositeOutput> T nodeFor(GlobalID<T> id);
+  <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id);
 
   // TODO: Add globalIDStringFor() method for creating global ID strings
 

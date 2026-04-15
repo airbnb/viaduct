@@ -92,7 +92,7 @@ abstract class ObjectBase(
                             throw UnsetFieldException(
                                 selection,
                                 objectType,
-                                "only id can be accessed on an unresolved Node reference created using Context.nodeFor"
+                                "only id can be accessed on an unresolved Node reference created using Context.nodeRef"
                             )
                         }
                     }

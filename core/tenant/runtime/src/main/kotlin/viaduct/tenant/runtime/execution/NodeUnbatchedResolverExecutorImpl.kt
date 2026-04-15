@@ -62,7 +62,7 @@ class NodeUnbatchedResolverExecutorImpl(
 
             return when (val eo = result.engineObject) {
                 is NodeReference -> throw TenantUsageException(
-                    "NodeReference returned from node resolver. Use a GRT builder instead of Context.nodeFor to construct your node object."
+                    "NodeReference returned from node resolver. Use a GRT builder instead of Context.nodeRef to construct your node object."
                 )
 
                 is EngineObjectData -> eo

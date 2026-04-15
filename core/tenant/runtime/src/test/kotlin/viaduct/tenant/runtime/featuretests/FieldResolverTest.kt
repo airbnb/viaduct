@@ -101,7 +101,7 @@ class FieldResolverTest {
         FeatureTestBuilder(FeatureTestSchemaFixture.sdl)
             .resolver("Query" to "baz") { ctx ->
                 val id = ctx.globalIDFor(Baz.Reflection, "1")
-                ctx.nodeFor(ctx.globalIDFor(Baz.Reflection, "1")).also {
+                ctx.nodeRef(ctx.globalIDFor(Baz.Reflection, "1")).also {
                     assertEquals(id, it.getId())
                     it.getX() // This should throw
                 }

@@ -23,7 +23,7 @@ class BatchResolverErrorHandlingFeatureAppTest : BatchResolverErrorHandlingContr
     @Resolver
     class Query_FooResolver : QueryResolvers.Foo() {
         override suspend fun resolve(ctx: Context): Foo {
-            return ctx.nodeFor(ctx.arguments.id)
+            return ctx.nodeRef(ctx.arguments.id)
         }
     }
 
