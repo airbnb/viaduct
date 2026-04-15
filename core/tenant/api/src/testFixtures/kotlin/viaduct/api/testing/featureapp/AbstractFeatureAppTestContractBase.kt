@@ -2,6 +2,7 @@
 
 package viaduct.api.testing.featureapp
 
+import com.google.inject.Module
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
@@ -49,6 +50,16 @@ abstract class AbstractFeatureAppTestContractBase {
      * validation (e.g., resolver completeness checks).
      */
     protected open fun onBeforeBuild() {}
+
+    /**
+     * Override to provide additional Guice modules for the injector that creates
+     * resolver instances. Use this to inject test state into resolver classes.
+     *
+     * Called lazily when the bootstrapper is first accessed (typically at
+     * [initViaductBuilder] time), not during construction. Safe to reference
+     * `this` — the subclass is fully initialized by the time this is called.
+     */
+    protected open fun guiceModules(): List<Module> = emptyList()
 
     private val flagManager = MockFlagManager()
 

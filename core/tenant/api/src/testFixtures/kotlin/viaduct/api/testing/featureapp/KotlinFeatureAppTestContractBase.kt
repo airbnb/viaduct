@@ -38,7 +38,7 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
      */
     protected open val validateResolverCompleteness: Boolean = true
 
-    private val injector: Injector by lazy { Guice.createInjector() }
+    private val injector: Injector by lazy { Guice.createInjector(guiceModules()) }
     protected val guiceTenantCodeInjector by lazy { GuiceTenantCodeInjector(injector) }
 
     private val globalIdCodec = GlobalIDCodecDefault
@@ -52,11 +52,12 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
         grtPackagePrefix = derivedClassPackagePrefix
     )
 
-    protected open val viaductTenantAPIBootstrapperBuilder =
+    protected open val viaductTenantAPIBootstrapperBuilder by lazy {
         ViaductTenantAPIBootstrapper.Builder()
             .tenantCodeInjector(guiceTenantCodeInjector)
             .tenantResolverClassFinderFactory(tenantResolverClassFinderFactory)
             .tenantPackagePrefix(derivedClassPackagePrefix)
+    }
 
     override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> = viaductTenantAPIBootstrapperBuilder
 
