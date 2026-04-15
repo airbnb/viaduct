@@ -26,7 +26,28 @@ class BinarySchemaGenerator : CliktCommand() {
         .file(mustExist = false, canBeDir = false).required()
 
     override fun run() {
-        val schema = ViaductSchema.fromGraphQLSchema(schemaFiles)
-        schema.toBinaryFile(outputFile)
+        try {
+            val schema = ViaductSchema.fromGraphQLSchema(schemaFiles)
+            schema.toBinaryFile(outputFile)
+        } catch (
+            @Suppress("TooGenericExceptionCaught") t: Throwable
+        ) {
+            printSchemaDiagnostics()
+            throw t
+        }
+    }
+
+    private fun printSchemaDiagnostics() {
+        println("BinarySchemaGenerator failed while parsing schema input.")
+        println("Schema files in parse order:")
+        schemaFiles.forEach { file ->
+            println(" - ${file.path}")
+        }
+        println("Begin exact concatenated schema input:")
+        schemaFiles.forEach { file ->
+            print(file.readText())
+        }
+        println()
+        println("End exact concatenated schema input")
     }
 }

@@ -27,7 +27,7 @@ import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault as DefaultCodec
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
-import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
+import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
 import viaduct.tenant.runtime.globalid.User
 
 @ExperimentalCoroutinesApi
@@ -40,8 +40,8 @@ class ExecutionContextImplTest : ContextTestBase() {
         selectionSet: SelectionSet<CompositeOutput> = noSelections,
     ): FieldExecutionContext<Object, Query, Arguments, CompositeOutput> =
         FieldExecutionContextImpl(
-            MockInternalContext(GlobalIdFeatureAppTest.schema, globalIDCodec),
-            EngineExecutionContextWrapperImpl(ContextMocks(GlobalIdFeatureAppTest.schema).engineExecutionContext),
+            MockInternalContext(GlobalIdTestSchema.schema, globalIDCodec),
+            EngineExecutionContextWrapperImpl(ContextMocks(GlobalIdTestSchema.schema).engineExecutionContext),
             selectionSet,
             null, // requestContext
             args,

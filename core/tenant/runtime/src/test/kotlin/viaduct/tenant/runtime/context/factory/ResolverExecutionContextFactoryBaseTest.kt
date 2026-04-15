@@ -16,14 +16,14 @@ import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.runtime.mocks.ContextMocks
-import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
+import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
 import viaduct.tenant.runtime.globalid.User
 
 /**
  * Tests code in ResolverExectionContextFactoryBase
  */
 class ResolverExecutionContextFactoryBaseTest {
-    private val contextMocks = ContextMocks(GlobalIdFeatureAppTest.schema)
+    private val contextMocks = ContextMocks(GlobalIdTestSchema.schema)
     private val reflectionLoader = mockReflectionLoader("viaduct.tenant.runtime.globalid")
 
     @Suppress("UNCHECKED_CAST")
@@ -64,7 +64,7 @@ class ResolverExecutionContextFactoryBaseTest {
         val exception = assertThrows<IllegalArgumentException> {
             // Call the factory to trigger toSelectionSet validation
             nodeFactory(
-                ContextMocks(GlobalIdFeatureAppTest.schema).engineExecutionContext,
+                ContextMocks(GlobalIdTestSchema.schema).engineExecutionContext,
                 mockEngineSelectionSet, // This non-null selection set should cause validation failure
                 null, // requestContext
                 "test-id"

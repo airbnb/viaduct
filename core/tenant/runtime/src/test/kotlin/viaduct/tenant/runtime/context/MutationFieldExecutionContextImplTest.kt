@@ -12,22 +12,22 @@ import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Query as QueryType
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.select.Mutation
-import viaduct.tenant.runtime.select.Query
-import viaduct.tenant.runtime.select.SelectTestFeatureAppTest
+import viaduct.tenant.runtime.executioncontext.ExecutionContextTestSchema
+import viaduct.tenant.runtime.executioncontext.Mutation
+import viaduct.tenant.runtime.executioncontext.Query
 
 class MutationFieldExecutionContextImplTest : ContextTestBase() {
     private val mutationObject = mockk<Mutation>()
 
     private fun mk(): MutationFieldExecutionContextImpl<QueryType, Mutation> {
         val wrapper = createMockingWrapper(
-            schema = SelectTestFeatureAppTest.schema,
+            schema = ExecutionContextTestSchema.schema,
             mutationMock = mutationObject
         )
 
         return MutationFieldExecutionContextImpl(
             MockInternalContext(
-                SelectTestFeatureAppTest.schema,
+                ExecutionContextTestSchema.schema,
                 GlobalIDCodecDefault,
                 MockReflectionLoader(Query.Reflection, Mutation.Reflection)
             ),

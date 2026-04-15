@@ -7,6 +7,7 @@ import graphql.schema.idl.TypeDefinitionRegistry
 import java.io.File
 import java.io.InputStreamReader
 import java.io.Reader
+import java.io.StringReader
 import java.net.URL
 
 /** Reads all the files in `inputFiles` and parses all of them into a
@@ -37,7 +38,18 @@ private fun <T> readTypes(
             .newMultiSourceReader()
             .apply {
                 inputFiles.forEach {
-                    this.reader(toReader(it), toPath(it))
+                    val readerWithTrailingNewline =
+                        toReader(it).use { reader ->
+                            val text = reader.readText()
+                            StringReader(
+                                if (text.endsWith("\n")) {
+                                    text
+                                } else {
+                                    "$text\n"
+                                }
+                            )
+                        }
+                    this.reader(readerWithTrailingNewline, toPath(it))
                 }
             }.trackData(true)
             .build()

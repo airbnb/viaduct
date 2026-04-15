@@ -14,7 +14,7 @@ import viaduct.api.types.NodeObject
 import viaduct.engine.api.mocks.variables
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
-import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
+import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
 import viaduct.tenant.runtime.globalid.Query
 import viaduct.tenant.runtime.globalid.User
 import viaduct.tenant.runtime.select.SelectionSetImpl
@@ -29,13 +29,13 @@ class NodeExecutionContextImplTest : ContextTestBase() {
         selectionSet: SelectionSet<NodeObject> = mockk<SelectionSet<NodeObject>>()
     ): NodeExecutionContextImpl {
         val wrapper = createMockingWrapper(
-            schema = GlobalIdFeatureAppTest.schema,
+            schema = GlobalIdTestSchema.schema,
             queryMock = queryObject
         )
 
         return NodeExecutionContextImpl(
             MockInternalContext(
-                GlobalIdFeatureAppTest.schema,
+                GlobalIdTestSchema.schema,
                 GlobalIDCodecDefault,
                 MockReflectionLoader(Query.Reflection, User.Reflection)
             ),

@@ -23,7 +23,7 @@ import viaduct.engine.api.NodeReference
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.globalid.GlobalIDImpl
-import viaduct.tenant.runtime.globalid.GlobalIdFeatureAppTest
+import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
 import viaduct.tenant.runtime.globalid.User
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -31,7 +31,7 @@ class NodeReferenceFactoryImplTest {
     @Test
     fun `nodeFor returns a Node Reference`(): Unit =
         runBlocking {
-            val schema = GlobalIdFeatureAppTest.schema
+            val schema = GlobalIdTestSchema.schema
             val globalId = GlobalIDImpl(User.Reflection, "123")
             val factory = NodeReferenceGRTFactoryImpl { _: String, objectType: GraphQLObjectType ->
                 mockk {
@@ -46,14 +46,14 @@ class NodeReferenceFactoryImplTest {
 
     private fun createMockInternalContext(globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault): InternalContext =
         MockInternalContext(
-            GlobalIdFeatureAppTest.schema,
+            GlobalIdTestSchema.schema,
             globalIDCodec,
             MockReflectionLoader(User.Reflection)
         )
 
     private fun createDefaultNodeReference(
         globalIDImpl: GlobalIDImpl<out NodeObject>,
-        graphqlObjectType: GraphQLObjectType = GlobalIdFeatureAppTest.schema.schema.getObjectType(globalIDImpl.type.name),
+        graphqlObjectType: GraphQLObjectType = GlobalIdTestSchema.schema.schema.getObjectType(globalIDImpl.type.name),
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
     ): NodeReference {
         return object : NodeReference {

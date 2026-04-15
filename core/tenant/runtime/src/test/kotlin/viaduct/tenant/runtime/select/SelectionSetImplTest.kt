@@ -9,6 +9,11 @@ import viaduct.api.reflect.Type
 import viaduct.api.types.CompositeOutput
 import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.tenant.runtime.executioncontext.Bar
+import viaduct.tenant.runtime.executioncontext.ExecutionContextTestSchema
+import viaduct.tenant.runtime.executioncontext.Foo
+import viaduct.tenant.runtime.executioncontext.FooOrBar
+import viaduct.tenant.runtime.executioncontext.Node
 
 @ExperimentalCoroutinesApi
 class SelectionSetImplTest {
@@ -21,7 +26,7 @@ class SelectionSetImplTest {
             type,
             createEngineSelectionSet(
                 SelectionsParser.parse(type.name, selections),
-                SelectTestFeatureAppTest.schema,
+                ExecutionContextTestSchema.schema,
                 variables,
             )
         )

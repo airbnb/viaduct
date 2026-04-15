@@ -20,8 +20,8 @@ import viaduct.api.types.Query as QueryType
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.select.Query
-import viaduct.tenant.runtime.select.SelectTestFeatureAppTest
+import viaduct.tenant.runtime.executioncontext.ExecutionContextTestSchema
+import viaduct.tenant.runtime.executioncontext.Query
 
 class ConnectionFieldExecutionContextImplTest : ContextTestBase() {
     private val queryObject = mockk<Query>()
@@ -40,14 +40,14 @@ class ConnectionFieldExecutionContextImplTest : ContextTestBase() {
         selectionSet: SelectionSet<CompositeOutput> = noSelections,
     ): ConnectionFieldExecutionContextImpl<QueryType> {
         val wrapper = createMockingWrapper(
-            schema = SelectTestFeatureAppTest.schema,
+            schema = ExecutionContextTestSchema.schema,
             queryMock = queryObject
         )
 
         @Suppress("UNCHECKED_CAST")
         return ConnectionFieldExecutionContextImpl(
             MockInternalContext(
-                SelectTestFeatureAppTest.schema,
+                ExecutionContextTestSchema.schema,
                 globalIDCodec,
                 MockReflectionLoader(Query.Reflection)
             ),
@@ -96,7 +96,7 @@ class ConnectionFieldExecutionContextImplTest : ContextTestBase() {
     fun `implements InternalContext`() {
         val ctx = mk()
         val internalCtx = MockInternalContext(
-            SelectTestFeatureAppTest.schema,
+            ExecutionContextTestSchema.schema,
             GlobalIDCodecDefault,
             MockReflectionLoader(Query.Reflection)
         )

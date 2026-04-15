@@ -5,6 +5,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import viaduct.tenant.runtime.executioncontext.Foo
 
 @ExperimentalCoroutinesApi
 class SelectionSetFactoryImplTest : Assertions() {

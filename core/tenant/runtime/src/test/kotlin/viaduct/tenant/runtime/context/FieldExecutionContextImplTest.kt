@@ -19,9 +19,9 @@ import viaduct.api.types.Query as QueryType
 import viaduct.engine.api.mocks.variables
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.select.Foo
-import viaduct.tenant.runtime.select.Query
-import viaduct.tenant.runtime.select.SelectTestFeatureAppTest
+import viaduct.tenant.runtime.executioncontext.ExecutionContextTestSchema
+import viaduct.tenant.runtime.executioncontext.Foo
+import viaduct.tenant.runtime.executioncontext.Query
 import viaduct.tenant.runtime.select.SelectionSetImpl
 
 class FieldExecutionContextImplTest : ContextTestBase() {
@@ -35,13 +35,13 @@ class FieldExecutionContextImplTest : ContextTestBase() {
         selectionSet: SelectionSet<CompositeOutput> = noSelections,
     ): FieldExecutionContextImpl<QueryType> {
         val wrapper = createMockingWrapper(
-            schema = SelectTestFeatureAppTest.schema,
+            schema = ExecutionContextTestSchema.schema,
             queryMock = queryObject
         )
 
         return FieldExecutionContextImpl(
             MockInternalContext(
-                SelectTestFeatureAppTest.schema,
+                ExecutionContextTestSchema.schema,
                 globalIDCodec,
                 MockReflectionLoader(Query.Reflection)
             ),
