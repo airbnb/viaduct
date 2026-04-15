@@ -41,6 +41,12 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
 
     /** Test fixtures - Viaduct dependencies **/
+    testFixturesApi(libs.viaduct.engine.api)
+    testFixturesApi(libs.viaduct.service.api)
+    testFixturesApi(libs.viaduct.service.runtime)
+    testFixturesApi(libs.viaduct.service.wiring)
+    testFixturesApi(libs.viaduct.tenant.runtime)
+    testFixturesApi(libs.viaduct.tenant.wiring)
     testFixturesImplementation(testFixtures(libs.viaduct.engine.api))
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
     testFixturesImplementation(testFixtures(libs.viaduct.shared.graphql))

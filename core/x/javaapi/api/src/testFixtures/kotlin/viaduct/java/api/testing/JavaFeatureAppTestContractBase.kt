@@ -23,10 +23,6 @@ import viaduct.service.api.spi.TenantCodeInjector
  * Subclasses provide Java resolver implementations.
  */
 abstract class JavaFeatureAppTestContractBase : AbstractFeatureAppTestContractBase() {
-    /**
-     * Intentionally computed lazily instead of in a property initializer so the constructor
-     * does not throw, which SpotBugs flags as CT_CONSTRUCTOR_THROW.
-     */
     private fun derivedClassPackage(): String =
         this::class.java.`package`?.name
             ?: error("Unable to read package name from subclass ${this::class.simpleName}")
