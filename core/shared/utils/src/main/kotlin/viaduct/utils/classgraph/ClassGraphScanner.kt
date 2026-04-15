@@ -8,6 +8,9 @@ import io.github.classgraph.ClassInfoList
 import io.github.classgraph.ScanResult
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 import viaduct.utils.slf4j.logger
@@ -32,12 +35,23 @@ class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
         @Volatile
         private var initializedPrefixes: Set<String> = DEFAULT_PACKAGE_PREFIXES
 
+        @Volatile
+        private var configuredCacheExpiration: Duration? = 10.minutes
+
         /**
-         * Initialize the singleton instance with specific package prefixes.
-         * This should be called early in application startup.
+         * Initialize the singleton instance with specific package prefixes and environment context.
+         * This should be called early in application startup, before the first scan is performed.
          * Subsequent calls will be ignored.
+         *
+         * @param packagePrefixes the package prefixes to scan. Defaults to [DEFAULT_PACKAGE_PREFIXES].
+         * @param neverExpiresCache if true, scan results never expire so that hotswap always hits the
+         * cached result. If false, results expire after 10 minutes. Defaults to false.
          */
-        fun initialize(packagePrefixes: Set<String>) {
+        fun initialize(
+            packagePrefixes: Set<String> = DEFAULT_PACKAGE_PREFIXES,
+            neverExpiresCache: Boolean = false,
+        ) {
+            configuredCacheExpiration = if (neverExpiresCache) null else 10.minutes
             if (singletonInstance.compareAndSet(null, forPackagePrefixes(packagePrefixes))) {
                 initializedPrefixes = packagePrefixes
             }
@@ -97,13 +111,14 @@ class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
             val keysToInvalidate = scanResultCache.asMap().keys.filter { keySet ->
                 keySet.any { it == packagePrefix || packagePrefix.startsWith("$it.") }
             }
+            log.info("ClassGraphScanner keysToInvalidate: {}", keysToInvalidate)
             keysToInvalidate.forEach { key ->
                 scanResultCache.invalidate(key)
             }
         }
 
         private val log by logger()
-        private val scanResultCache =
+        private val scanResultCache by lazy {
             Caffeine.newBuilder()
                 // Close ScanResult only on time-based eviction or size-based eviction,
                 // NOT on explicit invalidation. When invalidateCache() removes an entry,
@@ -116,11 +131,12 @@ class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
                     }
                 }
                 .evictionListener { _: Collection<String>?, value: ScanResult?, _ -> value?.close() }
-                // it's not necessary to keep these around forever. 10m should be sufficient to allow for
-                // server startup + warmup which is where this is primarily used.
-                .expireAfterWrite(10, TimeUnit.MINUTES)
+                .apply {
+                    configuredCacheExpiration?.let { expireAfterWrite(it.toLong(DurationUnit.MINUTES), TimeUnit.MINUTES) }
+                }
                 .scheduler(Scheduler.systemScheduler())
                 .build<Collection<String>, ScanResult>()
+        }
     }
 
     /**

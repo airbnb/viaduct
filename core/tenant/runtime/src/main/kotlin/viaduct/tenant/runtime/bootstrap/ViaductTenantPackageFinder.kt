@@ -13,6 +13,10 @@ import viaduct.utils.classgraph.ClassGraphScanner
  *
  * Results are filtered to only include modules from the [TENANT_PACKAGE_PREFIX]
  * to maintain backward compatibility with the original behavior.
+ *
+ * This is the bottleneck for hotswap, because we need to invalidate the
+ * class graph scan result cache for "com.airbnb.viaduct" and rescan it
+ * every time. Otherwise new tenants added won't be picked up.
  */
 class ViaductTenantPackageFinder : TenantPackageFinder {
     override fun tenantPackages(): Set<TenantPackageInfo> {
