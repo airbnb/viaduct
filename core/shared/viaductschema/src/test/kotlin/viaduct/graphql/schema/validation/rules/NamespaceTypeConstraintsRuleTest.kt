@@ -1,6 +1,7 @@
 package viaduct.graphql.schema.validation.rules
 
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -90,10 +91,29 @@ class NamespaceTypeConstraintsRuleTest {
             """.trimIndent()
         )
 
+        errors shouldHaveSize 2
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.NAMESPACE_TYPE_IN_UNION,
+            ValidationErrorCodes.NAMESPACE_TYPE_PARENT_COUNT_NOT_ONE
+        )
+        val inUnionError = errors.first { it.code == ValidationErrorCodes.NAMESPACE_TYPE_IN_UNION }
+        inUnionError.message shouldContain "Listings"
+        inUnionError.message shouldContain "SearchResult"
+    }
+
+    @Test
+    fun `invalid - namespace type is never used as a field`() {
+        val errors = validate(
+            """
+            type Query { name: String }
+            type Listings @namespaceType { availableRoomTypes: [RoomType] }
+            type RoomType { id: ID! }
+            """.trimIndent()
+        )
+
         errors shouldHaveSize 1
-        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_IN_UNION
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_PARENT_COUNT_NOT_ONE
         errors[0].message shouldContain "Listings"
-        errors[0].message shouldContain "SearchResult"
     }
 
     @Test
@@ -107,7 +127,7 @@ class NamespaceTypeConstraintsRuleTest {
         )
 
         errors shouldHaveSize 1
-        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_MULTIPLE_PARENTS
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_PARENT_COUNT_NOT_ONE
         errors[0].message shouldContain "Listings"
         errors[0].message shouldContain "Query.listings1"
         errors[0].message shouldContain "Query.listings2"
@@ -124,7 +144,7 @@ class NamespaceTypeConstraintsRuleTest {
         )
 
         errors shouldHaveSize 1
-        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_MULTIPLE_PARENTS
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_PARENT_COUNT_NOT_ONE
         errors[0].message shouldContain "ListingsPricing"
     }
 

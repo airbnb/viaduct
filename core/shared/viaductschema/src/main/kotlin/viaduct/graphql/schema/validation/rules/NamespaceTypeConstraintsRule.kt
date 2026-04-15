@@ -84,28 +84,25 @@ class NamespaceTypeConstraintsRule : ValidationRule(
         }
     }
 
-    override fun visitSchema(ctx: ValidationContext) {
-        val namespaceTypeParents = mutableMapOf<String, MutableList<ViaductSchema.Field>>()
+    override fun visitObject(
+        ctx: ValidationContext,
+        obj: ViaductSchema.Object
+    ) {
+        if (!obj.hasAppliedDirective(DIRECTIVE_NAME)) return
 
-        for (typeDef in ctx.schema.types.values) {
-            if (typeDef !is ViaductSchema.Record) continue
-            for (field in typeDef.fields) {
-                val baseTypeDef = field.type.baseTypeDef
-                if (baseTypeDef.hasAppliedDirective(DIRECTIVE_NAME)) {
-                    namespaceTypeParents.getOrPut(baseTypeDef.name) { mutableListOf() }.add(field)
-                }
+        val inboundFields = ctx.reverseSchema.inboundFields(obj)
+        if (inboundFields.size != 1) {
+            val message = if (inboundFields.isEmpty()) {
+                "@$DIRECTIVE_NAME type '${obj.name}' must be referenced by exactly one field, but is not referenced by any field."
+            } else {
+                val allFields = inboundFields.joinToString(", ") { "${it.containingDef.name}.${it.name}" }
+                "@$DIRECTIVE_NAME type '${obj.name}' must be referenced by exactly one field, but is referenced by ${inboundFields.size}: $allFields."
             }
-        }
-
-        for ((namespaceTypeName, fields) in namespaceTypeParents) {
-            if (fields.size > 1) {
-                val allFields = fields.joinToString(", ") { "${it.containingDef.name}.${it.name}" }
-                ctx.reportError(
-                    code = ValidationErrorCodes.NAMESPACE_TYPE_MULTIPLE_PARENTS,
-                    message = "@$DIRECTIVE_NAME type '$namespaceTypeName' cannot be the type of multiple fields: $allFields.",
-                    location = SchemaLocation.ofType(namespaceTypeName)
-                )
-            }
+            ctx.reportError(
+                code = ValidationErrorCodes.NAMESPACE_TYPE_PARENT_COUNT_NOT_ONE,
+                message = message,
+                location = SchemaLocation.ofType(obj.name)
+            )
         }
     }
 
