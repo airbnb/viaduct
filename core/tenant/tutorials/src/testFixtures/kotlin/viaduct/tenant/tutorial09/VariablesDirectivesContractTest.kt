@@ -1,7 +1,7 @@
 package viaduct.tenant.tutorial09
 
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 /**
  * Contract test for [VariablesDirectivesFeatureAppTest].
@@ -26,4 +26,4 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class VariablesDirectivesContractTest : FeatureAppTestBase()
+abstract class VariablesDirectivesContractTest : KotlinFeatureAppTestContractBase()

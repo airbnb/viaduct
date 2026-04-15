@@ -42,8 +42,18 @@ dependencies {
 
     /** Test fixtures - Viaduct dependencies **/
     testFixturesImplementation(testFixtures(libs.viaduct.engine.api))
+    testFixturesImplementation(testFixtures(libs.viaduct.service.api))
+    testFixturesImplementation(testFixtures(libs.viaduct.shared.graphql))
+    testFixturesImplementation(libs.viaduct.engine.api)
+    testFixturesImplementation(libs.viaduct.service.api)
+    testFixturesImplementation(libs.viaduct.service.runtime)
+    testFixturesImplementation(libs.viaduct.service.wiring)
     testFixturesImplementation(libs.viaduct.shared.graphql)
     testFixturesImplementation(libs.viaduct.tenant.runtime)
+    testFixturesImplementation(libs.viaduct.tenant.wiring)
+    testFixturesImplementation(libs.guice)
+    testFixturesImplementation(libs.kotlinx.coroutines.core)
+    testFixturesImplementation(libs.kotlinx.coroutines.jdk8)
 
     /** Test fixtures - External dependencies **/
     testFixturesApi(libs.junit)

@@ -1,7 +1,7 @@
 package viaduct.tenant.runtime.execution.policycheck
 
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 @TestSchema(
     """
@@ -26,4 +26,4 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class PolicyCheckContractTest : FeatureAppTestBase()
+abstract class PolicyCheckContractTest : KotlinFeatureAppTestContractBase()

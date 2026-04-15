@@ -32,7 +32,7 @@ class TenantPackageFilteringFeatureAppTest : TenantPackageFilteringContractTest(
     fun registerSchemas() {
         withSchemaConfiguration(
             SchemaConfiguration.fromSdl(
-                sdl,
+                sdl(),
                 scopes = setOf(
                     schemaId1.toScopeConfig(),
                     schemaId2.toScopeConfig(),
@@ -92,7 +92,7 @@ class TenantPackageFilteringFeatureAppTest : TenantPackageFilteringContractTest(
         val scope2Only = SchemaId.Scoped("SCOPE2_ONLY", setOf("SCOPE2"))
         withSchemaConfiguration(
             SchemaConfiguration.fromSdl(
-                sdl,
+                sdl(),
                 scopes = setOf(
                     scope1Only.toScopeConfig(),
                     scope2Only.toScopeConfig()

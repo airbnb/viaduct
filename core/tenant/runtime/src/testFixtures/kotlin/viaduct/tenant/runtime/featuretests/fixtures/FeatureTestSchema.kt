@@ -1,7 +1,7 @@
 package viaduct.tenant.runtime.featuretests.fixtures
 
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 @TestSchema(
     """
@@ -77,6 +77,6 @@ type Item {
 }
 """
 )
-object FeatureTestSchema : FeatureAppTestBase() {
+object FeatureTestSchema : KotlinFeatureAppTestContractBase() {
     public override fun sdl(): String = super.sdl()
 }

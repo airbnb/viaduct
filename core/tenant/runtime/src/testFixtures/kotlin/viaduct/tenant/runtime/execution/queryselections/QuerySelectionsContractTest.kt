@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.queryselections
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for the Query Selections feature.
@@ -50,7 +50,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class QuerySelectionsContractTest : FeatureAppTestBase() {
+abstract class QuerySelectionsContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `core functionality - fetches and combines object and query data`() {
         execute(

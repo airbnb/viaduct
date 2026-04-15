@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.subqueryexecution
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for the ctx.query() and ctx.mutation() subquery execution APIs.
@@ -105,7 +105,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class SubqueryExecutionContractTest : FeatureAppTestBase() {
+abstract class SubqueryExecutionContractTest : KotlinFeatureAppTestContractBase() {
     /**
      * Hook for subclasses to reset mutable counter state before counter-sensitive tests.
      * The default no-op implementation is sufficient for stateless implementations.

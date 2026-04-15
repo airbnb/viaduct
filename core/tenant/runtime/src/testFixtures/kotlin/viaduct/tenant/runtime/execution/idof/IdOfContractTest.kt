@@ -2,10 +2,10 @@ package viaduct.tenant.runtime.execution.idof
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for the @idOf directive.
@@ -60,7 +60,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class IdOfContractTest : FeatureAppTestBase() {
+abstract class IdOfContractTest : KotlinFeatureAppTestContractBase() {
     private val codec = GlobalIDCodecDefault
 
     protected val aliceID: String get() = codec.serialize("User", "alice@yahoo.com")

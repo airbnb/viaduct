@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.mapping
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for GRTDomain/JsonDomain mapping utilities.
@@ -40,7 +40,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class MappingContractTest : FeatureAppTestBase() {
+abstract class MappingContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `syncGrtToJson -- converts synchronous output values`() {
         execute("{ syncGrtToJson }")

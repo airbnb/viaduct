@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.variablesprovider
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for the VariablesProvider API.
@@ -51,7 +51,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     input InputWithNestedInput { complexInput: ComplexInput! }
 """
 )
-abstract class VariablesProviderContractTest : FeatureAppTestBase() {
+abstract class VariablesProviderContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `variables via variables parameter`() {
         execute(

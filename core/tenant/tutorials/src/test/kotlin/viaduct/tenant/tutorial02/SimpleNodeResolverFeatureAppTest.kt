@@ -112,7 +112,6 @@ class SimpleNodeResolverFeatureAppTest : SimpleNodeResolverContractTest() {
         ).assertEquals {
             "data" to {
                 "foo" to {
-                    // NOTE: createGlobalIdString is a TEST-ONLY utility method provided by FeatureAppTestBase
                     "id" to createGlobalIdString(Foo.Reflection, "foo-123") // Encoded GlobalID
                     "bar" to "Hello from the other Node!"
                 }

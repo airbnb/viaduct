@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.trivial
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for basic object resolution patterns.
@@ -37,7 +37,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class ObjectContractTest : FeatureAppTestBase() {
+abstract class ObjectContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `shorthand resolver pattern`() {
         execute(

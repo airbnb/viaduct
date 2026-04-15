@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.enums
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for enum type resolution patterns.
@@ -28,7 +28,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class EnumContractTest : FeatureAppTestBase() {
+abstract class EnumContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `statusResolverReturnsEnum`() {
         execute(query = "{ currentStatus }").assertEquals {

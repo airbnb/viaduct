@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.batchresolver.fieldresolver
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for field batch resolver patterns.
@@ -29,7 +29,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class FieldBatchResolverContractTest : FeatureAppTestBase() {
+abstract class FieldBatchResolverContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `field batch resolver batches multiple field requests`() {
         execute(

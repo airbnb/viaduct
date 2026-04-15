@@ -101,7 +101,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
         val schemaId = SchemaId.Scoped("CUSTOMER_API", setOf("USER"))
         withSchemaConfiguration(
             SchemaConfiguration.fromSdl(
-                sdl,
+                sdl(),
                 scopes = setOf(schemaId.toScopeConfig()),
             )
         )
@@ -155,7 +155,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
         val schemaId = SchemaId.Scoped("ADMIN_API", setOf("ADMIN"))
         withSchemaConfiguration(
             SchemaConfiguration.fromSdl(
-                sdl,
+                sdl(),
                 scopes = setOf(schemaId.toScopeConfig())
             )
         )
@@ -208,7 +208,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
         val schemaId = SchemaId.Scoped("INTERNAL_API", setOf("USER", "ADMIN"))
         withSchemaConfiguration(
             SchemaConfiguration.fromSdl(
-                sdl,
+                sdl(),
                 scopes = setOf(schemaId.toScopeConfig())
             )
         )

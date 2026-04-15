@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.inputtype
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for input type resolution patterns.
@@ -32,7 +32,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class InputTypeContractTest : FeatureAppTestBase() {
+abstract class InputTypeContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `resolverReceivesInputType`() {
         execute(

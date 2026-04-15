@@ -3,8 +3,8 @@ package viaduct.tenant.runtime.execution.variables.bootstrap.invalidsyntax
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 @TestSchema(
     """
@@ -15,7 +15,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class InvalidSyntaxContractTest : FeatureAppTestBase() {
+abstract class InvalidSyntaxContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `invalid variables syntax fails at bootstrap time`() {
         var ex: Throwable? = null

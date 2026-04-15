@@ -3,7 +3,7 @@ package viaduct.tenant.runtime.execution.missingresolver.disabled
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 /**
  * Contract test that verifies resolver completeness validation can be disabled.
@@ -19,7 +19,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
     """
 )
-abstract class ValidationCanBeDisabledContractTest : FeatureAppTestBase() {
+abstract class ValidationCanBeDisabledContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `validation can be disabled for intentionally incomplete tests`() {
         // Should not throw — validation is disabled

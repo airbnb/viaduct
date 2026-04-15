@@ -3,8 +3,8 @@ package viaduct.tenant.runtime.execution.connections
 import org.junit.jupiter.api.Test
 import viaduct.api.connection.OffsetCursor
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for [ConnectionBuilder] — three pagination strategies on
@@ -39,7 +39,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
     """
 )
-abstract class ConnectionsContractTest : FeatureAppTestBase() {
+abstract class ConnectionsContractTest : KotlinFeatureAppTestContractBase() {
     companion object {
         // (id, title, score) — scores decrease with post number; used by rankedPosts (fromEdges)
         val ALL_POSTS = (1..10).map { i -> Triple("post-$i", "Post $i", (11 - i).toDouble()) }

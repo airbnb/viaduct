@@ -1,7 +1,7 @@
 package viaduct.tenant.tutorial03
 
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 /**
  * Contract test for [SimpleResolversFeatureAppTest].
@@ -31,4 +31,4 @@ extend type Query {
 }
 """
 )
-abstract class SimpleResolversContractTest : FeatureAppTestBase()
+abstract class SimpleResolversContractTest : KotlinFeatureAppTestContractBase()

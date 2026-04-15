@@ -163,7 +163,6 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
             """.trimIndent()
         ).assertEquals {
             "data" to {
-                // NOTE: createGlobalIdString is a TEST-ONLY utility method provided by FeatureAppTestBase
                 "products" to arrayOf(
                     {
                         "id" to createGlobalIdString(Product.Reflection, "laptop-123")

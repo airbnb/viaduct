@@ -4,8 +4,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
-import viaduct.tenant.runtime.fixtures.MissingResolverImplementationException
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
+import viaduct.api.testing.featureapp.MissingResolverImplementationException
 
 /**
  * Contract test that verifies a clear error message is produced when a
@@ -22,7 +22,7 @@ import viaduct.tenant.runtime.fixtures.MissingResolverImplementationException
     }
     """
 )
-abstract class MissingFieldResolverContractTest : FeatureAppTestBase() {
+abstract class MissingFieldResolverContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `missing field resolver produces a clear error message`() {
         val exception = assertThrows<MissingResolverImplementationException> {

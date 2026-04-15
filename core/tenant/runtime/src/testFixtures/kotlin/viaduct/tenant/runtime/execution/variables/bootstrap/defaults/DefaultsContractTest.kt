@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.variables.bootstrap.defaults
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 @TestSchema(
     """
@@ -21,7 +21,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class DefaultsContractTest : FeatureAppTestBase() {
+abstract class DefaultsContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `a required selection can provide an empty input object that will have its defaults filled in`() {
         execute("{ outer1 }")

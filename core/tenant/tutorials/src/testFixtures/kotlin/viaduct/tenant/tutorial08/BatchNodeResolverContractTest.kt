@@ -1,7 +1,7 @@
 package viaduct.tenant.tutorial08
 
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 @TestSchema(
     """
@@ -18,4 +18,4 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class BatchNodeResolverContractTest : FeatureAppTestBase()
+abstract class BatchNodeResolverContractTest : KotlinFeatureAppTestContractBase()

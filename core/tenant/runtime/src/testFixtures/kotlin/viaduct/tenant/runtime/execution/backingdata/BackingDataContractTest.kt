@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.backingdata
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for resolvers that use the @backingData annotation.
@@ -41,7 +41,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class BackingDataContractTest : FeatureAppTestBase() {
+abstract class BackingDataContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `Backing data is resolved and available to other resolvers`() {
         execute(

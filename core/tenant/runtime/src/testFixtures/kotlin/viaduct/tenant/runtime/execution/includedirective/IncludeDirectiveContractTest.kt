@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.includedirective
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for the @include directive.
@@ -41,7 +41,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class IncludeDirectiveContractTest : FeatureAppTestBase() {
+abstract class IncludeDirectiveContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `using include directive as false`() {
         execute(

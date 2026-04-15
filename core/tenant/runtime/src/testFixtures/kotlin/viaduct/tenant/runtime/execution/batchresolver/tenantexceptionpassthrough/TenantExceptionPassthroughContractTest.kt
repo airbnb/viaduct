@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 /**
  * Contract test for batch resolver passthrough behavior when a resolver returns a [TenantUsageException]
@@ -22,7 +22,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
     """
 )
-abstract class TenantExceptionPassthroughContractTest : FeatureAppTestBase() {
+abstract class TenantExceptionPassthroughContractTest : KotlinFeatureAppTestContractBase() {
     protected abstract fun createItemGlobalId(internalId: String): String
 
     protected abstract fun setFieldBatchShouldReturnTenantException(enabled: Boolean)

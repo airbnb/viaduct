@@ -2,11 +2,11 @@ package viaduct.tenant.runtime.execution.scopes
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
 import viaduct.service.api.SchemaId
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.toScopeConfig
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for the @scope directive.
@@ -38,14 +38,14 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class ScopesContractTest : FeatureAppTestBase() {
+abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
     // -- Single-scope tests (only SCOPE1 registered) --
 
     @Test
     fun `Resolve query with SCOPE1 fields against SCHEMA_ID_1 schema succeeds`() {
         val schemaId = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
         withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(sdl, scopes = setOf(schemaId.toScopeConfig()))
+            SchemaConfiguration.fromSdl(sdl(), scopes = setOf(schemaId.toScopeConfig()))
         )
         execute(
             query = """
@@ -69,7 +69,7 @@ abstract class ScopesContractTest : FeatureAppTestBase() {
     fun `Resolve fails to run query with SCOPE2 fields against SCHEMA_ID_1 schema`() {
         val schemaId = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
         withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(sdl, scopes = setOf(schemaId.toScopeConfig()))
+            SchemaConfiguration.fromSdl(sdl(), scopes = setOf(schemaId.toScopeConfig()))
         )
         execute(
             query = """
@@ -103,7 +103,7 @@ abstract class ScopesContractTest : FeatureAppTestBase() {
     fun `Resolve query with SCOPE2 fields fails as SCHEMA_ID_2 is not registered`() {
         val schemaId = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
         withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(sdl, scopes = setOf(schemaId.toScopeConfig()))
+            SchemaConfiguration.fromSdl(sdl(), scopes = setOf(schemaId.toScopeConfig()))
         )
         execute(
             query = """
@@ -135,7 +135,7 @@ abstract class ScopesContractTest : FeatureAppTestBase() {
         val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
         withSchemaConfiguration(
             SchemaConfiguration.fromSdl(
-                sdl,
+                sdl(),
                 scopes = setOf(schemaId1.toScopeConfig(), schemaId2.toScopeConfig())
             )
         )
@@ -163,7 +163,7 @@ abstract class ScopesContractTest : FeatureAppTestBase() {
         val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
         withSchemaConfiguration(
             SchemaConfiguration.fromSdl(
-                sdl,
+                sdl(),
                 scopes = setOf(schemaId1.toScopeConfig(), schemaId2.toScopeConfig())
             )
         )

@@ -49,7 +49,7 @@ dependencies {
     testFixturesImplementation(libs.viaduct.service.api)
     testFixturesImplementation(libs.viaduct.tenant.api)
     testFixturesImplementation(libs.viaduct.tenant.wiring)
-    testFixturesImplementation(testFixtures(libs.viaduct.tenant.api))
+    testFixturesApi(testFixtures(libs.viaduct.tenant.api))
     testFixturesImplementation(libs.graphql.java)
     testFixturesImplementation(libs.io.mockk.jvm)
     testFixturesImplementation(libs.kotlin.reflect)

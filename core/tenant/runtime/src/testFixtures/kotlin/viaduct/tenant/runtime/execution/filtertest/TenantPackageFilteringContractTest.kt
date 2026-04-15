@@ -1,7 +1,7 @@
 package viaduct.tenant.runtime.execution.filtertest
 
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 @TestSchema(
     """
@@ -21,4 +21,4 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class TenantPackageFilteringContractTest : FeatureAppTestBase()
+abstract class TenantPackageFilteringContractTest : KotlinFeatureAppTestContractBase()

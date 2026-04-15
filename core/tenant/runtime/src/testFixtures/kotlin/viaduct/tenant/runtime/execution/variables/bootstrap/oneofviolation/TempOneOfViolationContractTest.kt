@@ -3,7 +3,7 @@ package viaduct.tenant.runtime.execution.variables.bootstrap.oneofviolation
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 @TestSchema(
     """
@@ -18,7 +18,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class TempOneOfViolationContractTest : FeatureAppTestBase() {
+abstract class TempOneOfViolationContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `oneof violation fails at runtime`() {
         val result = execute("query { fromVariablesProvider }")

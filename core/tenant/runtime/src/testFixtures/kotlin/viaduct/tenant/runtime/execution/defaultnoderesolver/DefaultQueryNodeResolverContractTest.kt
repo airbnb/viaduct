@@ -2,9 +2,9 @@ package viaduct.tenant.runtime.execution.defaultnoderesolver
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for the built-in Query.node and Query.nodes resolvers.
@@ -25,7 +25,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class DefaultQueryNodeResolverContractTest : FeatureAppTestBase() {
+abstract class DefaultQueryNodeResolverContractTest : KotlinFeatureAppTestContractBase() {
     private val codec = GlobalIDCodecDefault
 
     protected fun testUserGlobalId(internalId: String): String = codec.serialize("TestUser", internalId)

@@ -1,7 +1,7 @@
 package viaduct.tenant.tutorial12
 
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 /**
  * Contract test for [ConnectionsFeatureAppTest].
@@ -38,4 +38,4 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class ConnectionsContractTest : FeatureAppTestBase()
+abstract class ConnectionsContractTest : KotlinFeatureAppTestContractBase()

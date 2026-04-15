@@ -1,10 +1,11 @@
 @file:Suppress("ForbiddenImport")
 
-package viaduct.tenant.runtime.fixtures
+package viaduct.api.testing.featureapp
 
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
+import viaduct.api.testing.TestSchema
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.ViaductBuilder
 import viaduct.service.api.ExecutionInput
@@ -16,24 +17,25 @@ import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
 /**
- * Shared abstract base class for testing GraphQL feature applications with Viaduct.
+ * Abstract base class for contract-style feature-app tests.
  *
- * Provides the common test lifecycle, builder wiring, and query execution logic
- * used by both the Kotlin tenant runtime and Java API runtime test bases.
+ * The schema is provided via the [TestSchema] annotation (required). Subclasses
+ * provide language-specific bootstrapper wiring by implementing [createBootstrapperBuilder].
  *
- * Subclasses must implement:
- * - [sdl] to provide the GraphQL schema text
- * - [createBootstrapperBuilder] to provide the tenant API bootstrapper
- *
- * Subclasses may override:
- * - [onBeforeBuild] to add pre-build validation (e.g., resolver completeness checks)
- * - [execute], [defaultSchemaId], [getScopeConfig] for custom behavior
+ * This class provides the common test lifecycle, builder wiring, and query execution
+ * logic shared by both the Kotlin and Java contract test bases.
  */
-abstract class AbstractFeatureAppTestBase {
+abstract class AbstractFeatureAppTestContractBase {
+    private val sdl: String = requireNotNull(
+        this::class.java.getAnnotation(TestSchema::class.java)?.value?.trimIndent()
+    ) {
+        "${this::class.simpleName} (or a superclass) must be annotated with @TestSchema"
+    }
+
     /**
-     * Returns the GraphQL SDL schema text for this test.
+     * Returns the GraphQL SDL schema text from the @TestSchema annotation.
      */
-    protected abstract fun sdl(): String
+    open fun sdl(): String = sdl
 
     /**
      * Creates the [TenantAPIBootstrapperBuilder] used to bootstrap resolvers.
@@ -85,12 +87,6 @@ abstract class AbstractFeatureAppTestBase {
 
     /**
      * Executes a query against the test application.
-     *
-     * @param query The GraphQL query to execute.
-     * @param variables The variables to use for the query.
-     * @param schemaId The schema ID to use.
-     * @param requestContext Optional request context.
-     * @return The result of the query execution.
      */
     @JvmOverloads
     open fun execute(

@@ -1,7 +1,7 @@
 package viaduct.tenant.tutorial11
 
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 /**
  * Contract test for [SimpleSubqueriesFeatureAppTest].
@@ -30,4 +30,4 @@ extend type Mutation {
 }
 """
 )
-abstract class SimpleSubqueriesContractTest : FeatureAppTestBase()
+abstract class SimpleSubqueriesContractTest : KotlinFeatureAppTestContractBase()

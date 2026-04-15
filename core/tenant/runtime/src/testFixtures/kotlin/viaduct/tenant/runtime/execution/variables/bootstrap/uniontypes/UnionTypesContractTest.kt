@@ -4,8 +4,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 @TestSchema(
     """
@@ -23,7 +23,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class UnionTypesContractTest : FeatureAppTestBase() {
+abstract class UnionTypesContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     @Disabled("https://app.asana.com/1/150975571430/project/1207604899751448/task/1210664713712227")
     fun `union type in variables fails at bootstrap time`() {

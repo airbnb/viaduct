@@ -1,7 +1,7 @@
 package viaduct.tenant.tutorial04
 
 import viaduct.api.testing.TestSchema
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 /**
  * Contract test for [SimpleBackingDataFeatureAppTest].
@@ -27,4 +27,4 @@ type User implements Node @resolver {
 }
 """
 )
-abstract class SimpleBackingDataContractTest : FeatureAppTestBase()
+abstract class SimpleBackingDataContractTest : KotlinFeatureAppTestContractBase()

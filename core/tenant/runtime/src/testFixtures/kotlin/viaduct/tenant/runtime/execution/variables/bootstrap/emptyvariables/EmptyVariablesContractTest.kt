@@ -3,8 +3,8 @@ package viaduct.tenant.runtime.execution.variables.bootstrap.emptyvariables
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 @TestSchema(
     """
@@ -15,7 +15,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class EmptyVariablesContractTest : FeatureAppTestBase() {
+abstract class EmptyVariablesContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `empty variables string fails at bootstrap time`() {
         var ex: Throwable? = null

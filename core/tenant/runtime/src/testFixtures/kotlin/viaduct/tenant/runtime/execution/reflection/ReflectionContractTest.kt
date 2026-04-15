@@ -2,8 +2,8 @@ package viaduct.tenant.runtime.execution.reflection
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for resolvers that use ctx.selections() reflection API.
@@ -53,7 +53,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class ReflectionContractTest : FeatureAppTestBase() {
+abstract class ReflectionContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `static reflective types work`() {
         execute(

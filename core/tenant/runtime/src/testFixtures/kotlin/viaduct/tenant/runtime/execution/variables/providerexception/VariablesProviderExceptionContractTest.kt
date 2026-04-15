@@ -5,8 +5,8 @@ import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.contains
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test for VariablesProvider.provide throwing exceptions during query execution.
@@ -23,7 +23,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
 """
 )
-abstract class VariablesProviderExceptionContractTest : FeatureAppTestBase() {
+abstract class VariablesProviderExceptionContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `variables provider exception becomes field error while rest of query succeeds`() {
         // Test working fields succeed

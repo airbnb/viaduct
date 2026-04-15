@@ -3,8 +3,8 @@ package viaduct.tenant.runtime.execution.invalidfragment.queryfragment
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
+import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
 
 /**
  * Contract test that verifies an invalid query value fragment does not cause
@@ -24,7 +24,7 @@ import viaduct.tenant.runtime.fixtures.FeatureAppTestBase
     }
     """
 )
-abstract class InvalidQueryFragmentContractTest : FeatureAppTestBase() {
+abstract class InvalidQueryFragmentContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `invalid resolver does not cause a Guice exception`() {
         var ex: Throwable? = null

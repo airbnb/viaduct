@@ -56,7 +56,7 @@ class TenantAPIBootstrapperFeatureAppTest : TenantAPIBootstrapperContractTest() 
             assertEquals(1, tenantModuleBootstrappers.toList().size)
 
             val tenant = tenantModuleBootstrappers.first()
-            val schema = mkSchema(sdl)
+            val schema = mkSchema(sdl())
             val fieldResolverExecutors = tenant.fieldResolverExecutors(schema).toMap()
             val nodeResolverExecutors = tenant.nodeResolverExecutors(schema).toMap()
             assertEquals(2, fieldResolverExecutors.size)
