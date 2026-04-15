@@ -1,0 +1,97 @@
+name: Push Demo Apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref in airbnb/viaduct to copy from"
+        required: true
+        type: string
+      release_mode:
+        description: "If true and ref is release/vX.Y.Z, pushes to main in viaduct-dev"
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+      release_mode:
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      destination_branch:
+        description: "Branch pushed to in viaduct-dev repos"
+        value: ${{ jobs.compute-dest.outputs.destination_branch }}
+    secrets:
+      VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: push-demoapps-${{ inputs.ref }}-${{ inputs.release_mode }}
+  cancel-in-progress: false
+
+jobs:
+  compute-dest:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.release_mode && 'release' || '' }}
+    outputs:
+      destination_branch: ${{ steps.compute-dest.outputs.destination_branch }}
+    steps:
+      - name: Compute destination branch
+        id: compute-dest
+        env:
+          REF: ${{ inputs.ref }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
+        run: |
+          set -euo pipefail
+
+          if [ "$REF" = "main" ]; then
+            DEST_BRANCH="snapshot"
+          elif [[ "$REF" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ "$RELEASE_MODE" = "true" ]; then
+            DEST_BRANCH="main"
+          else
+            # Non-release refs and release refs without release_mode both go to tmp/
+            DEST_BRANCH="tmp/${REF}"
+          fi
+
+          if [ -z "$DEST_BRANCH" ]; then
+            echo "::error::Failed to compute destination branch"
+            exit 1
+          fi
+
+          echo "destination_branch=${DEST_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Destination branch: ${DEST_BRANCH}"
+        shell: bash
+
+  push:
+    needs: compute-dest
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter, starwars]
+    name: Push ${{ matrix.demoapp }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Push ${{ matrix.demoapp }} via Copybara
+        env:
+          VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+          SOURCE_REF: ${{ inputs.ref }}
+          DEST_BRANCH: ${{ needs.compute-dest.outputs.destination_branch }}
+        run: |
+          .github/copydemoapps/copy "${{ matrix.demoapp }}" "$SOURCE_REF" --target-ref="${DEST_BRANCH}"
+        shell: bash
