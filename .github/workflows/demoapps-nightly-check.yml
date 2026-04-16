@@ -30,6 +30,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: nightly-check-${{ inputs.ref }}
