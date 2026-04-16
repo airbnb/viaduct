@@ -84,7 +84,7 @@ type Film implements Node @scope(to: ["default"]) @resolver {
   """
   Main characters in this film (batch resolver example)
   """
-  mainCharacters: [Character] @resolver
+  mainCharacters: [Character] @resolver(isBatching: true)
 
   """
   Character IDs fetched once from the film-character relationship store.

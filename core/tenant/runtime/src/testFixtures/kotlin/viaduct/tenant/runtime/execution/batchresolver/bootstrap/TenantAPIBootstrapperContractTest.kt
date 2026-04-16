@@ -7,7 +7,7 @@ import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
     """
     extend type Query {
       field: String @resolver(isSelective: true)
-      batchField: String @resolver
+      batchField: String @resolver(isBatching: true)
     }
 
     type TestNode implements Node @resolver {
@@ -15,7 +15,7 @@ import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
       value: String
     }
 
-    type TestBatchNode implements Node @resolver {
+    type TestBatchNode implements Node @resolver(isBatching: true) {
       id: ID!
       value: String
     }

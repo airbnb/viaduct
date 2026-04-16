@@ -1,7 +1,7 @@
 """
 An individual person or character within the Star Wars universe.
 """ # tag::character_type[5] Character type definition
-type Character implements Node @scope(to: ["default"]) @resolver {
+type Character implements Node @scope(to: ["default"]) @resolver(isBatching: true) {
   """
   The GlobalID of this character - uniquely identifies this Character in the graph (internal use only)
   """
@@ -65,12 +65,12 @@ type Character implements Node @scope(to: ["default"]) @resolver {
   """
   A planet that this character was born on or inhabits.
   """
-  homeworld: Planet @resolver
+  homeworld: Planet @resolver(isBatching: true)
 
   """
   The species that this character belongs to, or null if unknown.
   """
-  species: Species @resolver
+  species: Species @resolver(isBatching: true)
 
   """
   Display name for the character (demonstrates shorthand fragment syntax)
@@ -90,12 +90,12 @@ type Character implements Node @scope(to: ["default"]) @resolver {
   """
   Number of films this character appears in (batch resolver example)
   """
-  filmCount: Int @resolver
+  filmCount: Int @resolver(isBatching: true)
 
   """
   Rich summary combining character data with relationships (batch resolver example)
   """
-  richSummary: String @resolver
+  richSummary: String @resolver(isBatching: true)
 
   """
   Character profile with conditional information based on includeDetails argument (demonstrates @Variable with fromArgument)

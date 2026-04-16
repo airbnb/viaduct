@@ -47,4 +47,11 @@ public @interface NodeResolverFor {
    * @return the type name (e.g., "User", "Product", "Order")
    */
   String typeName();
+
+  /**
+   * Whether the resolver handles resolution in batch mode.
+   *
+   * @return true when the resolver implements batchResolve instead of resolve
+   */
+  boolean isBatching() default false;
 }

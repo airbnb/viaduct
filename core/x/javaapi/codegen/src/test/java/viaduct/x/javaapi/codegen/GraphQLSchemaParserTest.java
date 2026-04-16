@@ -523,7 +523,7 @@ class GraphQLSchemaParserTest {
     assertThat(profilePicture.argumentsType()).isEqualTo("Arguments.None");
     assertThat(profilePicture.hasArguments()).isFalse();
     assertThat(profilePicture.isSelective()).isTrue();
-    assertThat(profilePicture.includeBatchResolve()).isTrue();
+    assertThat(profilePicture.isBatching()).isFalse();
 
     // activeBookings resolver - list return type
     ResolverModel activeBookings =
@@ -533,7 +533,7 @@ class GraphQLSchemaParserTest {
             .orElseThrow();
     assertThat(activeBookings.returnType()).isEqualTo("List<com.example.types.Booking>");
     assertThat(activeBookings.isSelective()).isFalse();
-    assertThat(activeBookings.includeBatchResolve()).isTrue();
+    assertThat(activeBookings.isBatching()).isFalse();
 
     // totalSpent resolver - non-null Float (boxed for use in CompletableFuture<T>)
     ResolverModel totalSpent =
@@ -616,8 +616,8 @@ class GraphQLSchemaParserTest {
             .findFirst()
             .orElseThrow();
     assertThat(sendNotification.gqlTypeName()).isEqualTo("Mutation");
-    assertThat(sendNotification.includeBatchResolve())
-        .as("Mutation resolvers should not have batchResolve")
+    assertThat(sendNotification.isBatching())
+        .as("Mutation resolvers should not use batching")
         .isFalse();
     assertThat(sendNotification.hasArguments()).isTrue();
   }

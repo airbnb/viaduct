@@ -8,4 +8,5 @@ import viaduct.apiannotations.InternalApi
 annotation class NodeResolverFor(
     val typeName: String,
     val isSelective: Boolean,
+    val isBatching: Boolean,
 )

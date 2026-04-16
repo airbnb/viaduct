@@ -1,7 +1,7 @@
 """
 Species schema definitions
 """
-type Species implements Node @scope(to: ["default", "extras"]) @resolver {
+type Species implements Node @scope(to: ["default", "extras"]) @resolver(isBatching: true) {
   """
   The ID of an object
   """

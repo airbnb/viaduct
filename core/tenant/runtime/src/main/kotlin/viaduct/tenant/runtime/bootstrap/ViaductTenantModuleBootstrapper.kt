@@ -147,47 +147,12 @@ class ViaductTenantModuleBootstrapper(
             // The implementation should be using a proxy class that hides that complexity
             // and implements the `resolve` function.
             // So for java classes, we need to use the `resolve` function from the base class
-            val (resolveFunction, batchResolveFunction) = if (resolverClass.isKotlinClass) {
-                resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "resolve" } to
+            if (resolverForAnnotation.isBatching) {
+                val batchResolveFunction = if (resolverClass.isKotlinClass) {
                     resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "batchResolve" }
-            } else {
-                resolverKClass.memberFunctions.firstOrNull { it.name == "resolve" } to
+                } else {
                     resolverKClass.memberFunctions.firstOrNull { it.name == "batchResolve" }
-            }
-
-            if (resolveFunction == null && batchResolveFunction == null) {
-                throw TenantModuleException("Resolver class $resolverKClass does not have a 'resolve' nor a 'batchResolve' function")
-            }
-            if (resolveFunction != null && batchResolveFunction != null) {
-                throw TenantModuleException("Resolver class $resolverKClass implements both 'resolve' and 'batchResolve', it should only implement one")
-            }
-            if (resolveFunction != null) {
-                log.info(
-                    "- Adding entry for resolver for '{}.{}' to {} via {}",
-                    typeName,
-                    fieldName,
-                    resolverKClass.qualifiedName,
-                    resolverClass.classLoader
-                )
-                val resolverExecutor = FieldUnbatchedResolverExecutorImpl(
-                    objectSelectionSet = objectSelectionSet,
-                    querySelectionSet = querySelectionSet,
-                    isSelective = isSelective,
-                    resolver = resolverContainerProvider,
-                    resolveFn = resolveFunction,
-                    resolverId = formattedResolverId,
-                    reflectionLoader = reflectionLoader,
-                    resolverContextFactory = fieldExecutionContextFactory,
-                    resolverName = resolverKClass.qualifiedName!!,
-                    tenantMetadata = tenantMetadata,
-                )
-                result.put(resolverId, resolverExecutor)?.let { extant ->
-                    throw RuntimeException(
-                        "Duplicate resolver for type $typeName and field $fieldName. " +
-                            "Found $extant in class '${resolverKClass.qualifiedName}'."
-                    )
-                }
-            } else if (batchResolveFunction != null) {
+                } ?: throw TenantModuleException("Resolver class $resolverKClass is annotated with isBatching=true but does not implement 'batchResolve'")
                 log.info(
                     "- Adding entry for batch resolver for '{}.{}' to {} via {}",
                     typeName,
@@ -201,6 +166,37 @@ class ViaductTenantModuleBootstrapper(
                     isSelective = isSelective,
                     resolver = resolverContainerProvider,
                     batchResolveFn = batchResolveFunction,
+                    resolverId = formattedResolverId,
+                    reflectionLoader = reflectionLoader,
+                    resolverContextFactory = fieldExecutionContextFactory,
+                    resolverName = resolverKClass.qualifiedName!!,
+                    tenantMetadata = tenantMetadata,
+                )
+                result.put(resolverId, resolverExecutor)?.let { extant ->
+                    throw RuntimeException(
+                        "Duplicate resolver for type $typeName and field $fieldName. " +
+                            "Found $extant in class '${resolverKClass.qualifiedName}'."
+                    )
+                }
+            } else {
+                val resolveFunction = if (resolverClass.isKotlinClass) {
+                    resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "resolve" }
+                } else {
+                    resolverKClass.memberFunctions.firstOrNull { it.name == "resolve" }
+                } ?: throw TenantModuleException("Resolver class $resolverKClass does not implement 'resolve'")
+                log.info(
+                    "- Adding entry for resolver for '{}.{}' to {} via {}",
+                    typeName,
+                    fieldName,
+                    resolverKClass.qualifiedName,
+                    resolverClass.classLoader
+                )
+                val resolverExecutor = FieldUnbatchedResolverExecutorImpl(
+                    objectSelectionSet = objectSelectionSet,
+                    querySelectionSet = querySelectionSet,
+                    isSelective = isSelective,
+                    resolver = resolverContainerProvider,
+                    resolveFn = resolveFunction,
                     resolverId = formattedResolverId,
                     reflectionLoader = reflectionLoader,
                     resolverContextFactory = fieldExecutionContextFactory,
@@ -286,32 +282,9 @@ class ViaductTenantModuleBootstrapper(
             }
 
             val resolverKClass = resolverClass.kotlin
-            val resolveFunction = resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "resolve" }
-            val batchResolveFunction = resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "batchResolve" }
-
-            if (resolveFunction != null) {
-                if (batchResolveFunction != null) {
-                    throw TenantModuleException("Resolver class $resolverKClass implements both 'resolve' and 'batchResolve', it should only implement one")
-                }
-                log.info("- Adding node resolver entry for '{}' to '{}'.", typeName, resolverKClass.qualifiedName)
-                val nodeUnbatchedResolverExecutor =
-                    NodeUnbatchedResolverExecutorImpl(
-                        resolver = resolverContainerProvider,
-                        resolveFunction = resolveFunction,
-                        typeName = typeName,
-                        reflectionLoader = reflectionLoader,
-                        factory = resolverContextFactory,
-                        resolverName = resolverKClass.qualifiedName!!,
-                        isSelective = isSelective,
-                        tenantMetadata = tenantMetadata,
-                    )
-                nodeResolverExecutors.put(typeName, nodeUnbatchedResolverExecutor)?.let { extant ->
-                    throw TenantModuleException(
-                        "Duplicate node resolver for type $typeName. " +
-                            "Found $extant in class '${resolverKClass.qualifiedName}'."
-                    )
-                }
-            } else if (batchResolveFunction != null) {
+            if (nodeResolverForAnnotation.isBatching) {
+                val batchResolveFunction = resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "batchResolve" }
+                    ?: throw TenantModuleException("Node resolver class $resolverKClass is annotated with isBatching=true but does not implement 'batchResolve'")
                 log.info("- Adding node batch resolver entry for '{}' to '{}'.", typeName, resolverKClass.qualifiedName)
                 val nodeResolverExecutor =
                     NodeBatchResolverExecutorImpl(
@@ -331,7 +304,26 @@ class ViaductTenantModuleBootstrapper(
                     )
                 }
             } else {
-                throw TenantModuleException("Resolver class $resolverKClass implements neither 'resolve' nor 'batchResolve'")
+                val resolveFunction = resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "resolve" }
+                    ?: throw TenantModuleException("Node resolver class $resolverKClass does not implement 'resolve'")
+                log.info("- Adding node resolver entry for '{}' to '{}'.", typeName, resolverKClass.qualifiedName)
+                val nodeUnbatchedResolverExecutor =
+                    NodeUnbatchedResolverExecutorImpl(
+                        resolver = resolverContainerProvider,
+                        resolveFunction = resolveFunction,
+                        typeName = typeName,
+                        reflectionLoader = reflectionLoader,
+                        factory = resolverContextFactory,
+                        resolverName = resolverKClass.qualifiedName!!,
+                        isSelective = isSelective,
+                        tenantMetadata = tenantMetadata,
+                    )
+                nodeResolverExecutors.put(typeName, nodeUnbatchedResolverExecutor)?.let { extant ->
+                    throw TenantModuleException(
+                        "Duplicate node resolver for type $typeName. " +
+                            "Found $extant in class '${resolverKClass.qualifiedName}'."
+                    )
+                }
             }
         }
         return nodeResolverExecutors.entries.map { it.key to it.value }

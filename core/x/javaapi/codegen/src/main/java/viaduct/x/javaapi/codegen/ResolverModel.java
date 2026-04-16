@@ -48,8 +48,8 @@ package viaduct.x.javaapi.codegen;
  * @param isCompositeOutput whether the return type is a composite GraphQL type (object/interface)
  *     rather than a scalar.
  * @param isSelective whether the resolver's generated Context should expose getSelections().
- * @param includeBatchResolve whether to generate the {@code batchResolve} method. Set to false for
- *     Mutation fields since batching mutations is not supported.
+ * @param isBatching whether the resolver uses batchResolve instead of resolve, as declared via
+ *     {@code @resolver(isBatching: true)} in the schema.
  */
 public record ResolverModel(
     String gqlTypeName,
@@ -64,7 +64,7 @@ public record ResolverModel(
     boolean hasArguments,
     boolean isCompositeOutput,
     boolean isSelective,
-    boolean includeBatchResolve) {
+    boolean isBatching) {
 
   // ===== JavaBean-style getters for StringTemplate =====
   // ST (StringTemplate) requires JavaBean-style getters to access record components.
@@ -185,12 +185,16 @@ public record ResolverModel(
   }
 
   /**
-   * Returns whether to generate the batchResolve method.
+   * Returns whether the resolver uses batch resolution.
    *
-   * @return true to include batchResolve, false to omit (e.g., for Mutation fields)
+   * @return true when the resolver declares {@code isBatching=true} in the schema
    */
-  public boolean getIncludeBatchResolve() {
-    return includeBatchResolve;
+  public boolean getIsBatching() {
+    return isBatching;
+  }
+
+  public String getBatchingLiteral() {
+    return Boolean.toString(isBatching);
   }
 
   // ===== Pre-formatted type strings for template use =====

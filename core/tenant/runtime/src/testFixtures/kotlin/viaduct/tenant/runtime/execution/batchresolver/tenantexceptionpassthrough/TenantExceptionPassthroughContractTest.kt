@@ -16,9 +16,9 @@ import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
       item(id: ID! @idOf(type: "Item")): Item @resolver
     }
 
-    type Item implements Node @resolver(isSelective: true) {
+    type Item implements Node @resolver(isSelective: true, isBatching: true) {
       id: ID!
-      name: String @resolver
+      name: String @resolver(isBatching: true)
     }
     """
 )

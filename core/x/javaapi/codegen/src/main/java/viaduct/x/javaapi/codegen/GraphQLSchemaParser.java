@@ -403,9 +403,7 @@ public class GraphQLSchemaParser {
             ? grtPackage + "." + field.getType().getBaseTypeDef().getName()
             : "CompositeOutput.None";
     boolean isSelective = isSelectiveResolver(field);
-
-    // Exclude batchResolve for Mutation fields
-    boolean includeBatchResolve = !typeName.equals(mutationTypeName);
+    boolean isBatching = isBatchingResolver(field, typeName, mutationTypeName);
 
     return new ResolverModel(
         typeName,
@@ -420,7 +418,26 @@ public class GraphQLSchemaParser {
         hasArguments,
         isCompositeOutput,
         isSelective,
-        includeBatchResolve);
+        isBatching);
+  }
+
+  private boolean isBatchingResolver(
+      ViaductSchema.Def def, String typeName, String mutationTypeName) {
+    if (typeName.equals(mutationTypeName)) return false;
+    return def.getAppliedDirectives().stream()
+        .filter(directive -> directive.getName().equals("resolver"))
+        .findFirst()
+        .map(
+            directive -> {
+              ViaductSchema.Literal isBatchingArg = directive.getArguments().get("isBatching");
+              if (isBatchingArg == null) return false;
+              if (isBatchingArg instanceof ViaductSchema.BooleanLiteral booleanLiteral) {
+                return booleanLiteral.getValue();
+              }
+              throw new IllegalArgumentException(
+                  "Expected @resolver(isBatching:) to decode as a boolean on " + def.describe());
+            })
+        .orElse(false);
   }
 
   private boolean isSelectiveResolver(ViaductSchema.Def def) {

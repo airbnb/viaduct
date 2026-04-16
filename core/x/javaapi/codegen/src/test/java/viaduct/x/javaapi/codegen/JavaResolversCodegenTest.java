@@ -76,13 +76,17 @@ class JavaResolversCodegenTest {
     assertThat(queryResolverContent)
         .contains("package com.example.tenant.resolverbases;")
         .contains("public final class QueryResolvers")
-        .contains("@ResolverFor(typeName = \"Query\", fieldName = \"user\", isSelective = false)");
+        .contains(
+            "@ResolverFor(typeName = \"Query\", fieldName = \"user\", isSelective = false,"
+                + " isBatching = false)");
 
     String userResolverContent = Files.readString(resolverPackageDir.resolve("UserResolvers.java"));
     assertThat(userResolverContent)
         .contains("package com.example.tenant.resolverbases;")
         .contains("public final class UserResolvers")
-        .contains("@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = true)")
+        .contains(
+            "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = true,"
+                + " isBatching = false)")
         .contains("public Object getSelections()");
   }
 

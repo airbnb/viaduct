@@ -26,9 +26,9 @@ import viaduct.graphql.test.assertEquals
     type Item {
       id: String!
       "Batch resolver: return \"batched-<item.id>-size-<batch_size>\" where batch_size is the total items in the batch"
-      batchedField: String @resolver
+      batchedField: String @resolver(isBatching: true)
       "Batch resolver returning list: return 2 Items per parent with ids \"<parent.id>-list-1-size-<batch_size>\", \"<parent.id>-list-2-size-<batch_size>\""
-      listField: [Item] @resolver
+      listField: [Item]  @resolver(isBatching: true)
     }
 """
 )

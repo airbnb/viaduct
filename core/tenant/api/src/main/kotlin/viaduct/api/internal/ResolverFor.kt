@@ -9,4 +9,5 @@ annotation class ResolverFor(
     val typeName: String,
     val fieldName: String,
     val isSelective: Boolean,
+    val isBatching: Boolean = false,
 )

@@ -24,8 +24,8 @@ import viaduct.graphql.test.assertEquals
 
     type Item {
       id: String!
-      batchedField: String @resolver
-      listField: [Item] @resolver
+      batchedField: String @resolver(isBatching: true)
+      listField: [Item] @resolver(isBatching: true)
     }
 """
 )

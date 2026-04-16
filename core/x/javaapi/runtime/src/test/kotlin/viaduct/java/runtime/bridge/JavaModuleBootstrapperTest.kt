@@ -25,11 +25,15 @@ class JavaModuleBootstrapperTest {
 
     @ResolverFor(typeName = "TestType", fieldName = "testField", isSelective = false)
     abstract class TestResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+    }
 
     @ResolverFor(typeName = "TestType", fieldName = "selectiveField", isSelective = true)
     abstract class SelectiveResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+    }
 
     @Resolver
     class TestResolver : TestResolverBase() {
@@ -48,7 +52,9 @@ class JavaModuleBootstrapperTest {
     // Test fixtures for required selections tests
     @ResolverFor(typeName = "Person", fieldName = "fullName", isSelective = false)
     abstract class PersonFullNameResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+    }
 
     @Resolver(objectValueFragment = "firstName lastName")
     class PersonFullNameResolver : PersonFullNameResolverBase() {
@@ -60,7 +66,9 @@ class JavaModuleBootstrapperTest {
     // Test fixture for resolver without required selections (plain @Resolver)
     @ResolverFor(typeName = "Person", fieldName = "age", isSelective = false)
     abstract class PersonAgeResolverBase :
-        FieldResolverBase<Int, TestQuery, TestQuery, Arguments.None, CompositeOutput>
+        FieldResolverBase<Int, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<Int>
+    }
 
     @Resolver
     class PersonAgeResolver : PersonAgeResolverBase() {

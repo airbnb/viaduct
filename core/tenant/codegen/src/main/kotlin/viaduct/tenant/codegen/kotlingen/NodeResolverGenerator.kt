@@ -4,6 +4,7 @@ import java.io.File
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.tenant.codegen.bytecode.config.isBatchingResolver
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.isSelectiveResolver
 import viaduct.tenant.codegen.bytecode.config.tenantModule
@@ -43,7 +44,7 @@ private class NodeResolverGenerator(
             .filter {
                 isTenantOwnedNode(it) && hasResolverDirective(it)
             }
-            .map { NodeResolverConfig(it.name, it.isSelectiveResolver) }
+            .map { NodeResolverConfig(it.name, it.isSelectiveResolver, it.isBatchingResolver) }
 
         genNodeResolvers(tenantOwnedNodes, tenantPackage, grtPackage)?.let { contents ->
             val resolverbasesDir = File(resolverGeneratedDir, "resolverbases")
@@ -67,6 +68,7 @@ private class NodeResolverGenerator(
 internal data class NodeResolverConfig(
     val typeName: String,
     val isSelective: Boolean,
+    val isBatching: Boolean,
 )
 
 internal fun genNodeResolvers(
@@ -90,6 +92,8 @@ private interface NodeModel {
     val typeName: String
     val selective: Boolean
     val selectiveLiteral: String
+    val batching: Boolean
+    val batchingLiteral: String
     val ctxInterface: String
 }
 
@@ -101,6 +105,8 @@ private class NodeModelImpl(config: NodeResolverConfig, override val grtPackage:
     override val typeName: String = config.typeName
     override val selective: Boolean = config.isSelective
     override val selectiveLiteral: String = selective.toString()
+    override val batching: Boolean = config.isBatching
+    override val batchingLiteral: String = batching.toString()
     override val ctxInterface: String = if (selective) {
         "viaduct.api.context.SelectiveNodeExecutionContext"
     } else {
@@ -129,13 +135,14 @@ private val nodesSt = stTemplate(
 private val nodeSt = stTemplate(
     "node(mdl)",
     """
-        @NodeResolverFor(typeName = "<mdl.typeName>", isSelective = <mdl.selectiveLiteral>)
+        @NodeResolverFor(typeName = "<mdl.typeName>", isSelective = <mdl.selectiveLiteral>, isBatching = <mdl.batchingLiteral>)
         abstract class <mdl.typeName> : NodeResolverBase\<<mdl.grtPackage>.<mdl.typeName>\> {
-            open suspend fun resolve(ctx: Context): <mdl.grtPackage>.<mdl.typeName> =
-                throw NotImplementedError("Nodes.<mdl.typeName>.resolve not implemented")
-
-            open suspend fun batchResolve(contexts: List\<Context>): List\<FieldValue\<<mdl.grtPackage>.<mdl.typeName>\>> =
-                throw NotImplementedError("Nodes.<mdl.typeName>.batchResolve not implemented")
+            <if(!mdl.batching)>
+            abstract suspend fun resolve(ctx: Context): <mdl.grtPackage>.<mdl.typeName>
+            <endif>
+            <if(mdl.batching)>
+            abstract suspend fun batchResolve(contexts: List\<Context>): List\<FieldValue\<<mdl.grtPackage>.<mdl.typeName>\>>
+            <endif>
 
             class Context(
                 private val inner: <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>

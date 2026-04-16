@@ -19,7 +19,10 @@ class DefaultJavaResolverClassFinderTest {
 
     @ResolverFor(typeName = "TestType", fieldName = "testField", isSelective = false)
     abstract class TestResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        // Define resolve method on the base class (mirrors generated code pattern)
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+    }
 
     @Resolver
     class TestResolverImpl : TestResolverBase() {

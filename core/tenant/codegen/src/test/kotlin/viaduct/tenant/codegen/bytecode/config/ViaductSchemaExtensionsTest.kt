@@ -70,6 +70,36 @@ class ViaductSchemaExtensionsTest {
     }
 
     @Test
+    fun `isBatchingResolver survives GraphQLSchema extension decoding`() {
+        val schema = mkCompiledSchema(
+            """
+                directive @resolver(isSelective: Boolean! = false, isBatching: Boolean! = false) on OBJECT | FIELD_DEFINITION
+
+                type Query {
+                    ignored: String
+                }
+
+                extend type Query {
+                    foo: Foo @resolver(isBatching: true)
+                }
+
+                type Foo {
+                    value: String
+                }
+            """.trimIndent()
+        )
+
+        assertTrue(schema.field("Query", "foo").isBatchingResolver)
+
+        val binaryFile = File.createTempFile("schema", ".bgql")
+        binaryFile.deleteOnExit()
+        schema.toBinaryFile(binaryFile)
+
+        val roundTripped = ViaductSchema.fromBinaryFile(binaryFile)
+        assertTrue(roundTripped.field("Query", "foo").isBatchingResolver)
+    }
+
+    @Test
     fun `isSelectiveResolver supports legacy selective directive arg`() {
         val schema = mkCompiledSchema(
             """

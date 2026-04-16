@@ -9,9 +9,9 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 
 class NodeResolverGeneratorTest {
-    private fun gen(vararg types: Pair<String, Boolean>): String? {
+    private fun gen(vararg types: Triple<String, Boolean, Boolean>): String? {
         val contents = genNodeResolvers(
-            types.map { (typeName, isSelective) -> NodeResolverConfig(typeName, isSelective) },
+            types.map { (typeName, isSelective, isBatching) -> NodeResolverConfig(typeName, isSelective, isBatching) },
             "pkg.tenant",
             "pkg.grts"
         )
@@ -25,15 +25,15 @@ class NodeResolverGeneratorTest {
 
     @Test
     fun `generates node resolvers`() {
-        val contents = gen("Foo" to false, "Bar" to true)
+        val contents = gen(Triple("Foo", false, false), Triple("Bar", true, false))
 
         assertNotNull(contents)
         contents!!
 
         assertTrue(contents.contains("package pkg.tenant.resolverbases"))
-        assertTrue(contents.contains("NodeResolverFor(typeName = \"Foo\", isSelective = false)"))
+        assertTrue(contents.contains("NodeResolverFor(typeName = \"Foo\", isSelective = false, isBatching = false)"))
         assertTrue(contents.contains("abstract class Foo : NodeResolverBase"))
-        assertTrue(contents.contains("NodeResolverFor(typeName = \"Bar\", isSelective = true)"))
+        assertTrue(contents.contains("NodeResolverFor(typeName = \"Bar\", isSelective = true, isBatching = false)"))
         assertTrue(contents.contains("abstract class Bar : NodeResolverBase"))
         assertTrue(contents.contains("viaduct.api.context.SelectiveNodeExecutionContext<pkg.grts.Bar>"))
         assertTrue(contents.contains("override fun selections(): SelectionSet<pkg.grts.Bar> = inner.selections()"))
@@ -65,14 +65,14 @@ class NodeResolverGeneratorTest {
 
         schema.generateNodeResolvers(args)
 
-        val contents = gen("Foo" to false, "Bar" to false)
+        val contents = gen(Triple("Foo", false, false), Triple("Bar", false, false))
         assertNotNull(contents)
         contents!!
 
         assertTrue(contents.contains("package pkg.tenant.resolverbases"))
-        assertTrue(contents.contains("NodeResolverFor(typeName = \"Foo\", isSelective = false)"))
+        assertTrue(contents.contains("NodeResolverFor(typeName = \"Foo\", isSelective = false, isBatching = false)"))
         assertTrue(contents.contains("abstract class Foo : NodeResolverBase"))
-        assertTrue(contents.contains("NodeResolverFor(typeName = \"Bar\", isSelective = false)"))
+        assertTrue(contents.contains("NodeResolverFor(typeName = \"Bar\", isSelective = false, isBatching = false)"))
         assertTrue(contents.contains("abstract class Bar : NodeResolverBase"))
     }
 

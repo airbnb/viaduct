@@ -13,7 +13,7 @@ import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
     type User {
       id: String!
       name: String!
-      department: String @resolver
+      department: String @resolver(isBatching: true)
     }
 """
 )

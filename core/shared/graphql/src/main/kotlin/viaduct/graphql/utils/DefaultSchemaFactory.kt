@@ -65,6 +65,14 @@ object DefaultSchemaFactory {
                     .sourceLocation(sourceLocation)
                     .build()
 
+                val isBatchingArgument = InputValueDefinition
+                    .newInputValueDefinition()
+                    .name("isBatching")
+                    .type(NonNullType(TypeName("Boolean")))
+                    .defaultValue(BooleanValue(false))
+                    .sourceLocation(sourceLocation)
+                    .build()
+
                 return DirectiveDefinition
                     .newDirectiveDefinition()
                     .name(directiveName)
@@ -72,6 +80,7 @@ object DefaultSchemaFactory {
                     .directiveLocation(DirectiveLocation("FIELD_DEFINITION"))
                     .directiveLocation(DirectiveLocation("OBJECT"))
                     .inputValueDefinition(isSelectiveArgument)
+                    .inputValueDefinition(isBatchingArgument)
                     .sourceLocation(sourceLocation)
                     .build()
             }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
+import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
@@ -76,7 +77,28 @@ class FieldResolverGeneratorTest {
         assertFalse(contents.contains("MutationExecutionContext"))
         assertContains(contents, "object SubjectResolvers ")
         assertContains(contents, "class Field ")
+        assertContains(contents, "abstract suspend fun resolve(ctx: Context)")
+        assertFalse(contents.contains("batchResolve"))
+    }
+
+    @Test
+    fun `generates batch resolver when isBatching is true`() {
+        val contents = gen(
+            """
+                directive @resolver(isSelective: Boolean! = false, isBatching: Boolean! = false) on FIELD_DEFINITION | OBJECT
+                type Query { placeholder: Int }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
+                type Subject {
+                    field: Int @resolver(isBatching: true)
+                }
+            """.trimIndent(),
+            "Subject"
+        )
+
+        assertContains(contents, "@ResolverFor(typeName = \"Subject\", fieldName = \"field\", isSelective = false, isBatching = true)")
         assertContains(contents, "batchResolve")
+        assertFalse(contents.contains("abstract suspend fun resolve(ctx: Context)"))
     }
 
     @Test
@@ -204,7 +226,7 @@ class FieldResolverGeneratorTest {
             "Subject"
         )
 
-        assertTrue(contents.contains("open suspend fun resolve(ctx: Context): kotlin.Any"))
+        assertTrue(contents.contains("abstract suspend fun resolve(ctx: Context): kotlin.Any"))
     }
 
     @Test
@@ -269,12 +291,42 @@ class FieldResolverGeneratorTest {
             "Query"
         )
 
-        assertContains(contents, "@ResolverFor(typeName = \"Query\", fieldName = \"foo\", isSelective = true)")
+        assertContains(contents, "@ResolverFor(typeName = \"Query\", fieldName = \"foo\", isSelective = true, isBatching = false)")
         assertContains(
             contents,
             "FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.Foo> by inner, viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.Foo>"
         )
         assertContains(contents, "override fun selections(): viaduct.api.select.SelectionSet<viaduct.api.grts.Foo>")
+    }
+
+    @Test
+    fun `errors when isBatching is true on a standard Mutation field`() {
+        val schema = mkSchema(
+            """
+                directive @resolver(isBatching: Boolean! = false) on FIELD_DEFINITION
+                type Query { placeholder: Int }
+                type Mutation { field(x: Int!): Int! @resolver(isBatching: true) }
+            """.trimIndent()
+        )
+        val type = schema.types["Mutation"] as ViaductSchema.Record
+        assertThrows<IllegalArgumentException> {
+            genResolver("Mutation", type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "Query", "Mutation")
+        }
+    }
+
+    @Test
+    fun `errors when isBatching is true on a custom mutation type field`() {
+        val sdl = """
+            schema { query: CustomQuery mutation: CustomMutation }
+            directive @resolver(isBatching: Boolean! = false) on FIELD_DEFINITION
+            type CustomQuery { placeholder: Int }
+            type CustomMutation { field(x: Int!): Int! @resolver(isBatching: true) }
+        """.trimIndent()
+        val schema = mkSchema(sdl)
+        val type = schema.types["CustomMutation"] as ViaductSchema.Record
+        assertThrows<IllegalArgumentException> {
+            genResolver("CustomMutation", type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "CustomQuery", "CustomMutation")
+        }
     }
 
     @Test

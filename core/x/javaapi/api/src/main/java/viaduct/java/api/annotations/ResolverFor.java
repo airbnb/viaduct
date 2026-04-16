@@ -61,4 +61,11 @@ public @interface ResolverFor {
    * @return true when the generated Context should expose getSelections()
    */
   boolean isSelective();
+
+  /**
+   * Whether the resolver handles resolution in batch mode.
+   *
+   * @return true when the resolver implements batchResolve instead of resolve
+   */
+  boolean isBatching() default false;
 }

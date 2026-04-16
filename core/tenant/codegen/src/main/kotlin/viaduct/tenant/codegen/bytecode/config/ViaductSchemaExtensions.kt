@@ -271,6 +271,7 @@ val ViaductSchema.TypeDef.hasConnectionDirective: Boolean
 
 data class ResolverDirectiveConfig(
     val isSelective: Boolean,
+    val isBatching: Boolean,
 )
 
 fun ViaductSchema.Def.resolverDirectiveConfigOrNull(): ResolverDirectiveConfig? {
@@ -283,11 +284,19 @@ fun ViaductSchema.Def.resolverDirectiveConfigOrNull(): ResolverDirectiveConfig? 
         is ViaductSchema.BooleanLiteral -> isSelectiveArg.value
         else -> error("Expected @resolver(isSelective:/selective:) to decode as a boolean on ${describe()}")
     }
-    return ResolverDirectiveConfig(isSelective = isSelective)
+    val isBatching = when (val isBatchingArg = resolverDirective.arguments["isBatching"]) {
+        null -> false
+        is ViaductSchema.BooleanLiteral -> isBatchingArg.value
+        else -> error("Expected @resolver(isBatching:) to decode as a boolean on ${describe()}")
+    }
+    return ResolverDirectiveConfig(isSelective = isSelective, isBatching = isBatching)
 }
 
 val ViaductSchema.Def.isSelectiveResolver: Boolean
     get() = resolverDirectiveConfigOrNull()?.isSelective ?: false
+
+val ViaductSchema.Def.isBatchingResolver: Boolean
+    get() = resolverDirectiveConfigOrNull()?.isBatching ?: false
 
 /**
  * For a Connection type, extracts the Edge type name from the edges field.

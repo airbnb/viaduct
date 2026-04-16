@@ -48,7 +48,7 @@ public final class JavaResolverGenerator {
               }
 
               <mdl.resolvers:{r |
-              @ResolverFor(typeName = "<r.gqlTypeName>", fieldName = "<r.gqlFieldName>", isSelective = <r.selectiveLiteral>)
+              @ResolverFor(typeName = "<r.gqlTypeName>", fieldName = "<r.gqlFieldName>", isSelective = <r.selectiveLiteral>, isBatching = <r.batchingLiteral>)
               public abstract static class <r.resolverClassName>
                   implements <r.fieldResolverBaseType> {
 
@@ -135,6 +135,7 @@ public final class JavaResolverGenerator {
                       <endif>
                   \\}
 
+                  <if(!r.isBatching)>
                   /**
                    * Resolves the <r.gqlFieldName> field value for a single parent object.
                    * Override this method to implement single-item resolution.
@@ -143,6 +144,17 @@ public final class JavaResolverGenerator {
                    * @return a future that completes with the resolved value
                    */
                   public abstract <r.resolveFutureType> resolve(Context ctx);
+                  <endif>
+                  <if(r.isBatching)>
+                  /**
+                   * Resolves the <r.gqlFieldName> field value for a batch of parent objects.
+                   * Override this method to implement batch resolution.
+                   *
+                   * @param contexts the list of execution contexts (one per parent object)
+                   * @return a future that completes with a map from Context to resolved value
+                   */
+                  public abstract <r.batchResolveFutureType> batchResolve(<r.batchResolveContextListType> contexts);
+                  <endif>
               \\}
               }; separator="\\n">
           }

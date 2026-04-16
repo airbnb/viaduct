@@ -12,7 +12,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
       foo(id: ID! @idOf(type: "Foo")): Foo @resolver
     }
 
-    type Foo implements Node @resolver(isSelective: true) {
+    type Foo implements Node @resolver(isSelective: true,isBatching: true) {
       id: ID!
       a: String
       b: String

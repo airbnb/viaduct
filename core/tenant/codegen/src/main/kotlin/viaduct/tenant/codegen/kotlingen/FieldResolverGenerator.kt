@@ -7,6 +7,7 @@ import viaduct.codegen.st.stTemplate
 import viaduct.codegen.utils.JavaName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
+import viaduct.tenant.codegen.bytecode.config.isBatchingResolver
 import viaduct.tenant.codegen.bytecode.config.isSelectiveResolver
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.tenantModule
@@ -93,11 +94,12 @@ private interface ResolverModel {
     val resolverName: String
     val selective: Boolean
     val selectiveLiteral: String
+    val batching: Boolean
+    val batchingLiteral: String
     val typeSpecifier: String
     val ctxInterface: String
     val selectiveCtxInterface: String
     val ctxOutputType: String
-    val includeBatchResolve: Boolean
 }
 
 private class ResolversModelImpl(
@@ -125,6 +127,16 @@ private class ResolverModelImpl(
     override val resolverName: String = gqlFieldName.capitalize()
     override val selective: Boolean = field.isSelectiveResolver
     override val selectiveLiteral: String = selective.toString()
+    override val batching: Boolean = if (field.containingDef.name == (mutationTypeName ?: "Mutation")) {
+        require(!field.isBatchingResolver) {
+            "@resolver(isBatching: true) is not supported on mutation field ${field.containingDef.name}.${field.name}"
+        }
+        false
+    } else {
+        field.isBatchingResolver
+    }
+
+    override val batchingLiteral: String = batching.toString()
     private val queryGrtTypeName: String = "$grtPackage.${queryTypeName ?: "Query"}"
     private val mutationGrtTypeName: String = if (mutationTypeName != null) "$grtPackage.$mutationTypeName" else "viaduct.api.types.Mutation"
     private val grtTypeName: String = "$grtPackage.$gqlTypeName"
@@ -159,7 +171,6 @@ private class ResolverModelImpl(
                 "viaduct.api.context.FieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
         }
     override val selectiveCtxInterface: String = "viaduct.api.context.SelectiveFieldExecutionContext<$grtOutputName>"
-    override val includeBatchResolve: Boolean = this.field.containingDef.name != "Mutation"
 }
 
 private val resolversST = stTemplate(
@@ -187,7 +198,7 @@ private val resolversST = stTemplate(
 private val resolverST = stTemplate(
     "resolver(mdl)",
     """
-    @ResolverFor(typeName = "<mdl.gqlTypeName>", fieldName = "<mdl.gqlFieldName>", isSelective = <mdl.selectiveLiteral>)
+    @ResolverFor(typeName = "<mdl.gqlTypeName>", fieldName = "<mdl.gqlFieldName>", isSelective = <mdl.selectiveLiteral>, isBatching = <mdl.batchingLiteral>)
     abstract class <mdl.resolverName> : ResolverBase\<<mdl.typeSpecifier>\> {
         class Context(
             private val inner: <mdl.ctxInterface>
@@ -197,11 +208,11 @@ private val resolverST = stTemplate(
                 (inner as <mdl.selectiveCtxInterface>).selections()
             <endif>
         }
-        open suspend fun resolve(ctx: Context): <mdl.typeSpecifier> =
-            throw NotImplementedError("<mdl.gqlTypeName>.<mdl.gqlFieldName>.resolve not implemented")
-        <if(mdl.includeBatchResolve)>
-        open suspend fun batchResolve(contexts: List\<Context>): List\<FieldValue\<<mdl.typeSpecifier>\>> =
-            throw NotImplementedError("<mdl.gqlTypeName>.<mdl.gqlFieldName>.batchResolve not implemented")
+        <if(!mdl.batching)>
+        abstract suspend fun resolve(ctx: Context): <mdl.typeSpecifier>
+        <endif>
+        <if(mdl.batching)>
+        abstract suspend fun batchResolve(contexts: List\<Context>): List\<FieldValue\<<mdl.typeSpecifier>\>>
         <endif>
     }
     """
