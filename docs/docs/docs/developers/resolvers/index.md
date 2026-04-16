@@ -7,8 +7,8 @@ description: Understanding resolvers in Viaduct
 In Viaduct, all module code is provided in the form of either a *node resolver* or a *field resolver*. Node and field resolvers are implemented similarly:
 
 * **Schema**: The schema is the source of truth for what resolvers should exist. Define node types and add the `@resolver` directive to fields you want to provide resolvers for.
-* **Generated base classes**: Viaduct generates abstract classes for all node and field resolvers based on the schema.
-* **Implementation**: Implement a resolver by providing a subclass of the generated base class and overriding either `resolve` or `batchResolve`.
+* **Generated base classes**: Viaduct generates abstract classes for all node and field resolvers based on the schema. Each generated class contains either a `resolve` method or a `batchResolve` method, depending on the `@resolver` directive's `isBatching` argument.
+* **Implementation**: Implement a resolver by providing a subclass of the generated base class and overriding the generated method.
 
 ## Responsibility sets
 

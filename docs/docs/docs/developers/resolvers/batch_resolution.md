@@ -4,7 +4,7 @@ description: Batch node and field resolvers
 ---
 
 
-Both [node resolvers](node_resolvers.md) and [field resolvers](field_resolvers.md) can be implemented using the `batchResolve` function. This provides an alternative to the widely used [data loader](https://github.com/graphql/dataloader) pattern.
+Both [node resolvers](node_resolvers.md) and [field resolvers](field_resolvers.md) can be implemented using the `batchResolve` function. To opt into batching, declare `@resolver(isBatching: true)` in your schema — Viaduct will then generate only a `batchResolve` method (instead of `resolve`) in the resolver base class. This provides an alternative to the widely used [data loader](https://github.com/graphql/dataloader) pattern.
 
 ## The N+1 problem
 
@@ -15,7 +15,7 @@ type Query {
   recommendedListings: [Listing] @resolver
 }
 
-type Listing implements Node {
+type Listing implements Node @resolver(isBatching: true) {
   id: ID!
   title: String
 }
@@ -36,7 +36,7 @@ This is the N+1 problem, which is commonly solved by implementing a data loader 
 
 ## batchResolve
 
-In Viaduct, you can implement the `batchResolve` function and directly call the data source instead of going through a data loader. Under the hood, Viaduct still uses a data loader to batch requests. However, this data loader is part of Viaduct's framework, not something that application developers need to write and maintain. Here's an example `Listing` batch node resolver:
+In Viaduct, you implement the generated `batchResolve` function to directly call the data source instead of going through a data loader. Under the hood, Viaduct still uses a data loader to batch requests. However, this data loader is part of Viaduct's framework, not something that application developers need to write and maintain. Here's an example `Listing` batch node resolver:
 
 ```kotlin
 @Resolver
@@ -76,8 +76,8 @@ Notice that the output list elements are wrapped in {{ kdoc("viaduct.api.FieldVa
 
 ### When to use `batchResolve`
 
-Override `batchResolve` whenever you need to fetch data from an external data source that supports batch loading. This solves the N+1 problem and similar issues where multiple parts of a GraphQL query fetch data that can be batched together.
+Use batch resolution whenever you need to fetch data from an external data source that supports batch loading. This solves the N+1 problem and similar issues where multiple parts of a GraphQL query fetch data that can be batched together.
 
-If your resolver does not have external data dependencies, there is generally no benefit to implementing `batchResolve`.
+If your resolver does not have external data dependencies, there is generally no benefit to batching.
 
-Those familiar with data loaders may know that they also provide an intra-request cache. In Viaduct, this memoization cache is decoupled from batching, so you do not need to implement `batchResolve` for caching purposes.
+Those familiar with data loaders may know that they also provide an intra-request cache. In Viaduct, this memoization cache is decoupled from batching, so you do not need batch resolution for caching purposes.

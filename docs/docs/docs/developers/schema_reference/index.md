@@ -16,6 +16,11 @@ Marks fields or types that require custom resolution logic. This is the primary 
 
 **Locations:** `FIELD_DEFINITION`, `OBJECT`
 
+**Arguments:**
+
+- `isSelective: Boolean! = false` — enables selective resolution
+- `isBatching: Boolean! = false` — when `true`, codegen generates a `batchResolve` method instead of `resolve`, enabling batch resolution for the field or type
+
 **Example:**
 
 ```graphql
@@ -27,6 +32,7 @@ type User @resolver {
   id: ID!
   name: String
   email: String
+  friends: [User] @resolver(isBatching: true)
 }
 ```
 
@@ -34,8 +40,9 @@ type User @resolver {
 - Fields that fetch data from external services or databases
 - Fields that require custom business logic beyond simple property access
 - Object types that need node resolution for Global ID support
+- Fields or types that benefit from batch loading (`isBatching: true`)
 
-When you apply `@resolver` to a field, Viaduct generates an abstract resolver class that you must implement. See [Resolvers](../resolvers/index.md) for details.
+When you apply `@resolver` to a field, Viaduct generates an abstract resolver class that you must implement. The generated class contains either a `resolve` method (default) or a `batchResolve` method (when `isBatching: true`) — never both. At startup, Viaduct validates that the `isBatching` flag in the schema matches the method your resolver implements. See [Resolvers](../resolvers/index.md) and [Batch Resolution](../resolvers/batch_resolution.md) for details.
 
 ### @backingData
 
@@ -261,7 +268,7 @@ extend type Mutation {
 
 | Directive | Locations | Purpose | Generated Code Impact |
 |-----------|-----------|---------|----------------------|
-| `@resolver` | FIELD_DEFINITION, OBJECT | Marks fields/types requiring custom resolution | Generates abstract resolver classes |
+| `@resolver(isSelective: Boolean! = false, isBatching: Boolean! = false)` | FIELD_DEFINITION, OBJECT | Marks fields/types requiring custom resolution | Generates `resolve` (default) or `batchResolve` (`isBatching: true`) |
 | `@backingData(class: String!)` | FIELD_DEFINITION | Specifies backing data class | Enables automatic field resolution |
 | `@scope(to: [String!]!)` | OBJECT, INTERFACE, UNION, ENUM, INPUT_OBJECT, FIELD_DEFINITION, ENUM_VALUE | Controls visibility by scope (repeatable) | Affects schema filtering |
 | `@idOf(type: String!)` | FIELD_DEFINITION, INPUT_FIELD_DEFINITION, ARGUMENT_DEFINITION | Declares Global ID type | Uses `GlobalID<T>` instead of `String` |

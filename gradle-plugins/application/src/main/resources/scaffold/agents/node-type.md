@@ -1,12 +1,20 @@
 # Viaduct Node Type Pattern
 
-**⚠️ CRITICAL:** Types implementing Node MUST have `@resolver` directive to generate `NodeResolvers.TypeName`:
+**⚠️ CRITICAL:** Types implementing Node MUST have `@resolver` directive to generate `NodeResolvers.TypeName`.
+Use `@resolver(isBatching: true)` if the node resolver should batch multiple ID lookups:
 
 ```graphql
+# Single resolve (default):
 type User implements Node @resolver @scope(to: ["default"]) {
   id: ID!                      # Required for Node
   email: String
   displayName: String @resolver
+}
+
+# Batch resolve:
+type User implements Node @resolver(isBatching: true) @scope(to: ["default"]) {
+  id: ID!
+  email: String
 }
 ```
 

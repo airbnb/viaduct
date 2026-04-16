@@ -1,6 +1,6 @@
 # Viaduct Batch Resolution Pattern
 
-Use `batchResolve` instead of `resolve` to prevent N+1 queries:
+Declare `@resolver(isBatching: true)` in the schema and override `batchResolve` to prevent N+1 queries:
 
 ```kotlin
 package com.viaduct.resolvers
@@ -46,18 +46,20 @@ class GroupTagsResolver : GroupResolvers.Tags() {
 ```graphql
 type Group {
   id: ID!
-  tags: [Tag!]! @resolver  # Will use batchResolve
+  tags: [Tag!]! @resolver(isBatching: true)  # Generates batchResolve
 }
 ```
 
+The `isBatching: true` flag tells codegen to generate **only** a `batchResolve` method (not `resolve`). A plain `@resolver` generates **only** `resolve`.
+
 ## When to Use Batch
 
-Use `batchResolve` when:
+Use `@resolver(isBatching: true)` when:
 - Field returns related entities (tags, members, comments)
 - Parent type appears in lists
 - You see N+1 query patterns in logs
 
-Use regular `resolve` when:
+Use regular `@resolver` when:
 - Field is a simple computation
 - No database access needed
 - Parent is always fetched individually

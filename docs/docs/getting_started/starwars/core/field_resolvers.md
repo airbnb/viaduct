@@ -8,7 +8,8 @@ Field resolvers compute values for individual fields when a simple property read
 node resolvers by adding business logic, formatting, and light lookups at the **field** level, while keeping
 entity fetching in the **node** layer.
 
-> This page focuses on **single-field resolvers**. Batching strategies are covered in `batch_resolvers.md`.
+> This page focuses on **single-field resolvers** (using the default `@resolver`).
+> Batching strategies are covered in [Batch Resolvers](batch_resolvers.md).
 
 ## Where field resolvers fit in the execution flow
 

@@ -8,6 +8,19 @@ Batch field resolvers process multiple field requests **in one pass**, dramatica
 field is selected across many parent objects. Viaduct guarantees the **input order** of contexts and expects you to
 return results in the **same order**.
 
+## Schema declaration
+
+To opt into batching, add `isBatching: true` to the `@resolver` directive. This tells codegen to generate a
+`batchResolve` method instead of `resolve`:
+
+```graphql
+type Character implements Node @scope(to: ["default"]) @resolver(isBatching: true) {
+  id: ID!
+  name: String
+  filmCount: Int @resolver(isBatching: true)
+}
+```
+
 ## Where batching fits in the execution flow
 
 1. The planner groups identical field selections across all matching parent objects in the operation.
@@ -33,14 +46,12 @@ here so they are available on `ctx.objectValue` without extra work.
 
 ## Implementing batch resolvers in node resolvers
 
-Node resolvers can also be batched. The pattern is similar, but you receive a list of `GlobalID`s instead of
-`Context`s. You can use `GlobalID.toInternalID()` to extract your internal ID
+Node resolvers can also be batched by declaring `@resolver(isBatching: true)` on the type. The pattern is similar,
+but you receive a list of `GlobalID`s instead of `Context`s. You can use `GlobalID.toInternalID()` to extract your
+internal ID
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_batch_resolver_example", lang="kotlin") }}
-
-
-> For a node resolver you can only implement `batchResolve` or `resolve` — not both.
 
 ## Error handling and nullability
 
