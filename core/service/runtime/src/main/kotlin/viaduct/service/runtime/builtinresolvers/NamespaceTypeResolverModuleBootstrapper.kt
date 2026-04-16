@@ -26,6 +26,7 @@ class NamespaceTypeResolverModuleBootstrapper : TenantModuleBootstrapper {
             val graphQLSchema = schema.schema
             val visited = mutableSetOf<String>()
             walkNamespaceFields(graphQLSchema.queryType, this, visited)
+            graphQLSchema.mutationType?.let { walkNamespaceFields(it, this, visited) }
         }
 
     /**

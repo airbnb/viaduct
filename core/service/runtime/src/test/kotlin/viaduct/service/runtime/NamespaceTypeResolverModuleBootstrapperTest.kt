@@ -54,6 +54,72 @@ class NamespaceTypeResolverModuleBootstrapperTest {
     }
 
     @Test
+    fun `registers resolver for namespace type under mutation root`() {
+        val schema = mkSchema(
+            """
+            type Query { name: String }
+            type Mutation { listings: Listings }
+            type Listings @namespaceType { createListing: String }
+            """.trimIndent()
+        )
+        val resolvers = NamespaceTypeResolverModuleBootstrapper().fieldResolverExecutors(schema).toList()
+        val coords = resolvers.map { it.first }.toSet()
+        assertEquals(setOf(Coordinate("Mutation", "listings")), coords)
+    }
+
+    @Test
+    fun `registers resolvers for nested namespace types under mutation root`() {
+        val schema = mkSchema(
+            """
+            type Query { name: String }
+            type Mutation { listings: Listings }
+            type Listings @namespaceType { pricing: ListingsPricing }
+            type ListingsPricing @namespaceType { setCurrency: String }
+            """.trimIndent()
+        )
+        val resolvers = NamespaceTypeResolverModuleBootstrapper().fieldResolverExecutors(schema).toList()
+        val coords = resolvers.map { it.first }.toSet()
+        assertEquals(
+            setOf(Coordinate("Mutation", "listings"), Coordinate("Listings", "pricing")),
+            coords
+        )
+    }
+
+    @Test
+    fun `registers resolvers for namespace types under both query and mutation roots`() {
+        val schema = mkSchema(
+            """
+            type Query { queryListings: QueryListings }
+            type QueryListings @namespaceType { search: String }
+            type Mutation { mutationListings: MutationListings }
+            type MutationListings @namespaceType { createListing: String }
+            """.trimIndent()
+        )
+        val resolvers = NamespaceTypeResolverModuleBootstrapper().fieldResolverExecutors(schema).toList()
+        val coords = resolvers.map { it.first }.toSet()
+        assertEquals(
+            setOf(
+                Coordinate("Query", "queryListings"),
+                Coordinate("Mutation", "mutationListings")
+            ),
+            coords
+        )
+    }
+
+    @Test
+    fun `schema without mutation type does not break`() {
+        val schema = mkSchema(
+            """
+            type Query { listings: Listings }
+            type Listings @namespaceType { count: Int }
+            """.trimIndent()
+        )
+        val resolvers = NamespaceTypeResolverModuleBootstrapper().fieldResolverExecutors(schema).toList()
+        val coords = resolvers.map { it.first }.toSet()
+        assertEquals(setOf(Coordinate("Query", "listings")), coords)
+    }
+
+    @Test
     fun `registers resolvers for nested namespace types`() {
         val schema = mkSchema(
             """

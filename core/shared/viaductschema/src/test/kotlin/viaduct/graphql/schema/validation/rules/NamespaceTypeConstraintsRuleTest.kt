@@ -181,6 +181,64 @@ class NamespaceTypeConstraintsRuleTest {
     }
 
     @Test
+    fun `valid - namespace type under mutation root`() {
+        val errors = validate(
+            """
+            type Query { name: String }
+            type Mutation { listings: Listings }
+            type Listings @namespaceType { createListing: String }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `valid - nested namespace types under mutation root`() {
+        val errors = validate(
+            """
+            type Query { name: String }
+            type Mutation { listings: Listings }
+            type Listings @namespaceType { pricing: ListingsPricing }
+            type ListingsPricing @namespaceType { setCurrency: String }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `invalid - namespace type returned by non-root non-namespace parent still fails with mutation present`() {
+        val errors = validate(
+            """
+            type Query { name: String }
+            type Mutation { doSomething: String }
+            type RoomType { listings: Listings }
+            type Listings @namespaceType { availableRoomTypes: [String] }
+            """.trimIndent()
+        )
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_INVALID_PARENT
+        errors[0].message shouldContain "RoomType.listings"
+    }
+
+    @Test
+    fun `invalid - namespace type returned from both query and mutation roots`() {
+        val errors = validate(
+            """
+            type Query { listings: Listings }
+            type Mutation { listings: Listings }
+            type Listings @namespaceType { availableRoomTypes: [String] }
+            """.trimIndent()
+        )
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_PARENT_COUNT_NOT_ONE
+        errors[0].message shouldContain "Listings"
+    }
+
+    @Test
     fun `multiple violations are reported`() {
         val errors = validate(
             """

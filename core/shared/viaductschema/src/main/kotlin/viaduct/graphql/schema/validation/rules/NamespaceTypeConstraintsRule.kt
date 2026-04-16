@@ -13,7 +13,7 @@ import viaduct.graphql.schema.validation.ValidationRule
  * 1. Namespace fields (fields with a `@namespaceType` base type) must have no arguments, cannot have list types, and must be nullable
  * 3. Namespace types must not appear as members of any union.
  * 4. There can not be more than 1 namespace field with the same type.
- * 5. Namespace fields can only appear in the root query type or other namespace types.
+ * 5. Namespace fields can only appear in the root query/mutation type or other namespace types.
  */
 class NamespaceTypeConstraintsRule : ValidationRule(
     id = "NamespaceTypeConstraints",
@@ -57,12 +57,14 @@ class NamespaceTypeConstraintsRule : ValidationRule(
             )
         }
 
-        val isValidParent = parentTypeName == ctx.schema.queryTypeDef?.name || parentType.hasAppliedDirective(DIRECTIVE_NAME)
+        val isValidParent = parentTypeName == ctx.schema.queryTypeDef?.name ||
+            parentTypeName == ctx.schema.mutationTypeDef?.name ||
+            parentType.hasAppliedDirective(DIRECTIVE_NAME)
         if (!isValidParent) {
             ctx.reportError(
                 code = ValidationErrorCodes.NAMESPACE_TYPE_INVALID_PARENT,
                 message = "Field $parentTypeName.$fieldName has @$DIRECTIVE_NAME type '${baseTypeDef.name}', " +
-                    "but '$parentTypeName' is not the root query type nor a @$DIRECTIVE_NAME type.",
+                    "but '$parentTypeName' is not the root query/mutation type nor a @$DIRECTIVE_NAME type.",
                 location = SchemaLocation.ofField(parentTypeName, fieldName).withSourceLocation(field.sourceLocation)
             )
         }
