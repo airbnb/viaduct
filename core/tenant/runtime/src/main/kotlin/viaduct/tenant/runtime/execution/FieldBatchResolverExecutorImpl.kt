@@ -5,6 +5,7 @@ import kotlin.reflect.KFunction
 import viaduct.api.FieldValue
 import viaduct.api.ResolverBase
 import viaduct.api.internal.ReflectionLoader
+import viaduct.apiannotations.InTenantCode
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
@@ -14,6 +15,7 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleTenantErrorsResultSuspend
+import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
@@ -56,7 +58,9 @@ class FieldBatchResolverExecutorImpl(
             )
         }
         val resolver = resolver.get()
-        val results: Any? = callResolverAndHandleTenantErrors(resolverName, batchResolveFn, resolver, contexts)
+        val results: Any? = handleTenantErrorsSuspend(resolverName) {
+            callResolver(batchResolveFn, resolver, contexts)
+        }
         if (results !is List<*>) {
             throw TenantUsageException("Unexpected return value from batchResolve function for field $resolverId: $results")
         }
@@ -78,7 +82,13 @@ class FieldBatchResolverExecutorImpl(
         }
 
         return handleTenantErrorsResultSuspend(resolverId) {
-            FieldUnbatchedResolverExecutorImpl.unwrapFieldResolverResult(fieldValue.get(), globalIDCodec)
+            unwrapFieldValue(fieldValue, globalIDCodec)
         }
     }
+
+    @InTenantCode
+    private suspend fun unwrapFieldValue(
+        fieldValue: FieldValue<*>,
+        globalIDCodec: GlobalIDCodec
+    ): Any? = FieldUnbatchedResolverExecutorImpl.unwrapFieldResolverResult(fieldValue.get(), globalIDCodec)
 }

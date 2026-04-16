@@ -9,6 +9,7 @@ import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.api.globalid.GlobalID
+import viaduct.apiannotations.InFrameworkCode
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
@@ -28,6 +29,7 @@ internal class EODBuilderWrapper(
 ) {
     private val engineObjectDataBuilder = EngineObjectDataBuilder.from(type)
 
+    @InFrameworkCode
     fun getEngineObjectData() = engineObjectDataBuilder.build()
 
     /**
@@ -40,6 +42,7 @@ internal class EODBuilderWrapper(
      * @param alias - Only used for use cases of unit tests needing to mock aliased results.
      *                Not to be used for production code or normal engine usage!
      */
+    @InFrameworkCode
     fun put(
         fieldName: String,
         value: Any?,

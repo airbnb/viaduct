@@ -3,18 +3,16 @@ package viaduct.tenant.runtime.execution
 import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
-import viaduct.errors.handleTenantErrorsSuspend
+import viaduct.apiannotations.InTenantCode
 
-internal suspend fun <T> callResolverAndHandleTenantErrors(
-    resolverName: String,
+@InTenantCode
+internal suspend fun <T> callResolver(
     resolverFunction: KFunction<*>,
     vararg args: Any?,
 ): T =
-    handleTenantErrorsSuspend(resolverName) {
-        try {
-            @Suppress("UNCHECKED_CAST")
-            resolverFunction.callSuspend(*args) as T
-        } catch (e: InvocationTargetException) {
-            throw e.targetException
-        }
+    try {
+        @Suppress("UNCHECKED_CAST")
+        resolverFunction.callSuspend(*args) as T
+    } catch (e: InvocationTargetException) {
+        throw e.targetException
     }

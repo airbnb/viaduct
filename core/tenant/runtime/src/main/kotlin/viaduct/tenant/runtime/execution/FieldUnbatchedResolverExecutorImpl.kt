@@ -13,6 +13,7 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
+import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
@@ -67,7 +68,9 @@ class FieldUnbatchedResolverExecutorImpl(
             syncQueryValueGetter = selector.syncQueryValueGetter,
         )
         val resolver = mkResolver()
-        val result: Any? = callResolverAndHandleTenantErrors(resolverName, resolveFn, resolver, ctx)
+        val result: Any? = handleTenantErrorsSuspend(resolverName) {
+            callResolver(resolveFn, resolver, ctx)
+        }
         return unwrapFieldResolverResult(result, context.globalIDCodec)
     }
 

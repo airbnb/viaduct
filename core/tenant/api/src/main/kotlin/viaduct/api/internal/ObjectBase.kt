@@ -22,6 +22,7 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
+import viaduct.apiannotations.InFrameworkCode
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
@@ -106,7 +107,6 @@ abstract class ObjectBase(
                     else -> throw EngineObjectDataFetchException("engineObjectData.fetch failed on field $fieldName", ex)
                 }
             }
-
             handleFrameworkErrors("ObjectBase.get wrap failed for ${objectType.name}.$fieldName") {
                 wrap(fieldDefinition.type, fieldValue, baseFieldTypeClass)
             } ?: NULL_VALUE
@@ -114,6 +114,7 @@ abstract class ObjectBase(
         return (if (result == NULL_VALUE) null else result) as T
     }
 
+    @InFrameworkCode
     private fun wrap(
         type: GraphQLType,
         value: Any?,

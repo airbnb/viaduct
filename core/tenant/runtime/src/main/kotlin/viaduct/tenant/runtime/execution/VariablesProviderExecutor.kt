@@ -1,10 +1,12 @@
 package viaduct.tenant.runtime.execution
 
 import viaduct.api.VariablesProvider
+import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.internal
 import viaduct.api.types.Arguments
+import viaduct.apiannotations.InTenantCode
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver
 import viaduct.errors.handleTenantErrorsSuspend
@@ -29,9 +31,8 @@ class VariablesProviderExecutor(
             rawArguments = ctx.arguments
         )
 
-        @Suppress("UNCHECKED_CAST")
         val providedVars = handleTenantErrorsSuspend("VariablesProvider") {
-            (provider as VariablesProvider<Arguments>).provide(variablesProviderCtx)
+            provideVariables(provider, variablesProviderCtx)
         }
         return providedVars.mapValues {
             // The Viaduct engine expects the values to be scalar types or maps, so converting InputLikeBase and GlobalID to their internal representations
@@ -41,5 +42,14 @@ class VariablesProviderExecutor(
                 else -> value
             }
         }
+    }
+
+    @InTenantCode
+    private suspend fun provideVariables(
+        provider: VariablesProvider<*>,
+        context: VariablesProviderContext<Arguments>
+    ): Map<String, Any?> {
+        @Suppress("UNCHECKED_CAST")
+        return (provider as VariablesProvider<Arguments>).provide(context)
     }
 }

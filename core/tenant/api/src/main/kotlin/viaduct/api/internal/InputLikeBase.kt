@@ -4,6 +4,7 @@ import graphql.language.Value
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.api.types.InputLike
+import viaduct.apiannotations.InFrameworkCode
 import viaduct.apiannotations.InternalApi
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
@@ -34,27 +35,32 @@ abstract class InputLikeBase : InputLike {
 
     protected fun <T> get(fieldName: String): T =
         handleFrameworkErrors("InputLikeBase.get failed for ${graphQLInputObjectType.name}.$fieldName") {
-            val fieldDefinition = graphQLInputObjectType.getField(fieldName) ?: throw IllegalArgumentException(
-                "Field $fieldName not found on type ${graphQLInputObjectType.name}"
-            )
-
-            val irValue: IR.Value = if (isPresent(fieldName)) {
-                val conv = EngineValueConv(context.schema, fieldDefinition.type, null)
-                conv(inputData[fieldName])
-            } else if (fieldDefinition.hasSetDefaultValue()) {
-                require(fieldDefinition.inputFieldDefaultValue.isLiteral) {
-                    "Cannot get the default value for a field without a GJ value literal"
-                }
-                val gjValue = fieldDefinition.inputFieldDefaultValue.value as Value<*>
-                val conv = GJValueConv(fieldDefinition.type)
-                conv(gjValue)
-            } else {
-                IR.Value.Null
-            }
-
-            val grtConv = context.grtConvFactory.createForInputField(context, fieldDefinition)
-            grtConv.invert(irValue) as T
+            readFieldValue(fieldName)
         }
+
+    @InFrameworkCode
+    private fun <T> readFieldValue(fieldName: String): T {
+        val fieldDefinition = graphQLInputObjectType.getField(fieldName) ?: throw IllegalArgumentException(
+            "Field $fieldName not found on type ${graphQLInputObjectType.name}"
+        )
+
+        val irValue: IR.Value = if (isPresent(fieldName)) {
+            val conv = EngineValueConv(context.schema, fieldDefinition.type, null)
+            conv(inputData[fieldName])
+        } else if (fieldDefinition.hasSetDefaultValue()) {
+            require(fieldDefinition.inputFieldDefaultValue.isLiteral) {
+                "Cannot get the default value for a field without a GJ value literal"
+            }
+            val gjValue = fieldDefinition.inputFieldDefaultValue.value as Value<*>
+            val conv = GJValueConv(fieldDefinition.type)
+            conv(gjValue)
+        } else {
+            IR.Value.Null
+        }
+
+        val grtConv = context.grtConvFactory.createForInputField(context, fieldDefinition)
+        return grtConv.invert(irValue) as T
+    }
 
     override fun equals(other: Any?): Boolean {
         return if (other === this) {
@@ -80,12 +86,20 @@ abstract class InputLikeBase : InputLike {
             value: Any?
         ) {
             handleFrameworkErrors("InputLikeBase.Builder.put failed for ${graphQLInputObjectType.name}.$fieldName") {
-                val field = requireNotNull(graphQLInputObjectType.getField(fieldName)) {
-                    "Field $fieldName not found on type ${graphQLInputObjectType.name}"
-                }
-                val conv = context.grtConvFactory.createForInputField(context, field) andThen EngineValueConv(context.schema, field.type, null).inverse()
-                inputData.put(fieldName, conv(value))
+                writeFieldValue(fieldName, value)
             }
+        }
+
+        @InFrameworkCode
+        private fun writeFieldValue(
+            fieldName: String,
+            value: Any?
+        ) {
+            val field = requireNotNull(graphQLInputObjectType.getField(fieldName)) {
+                "Field $fieldName not found on type ${graphQLInputObjectType.name}"
+            }
+            val conv = context.grtConvFactory.createForInputField(context, field) andThen EngineValueConv(context.schema, field.type, null).inverse()
+            inputData.put(fieldName, conv(value))
         }
 
         @Suppress("unused")

@@ -14,6 +14,7 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.TenantUsageException
+import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
@@ -50,7 +51,9 @@ class NodeUnbatchedResolverExecutorImpl(
     ): EngineObjectData {
         val ctx = factory(context, selections, context.requestContext, id)
         val resolver = resolver.get()
-        val result: Any? = callResolverAndHandleTenantErrors(typeName, resolveFunction, resolver, ctx)
+        val result: Any? = handleTenantErrorsSuspend(typeName) {
+            callResolver(resolveFunction, resolver, ctx)
+        }
         return unwrapNodeResolverResult(result)
     }
 

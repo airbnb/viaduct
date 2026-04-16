@@ -6,6 +6,7 @@ import graphql.schema.GraphQLTypeUtil
 import kotlin.reflect.KClass
 import viaduct.api.context.ExecutionContext
 import viaduct.api.types.GRT
+import viaduct.apiannotations.InFrameworkCode
 import viaduct.apiannotations.InternalApi
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrors
@@ -65,8 +66,11 @@ class ViaductObjectBuilder<T : GRT> private constructor(
 
     override fun build(): T =
         handleFrameworkErrors("ViaductObjectBuilder.build failed") {
-            grtClazz.constructors.first().call(context, underlyingWrapper.getEngineObjectData())
+            buildInFrameworkCode()
         }
+
+    @InFrameworkCode
+    private fun buildInFrameworkCode(): T = grtClazz.constructors.first().call(context, underlyingWrapper.getEngineObjectData())
 
     companion object {
         @Suppress("unused")
