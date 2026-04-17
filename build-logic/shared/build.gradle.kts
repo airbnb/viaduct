@@ -1,5 +1,6 @@
 import com.vanniktech.maven.publish.JavaLibrary
 import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.SonatypeHost
 
 plugins {
     kotlin("jvm")
@@ -32,7 +33,10 @@ kotlin {
 
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
-    publishToMavenCentral(automaticRelease = true)
+    publishToMavenCentral(
+        host = if (isRelease) SonatypeHost.CENTRAL_PORTAL else SonatypeHost.S01,
+        automaticRelease = true
+    )
     if (isRelease) signAllPublications()
     configure(JavaLibrary(javadocJar = JavadocJar.Empty(), sourcesJar = false))
     coordinates("com.airbnb.viaduct", "build-shared", version.toString())

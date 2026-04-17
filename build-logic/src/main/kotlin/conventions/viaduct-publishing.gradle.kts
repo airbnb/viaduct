@@ -41,7 +41,10 @@ apply(from = generateSequence(gradle) { it.parent }.last()
 
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
-    publishToMavenCentral(automaticRelease = true)
+    publishToMavenCentral(
+        host = if (isRelease) SonatypeHost.CENTRAL_PORTAL else SonatypeHost.S01,
+        automaticRelease = true
+    )
     if (isRelease) {
         signAllPublications()
     }
