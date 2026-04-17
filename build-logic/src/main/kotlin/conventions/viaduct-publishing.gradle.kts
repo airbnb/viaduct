@@ -41,10 +41,7 @@ apply(from = generateSequence(gradle) { it.parent }.last()
 
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
-    publishToMavenCentral(
-        host = if (isRelease) SonatypeHost.CENTRAL_PORTAL else SonatypeHost.S01,
-        automaticRelease = true
-    )
+    publishToMavenCentral(automaticRelease = true)
     if (isRelease) {
         signAllPublications()
     }
@@ -55,6 +52,29 @@ mavenPublishing {
             javadocJar = if (publishMinimal) JavadocJar.Empty() else JavadocJar.Dokka("dokkaGeneratePublicationJavadoc"),
             sourcesJar = !publishMinimal
         ))
+    }
+}
+
+// For snapshot publications, add the Sonatype OSSRH snapshots repository.
+// The vanniktech plugin v0.34.0 uses Central Portal which doesn't support SNAPSHOT versions.
+// This adds a standard Maven repository so `publishAllPublicationsToSonatypeSnapshotsRepository`
+// can publish snapshots to OSSRH. The workflow calls this task instead of `publishToMavenCentral`
+// when in snapshot mode.
+run {
+    val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
+    if (!isRelease) {
+        publishing {
+            repositories {
+                maven {
+                    name = "sonatypeSnapshots"
+                    url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+                    credentials {
+                        username = providers.gradleProperty("mavenCentralUsername").orNull
+                        password = providers.gradleProperty("mavenCentralPassword").orNull
+                    }
+                }
+            }
+        }
     }
 }
 

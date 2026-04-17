@@ -173,7 +173,9 @@ jobs:
           else
             echo "Publishing SNAPSHOT artifacts..."
             export RELEASE=false
-            # Snapshots only go to Sonatype OSSRH, not Gradle Plugin Portal
-            ./gradlew publishToMavenCentral --no-daemon --stacktrace
+            # Snapshots go to Sonatype OSSRH (s01.oss.sonatype.org), not Central Portal.
+            # The vanniktech plugin v0.34.0 uses Central Portal which doesn't support snapshots,
+            # so we publish to a standard Maven repository configured as 'sonatypeSnapshots'.
+            ./gradlew publishToSonatypeSnapshots --no-daemon --stacktrace
           fi
         shell: bash

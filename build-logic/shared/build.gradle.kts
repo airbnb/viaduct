@@ -1,6 +1,5 @@
 import com.vanniktech.maven.publish.JavaLibrary
 import com.vanniktech.maven.publish.JavadocJar
-import com.vanniktech.maven.publish.SonatypeHost
 
 plugins {
     kotlin("jvm")
@@ -33,10 +32,7 @@ kotlin {
 
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
-    publishToMavenCentral(
-        host = if (isRelease) SonatypeHost.CENTRAL_PORTAL else SonatypeHost.S01,
-        automaticRelease = true
-    )
+    publishToMavenCentral(automaticRelease = true)
     if (isRelease) signAllPublications()
     configure(JavaLibrary(javadocJar = JavadocJar.Empty(), sourcesJar = false))
     coordinates("com.airbnb.viaduct", "build-shared", version.toString())
@@ -47,3 +43,23 @@ mavenPublishing {
 }
 
 apply(from = rootDir.resolve("gradle/viaduct-maven-central.gradle.kts"))
+
+// For snapshot publications, add the Sonatype OSSRH snapshots repository.
+// See conventions/viaduct-publishing.gradle.kts for the full explanation.
+run {
+    val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
+    if (!isRelease) {
+        publishing {
+            repositories {
+                maven {
+                    name = "sonatypeSnapshots"
+                    url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+                    credentials {
+                        username = providers.gradleProperty("mavenCentralUsername").orNull
+                        password = providers.gradleProperty("mavenCentralPassword").orNull
+                    }
+                }
+            }
+        }
+    }
+}
