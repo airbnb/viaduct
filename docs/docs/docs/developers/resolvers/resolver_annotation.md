@@ -125,10 +125,14 @@ In the Kotlin API, each of the field getters are suspend functions. Your resolve
 
 ## Variables
 
-The fragments in `@Resolver` annotations can contain variables. These variables can be bound to values in one of two ways:
+Any of the fragments in `@Resolver` annotations may use GraphQL variables. These variables can be bound to values in one of 4 ways:
 
-1. Via the `variables` parameter in `@Resolver`
-2. Via the resolver’s variable provider
+1. Via the `variables` parameter of `@Resolver`, using `fromArgument`
+1. Via the `variables` parameter of `@Resolver`, using `fromObjectField`
+1. Via the `variables` parameter of `@Resolver`, using `fromQueryField`
+1. Via the resolver’s VariableProvider
+
+Combined, these variable sources establish a pool of variables, any of which may be used in either the `objectValueFragment` or the `queryValueFragment` of a resolver.
 
 #### @Resolver variables parameter
 
@@ -153,8 +157,8 @@ This resolver fragment uses a `shouldInclude` variable. At runtime, the value fo
 There are three mutually-exclusive parameters to the `@Variable` class that can be used to set the value of a variable:
 
 1. the `fromArgument` parameter, which binds the variable to a field argument value (i.e. from `ctx.arguments`). To support nested GraphQL input types, the `fromArgument` string can contain a dot-separated path.
-2. the `fromObjectField` parameter just illustrated, which takes a dot-separated path relative to the `objectValue` of an execution. If used, the path must be a selection defined in the resolver's objectValueFragment.
-3. the `fromQueryField` parameter. This parameter is analogous to `fromObjectField`, but the path describes a selection in the resolver's `queryValueFragment`.
+1. the `fromObjectField` parameter just illustrated, which takes a dot-separated path relative to the `objectValue` of an execution. If used, the path must be a selection defined in the resolver's `objectValueFragment`.
+1. the `fromQueryField` parameter. This parameter is analogous to `fromObjectField`, but the path describes a selection in the resolver's `queryValueFragment`.
 
 #### VariablesProvider
 
