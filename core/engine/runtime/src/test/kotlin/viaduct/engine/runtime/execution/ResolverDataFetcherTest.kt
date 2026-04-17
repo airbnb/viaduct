@@ -12,6 +12,7 @@ import io.mockk.every
 import io.mockk.mockk
 import java.util.Locale
 import java.util.concurrent.CompletionException
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,6 +25,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.FromArgumentVariable
+import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
@@ -32,6 +34,7 @@ import viaduct.engine.api.mocks.FieldUnbatchedResolverFn
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
+import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.runtime.EngineExecutionContextImpl
@@ -62,19 +65,23 @@ class ResolverDataFetcherTest {
     )
 
     private class Fixture(
-        val expectedResult: String?,
+        val expectedResult: Any?,
         val requiredSelectionSet: RequiredSelectionSet?,
+        val queryRequiredSelectionSet: RequiredSelectionSet? = null,
         val flagManager: FlagManager,
         val resolveWithException: Boolean = false,
         val testType: String = "TestType",
         val testField: String = "testField",
+        val testFieldType: String = "String",
         val tenantNameResolver: TenantNameResolver = TenantNameResolver(),
+        val resolverFn: FieldUnbatchedResolverFn? = null,
     ) {
         val schema: ViaductSchema = createSchema(
             """
-            type Query { placeholder: Int }
+            type Query { placeholder(arg:Int): Int }
             type $testType {
-                $testField(id:Int): String
+                $testField(id:Int): $testFieldType
+                y: Int
                 himejiId: String
                 foo: Foo
                 bar(id:Int): Bar
@@ -87,7 +94,7 @@ class ResolverDataFetcherTest {
         )
         val testTypeObject: GraphQLObjectType = schema.schema.getObjectType(testType)
         val executionStepInfo: ExecutionStepInfo? = ExecutionStepInfo.newExecutionStepInfo()
-            .type(schema.schema.getTypeAs("String"))
+            .type(schema.schema.getTypeAs(testFieldType))
             .fieldContainer(testTypeObject)
             .path(ResultPath.parse("/$testField"))
             .build()
@@ -99,14 +106,16 @@ class ResolverDataFetcherTest {
         val executor = if (resolveWithException) {
             TestFieldUnbatchedResolverExecutor(
                 objectSelectionSet = requiredSelectionSet,
+                querySelectionSet = queryRequiredSelectionSet,
                 resolverId = resolverId,
                 unbatchedResolveFn = { _, _, _, _, _ -> throw RuntimeException("test MockResolverExecutor") },
             )
         } else {
             TestFieldUnbatchedResolverExecutor(
                 objectSelectionSet = requiredSelectionSet,
+                querySelectionSet = queryRequiredSelectionSet,
                 resolverId = resolverId,
-                unbatchedResolveFn = { _, receivedObjectValue, _, _, _ ->
+                unbatchedResolveFn = resolverFn ?: { _, receivedObjectValue, _, _, _ ->
                     resolverRan = true
                     lastReceivedObjectValue = receivedObjectValue
                     capturedTenantContext = ViaductTenantNameContext.getCurrent()
@@ -150,6 +159,49 @@ class ResolverDataFetcherTest {
                 .of(InputInterceptor::class.java, LegacyCoercingInputInterceptor.migratesValues())
                 .build()
             every { dataFetchingEnvironment.locale } returns Locale.US
+        }
+    }
+
+    @Test
+    fun `queryValueFragment resolves fromObjectField variables against parent object`() {
+        runBlocking(Dispatchers.Default) {
+            withThreadLocalCoroutineContext {
+                val objectSelections = SelectionsParser.parse("TestType", "y")
+                val querySelections = SelectionsParser.parse("Query", "placeholder(arg:\$a)")
+                val variableResolvers = VariablesResolver.fromSelectionSetVariables(
+                    objectSelections = objectSelections,
+                    querySelections = querySelections,
+                    variables = listOf(FromObjectFieldVariable("a", "y")),
+                    forChecker = false,
+                )
+                val objectSelectionSet = RequiredSelectionSet(
+                    selections = objectSelections,
+                    variablesResolvers = variableResolvers,
+                    forChecker = false,
+                )
+                val querySelectionSet = RequiredSelectionSet(
+                    selections = querySelections,
+                    variablesResolvers = variableResolvers,
+                    forChecker = false,
+                )
+
+                Fixture(
+                    expectedResult = null,
+                    requiredSelectionSet = objectSelectionSet,
+                    queryRequiredSelectionSet = querySelectionSet,
+                    flagManager = allDisabledFlags,
+                    testFieldType = "Int",
+                    resolverFn = { _, _, queryValue, _, _ ->
+                        queryValue.fetchAs<Int>("placeholder") * 3
+                    },
+                ).apply {
+                    engineResultLocalContext.parentEngineResult.putResolvedInt("y", 2)
+                    engineResultLocalContext.queryEngineResult.putResolvedInt("placeholder", 10, mapOf("arg" to 2))
+
+                    val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).get(2, TimeUnit.SECONDS)
+                    assertEquals(30, receivedResult)
+                }
+            }
         }
     }
 
@@ -405,5 +457,27 @@ private class TestFieldUnbatchedResolverExecutor(
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
         lastReceivedLocalContext = context as EngineExecutionContextImpl
         return super.batchResolve(selectors, context)
+    }
+}
+
+private fun ObjectEngineResultImpl.putResolvedInt(
+    fieldName: String,
+    value: Int,
+    arguments: Map<String, Any?> = emptyMap(),
+) {
+    computeIfAbsent(ObjectEngineResult.Key(fieldName, fieldName, arguments)) { setter ->
+        setter.set(
+            ObjectEngineResultImpl.RAW_VALUE_SLOT,
+            Value.fromValue(
+                FieldResolutionResult(
+                    engineResult = value,
+                    errors = emptyList(),
+                    localContext = CompositeLocalContext.empty,
+                    extensions = emptyMap(),
+                    originalSource = null,
+                )
+            )
+        )
+        setter.set(ObjectEngineResultImpl.ACCESS_CHECK_SLOT, Value.fromValue(null))
     }
 }

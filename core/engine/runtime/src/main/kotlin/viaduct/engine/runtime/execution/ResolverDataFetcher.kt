@@ -111,10 +111,12 @@ class ResolverDataFetcher(
         val queryErrorMessage =
             "add it to @Resolver's queryValueFragment before accessing it via Context.queryValue"
         val querySelectionSet = fieldResolverDispatcher.querySelectionSet?.let { rss ->
+            // queryValueFragment variables may still source values from the resolver's parent object,
+            // e.g. via fromObjectField on a non-root resolver.
             val variables = resolveRSSVariables(
                 rss = rss,
                 arguments = environment.arguments,
-                currentEngineData = engineResults.queryResult,
+                currentEngineData = engineResults.parentResult,
                 queryEngineData = engineResults.queryResult,
                 engineExecutionContext = localExecutionContext,
                 environment.graphQlContext,
