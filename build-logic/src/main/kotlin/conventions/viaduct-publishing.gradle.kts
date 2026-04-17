@@ -55,10 +55,11 @@ mavenPublishing {
     }
 }
 
-// For snapshot publications, add the Sonatype OSSRH snapshots repository.
-// The vanniktech plugin v0.34.0 uses Central Portal which doesn't support SNAPSHOT versions.
-// This adds a standard Maven repository so `publishAllPublicationsToSonatypeSnapshotsRepository`
-// can publish snapshots to OSSRH. The workflow calls this task instead of `publishToMavenCentral`
+// For snapshot publications, add the Central Portal snapshots repository.
+// The vanniktech plugin v0.34.0 uses Central Portal for releases but doesn't route -SNAPSHOT
+// versions to the snapshot endpoint. This adds a standard Maven repository so
+// `publishAllPublicationsToSnapshotsRepository` can publish snapshots to Central Portal.
+// The workflow calls `publishToSnapshots` (orchestrated) instead of `publishToMavenCentral`
 // when in snapshot mode.
 run {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
@@ -66,8 +67,8 @@ run {
         publishing {
             repositories {
                 maven {
-                    name = "sonatypeSnapshots"
-                    url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+                    name = "snapshots"
+                    url = uri("https://central.sonatype.com/repository/maven-snapshots/")
                     credentials {
                         username = providers.gradleProperty("mavenCentralUsername").orNull
                         password = providers.gradleProperty("mavenCentralPassword").orNull

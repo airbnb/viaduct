@@ -193,9 +193,9 @@ registerSubprojectAggregate(
     taskNames = setOf("publishAllPublicationsToMavenCentralRepository")
 )
 registerSubprojectAggregate(
-    aggregateName = "orchestrationPublishAllToSonatypeSnapshots",
-    description = "[orchestration] Publishes all publishable SUBPROJECTS in THIS build to Sonatype OSSRH snapshots.",
-    taskNames = setOf("publishAllPublicationsToSonatypeSnapshotsRepository")
+    aggregateName = "orchestrationPublishAllToSnapshots",
+    description = "[orchestration] Publishes all publishable SUBPROJECTS in THIS build to Central Portal snapshots.",
+    taskNames = setOf("publishAllPublicationsToSnapshotsRepository")
 )
 
 // ---------------- In INCLUDED BUILDS: alias conventional tasks to aggregates ----------------
@@ -238,10 +238,10 @@ if (gradle.parent != null) {
         description = "Publishes all publishable subprojects in this included build to Maven Central."
     )
     aliasConventionalTaskToAggregate(
-        conventionalName = "publishToSonatypeSnapshots",
-        aggregateName = "orchestrationPublishAllToSonatypeSnapshots",
+        conventionalName = "publishToSnapshots",
+        aggregateName = "orchestrationPublishAllToSnapshots",
         group = "publishing",
-        description = "Publishes all publishable subprojects in this included build to Sonatype OSSRH snapshots."
+        description = "Publishes all publishable subprojects in this included build to Central Portal snapshots."
     )
     aliasConventionalTaskToAggregate(
         conventionalName = "detekt",
@@ -297,9 +297,9 @@ if (gradle.parent == null) {
     }
 
     // publish snapshots: root subprojects + included builds' aggregate
-    ensureTask("publishToSonatypeSnapshots", "publishing", "Publishes root subprojects + participating included builds to Sonatype OSSRH snapshots.") {
-        dependsOn(tasksNamedInSubprojects("publishAllPublicationsToSonatypeSnapshotsRepository"))
-        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToSonatypeSnapshots") })
+    ensureTask("publishToSnapshots", "publishing", "Publishes root subprojects + participating included builds to Central Portal snapshots.") {
+        dependsOn(tasksNamedInSubprojects("publishAllPublicationsToSnapshotsRepository"))
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToSnapshots") })
     }
 
     // detekt: root subprojects + included builds' aggregate

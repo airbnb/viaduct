@@ -24,13 +24,11 @@ tasks.named("publishToMavenCentral") {
 }
 
 // Snapshot publication: wire build-shared into the snapshot publish aggregate.
-// The sonatypeSnapshots repo and publishToSonatypeSnapshots task are created by the
-// orchestration plugin when RELEASE != true.
 val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
 if (!isRelease) {
     tasks.configureEach {
-        if (name == "publishToSonatypeSnapshots") {
-            dependsOn(gradle.includedBuild("build-logic").task(":build-shared:publishAllPublicationsToSonatypeSnapshotsRepository"))
+        if (name == "publishToSnapshots") {
+            dependsOn(gradle.includedBuild("build-logic").task(":build-shared:publishAllPublicationsToSnapshotsRepository"))
         }
     }
 }

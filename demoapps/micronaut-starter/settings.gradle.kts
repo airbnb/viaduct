@@ -11,7 +11,7 @@ pluginManagement {
         repositories {
             if (System.getenv("USE_MAVEN_LOCAL")?.toBoolean() == true) mavenLocal()
             if (System.getenv("USE_VIADUCT_SNAPSHOT_REPO")?.toBoolean() == true) {
-                maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+                maven("https://central.sonatype.com/repository/maven-snapshots/")
             }
             mavenCentral()
             gradlePluginPortal()
@@ -23,7 +23,7 @@ dependencyResolutionManagement {
     repositories {
         if (System.getenv("USE_MAVEN_LOCAL")?.toBoolean() == true) mavenLocal()
         if (System.getenv("USE_VIADUCT_SNAPSHOT_REPO")?.toBoolean() == true) {
-            maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            maven("https://central.sonatype.com/repository/maven-snapshots/")
         }
         mavenCentral()
         gradlePluginPortal()
