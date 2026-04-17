@@ -21,6 +21,8 @@ viaductClassDiff {
 }
 
 dependencies {
+    compileOnly(libs.ksp.symbol.processing.api)
+
     implementation(libs.clikt.jvm)
     implementation(libs.graphql.java)
     implementation(libs.kotlinx.metadata.jvm)

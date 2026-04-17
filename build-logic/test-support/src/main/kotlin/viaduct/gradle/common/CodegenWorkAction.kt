@@ -41,6 +41,7 @@ abstract class CodegenWorkAction : WorkAction<CodegenWorkAction.Params> {
         const val VIADUCT_GENERATOR = "viaduct.tenant.codegen.cli.ViaductGenerator\$Main"
         const val KOTLIN_GRTS_GENERATOR = "viaduct.tenant.codegen.cli.KotlinGRTsGenerator\$Main"
         const val JAVA_GRTS_GENERATOR = "viaduct.x.javaapi.codegen.cli.JavaGRTsGenerator\$Main"
+        const val ASSEMBLE_TENANT_MODULE_CONFIG_FILE = "viaduct.tenant.codegen.cli.AssembleTenantModuleConfigFile\$Main"
     }
 }
 

@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":build-common"))
     implementation(project(":build-shared"))
     implementation(libs.asm)
+    implementation(libs.ksp.gradle.plugin)
 
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)

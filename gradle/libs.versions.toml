@@ -61,6 +61,7 @@ develocity = { id = "com.gradle.develocity", version.ref = "develocity" }
 foojay-resolver-convention = { id = "org.gradle.toolchains.foojay-resolver-convention", version.ref = "foojay-resolver-convention" }
 spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 
 [libraries]
 # Project
@@ -101,6 +102,7 @@ viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version
 viaduct-serve = { module = "com.airbnb.viaduct:serve", version.ref = "project" }
 
 # Kotlin
+ksp-gradle-plugin = { module = "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 ksp-symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlinx-binary-compatibility-validator = { module = "org.jetbrains.kotlinx:binary-compatibility-validator", version.ref = "binaryCompatibility" }
