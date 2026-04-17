@@ -1,13 +1,18 @@
 package viaduct.engine.runtime.execution
 
+import graphql.ExecutionResult
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.util.Collections
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ExecutionInput
+import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
@@ -951,6 +956,128 @@ class SubqueryExecutionTest {
     }
 
     @Test
+    fun `regression -- ctx query hangs when a resolver reads an aliased object selection`() {
+        MockTenantModuleBootstrapper(
+            """
+            extend type Query {
+                run: Int
+                read: Int
+                value: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "value") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        1
+                    }
+                }
+            }
+            field("Query" to "read") {
+                resolver {
+                    objectSelections("aliasedValue: value")
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<Int>("aliasedValue")
+                    }
+                }
+            }
+            field("Query" to "run") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx
+                            .query(ctx.engineSelectionSetFactory.engineSelectionSet("Query", "read", emptyMap()))
+                            .fetchAs<Int>("read")
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQueryWithTimeout("{ run }").assertJson("{data: {run: 1}}")
+        }
+    }
+
+    @Test
+    fun `regression -- ctx query hangs when a resolver reads an object selection with arguments`() {
+        MockTenantModuleBootstrapper(
+            """
+            extend type Query {
+                run: Int
+                read: Int
+                value(n: Int!): Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "value") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        args.getAs<Int>("n")
+                    }
+                }
+            }
+
+            field("Query" to "read") {
+                resolver {
+                    objectSelections("value(n: 1)")
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<Int>("value")
+                    }
+                }
+            }
+
+            field("Query" to "run") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx
+                            .query(ctx.engineSelectionSetFactory.engineSelectionSet("Query", "read", emptyMap()))
+                            .fetchAs<Int>("read")
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQueryWithTimeout("{ run }").assertJson("{data: {run: 1}}")
+        }
+    }
+
+    @Test
+    fun `regression -- ctx query hangs when a resolver reads a plain object selection`() {
+        MockTenantModuleBootstrapper(
+            """
+            extend type Query {
+                run: Int
+                read: Int
+                value: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "value") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        1
+                    }
+                }
+            }
+            field("Query" to "read") {
+                resolver {
+                    objectSelections("value")
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<Int>("value")
+                    }
+                }
+            }
+            field("Query" to "run") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx
+                            .query(ctx.engineSelectionSetFactory.engineSelectionSet("Query", "read", emptyMap()))
+                            .fetchAs<Int>("read")
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQueryWithTimeout("{ run }").assertJson("{data: {run: 1}}")
+        }
+    }
+
+    @Test
     fun `ctx query with fragment spreads and variables`() {
         MockTenantModuleBootstrapper(
             """
@@ -1177,6 +1304,25 @@ class SubqueryExecutionTest {
                 result.errors.first().message.contains("Failed to build QueryPlan"),
                 "Expected queryPlanBuildFailed error, got: ${result.errors.first().message}"
             )
+        }
+    }
+
+    private fun FeatureTest.runQueryWithTimeout(
+        query: String,
+        variables: Map<String, Any?> = emptyMap(),
+        timeoutMillis: Long = 1000,
+    ): ExecutionResult {
+        val input = ExecutionInput(
+            operationText = query,
+            variables = variables,
+            requestContext = Any(),
+        )
+        return kotlinx.coroutines.runBlocking {
+            withTimeout(timeoutMillis) {
+                DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
+                    engine.execute(input)
+                }.await()
+            }
         }
     }
 }

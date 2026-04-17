@@ -25,6 +25,7 @@ import graphql.schema.GraphQLTypeUtil.unwrapNonNull
 import graphql.schema.TypeResolver
 import io.mockk.every
 import io.mockk.mockk
+import java.util.Locale
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
@@ -37,10 +38,12 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.runtime.EngineExecutionContextImpl
+import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createLocalContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
@@ -81,7 +84,7 @@ class ExecutionParametersTest {
     private val defaultLocalContext: CompositeLocalContext = createLocalContext(viaductSchema)
 
     @Test
-    fun `forChildPlan uses query engine result for query plans`() {
+    fun `forChildPlan uses active query engine result for query plans`() {
         val parentSource = mapOf("viewer" to "parent")
         val rootValue = mapOf("viewer" to "root")
         val childPlan = queryPlanFor(
@@ -101,7 +104,8 @@ class ExecutionParametersTest {
 
         val result = parameters.forChildPlan(childPlan, emptyVariables)
 
-        assertSame(parameters.constants.queryEngineResult, result.parentEngineResult)
+        assertSame(parameters.queryEngineResult, result.parentEngineResult)
+        assertSame(parameters.queryEngineResult, result.queryEngineResult)
         assertEquals(rootValue, result.source)
         assertEquals(queryType, result.executionStepInfo.type)
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
@@ -228,7 +232,7 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forChildPlan with FieldType target uses query engine result for root query plans`() {
+    fun `forChildPlan with FieldType target uses active query engine result for root query plans`() {
         val parentSource = mapOf("viewer" to "parent")
         val childPlan = queryPlanFor(
             type = queryType,
@@ -249,7 +253,7 @@ class ExecutionParametersTest {
         )
 
         // For Query-typed plans, the FieldType target's OER and source are ignored —
-        // the engine always uses queryEngineResult and the execution root.
+        // the engine always uses the active queryEngineResult and the execution root.
         val result = parameters.forChildPlan(
             childPlan,
             emptyVariables,
@@ -259,11 +263,71 @@ class ExecutionParametersTest {
             ),
         )
 
-        assertSame(parameters.constants.queryEngineResult, result.parentEngineResult)
+        assertSame(parameters.queryEngineResult, result.parentEngineResult)
+        assertSame(parameters.queryEngineResult, result.queryEngineResult)
         assertEquals(defaultRootValue, result.source)
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
         assertEquals(queryType, result.executionStepInfo.type)
         assertEquals(childPlan.attribution, result.attribution)
+    }
+
+    @Test
+    fun `forChildPlan with WithOER target overrides active query engine result for root query plans`() {
+        val childPlan = queryPlanFor(
+            type = queryType,
+            astSelectionSet = emptyAstSelectionSet,
+            attribution = ExecutionAttribution.fromOperation("RootChild")
+        )
+        val outerQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val subqueryQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val parameters = createExecutionParameters(
+            source = mapOf("viewer" to "parent"),
+            executionStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id"))),
+            queryPlan = childPlan,
+            queryEngineResult = outerQueryEngineResult,
+        )
+
+        val result = parameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            ExecutionParameters.ChildPlanTarget.WithOER(subqueryQueryEngineResult),
+        )
+
+        assertSame(subqueryQueryEngineResult, result.parentEngineResult)
+        assertSame(subqueryQueryEngineResult, result.queryEngineResult)
+        assertEquals(defaultRootValue, result.source)
+        assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
+        assertEquals(queryType, result.executionStepInfo.type)
+    }
+
+    @Test
+    fun `forChildPlan reuses overridden query engine result for later root query plans`() {
+        val childPlan = queryPlanFor(
+            type = queryType,
+            astSelectionSet = emptyAstSelectionSet,
+            attribution = ExecutionAttribution.fromOperation("RootChild")
+        )
+        val outerQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val subqueryQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val parameters = createExecutionParameters(
+            source = mapOf("viewer" to "parent"),
+            executionStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id"))),
+            queryPlan = childPlan,
+            queryEngineResult = outerQueryEngineResult,
+        )
+
+        val subqueryParameters = parameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            ExecutionParameters.ChildPlanTarget.WithOER(subqueryQueryEngineResult),
+        )
+        val nestedQueryParameters = subqueryParameters.forChildPlan(childPlan, emptyVariables)
+
+        assertSame(subqueryQueryEngineResult, nestedQueryParameters.parentEngineResult)
+        assertSame(subqueryQueryEngineResult, nestedQueryParameters.queryEngineResult)
+        assertEquals(defaultRootValue, nestedQueryParameters.source)
+        assertEquals(ResultPath.rootPath(), nestedQueryParameters.executionStepInfo.path)
+        assertEquals(queryType, nestedQueryParameters.executionStepInfo.type)
     }
 
     @Test
@@ -352,6 +416,44 @@ class ExecutionParametersTest {
     }
 
     @Test
+    fun `buildDataFetchingEnvironment updates query engine result in local context`() {
+        val rootEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val staleQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val activeQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val parentEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val extantLocalContext = defaultLocalContext.addOrUpdate(
+            EngineResultLocalContext(
+                rootEngineResult = rootEngineResult,
+                parentEngineResult = ObjectEngineResultImpl.newForType(fooType),
+                queryEngineResult = staleQueryEngineResult,
+                executionStrategyParams = mockk(),
+                executionContext = mockk()
+            )
+        )
+        val baseParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType),
+            parentEngineResult = parentEngineResult,
+            localContext = extantLocalContext,
+            queryEngineResult = activeQueryEngineResult,
+            rootEngineResult = rootEngineResult,
+        )
+        val collectedField = collectedFooField(mergedField("foo", selectionSet("id")))
+        val fieldParameters = baseParameters.forField(queryType, collectedField)
+
+        val dfe = FieldExecutionHelpers.buildDataFetchingEnvironment(fieldParameters, collectedField, parentEngineResult)
+        val localContext = dfe.getLocalContextForType<EngineResultLocalContext>()
+
+        assertSame(parentEngineResult, localContext?.parentEngineResult)
+        assertSame(activeQueryEngineResult, localContext?.queryEngineResult)
+        assertSame(rootEngineResult, localContext?.rootEngineResult)
+    }
+
+    @Test
     fun `forChildPlan throws when plan type is not an object`() {
         val interfacePlan = queryPlanFor(
             type = GraphQLInterfaceType.newInterface()
@@ -422,7 +524,6 @@ class ExecutionParametersTest {
         val constants = ExecutionParameters.Constants(
             executionContext = executionContext,
             rootEngineResult = rootEngineResult,
-            queryEngineResult = queryEngineResult,
             supervisorScopeFactory = { CoroutineScope(coroutineContext + rootExecutionJob) },
             rootCoroutineContext = coroutineContext,
         )
@@ -430,6 +531,7 @@ class ExecutionParametersTest {
             _engineExecutionContext = mockk<EngineExecutionContextImpl>(relaxed = true),
             constants = constants,
             parentEngineResult = parentEngineResult,
+            queryEngineResult = queryEngineResult,
             coercedVariables = emptyVariables,
             queryPlan = queryPlan,
             localContext = localContext,
@@ -455,6 +557,7 @@ class ExecutionParametersTest {
         every { executionContext.instrumentation } returns instrumentation
         every { executionContext.transform(any()) } answers { executionContext }
         every { executionContext.graphQLContext } returns gqlContext
+        every { executionContext.locale } returns Locale.US
         return executionContext
     }
 

@@ -121,6 +121,7 @@ object FieldExecutionHelpers {
                     // if the context is already set, just update the parentOER
                     extant?.copy(
                         parentEngineResult = parentOER,
+                        queryEngineResult = parameters.queryEngineResult,
                     ) ?: EngineResultLocalContext(
                         // otherwise create it
                         parentEngineResult = parentOER,

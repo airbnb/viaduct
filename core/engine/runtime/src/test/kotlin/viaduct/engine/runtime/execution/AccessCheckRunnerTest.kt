@@ -367,6 +367,7 @@ class AccessCheckRunnerTest {
                 engineExecutionContext?.let { every { get<EngineExecutionContextImpl>() } returns it }
             }
             every { gjParameters } returns mockk()
+            every { queryEngineResult } returns mockk()
             every { field } returns mockk {
                 every { fieldTypeChildPlans } returns emptyMap()
             }

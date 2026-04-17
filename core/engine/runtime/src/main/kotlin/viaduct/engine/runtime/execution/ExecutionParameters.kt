@@ -73,6 +73,7 @@ data class ExecutionParameters(
     private var _engineExecutionContext: EngineExecutionContext,
     val constants: Constants,
     val parentEngineResult: ObjectEngineResultImpl,
+    val queryEngineResult: ObjectEngineResultImpl,
     val coercedVariables: CoercedVariables,
     val queryPlan: QueryPlan,
     val localContext: CompositeLocalContext,
@@ -114,9 +115,6 @@ data class ExecutionParameters(
 
     /** The root ObjectEngineResult for the entire request */
     val rootEngineResult: ObjectEngineResultImpl = constants.rootEngineResult
-
-    /** The query ObjectEngineResult for query selections, if available */
-    val queryEngineResult: ObjectEngineResultImpl = constants.queryEngineResult
 
     val gjParameters: ExecutionStrategyParameters = ExecutionStrategyParameters.newParameters()
         // graphql-java requires a merged selection set, though our execution strategy doesn't use it.
@@ -220,8 +218,7 @@ data class ExecutionParameters(
      *
      * The [target] controls how the child plan's OER, source, and ExecutionStepInfo
      * are selected for non-Query object types. For Query-typed plans, the engine always
-     * uses queryEngineResult, the execution root, and a fresh ExecutionStepInfo regardless
-     * of the target.
+     * uses the active queryEngineResult, the execution root, and a fresh ExecutionStepInfo.
      *
      * @param childPlan The child QueryPlan to execute
      * @param variables Resolved variables for the child plan
@@ -237,12 +234,14 @@ data class ExecutionParameters(
             ?: throw IllegalArgumentException("Child plan must have a parent type of GraphQLObjectType")
         val isRootQueryQueryPlan = objectType == executionContext.graphQLSchema.queryType
 
-        // WithOER always honors the explicit OER (used by resolveSelectionSet/completeSelectionSet
-        // which provide their own target OER even for Query-typed plans).
-        // FromContext and FieldType fall back to queryEngineResult for Query plans.
+        val newQueryEngineResult = when {
+            isRootQueryQueryPlan && target is ChildPlanTarget.WithOER -> target.parentOER
+            else -> queryEngineResult
+        }
+
         val newParentOER = when {
+            isRootQueryQueryPlan -> newQueryEngineResult
             target is ChildPlanTarget.WithOER -> target.parentOER
-            isRootQueryQueryPlan -> constants.queryEngineResult
             target is ChildPlanTarget.FieldType -> target.parentOER
             else -> parentEngineResult
         }
@@ -267,6 +266,7 @@ data class ExecutionParameters(
             isRootQueryQueryPlan,
             objectType,
             newParentOER,
+            newQueryEngineResult,
             childSource,
             parentStepInfo,
         )
@@ -278,6 +278,7 @@ data class ExecutionParameters(
         isRootQueryQueryPlan: Boolean,
         objectType: GraphQLObjectType,
         newParentOER: ObjectEngineResultImpl,
+        newQueryEngineResult: ObjectEngineResultImpl,
         source: Any?,
         parentFieldStepInfo: ExecutionStepInfo?,
     ): ExecutionParameters {
@@ -348,6 +349,7 @@ data class ExecutionParameters(
             errorAccumulator = ErrorAccumulator(),
             executionStepInfo = childExecutionStepInfo,
             parentEngineResult = newParentOER,
+            queryEngineResult = newQueryEngineResult,
             localContext = localContext,
             source = source,
             resolutionPolicy = resolutionPolicy,
@@ -446,7 +448,6 @@ data class ExecutionParameters(
                 val constants = Constants(
                     executionContext = executionContext,
                     rootEngineResult = rootEngineResult,
-                    queryEngineResult = queryEngineResult,
                     supervisorScopeFactory = supervisorScopeFactory,
                     rootCoroutineContext = currentCoroutineContext,
                 )
@@ -455,6 +456,7 @@ data class ExecutionParameters(
                     _engineExecutionContext = engineExecutionContext,
                     constants = constants,
                     parentEngineResult = rootEngineResult, // Initially, parent is the same as root
+                    queryEngineResult = queryEngineResult,
                     coercedVariables = executionContext.coercedVariables,
                     queryPlan = queryPlan,
                     source = executionContext.getRoot(),
@@ -481,14 +483,12 @@ data class ExecutionParameters(
      *
      * @property executionContext Base GraphQL execution context from graphql-java
      * @property rootEngineResult Root ObjectEngineResult for the entire request
-     * @property queryEngineResult Query ObjectEngineResult for query selections
      * @property supervisorScopeFactory Coroutine scope factory for the entire execution. Creates a CoroutineScope supervised by the execution.
      * @property rootCoroutineContext Root coroutine context for async operations
      */
     data class Constants(
         val executionContext: ExecutionContext,
         val rootEngineResult: ObjectEngineResultImpl,
-        val queryEngineResult: ObjectEngineResultImpl,
         val supervisorScopeFactory: (CoroutineContext) -> CoroutineScope,
         val rootCoroutineContext: CoroutineContext,
     ) {
