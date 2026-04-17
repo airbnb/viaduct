@@ -230,11 +230,8 @@ class IRTest : KotestPropertyBase() {
     fun `valid for all objects`(): Unit =
         runBlocking {
             val cfg = Config.default + (GenInterfaceStubsIfNeeded to true)
-            Arb.graphQLSchema(cfg).forAll(100) { schema ->
-                val result = runCatching {
-                    DomainValidator(IR, schema, random = randomSource).checkAll(100)
-                }
-                result.isSuccess
+            Arb.graphQLSchema(cfg).checkAll(100) { schema ->
+                DomainValidator(IR, schema, random = randomSource).checkAll(100)
             }
         }
 }

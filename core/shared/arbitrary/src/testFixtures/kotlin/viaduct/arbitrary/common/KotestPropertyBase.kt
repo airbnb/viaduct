@@ -60,6 +60,10 @@ abstract class KotestPropertyBase(
     /** A [RandomSource] seeded with this instance's [seed], for use in explicit generator calls. */
     val randomSource: RandomSource = RandomSource.seeded(seed)
 
+    init {
+        println("[KotestPropertyBase] ${this::class.simpleName} seed=$seed")
+    }
+
     private fun config(iterations: Int? = this.iterations): PropTestConfig = PropTestConfig(seed = seed, iterations = iterations)
 
     /** Apply [io.kotest.property.forAll] using the configured seed and iterations */

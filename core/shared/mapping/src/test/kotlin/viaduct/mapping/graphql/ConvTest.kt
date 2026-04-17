@@ -5,14 +5,14 @@ package viaduct.mapping.graphql
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.int
-import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import viaduct.arbitrary.common.KotestPropertyBase
 
-class ConvTest {
+class ConvTest : KotestPropertyBase() {
     private val intToString = Conv<Int, String>({ it.toString() }, { it.toInt() })
     private val plusOne = Conv<Int, Int>({ it + 1 }, { it - 1 })
 
