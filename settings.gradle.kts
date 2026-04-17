@@ -11,6 +11,26 @@ plugins {
 
 rootProject.name = "viaduct"
 
+// Verify that the KSP version in the version catalog is aligned with the Kotlin version.
+// KSP versions are formatted as "<kotlin-version>-<ksp-release>", so the KSP version
+// string must start with the Kotlin version string.
+run {
+    val lines = file("gradle/libs.versions.toml").readLines()
+    fun versionOf(key: String): String? =
+        lines.firstOrNull { it.trimStart().startsWith("$key ") || it.trimStart().startsWith("$key=") }
+            ?.substringAfter("=")?.trim()?.removeSurrounding("\"")
+            ?.substringBefore("#")?.trim()
+
+    val kotlin = versionOf("kotlin")
+    val ksp = versionOf("ksp")
+    if (kotlin != null && ksp != null) {
+        require(ksp.startsWith("$kotlin-")) {
+            "KSP version ($ksp) must start with the Kotlin version ($kotlin-). " +
+                "Update the ksp version in gradle/libs.versions.toml."
+        }
+    }
+}
+
 // Gradle auto-substitution (matching group:name) only applies to subprojects of proper included
 // builds (IncludedBuildState). ROOT subprojects (RootBuildState) are NOT registered in the
 // composite substitution table, so the three rules below are required for the included demoapp
