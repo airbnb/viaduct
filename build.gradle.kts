@@ -23,6 +23,16 @@ tasks.named("publishToMavenCentral") {
     dependsOn(gradle.includedBuild("build-logic").task(":build-shared:publishAllPublicationsToMavenCentralRepository"))
 }
 
+// Snapshot publication: wire build-shared into the snapshot publish aggregate.
+val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
+if (!isRelease) {
+    tasks.configureEach {
+        if (name == "publishToSnapshots") {
+            dependsOn(gradle.includedBuild("build-logic").task(":build-shared:publishAllPublicationsToSnapshotsRepository"))
+        }
+    }
+}
+
 // Jacoco configuration
 jacoco {
     toolVersion = libs.versions.jacoco.get()

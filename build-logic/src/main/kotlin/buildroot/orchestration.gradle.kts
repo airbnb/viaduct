@@ -192,6 +192,11 @@ registerSubprojectAggregate(
     description = "[orchestration] Publishes all publishable SUBPROJECTS in THIS build to Maven Central.",
     taskNames = setOf("publishAllPublicationsToMavenCentralRepository")
 )
+registerSubprojectAggregate(
+    aggregateName = "orchestrationPublishAllToSnapshots",
+    description = "[orchestration] Publishes all publishable SUBPROJECTS in THIS build to Central Portal snapshots.",
+    taskNames = setOf("publishAllPublicationsToSnapshotsRepository")
+)
 
 // ---------------- In INCLUDED BUILDS: alias conventional tasks to aggregates ----------------
 
@@ -231,6 +236,12 @@ if (gradle.parent != null) {
         aggregateName = "orchestrationPublishAllToMavenCentral",
         group = "publishing",
         description = "Publishes all publishable subprojects in this included build to Maven Central."
+    )
+    aliasConventionalTaskToAggregate(
+        conventionalName = "publishToSnapshots",
+        aggregateName = "orchestrationPublishAllToSnapshots",
+        group = "publishing",
+        description = "Publishes all publishable subprojects in this included build to Central Portal snapshots."
     )
     aliasConventionalTaskToAggregate(
         conventionalName = "detekt",
@@ -283,6 +294,12 @@ if (gradle.parent == null) {
     ensureTask("publishToMavenCentral", "publishing", "Publishes root subprojects + participating included builds to Maven Central.") {
         dependsOn(tasksNamedInSubprojects("publishAllPublicationsToMavenCentralRepository"))
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToMavenCentral") })
+    }
+
+    // publish snapshots: root subprojects + included builds' aggregate
+    ensureTask("publishToSnapshots", "publishing", "Publishes root subprojects + participating included builds to Central Portal snapshots.") {
+        dependsOn(tasksNamedInSubprojects("publishAllPublicationsToSnapshotsRepository"))
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToSnapshots") })
     }
 
     // detekt: root subprojects + included builds' aggregate

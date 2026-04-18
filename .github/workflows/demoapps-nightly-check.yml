@@ -84,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           # Use build-shared as the canary artifact (coordinates: com.airbnb.viaduct:build-shared)
-          URL="https://s01.oss.sonatype.org/content/repositories/snapshots/com/airbnb/viaduct/build-shared/${VERSION}/"
+          URL="https://central.sonatype.com/repository/maven-snapshots/com/airbnb/viaduct/build-shared/${VERSION}/"
           echo "Waiting for ${URL} to return 200..."
           for i in $(seq 1 30); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")

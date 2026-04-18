@@ -55,6 +55,30 @@ mavenPublishing {
     }
 }
 
+// For snapshot publications, add the Central Portal snapshots repository.
+// The vanniktech plugin v0.34.0 uses Central Portal for releases but doesn't route -SNAPSHOT
+// versions to the snapshot endpoint. This adds a standard Maven repository so
+// `publishAllPublicationsToSnapshotsRepository` can publish snapshots to Central Portal.
+// The workflow calls `publishToSnapshots` (orchestrated) instead of `publishToMavenCentral`
+// when in snapshot mode.
+run {
+    val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
+    if (!isRelease) {
+        publishing {
+            repositories {
+                maven {
+                    name = "snapshots"
+                    url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+                    credentials {
+                        username = providers.gradleProperty("mavenCentralUsername").orNull
+                        password = providers.gradleProperty("mavenCentralPassword").orNull
+                    }
+                }
+            }
+        }
+    }
+}
+
 // 🔑 Defer coordinates() until after the consumer has configured viaductPublishing { ... }.
 afterEvaluate {
     // Resolve lazily here (now it's safe to .get()).

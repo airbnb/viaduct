@@ -43,3 +43,22 @@ mavenPublishing {
 }
 
 apply(from = rootDir.resolve("gradle/viaduct-maven-central.gradle.kts"))
+
+// For snapshot publications — see conventions/viaduct-publishing.gradle.kts for explanation.
+run {
+    val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
+    if (!isRelease) {
+        publishing {
+            repositories {
+                maven {
+                    name = "snapshots"
+                    url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+                    credentials {
+                        username = providers.gradleProperty("mavenCentralUsername").orNull
+                        password = providers.gradleProperty("mavenCentralPassword").orNull
+                    }
+                }
+            }
+        }
+    }
+}
