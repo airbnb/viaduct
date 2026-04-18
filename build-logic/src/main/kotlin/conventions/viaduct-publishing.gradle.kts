@@ -72,13 +72,11 @@ afterEvaluate {
     }
 }
 
-// Keep your versionMapping, but only for JVM modules
 plugins.withId("org.jetbrains.kotlin.jvm") {
     publishing {
         publications.withType(MavenPublication::class.java).configureEach {
             versionMapping {
-                usage("java-api") { fromResolutionOf("runtimeClasspath") }
-                usage("java-runtime") { fromResolutionResult() }
+                allVariants { fromResolutionResult() }
             }
         }
     }
