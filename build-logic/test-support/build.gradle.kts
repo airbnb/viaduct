@@ -1,5 +1,6 @@
 plugins {
     `kotlin-dsl`
+    `java-test-fixtures`
 }
 
 dependencies {
@@ -11,6 +12,7 @@ dependencies {
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)
 
+    testFixturesImplementation(gradleApi())
     testImplementation(gradleTestKit())
     testImplementation(libs.assertj.core)
     testImplementation(libs.junit)
