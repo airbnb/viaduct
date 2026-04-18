@@ -225,7 +225,7 @@ class ClassGraphScanner(private val packagePrefixes: Collection<String>) {
     /**
      * Get the underlying scan result, using cache if available.
      */
-    fun getScanResult(): ScanResult =
+    internal fun getScanResult(): ScanResult =
         scanResultCache.get(packagePrefixes) {
             val (scanResult, elapsedTime) =
                 measureTimedValue {
