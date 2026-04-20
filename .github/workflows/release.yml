@@ -9,11 +9,6 @@ on:
       previous_release_version:
         description: 'Previous release version (e.g., 1.0.0) for changelog generation'
         required: true
-      publish_snapshot:
-        description: 'Publish snapshot build'
-        required: false
-        default: false
-        type: boolean
       skip_check:
         description: 'Skip project check step'
         required: false
@@ -39,15 +34,10 @@ jobs:
     env:
       GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       GRADLE_SCAN: "false"
+      RELEASE: "true"
     steps:
       - name: Set release ref
-        if: ${{ !inputs.publish_snapshot }}
-        run: |
-          echo "RELEASE_REF=release/v${{ inputs.release_version }}" >> "$GITHUB_ENV"
-      - name: Set release ref for snapshot publish
-        if: inputs.publish_snapshot
-        run: |
-          echo "RELEASE_REF=main" >> "$GITHUB_ENV"
+        run: echo "RELEASE_REF=release/v${{ inputs.release_version }}" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v6
         with:
@@ -68,15 +58,13 @@ jobs:
           chmod +x ./gradlew
           echo "✅ Gradle wrapper ready"
 
-      # Python is only needed by generate_changelog.py, which runs for releases, not snapshots.
       - uses: actions/setup-python@v6
-        if: ${{ !inputs.publish_snapshot }}
         with:
           python-version: '3.13'
 
       - name: Install Python dependencies
-        if: ${{ !inputs.publish_snapshot }}
         run: pip install -r .github/scripts/requirements.txt
+
       - name: Download dependencies
         run: |
           echo "📥 Downloading Gradle dependencies..."
@@ -85,6 +73,7 @@ jobs:
             exit 1
           }
           echo "✅ Dependencies downloaded successfully"
+
       - name: Check project
         if: ${{ !inputs.skip_check }}
         run: |
@@ -92,17 +81,7 @@ jobs:
           ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
           ./gradlew check --no-scan || { echo "❌ Check failed"; exit 1; }
           echo "✅ Project built successfully"
-      - name: Publish SNAPSHOT to Maven Central
-        if: ${{ !inputs.skip_publish && inputs.publish_snapshot }}
-        env:
-          RELEASE: "false"
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
-          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          set -euo pipefail
-          ./gradlew publishToSnapshots --no-daemon --stacktrace
+
       # Check each Gradle Plugin Portal artifact independently so we can skip whichever
       # plugins were already published on a retry. Plugin Portal versions are immutable,
       # so without per-plugin guards a rerun after a mid-release failure (e.g. one plugin
@@ -110,7 +89,7 @@ jobs:
       # always dead-end on the already-published artifact.
       - name: Check Gradle Plugin Portal for existing versions
         id: portal_check
-        if: ${{ !inputs.skip_publish && !inputs.publish_snapshot }}
+        if: ${{ !inputs.skip_publish }}
         env:
           VERSION: ${{ inputs.release_version }}
         run: |
@@ -118,7 +97,6 @@ jobs:
           for artifact in module-gradle-plugin application-gradle-plugin; do
             metadata_url="https://plugins.gradle.org/m2/com/airbnb/viaduct/${artifact}/maven-metadata.xml"
             metadata="$(curl -fsSL "$metadata_url" || true)"
-            # Underscore-delimited output key: module-gradle-plugin -> module_gradle_plugin_published.
             output_key="${artifact//-/_}_published"
             if grep -qF "<version>${VERSION}</version>" <<<"$metadata"; then
               echo "Version ${VERSION} of ${artifact} already on Gradle Plugin Portal; skipping."
@@ -128,13 +106,13 @@ jobs:
               echo "${output_key}=false" >> "$GITHUB_OUTPUT"
             fi
           done
+
       # Publish to Gradle Plugin Portal BEFORE Maven Central: Maven Central versions are
       # immutable, so if the portal step fails after a successful Central publish the release
       # is half-published with no retry path.
       - name: Publish module plugin to Gradle Plugin Portal
-        if: ${{ !inputs.skip_publish && !inputs.publish_snapshot && steps.portal_check.outputs.module_gradle_plugin_published == 'false' }}
+        if: ${{ !inputs.skip_publish && steps.portal_check.outputs.module_gradle_plugin_published == 'false' }}
         env:
-          RELEASE: "true"
           GRADLE_PUBLISH_KEY: ${{ secrets.VIADUCT_GRADLE_PUBLISH_KEY }}
           GRADLE_PUBLISH_SECRET: ${{ secrets.VIADUCT_GRADLE_PUBLISH_SECRET }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -142,10 +120,10 @@ jobs:
         run: |
           set -euo pipefail
           ./gradlew :gradle-plugins:plugins-module:publishPlugins --no-daemon --stacktrace
+
       - name: Publish application plugin to Gradle Plugin Portal
-        if: ${{ !inputs.skip_publish && !inputs.publish_snapshot && steps.portal_check.outputs.application_gradle_plugin_published == 'false' }}
+        if: ${{ !inputs.skip_publish && steps.portal_check.outputs.application_gradle_plugin_published == 'false' }}
         env:
-          RELEASE: "true"
           GRADLE_PUBLISH_KEY: ${{ secrets.VIADUCT_GRADLE_PUBLISH_KEY }}
           GRADLE_PUBLISH_SECRET: ${{ secrets.VIADUCT_GRADLE_PUBLISH_SECRET }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -153,10 +131,10 @@ jobs:
         run: |
           set -euo pipefail
           ./gradlew :gradle-plugins:plugins-application:publishPlugins --no-daemon --stacktrace
-      - name: Publish RELEASE to Maven Central
-        if: ${{ !inputs.skip_publish && !inputs.publish_snapshot }}
+
+      - name: Publish to Maven Central
+        if: ${{ !inputs.skip_publish }}
         env:
-          RELEASE: "true"
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -164,8 +142,9 @@ jobs:
         run: |
           set -euo pipefail
           ./gradlew publishToMavenCentral --no-daemon --stacktrace
+
       - name: Create release tag
-        if: ${{ !inputs.publish_snapshot && !inputs.skip_publish }}
+        if: ${{ !inputs.skip_publish }}
         uses: actions/github-script@v8
         with:
           script: |
@@ -175,21 +154,21 @@ jobs:
               ref: 'refs/tags/v${{ inputs.release_version }}',
               sha: context.sha
             })
+
       - name: Generate Changelog
         id: generate_changelog
-        if: ${{ !inputs.publish_snapshot }}
         run: |
           printf "## Changelog\n\n" > ${{ github.workspace }}-CHANGELOG.txt
           python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "HEAD" >> ${{ github.workspace }}-CHANGELOG.txt
           cat ${{ github.workspace }}-CHANGELOG.txt
+
       - name: Create Draft Release
         id: create_release
-        if: ${{ !inputs.publish_snapshot }}
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2.5.0
         with:
           tag_name: "v${{ inputs.release_version }}"
           name: Release ${{ inputs.release_version }}
           body_path: ${{ github.workspace }}-CHANGELOG.txt
-          draft: true # Set to true to create a draft release
-          prerelease: false # Set to true if it's a prerelease
+          draft: true
+          prerelease: false
           generate_release_notes: false
