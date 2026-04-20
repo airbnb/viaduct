@@ -22,10 +22,11 @@ import viaduct.apiannotations.ExperimentalApi
  * - Useful when cursor values come from an external source, or when you need custom
  *   cursor semantics beyond simple offsets.
  *
- * How [toOffsetLimit] works for multidirectional args:
- * - `first=N, after=<cursor>`: forward page — offset decoded from cursor, limit = N.
- * - `last=N, before=<cursor>`: backward page — offset = cursorOffset - N, limit = N, backwards = false.
- * - `last=N` (no before cursor): "last N items" — offset = 0, limit = N, backwards = true.
+ * This resolver demonstrates the proper pattern for backward pagination using
+ * [requiresTotalCountForOffsetLimit] and [toOffsetLimit(totalCount)]:
+ * - Check if the total count is needed via `requiresTotalCountForOffsetLimit()`
+ * - If so, fetch the total count and use `toOffsetLimit(totalCount)` to get the correct offset
+ * - This avoids needing to manually handle the `backwards` flag
  *
  * Example — forward (first 2 species):
  * ```graphql
@@ -65,26 +66,26 @@ class AllSpeciesConnectionQueryResolver
         private val speciesRepository: SpeciesRepository,
     ) : QueryResolvers.AllSpeciesConnection() {
         override suspend fun resolve(ctx: Context): SpeciesConnection? {
-            val offsetLimit = ctx.arguments.toOffsetLimit()
+            // Use requiresTotalCountForOffsetLimit() to check if we need total count for offset calculation.
+            // This is true when using backward pagination with only `last` (no `before` cursor).
+            val offsetLimit = if (ctx.arguments.requiresTotalCountForOffsetLimit()) {
+                // When total count is required, toOffsetLimit(totalCount) computes the correct offset
+                // (e.g., totalCount - last) without needing the `backwards` flag.
+                val totalCount = speciesRepository.count()
+                ctx.arguments.toOffsetLimit(totalCount = totalCount)
+            } else {
+                ctx.arguments.toOffsetLimit()
+            }
 
-            // When backwards=true (last N without a before cursor), toOffsetLimit returns
-            // offset=0. We must resolve the real start index from the total count ourselves.
-            val effectiveOffset =
-                if (offsetLimit.backwards) {
-                    maxOf(0, speciesRepository.count() - offsetLimit.limit)
-                } else {
-                    offsetLimit.offset
-                }
-
-            val slicePlusOne = speciesRepository.findSome(offsetLimit.limit + 1, effectiveOffset)
-            val hasNextPage = !offsetLimit.backwards && slicePlusOne.size > offsetLimit.limit
-            val hasPreviousPage = effectiveOffset > 0
+            val slicePlusOne = speciesRepository.findSome(offsetLimit.limit + 1, offsetLimit.offset)
+            val hasNextPage = slicePlusOne.size > offsetLimit.limit
+            val hasPreviousPage = offsetLimit.offset > 0
 
             val edges =
                 slicePlusOne.take(offsetLimit.limit).mapIndexed { idx, species ->
                     SpeciesEdge.Builder(ctx)
                         .node(SpeciesBuilder(ctx).build(species))
-                        .cursor(OffsetCursor.fromOffset(effectiveOffset + idx).value)
+                        .cursor(OffsetCursor.fromOffset(offsetLimit.offset + idx).value)
                         .build()
                 }
 

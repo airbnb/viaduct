@@ -17,14 +17,52 @@ import viaduct.apiannotations.ExperimentalApi
 @ExperimentalApi
 interface ConnectionArguments : Arguments {
     /**
+     * Returns true if [toOffsetLimit] requires knowing the total count of items to compute
+     * the correct offset.
+     *
+     * This is the case for backward pagination when only [viaduct.api.types.BackwardConnectionArguments.last]
+     * is specified (no [viaduct.api.types.BackwardConnectionArguments.before] cursor),
+     * because the offset must be computed as `totalCount - last`.
+     *
+     * When this returns true, use [toOffsetLimit(Int, Int)] with the total count instead of
+     * the single-argument overload.
+     */
+    @ExperimentalApi
+    fun requiresTotalCountForOffsetLimit(): Boolean = false
+
+    /**
      * Converts connection arguments to offset/limit for database queries.
      *
+     * @param [defaultPageSize] Default number of items when first/last not specified (default: 20)
+     * @return [OffsetLimit] containing the calculated offset and limit
+     * @throws IllegalArgumentException for invalid argument combinations or values
+     */
+    @ExperimentalApi
+    fun toOffsetLimit(defaultPageSize: Int = 20): OffsetLimit
+
+    /**
+     * Converts connection arguments to offset/limit when the total count of items is known.
+     *
+     * This overload is required when [requiresTotalCountForOffsetLimit] returns true (i.e.,
+     * backward pagination with only `last` specified). In that case, the offset is computed
+     * as `max(0, totalCount - last)`.
+     *
+     * For forward pagination or backward pagination with a `before` cursor, the [totalCount]
+     * is ignored and this delegates to [toOffsetLimit(Int)].
+     *
+     * @param totalCount Total number of items in the full dataset
      * @param defaultPageSize Default number of items when first/last not specified (default: 20)
      * @return OffsetLimit containing the calculated offset and limit
      * @throws IllegalArgumentException for invalid argument combinations or values
      */
     @ExperimentalApi
-    fun toOffsetLimit(defaultPageSize: Int = 20): OffsetLimit
+    fun toOffsetLimit(
+        totalCount: Int,
+        defaultPageSize: Int = 20
+    ): OffsetLimit {
+        require(totalCount >= 0) { "totalCount must be non-negative, got: $totalCount" }
+        return toOffsetLimit(defaultPageSize)
+    }
 
     /**
      * Validate connection arguments without converting.

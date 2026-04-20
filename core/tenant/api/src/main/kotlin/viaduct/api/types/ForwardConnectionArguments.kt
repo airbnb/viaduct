@@ -19,10 +19,10 @@ interface ForwardConnectionArguments : ConnectionArguments {
     /**
      * Converts forward pagination arguments to offset/limit.
      *
-     * - `first` determines the page size (defaults to [defaultPageSize]).
-     * - `after` cursor encodes the index of the last-seen item; this method decodes it and adds 1
+     * - [first] determines the page size (defaults to [defaultPageSize]).
+     * - [after] cursor encodes the index of the last-seen item; this method decodes it and adds 1
      *   so the returned offset points to the first item *after* that cursor.
-     * - If `after` is absent, pagination starts from offset 0.
+     * - If [after] is absent, pagination starts from offset 0.
      */
     @ExperimentalApi
     override fun toOffsetLimit(defaultPageSize: Int): OffsetLimit {

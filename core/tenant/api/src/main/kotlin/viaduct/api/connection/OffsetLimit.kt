@@ -10,17 +10,13 @@ import viaduct.apiannotations.ExperimentalApi
  * [viaduct.api.types.ConnectionArguments.toOffsetLimit] and consumed by
  * [viaduct.api.internal.ConnectionBuilder] internally.
  *
- * @property offset Zero-based index of the first item to fetch.
+ * @property offset Index of the first item to fetch. A negative value signals
+ *   [viaduct.api.internal.ConnectionBuilder.fromList] to resolve from the tail of the dataset
+ *  (e.g. `-1` is the last item, `-10` means the 10th from the end).
  * @property limit Maximum number of items to fetch.
- * @property backwards If true, the requested window should be resolved from the end of the
- *   full dataset. Set when `last` is provided without a `before` cursor, meaning
- *   "give me the last N items." [viaduct.api.internal.ConnectionBuilder.fromList] uses
- *   this flag to slice from the tail; [viaduct.api.internal.ConnectionBuilder.fromSlice]
- *   ignores it (the caller is responsible for pre-computing the correct slice).
  */
 @ExperimentalApi
 data class OffsetLimit(
     val offset: Int,
     val limit: Int,
-    val backwards: Boolean = false
 )

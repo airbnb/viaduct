@@ -3,6 +3,7 @@
 package viaduct.api.connection
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -118,6 +119,32 @@ class ConnectionArgumentsTest {
         }
     }
 
+    @Test
+    fun `forward requiresTotalCountForOffsetLimit always returns false`() {
+        assertFalse(TestForwardArgs().requiresTotalCountForOffsetLimit())
+        assertFalse(TestForwardArgs(first = 10).requiresTotalCountForOffsetLimit())
+        assertFalse(TestForwardArgs(after = OffsetCursor.fromOffset(5).value).requiresTotalCountForOffsetLimit())
+        assertFalse(TestForwardArgs(first = 10, after = OffsetCursor.fromOffset(5).value).requiresTotalCountForOffsetLimit())
+    }
+
+    @Test
+    fun `forward toOffsetLimit with totalCount delegates to single arg version`() {
+        val cursor = OffsetCursor.fromOffset(10)
+        val args = TestForwardArgs(first = 5, after = cursor.value)
+        val result = args.toOffsetLimit(totalCount = 100)
+        assertEquals(11, result.offset)
+        assertEquals(5, result.limit)
+    }
+
+    @Test
+    fun `forward toOffsetLimit with negative totalCount throws`() {
+        val args = TestForwardArgs(first = 5)
+        val exception = assertThrows<IllegalArgumentException> {
+            args.toOffsetLimit(totalCount = -1)
+        }
+        assertEquals("totalCount must be non-negative, got: -1", exception.message)
+    }
+
     // =============================================================================
     // BackwardConnectionArguments tests
     // =============================================================================
@@ -126,19 +153,17 @@ class ConnectionArgumentsTest {
     fun `backward toOffsetLimit with no args uses defaults and sets fromEnd`() {
         val args = TestBackwardArgs()
         val result = args.toOffsetLimit()
-        // No before cursor: offset resolved against list size at pagination time
-        assertEquals(0, result.offset)
+        // No before cursor: negative offset signals fromList to resolve from tail
+        assertEquals(-20, result.offset)
         assertEquals(20, result.limit)
-        assertTrue(result.backwards)
     }
 
     @Test
     fun `backward toOffsetLimit with last uses last as limit and sets fromEnd`() {
         val args = TestBackwardArgs(last = 10)
         val result = args.toOffsetLimit()
-        assertEquals(0, result.offset)
+        assertEquals(-10, result.offset)
         assertEquals(10, result.limit)
-        assertTrue(result.backwards)
     }
 
     @Test
@@ -219,6 +244,69 @@ class ConnectionArgumentsTest {
         }
     }
 
+    @Test
+    fun `backward requiresTotalCountForOffsetLimit returns true when before is null`() {
+        assertTrue(TestBackwardArgs().requiresTotalCountForOffsetLimit())
+        assertTrue(TestBackwardArgs(last = 10).requiresTotalCountForOffsetLimit())
+    }
+
+    @Test
+    fun `backward requiresTotalCountForOffsetLimit returns false when before is present`() {
+        val cursor = OffsetCursor.fromOffset(50)
+        assertFalse(TestBackwardArgs(before = cursor.value).requiresTotalCountForOffsetLimit())
+        assertFalse(TestBackwardArgs(last = 10, before = cursor.value).requiresTotalCountForOffsetLimit())
+    }
+
+    @Test
+    fun `backward toOffsetLimit with totalCount computes correct offset`() {
+        val args = TestBackwardArgs(last = 10)
+        val result = args.toOffsetLimit(totalCount = 100)
+        assertEquals(90, result.offset) // 100 - 10 = 90
+        assertEquals(10, result.limit)
+    }
+
+    @Test
+    fun `backward toOffsetLimit with totalCount uses default page size`() {
+        val args = TestBackwardArgs()
+        val result = args.toOffsetLimit(totalCount = 100)
+        assertEquals(80, result.offset) // 100 - 20 = 80
+        assertEquals(20, result.limit)
+    }
+
+    @Test
+    fun `backward toOffsetLimit with totalCount clamps offset to zero`() {
+        val args = TestBackwardArgs(last = 10)
+        val result = args.toOffsetLimit(totalCount = 5)
+        assertEquals(0, result.offset) // max(0, 5 - 10) = 0
+        assertEquals(5, result.limit) // min(10, 5) = 5
+    }
+
+    @Test
+    fun `backward toOffsetLimit with totalCount and before cursor ignores totalCount`() {
+        val cursor = OffsetCursor.fromOffset(50)
+        val args = TestBackwardArgs(last = 10, before = cursor.value)
+        val result = args.toOffsetLimit(totalCount = 1000) // totalCount should be ignored
+        assertEquals(40, result.offset) // 50 - 10 = 40
+        assertEquals(10, result.limit)
+    }
+
+    @Test
+    fun `backward toOffsetLimit with totalCount respects custom defaultPageSize`() {
+        val args = TestBackwardArgs()
+        val result = args.toOffsetLimit(totalCount = 100, defaultPageSize = 30)
+        assertEquals(70, result.offset) // 100 - 30 = 70
+        assertEquals(30, result.limit)
+    }
+
+    @Test
+    fun `backward toOffsetLimit with negative totalCount throws`() {
+        val args = TestBackwardArgs(last = 10)
+        val exception = assertThrows<IllegalArgumentException> {
+            args.toOffsetLimit(totalCount = -1)
+        }
+        assertEquals("totalCount must be non-negative, got: -1", exception.message)
+    }
+
     // =============================================================================
     // MultidirectionalConnectionArguments tests
     // =============================================================================
@@ -270,9 +358,8 @@ class ConnectionArgumentsTest {
     fun `multidirectional toOffsetLimit with only last uses backward pagination`() {
         val args = TestMultidirectionalArgs(last = 8)
         val result = args.toOffsetLimit()
-        assertEquals(0, result.offset)
+        assertEquals(-8, result.offset)
         assertEquals(8, result.limit)
-        assertTrue(result.backwards)
     }
 
     @Test
@@ -410,5 +497,54 @@ class ConnectionArgumentsTest {
         assertThrows<IllegalArgumentException> {
             args.toOffsetLimit()
         }
+    }
+
+    @Test
+    fun `multidirectional requiresTotalCountForOffsetLimit returns false for forward args`() {
+        assertFalse(TestMultidirectionalArgs(first = 10).requiresTotalCountForOffsetLimit())
+        assertFalse(TestMultidirectionalArgs(after = OffsetCursor.fromOffset(5).value).requiresTotalCountForOffsetLimit())
+        assertFalse(TestMultidirectionalArgs(first = 10, after = OffsetCursor.fromOffset(5).value).requiresTotalCountForOffsetLimit())
+    }
+
+    @Test
+    fun `multidirectional requiresTotalCountForOffsetLimit returns true for backward without before`() {
+        assertTrue(TestMultidirectionalArgs(last = 10).requiresTotalCountForOffsetLimit())
+    }
+
+    @Test
+    fun `multidirectional requiresTotalCountForOffsetLimit returns false for backward with before`() {
+        val cursor = OffsetCursor.fromOffset(50)
+        assertFalse(TestMultidirectionalArgs(before = cursor.value).requiresTotalCountForOffsetLimit())
+        assertFalse(TestMultidirectionalArgs(last = 10, before = cursor.value).requiresTotalCountForOffsetLimit())
+    }
+
+    @Test
+    fun `multidirectional requiresTotalCountForOffsetLimit returns false for no args`() {
+        assertFalse(TestMultidirectionalArgs().requiresTotalCountForOffsetLimit())
+    }
+
+    @Test
+    fun `multidirectional toOffsetLimit with totalCount uses forward pagination`() {
+        val cursor = OffsetCursor.fromOffset(10)
+        val args = TestMultidirectionalArgs(first = 5, after = cursor.value)
+        val result = args.toOffsetLimit(totalCount = 100)
+        assertEquals(11, result.offset)
+        assertEquals(5, result.limit)
+    }
+
+    @Test
+    fun `multidirectional toOffsetLimit with totalCount uses backward pagination when only last`() {
+        val args = TestMultidirectionalArgs(last = 10)
+        val result = args.toOffsetLimit(totalCount = 100)
+        assertEquals(90, result.offset) // 100 - 10 = 90
+        assertEquals(10, result.limit)
+    }
+
+    @Test
+    fun `multidirectional toOffsetLimit with totalCount and no args uses defaults`() {
+        val args = TestMultidirectionalArgs()
+        val result = args.toOffsetLimit(totalCount = 100)
+        assertEquals(0, result.offset)
+        assertEquals(20, result.limit)
     }
 }
