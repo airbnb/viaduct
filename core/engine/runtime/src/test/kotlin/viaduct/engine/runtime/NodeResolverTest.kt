@@ -298,35 +298,37 @@ class NodeResolverTest {
     @Test
     fun `non-selective node resolver reads from dataloader cache for different selection sets`() {
         // Non-selective resolvers always return their full output regardless of requested fields,
-        // so caching by ID alone is correct - same ID = cache hit
-        val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        MockTenantModuleBootstrapper(schemaSDL) {
-            field("Query" to "baz") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
+        // so caching by ID alone is correct - same ID = cache hit.
+        // Looped to catch concurrency regressions in the dataloader cache.
+        repeat(100) {
+            val execCounts = ConcurrentHashMap<String, AtomicInteger>()
+            MockTenantModuleBootstrapper(schemaSDL) {
+                field("Query" to "baz") {
+                    resolver {
+                        fn { _, _, _, _, ctx ->
+                            ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
+                        }
                     }
                 }
-            }
-            field("Baz" to "anotherBaz") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
+                field("Baz" to "anotherBaz") {
+                    resolver {
+                        fn { _, _, _, _, ctx ->
+                            ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
+                        }
                     }
                 }
-            }
-            type("Baz") {
-                nodeUnbatchedExecutor { id, _, _ ->
-                    execCounts.computeIfAbsent(id) { AtomicInteger(0) }.incrementAndGet()
-                    createEngineObjectData(objectType, mapOf("x" to 2, "x2" to "foo"))
+                type("Baz") {
+                    nodeUnbatchedExecutor { id, _, _ ->
+                        execCounts.computeIfAbsent(id) { AtomicInteger(0) }.incrementAndGet()
+                        createEngineObjectData(objectType, mapOf("x" to 2, "x2" to "foo"))
+                    }
                 }
-            }
-        }.runFeatureTest {
-            runQuery("{ baz { x anotherBaz { x x2 }}}")
-                .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"x":2, "x2":"foo"}}}}""")
+            }.runFeatureTest {
+                runQuery("{ baz { x anotherBaz { x x2 }}}")
+                    .assertJson("""{"data": {"baz": {"x":2, "anotherBaz":{"x":2, "x2":"foo"}}}}""")
 
-            // Non-selective resolver caches by ID only, so second request for same ID uses cache
-            assertEquals(mapOf("1" to 1), execCounts.mapValues { it.value.get() })
+                assertEquals(mapOf("1" to 1), execCounts.mapValues { it.value.get() })
+            }
         }
     }
 

@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core.jvm)
 
     implementation(libs.viaduct.engine.api)
+    implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.service.api)
     implementation(libs.viaduct.shared.dataloader)
     implementation(libs.viaduct.shared.utils)
