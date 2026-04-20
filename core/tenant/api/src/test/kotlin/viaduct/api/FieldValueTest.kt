@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.exception.FieldError
 
 class FieldValueTest {
     @Test
@@ -17,13 +16,9 @@ class FieldValueTest {
 
     @Test
     fun `test ofError`() {
-        val error = FieldError(
-            message = "Error msg",
-            extensions = mapOf("a" to "A", "b" to 6),
-            cause = IllegalStateException("bad")
-        )
+        val error = Exception("Error msg")
         val fv = FieldValue.ofError(error)
-        val thrown = assertThrows<FieldError> { fv.get() }
+        val thrown = assertThrows<Exception> { fv.get() }
         assertEquals(error, thrown)
         assertTrue(fv.isError)
     }

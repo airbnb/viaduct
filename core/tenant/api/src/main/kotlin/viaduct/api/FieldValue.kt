@@ -1,6 +1,5 @@
 package viaduct.api
 
-import viaduct.api.exception.FieldError
 import viaduct.apiannotations.StableApi
 
 /**
@@ -28,8 +27,7 @@ sealed interface FieldValue<out T> {
         }
 
         /**
-         * Constructs a FieldValue that resolved with the [error]. Use [FieldError]
-         * to customize the GraphQL error response.
+         * Constructs a FieldValue that resolved with the [error].
          */
         fun ofError(error: Exception): FieldValue<Nothing> {
             return FieldErrorValueImpl(error)
@@ -51,8 +49,7 @@ private class FieldErrorValueImpl<T>(
     override fun get(): T {
         // TODO (https://app.asana.com/1/150975571430/task/1210815621831967?focus=true): Think through the following:
         // 1. Does this do what we want in terms of having the correct stack trace?
-        // 2. Should this always wrap exceptions in FieldError?
-        // 3. How does this interact with TenantResolverException and FrameworkException?
+        // 2. How does this interact with TenantResolverException and FrameworkException?
         throw error
     }
 
