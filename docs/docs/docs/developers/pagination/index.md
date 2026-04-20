@@ -253,6 +253,8 @@ class UsersResolver : QueryUsersResolver() {
 }
 ```
 
+`fromList()` handles backward pagination (`last` without `before`) automatically. When `toOffsetLimit()` returns a negative offset (the signal for "take from the tail"), `fromList()` resolves it against the list size — e.g. an offset of `-3` on a 10-item list becomes offset `7`, returning the last 3 items.
+
 ## Converting Arguments to Offset/Limit
 
 Use the `toOffsetLimit()` extension function to convert cursor-based arguments:
@@ -269,6 +271,7 @@ val (offset, limit) = ctx.arguments.toOffsetLimit()
 | `first` | First N items |
 | `first`, `after` | N items after cursor |
 | `after` only | Default page size after cursor |
+| `last` | Last N items (requires total count — see below) |
 | `last`, `before` | Last N items before cursor |
 | `before` only | Default page size before cursor |
 
@@ -276,6 +279,22 @@ val (offset, limit) = ctx.arguments.toOffsetLimit()
 
 - `first` and `last` must be > 0 if specified
 - `after` and `before` must be valid, decodable cursors
+
+### Backward Pagination
+
+When only `last` is specified (no `before` cursor), `toOffsetLimit()` returns a negative offset as a signal — the absolute value is the page size, and `fromList()` resolves it against the list size automatically.
+
+For `fromSlice()` or `fromEdges()`, you need the real offset up front. Use `requiresTotalCountForOffsetLimit()` to check whether a total count is needed, then call `toOffsetLimit(totalCount)` if so:
+
+```kotlin
+val (offset, limit) = if (ctx.arguments.requiresTotalCountForOffsetLimit()) {
+    val total = myService.count()
+    ctx.arguments.toOffsetLimit(totalCount = total)
+} else {
+    ctx.arguments.toOffsetLimit()
+}
+val fetched = myService.getItems(offset, limit + 1)
+```
 
 ## Cursors
 
@@ -439,3 +458,4 @@ See the [resolver testing guide](../resolvers/index.md) for full testing documen
 - **Set reasonable defaults** for page size (typically 10–50 items) via `toOffsetLimit(defaultPageSize = N)`
 - **Keep cursors opaque** — don't parse or construct `OffsetCursor` values in client code
 - **Use `fromEdges()` for edge metadata** — if your edge type has any field beyond `node` and `cursor`, `fromSlice()` and `fromList()` cannot populate those fields
+- **Handle `last` without `before`** — call `requiresTotalCountForOffsetLimit()` first; if it returns `true`, use `toOffsetLimit(totalCount)`. With `fromList()` this is handled automatically.
