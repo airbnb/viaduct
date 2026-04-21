@@ -32,7 +32,11 @@ dependencies {
     implementation(libs.viaduct.shared.viaductschema)
     implementation(libs.viaduct.shared.apiannotations)
 
-    runtimeOnly(libs.viaduct.tenant.api)
+    implementation(libs.viaduct.tenant.api)
+
+    implementation(libs.jackson.annotations)
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.module)
 
     testImplementation(libs.viaduct.engine.api)
     testImplementation(libs.viaduct.service.api)
@@ -50,6 +54,7 @@ dependencies {
     testImplementation(libs.jackson.annotations)
     testImplementation(libs.slf4j.api)
     testImplementation(libs.kotest.property.jvm)
+    testImplementation(libs.ksp.symbol.processing.api)
 
     testImplementation(libs.viaduct.shared.graphql)
 

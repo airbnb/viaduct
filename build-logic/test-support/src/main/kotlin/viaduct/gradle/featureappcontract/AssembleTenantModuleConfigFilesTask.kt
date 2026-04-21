@@ -8,6 +8,7 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileType
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
@@ -32,6 +33,7 @@ import viaduct.gradle.common.runCodegen
  *
  * For each contract, the CLI receives:
  * - The descriptor directory scoped to that contract's package path within [descriptorDir]
+ *   (rooted at `viaduct-registry/` in the KSP resource output)
  * - The contract's `schema.graphql` file
  * - The tenant package name (derived from the schema file's directory path)
  *
@@ -61,10 +63,10 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
      * exist if no contracts are configured.
      */
     @get:Incremental
-    @get:InputFiles
+    @get:InputDirectory
     @get:Optional
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val contractSchemaDir: ConfigurableFileCollection
+    abstract val contractSchemaDir: DirectoryProperty
 
     /** Codegen tool classpath (carries the aggregation CLI). */
     @get:Classpath
@@ -79,11 +81,11 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
 
     @TaskAction
     fun assemble(inputChanges: InputChanges) {
-        if (contractSchemaDir.isEmpty) {
+        if (!contractSchemaDir.isPresent) {
             logger.info("No contract schemas configured — nothing to assemble")
             return
         }
-        val schemasDir = contractSchemaDir.singleFile
+        val schemasDir = contractSchemaDir.get().asFile
         val descriptorRoot = descriptorDir.get().asFile
 
         if (!inputChanges.isIncremental) {

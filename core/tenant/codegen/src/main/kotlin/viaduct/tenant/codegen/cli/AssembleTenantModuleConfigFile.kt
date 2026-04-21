@@ -1,5 +1,6 @@
 package viaduct.tenant.codegen.cli
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
@@ -10,13 +11,15 @@ import java.io.File
  * Aggregation CLI that combines per-file KSP descriptors and schema files into
  * a single tenant module config file at `META-INF/viaduct/modules/<tenantpkg>.json`.
  *
- * Currently a stub: concatenates all descriptor JSON files followed by the schema
- * file contents into the output. This will be replaced with real aggregation logic
- * that parses descriptors, enriches with schema info, and produces the execution
- * registry JSON.
+ * The input descriptor directory is expected to contain the per-file JSON
+ * descriptors emitted by the KSP extractor under `viaduct-registry/<package-path>/`.
  *
- * Invoked via process-isolated Gradle worker ([CodegenWorkAction]) from
- * [AssembleTenantModuleConfigFileTask].
+ * The output is a JSON envelope that embeds the raw descriptor JSON objects alongside
+ * the schema file content. Full aggregation logic (parsing, enrichment, schema joining)
+ * is deferred to a later step.
+ *
+ * Invoked via process-isolated Gradle worker ([CodegenWorkAction]) from the
+ * Gradle assembly task.
  */
 class AssembleTenantModuleConfigFile : CliktCommand(
     name = "assemble-tenant-module-config-file",
@@ -39,7 +42,7 @@ class AssembleTenantModuleConfigFile : CliktCommand(
     override fun run() {
         val descriptors = descriptorDir.walkTopDown()
             .filter { it.isFile && it.extension == "json" }
-            .sortedBy { it.relativeTo(descriptorDir).path }
+            .sortedBy { it.relativeTo(descriptorDir).path.replace(File.separatorChar, '/') }
             .toList()
 
         val outputFile = outputDir
@@ -48,6 +51,8 @@ class AssembleTenantModuleConfigFile : CliktCommand(
 
         outputFile.parentFile.mkdirs()
 
+        val mapper = ObjectMapper()
+
         outputFile.bufferedWriter().use { writer ->
             writer.write("{\n")
             writer.write("  \"tenantPackage\": \"$tenantPackage\",\n")
@@ -55,20 +60,19 @@ class AssembleTenantModuleConfigFile : CliktCommand(
             writer.write("  \"descriptors\": [\n")
 
             descriptors.forEachIndexed { index, file ->
-                val relPath = file.relativeTo(descriptorDir).path
+                val relPath = file.relativeTo(descriptorDir).path.replace(File.separatorChar, '/')
                 val content = file.readText().trim()
-                writer.write("    { \"path\": \"$relPath\", \"content\": $content }")
-                if (index < descriptors.size - 1) writer.write(",")
+                writer.write("    { \"path\": ${mapper.writeValueAsString(relPath)}, \"content\": $content }")
+                if (index < descriptors.size - 1) {
+                    writer.write(",")
+                }
                 writer.write("\n")
             }
 
             writer.write("  ],\n")
 
-            val escaped = schemaFile.readText()
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-            writer.write("  \"schemaFile\": { \"name\": \"${schemaFile.name}\", \"content\": \"$escaped\" }\n")
+            val escapedSchema = mapper.writeValueAsString(schemaFile.readText())
+            writer.write("  \"schemaFile\": { \"name\": ${mapper.writeValueAsString(schemaFile.name)}, \"content\": $escapedSchema }\n")
 
             writer.write("}\n")
         }

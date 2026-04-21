@@ -25,12 +25,17 @@ class ViaductKotlinFeatureAppContractPlugin : Plugin<Project> {
         DefaultSchemaPlugin.ensureApplied(project)
 
         // Apply KSP and wire the registry-extractor processor for test compilation
-        val libs = project.extensions.getByType<VersionCatalogsExtension>().named("libs")
-        project.pluginManager.apply("com.google.devtools.ksp")
-        project.dependencies.add("kspTest", libs.findLibrary("viaduct-tenant-codegen").get())
-
         val javaExtension = project.extensions.getByType<JavaPluginExtension>()
         val testSrcSet = javaExtension.sourceSets.getByName("test")
+
+        val libs = project.extensions
+            .getByType<VersionCatalogsExtension>()
+            .named("libs")
+
+        val tenantCodegenDependency = libs.findLibrary("viaduct-tenant-codegen").get().get()
+
+        project.pluginManager.apply("com.google.devtools.ksp")
+        project.dependencies.add("kspTest", tenantCodegenDependency)
 
         val contractSchemas = project.configurations.create("contractSchemasResolved") {
             isCanBeConsumed = false
@@ -57,11 +62,9 @@ class ViaductKotlinFeatureAppContractPlugin : Plugin<Project> {
 
         // Wire GRT bytecode as testImplementation dependency (not output.dir —
         // output.dir doesn't make .class files visible to the Kotlin compiler)
-        val grtOutputDirProvider = codegenTask.flatMap { it.grtOutputDir }
-        project.dependencies.add(
-            "testImplementation",
-            project.files(grtOutputDirProvider).also { it.builtBy(codegenTask) }
-        )
+        val grtOutputFiles = project.files(codegenTask.flatMap { it.grtOutputDir })
+        grtOutputFiles.builtBy(codegenTask)
+        project.dependencies.add("testImplementation", grtOutputFiles)
 
         // Wire generated resolver base sources to the test source set
         testSrcSet.java.srcDir(codegenTask.flatMap { it.tenantOutputDir })
@@ -75,7 +78,7 @@ class ViaductKotlinFeatureAppContractPlugin : Plugin<Project> {
         // 2. KSP registers the kspTestKotlin task lazily (in response to Kotlin
         //    compilation task creation), so tasks.named() would fail here. The
         //    string form defers resolution to execution-graph construction time.
-        val kspResourceDir = project.layout.buildDirectory.dir(
+        val descriptorRoot = project.layout.buildDirectory.dir(
             "generated/ksp/test/resources/viaduct-registry"
         )
 
@@ -85,11 +88,15 @@ class ViaductKotlinFeatureAppContractPlugin : Plugin<Project> {
             group = "viaduct-feature-app"
             description = "Assembles tenant module config from KSP descriptors and contract schemas"
 
-            descriptorDir.set(kspResourceDir)
-            contractSchemaDir.from(contractSchemas)
+            descriptorDir.set(descriptorRoot)
+            contractSchemaDir.set(project.layout.dir(project.provider { contractSchemas.singleFile }))
             this.codegenClasspath.from(codegenClasspath)
-            outputDir.set(project.layout.buildDirectory.dir("generated-resources/viaduct-test-registry"))
+            outputDir.set(
+                project.layout.buildDirectory.dir("generated-resources/viaduct-test-registry")
+            )
 
+            // kspTestKotlin must run before this task so that the descriptor JSON files
+            // are present in descriptorRoot when assembly starts.
             dependsOn("kspTestKotlin")
         }
 
@@ -99,7 +106,7 @@ class ViaductKotlinFeatureAppContractPlugin : Plugin<Project> {
         project.extensions.create<ViaductFeatureAppContractsExtension>(
             "viaductFeatureAppContracts",
             project,
-            contractSchemas
+            contractSchemas,
         )
     }
 }
