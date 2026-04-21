@@ -27,6 +27,7 @@ import viaduct.api.bootstrap.test.TestTenantModule
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.TenantCodeInjector
 import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
@@ -79,7 +80,7 @@ class ViaductTenantAPIBootstrapperTest {
     private lateinit var injector: Injector
     private lateinit var tenantCodeInjector: Injector
     private lateinit var tenantResolverClassFinder: TenantResolverClassFinder
-    private lateinit var tenantAPIBootstrapper: ViaductTenantAPIBootstrapper
+    private lateinit var tenantAPIBootstrapper: TenantAPIBootstrapper
     private lateinit var tenantModuleBootstrappers: Iterable<TenantModuleBootstrapper>
     private lateinit var fieldResolverExecutors: Map<Pair<String, String>, FieldResolverExecutor>
     private lateinit var nodeResolverExecutors: Map<String, NodeResolverExecutor>

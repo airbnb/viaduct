@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.core.jvm)
     implementation(libs.viaduct.tenant.runtime)
+    implementation(libs.jackson.module)
 
     testImplementation(libs.guice)
     testImplementation(libs.viaduct.service.runtime)
