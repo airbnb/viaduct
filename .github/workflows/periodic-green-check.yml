@@ -37,7 +37,7 @@ jobs:
     if: >-
       github.event_name == 'schedule'
       || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'all' || inputs.mode == 'ci-check'))
-    uses: ./.github/workflows/ci-manual-trigger.yml
+    uses: ./.github/workflows/ci-trigger.yml
     with:
       send_alerts: true
     secrets: inherit

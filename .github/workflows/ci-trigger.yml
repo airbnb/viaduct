@@ -1,9 +1,11 @@
 name: CI Check
 # Orchestrator that composes CI atomics into a single "run everything" check.
-# Replaces ci-manual-trigger.yml — push/PR triggers will be added in Slice 14
-# when ci-manual-trigger.yml is deleted.
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       send_alerts:
@@ -41,7 +43,7 @@ jobs:
       && (needs.build-and-test.result == 'failure'
           || needs.demoapps-ci-check.result == 'failure'
           || needs.bcv-api-check.result == 'failure')
-      && inputs.send_alerts == true
+      && (github.event_name == 'push' || inputs.send_alerts == true)
     outputs:
       text: ${{ steps.fmt.outputs.text }}
     steps:

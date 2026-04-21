@@ -1,4 +1,7 @@
 name: Release
+# Orchestrates a full Viaduct release: validate → publish → push demoapps → verify → tag → release.
+# This is THE release workflow. It delegates publication to publish-branch.yml and demoapp
+# distribution to push-demoapps.yml / check-published-demoapps.yml.
 
 on:
   workflow_dispatch:
@@ -6,24 +9,10 @@ on:
       release_version:
         description: 'Release version (e.g., 1.0.0)'
         required: true
-      previous_release_version:
-        description: 'Previous release version (e.g., 1.0.0) for changelog generation'
+      release_notes:
+        description: 'Release notes body (use gh -F release_notes=file.md to upload from file)'
         required: true
-      publish_snapshot:
-        description: 'Publish snapshot build'
-        required: false
-        default: false
-        type: boolean
-      skip_check:
-        description: 'Skip project check step'
-        required: false
-        default: false
-        type: boolean
-      skip_publish:
-        description: 'Skip publishing artifacts'
-        required: false
-        default: false
-        type: boolean
+        type: string
 
 permissions:
   contents: write
@@ -33,99 +22,99 @@ concurrency:
   cancel-in-progress: false  # never cancel a release mid-flight
 
 jobs:
-  publish-artifacts:
-    environment: release
+  # ---------------------------------------------------------------------------
+  # Pre-flight: verify release branch exists and tag does not
+  # ---------------------------------------------------------------------------
+  preflight:
     runs-on: ubuntu-latest
-    env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      GRADLE_SCAN: "false"
     steps:
-      - name: Set release ref
-        if: ${{ !inputs.publish_snapshot }}
+      - name: Verify release branch exists
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "RELEASE_REF=release/v${{ inputs.release_version }}" >> "$GITHUB_ENV"
-      - name: Set release ref for snapshot publish
-        if: inputs.publish_snapshot
-        run: |
-          echo "RELEASE_REF=main" >> "$GITHUB_ENV"
-
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ env.RELEASE_REF }}
-          fetch-depth: 0
-          fetch-tags: true
-
-      - uses: ./.github/actions/setup-build
-        with:
-          java-version: '21'
-
-      - name: Verify Gradle wrapper
-        run: |
-          if [ ! -f "./gradlew" ]; then
-            echo "❌ gradlew not found"
+          set -euo pipefail
+          BRANCH="release/v${{ inputs.release_version }}"
+          if ! gh api "repos/${{ github.repository }}/branches/${BRANCH}" --silent 2>/dev/null; then
+            echo "::error::Release branch '${BRANCH}' does not exist. Create it first."
             exit 1
           fi
-          chmod +x ./gradlew
-          echo "✅ Gradle wrapper ready"
+          echo "✅ Release branch '${BRANCH}' exists."
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
-      - name: Install Python dependencies
-        run: pip install -r .github/scripts/requirements.txt
-      - name: Download dependencies
-        run: |
-          echo "📥 Downloading Gradle dependencies..."
-          ./gradlew dependencies --no-scan || {
-            echo "❌ Failed to download dependencies"
-            exit 1
-          }
-          echo "✅ Dependencies downloaded successfully"
-      - name: Check project
-        if: ${{ !inputs.skip_check }}
-        run: |
-          echo "🔨 Building project..."
-          ./gradlew clean --no-scan || { echo "❌ Clean failed"; exit 1; }
-          ./gradlew check --no-scan || { echo "❌ Check failed"; exit 1; }
-          echo "✅ Project built successfully"
-      - name: Publish Artifacts
-        if: ${{ !inputs.skip_publish }}
+      - name: Verify release tag does not exist
         env:
-          VIADUCT_GRADLE_PUBLISH_KEY: ${{ secrets.VIADUCT_GRADLE_PUBLISH_KEY }}
-          VIADUCT_GRADLE_PUBLISH_SECRET: ${{ secrets.VIADUCT_GRADLE_PUBLISH_SECRET }}
-          VIADUCT_SONATYPE_USERNAME: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}
-          VIADUCT_SONATYPE_PASSWORD: ${{ secrets.VIADUCT_SONATYPE_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
-          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python3 ./.github/scripts/publish_release.py
+          set -euo pipefail
+          TAG="v${{ inputs.release_version }}"
+          if gh api "repos/${{ github.repository }}/git/ref/tags/${TAG}" --silent 2>/dev/null; then
+            echo "::error::Tag '${TAG}' already exists. This version has already been released."
+            exit 1
+          fi
+          echo "✅ Tag '${TAG}' does not exist. Safe to proceed."
+
+  # ---------------------------------------------------------------------------
+  # Publish artifacts via publish-branch.yml (checks + Plugin Portal + Maven Central)
+  # ---------------------------------------------------------------------------
+  publish:
+    needs: [preflight]
+    uses: ./.github/workflows/publish-branch.yml
+    with:
+      mode: release
+      ref: release/v${{ inputs.release_version }}
+      run_checks: true
+      confirm_versions: true
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # Push demoapps to viaduct-dev/* standalone repos
+  # ---------------------------------------------------------------------------
+  push-demoapps:
+    needs: [publish]
+    uses: ./.github/workflows/push-demoapps.yml
+    with:
+      ref: release/v${{ inputs.release_version }}
+      release_mode: true
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # Verify standalone repos build against published release artifacts
+  # ---------------------------------------------------------------------------
+  verify-demoapps:
+    needs: [push-demoapps]
+    uses: ./.github/workflows/check-published-demoapps.yml
+    with:
+      ref: main
+
+  # ---------------------------------------------------------------------------
+  # Create tag and publish GitHub release
+  # ---------------------------------------------------------------------------
+  create-release:
+    needs: [publish, verify-demoapps]
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
       - name: Create release tag
-        if: ${{ !inputs.publish_snapshot && !inputs.skip_publish }}
         uses: actions/github-script@v8
         with:
           script: |
-            github.rest.git.createRef({
+            await github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: 'refs/tags/v${{ inputs.release_version }}',
-              sha: context.sha
+              sha: '${{ needs.publish.outputs.source_sha }}'
             })
-      - name: Generate Changelog
-        id: generate_changelog
-        if: ${{ !inputs.publish_snapshot }}
+            console.log('✅ Created tag v${{ inputs.release_version }}')
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
-          printf "## Changelog\n\n" > ${{ github.workspace }}-CHANGELOG.txt
-          python3 ./.github/scripts/generate_changelog.py "v${{ inputs.previous_release_version }}" "HEAD" >> ${{ github.workspace }}-CHANGELOG.txt
-          cat ${{ github.workspace }}-CHANGELOG.txt
-      - name: Create Draft Release
-        id: create_release
-        if: ${{ !inputs.publish_snapshot }}
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2.5.0
-        with:
-          tag_name: "v${{ inputs.release_version }}"
-          name: Release ${{ inputs.release_version }}
-          body_path: ${{ github.workspace }}-CHANGELOG.txt
-          draft: true # Set to true to create a draft release
-          prerelease: false # Set to true if it's a prerelease
-          generate_release_notes: false
+          set -euo pipefail
+          gh release create "v${{ inputs.release_version }}" \
+            --repo "${{ github.repository }}" \
+            --title "Release ${{ inputs.release_version }}" \
+            --notes "$RELEASE_NOTES" \
+            --latest
+          echo "✅ Published release v${{ inputs.release_version }}"
+        shell: bash
