@@ -14,13 +14,11 @@ java {
 dependencies {
     implementation(project(":plugins-common"))
 
-    // Libraries the plugin source imports directly (binary schema generation, scaffold templates).
+    // Libraries the plugin source imports directly (binary schema generation).
     // tenant-codegen and serve are NOT here — they are external tool artifacts resolved at
     // build time via viaductCodegenClasspath / viaductServeClasspath Configurations.
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.viaductschema)
-    implementation(libs.viaduct.shared.codegen) // StringTemplate utilities for scaffolding
-
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)
 

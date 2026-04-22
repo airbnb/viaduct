@@ -11,7 +11,6 @@ import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import viaduct.codegen.st.STContents
 
 /**
  * Tests for the Viaduct scaffolding functionality.
@@ -49,12 +48,12 @@ class ScaffoldTaskTest {
         assertEquals("8.12", task.gradleVersion.get())
     }
 
-    // Template rendering tests using STContents
+    // Template rendering tests
 
     @Test
     fun `Main_kt template should render valid Kotlin`() {
         val model = ProjectModel(packagePrefix = "com.example.myapp", viaductVersion = TEST_VIADUCT_VERSION)
-        val content = STContents(Templates.mainKt, model).toString()
+        val content = Templates.mainKt(model)
 
         assertTrue(content.contains("package com.example.myapp"))
         assertTrue(content.contains("fun main(args: Array<String>)"))
@@ -68,7 +67,7 @@ class ScaffoldTaskTest {
     @Test
     fun `Routing_kt template should render valid Kotlin`() {
         val model = ProjectModel(packagePrefix = "com.example.myapp", viaductVersion = TEST_VIADUCT_VERSION)
-        val content = STContents(Templates.routingKt, model).toString()
+        val content = Templates.routingKt(model)
 
         assertTrue(content.contains("package com.example.myapp.ktorplugins"))
         assertTrue(content.contains("fun Application.configureRouting()"))
@@ -83,7 +82,7 @@ class ScaffoldTaskTest {
     @Test
     fun `ContentNegotiation_kt template should render valid Kotlin`() {
         val model = ProjectModel(packagePrefix = "com.example.myapp", viaductVersion = TEST_VIADUCT_VERSION)
-        val content = STContents(Templates.contentNegotiationKt, model).toString()
+        val content = Templates.contentNegotiationKt(model)
 
         assertTrue(content.contains("package com.example.myapp.ktorplugins"))
         assertTrue(content.contains("fun Application.configureContentNegotiation()"))
@@ -95,7 +94,7 @@ class ScaffoldTaskTest {
     @Test
     fun `application_conf template should render valid HOCON`() {
         val model = ProjectModel(packagePrefix = "com.example.myapp", viaductVersion = TEST_VIADUCT_VERSION)
-        val content = STContents(Templates.applicationConf, model).toString()
+        val content = Templates.applicationConf(model)
 
         assertTrue(content.contains("ktor {"))
         assertTrue(content.contains("port = 8080"))
@@ -106,7 +105,7 @@ class ScaffoldTaskTest {
     @Test
     fun `schema_graphqls template should render valid GraphQL schema`() {
         val model = ProjectModel(packagePrefix = "com.example.myapp", viaductVersion = TEST_VIADUCT_VERSION)
-        val content = STContents(Templates.schemaGraphqls, model).toString()
+        val content = Templates.schemaGraphqls(model)
 
         assertTrue(content.contains("extend type Query {"))
         assertTrue(content.contains("greeting: String! @resolver"))
@@ -115,7 +114,7 @@ class ScaffoldTaskTest {
     @Test
     fun `GreetingResolver_kt template should render valid Kotlin`() {
         val model = ProjectModel(packagePrefix = "com.example.myapp", viaductVersion = TEST_VIADUCT_VERSION)
-        val content = STContents(Templates.greetingResolverKt, model).toString()
+        val content = Templates.greetingResolverKt(model)
 
         assertTrue(content.contains("package com.example.myapp.resolvers"))
         assertTrue(content.contains("import com.example.myapp.resolvers.resolverbases.QueryResolvers"))
@@ -129,7 +128,7 @@ class ScaffoldTaskTest {
     @Test
     fun `build_gradle_kts template should render valid Gradle script`() {
         val model = ProjectModel(packagePrefix = "com.example.myapp", viaductVersion = TEST_VIADUCT_VERSION)
-        val content = STContents(Templates.buildGradleKts, model).toString()
+        val content = Templates.buildGradleKts(model)
 
         assertTrue(content.contains("plugins {"))
         assertTrue(content.contains("kotlin(\"jvm\")"))
@@ -148,7 +147,7 @@ class ScaffoldTaskTest {
     @Test
     fun `settings_gradle_kts template should render valid Gradle settings`() {
         val model = ProjectModel(packagePrefix = "com.example.myapp", viaductVersion = TEST_VIADUCT_VERSION)
-        val content = STContents(Templates.settingsGradleKts, model).toString()
+        val content = Templates.settingsGradleKts(model)
 
         assertTrue(content.contains("pluginManagement {"))
         assertTrue(content.contains("mavenCentral()"))
@@ -179,7 +178,7 @@ class ScaffoldTaskTest {
 
         for (pkg in packages) {
             val model = ProjectModel(packagePrefix = pkg, viaductVersion = TEST_VIADUCT_VERSION)
-            val content = STContents(Templates.mainKt, model).toString()
+            val content = Templates.mainKt(model)
             assertTrue(content.contains("package $pkg"), "Package $pkg not found in Main.kt")
         }
     }

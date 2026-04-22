@@ -9,7 +9,6 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
-import viaduct.codegen.st.STContents
 
 /**
  * Gradle task that scaffolds a new Viaduct project.
@@ -97,16 +96,16 @@ abstract class ScaffoldTask : DefaultTask() {
 
         listOf(srcDir, ktorPluginsDir, resolversDir, resourcesDir, schemaDir).forEach { it.mkdirs() }
 
-        // Generate source files using STContents
-        STContents(Templates.mainKt, model).write(File(srcDir, "Main.kt"))
-        STContents(Templates.contentNegotiationKt, model).write(File(ktorPluginsDir, "ContentNegotiation.kt"))
-        STContents(Templates.routingKt, model).write(File(ktorPluginsDir, "Routing.kt"))
-        STContents(Templates.schemaGraphqls, model).write(File(schemaDir, "schema.graphqls"))
-        STContents(Templates.greetingResolverKt, model).write(File(resolversDir, "GreetingResolver.kt"))
-        STContents(Templates.applicationConf, model).write(File(resourcesDir, "application.conf"))
-        STContents(Templates.buildGradleKts, model).write(File(outDir, "build.gradle.kts"))
-        STContents(Templates.settingsGradleKts, model).write(File(outDir, "settings.gradle.kts"))
-        STContents(Templates.gradleProperties, model).write(File(outDir, "gradle.properties"))
+        // Generate source files
+        File(srcDir, "Main.kt").writeText(Templates.mainKt(model))
+        File(ktorPluginsDir, "ContentNegotiation.kt").writeText(Templates.contentNegotiationKt(model))
+        File(ktorPluginsDir, "Routing.kt").writeText(Templates.routingKt(model))
+        File(schemaDir, "schema.graphqls").writeText(Templates.schemaGraphqls(model))
+        File(resolversDir, "GreetingResolver.kt").writeText(Templates.greetingResolverKt(model))
+        File(resourcesDir, "application.conf").writeText(Templates.applicationConf(model))
+        File(outDir, "build.gradle.kts").writeText(Templates.buildGradleKts(model))
+        File(outDir, "settings.gradle.kts").writeText(Templates.settingsGradleKts(model))
+        File(outDir, "gradle.properties").writeText(Templates.gradleProperties)
 
         // Install Viaduct skill documentation (creates AGENTS.md and .viaduct/agents/)
         installViaductDocs(outDir, model.projectName)

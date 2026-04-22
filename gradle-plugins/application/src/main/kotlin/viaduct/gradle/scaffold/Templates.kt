@@ -1,22 +1,20 @@
 package viaduct.gradle.scaffold
 
-import viaduct.codegen.st.stTemplate
-
 /**
- * StringTemplate 4 templates for scaffolding a Viaduct project.
- * Uses [stTemplate] from shared-codegen which creates templates with "main(mdl)" signature.
+ * Kotlin string-template functions for scaffolding a Viaduct project.
+ * Each function takes a [ProjectModel] and returns the rendered file content.
  */
 object Templates {
-    val mainKt = stTemplate(
+    fun mainKt(mdl: ProjectModel) =
         """
-        package <mdl.packagePrefix>
+        package ${mdl.packagePrefix}
 
         import io.ktor.server.application.Application
         import io.ktor.server.netty.EngineMain
-        import <mdl.packagePrefix>.ktorplugins.configureContentNegotiation
-        import <mdl.packagePrefix>.ktorplugins.configureRouting
+        import ${mdl.packagePrefix}.ktorplugins.configureContentNegotiation
+        import ${mdl.packagePrefix}.ktorplugins.configureRouting
 
-        fun main(args: Array\<String>) {
+        fun main(args: Array<String>) {
             EngineMain.main(args)
         }
 
@@ -24,12 +22,11 @@ object Templates {
             configureContentNegotiation()
             configureRouting()
         }
-        """
-    )
+        """.trimIndent() + "\n"
 
-    val contentNegotiationKt = stTemplate(
+    fun contentNegotiationKt(mdl: ProjectModel) =
         """
-        package <mdl.packagePrefix>.ktorplugins
+        package ${mdl.packagePrefix}.ktorplugins
 
         import com.fasterxml.jackson.databind.SerializationFeature
         import io.ktor.serialization.jackson.jackson
@@ -44,12 +41,11 @@ object Templates {
                 }
             }
         }
-        """
-    )
+        """.trimIndent() + "\n"
 
-    val routingKt = stTemplate(
+    fun routingKt(mdl: ProjectModel) =
         """
-        package <mdl.packagePrefix>.ktorplugins
+        package ${mdl.packagePrefix}.ktorplugins
 
         import io.ktor.http.ContentType
         import io.ktor.http.HttpStatusCode
@@ -69,7 +65,7 @@ object Templates {
         fun Application.configureRouting() {
             val viaduct = BasicViaductFactory.create(
                 tenantRegistrationInfo = TenantRegistrationInfo(
-                    tenantPackagePrefix = "<mdl.packagePrefix>"
+                    tenantPackagePrefix = "${mdl.packagePrefix}"
                 )
             )
 
@@ -80,7 +76,7 @@ object Templates {
 
                 post("/graphql") {
                     @Suppress("UNCHECKED_CAST")
-                    val request = call.receive\<Map\<String, Any?\>>() as Map\<String, Any>
+                    val request = call.receive<Map<String, Any?>>() as Map<String, Any>
 
                     val query = request["query"] as? String
                     if (query == null) {
@@ -94,7 +90,7 @@ object Templates {
                     @Suppress("UNCHECKED_CAST")
                     val executionInput = ExecutionInput.create(
                         operationText = query,
-                        variables = (request["variables"] as? Map\<String, Any>) ?: emptyMap(),
+                        variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
                     )
 
                     val result = viaduct.executeAsync(executionInput).await()
@@ -108,47 +104,45 @@ object Templates {
             }
         }
 
-        private fun graphiqlHtml(): String = ""${'"'}
-        \<!DOCTYPE html>
-        \<html>
-        \<head>
-            \<title>GraphiQL\</title>
-            \<link href="https://unpkg.com/graphiql/graphiql.min.css" rel="stylesheet" />
-        \</head>
-        \<body style="margin: 0;">
-            \<div id="graphiql" style="height: 100vh;">\</div>
-            \<script crossorigin src="https://unpkg.com/react/umd/react.production.min.js">\</script>
-            \<script crossorigin src="https://unpkg.com/react-dom/umd/react-dom.production.min.js">\</script>
-            \<script crossorigin src="https://unpkg.com/graphiql/graphiql.min.js">\</script>
-            \<script>
+        private fun graphiqlHtml(): String = ${"\"\"\""}
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>GraphiQL</title>
+            <link href="https://unpkg.com/graphiql/graphiql.min.css" rel="stylesheet" />
+        </head>
+        <body style="margin: 0;">
+            <div id="graphiql" style="height: 100vh;"></div>
+            <script crossorigin src="https://unpkg.com/react/umd/react.production.min.js"></script>
+            <script crossorigin src="https://unpkg.com/react-dom/umd/react-dom.production.min.js"></script>
+            <script crossorigin src="https://unpkg.com/graphiql/graphiql.min.js"></script>
+            <script>
                 const fetcher = GraphiQL.createFetcher({ url: '/graphql' });
                 ReactDOM.render(
                     React.createElement(GraphiQL, { fetcher: fetcher }),
                     document.getElementById('graphiql'),
                 );
-            \</script>
-        \</body>
-        \</html>
-        ""${'"'}.trimIndent()
-        """
-    )
+            </script>
+        </body>
+        </html>
+        ${"\"\"\""}.trimIndent()
+        """.trimIndent() + "\n"
 
-    val schemaGraphqls = stTemplate(
+    fun schemaGraphqls(mdl: ProjectModel) =
         """
-        # GraphQL Schema for <mdl.projectName>
+        # GraphQL Schema for ${mdl.projectName}
         # Add your types and queries here
 
         extend type Query {
             greeting: String! @resolver
         }
-        """
-    )
+        """.trimIndent() + "\n"
 
-    val greetingResolverKt = stTemplate(
+    fun greetingResolverKt(mdl: ProjectModel) =
         """
-        package <mdl.packagePrefix>.resolvers
+        package ${mdl.packagePrefix}.resolvers
 
-        import <mdl.packagePrefix>.resolvers.resolverbases.QueryResolvers
+        import ${mdl.packagePrefix}.resolvers.resolverbases.QueryResolvers
         import viaduct.api.Resolver
 
         @Resolver
@@ -157,10 +151,9 @@ object Templates {
                 return "Hello from Viaduct!"
             }
         }
-        """
-    )
+        """.trimIndent() + "\n"
 
-    val applicationConf = stTemplate(
+    fun applicationConf(mdl: ProjectModel) =
         """
         ktor {
             deployment {
@@ -168,30 +161,29 @@ object Templates {
                 host = "0.0.0.0"
             }
             application {
-                modules = [ <mdl.packagePrefix>.MainKt.module ]
+                modules = [ ${mdl.packagePrefix}.MainKt.module ]
             }
         }
-        """
-    )
+        """.trimIndent() + "\n"
 
-    val buildGradleKts = stTemplate(
+    fun buildGradleKts(mdl: ProjectModel) =
         """
         plugins {
             kotlin("jvm") version "1.9.22"
-            id("io.ktor.plugin") version "<mdl.ktorVersion>"
-            id("com.airbnb.viaduct.application-gradle-plugin") version "<mdl.viaductVersion>"
-            id("com.airbnb.viaduct.module-gradle-plugin") version "<mdl.viaductVersion>"
+            id("io.ktor.plugin") version "${mdl.ktorVersion}"
+            id("com.airbnb.viaduct.application-gradle-plugin") version "${mdl.viaductVersion}"
+            id("com.airbnb.viaduct.module-gradle-plugin") version "${mdl.viaductVersion}"
         }
 
-        group = "<mdl.packagePrefix>"
+        group = "${mdl.packagePrefix}"
         version = "0.0.1"
 
         application {
-            mainClass.set("<mdl.packagePrefix>.MainKt")
+            mainClass.set("${mdl.packagePrefix}.MainKt")
         }
 
         viaductApplication {
-            modulePackagePrefix.set("<mdl.packagePrefix>")
+            modulePackagePrefix.set("${mdl.packagePrefix}")
         }
 
         viaductModule {
@@ -204,10 +196,10 @@ object Templates {
 
         dependencies {
             // Ktor
-            implementation("io.ktor:ktor-server-core:<mdl.ktorVersion>")
-            implementation("io.ktor:ktor-server-netty:<mdl.ktorVersion>")
-            implementation("io.ktor:ktor-server-content-negotiation:<mdl.ktorVersion>")
-            implementation("io.ktor:ktor-serialization-jackson:<mdl.ktorVersion>")
+            implementation("io.ktor:ktor-server-core:${mdl.ktorVersion}")
+            implementation("io.ktor:ktor-server-netty:${mdl.ktorVersion}")
+            implementation("io.ktor:ktor-server-content-negotiation:${mdl.ktorVersion}")
+            implementation("io.ktor:ktor-serialization-jackson:${mdl.ktorVersion}")
 
             // Coroutines
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
@@ -216,21 +208,20 @@ object Templates {
             implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
 
             // Viaduct
-            implementation("com.airbnb.viaduct:api:<mdl.viaductVersion>")
-            implementation("com.airbnb.viaduct:runtime:<mdl.viaductVersion>")
+            implementation("com.airbnb.viaduct:api:${mdl.viaductVersion}")
+            implementation("com.airbnb.viaduct:runtime:${mdl.viaductVersion}")
 
             // Logging
             implementation("ch.qos.logback:logback-classic:1.4.14")
 
             // Testing
-            testImplementation("io.ktor:ktor-server-tests:<mdl.ktorVersion>")
+            testImplementation("io.ktor:ktor-server-tests:${mdl.ktorVersion}")
             testImplementation("org.jetbrains.kotlin:kotlin-test")
-            testImplementation("com.airbnb.viaduct:test-fixtures:<mdl.viaductVersion>")
+            testImplementation("com.airbnb.viaduct:test-fixtures:${mdl.viaductVersion}")
         }
-        """
-    )
+        """.trimIndent() + "\n"
 
-    val settingsGradleKts = stTemplate(
+    fun settingsGradleKts(mdl: ProjectModel) =
         """
         pluginManagement {
             repositories {
@@ -245,17 +236,11 @@ object Templates {
             }
         }
 
-        rootProject.name = "<mdl.projectName>"
-        """
-    )
+        rootProject.name = "${mdl.projectName}"
+        """.trimIndent() + "\n"
 
-    val gradleProperties = stTemplate(
-        """
+    val gradleProperties = """
         kotlin.code.style=official
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-        """
-    )
-
-    // Note: AGENTS.md, .gitignore, and .viaduct/agents/ are created by the
-    // install script from viaduct-dev/skills repo, not by templates here.
+    """.trimIndent() + "\n"
 }
