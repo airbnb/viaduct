@@ -24,6 +24,7 @@ interface BaseFieldExecutionContext<
      * This property provides lazy access to query selections. For synchronous access where all
      * selections are pre-resolved, use [getQueryValue] instead.
      */
+    @Deprecated("Use getQueryValue() instead for synchronous access with eager resolution of all selections.")
     val queryValue: Q
 
     /**

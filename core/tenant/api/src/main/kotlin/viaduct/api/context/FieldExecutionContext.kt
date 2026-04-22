@@ -20,6 +20,7 @@ interface FieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
      * This property provides lazy access to object selections. For synchronous access where all
      * selections are pre-resolved, use [getObjectValue] instead.
      */
+    @Deprecated("Use getObjectValue() instead for synchronous access with eager resolution of all selections.")
     val objectValue: O
 
     /**
