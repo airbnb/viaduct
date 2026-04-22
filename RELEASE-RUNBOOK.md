@@ -2,97 +2,67 @@
 
 ## Overview
 
-The release process is straight forward. Assume the most recent published release was `0.5.0`, which means the `VERSION` on the main branch will be `0.6.0-SNAPSHOT`. Each of these steps will be described in detail, but in broad strokes:
+The release process follows these steps:
 
-* At release time, open a PR that bumps the version on the main branch to the the `SNAPSHOT` for the _next_ release. In our example this would be `0.7.0-SNAPSHOT`.
+1. **Bump version** on main to the next SNAPSHOT (e.g., `0.8.0-SNAPSHOT`)
+2. **Create release branch** from the commit before the bump (e.g., `release/v0.7.0` with VERSION `0.7.0`)
+3. **Validate** — run CI across all Java/OS combinations
+4. **Generate changelog** and review with the team
+5. **Confirm release** at the team meeting
+6. **Publish** — one command that publishes artifacts, pushes demo apps, verifies them, creates the tag, and publishes the GitHub release
+7. **Verify** — pull latest version of Star Wars demo app and verify it passes its tests
 
-* When this version bump is merged, the SHA just before it becomes the branch point for the next release (for `0.6.0`) in our example. A release branch created from that branch point, and the `VERSION` in that branch loses `-SNAPSHOT` (e.g., `0.6.0-SNAPSHOT` becomes `0.6.0` in the release branch).
+## Quick Command Reference
 
-* A script is run to generate the changelog for the release. The output of this script often requires slight editing for clarity and consistency. The changelog is reviewed by the team.
-
-* The release branch is validated. This is an important but somewhat tedious step.
-
-* Assuming all is well with the release branch, its artifacts are then published to the Maven Central and the Gradle Plugin Portal.
-
-* Next, the "standalone" copies of the demo apps (in https://github.com/viaduct-dev) are updated to match the release. This step has been fagile, so more validation is required to assure correctness.
-
-* Finally, the release is published on the [Viaduct Releases](https://github.com/airbnb/viaduct/releases) page (don't forget this step!).
-
-
-### Repository Context
-
-Different steps in the release process happen in different places:
-
-| Step | Location | Example |
-|------|----------|---------|
-| Version bump PR | Your personal fork | Fork → PR to main |
-| Release branch creation | Public `airbnb/viaduct` repo | Direct push to public repo |
-
-
-
-### Viaduct Versioning
-
-In the root directory of the Viaduct repository is in a file called `VERSION`. As mentioned above:
-
-- **On main branch:** Always contains a `-SNAPSHOT` version (e.g., `0.7.0-SNAPSHOT`)
-- **On release branches:** Contains the actual release version (e.g., `0.7.0`)
-
-**Example flow:**
-
-1. Main branch has: `0.7.0-SNAPSHOT`
-2. During release week:
-   - Main is bumped to: `0.8.0-SNAPSHOT`
-   - Release branch `release/v0.7.0` is created with VERSION: `0.7.0`
-
-#### Demo App Versions
-
-Demo applications have `gradle.properties` files with a `viaductVersion` property. This property **must always match** the
-root `VERSION` file.  To help keep these versions matching, we have a Gradle task to synchronize them:
+Set these shell variables before starting. `RELEASE_VER` is the version you are releasing this week. `NEXT_VER` is the version that will replace it on main.
 
 ```bash
-./gradlew syncDemoAppVersions
+export PREV_VER="0.28.0" \
+export RELEASE_VER="0.29.0" \
+export NEXT_VER="0.30.0" \
+export GH_USER="your-github.com-username"
 ```
 
-This Gradle task updates all demo app `gradle.properties` files to match the `VERSION` file. So the update procedure is to update `VERSION` and then run this task to synchronize.
+| Step | Command |
+|------|---------|
+| [2. Version bump](#2-bump-version-on-main) | Edit VERSION, `./gradlew syncDemoAppVersions`, PR |
+| [3. Release branch](#3-create-release-branch) | `git checkout -b release/v${RELEASE_VER}`, set VERSION, push |
+| [4. Validate build](#4-validate-build) | `gh workflow run ci-trigger.yml --ref release/v${RELEASE_VER}` |
+| [5. Changelog](#5-generate-changelog) | `generate_changelog.py origin/release/v${PREV_VER} HEAD` |
+| [7. Publish release](#7-publish-release) | `gh workflow run release.yml -f release_version=${RELEASE_VER} -F release_notes=changelog.md` |
+| [8. Verify](#8-verify) | `cd ~/repos/starwars && git pull && ./gradlew test` |
 
+## Prerequisites
 
-## Prerequisites for Release Managers
+Skip this section if you have already done a Viaduct release before. Come back here if any step below fails with an authentication or tooling error.
 
 ### Required Tools
 
-**GitHub CLI (`gh`)**
-
-Install this if you haven't already (e.g., `brew install gh`).
-
-To verify installation:
-
 ```bash
-gh --version
-```
+# GitHub CLI
+brew install gh
 
-**Python 3**
-
-Python should be pre-installed on macOS.  To verify:
-
-```bash
+# Python 3 (usually pre-installed on macOS)
 python3 --version
+
+# uv — fast Python package runner (for the changelog script)
+brew install uv
 ```
 
 ### Required Access
 
-Verify you have access to:
+Verify you have access to all of these **before release day**:
 
-- Airbnb GitHub organization (check: [https://github.com/orgs/airbnb/people](https://github.com/orgs/airbnb/people))
-- Viaduct-GraphQL GitHub organization ([https://github.com/orgs/viaduct-dev/people](https://github.com/orgs/viaduct-dev/people))
-- Gradle Plugin Portal `viaduct-maintainers` account (check: https://plugins.gradle.org/u/viaduct-maintainers)
-- 1Password vault with `viaductbot` credentials (for Sonatype)
+- [ ] **GitHub:** You are a member of the [Airbnb GitHub organization](https://github.com/orgs/airbnb/people)
+- [ ] **Viaduct-dev:** You are a member of the [viaduct-dev organization](https://github.com/orgs/viaduct-dev/people)
+- [ ] **Gradle Plugin Portal:** You can log in to https://plugins.gradle.org/u/viaduct-maintainers
+- [ ] **Sonatype:** You can find the `viaductbot` credentials in the shared vault
 
-If you're missing any access, contact your team lead before release day.
+If you are missing access, contact your team lead before release day.
 
+### One-Time Setup
 
-### Setup (one-time)
-
-**Verify SSH access to GitHub**
+**Step 1: Verify SSH access to GitHub**
 
 ```bash
 ssh -T git@github.com
@@ -101,11 +71,10 @@ ssh -T git@github.com
 Expected output: `Hi <username>! You've successfully authenticated, but GitHub does not provide shell access.`
 
 If this fails:
-
 - Ensure you have SSH keys set up: https://docs.github.com/en/authentication/connecting-to-github-with-ssh
 - Add your key to ssh-agent: `ssh-add ~/.ssh/id_rsa`
 
-**Authenticate GitHub CLI**
+**Step 2: Authenticate GitHub CLI**
 
 ```bash
 gh auth login
@@ -115,287 +84,302 @@ gh auth login
 - Select: `HTTPS`
 - Authenticate via browser when prompted
 
+**Step 3: Fork the public repo**
 
-**Clone public Viaduct repository:**
+1. Open https://github.com/airbnb/viaduct in your browser
+2. Click **Fork** (top right)
+3. Select your personal GitHub account
 
-Clone to a separate directory (not inside Treehouse):
+This creates `github.com/${GH_USER}/viaduct`.
 
-```bash
-git clone git@github.com:airbnb/viaduct.git ~/repos/viaduct-public
-```
+**Step 4: Clone the repo and set up remotes**
 
-**[Optional] Set default repository**
-
-This makes `gh` commands default to `airbnb/viaduct` so you don't need to specify `--repo` every time.
-
-Run from within the cloned directory:
+You only need one local clone with two remotes: `origin` for the public repo (release branches, workflows) and `fork` for your personal fork (version-bump PRs).
 
 ```bash
-cd ~/repos/viaduct-public
+git clone git@github.com:airbnb/viaduct.git ~/repos/viaduct
+cd ~/repos/viaduct
+git remote add fork git@github.com:${GH_USER}/viaduct.git
 gh repo set-default airbnb/viaduct
-# When prompted, select: airbnb/viaduct
+
+# Verify remotes
+git remote -v
+# Should show:
+#   origin  git@github.com:airbnb/viaduct.git (fetch/push)
+#   fork    git@github.com:${GH_USER}/viaduct.git (fetch/push)
 ```
 
-**Why this is useful:** When you run commands like `gh workflow run` or `gh release list`, they'll automatically use `airbnb/viaduct` instead of requiring `--repo airbnb/viaduct` every time.
+## Versioning
 
-> Note: Some changes will be pushed to your fork of the OSS repo and some will go straight to the OSS repo. You can
-> either use the same local clone and switch the remote appropriately with
-> `git remote set-url origin git@github.com:YOUR_GH_USERNAME/viaduct.git` or you can have two separate local clones.
+The root `VERSION` file is the source of truth:
+
+- **On main:** Always `X.Y.Z-SNAPSHOT` (e.g., `0.8.0-SNAPSHOT`)
+- **On release branches:** Exactly `X.Y.Z` (e.g., `0.7.0`)
+
+Demo apps have `gradle.properties` files with a `viaductVersion` property that **must match** the root VERSION. Use Gradle tasks to keep them in sync:
+
+```bash
+./gradlew syncDemoAppVersions     # Copy VERSION to all demo apps
+./gradlew confirmDemoAppVersions  # Validate all demo apps match VERSION (CI runs this automatically)
+```
 
 ## Detailed Release Process
 
-Viaduct follows a weekly release cadence.
+During the team meeting, a release manager is selected for the week.
 
-### 1) Release manager
+### 2) Bump version on main
 
-During Monday's Viaduct team meeting, we will pick the release manager for the week.  "You" in the rest of this document is the release manager.
+> Start this on Tuesday or early Wednesday — the PR review + merge takes time.
 
-### 2) Bump version in main branch
-
-> Note: This step should be done in your personal fork of the public repo, and the PR submitted through the standard
-> PR process.  Be sure to sync your fork to the public repo before performing this step. It takes at least a couple of
-> hours to get through this. So, either start Tuesday or early on Wednesday.
-
-> Note: Prefix your PR and commit with `chore: ` to be compliant with our conventional commit message
-
-Prior to the Wednesday Viaduct team meeting, you will create a PR in the OSS repo (but from your personal fork) that bumps the version on the main branch from `0.X.0-SNAPSHOT` to `0.(X+1).0-SNAPSHOT`. This is done by editing the `VERSION` file and then running:
+**Sync your fork and create a branch:**
 
 ```bash
+cd ~/repos/viaduct
+git checkout main
+git pull origin main
+git push fork main
+git checkout -b candidate/v${NEXT_VER}
+```
+
+**Edit VERSION and sync demo apps:**
+
+```bash
+echo "${NEXT_VER}-SNAPSHOT" > VERSION
 ./gradlew syncDemoAppVersions
 ```
 
-to update the `gradle.properties` files of the demoapps to match.  You can verify the changes by running:
+**Verify the changes:**
 
 ```bash
 git diff .
+# Should show VERSION + 5 demoapps/*/gradle.properties changed
 ```
 
-You should see that the `VERSION` file has changed a the project root and the `gradle.properties` files have changed for each of the demo apps.
-
-> Use the normal PR merge process to merge this OSS PR. (pull-me)
-
-### 3) Make release branch
-
-Once this PR is approved and merged:
-
-- Create a branch off the SHA just before the version bump. This branch should be named `release/v0.X.0`.
-- Make sure that the branch name contains the `v` before the version or subsequent steps might break.
-- In this branch, edit the `VERSION` file to contain `0.X.0`
-
-and then run:
-
-> Note: Make sure that the branch name contains the `v` before the version or subsequent steps might break.
+**Commit, push to your fork, and create PR:**
 
 ```bash
+git add VERSION demoapps/*/gradle.properties
+git commit -m "chore: Bump version to ${NEXT_VER}-SNAPSHOT"
+git push fork candidate/v${NEXT_VER}
+
+gh pr create \
+  --repo airbnb/viaduct \
+  --base main \
+  --head ${GH_USER}:candidate/v${NEXT_VER} \
+  --title "chore: Bump version to ${NEXT_VER}-SNAPSHOT" \
+  --body "Weekly version bump. Bumps main to ${NEXT_VER}-SNAPSHOT so the release branch for v${RELEASE_VER} can be cut."
+```
+
+Merge through the standard PR process.
+
+### 3) Create release branch
+
+The release branch is created from the commit **before** the version bump.
+
+```bash
+cd ~/repos/viaduct
+git checkout main && git pull origin main
+git log --oneline -10
+# Find the SHA BEFORE "chore: Bump version to ${NEXT_VER}-SNAPSHOT"
+```
+
+> **Warning:** Using the wrong SHA is the most common release mistake. The commit you pick must NOT contain the version bump.
+
+```bash
+git checkout -b release/v${RELEASE_VER} <SHA_BEFORE_BUMP>
+```
+
+> **Warning:** Branch name **must** contain the `v` prefix (e.g., `release/v0.29.0`).
+
+**Set the release version:**
+
+```bash
+echo "${RELEASE_VER}" > VERSION
 ./gradlew syncDemoAppVersions
 ```
 
-to update the demoapps to match (you can use `git diff` as above to verify).  Push this branch directly to the public Viaduct github.com repository.
+**Commit and push directly to the public repo:**
+
+```bash
+git add VERSION demoapps/*/gradle.properties
+git commit -m "chore: Set version to ${RELEASE_VER}"
+git push origin release/v${RELEASE_VER}
+```
 
 ### 4) Validate build
 
-Trigger comprehensive testing across all supported environments by running:
-
-```shell
-gh workflow run .github/workflows/ci-manual-trigger.yml --ref release/v0.X.0
+```bash
+gh workflow run ci-trigger.yml \
+  --repo airbnb/viaduct \
+  --ref release/v${RELEASE_VER}
 ```
 
-This will trigger all of our CI workflows across all of their Java x OS matrices. Monitor the triggered builds and verify all 9 combinations pass successfully. (This includes standalone tests of the demo apps using a from-scratch Maven local cache -- automating a painful and error prone pre-release validation step from the past.)
-
-### 5) Validate Demo Apps
-
-(Validating the demo apps has been incorporated into the previous step.  Keeping the section here so section-number references elsewhere stay current.)
-
-### 6) Generate Changelog
-
-Prior to the Wednesday team meeting, you should generate and review the changelog.
-
-#### 6a) Generate changelog
-
-Assuming you're releasing `v0.7.0`:
+Monitor:
 
 ```bash
-cd ~/repos/viaduct-public    # Or wherever your public viaduct clone is
-git checkout release/v0.7.0  # Your release branch
-
-.github/scripts/generate_changelog.py origin/release/v0.6.0 HEAD > /tmp/release-v0.7.0-changelog.md
+gh run list --workflow=ci-trigger.yml --repo airbnb/viaduct --limit 5
 ```
 
-This script requires the package `semantic_release` from `pip` - be sure to install it beforehand.
+This runs three sub-workflows:
+1. **build-and-test** — compiles and runs all unit tests
+2. **demoapps-ci-check** — tests all demo apps against locally-published artifacts (Java 17 + 21)
+3. **bcv-api-check** — binary API compatibility check
 
-#### 6b) Clean up the output
+Wait for all jobs to pass (15-30 minutes).
 
-The generated changelog may include:
-
-- Bookkeeping commits at the start (e.g., "Bump version to X.Y.Z-SNAPSHOT")
-- Bookkeeping commits at the end (e.g., "Set version to X.Y.Z")
-- Unclear or overly technical commit messages
-
-Edit the changelog to:
-
-- Remove version bump commits
-- Clarify cryptic commit messages
-- Group related changes if helpful
-- Ensure it's understandable to users, not just developers
-
-#### 6c) Share with team
-
-- Post the edited changelog in the Viaduct OSS Slack channel
-- Ask for feedback: "Proposed changelog for v0.7.0 release. Please review before Wednesday meeting."
-- Note any concerns or suggested edits
-- At the Wednesday OSS team meeting present the changelog and lead a discussion to reach approval on the week's release.
-
-#### 6d) Keep the file handy
-
-You'll paste this into the GitHub release page in Step 11.
-
-### 7) Confirm release
-
-At the Wednesday OSS meeting the team will confirm that the release is ready. If necessary, based on team discussion, the release manager may wait for an in-flight change to land and will cherry-pick the change into the release branch once it is merged into the main branch.
-
-### 8) Publish the artifacts
-
-Before triggering the workflow, verify you're in the correct repo + branch and that your working tree is clean:
+### 5) Generate changelog
 
 ```bash
-gh repo view --json nameWithOwner
-git branch --show-current
-git status --porcelain
+cd ~/repos/viaduct
+git checkout release/v${RELEASE_VER}
+
+uvx --with python-semantic-release python \
+  .github/scripts/generate_changelog.py \
+  origin/release/v${PREV_VER} HEAD \
+  > /tmp/release-v${RELEASE_VER}-changelog.md
 ```
 
-Expected :
-• nameWithOwner is airbnb/viaduct
-• branch is release/v0.X.0
-• git status --porcelain is empty
+Edit the output: remove bookkeeping commits (version bumps), clarify cryptic messages, group related changes.
 
-Then, trigger the release workflow:
+Share in the team Slack channel for review before the release meeting.
 
-```
-gh workflow run ".github/workflows/release.yml" \
--f publish_snapshot=false \
--f previous_release_version=0.6.0 \
--f release_version=0.7.0
-```
+### 6) Confirm release
 
-**Don't mix up `previous_release_version` and `release_version`**
+At the team meeting, present the changelog and get approval.
 
-> Note: If the above command fails and it is appropriate, you can use the `-f skip_check=true` flag to avoid failures
-> because of detekt rule violations.
-
-This workflow will:
-
-- Package release artifacts using Gradle.
-- Publish plugin artifacts to the Gradle Plugin Portal.
-- Stage a deployment to Sonatype.
-- Pushes a `v0.X.0` tag to Github.
-- Create a draft Github release.
-
-### 9) Verify publications
-
-Log in to [Sonatype Maven Central](https://central.sonatype.com/namespace/com.airbnb.viaduct) and the [Gradle Plugin Portal](https://plugins.gradle.org/u/viaduct-maintainers) to verify the artifacts are live (credentials in shared 1Password vault).
-
-### 10) Publish and verify standalone apps
-
-Once the artifacts are published, we need to update the standalone copies of the standalone apps to agree with the new release.
-
-- `cli-starter` → `viaduct-dev/cli-starter`
-- `jetty-starter` → `viaduct-dev/jetty-starter`
-- `ktor-starter` → `viaduct-dev/ktor-starter`
-- `micronaut-starter` → `viaduct-dev/micronaut-starter`
-- `starwars` → `viaduct-dev/starwars`
-
-**It's important to do this on the release branch!**
-
-If you haven't already, you should create a local clone of the demo apps in some directory:
-
-#### Initial test
-
-Start with `starwars` — it has historically been the most error-prone app and is the best early signal.  In the root directory of your release repository type:
+If last-minute changes need to be included:
 
 ```bash
-./.github/copydemoapps/copy starwars
+cd ~/repos/viaduct
+git checkout release/v${RELEASE_VER}
+git cherry-pick <commit-sha>
+git push origin release/v${RELEASE_VER}
 ```
 
-This should copy the release version of `starwars` into the `viaduct-dev/starwars` repo.  Next, in a temporary directory checkout the destination repo:
+If you cherry-picked, re-run Step 4 to validate.
+
+### 7) Publish release
+
+> **Warning:** This publishes to Maven Central and Gradle Plugin Portal. Once published, a version cannot be unpublished from Maven Central.
+
+This single command publishes artifacts, pushes demo apps to standalone repos, verifies them, creates the release tag, and publishes the GitHub release:
 
 ```bash
-git clone git@github.com:viaduct-dev/starwars.git
+gh workflow run release.yml \
+  --repo airbnb/viaduct \
+  -f release_version=${RELEASE_VER} \
+  -F release_notes=/tmp/release-v${RELEASE_VER}-changelog.md
 ```
 
-Then ensure that it can be built and tested against the published Viaduct artifacts:
+> **Note:** The `-F` flag (capital F) reads the file contents and uploads them as the `release_notes` input. The `-f` flag (lowercase) passes a literal string.
+
+Monitor:
 
 ```bash
-cd starwars && ./gradlew test
+gh run list --workflow=release.yml --repo airbnb/viaduct --limit 3
 ```
 
-Verify in the build-scan that the correct release artifacts have been used.
+The workflow runs these steps in sequence:
+1. **Preflight** — verifies release branch exists and tag does not
+2. **Publish** — validates versions, runs checks, publishes to Plugin Portal + Maven Central (via `publish-branch.yml`)
+3. **Push demo apps** — updates standalone `viaduct-dev/*` repos (via `push-demoapps.yml`)
+4. **Verify demo apps** — confirms standalone repos build against published artifacts
+5. **Create release** — creates the `v${RELEASE_VER}` tag and publishes the GitHub release with your changelog
 
-#### Remaining tests
+### 8) Verify
 
-If that worked, the remaining apps should work too.  Run them all in a loop (this assumes `~/repos/viaduct` is your viaduct repo on the release branch, and `/tmp/dapps` is where you're cloning the demo apps):
-
-> **Note:** Before running this loop, confirm that the list of apps matches the current contents of the `demoapps/` directory.  Add any newly introduced apps that are not yet listed here.
-
-```bash
-for APP in cli-starter jetty-starter ktor-starter micronaut-starter; do
-  cd ~/repos/viaduct \
-    && ./.github/copydemoapps/copy $APP \
-    && git clone git@github.com:viaduct-dev/$APP.git /tmp/dapps/$APP \
-    && cd /tmp/dapps/$APP \
-    && ./gradlew test
-done
-```
-
-Again verify in the build-scan that the correct release artifacts have been used.
-
-#### Small warning
-
-Copybara pushes weekly updates with no guarantee of backward compatibility.  We took the decision to download the latest to avoid building a big backlog of migration tech debt - but that means release managers might experience unexpected breakages.  This hasn't been a problem in the past, but keep this in mind if something breaks very mysteriously.
-
-
-### 11) ⚠️ Publish the GitHub Release
-
-**This step has been skipped in previous releases - please don't.**
-
-Why this matters:
-
-- GitHub releases page is often the first place users check for new versions
-- "Latest" badge helps users quickly find the current version
-- Changelog provides important migration information
-- Links from external sites often point to the releases page
-  Once artifacts are published to Maven Central and Gradle Plugin Portal, and demo apps are verified, make the release official on GitHub.
-
-To publish:
-
-#### 11a) Navigate to releases page
+After the workflow completes:
 
 ```bash
 open https://github.com/airbnb/viaduct/releases
+# Confirm your release shows as "Latest"
 ```
 
-#### 11b) Find the draft release
+Share the release link in Slack.
 
-- You should see a draft release for `v0.X.0` created by the GitHub Action in Step 9
-- Click "Edit" on this draft
+**Validate Star Wars demo app locally:**
 
-#### 11c) Add the changelog
+```bash
+# First time: clone the standalone repo
+git clone git@github.com:viaduct-dev/starwars.git ~/repos/starwars
 
-- Paste the changelog from step 6 it into the description field of the release
-- Preview the markdown to check formatting
+# Subsequent releases: pull the latest pushed by the workflow
+cd ~/repos/starwars && git pull
 
-#### 11d) Publish the release
+# Run the tests — they build against the just-published Maven artifacts
+./gradlew test
+```
 
-Review one final time:
+A passing build confirms the published artifacts are resolvable and the demo app compiles and tests against the new version.
 
-- Version tag is correct (e.g., `v0.7.0`)
-- Target is the correct release branch
-- Changelog is complete and well-formatted
-- ✅ **Ensure that "Set as the latest release" is checked** (very important!)
-- Click **"Publish release"**
+## Gradle Tasks Reference
 
-#### 11e) Verify publication
+| Task | Purpose |
+|------|---------|
+| `syncDemoAppVersions` | Copies VERSION to all demo app `gradle.properties` files |
+| `confirmDemoAppVersions` | Validates all demo app versions match VERSION (fails on mismatch) |
+| `setReleaseCandidateVersion -PrcNumber=N` | Stamps `X.Y.Z-rc.N-SNAPSHOT` on release branches (must be on `release/vX.Y.Z`) |
+| `printVersion` | Prints the current computed version |
 
-- Visit [https://github.com/airbnb/viaduct/releases](https://github.com/airbnb/viaduct/releases)
-- Confirm your release shows as "Latest"
-- Share the release link in Slack: `https://github.com/airbnb/viaduct/releases/tag/v0.X.0`
+## Troubleshooting
 
+### `validate_release_state.py` not found
+
+Your branch doesn't have the script. Pull the latest:
+
+```bash
+git pull origin main  # or git pull origin release/v${RELEASE_VER}
+```
+
+### `confirmDemoAppVersions` fails with mismatches
+
+Run `./gradlew syncDemoAppVersions` to fix, then re-commit:
+
+```bash
+./gradlew syncDemoAppVersions
+git add demoapps/*/gradle.properties
+git commit -m "chore: Sync demoapp versions"
+git push origin <your-branch>
+```
+
+### `setReleaseCandidateVersion` fails with branch name error
+
+You must be on a branch named `release/vX.Y.Z`:
+
+```bash
+git branch --show-current  # Check your branch
+git checkout release/v${RELEASE_VER}
+```
+
+### `release.yml` preflight fails — branch not found
+
+The release branch must exist before triggering `release.yml`. Create it in Step 3.
+
+### `release.yml` preflight fails — tag already exists
+
+The version has already been released. If this was a mistake, contact the team before proceeding.
+
+### Publication fails partway through
+
+If `release.yml` fails after some artifacts are published (e.g., Plugin Portal succeeded but Maven Central failed), you can re-run the workflow. The Plugin Portal steps check for existing versions and skip them automatically. Maven Central and tagging are idempotent on retry.
+
+### Demo app tests fail after push
+
+Possible causes:
+1. **Maven Central propagation delay** — artifacts not yet visible. Wait 10-15 minutes and the `verify-demoapps` step will retry.
+2. **Stale Copybara content** — check the workflow output for warnings.
+
+### Wrong SHA used for release branch
+
+If the release branch includes the version bump commit:
+
+```bash
+git checkout main
+git branch -D release/v${RELEASE_VER}
+git push origin --delete release/v${RELEASE_VER}
+git log --oneline -10
+# Find the correct SHA, recreate the branch
+git checkout -b release/v${RELEASE_VER} <CORRECT_SHA>
+```
+
+> Only delete a remote branch if no artifacts have been published from it.
