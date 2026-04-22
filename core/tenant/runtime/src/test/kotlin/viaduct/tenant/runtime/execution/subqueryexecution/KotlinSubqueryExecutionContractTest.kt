@@ -123,7 +123,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
 
     @Resolver(queryValueFragment = "fragment _ on Query { rootValue }")
     class Container_ViaQuerySelectionsResolver : ContainerResolvers.ViaQuerySelections() {
-        override suspend fun resolve(ctx: Context): Int = ctx.queryValue.getRootValue() ?: 0
+        override suspend fun resolve(ctx: Context): Int = ctx.getQueryValue().getRootValue() ?: 0
     }
 
     @Resolver

@@ -21,7 +21,7 @@ class CharacterDisplaySummaryResolver
     @Inject
     constructor() : CharacterResolvers.DisplaySummary() {
         override suspend fun resolve(ctx: Context): String? {
-            val character = ctx.objectValue
+            val character = ctx.getObjectValue()
 
             // Builds a summary using the fetched fields, those are provided by the @Resolver annotation above
             val name = character.getName() ?: "Unknown"

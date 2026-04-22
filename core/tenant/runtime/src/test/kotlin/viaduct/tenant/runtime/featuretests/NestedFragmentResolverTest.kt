@@ -20,7 +20,7 @@ class NestedFragmentResolverTest {
             .resolver(
                 "Query" to "string1",
                 { ctx: FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
-                    "Query.string1=[${ctx.objectValue.getFoo()?.getValue()}]"
+                    "Query.string1=[${ctx.getObjectValue().getFoo()?.getValue()}]"
                 },
                 "foo { value }"
             )
@@ -28,7 +28,7 @@ class NestedFragmentResolverTest {
             .resolver(
                 "Foo" to "value",
                 { ctx: FieldExecutionContext<Foo, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
-                    "Foo.value=[${ctx.objectValue.getBar()?.getValue()}]"
+                    "Foo.value=[${ctx.getObjectValue().getBar()?.getValue()}]"
                 },
                 "bar { value }"
             )

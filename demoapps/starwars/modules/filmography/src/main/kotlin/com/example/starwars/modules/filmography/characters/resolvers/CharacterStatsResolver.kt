@@ -37,7 +37,7 @@ class CharacterStatsResolver
     @Inject
     constructor() : CharacterResolvers.CharacterStats() {
         override suspend fun resolve(ctx: Context): String? {
-            val character = ctx.objectValue
+            val character = ctx.getObjectValue()
             val name = character.getName() ?: "Unknown"
             val args = ctx.arguments
 

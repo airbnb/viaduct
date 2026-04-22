@@ -24,7 +24,7 @@ class CharacterAppearanceDescriptionResolver
     constructor() : CharacterResolvers.AppearanceDescription() {
         override suspend fun resolve(ctx: Context): String? {
             // Gets the character from the context with the data specified in the @Resolver
-            val character = ctx.objectValue
+            val character = ctx.getObjectValue()
 
             // Builds a description using the fetched fields, providing defaults if any are missing
             val name = character.getName() ?: "Someone"

@@ -26,7 +26,7 @@ class FieldBatchResolverFeatureAppTest : FieldBatchResolverContractTest() {
     class Item_BatchedFieldResolver : ItemResolvers.BatchedField() {
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
             return contexts.map { ctx ->
-                val itemId = ctx.objectValue.getId()
+                val itemId = ctx.getObjectValue().getId()
                 FieldValue.Companion.ofValue("batched-$itemId-size-${contexts.size}")
             }
         }
@@ -38,7 +38,7 @@ class FieldBatchResolverFeatureAppTest : FieldBatchResolverContractTest() {
     class Item_ListFieldResolver : ItemResolvers.ListField() {
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<List<Item>>> {
             return contexts.map { ctx ->
-                val itemId = ctx.objectValue.getId()
+                val itemId = ctx.getObjectValue().getId()
                 FieldValue.Companion.ofValue(
                     (1..contexts.size).map { i ->
                         Item.Builder(ctx)

@@ -24,7 +24,7 @@ class PlanetFilmsQueryResolver
          */
         override suspend fun resolve(ctx: Context): List<Film>? {
             // Related Planet ID is stored in the ctx object value.
-            val planetId = ctx.objectValue.getId().internalID
+            val planetId = ctx.getObjectValue().getId().internalID
 
             // Fetch films associated with the planet from the repository.
             val films = planetsFilmsRepository.findFilmsByPlanetId(planetId)

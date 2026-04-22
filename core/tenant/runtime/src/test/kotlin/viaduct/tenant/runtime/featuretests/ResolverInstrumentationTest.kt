@@ -40,7 +40,7 @@ class ResolverInstrumentationTest {
                 resolveFn = { ctx: UntypedFieldContext ->
                     // using an UntypedFieldContext, peek at the engine data for the field to ensure that it's
                     // been unwrapped
-                    val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
+                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     assertEquals(Baz.Reflection, idFieldValue.type)
                     assertEquals("1", idFieldValue.internalID)
                     idFieldValue.internalID

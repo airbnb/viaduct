@@ -54,7 +54,7 @@ class FieldExecutionObservabilityTest {
                 resolveFn = { ctx: UntypedFieldContext ->
                     // using an UntypedFieldContext, peek at the engine data for the field to ensure that it's
                     // been unwrapped
-                    val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
+                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     assertEquals(Baz.Reflection, idFieldValue.type)
                     assertEquals("1", idFieldValue.internalID)
                     idFieldValue.internalID
@@ -105,7 +105,7 @@ class FieldExecutionObservabilityTest {
                 resolveFn = { ctx: UntypedFieldContext ->
                     // using an UntypedFieldContext, peek at the engine data for the field to ensure that it's
                     // been unwrapped
-                    val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
+                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     assertEquals(Baz.Reflection, idFieldValue.type)
                     assertEquals("1", idFieldValue.internalID)
                     idFieldValue.internalID
@@ -170,7 +170,7 @@ class FieldExecutionObservabilityTest {
                 resolveFn = { ctx: UntypedFieldContext ->
                     // using an UntypedFieldContext, peek at the engine data for the field to ensure that it's
                     // been unwrapped
-                    val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
+                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     assertEquals(Baz.Reflection, idFieldValue.type)
                     assertEquals("1", idFieldValue.internalID)
                     // Wait until the child plan is executed before returning values. Otherwise, the child plan may be cancelled.
@@ -247,7 +247,7 @@ class FieldExecutionObservabilityTest {
                 resolveFn = { ctx: UntypedFieldContext ->
                     // using an UntypedFieldContext, peek at the engine data for the field to ensure that it's
                     // been unwrapped
-                    val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
+                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     assertEquals(Baz.Reflection, idFieldValue.type)
                     assertEquals("1", idFieldValue.internalID)
                     // Wait until the child plan is executed before returning values. Otherwise, the child plan may be cancelled.
@@ -315,7 +315,7 @@ class FieldExecutionObservabilityTest {
                 "Query" to "string1",
                 objectValueFragment = "idField",
                 resolveFn = { ctx: UntypedFieldContext ->
-                    val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
+                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     // Wait until the child plan is executed before returning values. Otherwise, the child plan may be cancelled.
                     // Wait for 1s as a safeguard to indefinite waiting.
                     queryString1ResolverChildPlanExecuted.await(1, TimeUnit.SECONDS).toString()
@@ -326,7 +326,7 @@ class FieldExecutionObservabilityTest {
                 "Query" to "string2",
                 objectValueFragment = "idField",
                 resolveFn = { ctx: UntypedFieldContext ->
-                    val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
+                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     // Wait until the child plan is executed before returning values. Otherwise, the child plan may be cancelled.
                     // Wait for 1s as a safeguard to indefinite waiting.
                     queryString2ResolverChildPlanExecuted.await(1, TimeUnit.SECONDS).toString()
@@ -375,13 +375,13 @@ class FieldExecutionObservabilityTest {
             )
             .resolver(
                 "Query" to "string1",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<String>("hasArgs2") },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<String>("hasArgs2") },
                 "hasArgs2(x:\"string1\")",
                 resolverName = "query-string1-resolver"
             )
             .resolver(
                 "Query" to "string2",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<String>("hasArgs2") },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<String>("hasArgs2") },
                 "hasArgs2(x:\"string2\")",
                 resolverName = "query-string2-resolver"
             )
@@ -426,7 +426,7 @@ class FieldExecutionObservabilityTest {
             )
             .resolver(
                 "Query" to "hasArgs3",
-                resolveFn = { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("hasArgs1") * 3 },
+                resolveFn = { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("hasArgs1") * 3 },
                 "hasArgs1(x:\$x)",
                 variables = listOf(FromArgumentVariable("x", "x")),
                 resolverName = "query-has-args3-resolver"
@@ -489,7 +489,7 @@ class FieldExecutionObservabilityTest {
         FeatureTestBuilder("extend type Query { x:Int, y(b:Int):Int, z:Int }", useFakeGRTs = true, instrumentation = instrumentation.asStandardInstrumentation())
             .resolver(
                 "Query" to "x",
-                { ctx: UntypedFieldContext -> ctx.queryValue.get<Int>("y") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getQueryValue().get<Int>("y") * 5 },
                 queryValueFragment = "y(b:\$b), z",
                 variables = listOf(FromQueryFieldVariable("b", "z")),
                 resolverName = "query-x-resolver"
@@ -527,7 +527,7 @@ class FieldExecutionObservabilityTest {
             .resolver(
                 "Query" to "string1",
                 { ctx: FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
-                    "Query.string1=[${ctx.objectValue.getFoo()?.getValue()}]"
+                    "Query.string1=[${ctx.getObjectValue().getFoo()?.getValue()}]"
                 },
                 "foo { value, valueWithoutResolver }",
                 resolverName = "query-string1-resolver"
@@ -536,7 +536,7 @@ class FieldExecutionObservabilityTest {
             .resolver(
                 "Foo" to "value",
                 { ctx: FieldExecutionContext<Foo, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
-                    "Foo.value=[${ctx.objectValue.getBar()?.getValue()}]"
+                    "Foo.value=[${ctx.getObjectValue().getBar()?.getValue()}]"
                 },
                 "bar { value }",
                 resolverName = "foo-value-resolver"

@@ -18,6 +18,6 @@ class CharacterDisplayNameResolver
         override suspend fun resolve(ctx: Context): String? {
             // Directly returns the name of the character from the context. The "name" field is
             // automatically fetched due to the @Resolver annotation.
-            return ctx.objectValue.getName()
+            return ctx.getObjectValue().getName()
         }
     }

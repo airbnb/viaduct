@@ -86,7 +86,7 @@ class VariablesForArgumentsFeatureAppTest : VariablesForArgumentsContractTest() 
         variables = [Variable("userIdVar", fromArgument = "userId")]
     )
     class QueryUserPostsResolver : QueryResolvers.UserPosts() { // Generated from query field
-        override suspend fun resolve(ctx: Context): String = ctx.objectValue.get("getPosts", String::class)
+        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().get("getPosts", String::class)
     }
 
     @Test
@@ -119,7 +119,7 @@ class VariablesForArgumentsFeatureAppTest : VariablesForArgumentsContractTest() 
         """
     )
     class QueryLatestPostsResolver : QueryResolvers.LatestPosts() { // Generated from query field
-        override suspend fun resolve(ctx: Context): String = ctx.objectValue.get("getPosts", String::class)
+        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().get("getPosts", String::class)
 
         @Variables("currentUser: String!")
         class LatestPostsProvider : VariablesProvider<Arguments.NoArguments> {
@@ -165,7 +165,7 @@ class VariablesForArgumentsFeatureAppTest : VariablesForArgumentsContractTest() 
         """
     )
     class QueryDashboardPostsResolver : QueryResolvers.DashboardPosts() { // Generated from query field
-        override suspend fun resolve(ctx: Context): String = ctx.objectValue.get("getPosts", String::class)
+        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().get("getPosts", String::class)
 
         @Variables("targetUser: String!, statusFilter: String!")
         class DashboardProvider : VariablesProvider<Query_DashboardPosts_Arguments> { // Generated arguments type

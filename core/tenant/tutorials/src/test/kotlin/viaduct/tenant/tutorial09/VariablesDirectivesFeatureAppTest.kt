@@ -92,7 +92,7 @@ class VariablesDirectivesFeatureAppTest : VariablesDirectivesContractTest() {
     @Resolver("id")
     class UserAnonymousReviews : UserResolvers.AnonymousReviews() {
         override suspend fun resolve(ctx: Context): List<String> {
-            return when (ctx.objectValue.getId().internalID) {
+            return when (ctx.getObjectValue().getId().internalID) {
                 USER1.id -> REVIEWS_USER_1_ANONYMOUS
                 USER2.id -> REVIEWS_USER_2_ANONYMOUS
                 else -> emptyList()
@@ -103,7 +103,7 @@ class VariablesDirectivesFeatureAppTest : VariablesDirectivesContractTest() {
     @Resolver("id")
     class UserVerifiedReviews : UserResolvers.VerifiedReviews() {
         override suspend fun resolve(ctx: Context): List<String> {
-            return when (ctx.objectValue.getId().internalID) {
+            return when (ctx.getObjectValue().getId().internalID) {
                 USER1.id -> REVIEWS_USER_1_VERIFIED
                 USER2.id -> REVIEWS_USER_2_VERIFIED
                 else -> emptyList()
@@ -136,10 +136,10 @@ class VariablesDirectivesFeatureAppTest : VariablesDirectivesContractTest() {
         override suspend fun resolve(ctx: Context): List<String> {
             return if (ctx.arguments.anonymous) {
                 // anonymousReviews available due to @include(if: true)
-                ctx.objectValue.getAnonymousReviews() + ctx.objectValue.getVerifiedReviews()
+                ctx.getObjectValue().getAnonymousReviews() + ctx.getObjectValue().getVerifiedReviews()
             } else {
                 // anonymousReviews not fetched due to @include(if: false)
-                ctx.objectValue.getVerifiedReviews()
+                ctx.getObjectValue().getVerifiedReviews()
             }
         }
     }
@@ -192,10 +192,10 @@ class VariablesDirectivesFeatureAppTest : VariablesDirectivesContractTest() {
         override suspend fun resolve(ctx: Context): List<String> {
             return try {
                 // If anonymousVar = true, anonymousReviews will be available
-                ctx.objectValue.getAnonymousReviews() + ctx.objectValue.getVerifiedReviews()
+                ctx.getObjectValue().getAnonymousReviews() + ctx.getObjectValue().getVerifiedReviews()
             } catch (ex: Exception) {
                 // If anonymousVar = false, anonymousReviews won't be fetched
-                ctx.objectValue.getVerifiedReviews()
+                ctx.getObjectValue().getVerifiedReviews()
             }
         }
 
@@ -236,9 +236,9 @@ class VariablesDirectivesFeatureAppTest : VariablesDirectivesContractTest() {
     class UserComputedReviewsWithArgs : UserResolvers.ComputedReviewsWithArgs() {
         override suspend fun resolve(ctx: Context): List<String> {
             return try {
-                ctx.objectValue.getAnonymousReviews() + ctx.objectValue.getVerifiedReviews()
+                ctx.getObjectValue().getAnonymousReviews() + ctx.getObjectValue().getVerifiedReviews()
             } catch (ex: Exception) {
-                ctx.objectValue.getVerifiedReviews()
+                ctx.getObjectValue().getVerifiedReviews()
             }
         }
 

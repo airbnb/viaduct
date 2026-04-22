@@ -23,7 +23,7 @@ class FilmPlanetsResolver
         private val filmCharactersRepository: FilmCharactersRepository
     ) : FilmResolvers.Planets() {
         override suspend fun resolve(ctx: Context): List<Planet?>? {
-            val filmId = ctx.objectValue.getId().internalID
+            val filmId = ctx.getObjectValue().getId().internalID
 
             val characterIds = filmCharactersRepository.findCharactersByFilmId(filmId)
 

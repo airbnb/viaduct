@@ -43,7 +43,7 @@ class ObjectFeatureAppTest : ObjectContractTest() {
     // SHORTHAND PATTERN: Uses simple field name delegation
     @Resolver("baz")
     class Foo_ShorthandBarResolver : FooResolvers.ShorthandBar() {
-        override suspend fun resolve(ctx: Context) = ctx.objectValue.get<String>("baz", String::class)
+        override suspend fun resolve(ctx: Context) = ctx.getObjectValue().get<String>("baz", String::class)
     }
 
     // FRAGMENT PATTERN: Uses GraphQL fragment syntax with nested selections
@@ -59,8 +59,8 @@ class ObjectFeatureAppTest : ObjectContractTest() {
     )
     class Foo_FragmentBarResolver : FooResolvers.FragmentBar() {
         override suspend fun resolve(ctx: Context): String {
-            val baz = ctx.objectValue.get<String>("baz", String::class)
-            val nested = ctx.objectValue.get<NestedFoo>("nested", NestedFoo::class)
+            val baz = ctx.getObjectValue().get<String>("baz", String::class)
+            val nested = ctx.getObjectValue().get<NestedFoo>("nested", NestedFoo::class)
             return "$baz-${nested.getValue()}"
         }
     }

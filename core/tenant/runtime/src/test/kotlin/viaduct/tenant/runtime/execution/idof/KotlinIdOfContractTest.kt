@@ -128,7 +128,7 @@ class KotlinIdOfContractTest : IdOfContractTest() {
     @Resolver(" cohostID ")
     class User_CohostResolver : UserResolvers.Cohost() {
         override suspend fun resolve(ctx: Context): User {
-            return ctx.nodeRef(ctx.objectValue.getCohostID()!!)
+            return ctx.nodeRef(ctx.getObjectValue().getCohostID()!!)
         }
     }
 

@@ -16,6 +16,6 @@ class FilmDisplayTitleResolver
     constructor() : FilmResolvers.DisplayTitle() {
         override suspend fun resolve(ctx: Context): String? {
             // Access the source Film from the context
-            return ctx.objectValue.getTitle()
+            return ctx.getObjectValue().getTitle()
         }
     }

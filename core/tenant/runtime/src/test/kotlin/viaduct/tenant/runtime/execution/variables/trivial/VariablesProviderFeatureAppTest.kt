@@ -20,7 +20,7 @@ class VariablesProviderFeatureAppTest : VariablesProviderContractTest() {
         variables = [Variable("myVar", fromArgument = "arg")]
     )
     class Query_FromArgumentFieldResolver : QueryResolvers.FromArgumentField() {
-        override suspend fun resolve(ctx: Context): Int = ctx.objectValue.get("intermediary", Int::class)
+        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().get("intermediary", Int::class)
     }
 
     @Resolver
@@ -54,7 +54,7 @@ class VariablesProviderFeatureAppTest : VariablesProviderContractTest() {
         """
     )
     class Query_FromVariablesProviderResolver : QueryResolvers.FromVariablesProvider() {
-        override suspend fun resolve(ctx: Context): Int = ctx.objectValue.get("intermediary", Int::class)
+        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().get("intermediary", Int::class)
 
         @Variables("x: Int!")
         class TestVariablesProvider : VariablesProvider<Arguments> {
@@ -70,7 +70,7 @@ class VariablesProviderFeatureAppTest : VariablesProviderContractTest() {
         """
     )
     class Query_FromVariablesProviderWithInputResolver : QueryResolvers.FromVariablesProviderWithInput() {
-        override suspend fun resolve(ctx: Context): Int = ctx.objectValue.get("intermediaryTakesInput", Int::class)
+        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().get("intermediaryTakesInput", Int::class)
 
         @Variables("x: MyInput!")
         class TestVariablesProvider : VariablesProvider<Arguments> {
@@ -88,7 +88,7 @@ class VariablesProviderFeatureAppTest : VariablesProviderContractTest() {
         """
     )
     class Query_FromVariablesProviderWithGlobalIDResolver : QueryResolvers.FromVariablesProviderWithGlobalID() {
-        override suspend fun resolve(ctx: Context): String = ctx.objectValue.get("intermediaryTakesGlobalID", String::class)
+        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().get("intermediaryTakesGlobalID", String::class)
 
         @Variables("x: ID!")
         class TestVariablesProvider : VariablesProvider<Arguments> {
@@ -106,7 +106,7 @@ class VariablesProviderFeatureAppTest : VariablesProviderContractTest() {
         """
     )
     class Query_FromVariablesProviderWithNestedComplexInputResolver : QueryResolvers.FromVariablesProviderWithNestedComplexInput() {
-        override suspend fun resolve(ctx: Context): String = ctx.objectValue.get("intermediaryTakesNestedComplexInput", String::class)
+        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().get("intermediaryTakesNestedComplexInput", String::class)
 
         @Variables("x: InputWithNestedInput!")
         class TestVariablesProvider : VariablesProvider<Arguments> {

@@ -133,9 +133,9 @@ class SimpleResolversFeatureAppTest : SimpleResolversContractTest() {
     )
     class User_FullNameResolver : UserResolvers.FullName() {
         override suspend fun resolve(ctx: Context): String {
-            // Access parent User data via ctx.objectValue (guaranteed by objectValueFragment)
-            val firstname = ctx.objectValue.getFirstname()
-            val lastname = ctx.objectValue.getLastname()
+            // Access parent User data via ctx.getObjectValue() (guaranteed by objectValueFragment)
+            val firstname = ctx.getObjectValue().getFirstname()
+            val lastname = ctx.getObjectValue().getLastname()
             return "$firstname $lastname"
         }
     }
@@ -257,7 +257,7 @@ class SimpleResolversFeatureAppTest : SimpleResolversContractTest() {
      * 5. Viaduct sees fullName requested in query
      * 6. Checks User_FullNameResolver.objectValueFragment
      * 7. Ensures firstname + lastname are available (already fetched in step 4)
-     * 8. User_FullNameResolver.resolve() called with populated ctx.objectValue
+     * 8. User_FullNameResolver.resolve() called with populated ctx.getObjectValue()
      * 9. Computes "John Doe" and returns to client
      *
      * KEY TAKEAWAYS:

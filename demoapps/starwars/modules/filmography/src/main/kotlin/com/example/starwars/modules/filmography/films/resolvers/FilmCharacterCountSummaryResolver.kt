@@ -25,7 +25,7 @@ class FilmCharacterCountSummaryResolver
     @Inject
     constructor() : FilmResolvers.CharacterCountSummary() {
         override suspend fun resolve(ctx: Context): String? {
-            val film = ctx.objectValue
+            val film = ctx.getObjectValue()
             val castData = film.get<FilmCastData>("castData", FilmCastData::class)
             return "${film.getTitle()} features ${castData.characterIds.size} main characters"
         }

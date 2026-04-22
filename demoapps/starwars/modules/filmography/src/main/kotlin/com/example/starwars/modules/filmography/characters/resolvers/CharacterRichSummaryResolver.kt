@@ -40,7 +40,7 @@ class CharacterRichSummaryResolver
             // TODO: Obtain homeworld from Viaduct
 
             return contexts.map { ctx ->
-                val character = ctx.objectValue
+                val character = ctx.getObjectValue()
                 val characterId = character.getId().internalID
                 val characterData = charactersById[characterId]
 

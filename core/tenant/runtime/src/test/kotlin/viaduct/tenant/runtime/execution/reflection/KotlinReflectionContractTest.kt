@@ -38,7 +38,7 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
     )
     class Shelf_TopProductDescriptionResolver : ShelfResolvers.TopProductDescription() {
         override suspend fun resolve(ctx: Context): String {
-            val product = ctx.objectValue.getTopProduct()
+            val product = ctx.getObjectValue().getTopProduct()
             return when (product) {
                 is Toy -> "Toy: ${product.getProdType()}"
                 is Fruit -> "Fruit: ${product.getProdType()}"

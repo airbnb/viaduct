@@ -122,7 +122,7 @@ class FieldResolverTest {
                 "Query" to "string1",
                 objectValueFragment = "enumField",
                 resolveFn = { ctx: UntypedFieldContext ->
-                    val enumFieldValue = ctx.objectValue.get<EnumType>("enumField")
+                    val enumFieldValue = ctx.getObjectValue().get<EnumType>("enumField")
                     assertEquals(EnumType.A, enumFieldValue)
                     enumFieldValue.name.lowercase()
                 }
@@ -145,7 +145,7 @@ class FieldResolverTest {
                 resolveFn = { ctx: UntypedFieldContext ->
                     // using an UntypedFieldContext, peek at the engine data for the field to ensure that it's
                     // been unwrapped
-                    val idFieldValue = ctx.objectValue.get<GlobalID<Baz>>("idField")
+                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     assertEquals(Baz.Reflection, idFieldValue.type)
                     assertEquals("1", idFieldValue.internalID)
                     idFieldValue.internalID

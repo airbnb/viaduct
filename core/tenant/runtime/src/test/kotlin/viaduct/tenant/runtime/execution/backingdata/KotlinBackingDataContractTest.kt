@@ -21,7 +21,7 @@ class KotlinBackingDataContractTest : BackingDataContractTest() {
 
     @Resolver("backingDataValue")
     class Foo_IValueResolver : FooResolvers.IValue() {
-        override suspend fun resolve(ctx: Context) = ctx.objectValue.get<BackingDataValue>("backingDataValue", BackingDataValue::class).i
+        override suspend fun resolve(ctx: Context) = ctx.getObjectValue().get<BackingDataValue>("backingDataValue", BackingDataValue::class).i
     }
 
     @Resolver(
@@ -32,6 +32,6 @@ class KotlinBackingDataContractTest : BackingDataContractTest() {
         """
     )
     class Foo_SValueResolver : FooResolvers.SValue() {
-        override suspend fun resolve(ctx: Context) = ctx.objectValue.get<BackingDataValue>("backingDataValue", BackingDataValue::class).s
+        override suspend fun resolve(ctx: Context) = ctx.getObjectValue().get<BackingDataValue>("backingDataValue", BackingDataValue::class).s
     }
 }

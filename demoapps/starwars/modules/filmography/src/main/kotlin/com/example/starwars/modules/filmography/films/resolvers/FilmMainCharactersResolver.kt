@@ -43,7 +43,7 @@ class FilmMainCharactersResolver
             // Returns the list of characters for each film context in the given order
             return contexts.map { ctx ->
                 // Get character IDs for this film
-                val filmId = ctx.objectValue.getId().internalID
+                val filmId = ctx.getObjectValue().getId().internalID
                 val characterIds = filmCharacterMap[filmId] ?: emptyList()
 
                 // Map character IDs to pre-built Character objects, preserving order

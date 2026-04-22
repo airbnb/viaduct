@@ -25,7 +25,7 @@ class PlanetResidentsQueryResolver
          */
         override suspend fun resolve(ctx: Context): List<Character>? {
             // Related Planet ID is stored in the ctx object value.
-            val planetId = ctx.objectValue.getId().internalID
+            val planetId = ctx.getObjectValue().getId().internalID
 
             // Fetch residents associated with the planet from the repository.
             val residents = planetsResidentsRepository.findResidentsByPlanetId(planetId)

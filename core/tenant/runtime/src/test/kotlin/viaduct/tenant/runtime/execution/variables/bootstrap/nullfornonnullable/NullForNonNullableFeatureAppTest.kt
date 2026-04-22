@@ -22,7 +22,7 @@ class NullForNonNullableFeatureAppTest : NullForNonNullableContractTest() {
         """
     )
     class Query_FromVariablesProviderResolver : QueryResolvers.FromVariablesProvider() {
-        override suspend fun resolve(ctx: Context): Int = ctx.objectValue.get("intermediary", Int::class)
+        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().get("intermediary", Int::class)
 
         @Variables("intVar:Int!")
         class NullForNonNullableVars : VariablesProvider<Arguments> {

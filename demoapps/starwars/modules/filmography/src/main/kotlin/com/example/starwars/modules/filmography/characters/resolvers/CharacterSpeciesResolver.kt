@@ -37,7 +37,7 @@ class CharacterSpeciesResolver
             // Map each context to its corresponding Species in the given order
             return contexts.map { ctx ->
                 // Related Character ID is stored in the ctx object value.
-                val characterId = ctx.objectValue.getId().internalID
+                val characterId = ctx.getObjectValue().getId().internalID
 
                 // Find the character and its species
                 val character = charactersById[characterId]

@@ -25,7 +25,7 @@ class KotlinMappingContractTest : MappingContractTest() {
 
     @Resolver("fragment _ on User { dob }")
     class UserBirthYearResolver : UserResolvers.BirthYear() {
-        override suspend fun resolve(ctx: Context): Int = ctx.objectValue.getDob().year
+        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().getDob().year
     }
 
     @Resolver

@@ -17,7 +17,7 @@ class SpeciesSpecialAbilitiesResolver
         private val speciesRepository: SpeciesRepository
     ) : SpeciesResolvers.SpecialAbilities() {
         override suspend fun resolve(ctx: Context): List<String?>? {
-            val speciesGrt = ctx.objectValue
+            val speciesGrt = ctx.getObjectValue()
             val speciesId = speciesGrt.getId().internalID
             val species = speciesRepository.findById(speciesId)
 

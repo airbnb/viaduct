@@ -17,7 +17,7 @@ class SpeciesRarityLevelResolver
         private val speciesRepository: SpeciesRepository
     ) : SpeciesResolvers.RarityLevel() {
         override suspend fun resolve(ctx: Context): String? {
-            val speciesGrt = ctx.objectValue
+            val speciesGrt = ctx.getObjectValue()
             val speciesId = speciesGrt.getId().internalID
             val species = speciesRepository.findById(speciesId)
 

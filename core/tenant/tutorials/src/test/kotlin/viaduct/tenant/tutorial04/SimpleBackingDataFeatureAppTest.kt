@@ -19,7 +19,7 @@ import viaduct.tenant.tutorial04.resolverbases.UserResolvers
  * VIADUCT FEATURES DEMONSTRATED:
  * - @backingData directive with custom class specification
  * - BackingData type in schema
- * - ctx.objectValue.get() for type-safe backing data access
+ * - ctx.getObjectValue().get() for type-safe backing data access
  * - Single expensive operation powering multiple GraphQL fields
  *
  * CONCEPTS COVERED:
@@ -108,7 +108,7 @@ class SimpleBackingDataFeatureAppTest : SimpleBackingDataContractTest() {
     )
     class UserReviewsDataResolver : UserResolvers.ReviewsData() {
         override suspend fun resolve(ctx: Context): UserReviewsData {
-            val userId = ctx.objectValue.getId().internalID
+            val userId = ctx.getObjectValue().getId().internalID
 
             // EXPENSIVE OPERATION - simulates external service call
             // In production: reviewsService.getUserReviewSummary(userId)
@@ -127,7 +127,7 @@ class SimpleBackingDataFeatureAppTest : SimpleBackingDataContractTest() {
     /**
      * FIELD RESOLVER 1 - Extracts averageStars from shared backing data
      *
-     * Key pattern: Uses ctx.objectValue.get() to access the UserReviewsData
+     * Key pattern: Uses ctx.getObjectValue().get() to access the UserReviewsData
      * that was computed by UserReviewsDataResolver
      */
     @Resolver(
@@ -138,7 +138,7 @@ class SimpleBackingDataFeatureAppTest : SimpleBackingDataContractTest() {
     class UserAverageStarsResolver : UserResolvers.AverageStars() {
         override suspend fun resolve(ctx: Context): Double {
             // TYPE-SAFE BACKING DATA ACCESS
-            val reviewsData = ctx.objectValue.get<UserReviewsData>("reviewsData", UserReviewsData::class)
+            val reviewsData = ctx.getObjectValue().get<UserReviewsData>("reviewsData", UserReviewsData::class)
             return reviewsData.averageRating
 
             // No expensive operation here - just data extraction!
@@ -156,7 +156,7 @@ class SimpleBackingDataFeatureAppTest : SimpleBackingDataContractTest() {
     class UserReviewsCountResolver : UserResolvers.ReviewsCount() {
         override suspend fun resolve(ctx: Context): Int {
             // REUSES THE SAME BACKING DATA - no additional expensive operation
-            val reviewsData = ctx.objectValue.get<UserReviewsData>("reviewsData", UserReviewsData::class)
+            val reviewsData = ctx.getObjectValue().get<UserReviewsData>("reviewsData", UserReviewsData::class)
             return reviewsData.totalReviews
         }
     }

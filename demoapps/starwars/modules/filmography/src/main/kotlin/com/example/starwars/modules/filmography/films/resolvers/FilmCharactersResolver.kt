@@ -23,7 +23,7 @@ class FilmCharactersResolver
         private val characterRepository: CharacterRepository
     ) : FilmResolvers.Characters() {
         override suspend fun resolve(ctx: Context): List<Character?>? {
-            val castData = ctx.objectValue.get<FilmCastData>("castData", FilmCastData::class)
+            val castData = ctx.getObjectValue().get<FilmCastData>("castData", FilmCastData::class)
             return castData.characterIds.map { id ->
                 val character = characterRepository.findById(id)
                     ?: throw IllegalArgumentException("Character with ID $id not found")

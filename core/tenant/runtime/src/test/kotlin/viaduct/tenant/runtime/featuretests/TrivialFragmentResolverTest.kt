@@ -15,7 +15,7 @@ class TrivialFragmentResolverTest {
             .resolver(
                 "Query" to "bar",
                 { ctx: UntypedFieldContext ->
-                    val foo = ctx.objectValue.get<String>("foo")
+                    val foo = ctx.getObjectValue().get<String>("foo")
                     "resolved: $foo"
                 },
                 objectValueFragment = "foo"

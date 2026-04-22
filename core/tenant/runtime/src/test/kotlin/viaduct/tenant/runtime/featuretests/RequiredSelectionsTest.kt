@@ -20,7 +20,7 @@ class RequiredSelectionsTest {
             .resolver(
                 "Query" to "string1",
                 { ctx: FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
-                    val value = ctx.objectValue.getBar("aliasedBar")?.getValue("aliasedValue")
+                    val value = ctx.getObjectValue().getBar("aliasedBar")?.getValue("aliasedValue")
                     "A:$value"
                 },
                 objectValueFragment = "aliasedBar: bar { aliasedValue: value }"
@@ -37,8 +37,8 @@ class RequiredSelectionsTest {
             .resolver(
                 "Baz" to "y",
                 { ctx: FieldExecutionContext<Baz, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
-                    val config = ctx.queryValue.get<String>("globalConfig", String::class)
-                    val x = ctx.objectValue.getX()
+                    val config = ctx.getQueryValue().get<String>("globalConfig", String::class)
+                    val x = ctx.getObjectValue().getX()
                     "$config item with value $x"
                 },
                 objectValueFragment = "x",
@@ -57,7 +57,7 @@ class RequiredSelectionsTest {
             .resolver(
                 "Mutation" to "string1",
                 { ctx: FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
-                    val currentValue = ctx.queryValue.getString1()
+                    val currentValue = ctx.getQueryValue().getString1()
                     "Mutated from: $currentValue"
                 },
                 queryValueFragment = "string1"
@@ -74,7 +74,7 @@ class RequiredSelectionsTest {
             .resolver(
                 "Baz" to "y",
                 { ctx: FieldExecutionContext<Baz, Query, Arguments.NoArguments, CompositeOutput.NotComposite> ->
-                    val barValue = ctx.queryValue.getBar()?.getValue()
+                    val barValue = ctx.getQueryValue().getBar()?.getValue()
                     "Baz sees bar value: $barValue"
                 },
                 queryValueFragment = "bar { value }"

@@ -20,7 +20,7 @@ class VariablesResolverTest {
         FeatureTestBuilder("extend type Query { foo(x:Int): Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$x)",
                 variables = listOf(FromArgumentVariable("x", "x")),
                 variablesProvider = VariablesProviderInfo.const(mapOf("x" to 2)),
@@ -38,13 +38,13 @@ class VariablesResolverTest {
         FeatureTestBuilder("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("baz") * 11 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("baz") * 11 },
                 "baz(x:\$x)",
                 variablesProvider = VariablesProviderInfo.const(mapOf("x" to 2))
             )
             .resolver(
                 "Query" to "bar",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("baz") * 7 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("baz") * 7 },
                 "baz(x:\$x)",
                 variables = listOf(FromArgumentVariable("x", "x"))
             )
@@ -57,7 +57,7 @@ class VariablesResolverTest {
         FeatureTestBuilder("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$y)",
                 variables = listOf(
                     FromArgumentVariable("y", "y")
@@ -72,7 +72,7 @@ class VariablesResolverTest {
         FeatureTestBuilder("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$vary)",
                 variables = listOf(
                     FromArgumentVariable("vary", "y")
@@ -93,7 +93,7 @@ class VariablesResolverTest {
         )
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$x)",
                 variables = listOf(FromArgumentVariable("x", "inp.x"))
             )
@@ -112,7 +112,7 @@ class VariablesResolverTest {
         )
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$x)",
                 variables = listOf(FromArgumentVariable("inp", ""))
             )
@@ -129,7 +129,7 @@ class VariablesResolverTest {
         FeatureTestBuilder("extend type Query { foo(x:Int!=2):Int!, bar(x:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$x)",
                 variables = listOf(FromArgumentVariable("x", "x"))
             )
@@ -154,7 +154,7 @@ class VariablesResolverTest {
         )
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$x)",
                 variables = listOf(FromArgumentVariable("x", "inp.x"))
             )
@@ -180,7 +180,7 @@ class VariablesResolverTest {
             .resolver(
                 "Query" to "foo",
                 { ctx: UntypedFieldContext ->
-                    ctx.objectValue.get<Int?>("bar")
+                    ctx.getObjectValue().get<Int?>("bar")
                         ?.let { it * 5 }
                         ?: 7
                 },
@@ -199,7 +199,7 @@ class VariablesResolverTest {
         FeatureTestBuilder("extend type Query { foo(x:Int):Int!, bar(x:Int!):Int!, baz:Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$x), baz",
                 variables = listOf(
                     FromArgumentVariable("x", "x"),
@@ -238,7 +238,7 @@ class VariablesResolverTest {
         FeatureTestBuilder("extend type Query { foo(y:Int!):Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$y)",
                 variables = listOf(
                     FromArgumentVariable("y", "y")
@@ -260,13 +260,13 @@ class VariablesResolverTest {
         FeatureTestBuilder("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("baz") * 11 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("baz") * 11 },
                 "baz(x:\$x)",
                 variables = listOf(FromArgumentVariable("x", "x"))
             )
             .resolver(
                 "Query" to "bar",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("baz") * 7 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("baz") * 7 },
                 "baz(x:\$x)",
                 variables = listOf(FromArgumentVariable("x", "x"))
             )
@@ -279,7 +279,7 @@ class VariablesResolverTest {
         FeatureTestBuilder("extend type Query { foo: Int!, bar(x:Int!): Int! }", useFakeGRTs = true)
             .resolver(
                 "Query" to "foo",
-                { ctx: UntypedFieldContext -> ctx.objectValue.get<Int>("bar") * 5 },
+                { ctx: UntypedFieldContext -> ctx.getObjectValue().get<Int>("bar") * 5 },
                 "bar(x:\$invalid)",
             )
             .resolver("Query" to "bar") { it.arguments.get<Int>("x") * 3 }

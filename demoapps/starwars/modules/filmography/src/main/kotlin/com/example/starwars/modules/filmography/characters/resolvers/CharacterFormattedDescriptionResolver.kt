@@ -62,7 +62,7 @@ class CharacterFormattedDescriptionResolver
     @Inject
     constructor() : CharacterResolvers.FormattedDescription() {
         override suspend fun resolve(ctx: Context): String? {
-            val character = ctx.objectValue
+            val character = ctx.getObjectValue()
             val name = character.getName() ?: "Unknown"
             val format = ctx.arguments.format
 

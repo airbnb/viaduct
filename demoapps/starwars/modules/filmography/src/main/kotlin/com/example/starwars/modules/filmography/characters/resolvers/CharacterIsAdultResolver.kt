@@ -24,7 +24,7 @@ class CharacterIsAdultResolver
     constructor() : CharacterResolvers.IsAdult() {
         override suspend fun resolve(ctx: Context): Boolean? {
             // Example rule: consider adults those older than 21 years
-            return ctx.objectValue.getBirthYear()?.let {
+            return ctx.getObjectValue().getBirthYear()?.let {
                 age(it) > 21
             } ?: false
         }

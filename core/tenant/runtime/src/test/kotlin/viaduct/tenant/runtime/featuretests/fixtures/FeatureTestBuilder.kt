@@ -434,7 +434,8 @@ class FeatureTestBuilder(
             .withTenantAPIBootstrapperBuilders(builders)
             .withFlagManager(
                 MockFlagManager.create(
-                    Flags.EXECUTE_ACCESS_CHECKS
+                    Flags.EXECUTE_ACCESS_CHECKS,
+                    Flags.ENABLE_SYNC_VALUE_COMPUTATION
                 )
             )
             .allowSubscriptions(true)

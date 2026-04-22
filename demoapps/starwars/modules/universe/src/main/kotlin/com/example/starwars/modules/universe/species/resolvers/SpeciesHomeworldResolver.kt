@@ -19,7 +19,7 @@ class SpeciesHomeworldResolver
         private val speciesRepository: SpeciesRepository
     ) : SpeciesResolvers.Homeworld() {
         override suspend fun resolve(ctx: Context): Planet? {
-            val species = ctx.objectValue
+            val species = ctx.getObjectValue()
             val homeWorldId = speciesRepository.findById(species.getId().internalID)?.homeworldId ?: return null
 
             val planetId = ctx.globalIDFor<Planet>(homeWorldId)

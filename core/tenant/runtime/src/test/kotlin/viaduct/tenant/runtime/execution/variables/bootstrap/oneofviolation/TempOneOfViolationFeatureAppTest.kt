@@ -22,7 +22,7 @@ class TempOneOfViolationFeatureAppTest : TempOneOfViolationContractTest() {
         """
     )
     class Query_FromVariablesProviderResolver : QueryResolvers.FromVariablesProvider() {
-        override suspend fun resolve(ctx: Context): String? = ctx.objectValue.getIntermediary()
+        override suspend fun resolve(ctx: Context): String? = ctx.getObjectValue().getIntermediary()
 
         @Variables("oneofVar: OneofInput!")
         class OneOfViolationVars : VariablesProvider<Arguments> {

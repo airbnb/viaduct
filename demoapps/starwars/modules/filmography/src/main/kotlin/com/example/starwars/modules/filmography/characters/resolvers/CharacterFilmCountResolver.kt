@@ -32,7 +32,7 @@ import viaduct.api.Resolver
  * ```
  *
  * Each context provides:
- * - `ctx.objectValue`: The Character object this field belongs to
+ * - `ctx.getObjectValue()`: The Character object this field belongs to
  * - `ctx.arguments`: Any arguments passed to the filmCount field
  * - Framework data for building results
  *
@@ -59,7 +59,7 @@ class CharacterFilmCountResolver
             // For each context gets the character ID and map to the precomputed film count
             // and return the results in the same order as contexts
             return contexts.map { ctx ->
-                val characterId = ctx.objectValue.getId().internalID
+                val characterId = ctx.getObjectValue().getId().internalID
 
                 FieldValue.ofValue(filmCounts[characterId] ?: 0)
             }

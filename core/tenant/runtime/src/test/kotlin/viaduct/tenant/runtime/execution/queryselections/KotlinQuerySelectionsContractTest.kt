@@ -43,8 +43,8 @@ class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
     )
     class User_DisplayNameResolver : UserResolvers.DisplayName() {
         override suspend fun resolve(ctx: Context): String {
-            val userId = ctx.objectValue.getId()
-            val viewerName = ctx.queryValue.getViewer()?.getName()
+            val userId = ctx.getObjectValue().getId()
+            val viewerName = ctx.getQueryValue().getViewer()?.getName()
             return "$userId-displayedBy-$viewerName"
         }
     }
@@ -55,8 +55,8 @@ class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
     )
     class User_DisplayNameFromNullViewerResolver : UserResolvers.DisplayNameFromNullViewer() {
         override suspend fun resolve(ctx: Context): String {
-            val userId = ctx.objectValue.getId()
-            val viewerName = ctx.queryValue.getViewerOrNull()?.getName() ?: "Unknown"
+            val userId = ctx.getObjectValue().getId()
+            val viewerName = ctx.getQueryValue().getViewerOrNull()?.getName() ?: "Unknown"
             return "$userId-displayedBy-$viewerName"
         }
     }
@@ -67,9 +67,9 @@ class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
     )
     class User_GreetingResolver : UserResolvers.Greeting() {
         override suspend fun resolve(ctx: Context): String {
-            val userName = ctx.objectValue.getName()
-            val viewerId = ctx.queryValue.getViewer()?.getId()
-            val displayName = ctx.queryValue.getViewer()?.getDisplayName() ?: "UnknownViewer"
+            val userName = ctx.getObjectValue().getName()
+            val viewerId = ctx.getQueryValue().getViewer()?.getId()
+            val displayName = ctx.getQueryValue().getViewer()?.getDisplayName() ?: "UnknownViewer"
             return "Hello $userName, from $viewerId (displayed by $displayName)"
         }
     }
@@ -81,8 +81,8 @@ class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
     class Mutation_UpdateUserWithViewerInfoResolver : MutationResolvers.UpdateUserWithViewerInfo() {
         override suspend fun resolve(ctx: Context): UpdateResult {
             val userId = ctx.arguments.userId
-            val viewer = ctx.queryValue.getViewer()
-            val user = ctx.queryValue.getUser()
+            val viewer = ctx.getQueryValue().getViewer()
+            val user = ctx.getQueryValue().getUser()
 
             val success = viewer != null && user != null
             val message = when {

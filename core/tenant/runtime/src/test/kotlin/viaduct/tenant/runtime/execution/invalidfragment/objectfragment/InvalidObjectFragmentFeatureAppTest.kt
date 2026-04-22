@@ -21,6 +21,6 @@ class InvalidObjectFragmentFeatureAppTest : InvalidObjectFragmentContractTest() 
     // Delegates to baz using selection list syntax
     @Resolver
     class Foo_BarResolver : FooResolvers.Bar() {
-        override suspend fun resolve(ctx: Context) = ctx.objectValue.get<String>("baz", String::class)
+        override suspend fun resolve(ctx: Context) = ctx.getObjectValue().get<String>("baz", String::class)
     }
 }

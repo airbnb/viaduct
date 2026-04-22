@@ -26,7 +26,7 @@ class FilmProductionDetailsResolver
     constructor() : FilmResolvers.ProductionDetails() {
         override suspend fun resolve(ctx: Context): String? {
             // Access the source Film from the context
-            val film = ctx.objectValue
+            val film = ctx.getObjectValue()
             val producerList = film.getProducers()?.filterNotNull()?.joinToString(", ") ?: "Unknown producers"
             return "${film.getTitle()} was released on ${film.getReleaseDate()}, directed by ${film.getDirector()} and produced by $producerList"
         }

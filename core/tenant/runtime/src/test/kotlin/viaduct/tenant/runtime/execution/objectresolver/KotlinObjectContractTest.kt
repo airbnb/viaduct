@@ -29,7 +29,7 @@ class KotlinObjectContractTest : ObjectContractTest() {
 
     @Resolver("baz")
     class Foo_ShorthandBarResolver : FooResolvers.ShorthandBar() {
-        override suspend fun resolve(ctx: Context) = ctx.objectValue.get<String>("baz", String::class)
+        override suspend fun resolve(ctx: Context) = ctx.getObjectValue().get<String>("baz", String::class)
     }
 
     @Resolver(
@@ -44,8 +44,8 @@ class KotlinObjectContractTest : ObjectContractTest() {
     )
     class Foo_FragmentBarResolver : FooResolvers.FragmentBar() {
         override suspend fun resolve(ctx: Context): String {
-            val baz = ctx.objectValue.get<String>("baz", String::class)
-            val nested = ctx.objectValue.get<NestedFoo>("nested", NestedFoo::class)
+            val baz = ctx.getObjectValue().get<String>("baz", String::class)
+            val nested = ctx.getObjectValue().get<NestedFoo>("nested", NestedFoo::class)
             return "$baz-${nested.getValue()}"
         }
     }
@@ -105,7 +105,7 @@ class KotlinObjectContractTest : ObjectContractTest() {
     )
     class Person_FullAddressResolver : PersonResolvers.FullAddress() {
         override suspend fun resolve(ctx: Context): String {
-            val address = ctx.objectValue.getAddress() ?: return "No address"
+            val address = ctx.getObjectValue().getAddress() ?: return "No address"
             return "${address.getStreet()}, ${address.getCity()}, ${address.getCountry()}"
         }
     }

@@ -56,7 +56,7 @@ class SanityTest {
             .resolver(
                 "Query" to "x",
                 { ctx: FieldExecutionContext<Query, Query, Arguments, CompositeOutput.NotComposite> ->
-                    assertTrue(ctx.objectValue is Query)
+                    assertTrue(ctx.getObjectValue() is Query)
                     42
                 }
             )
@@ -69,7 +69,7 @@ class SanityTest {
             .resolver(
                 "Query" to "x",
                 { ctx: FieldExecutionContext<FakeObject, FakeQuery, Arguments, CompositeOutput.NotComposite> ->
-                    assertTrue(ctx.objectValue is FakeObject)
+                    assertTrue(ctx.getObjectValue() is FakeObject)
                     42
                 }
             )
@@ -80,7 +80,7 @@ class SanityTest {
     fun `resolver accesses parent object via implicit FakeObject`() =
         FeatureTestBuilder("extend type Query { x: Int }", useFakeGRTs = true)
             .resolver("Query" to "x") { ctx ->
-                assertTrue(ctx.objectValue is FakeObject)
+                assertTrue(ctx.getObjectValue() is FakeObject)
                 42
             }
             .build()
