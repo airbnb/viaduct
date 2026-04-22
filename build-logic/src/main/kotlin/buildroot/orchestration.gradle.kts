@@ -180,6 +180,11 @@ registerSubprojectAggregate(
     description = "[orchestration] Runs ktlintCheck on all SUBPROJECTS in THIS build.",
     taskNames = setOf("ktlintCheck")
 )
+registerSubprojectAggregate(
+    aggregateName = "orchestrationFindWarningsForCleanupAll",
+    description = "[orchestration] Runs findWarningsForCleanup on all SUBPROJECTS in THIS build.",
+    taskNames = setOf("findWarningsForCleanup")
+)
 
 // Publishing
 registerSubprojectAggregate(
@@ -255,6 +260,12 @@ if (gradle.parent != null) {
         group = "verification",
         description = "Runs ktlintCheck on all subprojects in this included build."
     )
+    aliasConventionalTaskToAggregate(
+        conventionalName = "findWarningsForCleanup",
+        aggregateName = "orchestrationFindWarningsForCleanupAll",
+        group = "verification",
+        description = "Runs findWarningsForCleanup on all subprojects in this included build."
+    )
 }
 
 // ---------------- Workspace-wide tasks (ROOT ONLY) ----------------
@@ -312,5 +323,11 @@ if (gradle.parent == null) {
     ensureTask("ktlintCheck", "verification", "Runs ktlintCheck across root and participating included builds.") {
         dependsOn(tasksNamedInSubprojects("ktlintCheck"))
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationKtlintCheckAll") })
+    }
+
+    // findWarningsForCleanup: root subprojects + included builds' aggregate
+    ensureTask("findWarningsForCleanup", "verification", "Runs findWarningsForCleanup across root and participating included builds.") {
+        dependsOn(tasksNamedInSubprojects("findWarningsForCleanup"))
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationFindWarningsForCleanupAll") })
     }
 }

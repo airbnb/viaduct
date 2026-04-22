@@ -1,0 +1,153 @@
+# Standalone detekt config for the findWarningsForCleanup task.
+# NOT used by CI — run locally: ./gradlew findWarningsForCleanup
+#
+# This config checks ONLY the following warnings:
+#
+#   UnusedPrivateMember  — unused parameters, variables, and properties
+#                          e.g. "Parameter 'a1' is never used, could be renamed to _"
+#   UnnecessarySafeCall  — safe-call operator (?.) on non-null receivers
+#                          e.g. "Unnecessary safe call on a non-null receiver of type String"
+#   NoNameShadowing      — local variables that shadow an outer-scope name
+#                          e.g. "Name shadowed: acc"
+#   RedundantSuspendModifier — suspend keyword on functions that never suspend
+#                          e.g. "Redundant 'suspend' modifier"
+#
+# NOTE: Each target ruleset must be active:true with all non-target rules
+# explicitly disabled. Detekt ignores individual rule overrides when the
+# parent ruleset is active:false.
+
+build:
+  maxIssues: 0
+
+comments:
+  active: false
+complexity:
+  active: false
+empty-blocks:
+  active: false
+exceptions:
+  active: false
+performance:
+  active: false
+
+naming:
+  active: true
+  ClassNaming: { active: false }
+  ConstructorParameterNaming: { active: false }
+  EnumNaming: { active: false }
+  ForbiddenClassName: { active: false }
+  FunctionMaxLength: { active: false }
+  FunctionMinLength: { active: false }
+  FunctionNaming: { active: false }
+  FunctionParameterNaming: { active: false }
+  InvalidPackageDeclaration: { active: false }
+  LambdaParameterNaming: { active: false }
+  MatchingDeclarationName: { active: false }
+  MemberNameEqualsClassName: { active: false }
+  NonBooleanPropertyPrefixedWithIs: { active: false }
+  ObjectPropertyNaming: { active: false }
+  PackageNaming: { active: false }
+  TopLevelPropertyNaming: { active: false }
+  VariableMaxLength: { active: false }
+  VariableMinLength: { active: false }
+  VariableNaming: { active: false }
+  BooleanPropertyNaming: { active: false }
+  NoNameShadowing:
+    active: true
+
+potential-bugs:
+  active: true
+  CastToNullableType: { active: false }
+  Deprecation: { active: false }
+  DoubleMutabilityForCollection: { active: false }
+  ElseCaseInsteadOfExhaustiveWhen: { active: false }
+  EqualsAlwaysReturnsTrueOrFalse: { active: false }
+  EqualsWithHashCodeExist: { active: false }
+  ExplicitGarbageCollectionCall: { active: false }
+  HasPlatformType: { active: false }
+  IgnoredReturnValue: { active: false }
+  ImplicitDefaultLocale: { active: false }
+  ImplicitUnitReturnType: { active: false }
+  InvalidRange: { active: false }
+  IteratorHasNextCallsNextMethod: { active: false }
+  IteratorNotThrowingNoSuchElementException: { active: false }
+  LateinitUsage: { active: false }
+  MapGetWithNotNullAssertionOperator: { active: false }
+  MissingPackageDeclaration: { active: false }
+  NullCheckOnMutableProperty: { active: false }
+  NullableToStringCall: { active: false }
+  UnconditionalJumpStatementInLoop: { active: false }
+  UnnecessaryNotNullCheck: { active: false }
+  UnreachableCatchBlock: { active: false }
+  UnreachableCode: { active: false }
+  UnsafeCallOnNullableType: { active: false }
+  UnsafeCast: { active: false }
+  UselessPostfixExpression: { active: false }
+  WrongEqualsTypeParameter: { active: false }
+  UnnecessarySafeCall:
+    active: true
+
+style:
+  active: true
+  BracesOnIfStatements: { active: false }
+  BracesOnWhenStatements: { active: false }
+  CollapsibleIfStatements: { active: false }
+  DataClassContainsFunctions: { active: false }
+  DataClassShouldBeImmutable: { active: false }
+  EqualsNullCall: { active: false }
+  EqualsOnSignatureLine: { active: false }
+  ExplicitItLambdaParameter: { active: false }
+  ExpressionBodySyntax: { active: false }
+  ForbiddenComment: { active: false }
+  ForbiddenImport: { active: false }
+  ForbiddenVoid: { active: false }
+  FunctionOnlyReturningConstant: { active: false }
+  LoopWithTooManyJumpStatements: { active: false }
+  MagicNumber: { active: false }
+  MaxLineLength: { active: false }
+  MayBeConst: { active: false }
+  ModifierOrder: { active: false }
+  NestedClassesVisibility: { active: false }
+  NewLineAtEndOfFile: { active: false }
+  NoTabs: { active: false }
+  OptionalAbstractKeyword: { active: false }
+  OptionalUnit: { active: false }
+  PreferToOverPairSyntax: { active: false }
+  ProtectedMemberInFinalClass: { active: false }
+  RedundantVisibilityModifierRule: { active: false }
+  ReturnCount: { active: false }
+  SafeCast: { active: false }
+  SerialVersionUIDInSerializableClass: { active: false }
+  SpacingBetweenPackageAndImports: { active: false }
+  ThrowsCount: { active: false }
+  TrailingWhitespace: { active: false }
+  UnderscoresInNumericLiterals: { active: false }
+  UnnecessaryAbstractClass: { active: false }
+  UnnecessaryApply: { active: false }
+  UnnecessaryInheritance: { active: false }
+  UnnecessaryLet: { active: false }
+  UnnecessaryParentheses: { active: false }
+  UntilInsteadOfRangeTo: { active: false }
+  UnusedImports: { active: false }
+  UnusedPrivateClass: { active: false }
+  UseCheckOrError: { active: false }
+  UseDataClass: { active: false }
+  UseRequire: { active: false }
+  UselessCallOnNotNull: { active: false }
+  UtilityClassWithPublicConstructor: { active: false }
+  VarCouldBeVal: { active: false }
+  WildcardImport: { active: false }
+  UnusedPrivateMember:
+    active: true
+    allowedNames: "(_|ignored|expected|serialVersionUID)"
+
+coroutines:
+  active: true
+  GlobalCoroutineUsage: { active: false }
+  InjectDispatcher: { active: false }
+  SleepInsteadOfDelay: { active: false }
+  SuspendFunSwallowedCancellation: { active: false }
+  SuspendFunWithCoroutineScopeReceiver: { active: false }
+  SuspendFunWithFlowReturnType: { active: false }
+  RedundantSuspendModifier:
+    active: true
