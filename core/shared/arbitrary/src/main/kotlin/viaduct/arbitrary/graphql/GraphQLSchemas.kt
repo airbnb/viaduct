@@ -220,8 +220,10 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
 
     private val directivesByLocation =
         schema.schema.directives.fold(emptyMap<DirectiveLocation, Set<GraphQLDirective>>()) { acc, dir ->
-            // @oneOf is applied during type generation, we can skip applying it here
-            if (dir.name == Directives.OneOfDirective.name) {
+            if (dir.name in cfg[BanDirectiveNames]) {
+                acc
+            } else if (dir.name == Directives.OneOfDirective.name) {
+                // @oneOf is applied during type generation, we can skip applying it here
                 acc
             } else {
                 dir.validLocations().fold(acc) { acc, loc ->
@@ -232,7 +234,7 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
         }
     private val directivesByName =
         schema.schema.directives
-            .filterNot { it.name in builtinDirectives }
+            .filter { it.name !in builtinDirectives && it.name !in cfg[BanDirectiveNames] }
             .associateBy { it.name }
 
     private val directiveDependencyInfoByName =

@@ -578,6 +578,8 @@ private class GraphQLDirectivesGen(
             }
         val pool = schemas.directivesByLocation[location]?.let { pool ->
             val bannedDirectives = buildSet {
+                addAll(cfg[BanDirectiveNames])
+
                 if (ctx.isSubscriptionOperation || ctx.isMutationSelection) {
                     // incremental directives are not allowed anywhere in a subscription operation or on a
                     // mutation root field

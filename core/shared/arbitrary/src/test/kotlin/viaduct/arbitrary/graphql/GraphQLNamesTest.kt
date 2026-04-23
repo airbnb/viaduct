@@ -9,6 +9,7 @@ import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.pair
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
@@ -79,6 +80,31 @@ class GraphQLNamesTest : KotestPropertyBase() {
                     Arb.graphQLNames(cfg)
                 }.forAll { names ->
                     names.unions.isEmpty() && names.enums.size >= names.objects.size
+                }
+        }
+
+    @Test
+    fun `Arb_graphqlNames -- BanDirectiveNames`(): Unit =
+        runBlocking {
+            val dirName = "Directive_a"
+
+            val cfg = Config.default +
+                (TypeNameLength to 1.asIntRange()) +
+                (SchemaSize to 10) +
+                (TypeTypeWeights to (TypeTypeWeights.zero) + (TypeType.Directive to 1.0))
+
+            // sanity check that a "Directive_a" name *can* be generated
+            assertTrue(
+                Arb.graphQLNames(cfg)
+                    .asSequence()
+                    .take(100)
+                    .any { names -> dirName in names.directives }
+            )
+
+            // assert that the name never gets generated when banned
+            Arb.graphQLNames(cfg + (BanDirectiveNames to setOf(dirName)))
+                .forAll { names ->
+                    dirName !in names.directives
                 }
         }
 

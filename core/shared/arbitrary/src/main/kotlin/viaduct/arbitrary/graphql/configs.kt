@@ -204,6 +204,9 @@ object GenInterfaceStubsIfNeeded : ConfigKey<Boolean>(false, Unvalidated)
  */
 object BanFieldNames : ConfigKey<Set<String>>(emptySet(), Unvalidated)
 
+/** ban the configured directives from generated schemas and documents */
+object BanDirectiveNames : ConfigKey<Set<String>>(emptySet(), Unvalidated)
+
 /** probability that a selection set will contain field selections that are not wrapped in an inline fragment or a named fragment spread */
 object FieldSelectionWeight : ConfigKey<CompoundingWeight>(CompoundingWeight(.4, 5), CompoundingWeightValidator)
 

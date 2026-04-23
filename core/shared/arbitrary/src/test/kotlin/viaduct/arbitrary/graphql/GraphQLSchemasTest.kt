@@ -134,7 +134,7 @@ class GraphQLSchemasTest : KotestPropertyBase() {
             val cfg = Config.default + (IncludeTypes to (GraphQLTypes.empty + testDirective))
 
             // disabled
-            Arb.graphQLSchema(cfg + (AppliedDirectiveWeight to CompoundingWeight.Never))
+            Arb.graphQLSchema(cfg + (AppliedDirectiveWeight to Never))
                 .forAll(100) { schema ->
                     val dirs = CollectAppliedDirectives()
                         .also { SchemaTraverser().depthFirstFullSchema(it, schema) }
@@ -150,6 +150,18 @@ class GraphQLSchemasTest : KotestPropertyBase() {
                         .directives
                     dirs.isNotEmpty()
                 }
+
+            // BanDirectiveNames
+            Arb.graphQLSchema(
+                cfg +
+                    (AppliedDirectiveWeight to CompoundingWeight.Once) +
+                    (BanDirectiveNames to setOf(testDirective.name))
+            ).forAll(100) { schema ->
+                val dirs = CollectAppliedDirectives()
+                    .also { SchemaTraverser().depthFirstFullSchema(it, schema) }
+                    .directives
+                dirs.none { it.name == testDirective.name }
+            }
         }
 
     @Test

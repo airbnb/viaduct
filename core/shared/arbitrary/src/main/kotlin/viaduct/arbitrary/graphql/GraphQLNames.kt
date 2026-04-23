@@ -147,6 +147,17 @@ fun Arb.Companion.graphQLNames(cfg: Config = Config.default): Arb<GraphQLNames> 
                 names
             }
         }.map { names ->
+            val ban = cfg[BanDirectiveNames]
+            if (ban.isNotEmpty()) {
+                val filteredDirNames = names.names[TypeType.Directive]
+                    ?.filter { !ban.contains(it) }
+                    ?.toSet()
+                    ?: emptySet()
+                GraphQLNames(names.names + (TypeType.Directive to filteredDirNames))
+            } else {
+                names
+            }
+        }.map { names ->
             val extant = cfg[IncludeTypes].names
             if (extant.isNotEmpty()) {
                 names.filter { !extant.contains(it) }

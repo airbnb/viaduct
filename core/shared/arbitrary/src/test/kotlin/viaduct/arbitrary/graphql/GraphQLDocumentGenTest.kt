@@ -57,6 +57,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
     private fun mkConfig(
         aliasWeight: Double = 0.0,
         anonymousOperationWeight: Double = 0.0,
+        banDirectiveNames: Set<String> = emptySet(),
         directiveWeight: CompoundingWeight = CompoundingWeight.Never,
         explicitNullValueWeight: Double = 0.0,
         fieldNameLength: Int = 4,
@@ -75,6 +76,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
             (AliasWeight to aliasWeight) +
             (AnonymousOperationWeight to anonymousOperationWeight) +
             (AppliedDirectiveWeight to directiveWeight) +
+            (BanDirectiveNames to banDirectiveNames) +
             (ExplicitNullValueWeight to explicitNullValueWeight) +
             (FieldNameLength to fieldNameLength.asIntRange()) +
             (FieldSelectionWeight to fieldSelectionWeight) +
@@ -329,6 +331,17 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
             mkConfig(directiveWeight = CompoundingWeight.Once).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll {
                     it.allChildrenOfType<DirectivesContainer<*>>().all { child -> child.directives.isNotEmpty() }
+                }
+            }
+        }
+
+    @Test
+    fun BanDirectiveNames(): Unit =
+        runBlocking {
+            // enabled
+            mkConfig(directiveWeight = CompoundingWeight.Once, banDirectiveNames = setOf("dir")).let { cfg ->
+                Arb.graphQLDocument(schema, cfg).forAll {
+                    it.allChildrenOfType<Directive>().none { it.name == "dir" }
                 }
             }
         }
