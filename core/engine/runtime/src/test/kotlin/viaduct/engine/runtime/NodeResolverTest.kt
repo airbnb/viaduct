@@ -57,6 +57,36 @@ class NodeResolverTest {
     }
 
     @Test
+    fun `node reference nested inside resolver response`() {
+        MockTenantModuleBootstrapper(schemaSDL) {
+            field("Query" to "baz") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Baz"),
+                            mapOf(
+                                "x" to 1,
+                                "anotherBaz" to ctx.createNodeReference("2", schema.schema.getObjectType("Baz"))
+                            )
+                        )
+                    }
+                }
+            }
+            type("Baz") {
+                nodeUnbatchedExecutor { id, _, _ ->
+                    createEngineObjectData(
+                        objectType,
+                        mapOf("x" to 99)
+                    )
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{baz { x anotherBaz { x } }}")
+                .assertJson("""{"data": {"baz": {"x": 1, "anotherBaz": {"x": 99}}}}""")
+        }
+    }
+
+    @Test
     fun `node resolver is invoked for id-only resolution`() {
         var invoked = false
         MockTenantModuleBootstrapper(schemaSDL) {
@@ -364,6 +394,38 @@ class NodeResolverTest {
 
             // Selective resolver checks selection sets, so different selections = cache miss
             assertEquals(mapOf("1" to 2), execCounts.mapValues { it.value.get() })
+        }
+    }
+
+    @Test
+    fun `node reference list with single item failure`() {
+        MockTenantModuleBootstrapper(schemaSDL) {
+            field("Query" to "bazList") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        listOf(
+                            ctx.createNodeReference("ok", schema.schema.getObjectType("Baz")),
+                            ctx.createNodeReference("fail", schema.schema.getObjectType("Baz")),
+                        )
+                    }
+                }
+            }
+            type("Baz") {
+                nodeUnbatchedExecutor { id, _, _ ->
+                    if (id == "fail") {
+                        throw RuntimeException("node resolution failed for $id")
+                    }
+                    createEngineObjectData(objectType, mapOf("x" to 7))
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ bazList { x } }")
+            val data = result.getData<Map<String, Any?>>()
+            val bazList = data["bazList"] as List<*>
+            assertEquals(2, bazList.size)
+            assertEquals(mapOf("x" to 7), bazList[0])
+            assertEquals(null, bazList[1])
+            assertTrue(result.errors.any { it.message.contains("node resolution failed for fail") })
         }
     }
 

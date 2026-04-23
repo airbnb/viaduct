@@ -22,10 +22,14 @@ import graphql.util.FpKit
 import java.util.concurrent.CompletionStage
 import java.util.function.Supplier
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import viaduct.deferred.asDeferred
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.StandardResolutionValue
@@ -34,6 +38,7 @@ import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.LazyAbstractData
 import viaduct.engine.runtime.LazyEngineObjectData
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -350,18 +355,9 @@ class FieldResolver(
                 // and mark this field as completed
                 Value.fromValue(Unit)
             } else {
-                // otherwise, proceed with lazy data fetching and nested object resolution
-
-                // if the result contains lazy data, begin fetching it
-                maybeFetchLazyData(
-                    v!!,
-                    executionStepInfoForField.type,
-                    parameters,
-                    dataFetchingEnvironmentProvider
-                )
-
+                // otherwise, proceed with nested object resolution
                 maybeFetchNestedObject(
-                    v,
+                    v!!,
                     executionStepInfoForField.type,
                     field,
                     parameters.copy(
@@ -391,16 +387,19 @@ class FieldResolver(
      * @param parameters The execution parameters
      * @param fieldType The GraphQL output type
      * @param fetchedValue The FetchedValue containing raw data
-     * @return FieldResolutionResult - errors during processing are thrown
+     * @param dataFetchingEnvironmentProvider Provides the DFE for lazy resolution
+     *   ([LazyEngineObjectData] optimistic path and [LazyAbstractData] deferred path).
+     * @return synchronous [Value] for normal data, deferred for [LazyAbstractData]
      */
     private fun buildFieldResolutionResult(
         parameters: ExecutionParameters,
         fieldType: GraphQLOutputType,
         fetchedValue: FetchedValue,
         resolutionPolicy: ResolutionPolicy,
-    ): FieldResolutionResult {
+        dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
+    ): Value<FieldResolutionResult> {
         val field = checkNotNull(parameters.field) { "Expected parameters.field to be non-null." }
-        val data = fetchedValue.fetchedValue ?: return FieldResolutionResult.fromFetchedValue(null, fetchedValue, resolutionPolicy)
+        val data = fetchedValue.fetchedValue ?: return syncFieldResolutionResult(null, fetchedValue, resolutionPolicy)
 
         // Unwrap data from "ParentManagedValue" or "StandardResolutionValue" if necessary, and set the effective resolution policy
         var effectiveResolutionPolicy = resolutionPolicy
@@ -415,12 +414,12 @@ class FieldResolver(
         }
 
         if (effectiveData == null) {
-            return FieldResolutionResult.fromFetchedValue(null, fetchedValue, effectiveResolutionPolicy)
+            return syncFieldResolutionResult(null, fetchedValue, effectiveResolutionPolicy)
         }
 
-        // if the type has a non-null wrapper, unwrap one level and recurse
+        // If the type has a non-null wrapper, unwrap one level and recurse
         if (GraphQLTypeUtil.isNonNull(fieldType)) {
-            return buildFieldResolutionResult(parameters, GraphQLTypeUtil.unwrapNonNullAs(fieldType), fetchedValue, effectiveResolutionPolicy)
+            return buildFieldResolutionResult(parameters, GraphQLTypeUtil.unwrapNonNullAs(fieldType), fetchedValue, effectiveResolutionPolicy, dataFetchingEnvironmentProvider)
         }
 
         // When it's a list, wrap each item in the list
@@ -429,27 +428,27 @@ class FieldResolver(
             val resultIterable = checkNotNull(effectiveData as? Iterable<*>) {
                 "Expected data to be an Iterable, was ${effectiveData.javaClass}."
             }
-            return FieldResolutionResult.fromFetchedValue(
+            return syncFieldResolutionResult(
                 resultIterable.mapIndexed { index, it ->
-                    // Data could be a list of objects or DataFetcherResults, so unwrap them as we loop over
                     val itemFV = toFetchedValueOrThrow(parameters, it)
                     ObjectEngineResultImpl.newCell { slotSetter ->
                         val itemFieldResolutionResult = buildFieldResolutionResult(
                             parameters,
                             newFieldType,
                             itemFV,
-                            effectiveResolutionPolicy
+                            effectiveResolutionPolicy,
+                            dataFetchingEnvironmentProvider
                         )
-                        slotSetter.setRawValue(Value.fromValue(itemFieldResolutionResult))
-
-                        // If this list item is an object, execute and store its type check in the checker slot
-                        val oer = itemFieldResolutionResult.engineResult as? ObjectEngineResultImpl
-                        val typeCheckerResult = if (oer == null) {
-                            Value.nullValue
-                        } else {
-                            val newParams = updateListItemParameters(parameters, index)
-                            val itemDfeSupplier: () -> DataFetchingEnvironment = { buildDataFetchingEnvironment(newParams, field, parameters.parentEngineResult) }
-                            accessCheckRunner.typeCheck(newParams, itemDfeSupplier, oer, itemFieldResolutionResult, this)
+                        slotSetter.setRawValue(itemFieldResolutionResult)
+                        val typeCheckerResult = itemFieldResolutionResult.thenCompose { itemFrr, _ ->
+                            val oer = itemFrr?.engineResult as? ObjectEngineResultImpl
+                            if (oer == null) {
+                                Value.nullValue
+                            } else {
+                                val newParams = updateListItemParameters(parameters, index)
+                                val itemDfeSupplier: () -> DataFetchingEnvironment = { buildDataFetchingEnvironment(newParams, field, parameters.parentEngineResult) }
+                                accessCheckRunner.typeCheck(newParams, itemDfeSupplier, oer, itemFrr, this@FieldResolver)
+                            }
                         }
                         slotSetter.setCheckerValue(typeCheckerResult)
                     }
@@ -462,10 +461,14 @@ class FieldResolver(
 
         // When it's a leaf value, it doesn't need wrapping
         if (GraphQLTypeUtil.isLeaf(fieldType)) {
-            return FieldResolutionResult.fromFetchedValue(effectiveData, fetchedValue, effectiveResolutionPolicy, originalSource = effectiveData)
+            return syncFieldResolutionResult(effectiveData, fetchedValue, effectiveResolutionPolicy, originalSource = effectiveData)
         }
+
         // Interface or union type, resolve the type and wrap it
         if (GraphQLTypeUtil.isInterfaceOrUnion(fieldType)) {
+            if (effectiveData is LazyAbstractData) {
+                return lazyAbstractFieldResolutionResult(parameters, fetchedValue, effectiveData, effectiveResolutionPolicy, dataFetchingEnvironmentProvider)
+            }
             val resolvedType = typeResolver.resolveType(
                 parameters.executionContext,
                 field.mergedField,
@@ -474,89 +477,109 @@ class FieldResolver(
                 fieldType,
                 fetchedValue.localContext
             )
-            return buildFieldResolutionResult(parameters, resolvedType, fetchedValue, effectiveResolutionPolicy)
+            return buildFieldResolutionResult(parameters, resolvedType, fetchedValue, effectiveResolutionPolicy, dataFetchingEnvironmentProvider)
         }
+
         // When it's an object, wrap the whole thing
-        if (GraphQLTypeUtil.isObjectType(fieldType)) {
-            val oer = if (fetchedValue.fetchedValue is LazyEngineObjectData) {
-                ObjectEngineResultImpl.newPendingForType(fieldType as GraphQLObjectType)
+        if (fieldType is GraphQLObjectType) {
+            val oer = if (effectiveData is LazyEngineObjectData) {
+                lazyObjectEngineResult(parameters, fieldType, effectiveData, dataFetchingEnvironmentProvider)
             } else {
-                ObjectEngineResultImpl.newForType(fieldType as GraphQLObjectType)
+                ObjectEngineResultImpl.newForType(fieldType)
             }
-            return FieldResolutionResult.fromFetchedValue(oer, fetchedValue, effectiveResolutionPolicy, originalSource = effectiveData)
+            return syncFieldResolutionResult(oer, fetchedValue, effectiveResolutionPolicy, originalSource = effectiveData)
         }
         throw IllegalStateException("ObjectEngineResult must wrap a GraphQLObjectType.")
     }
 
-    private fun maybeFetchLazyData(
-        result: FieldResolutionResult,
-        outputType: GraphQLOutputType,
+    /**
+     * Wraps an engine result and fetched value into a synchronous [Value] of [FieldResolutionResult].
+     */
+    private fun syncFieldResolutionResult(
+        engineResult: Any?,
+        fetchedValue: FetchedValue,
+        resolutionPolicy: ResolutionPolicy,
+        originalSource: Any? = null,
+    ): Value<FieldResolutionResult> = Value.fromValue(FieldResolutionResult.fromFetchedValue(engineResult, fetchedValue, resolutionPolicy, originalSource = originalSource))
+
+    /**
+     * Creates an ObjectEngineResultImpl in the pending state for a [LazyEngineObjectData], and
+     * launches async resolution that resolves the OER when complete.
+     */
+    private fun lazyObjectEngineResult(
         parameters: ExecutionParameters,
-        env: Supplier<DataFetchingEnvironment>
-    ) {
-        // if engineResult is null, then there's nothing to lazily fetch and we can return early
-        if (result.engineResult == null) return
-        when (outputType) {
-            is GraphQLNonNull ->
-                maybeFetchLazyData(result, GraphQLTypeUtil.unwrapOneAs(outputType), parameters, env)
-
-            is GraphQLList -> {
-                val engineResult = result.engineResult
-                check(engineResult is Iterable<*>) { "Expected iterable engineResult but got $engineResult" }
-
-                engineResult.forEach {
-                    check(it is Cell) { "Expected Cell but got $it" }
-                    val frr = extractFieldResolutionResult(it)
-                    maybeFetchLazyData(frr, GraphQLTypeUtil.unwrapOneAs(outputType), parameters, env)
-                }
-            }
-
-            else -> {
-                val originalSource = result.originalSource
-                if (originalSource !is LazyEngineObjectData) return
-
-                val engineResult = checkNotNull(result.engineResult as? ObjectEngineResultImpl) {
-                    "Expected ObjectEngineResultImpl but got ${result.engineResult}"
-                }
-                val nodeResolverMetadata = (parameters.engineExecutionContext as? EngineExecutionContextImpl)
-                    ?.dispatcherRegistry?.getNodeResolverDispatcher(engineResult.type.name)?.resolverMetadata
-                val nodeInstrCtx = parameters.instrumentation.beginNodeFetching(
-                    InstrumentNodeFetchingParameters(env, nodeResolverMetadata),
-                    parameters.executionContext.instrumentationState
-                )
-                nodeInstrCtx?.onDispatched()
-                parameters.launchOnRootScope {
-                    try {
-                        val dataFetchingEnvironment = env.get()
-                        val selections = parameters.engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(dataFetchingEnvironment)
-                            ?: throw IllegalStateException(
-                                "Attempting to resolve LazyEngineObjectData but no selection set found"
-                            )
-                        originalSource.resolveData(selections, dataFetchingEnvironment.engineExecutionContext)
-                        engineResult.resolve()
-                        nodeInstrCtx?.onCompleted(null, null)
-                    } catch (e: Exception) {
-                        if (e is CancellationException) currentCoroutineContext().ensureActive()
-                        engineResult.resolveExceptionally(e)
-                        nodeInstrCtx?.onCompleted(null, e)
-                    }
-                }
+        fieldType: GraphQLObjectType,
+        lazyData: LazyEngineObjectData,
+        dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
+    ): ObjectEngineResultImpl {
+        val engineResult = ObjectEngineResultImpl.newPendingForType(fieldType)
+        val nodeResolverMetadata = (parameters.engineExecutionContext as? EngineExecutionContextImpl)
+            ?.dispatcherRegistry?.getNodeResolverDispatcher(engineResult.type.name)?.resolverMetadata
+        val nodeInstrCtx = parameters.instrumentation.beginNodeFetching(
+            InstrumentNodeFetchingParameters(dataFetchingEnvironmentProvider, nodeResolverMetadata),
+            parameters.executionContext.instrumentationState
+        )
+        nodeInstrCtx?.onDispatched()
+        parameters.launchOnRootScope {
+            try {
+                resolveLazyData(dataFetchingEnvironmentProvider, parameters.engineExecutionContext, lazyData::resolveData)
+                engineResult.resolve()
+                nodeInstrCtx?.onCompleted(null, null)
+            } catch (e: Exception) {
+                if (e is CancellationException) currentCoroutineContext().ensureActive()
+                engineResult.resolveExceptionally(e)
+                nodeInstrCtx?.onCompleted(null, e)
             }
         }
+        return engineResult
     }
 
-    private fun extractFieldResolutionResult(cell: Cell): FieldResolutionResult {
-        val rawValue = cell.getValue(RAW_VALUE_SLOT)
-        return when (rawValue) {
-            is Value.Sync<*> -> {
-                val result = rawValue.getOrThrow()
-                result as? FieldResolutionResult ?: throw IllegalStateException("Expected FieldResolutionResult but got ${result!!::class}")
+    /**
+     * Creates a deferred [Value] of [FieldResolutionResult] for a [LazyAbstractData]. This is deferred
+     * because we're unable to construct the OER and [FieldResolutionResult] until we know the concrete
+     * type, which first requires async resolution. The resulting [FieldResolutionResult] contains the
+     * resolved [EngineObjectData] as originalSource and an OER with the concrete type.
+     */
+    private fun lazyAbstractFieldResolutionResult(
+        parameters: ExecutionParameters,
+        fetchedValue: FetchedValue,
+        lazyData: LazyAbstractData,
+        resolutionPolicy: ResolutionPolicy,
+        dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
+    ): Value<FieldResolutionResult> {
+        val deferred = CompletableDeferred<FieldResolutionResult>()
+        parameters.launchOnRootScope {
+            try {
+                val resolvedData = resolveLazyData(dataFetchingEnvironmentProvider, parameters.engineExecutionContext, lazyData::resolveData)
+                val oer = if (resolvedData is LazyEngineObjectData) {
+                    lazyObjectEngineResult(parameters, resolvedData.type, resolvedData, dataFetchingEnvironmentProvider)
+                } else {
+                    ObjectEngineResultImpl.newForType(resolvedData.type)
+                }
+                deferred.complete(
+                    FieldResolutionResult.fromFetchedValue(oer, fetchedValue, resolutionPolicy, originalSource = resolvedData)
+                )
+            } catch (e: Exception) {
+                if (e is CancellationException) currentCoroutineContext().ensureActive()
+                deferred.completeExceptionally(e)
             }
-
-            else -> throw IllegalStateException(
-                "Expected the raw value slot to contain a Value.Sync<FieldResolutionResult>, but got ${rawValue::class}"
-            )
         }
+        return Value.fromDeferred(deferred)
+    }
+
+    /**
+     * Resolves a lazy data reference by getting the selection set from the DFE and calling
+     * [resolveData]. Handles [CancellationException] propagation.
+     */
+    private suspend fun resolveLazyData(
+        dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
+        engineExecutionContext: EngineExecutionContext,
+        resolveData: suspend (EngineSelectionSet, EngineExecutionContext) -> EngineObjectData,
+    ): EngineObjectData {
+        val dfe = dataFetchingEnvironmentProvider.get()
+        val selections = engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(dfe)
+            ?: throw IllegalStateException("No selection set for lazy data resolution")
+        return resolveData(selections, dfe.engineExecutionContext)
     }
 
     /**
@@ -587,9 +610,12 @@ class FieldResolver(
                 val engineResult = checkNotNull(fieldResolutionResult.engineResult as? Iterable<*>) { "Expected iterable engineResult but got ${fieldResolutionResult.engineResult}" }
                 val values = engineResult.mapIndexed { i, item ->
                     check(item is Cell) { "Expected engine result to be a Cell." }
-                    val frr = extractFieldResolutionResult(item)
-                    val newParams = updateListItemParameters(parameters, i)
-                    maybeFetchNestedObject(frr, GraphQLTypeUtil.unwrapOneAs(outputType), field, newParams)
+                    item.getValue(RAW_VALUE_SLOT).flatMap { raw ->
+                        val frr = raw as? FieldResolutionResult
+                            ?: throw IllegalStateException("Expected FieldResolutionResult but got $raw")
+                        val newParams = updateListItemParameters(parameters, i)
+                        maybeFetchNestedObject(frr, GraphQLTypeUtil.unwrapOneAs(outputType), field, newParams)
+                    }.recover { Value.fromValue(Unit) } // Contain per-item failures so they don't propagate to the parent object
                 }
                 Value.waitAll(values)
             }
@@ -696,8 +722,8 @@ class FieldResolver(
             val rawValue = dataFetcherResult.thenCompose { v, e -> dataFetcherResultToValue(field, parameters, v, e) }
 
             val result: Value<FieldResolutionResult> = rawValue
-                .map { fv ->
-                    buildFieldResolutionResult(parameters, fieldType, fv, parameters.resolutionPolicy)
+                .flatMap { fv ->
+                    buildFieldResolutionResult(parameters, fieldType, fv, parameters.resolutionPolicy, dataFetchingEnvironmentProvider)
                 }.recover { e ->
                     // handle any errors that occurred during building FieldResolutionResult
                     val wrappedException = when (e) {
