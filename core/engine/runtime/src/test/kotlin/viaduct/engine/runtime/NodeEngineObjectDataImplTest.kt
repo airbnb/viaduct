@@ -89,10 +89,10 @@ class NodeEngineObjectDataImplTest {
             coEvery { engineObjectData.fetch("name") }.returns("testName")
 
             val result1 = nodeReference.resolveData(selections, context)
-            assertEquals(true, result1)
+            assertEquals(engineObjectData, result1)
 
             val result2 = nodeReference.resolveData(selections, context)
-            assertEquals(false, result2)
+            assertEquals(engineObjectData, result2)
             coVerify(exactly = 1) { nodeResolver.resolve("testID", selections, context) }
 
             assertEquals("testName", nodeReference.fetch("name"))

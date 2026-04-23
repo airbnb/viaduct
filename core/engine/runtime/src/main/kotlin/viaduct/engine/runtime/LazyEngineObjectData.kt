@@ -1,5 +1,11 @@
 package viaduct.engine.runtime
 
+import graphql.schema.GraphQLCompositeType
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
@@ -11,10 +17,60 @@ interface LazyEngineObjectData : EngineObjectData {
     /**
      * Resolves the data for this lazy object.
      *
-     * @return true if the data was resolved by this call, false if it was already called previously
+     * @return the resolved [EngineObjectData]
      */
     suspend fun resolveData(
         selections: EngineSelectionSet,
-        context: EngineExecutionContext
-    ): Boolean
+        context: EngineExecutionContext,
+    ): EngineObjectData
+}
+
+/**
+ * A lazy reference to a GraphQL interface- or union- typed value whose concrete
+ * object type is not known until [resolveData] is called.
+ */
+interface LazyAbstractData {
+    val type: GraphQLCompositeType
+
+    /**
+     * Resolves this reference into a concrete [EngineObjectData].
+     */
+    suspend fun resolveData(
+        selections: EngineSelectionSet,
+        context: EngineExecutionContext,
+    ): EngineObjectData
+}
+
+/**
+ * Helper for lazy data implementations that ensures a resolution block runs at most once.
+ * Subsequent calls await the first resolution and return the resolved [EngineObjectData]
+ * (or re-throw the exception thrown by that first resolution).
+ */
+internal class ResolveOnce {
+    private val deferred = CompletableDeferred<EngineObjectData>()
+    private val called = AtomicBoolean(false)
+
+    /** Suspends until the first [resolve] call completes and returns its result. */
+    suspend fun await(): EngineObjectData = deferred.await()
+
+    /**
+     * Runs [block] if this is the first call; otherwise suspends until the first call completes.
+     *
+     * @return the [EngineObjectData] produced by the first invocation of [block]
+     * @throws Exception if the first invocation of [block] threw
+     */
+    suspend fun resolve(block: suspend () -> EngineObjectData): EngineObjectData {
+        if (!called.compareAndSet(false, true)) {
+            return deferred.await()
+        }
+        try {
+            val result = block()
+            deferred.complete(result)
+            return result
+        } catch (e: Exception) {
+            if (e is CancellationException) currentCoroutineContext().ensureActive()
+            deferred.completeExceptionally(e)
+            throw e
+        }
+    }
 }
