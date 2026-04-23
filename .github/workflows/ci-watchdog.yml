@@ -1,0 +1,39 @@
+name: CI Watchdog
+# Catches workflow startup failures that prevent in-workflow alert jobs
+# from running. Kept intentionally minimal to avoid failing itself.
+
+on:
+  workflow_run:
+    workflows: ["CI Check", "Nightly Build", "Periodic Green Check", "Release"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  format-alerts:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'startup_failure'
+    outputs:
+      text: ${{ steps.fmt.outputs.text }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Format alert
+        id: fmt
+        uses: ./.github/actions/collect-failure-info
+        with:
+          jobs_json: '[{"name": "${{ github.event.workflow_run.name }}", "run_id": "${{ github.event.workflow_run.id }}"}]'
+          branch: ${{ github.event.workflow_run.head_branch }}
+          server_url: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          actor: ${{ github.event.workflow_run.actor.login }}
+
+  post:
+    needs: [format-alerts]
+    if: always() && needs.format-alerts.result == 'success'
+    uses: ./.github/workflows/post-alerts.yml
+    with:
+      text: ${{ needs.format-alerts.outputs.text }}
+    secrets: inherit
