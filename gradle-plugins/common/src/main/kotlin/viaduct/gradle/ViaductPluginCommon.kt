@@ -77,11 +77,11 @@ object ViaductPluginCommon {
         }
     }
 
-    /** Codegen tool classpath: `com.airbnb.viaduct:tenant-codegen:$pluginVersion`. */
-    fun Project.createOrGetCodegenClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductCodegenClasspath", "com.airbnb.viaduct:tenant-codegen:$pluginVersion")
+    /** Codegen tool classpath: resolves `com.airbnb.viaduct:buildtime`. */
+    fun Project.createOrGetCodegenClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductCodegenClasspath", "com.airbnb.viaduct:buildtime:$pluginVersion")
 
-    /** Serve tool classpath: `com.airbnb.viaduct:serve:$pluginVersion`. */
-    fun Project.createOrGetServeClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductServeClasspath", "com.airbnb.viaduct:serve:$pluginVersion")
+    /** Serve tool classpath: resolves `com.airbnb.viaduct:buildtime`. */
+    fun Project.createOrGetServeClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductServeClasspath", "com.airbnb.viaduct:buildtime:$pluginVersion")
 
     fun Project.configureIdeaIntegration(generateGRTsTask: TaskProvider<*>) {
         pluginManager.apply("org.jetbrains.gradle.plugin.idea-ext")

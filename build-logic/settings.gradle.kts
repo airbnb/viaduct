@@ -16,8 +16,6 @@ rootProject.name = "build-logic"
 
 include(":build-common")
 project(":build-common").projectDir = file("common")
-include(":build-shared")
-project(":build-shared").projectDir = file("shared")
 include(":build-test-support")
 project(":build-test-support").projectDir = file("test-support")
 

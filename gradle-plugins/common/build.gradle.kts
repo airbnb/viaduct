@@ -8,7 +8,6 @@ plugins {
 
 dependencies {
     api(gradleApi())
-    api(libs.viaduct.build.shared)
 
     implementation(libs.idea.gradle.plugin)
 }

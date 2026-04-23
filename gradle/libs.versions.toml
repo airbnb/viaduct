@@ -96,9 +96,9 @@ viaduct-shared-viaductschema = { module = "com.airbnb.viaduct:shared-viaductsche
 viaduct-errors = { module = "com.airbnb.viaduct:errors", version.ref = "project" }
 
 viaduct-gradle-plugins-common = { module = "com.airbnb.viaduct:plugins-common", version.ref = "project" }
-viaduct-build-shared = { module = "com.airbnb.viaduct:build-shared", version.ref = "project" }
 
 viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version.ref = "project" }
+viaduct-buildtime = { module = "com.airbnb.viaduct:buildtime", version.ref = "project" }
 viaduct-serve = { module = "com.airbnb.viaduct:serve", version.ref = "project" }
 
 # Kotlin

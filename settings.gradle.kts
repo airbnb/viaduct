@@ -38,6 +38,7 @@ run {
 includeBuild(".") {
     dependencySubstitution {
         substitute(module("com.airbnb.viaduct:api")).using(project(":api"))
+        substitute(module("com.airbnb.viaduct:buildtime")).using(project(":buildtime"))
         substitute(module("com.airbnb.viaduct:runtime")).using(project(":runtime"))
         substitute(module("com.airbnb.viaduct:test-fixtures")).using(project(":test-fixtures"))
     }
@@ -62,5 +63,6 @@ includeBuild("demoapps/starwars")
 include(":docs")
 includeNamed(":viaduct-bom", projectName = "bom")
 include(":api")
+include(":buildtime")
 include(":runtime")
 include(":test-fixtures")

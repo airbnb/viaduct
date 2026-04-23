@@ -5,7 +5,6 @@ plugins {
 
 dependencies {
     implementation(project(":build-common"))
-    implementation(project(":build-shared"))
     implementation(libs.asm)
     implementation(libs.ksp.gradle.plugin)
 
