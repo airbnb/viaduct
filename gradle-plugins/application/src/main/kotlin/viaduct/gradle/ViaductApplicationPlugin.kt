@@ -17,7 +17,6 @@ import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetServeClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
-import viaduct.gradle.scaffold.ScaffoldTask
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 
@@ -42,9 +41,6 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
             // Setup serve task
             setupServeTask(appExt, generateGRTsTask)
-
-            // Setup scaffold task
-            setupScaffoldTask()
         }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
@@ -215,30 +211,6 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                     logger.lifecycle("TIP: Run with --continuous flag for automatic reload on code changes:")
                     logger.lifecycle("     ./gradlew --continuous serve")
                 }
-            }
-        }
-    }
-
-    private fun Project.setupScaffoldTask() {
-        tasks.register<ScaffoldTask>("scaffold") {
-            // Allow overrides via project properties
-            val prefix = project.findProperty("packagePrefix")?.toString()
-            val output = project.findProperty("outputDir")?.toString()
-
-            if (prefix != null) {
-                packagePrefix.set(prefix)
-            } else {
-                packagePrefix.convention("com.example.myapp")
-            }
-
-            if (output != null) {
-                outputDir.set(project.file(output))
-            } else {
-                outputDir.set(project.layout.projectDirectory.dir("scaffold-output"))
-            }
-
-            project.findProperty("gradleVersion")?.toString()?.let {
-                gradleVersion.set(it)
             }
         }
     }
