@@ -1,6 +1,7 @@
 package conventions
 
 import io.gitlab.arturbosch.detekt.Detekt
+import org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import viaduct.gradle.internal.repoRoot
 
@@ -11,12 +12,19 @@ plugins {
 }
 
 val detektConfigFile = providers.provider { repoRoot().file("detekt.yml") }
+val detektViaductConfigFile = providers.provider { repoRoot().file("detekt-viaduct.yml") }
+val handWrittenKotlinSourceDirs = mapOf(
+    "MainSourceSet" to "src/main/kotlin",
+    "TestSourceSet" to "src/test/kotlin",
+    "TestFixturesSourceSet" to "src/testFixtures/kotlin",
+    "JmhSourceSet" to "src/jmh/kotlin"
+)
 
 val libs = extensions.getByType(VersionCatalogsExtension::class.java).named("libs")
 
 detekt {
-    source.setFrom("src/main/kotlin", "src/test/kotlin", "src/testFixtures/kotlin", "src/jmh/kotlin")
-    config.setFrom(detektConfigFile)
+    source.setFrom(handWrittenKotlinSourceDirs.values)
+    config.setFrom(detektConfigFile, detektViaductConfigFile)
     ignoreFailures = true
 }
 
@@ -27,11 +35,10 @@ ktlint {
     ignoreFailures.set(true)
 
     filter {
-        exclude { element ->
-            element.file.path.contains("/generated-sources/") ||
-                    element.file.path.contains("/build/generated/") ||
-                    element.file.name.contains("SchemaObjects")
-        }
+        exclude("**/build/**")
+        exclude("**/generated-sources/**")
+        exclude("**/generated-resources/**")
+        exclude("**/*SchemaObjects*")
     }
 }
 
@@ -61,4 +68,9 @@ tasks.register<Detekt>("findWarningsForCleanup") {
         txt.required.set(true)
         txt.outputLocation.set(layout.buildDirectory.file("reports/detekt/find-warnings-for-cleanup.txt"))
     }
+}
+
+tasks.withType<BaseKtLintCheckTask>().configureEach {
+    handWrittenKotlinSourceDirs.entries.firstOrNull { (suffix, _) -> name.endsWith(suffix) }
+        ?.let { (_, sourceDir) -> setSource(sourceDir) }
 }

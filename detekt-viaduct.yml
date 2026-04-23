@@ -1,8 +1,4 @@
 viaduct-detekt-rules:
-  NoPrintlnInGradle:
-    active: true
-  NoStringDependenciesInGradle:
-    active: true
   ApiStabilityAnnotationRequired:
     active: false
   ApiAnnotationConflict:

@@ -25,11 +25,7 @@ configure<ApiValidationExtension> {
 }
 
 pluginManager.withPlugin("io.gitlab.arturbosch.detekt") {
-    // Only add custom rules config in root build where :detekt-rules is available
-    val isRootBuild = gradle.parent == null
-    if (isRootBuild) {
-        tasks.withType(Detekt::class.java).configureEach {
-            config.from(files(repoRoot().file("detekt-viaduct-bcv.yml")))
-        }
+    tasks.withType(Detekt::class.java).configureEach {
+        config.from(files(repoRoot().file("detekt-viaduct-bcv.yml")))
     }
 }

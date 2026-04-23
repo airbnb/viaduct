@@ -11,6 +11,8 @@ plugins {
     id("settings.common")
 }
 
+includeBuild("../build-logic")
+
 // Include core modules
 includeNamed(":engine:api")
 includeNamed(":engine:runtime")
