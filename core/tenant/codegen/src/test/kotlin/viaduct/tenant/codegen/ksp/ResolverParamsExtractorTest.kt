@@ -31,7 +31,7 @@ class ResolverParamsExtractorTest {
             annotations = listOf(
                 ksAnnotation(
                     simpleName = "NodeResolverFor",
-                    args = mapOf("typeName" to "ExampleNode"),
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
                 ),
             ),
             containingFile = null,
@@ -45,7 +45,7 @@ class ResolverParamsExtractorTest {
             annotations = listOf(
                 ksAnnotation(
                     simpleName = "NodeResolverFor",
-                    args = mapOf("typeName" to "Account"),
+                    args = mapOf("typeName" to "Account", "isBatching" to false, "isSelective" to false),
                 ),
             ),
             containingFile = null,
@@ -200,7 +200,7 @@ class ResolverParamsExtractorTest {
             annotations = listOf(
                 ksAnnotation(
                     simpleName = "NodeResolverFor",
-                    args = mapOf("typeName" to "ExampleNode"),
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
                 ),
             ),
             containingFile = null,

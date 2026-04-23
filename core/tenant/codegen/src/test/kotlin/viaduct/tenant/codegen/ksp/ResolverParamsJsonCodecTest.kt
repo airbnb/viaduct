@@ -15,6 +15,9 @@ class ResolverParamsJsonCodecTest {
                     ResolverParams.Node(
                         implFqn = "com.example.feature.resolvers.ExampleNodeResolver",
                         typeName = "ExampleNode",
+                        resolverBaseClass = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+                        isBatching = false,
+                        isSelective = false,
                     ),
                 ),
                 fields = emptyList(),
@@ -26,11 +29,15 @@ class ResolverParamsJsonCodecTest {
                 {
                   "fields" : [ ],
                   "nodes" : [ {
+                    "attribution" : "ExampleNodeResolver",
                     "implFqn" : "com.example.feature.resolvers.ExampleNodeResolver",
+                    "isBatching" : false,
+                    "isSelective" : false,
+                    "resolverBaseClass" : "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
                     "typeName" : "ExampleNode"
                   } ]
                 }
-            
+
             """.trimIndent(),
             json,
         )
@@ -46,7 +53,11 @@ class ResolverParamsJsonCodecTest {
               "fields" : [ ],
               "nodes" : [ {
                 "implFqn" : "com.example.feature.resolvers.ExampleNodeResolver",
-                "typeName" : "ExampleNode"
+                "typeName" : "ExampleNode",
+                "resolverBaseClass" : "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+                "attribution" : "ExampleNodeResolver",
+                "isBatching" : false,
+                "isSelective" : false
               } ]
             }
             """.trimIndent(),
@@ -58,6 +69,10 @@ class ResolverParamsJsonCodecTest {
         val node = descriptorFile.nodes.single()
         assertEquals("com.example.feature.resolvers.ExampleNodeResolver", node.implFqn)
         assertEquals("ExampleNode", node.typeName)
+        assertEquals("com.example.feature.resolverbases.NodeResolvers.ExampleNode", node.resolverBaseClass)
+        assertEquals("ExampleNodeResolver", node.attribution)
+        assertEquals(false, node.isBatching)
+        assertEquals(false, node.isSelective)
     }
 
     @Test
@@ -69,6 +84,9 @@ class ResolverParamsJsonCodecTest {
                 ResolverParams.Node(
                     implFqn = "com.example.feature.resolvers.ExampleNodeResolver",
                     typeName = "ExampleNode",
+                    resolverBaseClass = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+                    isBatching = false,
+                    isSelective = false,
                 ),
             ),
             fields = emptyList(),

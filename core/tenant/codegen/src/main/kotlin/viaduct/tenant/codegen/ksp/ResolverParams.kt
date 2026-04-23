@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.ksp
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
  * Intermediate descriptor model emitted by the registry extractor.
@@ -29,6 +30,10 @@ internal sealed interface ResolverParams {
     data class Node(
         override val implFqn: String,
         override val typeName: String,
+        val resolverBaseClass: String,
+        val attribution: String = implFqn.substringAfterLast('.'),
+        @get:JsonProperty("isBatching") val isBatching: Boolean,
+        @get:JsonProperty("isSelective") val isSelective: Boolean,
     ) : ResolverParams
 
     /**

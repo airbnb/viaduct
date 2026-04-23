@@ -26,7 +26,7 @@ class RegistryExtractorExtensionsTest {
             annotations = listOf(
                 ksAnnotation(
                     simpleName = "NodeResolverFor",
-                    args = mapOf("typeName" to "ExampleNode"),
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
                 ),
             ),
             declarations = emptyList(),
@@ -43,11 +43,12 @@ class RegistryExtractorExtensionsTest {
         val result = resolverDeclaration.toResolverParams(logger)
 
         assertTrue(result is ResolverParams.Node)
-        assertEquals(
-            "com.example.feature.resolvers.ExampleNodeResolver",
-            result.implFqn,
-        )
+        assertEquals("com.example.feature.resolvers.ExampleNodeResolver", result.implFqn)
         assertEquals("ExampleNode", result.typeName)
+        assertEquals("com.example.feature.resolverbases.NodeResolvers.ExampleNode", result.resolverBaseClass)
+        assertEquals("ExampleNodeResolver", result.attribution)
+        assertEquals(false, result.isBatching)
+        assertEquals(false, result.isSelective)
         assertTrue(logger.warns.isEmpty(), logger.warns.joinToString("\n"))
         assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }
@@ -194,6 +195,100 @@ class RegistryExtractorExtensionsTest {
         assertTrue(
             logger.infos.any { it.contains("no direct supertypes") },
             logger.infos.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `toResolverParams returns null and logs warn when isBatching is missing from NodeResolverFor`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertNull(result)
+        assertTrue(
+            logger.warns.any { it.contains("isBatching") },
+            logger.warns.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `toResolverParams returns null and logs warn when isSelective is missing from NodeResolverFor`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertNull(result)
+        assertTrue(
+            logger.warns.any { it.contains("isSelective") },
+            logger.warns.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `toResolverParams returns null and logs warn when base class has no qualified name`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksNodeBaseDeclarationWithNullQualifiedName(
+            simpleName = "ExampleNode",
+            typeName = "ExampleNode",
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertNull(result)
+        assertTrue(
+            logger.warns.any { it.contains("base class has no qualified name") },
+            logger.warns.joinToString("\n"),
         )
     }
 }
@@ -373,6 +468,29 @@ private fun ksClassDeclarationWithNonClassSupertype(
             "getContainingFile" -> null
             "getParentDeclaration" -> null
             "toString" -> qualifiedName
+            else -> unsupported("KSClassDeclaration.${method.name}")
+        }
+    }
+}
+
+/** Creates a node resolver base class (annotated with @NodeResolverFor) with null qualifiedName. */
+private fun ksNodeBaseDeclarationWithNullQualifiedName(
+    simpleName: String,
+    typeName: String,
+): KSClassDeclaration {
+    val simpleNameValue = ksName(simpleName)
+    val annotation = ksAnnotation(
+        simpleName = "NodeResolverFor",
+        args = mapOf("typeName" to typeName, "isBatching" to false, "isSelective" to false),
+    )
+
+    return proxy(KSClassDeclaration::class.java) { method, _ ->
+        when (method.name) {
+            "getSimpleName" -> simpleNameValue
+            "getQualifiedName" -> null
+            "getAnnotations" -> sequenceOf(annotation)
+            "getParentDeclaration" -> null
+            "toString" -> simpleName
             else -> unsupported("KSClassDeclaration.${method.name}")
         }
     }

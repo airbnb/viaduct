@@ -29,9 +29,17 @@ internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverPar
         nodeResolverForAnnotationName,
     )
     if (nodeResolverAnnotation != null) {
+        val resolverBaseClass = directBaseDeclaration.qualifiedName?.asString() ?: run {
+            logger.warnRegistryExtractor(
+                "Skipping {} because base class has no qualified name",
+                implFqn,
+            )
+            return null
+        }
         return toNodeResolverParams(
             implFqn = implFqn,
             nodeResolverAnnotation = nodeResolverAnnotation,
+            resolverBaseClass = resolverBaseClass,
             logger = logger,
         )
     }
@@ -80,6 +88,7 @@ private fun KSClassDeclaration.directResolverBaseDeclaration(
 private fun KSClassDeclaration.toNodeResolverParams(
     implFqn: String,
     nodeResolverAnnotation: KSAnnotation,
+    resolverBaseClass: String,
     logger: KSPLogger,
 ): ResolverParams.Node? {
     val typeName = nodeResolverAnnotation.stringArg("typeName") ?: run {
@@ -91,9 +100,30 @@ private fun KSClassDeclaration.toNodeResolverParams(
         return null
     }
 
+    val isBatching = nodeResolverAnnotation.boolArg("isBatching") ?: run {
+        logger.warnRegistryExtractor(
+            "Skipping {} because @{} is missing isBatching",
+            implFqn,
+            nodeResolverForAnnotationName,
+        )
+        return null
+    }
+
+    val isSelective = nodeResolverAnnotation.boolArg("isSelective") ?: run {
+        logger.warnRegistryExtractor(
+            "Skipping {} because @{} is missing isSelective",
+            implFqn,
+            nodeResolverForAnnotationName,
+        )
+        return null
+    }
+
     return ResolverParams.Node(
         implFqn = implFqn,
         typeName = typeName,
+        resolverBaseClass = resolverBaseClass,
+        isBatching = isBatching,
+        isSelective = isSelective,
     )
 }
 
@@ -107,6 +137,12 @@ internal fun KSAnnotation.stringArg(name: String): String? {
     return arguments.firstOrNull { argument ->
         argument.name?.asString() == name
     }?.value as? String
+}
+
+internal fun KSAnnotation.boolArg(name: String): Boolean? {
+    return arguments.firstOrNull { argument ->
+        argument.name?.asString() == name
+    }?.value as? Boolean
 }
 
 internal fun KSClassDeclaration.qualifiedResolverName(logger: KSPLogger): String? {

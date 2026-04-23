@@ -7,14 +7,21 @@ import org.junit.jupiter.api.Test
 
 class ResolverParamsTest {
     @Test
-    fun `Node holds implFqn and typeName`() {
+    fun `Node holds all fields`() {
         val node = ResolverParams.Node(
             implFqn = "com.example.resolvers.ExampleNodeResolver",
             typeName = "ExampleNode",
+            resolverBaseClass = "com.example.resolverbases.NodeResolvers.ExampleNode",
+            isBatching = true,
+            isSelective = false,
         )
 
         assertEquals("com.example.resolvers.ExampleNodeResolver", node.implFqn)
         assertEquals("ExampleNode", node.typeName)
+        assertEquals("com.example.resolverbases.NodeResolvers.ExampleNode", node.resolverBaseClass)
+        assertEquals("ExampleNodeResolver", node.attribution)
+        assertEquals(true, node.isBatching)
+        assertEquals(false, node.isSelective)
     }
 
     @Test
@@ -22,6 +29,9 @@ class ResolverParamsTest {
         val original = ResolverParams.Node(
             implFqn = "com.example.resolvers.ExampleNodeResolver",
             typeName = "ExampleNode",
+            resolverBaseClass = "com.example.resolverbases.NodeResolvers.ExampleNode",
+            isBatching = false,
+            isSelective = false,
         )
         val copy = original.copy(typeName = "OtherNode")
 
@@ -93,6 +103,9 @@ class ResolverParamsTest {
         val node: ResolverParams = ResolverParams.Node(
             implFqn = "com.example.resolvers.ExampleNodeResolver",
             typeName = "ExampleNode",
+            resolverBaseClass = "com.example.resolverbases.NodeResolvers.ExampleNode",
+            isBatching = false,
+            isSelective = false,
         )
 
         assertTrue(node is ResolverParams.Node)
@@ -155,6 +168,9 @@ class ResolverParamsTest {
         val node = ResolverParams.Node(
             implFqn = "com.example.resolvers.ExampleNodeResolver",
             typeName = "ExampleNode",
+            resolverBaseClass = "com.example.resolverbases.NodeResolvers.ExampleNode",
+            isBatching = false,
+            isSelective = false,
         )
         val field = ResolverParams.Field(
             implFqn = "com.example.resolvers.ExampleNameResolver",

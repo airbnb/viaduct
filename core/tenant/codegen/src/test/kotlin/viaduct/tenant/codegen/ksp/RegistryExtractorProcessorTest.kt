@@ -241,7 +241,7 @@ private fun ksNodeResolver(
         simpleName = simpleName,
         packageName = "$packageName.resolverbases",
         annotations = listOf(
-            ksAnnotation(simpleName = "NodeResolverFor", args = mapOf("typeName" to typeName)),
+            ksAnnotation(simpleName = "NodeResolverFor", args = mapOf("typeName" to typeName, "isBatching" to false, "isSelective" to false)),
         ),
         superDeclarations = emptyList(),
         containingFile = null,

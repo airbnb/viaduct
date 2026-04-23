@@ -26,6 +26,10 @@ class ResolverDescriptorProcessorTest {
                     ResolverParams.Node(
                         implFqn = "com.example.feature.resolvers.ExampleNodeResolver",
                         typeName = "ExampleNode",
+                        resolverBaseClass = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+                        attribution = "ExampleNodeResolver",
+                        isBatching = false,
+                        isSelective = false,
                     ),
                 ),
                 fields = emptyList(),
@@ -66,6 +70,10 @@ class ResolverDescriptorProcessorTest {
                     ResolverParams.Node(
                         implFqn = "RootResolver",
                         typeName = "RootType",
+                        resolverBaseClass = "resolverbases.NodeResolvers.RootType",
+                        attribution = "RootResolver",
+                        isBatching = false,
+                        isSelective = false,
                     ),
                 ),
                 fields = emptyList(),
