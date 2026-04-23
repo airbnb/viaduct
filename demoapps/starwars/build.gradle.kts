@@ -42,7 +42,6 @@ dependencies {
 
     runtimeOnly(libs.logback.classic)
     implementation(project(":common"))
-    implementation(libs.viaduct.service.wiring)
     runtimeOnly(project(":modules:filmography"))
     runtimeOnly(project(":modules:universe"))
 
@@ -59,7 +58,6 @@ dependencies {
     testImplementation(libs.kotest.runner.junit)
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.kotest.assertions.json)
-    testImplementation(libs.viaduct.engine.wiring)
     testImplementation(libs.micronaut.http.client)
     testImplementation(testFixtures(libs.viaduct.tenant.api))
     testImplementation(testFixtures(libs.viaduct.tenant.runtime))

@@ -40,9 +40,6 @@ dependencies {
 
     implementation(project(":viadapp"))
 
-    // Development-only: serve dependency for ViaductServer integration
-    devImplementation(libs.viaduct.serve)
-
     testImplementation(enforcedPlatform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.junit.jupiter)
