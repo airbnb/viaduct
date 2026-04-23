@@ -11,6 +11,9 @@ plugins {
     id("settings.common")
 }
 
+// Standalone `./gradlew -p core ...` needs core's own subprojects to participate in composite
+// auto-substitution. Without self-inclusion, `version = INCLUDED` module deps resolve externally.
+includeBuild(".")
 includeBuild("../build-logic")
 
 // Include core modules

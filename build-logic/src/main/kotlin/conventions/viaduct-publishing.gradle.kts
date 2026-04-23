@@ -4,7 +4,11 @@ import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import com.vanniktech.maven.publish.*
 import javax.inject.Inject
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 import org.gradle.api.provider.Property
+import org.gradle.plugins.signing.SigningExtension
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.configure
 
@@ -24,20 +28,47 @@ val viaductPublishing = extensions.create<ViaductPublishingExtension>("viaductPu
 
 val publishMinimal = providers.gradleProperty("publishMinimal").isPresent
 
-// Script plugins are the correct sharing mechanism here: build-logic/common/ utilities are on
-// the compilation classpath of precompiled plugins only (src/main/kotlin/). They do NOT
-// propagate to sibling subproject build scripts (shared/build.gradle.kts), because Gradle
-// scopes implementation() dependencies to precompiled plugin compilation, not to subproject
-// buildscript classpaths. Script plugins share the applying project's classpath, which covers
-// all Gradle API types needed.
-//
-// Walk up the Gradle instance hierarchy to the top-level build (gradle.parent == null
-// at the root). Since core/ is an included build of OSS — not the other way around —
-// the top-level Gradle is always the OSS build, so its rootProject.projectDir is always
-// the right anchor for resolving build-logic/gradle/viaduct-maven-central.gradle.kts.
-apply(from = generateSequence(gradle) { it.parent }.last()
-    .rootProject.projectDir
-    .resolve("build-logic/gradle/viaduct-maven-central.gradle.kts"))
+// Apply standard Viaduct POM metadata to all Maven publications.
+pluginManager.withPlugin("maven-publish") {
+    project.extensions.getByType(PublishingExtension::class.java)
+        .publications.withType(MavenPublication::class.java).configureEach {
+            pom {
+                url.set("https://viaduct.airbnb.tech/")
+                licenses {
+                    license {
+                        name.set("Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("airbnb")
+                        name.set("Airbnb, Inc.")
+                        email.set("viaduct-maintainers@airbnb.com")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:git://github.com/airbnb/viaduct.git")
+                    developerConnection.set("scm:git:ssh://github.com/airbnb/viaduct.git")
+                    url.set("https://github.com/airbnb/viaduct")
+                }
+            }
+        }
+}
+
+// Configure in-memory PGP signing for all Viaduct publications.
+val signingKeyId = findProperty("signingKeyId") as String?
+val signingKey = findProperty("signingKey") as String?
+val signingPassword = findProperty("signingPassword") as String?
+pluginManager.withPlugin("signing") {
+    val signingExt = project.extensions.getByType(SigningExtension::class.java)
+    signingExt.useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+    signingExt.setRequired { gradle.taskGraph.allTasks.any { it is PublishToMavenRepository } }
+    pluginManager.withPlugin("maven-publish") {
+        val publications = project.extensions.getByType(PublishingExtension::class.java).publications
+        signingExt.sign(publications)
+    }
+}
 
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()

@@ -1,5 +1,8 @@
 import com.vanniktech.maven.publish.JavaLibrary
 import com.vanniktech.maven.publish.JavadocJar
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
+import org.gradle.plugins.signing.SigningExtension
 
 plugins {
     kotlin("jvm")
@@ -39,10 +42,35 @@ mavenPublishing {
     pom {
         name.set("Viaduct :: Build Shared")
         description.set("Shared build utilities for Viaduct Gradle plugins")
+        url.set("https://viaduct.airbnb.tech/")
+        licenses {
+            license {
+                name.set("Apache License, Version 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0")
+            }
+        }
+        developers {
+            developer {
+                id.set("airbnb")
+                name.set("Airbnb, Inc.")
+                email.set("viaduct-maintainers@airbnb.com")
+            }
+        }
+        scm {
+            connection.set("scm:git:git://github.com/airbnb/viaduct.git")
+            developerConnection.set("scm:git:ssh://github.com/airbnb/viaduct.git")
+            url.set("https://github.com/airbnb/viaduct")
+        }
     }
 }
 
-apply(from = rootDir.resolve("gradle/viaduct-maven-central.gradle.kts"))
+val signingKeyId = findProperty("signingKeyId") as String?
+val signingKey = findProperty("signingKey") as String?
+val signingPassword = findProperty("signingPassword") as String?
+val signingExt = project.extensions.getByType(SigningExtension::class.java)
+signingExt.useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+signingExt.setRequired { gradle.taskGraph.allTasks.any { it is PublishToMavenRepository } }
+signingExt.sign(project.extensions.getByType(PublishingExtension::class.java).publications)
 
 // For snapshot publications — see conventions/viaduct-publishing.gradle.kts for explanation.
 run {
