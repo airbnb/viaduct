@@ -3,6 +3,7 @@ package viaduct.engine.runtime
 import graphql.execution.instrumentation.Instrumentation
 import graphql.language.FragmentDefinition
 import graphql.schema.DataFetchingEnvironment
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.util.FpKit
 import io.micrometer.core.instrument.MeterRegistry
@@ -17,6 +18,7 @@ import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.SubqueryExecutionException
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -135,6 +137,19 @@ class EngineExecutionContextImpl(
         id: String,
         graphQLObjectType: GraphQLObjectType
     ) = NodeEngineObjectDataImpl(id, graphQLObjectType, dispatcherRegistry)
+
+    override fun createRootFieldReference(
+        rootFieldPath: List<String>,
+        type: GraphQLCompositeType,
+        args: Map<String, Any?>,
+    ): RootFieldReference {
+        // TODO: validate the path leads to a root composite field
+        return if (type is GraphQLObjectType) {
+            ObjectRootFieldReference(rootFieldPath, type, args)
+        } else {
+            AbstractRootFieldReference(rootFieldPath, type, args)
+        }
+    }
 
     override fun hasModernNodeResolver(typeName: String): Boolean {
         return dispatcherRegistry.getNodeResolverDispatcher(typeName) != null

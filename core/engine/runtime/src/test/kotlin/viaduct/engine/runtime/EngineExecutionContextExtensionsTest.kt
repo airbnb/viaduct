@@ -2,6 +2,7 @@ package viaduct.engine.runtime
 
 import graphql.ExecutionResult
 import graphql.schema.DataFetchingEnvironment
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import io.mockk.mockk
 import java.util.function.Supplier
@@ -21,6 +22,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvironment
@@ -260,6 +262,12 @@ class EngineExecutionContextExtensionsTest {
                 id: String,
                 graphQLObjectType: GraphQLObjectType
             ) = mockk<NodeReference>()
+
+            override fun createRootFieldReference(
+                rootFieldPath: List<String>,
+                type: GraphQLCompositeType,
+                args: Map<String, Any?>,
+            ) = mockk<RootFieldReference>()
 
             override fun hasModernNodeResolver(typeName: String) = false
         }

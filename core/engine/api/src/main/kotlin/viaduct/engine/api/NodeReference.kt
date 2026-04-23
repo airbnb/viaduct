@@ -1,7 +1,7 @@
 package viaduct.engine.api
 
 /**
- * A reference to a node object. Unlike [EngineObjectData], This does not provide access to the
+ * A reference to a node object. Unlike [EngineObjectData], this does not provide access to the
  * node's fields, only its ID.
  */
 interface NodeReference : EngineObject {

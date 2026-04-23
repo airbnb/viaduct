@@ -1,6 +1,7 @@
 package viaduct.engine.api
 
 import graphql.language.FragmentDefinition
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.service.api.spi.GlobalIDCodec
@@ -258,6 +259,19 @@ interface EngineExecutionContext {
         id: String,
         graphQLObjectType: GraphQLObjectType,
     ): NodeReference
+
+    /**
+     * Creates a reference to a root field that will be lazily resolved by the engine.
+     *
+     * @param rootFieldPath path from the root query type to the root field, e.g. ["foo", "myRootField"]
+     * @param type the type of the root field
+     * @param args arguments to the root field
+     */
+    fun createRootFieldReference(
+        rootFieldPath: List<String>,
+        type: GraphQLCompositeType,
+        args: Map<String, Any?>,
+    ): RootFieldReference
 
     // TODO(https://app.asana.com/1/150975571430/project/1203659453427089/task/1210861903745772):
     //    remove when everything has been shimmed

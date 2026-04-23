@@ -54,10 +54,11 @@ internal class ResolveOnce {
     suspend fun await(): EngineObjectData = deferred.await()
 
     /**
-     * Runs [block] if this is the first call; otherwise suspends until the first call completes.
+     * Runs [block] exactly once. Subsequent calls await the first resolution and return
+     * the same result (or re-throw the original exception).
      *
-     * @return the [EngineObjectData] produced by the first invocation of [block]
-     * @throws Exception if the first invocation of [block] threw
+     * @return the [EngineObjectData] produced by [block]
+     * @throws Exception if [block] threw
      */
     suspend fun resolve(block: suspend () -> EngineObjectData): EngineObjectData {
         if (!called.compareAndSet(false, true)) {

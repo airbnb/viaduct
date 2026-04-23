@@ -394,8 +394,13 @@ fun createEngineObjectData(
                 cvt(type.wrappedType as GraphQLOutputType, it)
             }
 
-            is GraphQLObjectType -> (value as Map<String, Any?>?)?.let { createEngineObjectData(type, it) }
-            is GraphQLCompositeType -> throw IllegalArgumentException("don't know how to wrap type $type with value $value")
+            is GraphQLObjectType -> when (value) {
+                is EngineObjectData -> value
+                is Map<*, *> -> createEngineObjectData(type, value as Map<String, Any?>)
+                null -> null
+                else -> throw IllegalArgumentException("don't know how to wrap object type $type with value $value (${value::class})")
+            }
+            is GraphQLCompositeType -> if (value is EngineObjectData) value else throw IllegalArgumentException("don't know how to wrap type $type with value $value")
             else -> value
         }
 
