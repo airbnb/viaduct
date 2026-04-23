@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import viaduct.errors.FrameworkException;
+import viaduct.errors.HandleErrors;
 import viaduct.java.api.types.GraphQLInput;
 
 /**
@@ -36,7 +37,8 @@ public abstract class JavaInputBase implements GraphQLInput {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T> T get(String fieldName) {
-    return (T) inputData.get(fieldName);
+    return HandleErrors.framework(
+        "JavaInputBase.get: " + fieldName, () -> (T) inputData.get(fieldName));
   }
 
   /**
@@ -49,8 +51,12 @@ public abstract class JavaInputBase implements GraphQLInput {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T> T get(String fieldName, String scalarType) {
-    Object raw = inputData.get(fieldName);
-    return (T) JavaObjectBase.coerceScalar(raw, scalarType);
+    return HandleErrors.framework(
+        "JavaInputBase.get: " + fieldName,
+        () -> {
+          Object raw = inputData.get(fieldName);
+          return (T) JavaObjectBase.coerceScalar(raw, scalarType);
+        });
   }
 
   /**
@@ -60,13 +66,16 @@ public abstract class JavaInputBase implements GraphQLInput {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T> List<T> getScalarList(String fieldName) {
-    Object value = inputData.get(fieldName);
-    if (value == null) return null;
-    if (value instanceof List<?>) return (List<T>) value;
-    throw sneakyThrow(
-        new FrameworkException(
-            "Expected List for field '" + fieldName + "', got " + value.getClass().getName(),
-            null));
+    return HandleErrors.framework(
+        "JavaInputBase.getScalarList: " + fieldName,
+        () -> {
+          Object value = inputData.get(fieldName);
+          if (value == null) return null;
+          if (value instanceof List<?>) return (List<T>) value;
+          throw new FrameworkException(
+              "Expected List for field '" + fieldName + "', got " + value.getClass().getName(),
+              null);
+        });
   }
 
   /**
@@ -79,19 +88,22 @@ public abstract class JavaInputBase implements GraphQLInput {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T> List<T> getScalarList(String fieldName, String scalarType) {
-    Object value = inputData.get(fieldName);
-    if (value == null) return null;
-    if (value instanceof List<?> list) {
-      List<Object> coerced = new ArrayList<>(list.size());
-      for (Object element : list) {
-        coerced.add(JavaObjectBase.coerceScalar(element, scalarType));
-      }
-      return (List<T>) coerced;
-    }
-    throw sneakyThrow(
-        new FrameworkException(
-            "Expected List for field '" + fieldName + "', got " + value.getClass().getName(),
-            null));
+    return HandleErrors.framework(
+        "JavaInputBase.getScalarList: " + fieldName,
+        () -> {
+          Object value = inputData.get(fieldName);
+          if (value == null) return null;
+          if (value instanceof List<?> list) {
+            List<Object> coerced = new ArrayList<>(list.size());
+            for (Object element : list) {
+              coerced.add(JavaObjectBase.coerceScalar(element, scalarType));
+            }
+            return (List<T>) coerced;
+          }
+          throw new FrameworkException(
+              "Expected List for field '" + fieldName + "', got " + value.getClass().getName(),
+              null);
+        });
   }
 
   /**
@@ -102,13 +114,17 @@ public abstract class JavaInputBase implements GraphQLInput {
   @SuppressWarnings("unchecked")
   protected <T extends JavaInputBase> T getInput(
       String fieldName, Function<Map<String, Object>, T> constructor) {
-    Object value = inputData.get(fieldName);
-    if (value == null) return null;
-    if (value instanceof JavaInputBase) return (T) value;
-    if (value instanceof Map<?, ?> map) {
-      return constructor.apply((Map<String, Object>) map);
-    }
-    return (T) value;
+    return HandleErrors.framework(
+        "JavaInputBase.getInput: " + fieldName,
+        () -> {
+          Object value = inputData.get(fieldName);
+          if (value == null) return null;
+          if (value instanceof JavaInputBase) return (T) value;
+          if (value instanceof Map<?, ?> map) {
+            return constructor.apply((Map<String, Object>) map);
+          }
+          return (T) value;
+        });
   }
 
   /**
@@ -118,24 +134,28 @@ public abstract class JavaInputBase implements GraphQLInput {
   @SuppressWarnings("unchecked")
   protected <T extends JavaInputBase> List<T> getInputList(
       String fieldName, Function<Map<String, Object>, T> constructor) {
-    Object value = inputData.get(fieldName);
-    if (value == null) return null;
-    if (value instanceof List<?> list) {
-      List<T> wrapped = new ArrayList<>(list.size());
-      for (Object element : list) {
-        if (element == null) {
-          wrapped.add(null);
-        } else if (element instanceof JavaInputBase) {
-          wrapped.add((T) element);
-        } else if (element instanceof Map<?, ?> map) {
-          wrapped.add(constructor.apply((Map<String, Object>) map));
-        } else {
-          wrapped.add((T) element);
-        }
-      }
-      return wrapped;
-    }
-    return (List<T>) value;
+    return HandleErrors.framework(
+        "JavaInputBase.getInputList: " + fieldName,
+        () -> {
+          Object value = inputData.get(fieldName);
+          if (value == null) return null;
+          if (value instanceof List<?> list) {
+            List<T> wrapped = new ArrayList<>(list.size());
+            for (Object element : list) {
+              if (element == null) {
+                wrapped.add(null);
+              } else if (element instanceof JavaInputBase) {
+                wrapped.add((T) element);
+              } else if (element instanceof Map<?, ?> map) {
+                wrapped.add(constructor.apply((Map<String, Object>) map));
+              } else {
+                wrapped.add((T) element);
+              }
+            }
+            return wrapped;
+          }
+          return (List<T>) value;
+        });
   }
 
   /**
@@ -145,41 +165,39 @@ public abstract class JavaInputBase implements GraphQLInput {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <E extends Enum<E>> E getEnum(String fieldName, Class<E> enumClass) {
-    Object value = inputData.get(fieldName);
-    if (value == null) return null;
-    if (enumClass.isInstance(value)) return (E) value;
-    return Enum.valueOf(enumClass, value.toString());
+    return HandleErrors.framework(
+        "JavaInputBase.getEnum: " + fieldName,
+        () -> {
+          Object value = inputData.get(fieldName);
+          if (value == null) return null;
+          if (enumClass.isInstance(value)) return (E) value;
+          return Enum.valueOf(enumClass, value.toString());
+        });
   }
 
   /** Gets a list of enum fields, converting String values to enums if needed. */
   @Nullable
   @SuppressWarnings("unchecked")
   protected <E extends Enum<E>> List<E> getEnumList(String fieldName, Class<E> enumClass) {
-    Object value = inputData.get(fieldName);
-    if (value == null) return null;
-    if (value instanceof List<?> list) {
-      List<E> wrapped = new ArrayList<>(list.size());
-      for (Object element : list) {
-        if (element == null) {
-          wrapped.add(null);
-        } else if (enumClass.isInstance(element)) {
-          wrapped.add((E) element);
-        } else {
-          wrapped.add(Enum.valueOf(enumClass, element.toString()));
-        }
-      }
-      return wrapped;
-    }
-    return (List<E>) value;
-  }
-
-  /**
-   * Throws a checked exception without declaring it, using Java's type erasure trick.
-   * FrameworkException is a checked Exception in Java (Kotlin has no checked exceptions). These
-   * errors are always caught by the bridge layer's handleFrameworkErrors wrapper.
-   */
-  @SuppressWarnings("unchecked")
-  private static <E extends Throwable> RuntimeException sneakyThrow(Throwable e) throws E {
-    throw (E) e;
+    return HandleErrors.framework(
+        "JavaInputBase.getEnumList: " + fieldName,
+        () -> {
+          Object value = inputData.get(fieldName);
+          if (value == null) return null;
+          if (value instanceof List<?> list) {
+            List<E> wrapped = new ArrayList<>(list.size());
+            for (Object element : list) {
+              if (element == null) {
+                wrapped.add(null);
+              } else if (enumClass.isInstance(element)) {
+                wrapped.add((E) element);
+              } else {
+                wrapped.add(Enum.valueOf(enumClass, element.toString()));
+              }
+            }
+            return wrapped;
+          }
+          return (List<E>) value;
+        });
   }
 }
