@@ -360,7 +360,7 @@ class OrganizationMembersResolver : OrganizationResolvers.Members() {
   @Inject lateinit var memberService: MemberService
 
   override suspend fun resolve(ctx: Context): MemberConnection {
-    val orgId = ctx.objectValue.getId()
+    val orgId = ctx.getObjectValue().getId()
     val (offset, limit) = ctx.arguments.toOffsetLimit()
 
     val response = memberService.getMembers(

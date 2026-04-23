@@ -13,9 +13,10 @@ description: Executing subqueries in resolvers
 )
 class UserDisplayNameResolver: UserResolvers.DisplayName() {
     override suspend fun resolve(ctx: Context): String? {
-        val id = ctx.objectValue.getId()
-        val fn = ctx.objectValue.getFirstName()
-        val ln = ctx.objectValue.getLastName()
+        val obj = ctx.getObjectValue()
+        val id = obj.getId()
+        val fn = obj.getFirstName()
+        val ln = obj.getLastName()
 
         // determine if user is the logged-in user, in which case
         // we add a suffix to their displayName

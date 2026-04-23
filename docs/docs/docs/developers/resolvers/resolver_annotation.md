@@ -24,7 +24,7 @@ annotation class Resolver(
 
 ## Required selection set syntax
 
-A resolver can optionally specify one or both of `objectValueFragment` and `queryValueFragment` using either the shorthand fragment syntax, or full fragment syntax. Values can be accessed using `Context.objectValue` and `Context.queryValue`.
+A resolver can optionally specify one or both of `objectValueFragment` and `queryValueFragment` using either the shorthand fragment syntax, or full fragment syntax. Values can be accessed using `ctx.getObjectValue()` and `ctx.getQueryValue()`.
 
 ### Shorthand syntax
 
@@ -101,13 +101,14 @@ Note that if you have multiple fragments on the type of the main fragment (eithe
 ```
 
 ## Accessing required selection set values
-You can access the required selection set values via the [`Context` object](field_resolvers.md#context) given as input to the field resolver. `Context.objectValue` and `Context.queryValue` are [GRTs](../generated_code/index.md) of the object and Query types respectively.
+You can access the required selection set values via the [`Context` object](field_resolvers.md#context) given as input to the field resolver. `ctx.getObjectValue()` and `ctx.getQueryValue()` return [GRTs](../generated_code/index.md) of the object and Query types respectively, with all selections eagerly pre-resolved.
 
 The GRT getter methods correspond to the **schema types**, not the fragment structure. For example, given the listing `queryValueFragment` above:
 
 ```kotlin
 // Query.node` field:
-val listing = ctx.queryValue.getNode() as? Listing
+val q = ctx.getQueryValue()
+val listing = q.getNode() as? Listing
 
 // Get Listing.coverImage, aliased as "cover" in the fragment:
 val coverImage = listing?.getCoverImage(alias = "cover")
@@ -121,7 +122,7 @@ val roomImages = listing?.getRooms()?.flatMap { it.getImages() }
 
 If the resolver tries to access a field not included within its required selection set, it results in an `UnsetFieldException` at runtime.
 
-In the Kotlin API, each of the field getters are suspend functions. Your resolver may begin execution before the selections have been fully resolved via their corresponding resolvers. If that happens, the field getter will suspend until the field is resolved.
+With `getObjectValue()`/`getQueryValue()`, all selections are eagerly pre-resolved before the returned GRT is accessible, so individual field getters on the GRT do not suspend.
 
 ## Variables
 

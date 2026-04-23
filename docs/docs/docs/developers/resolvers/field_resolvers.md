@@ -83,8 +83,9 @@ Let’s look at the resolver for `User.displayName`:
 )
 class UserDisplayNameResolver : UserResolvers.DisplayName() {
   override suspend fun resolve(ctx: Context): String? {
-    val fn = ctx.objectValue.getFirstName()
-    val ln = ctx.objectValue.getLastName()
+    val obj = ctx.getObjectValue()
+    val fn = obj.getFirstName()
+    val ln = obj.getLastName()
     return when {
       fn == null && ln == null -> null
       fn == null -> ln
@@ -109,9 +110,9 @@ Both `resolve` and `batchResolve` take `Context` objects as input. This class is
 {{ codefile("core/tenant/api/src/main/kotlin/viaduct/api/context/FieldExecutionContext.kt", lang="kotlin") }}
 
 
-* `objectValue` gives access to the object that contains the field being resolved. Fields of that object can be accessed, but only if those fields are in the resolver’s required selection set. If the resolver tries to access a field not included within its required selection set, it results in an `UnsetFieldException` at runtime.
+* `getObjectValue()` returns the object that contains the field being resolved, with all selections eagerly pre-resolved. Fields of that object can be accessed, but only if those fields are in the resolver’s required selection set. If the resolver tries to access a field not included within its required selection set, it results in an `UnsetFieldException` at runtime.
 
-* `queryValue` is similar to `objectValue`, but applies to the root query object of the Viaduct central schema. Like `objectValue`, fields on `queryValue` can only be accessed if they are in the resolver's required selection set.
+* `getQueryValue()` is similar to `getObjectValue()`, but applies to the root query object of the Viaduct central schema. Like `getObjectValue()`, fields on the returned value can only be accessed if they are in the resolver’s required selection set.
 
 * `arguments` gives access to the arguments to the resolver. When a field takes arguments, the Viaduct build system will generate a GRT representing the values of those arguments. If `User.displayName` took arguments, for example, Viaduct would generate a type `User_DisplayName_Arguments` having one property per argument taken by `displayName`. In our example, the field execution context for `displayName` is parameterized by the special type `NoArguments` indicating that the field takes no arguments.
 
