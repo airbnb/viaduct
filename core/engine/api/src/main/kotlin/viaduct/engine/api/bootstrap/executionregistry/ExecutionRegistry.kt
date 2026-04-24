@@ -13,9 +13,7 @@ package viaduct.engine.api.bootstrap.executionregistry
 data class ExecutionRegistry(
     /** Version of the module-index JSON schema */
     val version: String,
-    /**
-     * FQN of the Tenant API's ExecutorFactory implementation.
-     */
+    /** FQN of the ExecutorFactory implementation. */
     val executorFactory: String,
     val nodes: List<NodeEntry> = emptyList(),
     val fields: List<FieldEntry> = emptyList(),

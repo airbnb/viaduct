@@ -33,6 +33,7 @@ dependencies {
     implementation(libs.viaduct.shared.apiannotations)
 
     implementation(libs.viaduct.tenant.api)
+    implementation(libs.viaduct.engine.api)
 
     implementation(libs.jackson.annotations)
     implementation(libs.jackson.databind)

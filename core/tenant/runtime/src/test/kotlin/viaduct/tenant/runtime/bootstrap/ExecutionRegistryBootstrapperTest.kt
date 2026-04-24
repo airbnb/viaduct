@@ -339,7 +339,7 @@ class ExecutionRegistryBootstrapperTest {
         )
         val executors = bootstrapper(registry).nodeResolverExecutors(schema).toList()
         assert(executors.size == 1)
-        val (typeName, executor) = executors[0]
+        val (typeName, _) = executors[0]
         assert(typeName == "TestNode")
     }
 
@@ -358,6 +358,29 @@ class ExecutionRegistryBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors - unknown class throws ClassNotFoundException`() {
+        val registry = ExecutionRegistry(
+            version = "1",
+            executorFactory = "",
+            nodes = listOf(
+                NodeEntry(
+                    typeName = "TestNode",
+                    isBatching = false,
+                    isSelective = false,
+                    attribution = "TestNode",
+                    tenantAPIData = NodeAPIData(
+                        resolverClass = "viaduct.does.not.exist.Resolver",
+                        resolverBaseClass = "viaduct.does.not.exist.ResolverBase",
+                    ),
+                )
+            ),
+        )
+        assertThrows<ClassNotFoundException> {
+            bootstrapper(registry).nodeResolverExecutors(schema).toList()
+        }
+    }
+
+    @Test
+    fun `nodeResolverExecutors - unknown class exception preserves last attempt as cause`() {
         val registry = ExecutionRegistry(
             version = "1",
             executorFactory = "",

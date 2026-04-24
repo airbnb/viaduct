@@ -20,53 +20,7 @@ private val resolverForAnnotationName = requireNotNull(ResolverFor::class.simple
 internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverParams? {
     val implFqn = qualifiedResolverName(logger) ?: return null
 
-    val directBaseDeclaration = directResolverBaseDeclaration(
-        implFqn = implFqn,
-        logger = logger,
-    ) ?: return null
-
-    val nodeResolverAnnotation = directBaseDeclaration.firstAnnotationNamed(
-        nodeResolverForAnnotationName,
-    )
-    if (nodeResolverAnnotation != null) {
-        val resolverBaseClass = directBaseDeclaration.qualifiedName?.asString() ?: run {
-            logger.warnRegistryExtractor(
-                "Skipping {} because base class has no qualified name",
-                implFqn,
-            )
-            return null
-        }
-        return toNodeResolverParams(
-            implFqn = implFqn,
-            nodeResolverAnnotation = nodeResolverAnnotation,
-            resolverBaseClass = resolverBaseClass,
-            logger = logger,
-        )
-    }
-
-    // directBaseDeclaration is guaranteed to have @NodeResolverFor or @ResolverFor,
-    // so reaching here means it is a field resolver — intentionally skipped in this pass.
-    logger.infoRegistryExtractor(
-        "Skipping field resolver {} in node-only pass",
-        implFqn,
-    )
-    return null
-}
-
-private fun KSClassDeclaration.directResolverBaseDeclaration(
-    implFqn: String,
-    logger: KSPLogger,
-): KSClassDeclaration? {
-    val directSupertypes = superTypes.toList()
-    if (directSupertypes.isEmpty()) {
-        logger.infoRegistryExtractor(
-            "Skipping {} because it has no direct supertypes",
-            implFqn,
-        )
-        return null
-    }
-
-    val annotatedBase = directSupertypes
+    val annotatedBase = superTypes
         .mapNotNull { it.resolve().declaration as? KSClassDeclaration }
         .firstOrNull { base ->
             base.firstAnnotationNamed(nodeResolverForAnnotationName) != null ||
@@ -80,17 +34,21 @@ private fun KSClassDeclaration.directResolverBaseDeclaration(
             nodeResolverForAnnotationName,
             resolverForAnnotationName,
         )
+        return null
     }
 
-    return annotatedBase
-}
+    val nodeResolverAnnotation = annotatedBase.firstAnnotationNamed(nodeResolverForAnnotationName)
+        ?: run {
+            // annotatedBase has @ResolverFor — field resolver, intentionally skipped in this pass.
+            logger.infoRegistryExtractor("Skipping field resolver {} in node-only pass", implFqn)
+            return null
+        }
 
-private fun KSClassDeclaration.toNodeResolverParams(
-    implFqn: String,
-    nodeResolverAnnotation: KSAnnotation,
-    resolverBaseClass: String,
-    logger: KSPLogger,
-): ResolverParams.Node? {
+    val resolverBaseClass = annotatedBase.qualifiedName?.asString() ?: run {
+        logger.warnRegistryExtractor("Skipping {} because base class has no qualified name", implFqn)
+        return null
+    }
+
     val typeName = nodeResolverAnnotation.stringArg("typeName") ?: run {
         logger.warnRegistryExtractor(
             "Skipping {} because @{} is missing typeName",

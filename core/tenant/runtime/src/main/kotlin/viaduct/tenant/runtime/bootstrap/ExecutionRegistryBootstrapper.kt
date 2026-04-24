@@ -216,12 +216,24 @@ class ExecutionRegistryBootstrapper(
     private fun <T> loadClass(
         fqn: String,
         context: String
-    ): Class<out T> =
-        try {
-            Class.forName(fqn) as Class<out T>
-        } catch (e: ClassNotFoundException) {
-            throw ClassNotFoundException("Cannot load class '$fqn' for $context", e)
+    ): Class<out T> {
+        // KSP emits '.' for nested class separators; Class.forName needs '$'.
+        val parts = fqn.split('.')
+        // Track the last cause: it's the most-nested $ substitution attempt and
+        // gives the most useful JVM diagnostic when the class genuinely doesn't exist.
+        var lastCause: ClassNotFoundException? = null
+        for (splitAt in parts.indices.reversed()) {
+            val candidate = parts.take(splitAt + 1).joinToString(".") +
+                if (splitAt < parts.lastIndex) "$" + parts.drop(splitAt + 1).joinToString("$") else ""
+            try {
+                return Class.forName(candidate) as Class<out T>
+            } catch (e: ClassNotFoundException) {
+                lastCause = e
+                continue
+            }
         }
+        throw ClassNotFoundException("Cannot load class '$fqn' for $context", lastCause)
+    }
 
     companion object {
         private val log by logger()

@@ -18,6 +18,9 @@ class AssembleTenantModuleConfigFileTest {
         return File(tempDir, "schema.graphql").also { it.writeText(content) }
     }
 
+    private fun nodeDescriptor(typeName: String = "MyType") =
+        """{"nodes": [{"typeName": "$typeName", "implFqn": "com.example.$typeName", "resolverBaseClass": "com.example.Base$typeName"}], "fields": []}"""
+
     @Test
     fun `writes output file under META-INF viaduct modules with tenant package name`() {
         val descriptors = descriptorDir()
@@ -33,6 +36,8 @@ class AssembleTenantModuleConfigFileTest {
                 schema.absolutePath,
                 "--tenant-package",
                 tenantPkg,
+                "--executor-factory",
+                "com.example.ExecutorFactory",
                 "--output-dir",
                 out.absolutePath,
             ),
@@ -43,7 +48,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `output JSON contains tenant package and zero descriptor count when no descriptors present`() {
+    fun `output JSON contains zero nodes when no descriptors present`() {
         val descriptors = descriptorDir()
         val schema = schemaFile()
         val out = outputDir()
@@ -57,48 +62,22 @@ class AssembleTenantModuleConfigFileTest {
                 schema.absolutePath,
                 "--tenant-package",
                 tenantPkg,
+                "--executor-factory",
+                "com.example.ExecutorFactory",
                 "--output-dir",
                 out.absolutePath,
             ),
         )
 
         val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"tenantPackage\": \"com.example.feature\""), json)
-        assertTrue(json.contains("\"descriptorCount\": 0"), json)
-        assertTrue(json.contains("\"descriptors\": ["), json)
+        assertTrue(json.contains("\"nodes\" : [ ]"), json)
     }
 
     @Test
-    fun `output JSON includes schema file name and escaped content`() {
+    fun `output JSON node count reflects number of node entries across descriptor files`() {
         val descriptors = descriptorDir()
-        val schemaContent = "type Query { hello: String }"
-        val schema = schemaFile(schemaContent)
-        val out = outputDir()
-        val tenantPkg = "com.example.feature"
-
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--output-dir",
-                out.absolutePath,
-            ),
-        )
-
-        val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"name\": \"schema.graphql\""), json)
-        assertTrue(json.contains("type Query { hello: String }"), json)
-    }
-
-    @Test
-    fun `output JSON descriptor count reflects number of json files in descriptor dir`() {
-        val descriptors = descriptorDir()
-        File(descriptors, "alpha.json").writeText("{\"nodes\": [], \"fields\": []}")
-        File(descriptors, "beta.json").writeText("{\"nodes\": [], \"fields\": []}")
+        File(descriptors, "alpha.json").writeText(nodeDescriptor("Alpha"))
+        File(descriptors, "beta.json").writeText(nodeDescriptor("Beta"))
         val schema = schemaFile()
         val out = outputDir()
         val tenantPkg = "com.example.feature"
@@ -111,20 +90,23 @@ class AssembleTenantModuleConfigFileTest {
                 schema.absolutePath,
                 "--tenant-package",
                 tenantPkg,
+                "--executor-factory",
+                "com.example.ExecutorFactory",
                 "--output-dir",
                 out.absolutePath,
             ),
         )
 
         val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"descriptorCount\": 2"), json)
+        assertTrue(json.contains("\"typeName\" : \"Alpha\""), json)
+        assertTrue(json.contains("\"typeName\" : \"Beta\""), json)
     }
 
     @Test
-    fun `output JSON descriptors array contains relative path and content of each descriptor file`() {
+    fun `nodes are sorted by type name in the output`() {
         val descriptors = descriptorDir()
-        val descriptorContent = "{\"nodes\": [], \"fields\": []}"
-        File(descriptors, "MyResolver.json").writeText(descriptorContent)
+        File(descriptors, "ZResolver.json").writeText(nodeDescriptor("ZType"))
+        File(descriptors, "AResolver.json").writeText(nodeDescriptor("AType"))
         val schema = schemaFile()
         val out = outputDir()
         val tenantPkg = "com.example.feature"
@@ -137,49 +119,24 @@ class AssembleTenantModuleConfigFileTest {
                 schema.absolutePath,
                 "--tenant-package",
                 tenantPkg,
+                "--executor-factory",
+                "com.example.ExecutorFactory",
                 "--output-dir",
                 out.absolutePath,
             ),
         )
 
         val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"path\": \"MyResolver.json\""), json)
-        assertTrue(json.contains("\"content\": $descriptorContent"), json)
-    }
-
-    @Test
-    fun `descriptors are sorted by relative path in the output`() {
-        val descriptors = descriptorDir()
-        File(descriptors, "ZResolver.json").writeText("{\"nodes\": [], \"fields\": []}")
-        File(descriptors, "AResolver.json").writeText("{\"nodes\": [], \"fields\": []}")
-        val schema = schemaFile()
-        val out = outputDir()
-        val tenantPkg = "com.example.feature"
-
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--output-dir",
-                out.absolutePath,
-            ),
-        )
-
-        val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        val aIndex = json.indexOf("AResolver.json")
-        val zIndex = json.indexOf("ZResolver.json")
-        assertTrue(aIndex < zIndex, "Expected AResolver.json to appear before ZResolver.json in sorted output")
+        val aIndex = json.indexOf("AType")
+        val zIndex = json.indexOf("ZType")
+        assertTrue(aIndex < zIndex, "Expected AType to appear before ZType in sorted output")
     }
 
     @Test
     fun `non-json files in descriptor dir are ignored`() {
         val descriptors = descriptorDir()
         File(descriptors, "something.txt").writeText("not json")
-        File(descriptors, "MyResolver.json").writeText("{\"nodes\": [], \"fields\": []}")
+        File(descriptors, "MyResolver.json").writeText(nodeDescriptor("MyType"))
         val schema = schemaFile()
         val out = outputDir()
         val tenantPkg = "com.example.feature"
@@ -192,13 +149,15 @@ class AssembleTenantModuleConfigFileTest {
                 schema.absolutePath,
                 "--tenant-package",
                 tenantPkg,
+                "--executor-factory",
+                "com.example.ExecutorFactory",
                 "--output-dir",
                 out.absolutePath,
             ),
         )
 
         val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"descriptorCount\": 1"), json)
+        assertTrue(json.contains("\"typeName\" : \"MyType\""), json)
         assertFalse(json.contains("something.txt"), json)
     }
 
@@ -218,6 +177,8 @@ class AssembleTenantModuleConfigFileTest {
                 schema.absolutePath,
                 "--tenant-package",
                 tenantPkg,
+                "--executor-factory",
+                "com.example.ExecutorFactory",
                 "--output-dir",
                 out.absolutePath,
             ),
@@ -228,40 +189,10 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema content with special characters is properly escaped in output`() {
-        val descriptors = descriptorDir()
-        val schemaContent = "type Query {\n  field: String # with \"quotes\" and backslash \\\n}"
-        val schema = schemaFile(schemaContent)
-        val out = outputDir()
-        val tenantPkg = "com.example.feature"
-
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--output-dir",
-                out.absolutePath,
-            ),
-        )
-
-        val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        // Newlines should be escaped as \n in the JSON string
-        assertTrue(json.contains("\\n"), "Expected newlines to be escaped as \\n in JSON output")
-        // Quotes should be escaped
-        assertTrue(json.contains("\\\"quotes\\\""), "Expected quotes to be escaped in JSON output")
-        // Backslashes should be escaped
-        assertTrue(json.contains("\\\\"), "Expected backslashes to be escaped in JSON output")
-    }
-
-    @Test
-    fun `descriptors in subdirectories are included with their relative path`() {
+    fun `descriptors in subdirectories are included`() {
         val descriptors = descriptorDir()
         val subDir = File(descriptors, "com/example/feature/resolvers").also { it.mkdirs() }
-        File(subDir, "ExampleNodeResolver.json").writeText("{\"nodes\": [], \"fields\": []}")
+        File(subDir, "ExampleNodeResolver.json").writeText(nodeDescriptor("ExampleNode"))
         val schema = schemaFile()
         val out = outputDir()
         val tenantPkg = "com.example.feature"
@@ -274,13 +205,14 @@ class AssembleTenantModuleConfigFileTest {
                 schema.absolutePath,
                 "--tenant-package",
                 tenantPkg,
+                "--executor-factory",
+                "com.example.ExecutorFactory",
                 "--output-dir",
                 out.absolutePath,
             ),
         )
 
         val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"descriptorCount\": 1"), json)
-        assertTrue(json.contains("ExampleNodeResolver.json"), json)
+        assertTrue(json.contains("\"typeName\" : \"ExampleNode\""), json)
     }
 }

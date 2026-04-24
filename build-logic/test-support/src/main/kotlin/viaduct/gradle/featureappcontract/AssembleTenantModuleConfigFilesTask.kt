@@ -131,6 +131,8 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
                 schemaFile.absolutePath,
                 "--tenant-package",
                 pkg,
+                "--executor-factory",
+                MODERN_KOTLIN_EXECUTOR_FACTORY,
                 "--output-dir",
                 outputDir.get().asFile.absolutePath,
             ),
@@ -206,6 +208,8 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
         }
     }
 }
+
+internal const val MODERN_KOTLIN_EXECUTOR_FACTORY = "viaduct.tenant.runtime.ModernKotlinExecutorFactory"
 
 /**
  * Actions that the incremental logic can perform. The task implements this

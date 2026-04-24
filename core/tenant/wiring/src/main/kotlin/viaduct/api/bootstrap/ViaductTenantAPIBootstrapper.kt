@@ -121,7 +121,7 @@ open class ViaductTenantAPIBootstrapper
                 if (useFileBasedBootstrap) {
                     ExecutionRegistryTenantAPIBootstrapper(
                         tenantCodeInjector = tenantCodeInjector,
-                        grtPackagePrefix = tenantPackagePrefix ?: error("tenantPackagePrefix required for file-based bootstrap"),
+                        tenantPackagePrefix = tenantPackagePrefix ?: error("tenantPackagePrefix required for file-based bootstrap"),
                         grtConvFactory = grtConvFactory,
                     )
                 } else {

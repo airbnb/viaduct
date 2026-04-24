@@ -193,7 +193,7 @@ class RegistryExtractorExtensionsTest {
 
         assertNull(result)
         assertTrue(
-            logger.infos.any { it.contains("no direct supertypes") },
+            logger.infos.any { it.contains("no direct supertype is annotated") },
             logger.infos.joinToString("\n"),
         )
     }
