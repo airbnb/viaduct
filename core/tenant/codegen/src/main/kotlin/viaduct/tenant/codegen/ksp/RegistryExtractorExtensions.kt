@@ -4,23 +4,65 @@ import com.google.devtools.ksp.isLocal
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import viaduct.api.Resolver
+import viaduct.api.Variable
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
 
 private val nodeResolverForAnnotationName = requireNotNull(NodeResolverFor::class.simpleName)
 private val resolverForAnnotationName = requireNotNull(ResolverFor::class.simpleName)
+private val resolverAnnotationName = requireNotNull(Resolver::class.simpleName)
+private val variableUnsetValue = Variable.UNSET_STRING_VALUE
 
 /**
  * Converts a resolver implementation into the intermediate descriptor model consumed by the
- * registry extractor.
- *
- * For now, this pass only emits node resolvers. Field resolvers are intentionally skipped and
- * will be handled in a later pass when we expand descriptor coverage.
+ * registry extractor. Emits both node resolvers (@NodeResolverFor) and field resolvers
+ * (@ResolverFor).
  */
 internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverParams? {
     val implFqn = qualifiedResolverName(logger) ?: return null
 
-    val annotatedBase = superTypes
+    val directBaseDeclaration = directResolverBaseDeclaration(
+        implFqn = implFqn,
+        logger = logger,
+    ) ?: return null
+
+    val resolverBaseClass = directBaseDeclaration.qualifiedName?.asString() ?: run {
+        logger.warnRegistryExtractor(
+            "Skipping {} because base class has no qualified name",
+            implFqn,
+        )
+        return null
+    }
+
+    val nodeResolverAnnotation = directBaseDeclaration.firstAnnotationNamed(nodeResolverForAnnotationName)
+    if (nodeResolverAnnotation != null) {
+        return toNodeResolverParams(
+            implFqn = implFqn,
+            nodeResolverAnnotation = nodeResolverAnnotation,
+            resolverBaseClass = resolverBaseClass,
+            logger = logger,
+        )
+    }
+
+    val resolverForAnnotation = directBaseDeclaration.firstAnnotationNamed(resolverForAnnotationName)
+    if (resolverForAnnotation != null) {
+        return toFieldResolverParams(
+            implFqn = implFqn,
+            resolverForAnnotation = resolverForAnnotation,
+            resolverBaseClass = resolverBaseClass,
+            logger = logger,
+        )
+    }
+
+    return null
+}
+
+private fun KSClassDeclaration.directResolverBaseDeclaration(
+    implFqn: String,
+    logger: KSPLogger,
+): KSClassDeclaration? {
+    val annotatedBase = superTypes.toList()
         .mapNotNull { it.resolve().declaration as? KSClassDeclaration }
         .firstOrNull { base ->
             base.firstAnnotationNamed(nodeResolverForAnnotationName) != null ||
@@ -34,21 +76,17 @@ internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverPar
             nodeResolverForAnnotationName,
             resolverForAnnotationName,
         )
-        return null
     }
 
-    val nodeResolverAnnotation = annotatedBase.firstAnnotationNamed(nodeResolverForAnnotationName)
-        ?: run {
-            // annotatedBase has @ResolverFor — field resolver, intentionally skipped in this pass.
-            logger.infoRegistryExtractor("Skipping field resolver {} in node-only pass", implFqn)
-            return null
-        }
+    return annotatedBase
+}
 
-    val resolverBaseClass = annotatedBase.qualifiedName?.asString() ?: run {
-        logger.warnRegistryExtractor("Skipping {} because base class has no qualified name", implFqn)
-        return null
-    }
-
+private fun KSClassDeclaration.toNodeResolverParams(
+    implFqn: String,
+    nodeResolverAnnotation: KSAnnotation,
+    resolverBaseClass: String,
+    logger: KSPLogger,
+): ResolverParams.Node? {
     val typeName = nodeResolverAnnotation.stringArg("typeName") ?: run {
         logger.warnRegistryExtractor(
             "Skipping {} because @{} is missing typeName",
@@ -101,6 +139,81 @@ internal fun KSAnnotation.boolArg(name: String): Boolean? {
     return arguments.firstOrNull { argument ->
         argument.name?.asString() == name
     }?.value as? Boolean
+}
+
+private fun KSClassDeclaration.toFieldResolverParams(
+    implFqn: String,
+    resolverForAnnotation: KSAnnotation,
+    resolverBaseClass: String,
+    logger: KSPLogger,
+): ResolverParams.Field? {
+    val typeName = resolverForAnnotation.stringArg("typeName") ?: run {
+        logger.warnRegistryExtractor(
+            "Skipping {} because @{} is missing typeName",
+            implFqn,
+            resolverForAnnotationName,
+        )
+        return null
+    }
+
+    val fieldName = resolverForAnnotation.stringArg("fieldName") ?: run {
+        logger.warnRegistryExtractor(
+            "Skipping {} because @{} is missing fieldName",
+            implFqn,
+            resolverForAnnotationName,
+        )
+        return null
+    }
+
+    val isBatching = resolverForAnnotation.boolArg("isBatching") ?: false
+    val isSelective = resolverForAnnotation.boolArg("isSelective") ?: false
+
+    val resolverAnnotation = firstAnnotationNamed(resolverAnnotationName)
+    val variableProviders = resolverAnnotation?.variableProviders() ?: emptyList()
+
+    val objectFragment = resolverAnnotation?.stringArg("objectValueFragment")?.takeIf { it.isNotBlank() }
+    val queryFragment = resolverAnnotation?.stringArg("queryValueFragment")?.takeIf { it.isNotBlank() }
+
+    // Variable providers are attached to objectSelections by convention (they reference object fields).
+    // querySelections has no variable providers in the current model.
+    val objectSelections = objectFragment?.let {
+        SelectionsBlock(selections = it, variablesProviders = variableProviders)
+    }
+    val querySelections = queryFragment?.let { SelectionsBlock(selections = it) }
+
+    return ResolverParams.Field(
+        implFqn = implFqn,
+        typeName = typeName,
+        fieldName = fieldName,
+        resolverBaseClass = resolverBaseClass,
+        isBatching = isBatching,
+        isSelective = isSelective,
+        objectSelections = objectSelections,
+        querySelections = querySelections,
+    )
+}
+
+private fun KSAnnotation.variableProviders(): List<VariableProviderDescriptor> {
+    val varAnnotations = arguments
+        .firstOrNull { it.name?.asString() == "variables" }
+        ?.value as? List<*>
+        ?: return emptyList()
+
+    return varAnnotations.filterIsInstance<KSAnnotation>().mapNotNull { varAnn ->
+        val name = varAnn.stringArg("name") ?: return@mapNotNull null
+        val fromObjectField = varAnn.stringArg("fromObjectField")?.takeIf { it != variableUnsetValue }
+        val fromQueryField = varAnn.stringArg("fromQueryField")?.takeIf { it != variableUnsetValue }
+        val fromArgument = varAnn.stringArg("fromArgument")?.takeIf { it != variableUnsetValue }
+
+        val (kind, path) = when {
+            fromObjectField != null -> "fromObjectField" to fromObjectField
+            fromQueryField != null -> "fromQueryField" to fromQueryField
+            fromArgument != null -> "fromArgument" to fromArgument
+            else -> return@mapNotNull null
+        }
+
+        VariableProviderDescriptor(kind = kind, name = name, path = path, providedVariables = mapOf(name to ""))
+    }
 }
 
 internal fun KSClassDeclaration.qualifiedResolverName(logger: KSPLogger): String? {

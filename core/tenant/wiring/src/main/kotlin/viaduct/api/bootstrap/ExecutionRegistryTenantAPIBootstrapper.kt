@@ -57,14 +57,20 @@ internal class ExecutionRegistryTenantAPIBootstrapper(
         }
     }
 
+    /**
+     * Returns URLs of `*.json` files under [REGISTRY_RESOURCE_PATH] scoped to [tenantPackagePrefix].
+     * Only files whose basename (without `.json`) equals [tenantPackagePrefix] or starts with
+     * `"$tenantPackagePrefix."` are returned, preventing accidental loading of registry files from
+     * unrelated tenants when multiple tenant packages share the same classpath.
+     */
     private fun collectRegistryUrls(): List<URL> {
         val classLoader = Thread.currentThread().contextClassLoader
-        return classLoader.getResources(REGISTRY_RESOURCE_PATH).toList().flatMap { dirUrl ->
-            listJsonsInDirectory(classLoader, dirUrl)
-        }.filter { url ->
-            val pkg = url.path.substringAfterLast('/').removeSuffix(".json")
-            pkg == tenantPackagePrefix || pkg.startsWith("$tenantPackagePrefix.")
-        }
+        return classLoader.getResources(REGISTRY_RESOURCE_PATH).toList()
+            .flatMap { dirUrl -> listJsonsInDirectory(classLoader, dirUrl) }
+            .filter { url ->
+                val pkg = url.path.substringAfterLast('/').removeSuffix(".json")
+                pkg == tenantPackagePrefix || pkg.startsWith("$tenantPackagePrefix.")
+            }
     }
 
     private fun listJsonsInDirectory(
@@ -72,19 +78,25 @@ internal class ExecutionRegistryTenantAPIBootstrapper(
         dirUrl: URL
     ): List<URL> =
         when (dirUrl.protocol) {
-            "file" -> File(dirUrl.toURI()).listFiles { f -> f.isFile && f.extension == "json" }
+            "file" -> File(dirUrl.toURI())
+                .listFiles { f -> f.isFile && f.extension == "json" }
                 ?.map { it.toURI().toURL() }
                 .orEmpty()
 
             "jar" -> {
                 val jarConn = dirUrl.openConnection() as JarURLConnection
                 val entryPrefix = jarConn.entryName.trimEnd('/') + "/"
-                val entryNames = jarConn.jarFile.use { jar ->
-                    jar.entries().toList()
-                        .filter { e -> !e.isDirectory && e.name.startsWith(entryPrefix) && e.name.endsWith(".json") }
-                        .map { e -> e.name }
+                // Do NOT close the JarFile — it is owned and cached by the runtime's URL classloader.
+                // Calling .use { } here would close the shared JAR and break subsequent classloader reads.
+                val entryNames = jarConn.jarFile
+                    .entries().toList()
+                    .filter { e -> !e.isDirectory && e.name.startsWith(entryPrefix) && e.name.endsWith(".json") }
+                    .map { e -> e.name }
+                entryNames.mapNotNull { name ->
+                    classLoader.getResource(name).also {
+                        if (it == null) log.warn("Registry entry '{}' listed in JAR but not resolvable via classloader", name)
+                    }
                 }
-                entryNames.map { name -> classLoader.getResource(name)!! }
             }
 
             else -> {

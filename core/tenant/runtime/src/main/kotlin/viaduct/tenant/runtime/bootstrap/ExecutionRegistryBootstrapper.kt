@@ -217,10 +217,9 @@ class ExecutionRegistryBootstrapper(
         fqn: String,
         context: String
     ): Class<out T> {
-        // KSP emits '.' for nested class separators; Class.forName needs '$'.
+        // KSP emits '.' as separator for nested classes; Class.forName requires '$'.
+        // Try progressively moving the '.' → '$' boundary from the right until one resolves.
         val parts = fqn.split('.')
-        // Track the last cause: it's the most-nested $ substitution attempt and
-        // gives the most useful JVM diagnostic when the class genuinely doesn't exist.
         var lastCause: ClassNotFoundException? = null
         for (splitAt in parts.indices.reversed()) {
             val candidate = parts.take(splitAt + 1).joinToString(".") +
@@ -229,7 +228,6 @@ class ExecutionRegistryBootstrapper(
                 return Class.forName(candidate) as Class<out T>
             } catch (e: ClassNotFoundException) {
                 lastCause = e
-                continue
             }
         }
         throw ClassNotFoundException("Cannot load class '$fqn' for $context", lastCause)

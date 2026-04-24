@@ -160,7 +160,7 @@ class RegistryExtractorProcessorTest {
     }
 
     @Test
-    fun `process skips source files where all resolvers are field resolvers`() {
+    fun `process writes descriptor file for source files containing field resolvers`() {
         val logger = RecordingKspLogger()
         val codeGenerator = RecordingCodeGenerator()
         val environment = fakeEnvironment(logger = logger, codeGenerator = codeGenerator)
@@ -175,7 +175,15 @@ class RegistryExtractorProcessorTest {
             simpleName = "ExampleName",
             packageName = "com.example.feature.resolverbases",
             annotations = listOf(
-                ksAnnotation(simpleName = "ResolverFor", args = mapOf("typeName" to "ExampleNode", "fieldName" to "name")),
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf(
+                        "typeName" to "ExampleNode",
+                        "fieldName" to "name",
+                        "isBatching" to false,
+                        "isSelective" to false,
+                    ),
+                ),
             ),
             superDeclarations = emptyList(),
             containingFile = null,
@@ -203,8 +211,13 @@ class RegistryExtractorProcessorTest {
 
         processor.process(resolver)
 
-        // No output should be written since all resolvers are field resolvers (skipped in node-only pass)
-        assertTrue(codeGenerator.outputs.isEmpty())
+        assertEquals(
+            setOf("viaduct-registry/com/example/feature/resolvers/FieldResolvers.json"),
+            codeGenerator.outputs.keys,
+        )
+        val json = codeGenerator.outputs.values.single()
+        assertTrue(json.contains("\"fieldName\" : \"name\""), json)
+        assertTrue(json.contains("\"typeName\" : \"ExampleNode\""), json)
     }
 }
 

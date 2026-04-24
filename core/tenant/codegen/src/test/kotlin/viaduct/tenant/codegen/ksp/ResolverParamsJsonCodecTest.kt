@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.ksp
 
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -90,6 +91,242 @@ class ResolverParamsJsonCodecTest {
                 ),
             ),
             fields = emptyList(),
+        )
+
+        val decoded = codec.decode(codec.encode(original))
+
+        assertEquals(original, decoded)
+    }
+
+    @Test
+    fun `encode writes expected field descriptor without selections`() {
+        val codec = ResolverParamsJsonCodec()
+
+        val json = codec.encode(
+            ResolverDescriptorFile(
+                nodes = emptyList(),
+                fields = listOf(
+                    ResolverParams.Field(
+                        implFqn = "com.example.feature.resolvers.ExampleNameResolver",
+                        typeName = "ExampleNode",
+                        fieldName = "name",
+                        resolverBaseClass = "com.example.feature.resolverbases.ExampleName",
+                        isBatching = false,
+                        isSelective = false,
+                        objectSelections = null,
+                        querySelections = null,
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            """
+                {
+                  "fields" : [ {
+                    "attribution" : "ExampleNameResolver",
+                    "fieldName" : "name",
+                    "implFqn" : "com.example.feature.resolvers.ExampleNameResolver",
+                    "isBatching" : false,
+                    "isSelective" : false,
+                    "resolverBaseClass" : "com.example.feature.resolverbases.ExampleName",
+                    "typeName" : "ExampleNode"
+                  } ],
+                  "nodes" : [ ]
+                }
+
+            """.trimIndent(),
+            json,
+        )
+    }
+
+    @Test
+    fun `encode writes expected field descriptor with objectSelections and variablesProviders`() {
+        val codec = ResolverParamsJsonCodec()
+
+        val json = codec.encode(
+            ResolverDescriptorFile(
+                nodes = emptyList(),
+                fields = listOf(
+                    ResolverParams.Field(
+                        implFqn = "com.example.feature.resolvers.ExampleNameResolver",
+                        typeName = "ExampleNode",
+                        fieldName = "name",
+                        resolverBaseClass = "com.example.feature.resolverbases.ExampleName",
+                        isBatching = false,
+                        isSelective = false,
+                        objectSelections = SelectionsBlock(
+                            selections = "fragment _ on ExampleNode { firstName lastName }",
+                            variablesProviders = listOf(
+                                VariableProviderDescriptor(
+                                    kind = "fromArgument",
+                                    name = "includeDetails",
+                                    path = "includeDetails",
+                                ),
+                            ),
+                        ),
+                        querySelections = null,
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            """
+                {
+                  "fields" : [ {
+                    "attribution" : "ExampleNameResolver",
+                    "fieldName" : "name",
+                    "implFqn" : "com.example.feature.resolvers.ExampleNameResolver",
+                    "isBatching" : false,
+                    "isSelective" : false,
+                    "objectSelections" : {
+                      "selections" : "fragment _ on ExampleNode { firstName lastName }",
+                      "variablesProviders" : [ {
+                        "kind" : "fromArgument",
+                        "name" : "includeDetails",
+                        "path" : "includeDetails",
+                        "providedVariables" : { }
+                      } ]
+                    },
+                    "resolverBaseClass" : "com.example.feature.resolverbases.ExampleName",
+                    "typeName" : "ExampleNode"
+                  } ],
+                  "nodes" : [ ]
+                }
+
+            """.trimIndent(),
+            json,
+        )
+    }
+
+    @Test
+    fun `encode writes expected field descriptor with both objectSelections and querySelections`() {
+        val codec = ResolverParamsJsonCodec()
+
+        val json = codec.encode(
+            ResolverDescriptorFile(
+                nodes = emptyList(),
+                fields = listOf(
+                    ResolverParams.Field(
+                        implFqn = "com.example.feature.resolvers.GreetingResolver",
+                        typeName = "Character",
+                        fieldName = "greeting",
+                        resolverBaseClass = "com.example.feature.resolverbases.CharacterResolvers.Greeting",
+                        isBatching = false,
+                        isSelective = false,
+                        objectSelections = SelectionsBlock(
+                            selections = "fragment _ on Character { name }",
+                        ),
+                        querySelections = SelectionsBlock(
+                            selections = "fragment _ on Query { viewer { displayName } }",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            """
+                {
+                  "fields" : [ {
+                    "attribution" : "GreetingResolver",
+                    "fieldName" : "greeting",
+                    "implFqn" : "com.example.feature.resolvers.GreetingResolver",
+                    "isBatching" : false,
+                    "isSelective" : false,
+                    "objectSelections" : {
+                      "selections" : "fragment _ on Character { name }",
+                      "variablesProviders" : [ ]
+                    },
+                    "querySelections" : {
+                      "selections" : "fragment _ on Query { viewer { displayName } }",
+                      "variablesProviders" : [ ]
+                    },
+                    "resolverBaseClass" : "com.example.feature.resolverbases.CharacterResolvers.Greeting",
+                    "typeName" : "Character"
+                  } ],
+                  "nodes" : [ ]
+                }
+
+            """.trimIndent(),
+            json,
+        )
+    }
+
+    @Test
+    fun `decode reads encoded field descriptor`() {
+        val codec = ResolverParamsJsonCodec()
+
+        val descriptorFile = codec.decode(
+            """
+            {
+              "fields" : [ {
+                "implFqn" : "com.example.feature.resolvers.ExampleNameResolver",
+                "typeName" : "ExampleNode",
+                "fieldName" : "name",
+                "resolverBaseClass" : "com.example.feature.resolverbases.ExampleName",
+                "attribution" : "ExampleNameResolver",
+                "isBatching" : false,
+                "isSelective" : false,
+                "objectSelections" : {
+                  "selections" : "fragment _ on ExampleNode { firstName lastName }",
+                  "variablesProviders" : [ {
+                    "kind" : "fromArgument",
+                    "name" : "includeDetails",
+                    "path" : "includeDetails",
+                    "providedVariables" : { }
+                  } ]
+                }
+              } ],
+              "nodes" : [ ]
+            }
+            """.trimIndent(),
+        )
+
+        assertTrue(descriptorFile.nodes.isEmpty())
+        assertEquals(1, descriptorFile.fields.size)
+
+        val field = descriptorFile.fields.single()
+        assertEquals("com.example.feature.resolvers.ExampleNameResolver", field.implFqn)
+        assertEquals("ExampleNode", field.typeName)
+        assertEquals("name", field.fieldName)
+        assertEquals("com.example.feature.resolverbases.ExampleName", field.resolverBaseClass)
+        assertEquals("ExampleNameResolver", field.attribution)
+        assertEquals(false, field.isBatching)
+        assertEquals(false, field.isSelective)
+        assertEquals("fragment _ on ExampleNode { firstName lastName }", field.objectSelections?.selections)
+        assertEquals(1, field.objectSelections?.variablesProviders?.size)
+        val provider = field.objectSelections?.variablesProviders?.single()
+        assertEquals("fromArgument", provider?.kind)
+        assertEquals("includeDetails", provider?.name)
+        assertEquals("includeDetails", provider?.path)
+        assertNull(field.querySelections)
+    }
+
+    @Test
+    fun `encode and decode round trip preserves field descriptor`() {
+        val codec = ResolverParamsJsonCodec()
+
+        val original = ResolverDescriptorFile(
+            nodes = emptyList(),
+            fields = listOf(
+                ResolverParams.Field(
+                    implFqn = "com.example.feature.resolvers.ExampleNameResolver",
+                    typeName = "ExampleNode",
+                    fieldName = "name",
+                    resolverBaseClass = "com.example.feature.resolverbases.ExampleName",
+                    isBatching = false,
+                    isSelective = false,
+                    objectSelections = SelectionsBlock(
+                        selections = "fragment _ on ExampleNode { firstName lastName }",
+                        variablesProviders = listOf(
+                            VariableProviderDescriptor(kind = "fromArgument", name = "x", path = "x"),
+                        ),
+                    ),
+                    querySelections = null,
+                ),
+            ),
         )
 
         val decoded = codec.decode(codec.encode(original))

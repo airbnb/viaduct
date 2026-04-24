@@ -43,7 +43,7 @@ class ResolverParamsTest {
     @Test
     fun `Field holds all required properties`() {
         val provider = VariableProviderDescriptor(
-            kind = "OBJECT_VALUE",
+            kind = "fromObjectField",
             name = "myVar",
             path = "some.path",
         )
@@ -52,18 +52,29 @@ class ResolverParamsTest {
             implFqn = "com.example.resolvers.ExampleNameResolver",
             typeName = "ExampleNode",
             fieldName = "name",
-            objectValueFragment = "fragment ObjectFrag on ExampleNode { name }",
-            queryValueFragment = "fragment QueryFrag on Query { example { name } }",
-            variableProviders = listOf(provider),
+            resolverBaseClass = "com.example.resolverbases.ExampleName",
+            isBatching = false,
+            isSelective = false,
+            objectSelections = SelectionsBlock(
+                selections = "fragment _ on ExampleNode { name }",
+                variablesProviders = listOf(provider),
+            ),
+            querySelections = SelectionsBlock(
+                selections = "fragment _ on Query { example { name } }",
+            ),
         )
 
         assertEquals("com.example.resolvers.ExampleNameResolver", field.implFqn)
         assertEquals("ExampleNode", field.typeName)
         assertEquals("name", field.fieldName)
-        assertEquals("fragment ObjectFrag on ExampleNode { name }", field.objectValueFragment)
-        assertEquals("fragment QueryFrag on Query { example { name } }", field.queryValueFragment)
-        assertEquals(1, field.variableProviders.size)
-        assertEquals(provider, field.variableProviders.single())
+        assertEquals("com.example.resolverbases.ExampleName", field.resolverBaseClass)
+        assertEquals("ExampleNameResolver", field.attribution)
+        assertEquals(false, field.isBatching)
+        assertEquals(false, field.isSelective)
+        assertEquals("fragment _ on ExampleNode { name }", field.objectSelections?.selections)
+        assertEquals(1, field.objectSelections?.variablesProviders?.size)
+        assertEquals(provider, field.objectSelections?.variablesProviders?.single())
+        assertEquals("fragment _ on Query { example { name } }", field.querySelections?.selections)
     }
 
     @Test
@@ -72,14 +83,15 @@ class ResolverParamsTest {
             implFqn = "com.example.resolvers.ExampleNameResolver",
             typeName = "ExampleNode",
             fieldName = "name",
-            objectValueFragment = null,
-            queryValueFragment = null,
-            variableProviders = emptyList(),
+            resolverBaseClass = "com.example.resolverbases.ExampleName",
+            isBatching = false,
+            isSelective = false,
+            objectSelections = null,
+            querySelections = null,
         )
 
-        assertNull(field.objectValueFragment)
-        assertNull(field.queryValueFragment)
-        assertTrue(field.variableProviders.isEmpty())
+        assertNull(field.objectSelections)
+        assertNull(field.querySelections)
     }
 
     @Test
@@ -88,9 +100,11 @@ class ResolverParamsTest {
             implFqn = "com.example.resolvers.ExampleNameResolver",
             typeName = "ExampleNode",
             fieldName = "name",
-            objectValueFragment = null,
-            queryValueFragment = null,
-            variableProviders = emptyList(),
+            resolverBaseClass = "com.example.resolverbases.ExampleName",
+            isBatching = false,
+            isSelective = false,
+            objectSelections = null,
+            querySelections = null,
         )
         val copy = original.copy(fieldName = "title")
 
@@ -117,9 +131,11 @@ class ResolverParamsTest {
             implFqn = "com.example.resolvers.ExampleNameResolver",
             typeName = "ExampleNode",
             fieldName = "name",
-            objectValueFragment = null,
-            queryValueFragment = null,
-            variableProviders = emptyList(),
+            resolverBaseClass = "com.example.resolverbases.ExampleName",
+            isBatching = false,
+            isSelective = false,
+            objectSelections = null,
+            querySelections = null,
         )
 
         assertTrue(field is ResolverParams.Field)
@@ -128,12 +144,12 @@ class ResolverParamsTest {
     @Test
     fun `VariableProviderDescriptor holds kind name and path`() {
         val provider = VariableProviderDescriptor(
-            kind = "QUERY_VALUE",
+            kind = "fromQueryField",
             name = "queryVar",
             path = "some.nested.path",
         )
 
-        assertEquals("QUERY_VALUE", provider.kind)
+        assertEquals("fromQueryField", provider.kind)
         assertEquals("queryVar", provider.name)
         assertEquals("some.nested.path", provider.path)
     }
@@ -141,7 +157,7 @@ class ResolverParamsTest {
     @Test
     fun `VariableProviderDescriptor with null path holds null`() {
         val provider = VariableProviderDescriptor(
-            kind = "OBJECT_VALUE",
+            kind = "fromObjectField",
             name = "myVar",
             path = null,
         )
@@ -152,7 +168,7 @@ class ResolverParamsTest {
     @Test
     fun `VariableProviderDescriptor data class equality and copy work correctly`() {
         val original = VariableProviderDescriptor(
-            kind = "OBJECT_VALUE",
+            kind = "fromObjectField",
             name = "myVar",
             path = "root.field",
         )
@@ -160,7 +176,7 @@ class ResolverParamsTest {
 
         assertEquals(original, original.copy())
         assertEquals("otherVar", copy.name)
-        assertEquals("OBJECT_VALUE", copy.kind)
+        assertEquals("fromObjectField", copy.kind)
     }
 
     @Test
@@ -176,9 +192,11 @@ class ResolverParamsTest {
             implFqn = "com.example.resolvers.ExampleNameResolver",
             typeName = "ExampleNode",
             fieldName = "name",
-            objectValueFragment = null,
-            queryValueFragment = null,
-            variableProviders = emptyList(),
+            resolverBaseClass = "com.example.resolverbases.ExampleName",
+            isBatching = false,
+            isSelective = false,
+            objectSelections = null,
+            querySelections = null,
         )
 
         val descriptorFile = ResolverDescriptorFile(

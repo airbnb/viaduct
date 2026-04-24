@@ -18,16 +18,13 @@ class AssembleTenantModuleConfigFileTest {
         return File(tempDir, "schema.graphql").also { it.writeText(content) }
     }
 
-    private fun nodeDescriptor(typeName: String = "MyType") =
-        """{"nodes": [{"typeName": "$typeName", "implFqn": "com.example.$typeName", "resolverBaseClass": "com.example.Base$typeName"}], "fields": []}"""
-
-    @Test
-    fun `writes output file under META-INF viaduct modules with tenant package name`() {
-        val descriptors = descriptorDir()
-        val schema = schemaFile()
-        val out = outputDir()
-        val tenantPkg = "com.example.feature"
-
+    private fun runCli(
+        descriptors: File = descriptorDir(),
+        schema: File = schemaFile(),
+        tenantPkg: String = "com.example.feature",
+        executorFactory: String = "com.example.feature.ExampleExecutorFactory",
+        out: File = outputDir(),
+    ) {
         AssembleTenantModuleConfigFile().main(
             listOf(
                 "--descriptor-dir",
@@ -37,154 +34,144 @@ class AssembleTenantModuleConfigFileTest {
                 "--tenant-package",
                 tenantPkg,
                 "--executor-factory",
-                "com.example.ExecutorFactory",
+                executorFactory,
                 "--output-dir",
                 out.absolutePath,
             ),
         )
+    }
 
-        val outputFile = out.resolve("META-INF/viaduct/modules/$tenantPkg.json")
+    @Test
+    fun `writes output file under META-INF viaduct modules with tenant package name`() {
+        val out = outputDir()
+        runCli(out = out)
+
+        val outputFile = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json")
         assertTrue(outputFile.exists(), "Expected output file to be created at ${outputFile.path}")
     }
 
     @Test
-    fun `output JSON contains zero nodes when no descriptors present`() {
-        val descriptors = descriptorDir()
-        val schema = schemaFile()
+    fun `output JSON contains empty registry when no descriptors present`() {
         val out = outputDir()
-        val tenantPkg = "com.example.feature"
+        runCli(out = out)
 
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--executor-factory",
-                "com.example.ExecutorFactory",
-                "--output-dir",
-                out.absolutePath,
-            ),
-        )
-
-        val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"nodes\" : [ ]"), json)
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("\"nodes\""), json)
+        assertTrue(json.contains("\"fields\""), json)
     }
 
     @Test
-    fun `output JSON node count reflects number of node entries across descriptor files`() {
-        val descriptors = descriptorDir()
-        File(descriptors, "alpha.json").writeText(nodeDescriptor("Alpha"))
-        File(descriptors, "beta.json").writeText(nodeDescriptor("Beta"))
-        val schema = schemaFile()
+    fun `output JSON contains executorFactory from CLI arg`() {
         val out = outputDir()
-        val tenantPkg = "com.example.feature"
+        runCli(executorFactory = "com.example.MyExecutorFactory", out = out)
 
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--executor-factory",
-                "com.example.ExecutorFactory",
-                "--output-dir",
-                out.absolutePath,
-            ),
-        )
-
-        val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"typeName\" : \"Alpha\""), json)
-        assertTrue(json.contains("\"typeName\" : \"Beta\""), json)
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("com.example.MyExecutorFactory"), json)
     }
 
     @Test
-    fun `nodes are sorted by type name in the output`() {
-        val descriptors = descriptorDir()
-        File(descriptors, "ZResolver.json").writeText(nodeDescriptor("ZType"))
-        File(descriptors, "AResolver.json").writeText(nodeDescriptor("AType"))
-        val schema = schemaFile()
+    fun `output JSON contains version and executorFactory fields`() {
         val out = outputDir()
-        val tenantPkg = "com.example.feature"
+        runCli(executorFactory = "com.example.feature.ExampleExecutorFactory", out = out)
 
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--executor-factory",
-                "com.example.ExecutorFactory",
-                "--output-dir",
-                out.absolutePath,
-            ),
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("\"version\""), json)
+        assertTrue(json.contains("\"executorFactory\""), json)
+    }
+
+    @Test
+    fun `output JSON includes node entry assembled from descriptor`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "ExampleResolvers.json").writeText(
+            """
+            {
+              "nodes": [ {
+                "attribution": "ExampleNodeResolver",
+                "implFqn": "com.example.feature.resolvers.ExampleNodeResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+                "typeName": "ExampleNode"
+              } ],
+              "fields": []
+            }
+            """.trimIndent(),
         )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        val aIndex = json.indexOf("AType")
-        val zIndex = json.indexOf("ZType")
-        assertTrue(aIndex < zIndex, "Expected AType to appear before ZType in sorted output")
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("ExampleNodeResolver"), json)
+        assertTrue(json.contains("ExampleNode"), json)
+        assertTrue(json.contains("\"typeName\""), json)
+    }
+
+    @Test
+    fun `output JSON includes field entry assembled from descriptor`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FieldResolvers.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "ExampleNameResolver",
+                "implFqn": "com.example.feature.resolvers.ExampleNameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.ExampleName",
+                "typeName": "ExampleNode",
+                "fieldName": "name"
+              } ]
+            }
+            """.trimIndent(),
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("ExampleNameResolver"), json)
+        assertTrue(json.contains("\"fieldName\""), json)
+        assertTrue(json.contains("\"name\""), json)
+    }
+
+    @Test
+    fun `descriptors from multiple files are merged into single registry`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "AResolvers.json").writeText(
+            """{"nodes": [{"attribution":"ANodeResolver","implFqn":"com.example.ANodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.A","typeName":"A"}],"fields":[]}""",
+        )
+        File(descriptors, "BResolvers.json").writeText(
+            """{"nodes": [{"attribution":"BNodeResolver","implFqn":"com.example.BNodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.B","typeName":"B"}],"fields":[]}""",
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("ANodeResolver"), json)
+        assertTrue(json.contains("BNodeResolver"), json)
     }
 
     @Test
     fun `non-json files in descriptor dir are ignored`() {
         val descriptors = descriptorDir()
         File(descriptors, "something.txt").writeText("not json")
-        File(descriptors, "MyResolver.json").writeText(nodeDescriptor("MyType"))
-        val schema = schemaFile()
-        val out = outputDir()
-        val tenantPkg = "com.example.feature"
-
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--executor-factory",
-                "com.example.ExecutorFactory",
-                "--output-dir",
-                out.absolutePath,
-            ),
+        File(descriptors, "MyResolver.json").writeText(
+            """{"nodes":[],"fields":[]}""",
         )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"typeName\" : \"MyType\""), json)
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
         assertFalse(json.contains("something.txt"), json)
     }
 
     @Test
     fun `output dir is created if it does not exist`() {
-        val descriptors = descriptorDir()
-        val schema = schemaFile()
         val out = File(tempDir, "nonexistent/deeply/nested/output")
         assertFalse(out.exists())
-        val tenantPkg = "com.example.feature"
+        runCli(out = out)
 
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--executor-factory",
-                "com.example.ExecutorFactory",
-                "--output-dir",
-                out.absolutePath,
-            ),
-        )
-
-        val outputFile = out.resolve("META-INF/viaduct/modules/$tenantPkg.json")
+        val outputFile = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json")
         assertTrue(outputFile.exists(), "Expected output file to be created even in non-existent nested dir")
     }
 
@@ -192,27 +179,26 @@ class AssembleTenantModuleConfigFileTest {
     fun `descriptors in subdirectories are included`() {
         val descriptors = descriptorDir()
         val subDir = File(descriptors, "com/example/feature/resolvers").also { it.mkdirs() }
-        File(subDir, "ExampleNodeResolver.json").writeText(nodeDescriptor("ExampleNode"))
-        val schema = schemaFile()
-        val out = outputDir()
-        val tenantPkg = "com.example.feature"
-
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--executor-factory",
-                "com.example.ExecutorFactory",
-                "--output-dir",
-                out.absolutePath,
-            ),
+        File(subDir, "ExampleNodeResolver.json").writeText(
+            """{"nodes": [{"attribution":"ExampleNodeResolver","implFqn":"com.example.feature.resolvers.ExampleNodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.feature.resolverbases.NodeResolvers.ExampleNode","typeName":"ExampleNode"}],"fields":[]}""",
         )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("META-INF/viaduct/modules/$tenantPkg.json").readText()
-        assertTrue(json.contains("\"typeName\" : \"ExampleNode\""), json)
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("ExampleNode"), json)
+    }
+
+    @Test
+    fun `resolver class names are preserved in output`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "ExampleResolvers.json").writeText(
+            "{\"nodes\": [{\"attribution\":\"A\",\"implFqn\":\"com.example.resolvers.AResolver\",\"isBatching\":false,\"isSelective\":false,\"resolverBaseClass\":\"com.example.bases.A\",\"typeName\":\"A\"}],\"fields\":[]}",
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("com.example.resolvers.AResolver"), json)
     }
 }

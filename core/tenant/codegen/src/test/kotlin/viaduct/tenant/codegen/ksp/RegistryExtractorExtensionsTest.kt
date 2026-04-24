@@ -10,9 +10,11 @@ import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueArgument
 import java.lang.reflect.Proxy
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.api.Variable
 
 class RegistryExtractorExtensionsTest {
     @Test
@@ -54,7 +56,7 @@ class RegistryExtractorExtensionsTest {
     }
 
     @Test
-    fun `toResolverParams returns null for field resolver in node only pass`() {
+    fun `toResolverParams returns field params for field resolver`() {
         val logger = RecordingKspLogger()
 
         val baseDeclaration = ksClassDeclaration(
@@ -67,6 +69,8 @@ class RegistryExtractorExtensionsTest {
                     args = mapOf(
                         "typeName" to "ExampleNode",
                         "fieldName" to "name",
+                        "isBatching" to false,
+                        "isSelective" to false,
                     ),
                 ),
             ),
@@ -83,7 +87,128 @@ class RegistryExtractorExtensionsTest {
 
         val result = resolverDeclaration.toResolverParams(logger)
 
-        assertNull(result)
+        assertTrue(result is ResolverParams.Field)
+        assertEquals("com.example.feature.resolvers.ExampleNameResolver", result.implFqn)
+        assertEquals("ExampleNode", result.typeName)
+        assertEquals("name", result.fieldName)
+        assertEquals("com.example.feature.resolverbases.ExampleName", result.resolverBaseClass)
+        assertEquals("ExampleNameResolver", result.attribution)
+        assertEquals(false, result.isBatching)
+        assertEquals(false, result.isSelective)
+        assertNull(result.objectSelections)
+        assertNull(result.querySelections)
+        assertTrue(logger.warns.isEmpty(), logger.warns.joinToString("\n"))
+        assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `toResolverParams returns field params with fragments when Resolver annotation is present`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf(
+                        "typeName" to "ExampleNode",
+                        "fieldName" to "name",
+                        "isBatching" to false,
+                        "isSelective" to false,
+                    ),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "fragment _ on ExampleNode { firstName lastName }",
+                        "queryValueFragment" to "",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertTrue(result is ResolverParams.Field)
+        assertEquals("fragment _ on ExampleNode { firstName lastName }", result.objectSelections?.selections)
+        assertTrue(result.objectSelections?.variablesProviders.isNullOrEmpty())
+        assertNull(result.querySelections)
+    }
+
+    @Test
+    fun `toResolverParams populates providedVariables with variable name so bootstrapper can build SelectionSetVariables`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf(
+                        "typeName" to "ExampleNode",
+                        "fieldName" to "name",
+                        "isBatching" to false,
+                        "isSelective" to false,
+                    ),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val variableAnnotation = ksAnnotation(
+            simpleName = "Variable",
+            args = mapOf(
+                "name" to "includeDetails",
+                "fromObjectField" to "flags.showDetails",
+                "fromQueryField" to Variable.UNSET_STRING_VALUE,
+                "fromArgument" to Variable.UNSET_STRING_VALUE,
+            ),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "fragment _ on ExampleNode { flags { showDetails } }",
+                        "queryValueFragment" to "",
+                        "variables" to listOf(variableAnnotation),
+                    ),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertTrue(result is ResolverParams.Field)
+        val provider = result.objectSelections?.variablesProviders?.single()
+        assertNotNull(provider)
+        assertEquals("includeDetails", provider.name)
+        assertEquals("fromObjectField", provider.kind)
+        assertEquals("flags.showDetails", provider.path)
+        // providedVariables must be keyed by name so ExecutionRegistryBootstrapper can build SelectionSetVariables
+        assertEquals(mapOf("includeDetails" to ""), provider.providedVariables)
     }
 
     @Test
@@ -403,7 +528,7 @@ private fun ksLocalClassDeclaration(
 }
 
 /** Creates a KSClassDeclaration with null qualifiedName (and non-local, so isLocal() = false). */
-private fun ksClassDeclarationWithNullQualifiedName(simpleName: String,): KSClassDeclaration {
+private fun ksClassDeclarationWithNullQualifiedName(simpleName: String): KSClassDeclaration {
     val simpleNameValue = ksName(simpleName)
 
     return proxy(KSClassDeclaration::class.java) { method, _ ->

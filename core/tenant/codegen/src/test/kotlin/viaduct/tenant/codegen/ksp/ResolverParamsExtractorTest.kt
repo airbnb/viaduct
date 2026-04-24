@@ -127,7 +127,7 @@ class ResolverParamsExtractorTest {
     }
 
     @Test
-    fun `extractByFile ignores field resolvers and non resolvers`() {
+    fun `extractByFile extracts field resolvers and ignores non resolvers`() {
         val logger = RecordingKspLogger()
 
         val file = ksFile(
@@ -145,6 +145,8 @@ class ResolverParamsExtractorTest {
                     args = mapOf(
                         "typeName" to "ExampleNode",
                         "fieldName" to "name",
+                        "isBatching" to false,
+                        "isSelective" to false,
                     ),
                 ),
             ),
@@ -186,7 +188,13 @@ class ResolverParamsExtractorTest {
             logger = logger,
         ).extractByFile()
 
-        assertTrue(result.isEmpty())
+        assertEquals(1, result.size)
+        val descriptor = result.values.single()
+        assertTrue(descriptor.nodes.isEmpty())
+        assertEquals(1, descriptor.fields.size)
+        assertEquals("ExampleNode", descriptor.fields.single().typeName)
+        assertEquals("name", descriptor.fields.single().fieldName)
+        assertEquals("com.example.feature.resolvers.ExampleNameResolver", descriptor.fields.single().implFqn)
     }
 
     @Test
@@ -240,7 +248,7 @@ class ResolverParamsExtractorTest {
     }
 }
 
-private fun ksResolver(files: List<KSFile>,): Resolver {
+private fun ksResolver(files: List<KSFile>): Resolver {
     return proxy(Resolver::class.java) { method, _ ->
         when (method.name) {
             "getAllFiles" -> files.asSequence()
@@ -338,7 +346,7 @@ private fun ksValueArgument(
     }
 }
 
-private fun ksTypeReference(declaration: KSClassDeclaration,): KSTypeReference {
+private fun ksTypeReference(declaration: KSClassDeclaration): KSTypeReference {
     val type = proxy(KSType::class.java) { method, _ ->
         when (method.name) {
             "getDeclaration" -> declaration
