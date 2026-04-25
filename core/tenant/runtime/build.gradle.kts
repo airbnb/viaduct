@@ -9,7 +9,7 @@ plugins {
 }
 
 viaductFeatureAppContracts {
-    contractsFrom(":tenant:tenant-runtime")
+    contractsFrom(":tenant:runtime")
 }
 
 viaductPublishing {

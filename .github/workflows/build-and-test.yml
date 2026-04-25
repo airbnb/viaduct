@@ -118,7 +118,7 @@ jobs:
           cd ..
 
           echo "🔨 Building Dokka documentation..."
-          ./gradlew :core:tenant:tenant-api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:javaapi-api:dokkaGenerate || { echo "❌ Dokka failed"; exit 1; }
+          ./gradlew :core:tenant:api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:api:dokkaGenerate || { echo "❌ Dokka failed"; exit 1; }
 
           echo "📖 Verifying Dokka documentation output..."
 
@@ -137,15 +137,15 @@ jobs:
           echo "✅ service docs present"
 
           # Verify service docs contain aggregated modules
-          if [ ! -d "docs/site/apis/service/service/service-api" ]; then
-            echo "❌ Missing aggregated service-api module in service docs"
+          if [ ! -d "docs/site/apis/service/service/api" ]; then
+            echo "❌ Missing aggregated api module in service docs"
             exit 1
           fi
-          if [ ! -d "docs/site/apis/service/service/service-wiring" ]; then
-            echo "❌ Missing aggregated service-wiring module in service docs"
+          if [ ! -d "docs/site/apis/service/service/wiring" ]; then
+            echo "❌ Missing aggregated wiring module in service docs"
             exit 1
           fi
-          echo "✅ service docs contain aggregated modules (service-api, service-wiring)"
+          echo "✅ service docs contain aggregated modules (api, wiring)"
 
           PYTHONPATH=docs:$PYTHONPATH djlint docs/site/ --lint \
             --ignore "H005,H006,H013,H014,H020,H021,H023,H025,H026,H030,H031" \

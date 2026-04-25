@@ -6,7 +6,7 @@ plugins {
 }
 
 viaductJavaFeatureAppContracts {
-    contractsFrom(":tenant:tenant-runtime")
+    contractsFrom(":tenant:runtime")
 }
 
 description = "Java Tenant API runtime implementation - bridges Java API to Kotlin engine"
@@ -16,7 +16,7 @@ dependencies {
     viaductCodegenClasspath(libs.viaduct.javaapi.codegen)
 
     // Java API that this runtime implements
-    api(project(":x:javaapi:javaapi-api"))
+    api(project(":x:javaapi:api"))
 
     // Viaduct engine API (Kotlin)
     api(libs.viaduct.engine.api)

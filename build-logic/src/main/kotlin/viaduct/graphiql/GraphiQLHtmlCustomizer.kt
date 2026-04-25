@@ -45,7 +45,7 @@ class GraphiQLHtmlCustomizer(
 <!--
  *  VIADUCT CUSTOMIZATIONS:
  *  This file is generated from the official GraphiQL CDN example and customized for Viaduct.
- *  DO NOT EDIT MANUALLY - regenerate using: ./gradlew :core:service:service-wiring:generateGraphiQLHtml
+ *  DO NOT EDIT MANUALLY - regenerate using: ./gradlew :core:service:wiring:generateGraphiQLHtml
  *
  *  Customizations applied:
  *  - Changed title to "GraphiQL - Viaduct"

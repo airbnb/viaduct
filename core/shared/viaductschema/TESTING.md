@@ -134,13 +134,13 @@ All commands run from `projects/viaduct/oss`.
 ### Unit Tests
 
 ```bash
-./gradlew :core:shared:shared-viaductschema:test
+./gradlew :core:shared:viaductschema:test
 ```
 
 ### Integration Tests
 
 ```bash
-./gradlew :core:shared:shared-viaductschema:run --args="mmdiff -p $HOME/repos/treehouse/projects/viaduct/modules"
+./gradlew :core:shared:viaductschema:run --args="mmdiff -p $HOME/repos/treehouse/projects/viaduct/modules"
 ```
 
 ### Benchmarks
@@ -148,17 +148,17 @@ All commands run from `projects/viaduct/oss`.
 Full benchmark:
 
 ```bash
-BENCHMARK_SCHEMA_SIZE=5000 ./gradlew :core:shared:shared-viaductschema:jmh
+BENCHMARK_SCHEMA_SIZE=5000 ./gradlew :core:shared:viaductschema:jmh
 ```
 
 Partial benchmarks with regex filter:
 
 ```bash
 # Only ViaductSchemaBenchmark
-BENCHMARK_SCHEMA_SIZE=5000 ./gradlew :core:shared:shared-viaductschema:jmh -Pjmh.includes="ViaductSchemaBenchmark"
+BENCHMARK_SCHEMA_SIZE=5000 ./gradlew :core:shared:viaductschema:jmh -Pjmh.includes="ViaductSchemaBenchmark"
 
 # Only binary read benchmarks
-BENCHMARK_SCHEMA_SIZE=5000 ./gradlew :core:shared:shared-viaductschema:jmh -Pjmh.includes=".*Bin.*"
+BENCHMARK_SCHEMA_SIZE=5000 ./gradlew :core:shared:viaductschema:jmh -Pjmh.includes=".*Bin.*"
 ```
 
 ## Running Tests From Bazel (Airbnb internal)

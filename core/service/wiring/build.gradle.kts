@@ -47,7 +47,7 @@ dokka {
  *
  * To upgrade GraphiQL:
  * 1. Update graphiqlGitTag below to the new release (e.g., "graphiql@5.3.0")
- * 2. Run: ./gradlew :core:service:service-wiring:generateGraphiQLHtml
+ * 2. Run: ./gradlew :core:service:wiring:generateGraphiQLHtml
  * 3. Review the changes and commit
  */
 val generateGraphiQLHtml by tasks.registering {

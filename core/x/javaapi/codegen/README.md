@@ -20,7 +20,7 @@ Generates **Java source code** for GraphQL types from schema files.
 Build the fat JAR with all dependencies:
 
 ```bash
-./gradlew :core:x:javaapi:x-javaapi-codegen:shadowJar
+./gradlew :core:x:javaapi:codegen:shadowJar
 ```
 
 The JAR will be created at `x/javaapi/codegen/build/libs/java-grts-codegen-<version>.jar`.
@@ -105,5 +105,5 @@ Each resolver file contains abstract base classes for fields with the `@resolver
 ## Testing
 
 ```bash
-./gradlew :core:x:javaapi:x-javaapi-codegen:test
+./gradlew :core:x:javaapi:codegen:test
 ```
