@@ -1,3 +1,5 @@
+import viaduct.gradle.resetCoverageThresholds
+
 plugins {
     `java-library`
     id("conventions.java")
@@ -5,6 +7,8 @@ plugins {
     id("conventions.kotlin")
     `java-test-fixtures`
 }
+
+resetCoverageThresholds(instructionMinimum = "0.10", branchMinimum = "0.10")
 
 description = "Java Tenant API interfaces"
 

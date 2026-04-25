@@ -45,6 +45,7 @@ tasks.named<JacocoReport>("jacocoTestReport") {
     }
 }
 
+
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn(tasks.named("jacocoTestReport"))
     violationRules {
@@ -52,14 +53,14 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
             limit {
                 counter = "INSTRUCTION"
                 value = "COVEREDRATIO"
-                minimum = "0.00".toBigDecimal() // Start with 0% and gradually increase
+                minimum = "0.75".toBigDecimal()
             }
         }
         rule {
             limit {
                 counter = "BRANCH"
                 value = "COVEREDRATIO"
-                minimum = "0.00".toBigDecimal() // Start with 0% and gradually increase
+                minimum = "0.50".toBigDecimal()
             }
         }
     }

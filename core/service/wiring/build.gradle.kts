@@ -1,4 +1,5 @@
 import viaduct.gradle.internal.repoRoot
+import viaduct.gradle.resetCoverageThresholds
 import viaduct.graphiql.GraphiQLHtmlCustomizer
 
 plugins {
@@ -7,6 +8,8 @@ plugins {
     id("conventions.bcv-api")
     id("conventions.viaduct-publishing")
 }
+
+resetCoverageThresholds(instructionMinimum = "0.70")
 
 viaductPublishing {
     name.set("Viaduct Service Wiring")
