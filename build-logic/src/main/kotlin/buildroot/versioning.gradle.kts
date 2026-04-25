@@ -57,12 +57,24 @@ abstract class PrintVersionTask : DefaultTask() {
 }
 
 @DisableCachingByDefault(because = "Writes a single file")
-abstract class BumpVersionTask : DefaultTask() {
+abstract class SetVersionTask : DefaultTask() {
     @get:Input abstract val newVersion: Property<String>
     @get:OutputFile abstract val versionFile: RegularFileProperty
+
     @TaskAction fun run() {
-        versionFile.get().asFile.writeText(newVersion.get() + "\n")
-        logger.lifecycle("Wrote VERSION=${newVersion.get()} -> ${versionFile.get().asFile}")
+        require(newVersion.isPresent) { "Pass -PsetVersion=X.Y.Z" }
+        val v = newVersion.get()
+        requireValidSemver(v)
+        versionFile.get().asFile.writeText(v + "\n")
+        logger.lifecycle("Wrote VERSION=$v -> ${versionFile.get().asFile}")
+    }
+
+    companion object {
+        private val SEMVER = Regex("""^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*)?$""")
+        fun requireValidSemver(version: String) {
+            require(!version.contains('+')) { "Version must not contain build metadata (+): $version" }
+            require(SEMVER.matches(version)) { "Invalid semver version: $version" }
+        }
     }
 }
 
@@ -139,55 +151,33 @@ abstract class ConfirmDemoAppVersionsTask : DefaultTask() {
     }
 }
 
-@DisableCachingByDefault(because = "Reads git state and writes a file — branch-dependent")
-abstract class SetReleaseCandidateVersionTask : DefaultTask() {
-    @get:Input abstract val rcNumber: Property<Int>
-    @get:Internal abstract val repoRoot: DirectoryProperty
+@DisableCachingByDefault(because = "Writes a single file")
+abstract class BumpSnapshotVersionTask : DefaultTask() {
     @get:OutputFile abstract val versionFile: RegularFileProperty
 
     @TaskAction
     fun run() {
-        val root = repoRoot.get().asFile
-
-        // 1. Detect current branch via git
-        val gitProc = ProcessBuilder("git", "rev-parse", "--abbrev-ref", "HEAD")
-            .directory(root)
-            .redirectErrorStream(true)
-            .start()
-        val gitOutput = gitProc.inputStream.bufferedReader().readText().trim()
-        val gitExit = gitProc.waitFor()
-        if (gitExit != 0 || gitOutput.isEmpty()) {
-            throw GradleException("Could not determine current git branch (exit=$gitExit):\n$gitOutput")
-        }
-        val branch = gitOutput.lines().first().trim()
-
-        // 2. Validate branch matches release/vX.Y.Z
-        val branchPattern = Regex("""^release/v(\d+\.\d+\.\d+)$""")
-        val match = branchPattern.matchEntire(branch)
-            ?: throw GradleException(
-                "setReleaseCandidateVersion must be run on a release/vX.Y.Z branch.\n" +
-                    "  Current branch: $branch"
-            )
-        val baseVersion = match.groupValues[1]
-
-        // 3. Validate VERSION file starts with X.Y.Z from branch
         val vf = versionFile.get().asFile
-        val currentVersion = vf.readText().trim()
-        if (currentVersion != baseVersion && !currentVersion.startsWith("$baseVersion-")) {
-            throw GradleException(
-                "VERSION mismatch: branch is release/v$baseVersion " +
-                    "but VERSION contains '$currentVersion'.\n" +
-                    "  Expected VERSION to be '$baseVersion' or '$baseVersion-*'."
-            )
+        val current = vf.readText().trim()
+        SetVersionTask.requireValidSemver(current)
+        require(current.endsWith("-SNAPSHOT")) { "VERSION must end with -SNAPSHOT, got: $current" }
+
+        val match = requireNotNull(SNAPSHOT_PATTERN.matchEntire(current)) {
+            "VERSION does not match expected SNAPSHOT pattern: $current"
         }
 
-        // 4. Write X.Y.Z-rc.<n>-SNAPSHOT
-        val rc = rcNumber.get()
-        val newVersion = "$baseVersion-rc.$rc-SNAPSHOT"
-        vf.writeText(newVersion + "\n")
-        logger.lifecycle("Wrote VERSION: $currentVersion -> $newVersion")
+        val base = match.groupValues[1]
+        val rest = match.groupValues[3]
+        val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+        val tag = (1..4).map { chars.random() }.joinToString("")
+        val newVersion = "$base-rc.$tag$rest-SNAPSHOT"
 
-        // 5. Demoapp gradle.properties are synced by syncDemoAppVersions (wired via finalizedBy)
+        vf.writeText(newVersion + "\n")
+        logger.lifecycle("Wrote VERSION: $current -> $newVersion")
+    }
+
+    companion object {
+        private val SNAPSHOT_PATTERN = Regex("""^(\d+\.\d+\.\d+)(-rc\.[a-z0-9]{4})?(.*)-SNAPSHOT$""")
     }
 }
 
@@ -211,23 +201,21 @@ if (gradle.parent == null) {
         demoappDirs.set(demoappRelativeDirs)
         // Use a lazy provider so the VERSION file is re-read at execution time, consistent with
         // how syncDemoAppVersions reads it. This ensures the correct value is seen even when
-        // setReleaseCandidateVersion mutates the VERSION file earlier in the same build.
+        // another task mutates the VERSION file earlier in the same build.
         expectedVersion.set(providers.provider { layout.projectDirectory.file("VERSION").asFile.readText().trim() })
         inputFiles.setFrom(demoappRelativeDirs.map { layout.projectDirectory.file("$it/gradle.properties") })
         markerFile.set(layout.buildDirectory.file("validations/confirmDemoAppVersions.marker"))
     }
 
-    tasks.register<SetReleaseCandidateVersionTask>("setReleaseCandidateVersion") {
-        rcNumber.set(providers.gradleProperty("rcNumber").map { it.toInt() }.orElse(1))
-        repoRoot.set(layout.projectDirectory)
+    tasks.register<SetVersionTask>("setVersion") {
+        newVersion.set(providers.gradleProperty("setVersion"))
         versionFile.set(layout.projectDirectory.file("VERSION"))
         finalizedBy("syncDemoAppVersions")
     }
 
-    tasks.register<BumpVersionTask>("bumpVersion") {
-        newVersion.set(providers.gradleProperty("newVersion").orElse(
-            providers.provider { throw GradleException("Pass -PnewVersion=X.Y.Z") }
-        ))
+    tasks.register<BumpSnapshotVersionTask>("bumpSnapshotVersion") {
         versionFile.set(layout.projectDirectory.file("VERSION"))
+        outputs.upToDateWhen { false }
+        finalizedBy("syncDemoAppVersions")
     }
 }

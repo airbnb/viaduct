@@ -25,11 +25,11 @@ export GH_USER="your-github.com-username"
 
 | Step | Command |
 |------|---------|
-| [2. Version bump](#2-bump-version-on-main) | Edit VERSION, `./gradlew syncDemoAppVersions`, PR |
-| [3. Release branch](#3-create-release-branch) | `git checkout -b release/v${RELEASE_VER}`, set VERSION, push |
+| [2. Version bump](#2-bump-version-on-main) | `./gradlew setVersion -PsetVersion=${NEXT_VER}-SNAPSHOT`, PR |
+| [3. Release branch](#3-create-release-branch) | `git checkout -b release/v${RELEASE_VER}`, `./gradlew setVersion -PsetVersion=${RELEASE_VER}`, push |
 | [4. Validate build](#4-validate-build) | `gh workflow run ci-trigger.yml --ref release/v${RELEASE_VER}` |
 | [5. Changelog](#5-generate-changelog) | `generate_changelog.py origin/release/v${PREV_VER} HEAD` |
-| [7. Publish release](#7-publish-release) | `gh workflow run release.yml -f release_version=${RELEASE_VER} -F release_notes=changelog.md` |
+| [7. Publish release](#7-publish-release) | `gh workflow run release.yml -f release_version=${RELEASE_VER} -F release_notes=@changelog.md` |
 | [8. Verify](#8-verify) | `cd ~/repos/starwars && git pull && ./gradlew test` |
 
 ## Prerequisites
@@ -141,11 +141,10 @@ git push fork main
 git checkout -b candidate/v${NEXT_VER}
 ```
 
-**Edit VERSION and sync demo apps:**
+**Set the new snapshot version:**
 
 ```bash
-echo "${NEXT_VER}-SNAPSHOT" > VERSION
-./gradlew syncDemoAppVersions
+./gradlew setVersion -PsetVersion=${NEXT_VER}-SNAPSHOT
 ```
 
 **Verify the changes:**
@@ -194,8 +193,7 @@ git checkout -b release/v${RELEASE_VER} <SHA_BEFORE_BUMP>
 **Set the release version:**
 
 ```bash
-echo "${RELEASE_VER}" > VERSION
-./gradlew syncDemoAppVersions
+./gradlew setVersion -PsetVersion=${RELEASE_VER}
 ```
 
 **Commit and push directly to the public repo:**
@@ -268,7 +266,7 @@ This single command publishes artifacts, pushes demo apps to standalone repos, v
 gh workflow run release.yml \
   --repo airbnb/viaduct \
   -f release_version=${RELEASE_VER} \
-  -F release_notes=/tmp/release-v${RELEASE_VER}-changelog.md
+  -F release_notes=@/tmp/release-v${RELEASE_VER}-changelog.md
 ```
 
 > **Note:** The `-F` flag (capital F) reads the file contents and uploads them as the `release_notes` input. The `-f` flag (lowercase) passes a literal string.
@@ -316,10 +314,11 @@ A passing build confirms the published artifacts are resolvable and the demo app
 
 | Task | Purpose |
 |------|---------|
-| `syncDemoAppVersions` | Copies VERSION to all demo app `gradle.properties` files |
-| `confirmDemoAppVersions` | Validates all demo app versions match VERSION (fails on mismatch) |
-| `setReleaseCandidateVersion -PrcNumber=N` | Stamps `X.Y.Z-rc.N-SNAPSHOT` on release branches (must be on `release/vX.Y.Z`) |
-| `printVersion` | Prints the current computed version |
+| `printVersion` | Prints the current version |
+| `setVersion -PsetVersion=X.Y.Z` | Sets VERSION to a given value with validation, syncs demo apps |
+| `syncDemoAppVersions` | Copies VERSION to demo app `gradle.properties` files |
+| `confirmDemoAppVersions` | Validates demo app versions match VERSION (fails on mismatch) |
+| `bumpSnapshotVersion` | Inserts/replaces `-rc.XXXX` in a SNAPSHOT version, syncs demo apps |
 
 ## Troubleshooting
 
@@ -340,15 +339,6 @@ Run `./gradlew syncDemoAppVersions` to fix, then re-commit:
 git add demoapps/*/gradle.properties
 git commit -m "chore: Sync demoapp versions"
 git push origin <your-branch>
-```
-
-### `setReleaseCandidateVersion` fails with branch name error
-
-You must be on a branch named `release/vX.Y.Z`:
-
-```bash
-git branch --show-current  # Check your branch
-git checkout release/v${RELEASE_VER}
 ```
 
 ### `release.yml` preflight fails — branch not found
