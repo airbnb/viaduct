@@ -42,27 +42,6 @@ reporting {
     }
 }
 
-tasks.register<JacocoCoverageVerification>("testCodeCoverageVerification") {
-    dependsOn("testCodeCoverageReport")
-
-    violationRules {
-        rule {
-            limit {
-                counter = "INSTRUCTION"
-                value = "COVEREDRATIO"
-                minimum = "0.10".toBigDecimal()
-            }
-        }
-        rule {
-            limit {
-                counter = "BRANCH"
-                value = "COVEREDRATIO"
-                minimum = "0.05".toBigDecimal()
-            }
-        }
-    }
-}
-
 tasks.register("testAndCoverage") {
     description = "Runs tests and generates coverage reports"
     group = "verification"
