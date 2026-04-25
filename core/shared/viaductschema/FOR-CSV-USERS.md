@@ -11,14 +11,14 @@ The `schema2csv` tool dumps schema information into CSV files for open-ended exp
 From the `projects/viaduct/oss` directory:
 
 ```bash
-./gradlew :core:shared:shared-viaductschema:runSchemaCli \
+./gradlew :core:shared:viaductschema:runSchemaCli \
   --args="schema2csv -p /path/to/schema/dir -o /output/dir"
 ```
 
 For example, to analyze the Star Wars demo application:
 
 ```bash
-./gradlew :core:shared:shared-viaductschema:runSchemaCli \
+./gradlew :core:shared:viaductschema:runSchemaCli \
   --args="schema2csv -p demoapps/starwars -o /tmp/starwars-csv"
 ```
 

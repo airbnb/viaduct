@@ -50,5 +50,4 @@ dependencies {
 viaductPublishing {
     name.set("Viaduct Serve")
     description.set("Development server runtime for Viaduct GraphQL applications with GraphiQL IDE")
-    artifactId.set("serve")
 }

@@ -1,5 +1,3 @@
-import viaduct.gradle.internal.includeNamed
-
 pluginManagement {
     includeBuild("build-logic")
 }
@@ -61,7 +59,7 @@ includeBuild("demoapps/starwars")
 
 // misc
 include(":docs")
-includeNamed(":viaduct-bom", projectName = "bom")
+include(":bom")
 include(":api")
 include(":buildtime")
 include(":runtime")

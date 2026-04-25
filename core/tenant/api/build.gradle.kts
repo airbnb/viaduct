@@ -21,7 +21,7 @@ viaductPublishing {
 viaductFeatureApp {}
 
 viaductFeatureAppContracts {
-    contractsFrom(":tenant:tenant-api")
+    contractsFrom(":tenant:api")
 }
 
 dependencies {

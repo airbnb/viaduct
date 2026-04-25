@@ -45,7 +45,7 @@ mkdocs build
 
 # Generate Dokka API documentation
 cd ../
-./gradlew :core:tenant:tenant-api:dokkaGenerate
+./gradlew :core:tenant:api:dokkaGenerate
 ./gradlew :core:service:dokkaGenerate
 
 # Deploy to S3
@@ -62,7 +62,7 @@ KDocs are split into two: one for tenant developers and one for service/platform
 These are generated via Gradle:
 
 ```bash
-./gradlew :core:tenant:tenant-api:dokkaGenerate
+./gradlew :core:tenant:api:dokkaGenerate
 ./gradlew :core:service:dokkaGenerate
 ```
 
