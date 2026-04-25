@@ -8,7 +8,6 @@ plugins {
 }
 
 viaductPublishing {
-    artifactId.set("api")
     name.set("Tenant API")
     description.set("Fat jar bundle of the Viaduct tenant API for easier dependency management")
 }

@@ -8,7 +8,6 @@ plugins {
 }
 
 viaductPublishing {
-    artifactId.set("buildtime")
     name.set("Build Time Tools")
     description.set("Fat jar bundling all Viaduct build-time tools (codegen and serve) for plugin tool classpaths")
 }
