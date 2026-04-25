@@ -177,7 +177,26 @@ abstract class BumpSnapshotVersionTask : DefaultTask() {
     }
 
     companion object {
-        private val SNAPSHOT_PATTERN = Regex("""^(\d+\.\d+\.\d+)(-rc\.[a-z0-9]{4})?(.*)-SNAPSHOT$""")
+        val SNAPSHOT_PATTERN = Regex("""^(\d+\.\d+\.\d+)(-rc\.[a-z0-9]{4})?(.*)-SNAPSHOT$""")
+    }
+}
+
+@DisableCachingByDefault(because = "Writes a single file")
+abstract class UnbumpSnapshotVersionTask : DefaultTask() {
+    @get:OutputFile abstract val versionFile: RegularFileProperty
+
+    @TaskAction
+    fun run() {
+        val vf = versionFile.get().asFile
+        val current = vf.readText().trim()
+        val match = BumpSnapshotVersionTask.SNAPSHOT_PATTERN.matchEntire(current)
+        require(match != null && match.groupValues[2].isNotEmpty()) {
+            "VERSION does not contain an -rc.XXXX marker: $current"
+        }
+
+        val newVersion = "${match.groupValues[1]}${match.groupValues[3]}-SNAPSHOT"
+        vf.writeText(newVersion + "\n")
+        logger.lifecycle("Wrote VERSION: $current -> $newVersion")
     }
 }
 
@@ -214,6 +233,12 @@ if (gradle.parent == null) {
     }
 
     tasks.register<BumpSnapshotVersionTask>("bumpSnapshotVersion") {
+        versionFile.set(layout.projectDirectory.file("VERSION"))
+        outputs.upToDateWhen { false }
+        finalizedBy("syncDemoAppVersions")
+    }
+
+    tasks.register<UnbumpSnapshotVersionTask>("unbumpSnapshotVersion") {
         versionFile.set(layout.projectDirectory.file("VERSION"))
         outputs.upToDateWhen { false }
         finalizedBy("syncDemoAppVersions")

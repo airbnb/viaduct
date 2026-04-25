@@ -319,6 +319,7 @@ A passing build confirms the published artifacts are resolvable and the demo app
 | `syncDemoAppVersions` | Copies VERSION to demo app `gradle.properties` files |
 | `confirmDemoAppVersions` | Validates demo app versions match VERSION (fails on mismatch) |
 | `bumpSnapshotVersion` | Inserts/replaces `-rc.XXXX` in a SNAPSHOT version, syncs demo apps |
+| `unbumpSnapshotVersion` | Removes the `-rc.XXXX` marker from a SNAPSHOT version, syncs demo apps |
 
 ## Troubleshooting
 
