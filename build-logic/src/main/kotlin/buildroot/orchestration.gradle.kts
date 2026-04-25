@@ -3,6 +3,7 @@
  *
  * In ANY build it’s applied to:
  *   - Creates local subproject aggregates (no cycles with root tasks):
+ *       :orchestrationAssembleAll      -> all subprojects' `assemble`
  *       :orchestrationBuildAll         -> all subprojects' `build`
  *       :orchestrationCheckAll         -> all subprojects' `check`
  *       :orchestrationCleanAll         -> all subprojects' `clean`
@@ -14,7 +15,7 @@
  *
  * In the TOP-LEVEL ROOT ONLY (gradle.parent == null):
  *   - Adds repo-wide tasks spanning root subprojects + selected included builds’ aggregates:
- *       build, check, clean, test, dokka, jacoco, ci
+ *       assemble, build, check, clean, test, dokka, jacoco, ci
  *       publishToMavenLocal, publishToMavenCentral
  *
  * Root configuration:
@@ -143,7 +144,12 @@ private fun Project.aliasConventionalTaskToAggregate(
 
 // ---------------- Local aggregates (created in EVERY build where applied) ----------------
 
-// Build/check/test
+// Assemble/build/check/test
+registerSubprojectAggregate(
+    aggregateName = "orchestrationAssembleAll",
+    description = "[orchestration] Assembles all SUBPROJECTS in THIS build.",
+    taskNames = setOf("assemble")
+)
 registerSubprojectAggregate(
     aggregateName = "orchestrationBuildAll",
     description = "[orchestration] Builds all SUBPROJECTS in THIS build.",
@@ -206,6 +212,12 @@ registerSubprojectAggregate(
 // ---------------- In INCLUDED BUILDS: alias conventional tasks to aggregates ----------------
 
 if (gradle.parent != null) {
+    aliasConventionalTaskToAggregate(
+        conventionalName = "assemble",
+        aggregateName = "orchestrationAssembleAll",
+        group = "build",
+        description = "Assembles all subprojects in this included build."
+    )
     aliasConventionalTaskToAggregate(
         conventionalName = "build",
         aggregateName = "orchestrationBuildAll",
@@ -271,6 +283,12 @@ if (gradle.parent != null) {
 // ---------------- Workspace-wide tasks (ROOT ONLY) ----------------
 
 if (gradle.parent == null) {
+    // assemble: root subprojects + included builds' aggregate (compile + package, no tests)
+    ensureTask("assemble", "build", "Assembles root subprojects and participating included builds.") {
+        dependsOn(tasksNamedInSubprojects("assemble"))
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationAssembleAll") })
+    }
+
     // build: root subprojects + included builds' aggregate
     ensureTask("build", "build", "Builds root subprojects and participating included builds.") {
         dependsOn(tasksNamedInSubprojects("build"))

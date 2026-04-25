@@ -6,6 +6,6 @@ plugins {
 
 orchestration {
     participatingIncludedBuilds.set(
-        listOf("core", "gradle-plugins")
+        listOf("core", "gradle-plugins", "publications")
     )
 }

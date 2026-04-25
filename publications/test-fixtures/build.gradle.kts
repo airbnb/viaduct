@@ -8,7 +8,6 @@ plugins {
 }
 
 viaductPublishing {
-    artifactId.set("test-fixtures")
     name.set("Test Fixtures")
     description.set("Convenience module for testing Viaduct tenants")
 }
