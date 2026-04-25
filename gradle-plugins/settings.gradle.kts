@@ -28,3 +28,8 @@ includeBuild("../build-logic")
 include(":common")
 include(":application")
 include(":module")
+
+gradle.allprojects {
+    group = "com.airbnb.viaduct.gradle"
+    extra["pluginIdPrefix"] = "com.airbnb.viaduct"
+}
