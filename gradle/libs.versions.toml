@@ -65,41 +65,41 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 
 [libraries]
 # Project
-viaduct-engine-api = { module = "com.airbnb.viaduct:engine-api", version.ref = "project" }
-viaduct-engine-runtime = { module = "com.airbnb.viaduct:engine-runtime", version.ref = "project" }
-viaduct-engine-wiring = { module = "com.airbnb.viaduct:engine-wiring", version.ref = "project" }
-viaduct-tenant-api = { module = "com.airbnb.viaduct:tenant-api", version.ref = "project" }
-viaduct-tenant-runtime = { module = "com.airbnb.viaduct:tenant-runtime", version.ref = "project" }
-viaduct-tenant-codegen = { module = "com.airbnb.viaduct:tenant-codegen", version.ref = "project" }
-viaduct-tenant-ksp = { module = "com.airbnb.viaduct:tenant-ksp", version.ref = "project" }
-viaduct-tenant-validation = { module = "com.airbnb.viaduct:tenant-validation", version.ref = "project" }
-viaduct-tenant-wiring = { module = "com.airbnb.viaduct:tenant-wiring", version.ref = "project" }
+viaduct-engine-api = { module = "com.airbnb.viaduct.engine:api", version.ref = "project" }
+viaduct-engine-runtime = { module = "com.airbnb.viaduct.engine:runtime", version.ref = "project" }
+viaduct-engine-wiring = { module = "com.airbnb.viaduct.engine:wiring", version.ref = "project" }
+viaduct-tenant-api = { module = "com.airbnb.viaduct.tenant:api", version.ref = "project" }
+viaduct-tenant-runtime = { module = "com.airbnb.viaduct.tenant:runtime", version.ref = "project" }
+viaduct-tenant-codegen = { module = "com.airbnb.viaduct.tenant:codegen", version.ref = "project" }
+viaduct-tenant-ksp = { module = "com.airbnb.viaduct.tenant:ksp", version.ref = "project" }
+viaduct-tenant-validation = { module = "com.airbnb.viaduct.tenant:validation", version.ref = "project" }
+viaduct-tenant-wiring = { module = "com.airbnb.viaduct.tenant:wiring", version.ref = "project" }
 
-viaduct-javaapi-api = { module = "com.airbnb.viaduct:javaapi-api", version.ref = "project" }
-viaduct-javaapi-codegen = { module = "com.airbnb.viaduct:javaapi-codegen", version.ref = "project" }
-viaduct-javaapi-runtime = { module = "com.airbnb.viaduct:javaapi-runtime", version.ref = "project" }
+viaduct-javaapi-api = { module = "com.airbnb.viaduct.javaapi:api", version.ref = "project" }
+viaduct-javaapi-codegen = { module = "com.airbnb.viaduct.javaapi:codegen", version.ref = "project" }
+viaduct-javaapi-runtime = { module = "com.airbnb.viaduct.javaapi:runtime", version.ref = "project" }
 
-viaduct-service-api = { module = "com.airbnb.viaduct:service-api", version.ref = "project" }
-viaduct-service-runtime = { module = "com.airbnb.viaduct:service-runtime", version.ref = "project" }
-viaduct-service-wiring = { module = "com.airbnb.viaduct:service-wiring", version.ref = "project" }
+viaduct-service-api = { module = "com.airbnb.viaduct.service:api", version.ref = "project" }
+viaduct-service-runtime = { module = "com.airbnb.viaduct.service:runtime", version.ref = "project" }
+viaduct-service-wiring = { module = "com.airbnb.viaduct.service:wiring", version.ref = "project" }
 
-viaduct-shared-apiannotations = { module = "com.airbnb.viaduct:shared-apiannotations", version.ref = "project" }
-viaduct-shared-arbitrary = { module = "com.airbnb.viaduct:shared-arbitrary", version.ref = "project" }
-viaduct-shared-codegen = { module = "com.airbnb.viaduct:shared-codegen", version.ref = "project" }
-viaduct-shared-dataloader = { module = "com.airbnb.viaduct:shared-dataloader", version.ref = "project" }
-viaduct-shared-deferred = { module = "com.airbnb.viaduct:shared-deferred", version.ref = "project" }
-viaduct-shared-graphql = { module = "com.airbnb.viaduct:shared-graphql", version.ref = "project" }
-viaduct-shared-invariants = { module = "com.airbnb.viaduct:shared-invariants", version.ref = "project" }
-viaduct-shared-mapping = { module = "com.airbnb.viaduct:shared-mapping", version.ref = "project" }
-viaduct-shared-utils = { module = "com.airbnb.viaduct:shared-utils", version.ref = "project" }
-viaduct-shared-viaductschema = { module = "com.airbnb.viaduct:shared-viaductschema", version.ref = "project" }
-viaduct-errors = { module = "com.airbnb.viaduct:errors", version.ref = "project" }
+viaduct-shared-apiannotations = { module = "com.airbnb.viaduct.shared:apiannotations", version.ref = "project" }
+viaduct-shared-arbitrary = { module = "com.airbnb.viaduct.shared:arbitrary", version.ref = "project" }
+viaduct-shared-codegen = { module = "com.airbnb.viaduct.shared:codegen", version.ref = "project" }
+viaduct-shared-dataloader = { module = "com.airbnb.viaduct.shared:dataloader", version.ref = "project" }
+viaduct-shared-deferred = { module = "com.airbnb.viaduct.shared:deferred", version.ref = "project" }
+viaduct-shared-graphql = { module = "com.airbnb.viaduct.shared:graphql", version.ref = "project" }
+viaduct-shared-invariants = { module = "com.airbnb.viaduct.shared:invariants", version.ref = "project" }
+viaduct-shared-mapping = { module = "com.airbnb.viaduct.shared:mapping", version.ref = "project" }
+viaduct-shared-utils = { module = "com.airbnb.viaduct.shared:utils", version.ref = "project" }
+viaduct-shared-viaductschema = { module = "com.airbnb.viaduct.shared:viaductschema", version.ref = "project" }
+viaduct-errors = { module = "com.airbnb.viaduct.shared:errors", version.ref = "project" }
 
-viaduct-gradle-plugins-common = { module = "com.airbnb.viaduct:plugins-common", version.ref = "project" }
+viaduct-gradle-plugins-common = { module = "com.airbnb.viaduct.gradle:common", version.ref = "project" }
 
-viaduct-snipped-errors = { module = "com.airbnb.viaduct:snipped-errors", version.ref = "project" }
+viaduct-snipped-errors = { module = "com.airbnb.viaduct:errors", version.ref = "project" }
 viaduct-buildtime = { module = "com.airbnb.viaduct:buildtime", version.ref = "project" }
-viaduct-serve = { module = "com.airbnb.viaduct:serve", version.ref = "project" }
+viaduct-serve = { module = "com.airbnb.viaduct.service:serve", version.ref = "project" }
 
 # Kotlin
 ksp-gradle-plugin = { module = "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }

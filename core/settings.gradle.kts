@@ -53,3 +53,19 @@ include(":snipped:errors")
 
 // Serve module (development server runtime)
 include(":service:serve")
+
+// Override the default group (com.airbnb.viaduct from settings.common) with path-based
+// subgroups. This must happen at settings time so that composite build auto-substitution
+// registers the correct group:name coordinates for each project.
+val subgroupRoots = setOf("engine", "service", "tenant", "shared")
+
+gradle.allprojects {
+    val segments = path.split(":").filter { it.isNotEmpty() }
+    group = when {
+        segments.size >= 2 && segments.first() == "x" ->
+            "com.airbnb.viaduct.${segments[1]}"
+        segments.firstOrNull() in subgroupRoots ->
+            "com.airbnb.viaduct.${segments.first()}"
+        else -> "com.airbnb.viaduct"
+    }
+}

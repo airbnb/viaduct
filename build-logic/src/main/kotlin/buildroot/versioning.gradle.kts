@@ -30,7 +30,6 @@ val baseVersion: String = versionFile.readText().trim().ifEmpty { "0.0.0" }
 logger.info("Using version from VERSION file: $baseVersion")
 
 gradle.allprojects {
-    group = "com.airbnb.viaduct"
     version = baseVersion
 }
 
