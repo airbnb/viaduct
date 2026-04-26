@@ -1,0 +1,84 @@
+name: E2E Snapshot Test
+# Orchestrates a full end-to-end snapshot publication test.
+# Publishes snapshot artifacts, pushes demo apps, waits for Maven Central
+# propagation, and verifies demo apps build against published artifacts.
+#
+# See: docs/running-a-full-publication-test.md
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch to test (e.g., rstata/e2e-my-feature)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: e2e-snapshot-test-${{ inputs.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Publish snapshot artifacts to Maven Central
+  # ---------------------------------------------------------------------------
+  publish:
+    uses: ./.github/workflows/publish-branch.yml
+    with:
+      mode: snapshot
+      ref: ${{ inputs.ref }}
+      run_checks: true
+      confirm_versions: true
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # Push demoapp code to viaduct-dev/* repos via Copybara
+  # Runs in parallel with wait-for-publication
+  # ---------------------------------------------------------------------------
+  push-demoapps:
+    needs: [publish]
+    uses: ./.github/workflows/push-demoapps.yml
+    with:
+      ref: ${{ inputs.ref }}
+      release_mode: false
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # Poll Sonatype until snapshot artifacts are visible
+  # Runs in parallel with push-demoapps
+  # ---------------------------------------------------------------------------
+  wait-for-publication:
+    needs: [publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Sonatype snapshot visibility
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          set -euo pipefail
+          URL="https://central.sonatype.com/repository/maven-snapshots/com/airbnb/viaduct/api/${VERSION}/"
+          echo "Waiting for ${URL} to return 200..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+            if [ "$STATUS" = "200" ]; then
+              echo "Artifacts visible after ${i} attempts"
+              exit 0
+            fi
+            echo "Attempt ${i}: HTTP ${STATUS}, waiting 30s..."
+            sleep 30
+          done
+          echo "::error::Timed out waiting for Sonatype snapshot visibility after 15 minutes"
+          exit 1
+        shell: bash
+
+  # ---------------------------------------------------------------------------
+  # Verify standalone repos build against published snapshot artifacts
+  # ---------------------------------------------------------------------------
+  check-demoapps:
+    needs: [push-demoapps, wait-for-publication]
+    uses: ./.github/workflows/check-published-demoapps.yml
+    with:
+      ref: ${{ needs.push-demoapps.outputs.destination_branch }}
