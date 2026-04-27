@@ -6,7 +6,6 @@
  *   - No apiVersion / languageVersion pinning to 1.8
  *   - No `-Xcontext-receivers`
  *   - No `idea` plugin
- *   - No JaCoCo
  *   - No Viaduct internal opt-in annotations
  *
  * IMPORTANT: a Kotlin plugin must be applied BEFORE this convention. For `kotlin-dsl`
@@ -26,6 +25,7 @@ package conventions
 
 plugins {
     java // idempotent — both kotlin-dsl and kotlin-jvm already apply this
+    id("conventions.jacoco")
 }
 
 java {
