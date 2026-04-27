@@ -156,8 +156,8 @@ class KmConstructorWrapper(
         val refSet = mutableSetOf<KmName>()
         refSet.addAll(annotations.refs)
         visibleParameterAnnotations.values.forEach {
-            it.forEach {
-                refSet.addAll(it.refs)
+            it.forEach { ann ->
+                refSet.addAll(ann.refs)
             }
         }
         refs = refSet.toSet()

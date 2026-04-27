@@ -87,7 +87,7 @@ class FieldBatchResolverExecutorImpl(
     }
 
     @InTenantCode
-    private suspend fun unwrapFieldValue(
+    private fun unwrapFieldValue(
         fieldValue: FieldValue<*>,
         globalIDCodec: GlobalIDCodec
     ): Any? = FieldUnbatchedResolverExecutorImpl.unwrapFieldResolverResult(fieldValue.get(), globalIDCodec)

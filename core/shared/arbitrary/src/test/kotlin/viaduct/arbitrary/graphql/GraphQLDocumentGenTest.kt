@@ -341,7 +341,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
             // enabled
             mkConfig(directiveWeight = CompoundingWeight.Once, banDirectiveNames = setOf("dir")).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll {
-                    it.allChildrenOfType<Directive>().none { it.name == "dir" }
+                    it.allChildrenOfType<Directive>().none { d -> d.name == "dir" }
                 }
             }
         }

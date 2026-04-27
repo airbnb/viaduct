@@ -123,8 +123,8 @@ class CustomClassBuilder internal constructor(
         val nested =
             nestedClasses
                 .map {
-                    it.buildInternal(cls).also {
-                        cls.kmClass.nestedClasses.add(it.cls.kmClass.simpleName)
+                    it.buildInternal(cls).also { inner ->
+                        cls.kmClass.nestedClasses.add(inner.cls.kmClass.simpleName)
                     }
                 }
         return KmClassTree(cls, nested)

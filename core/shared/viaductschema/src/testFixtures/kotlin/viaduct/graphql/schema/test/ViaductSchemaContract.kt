@@ -371,8 +371,8 @@ interface ViaductSchemaContract {
             input Inner @oneOf { a: Int }
             """.trimIndent()
         ).also { schema ->
-            listOf("Outer", "Inner").forEach {
-                schema.withType(it) {
+            listOf("Outer", "Inner").forEach { typeName ->
+                schema.withType(typeName) {
                     assertTrue(it.hasAppliedDirective("oneOf"), it.name)
                 }
             }
@@ -380,8 +380,8 @@ interface ViaductSchemaContract {
 
         // recursive
         mkSchema("input Input @oneOf { a: Input }")
-            .also {
-                it.withType("Input") {
+            .also { s ->
+                s.withType("Input") {
                     assertTrue(it.hasAppliedDirective("oneOf"), "Input")
                 }
             }
@@ -488,46 +488,46 @@ interface ViaductSchemaContract {
                 extend union Union @d2 = Object
             """.trimIndent()
         ).apply {
-            listOf("Query", "Enum", "Input", "Interface", "Union").forEach {
-                withType(it) {
-                    assertEquals(listOf("d1", "d2"), it.appliedDirectives.map { it.name })
+            listOf("Query", "Enum", "Input", "Interface", "Union").forEach { typeName ->
+                withType(typeName) {
+                    assertEquals(listOf("d1", "d2"), it.appliedDirectives.map { d -> d.name })
                 }
             }
             withField("Query", "f1") {
-                assertEquals(listOf("d3"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d3"), it.appliedDirectives.map { d -> d.name })
             }
             withField("Query", "f2") {
-                assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { d -> d.name })
             }
             withEnumValue("Enum", "V1") {
-                assertEquals(listOf("d3"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d3"), it.appliedDirectives.map { d -> d.name })
             }
             withEnumValue("Enum", "V2") {
-                assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { d -> d.name })
             }
             withField("Input", "f1") {
-                assertEquals(listOf("d3"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d3"), it.appliedDirectives.map { d -> d.name })
             }
             withField("Input", "f2") {
-                assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { d -> d.name })
             }
             withField("Interface", "f1") {
-                assertEquals(listOf("d3"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d3"), it.appliedDirectives.map { d -> d.name })
             }
             withField("Interface", "f2") {
-                assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d3", "d4"), it.appliedDirectives.map { d -> d.name })
             }
             withArg("Query", "f3", "arg1") {
-                assertEquals(listOf("d5"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d5"), it.appliedDirectives.map { d -> d.name })
             }
             withArg("Query", "f4", "arg2") {
-                assertEquals(listOf("d5", "d6"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d5", "d6"), it.appliedDirectives.map { d -> d.name })
             }
             withArg("Interface", "f3", "arg3") {
-                assertEquals(listOf("d5"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d5"), it.appliedDirectives.map { d -> d.name })
             }
             withType("CustomScalar") {
-                assertEquals(listOf("d7", "d8"), it.appliedDirectives.map { it.name })
+                assertEquals(listOf("d7", "d8"), it.appliedDirectives.map { d -> d.name })
             }
         }
     }

@@ -396,9 +396,9 @@ class ArbIRTest : KotestPropertyBase() {
                 .asSequence(randomSource)
                 .take(1_000)
                 .toList()
-                .mapNotNull { it.name.takeIf { it.startsWith("__") } }
+                .mapNotNull { obj -> obj.name.takeIf { it.startsWith("__") } }
                 .let { names ->
-                    assertTrue(names.size > 0)
+                    assertTrue(names.isNotEmpty())
                     assertTrue(names.all { it in introspectionTypes })
                 }
 
@@ -428,7 +428,7 @@ class ArbIRTest : KotestPropertyBase() {
                     it is IR.Value.Object &&
                         it.name == "Inp" &&
                         it.fields.size == 1 &&
-                        it.fields.values.none { it == IR.Value.Null }
+                        it.fields.values.none { v -> v == IR.Value.Null }
                 }
         }
 

@@ -123,8 +123,8 @@ class DomainValidatorTest : KotestPropertyBase() {
         val inverted = mutableSetOf<String>()
         val domain = object : Domain<IR.Value.Object> {
             override val conv = Conv<IR.Value.Object, IR.Value.Object>(
-                { it.also { mappedForward += it.name } },
-                { it.also { inverted += it.name } }
+                { it.also { obj -> mappedForward += obj.name } },
+                { it.also { obj -> inverted += obj.name } }
             )
         }
         val validator = DomainValidator(domain, schema, randomSource)

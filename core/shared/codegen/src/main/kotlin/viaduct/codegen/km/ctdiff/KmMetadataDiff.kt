@@ -127,22 +127,22 @@ class KmMetadataDiff(
         )
 
         compareElements(
-            expected.constructors.map { Comparable(it.also { it.signature = updateSignaturePkg(it.signature) }) },
+            expected.constructors.map { Comparable(it.also { inner -> inner.signature = updateSignaturePkg(inner.signature) }) },
             actual.constructors.map { Comparable(it) },
             "CONSTRUCTORS"
         )
         compareElements(
-            expected.functions.map { Comparable(it.also { it.signature = updateSignaturePkg(it.signature) }) },
+            expected.functions.map { Comparable(it.also { inner -> inner.signature = updateSignaturePkg(inner.signature) }) },
             actual.functions.map { Comparable(it) },
             "FUNCTIONS"
         )
         compareElements(
             expected.properties.map {
                 Comparable(
-                    it.also {
-                        it.fieldSignature = updateSignaturePkg(it.fieldSignature)
-                        it.getterSignature = updateSignaturePkg(it.getterSignature)
-                        it.setterSignature = updateSignaturePkg(it.setterSignature)
+                    it.also { inner ->
+                        inner.fieldSignature = updateSignaturePkg(inner.fieldSignature)
+                        inner.getterSignature = updateSignaturePkg(inner.getterSignature)
+                        inner.setterSignature = updateSignaturePkg(inner.setterSignature)
                     }
                 )
             },

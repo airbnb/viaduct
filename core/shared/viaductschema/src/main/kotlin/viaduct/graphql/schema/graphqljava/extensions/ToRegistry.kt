@@ -262,7 +262,7 @@ fun ViaductSchema.Interface.toMergedInterfaceTypeDefinition(options: TypeDefinit
         .definitions(allFieldDefs)
         .directives(extensions.map { it.appliedDirectives }.flatten().map { it.toDirectiveForTypeDefinition() })
         .sourceLocation(sourceLocation?.toSourceLocationDefinition())
-        .implementz(extensions.flatMap { it.supers.map { TypeName(it.name) } })
+        .implementz(extensions.flatMap { it.supers.map { sel -> TypeName(sel.name) } })
         .build()
 }
 
@@ -381,10 +381,10 @@ fun ViaductSchema.Enum.toMergedEnumTypeDefinition(): EnumTypeDefinition {
                 EnumValueDefinition
                     .newEnumValueDefinition()
                     .name(it.name)
-                    .directives(it.appliedDirectives.map { it.toDirectiveForTypeDefinition() })
+                    .directives(it.appliedDirectives.map { d -> d.toDirectiveForTypeDefinition() })
                     .build()
             }
-        ).directives(extensions.map { it.appliedDirectives }.flatten().map { it.toDirectiveForTypeDefinition() })
+        ).directives(extensions.map { it.appliedDirectives }.flatten().map { d -> d.toDirectiveForTypeDefinition() })
         .sourceLocation(sourceLocation?.toSourceLocationDefinition())
         .build()
 }
@@ -398,7 +398,7 @@ fun ViaductSchema.Enum.enumTypeDefinition() =
                 EnumValueDefinition
                     .newEnumValueDefinition()
                     .name(it.name)
-                    .directives(it.appliedDirectives.map { it.toDirectiveForTypeDefinition() })
+                    .directives(it.appliedDirectives.map { d -> d.toDirectiveForTypeDefinition() })
                     .build()
             }
         ).directives(extensions.first().appliedDirectives.map { it.toDirectiveForTypeDefinition() })
@@ -415,7 +415,7 @@ fun ViaductSchema.Enum.enumTypeDefinitionExtensions() =
                     EnumValueDefinition
                         .newEnumValueDefinition()
                         .name(it.name)
-                        .directives(it.appliedDirectives.map { it.toDirectiveForTypeDefinition() })
+                        .directives(it.appliedDirectives.map { d -> d.toDirectiveForTypeDefinition() })
                         .build()
                 }
             ).directives(extension.appliedDirectives.map { it.toDirectiveForTypeDefinition() })

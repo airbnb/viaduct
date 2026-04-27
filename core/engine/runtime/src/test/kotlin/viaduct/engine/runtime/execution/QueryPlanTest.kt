@@ -296,8 +296,8 @@ class QueryPlanTest {
                     // child plan should contain a single plan for its variables
                     get { childPlans }.withSingle {
                         // the variable plan should contain a single field selection, 'z'
-                        val field = get { selectionSet.selections }.single().isA<Field>()
-                        field.get { resultKey }.isEqualTo("z")
+                        val innerField = get { selectionSet.selections }.single().isA<Field>()
+                        innerField.get { resultKey }.isEqualTo("z")
                     }
 
                     // child plan should contain variables resolvers for "vara"

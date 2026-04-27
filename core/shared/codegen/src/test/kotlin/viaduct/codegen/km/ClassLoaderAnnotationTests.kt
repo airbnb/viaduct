@@ -137,8 +137,6 @@ class ClassLoaderAnnotationTests {
 
 // Helper functions
 
-private fun KClass<*>.annotationOf(args: Map<String, KmAnnotationArgument>) = KmAnnotation(this.kmName.toString(), args)
-
 private val Annotation.asKmAnnotation: KmAnnotation get() {
     val k = this::class
     val args = mutableMapOf<String, KmAnnotationArgument>()
@@ -148,8 +146,6 @@ private val Annotation.asKmAnnotation: KmAnnotation get() {
     val result = KmAnnotation(k.kmName.toString(), args)
     return result
 }
-
-private fun <T : Annotation> KClass<T>.make(vararg arg: Any): T = this.constructors.first().call(*arg)
 
 private fun toKmAnnotationArgument(value: Any?): KmAnnotationArgument =
     when (value) {

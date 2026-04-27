@@ -1091,19 +1091,19 @@ class EngineSelectionSetImplTest {
         val sdl = "extend type Query { x: Int, y: Int, q: Query }"
         mk("Query", "a:q { x }, b:q { y }", sdl)
             .also {
-                it.selectionSetForSelection("Query", "a").let {
-                    assertTrue(it.containsSelection("Query", "x"))
-                    assertFalse(it.containsSelection("Query", "y"))
-                    assertFalse(it.containsSelection("Query", "a"))
-                    assertFalse(it.containsSelection("Query", "b"))
+                it.selectionSetForSelection("Query", "a").let { ss ->
+                    assertTrue(ss.containsSelection("Query", "x"))
+                    assertFalse(ss.containsSelection("Query", "y"))
+                    assertFalse(ss.containsSelection("Query", "a"))
+                    assertFalse(ss.containsSelection("Query", "b"))
                 }
             }
             .also {
-                it.selectionSetForSelection("Query", "b").let {
-                    assertFalse(it.containsSelection("Query", "x"))
-                    assertTrue(it.containsSelection("Query", "y"))
-                    assertFalse(it.containsSelection("Query", "a"))
-                    assertFalse(it.containsSelection("Query", "b"))
+                it.selectionSetForSelection("Query", "b").let { ss ->
+                    assertFalse(ss.containsSelection("Query", "x"))
+                    assertTrue(ss.containsSelection("Query", "y"))
+                    assertFalse(ss.containsSelection("Query", "a"))
+                    assertFalse(ss.containsSelection("Query", "b"))
                 }
             }
     }
@@ -1117,28 +1117,28 @@ class EngineSelectionSetImplTest {
         """.trimIndent()
 
         mk("Iface", "a:x { aa:__typename }, ... on Foo { b:y { bb:__typename } }", sdl).let {
-            it.selectionSetForSelection("Foo", "b").let {
-                assertTrue(it.containsSelection("Foo", "bb"))
-                assertFalse(it.containsSelection("Foo", "__typename"))
+            it.selectionSetForSelection("Foo", "b").let { ss ->
+                assertTrue(ss.containsSelection("Foo", "bb"))
+                assertFalse(ss.containsSelection("Foo", "__typename"))
             }
 
-            it.selectionSetForSelection("Iface", "a").let {
-                assertTrue(it.containsSelection("Iface", "aa"))
-                assertFalse(it.containsSelection("Iface", "__typename"))
+            it.selectionSetForSelection("Iface", "a").let { ss ->
+                assertTrue(ss.containsSelection("Iface", "aa"))
+                assertFalse(ss.containsSelection("Iface", "__typename"))
             }
         }
         // subselection merging
         mk("Iface", "x {a: __typename}, ... on Foo { x {b: __typename }}", sdl).let {
             // type condition Foo includes same-or-wider sub selections
-            it.selectionSetForSelection("Foo", "x").let {
-                assertTrue(it.containsSelection("Iface", "a"))
-                assertTrue(it.containsSelection("Iface", "b"))
+            it.selectionSetForSelection("Foo", "x").let { ss ->
+                assertTrue(ss.containsSelection("Iface", "a"))
+                assertTrue(ss.containsSelection("Iface", "b"))
             }
 
             // type condition Iface does not include narrowing sub selectionsl
-            it.selectionSetForSelection("Iface", "x").let {
-                assertTrue(it.containsSelection("Iface", "a"))
-                assertFalse(it.containsSelection("Iface", "b"))
+            it.selectionSetForSelection("Iface", "x").let { ss ->
+                assertTrue(ss.containsSelection("Iface", "a"))
+                assertFalse(ss.containsSelection("Iface", "b"))
             }
         }
     }
@@ -1944,48 +1944,48 @@ class EngineSelectionSetImplTest {
             .also {
                 // descend into Foo fork
                 it.selectionSetForType("Foo")
-                    .also {
+                    .also { ss ->
                         assertEquals(
                             setOf("__typename", "x"),
-                            it.selectionSetForField("Foo", "struct").typeFields.keys
+                            ss.selectionSetForField("Foo", "struct").typeFields.keys
                         )
                     }
                     .selectionSetForField("Foo", "fork")
-                    .also {
+                    .also { ss ->
                         assertEquals(
                             emptySet<String>(),
-                            it.selectionSetForField("Fork", "struct").typeFields.keys
+                            ss.selectionSetForField("Fork", "struct").typeFields.keys
                         )
                     }
                     .selectionSetForType("Bar")
-                    .also {
+                    .also { ss ->
                         assertEquals(
                             setOf("y"),
-                            it.selectionSetForField("Bar", "struct").typeFields.keys
+                            ss.selectionSetForField("Bar", "struct").typeFields.keys
                         )
                     }
             }
             .also {
                 // descend into Bar fork
                 it.selectionSetForType("Bar")
-                    .also {
+                    .also { ss ->
                         assertEquals(
                             setOf("__typename", "y"),
-                            it.selectionSetForField("Bar", "struct").typeFields.keys
+                            ss.selectionSetForField("Bar", "struct").typeFields.keys
                         )
                     }
                     .selectionSetForField("Bar", "fork")
-                    .also {
+                    .also { ss ->
                         assertEquals(
                             emptySet<String>(),
-                            it.selectionSetForField("Fork", "struct").typeFields.keys
+                            ss.selectionSetForField("Fork", "struct").typeFields.keys
                         )
                     }
                     .selectionSetForType("Foo")
-                    .also {
+                    .also { ss ->
                         assertEquals(
                             setOf("x"),
-                            it.selectionSetForField("Foo", "struct").typeFields.keys
+                            ss.selectionSetForField("Foo", "struct").typeFields.keys
                         )
                     }
             }

@@ -151,3 +151,7 @@ coroutines:
   SuspendFunWithFlowReturnType: { active: false }
   RedundantSuspendModifier:
     active: true
+
+# Disable custom viaduct-detekt-rules — they have their own config (detekt-viaduct.yml)
+viaduct-detekt-rules:
+  active: false

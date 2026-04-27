@@ -960,14 +960,6 @@ object DefaultSchemaFactory {
         }
     }
 
-    @Suppress("EXTENSION_SHADOWED_BY_MEMBER")
-    private fun SourceLocation.toString(): String =
-        if (this.line == -1 && this.column == -1) {
-            this.sourceName ?: "unknown location"
-        } else {
-            "${this.sourceName ?: "unknown source"}:${this.line}:${this.column}"
-        }
-
     private class RegistryBuilder(
         val building: TypeDefinitionRegistry,
         val extant: TypeDefinitionRegistry

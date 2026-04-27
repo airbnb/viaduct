@@ -134,7 +134,7 @@ class TopologicalSortTest {
         val m = mockDirective("m")
         // Run multiple times to verify determinism
         val results = (1..5).map {
-            topologicalSortDirectives(listOf(z, a, m)).map { it.name }
+            topologicalSortDirectives(listOf(z, a, m)).map { d -> d.name }
         }
         results.forEach { result ->
             assertEquals(listOf("a", "m", "z"), result)

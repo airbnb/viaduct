@@ -49,8 +49,8 @@ class InputLikeBaseTest {
             isAccessible = true
         }
 
-        val gqlType = gqlType ?: gqlSchema.schema.getTypeAs(cls.simpleName!!)
-        return ctor.newInstance(internalContext, map, gqlType) as T
+        val resolvedGqlType = gqlType ?: gqlSchema.schema.getTypeAs(cls.simpleName!!)
+        return ctor.newInstance(internalContext, map, resolvedGqlType) as T
     }
 
     @Test

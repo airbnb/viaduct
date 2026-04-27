@@ -170,7 +170,7 @@ internal fun nullabilityParamAnnotationsAttribute(
     paramTypes: List<KmType>,
     cp: ConstPool
 ): ParameterAnnotationsAttribute? {
-    val annotations = paramTypes.map { it.nullabilityAnnotation?.let { listOf(it) } ?: emptyList() }
+    val annotations = paramTypes.map { it.nullabilityAnnotation?.let { ann -> listOf(ann) } ?: emptyList() }
     if (annotations.any { it.isNotEmpty() }) {
         return cp.annotations(false, annotations)
     }

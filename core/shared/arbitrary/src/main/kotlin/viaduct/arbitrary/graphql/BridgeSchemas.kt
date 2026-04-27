@@ -25,7 +25,7 @@ fun Arb.Companion.typeExpr(config: Config = Config.default,): Arb<ViaductSchema.
                     val exprs =
                         when (val type = it) {
                             is ViaductSchema.Record ->
-                                type.fields.map { it.type } + type.asTypeExpr()
+                                type.fields.map { f -> f.type } + type.asTypeExpr()
                             else -> listOf(type.asTypeExpr())
                         }
                     Arb.element(exprs)

@@ -61,12 +61,15 @@ tasks.register<Detekt>("findWarningsForCleanup") {
     jvmTarget = "17"
 
     ignoreFailures = false
+    baseline.set(repoRoot().file("detekt-cleanup-baseline.xml"))
 
     reports {
         html.required.set(true)
         html.outputLocation.set(layout.buildDirectory.file("reports/detekt/find-warnings-for-cleanup.html"))
         txt.required.set(true)
         txt.outputLocation.set(layout.buildDirectory.file("reports/detekt/find-warnings-for-cleanup.txt"))
+        xml.required.set(true)
+        xml.outputLocation.set(layout.buildDirectory.file("reports/detekt/find-warnings-for-cleanup.xml"))
     }
 }
 

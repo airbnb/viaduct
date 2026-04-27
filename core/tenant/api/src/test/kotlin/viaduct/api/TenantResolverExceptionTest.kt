@@ -65,7 +65,7 @@ class TenantResolverExceptionTest {
             }
             assertEquals("ResolverA", thrown.resolver)
             assertInstanceOf(TenantUsageException::class.java, thrown.cause)
-            assertEquals("tenant api misuse", thrown.cause?.message)
+            assertEquals("tenant api misuse", thrown.cause.message)
         }
 
     @Test

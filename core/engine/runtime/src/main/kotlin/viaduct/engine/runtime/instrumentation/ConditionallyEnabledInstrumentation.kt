@@ -63,7 +63,7 @@ class ConditionallyEnabledInstrumentationAdapter(
             default.createStateAsync(parameters)
         }
         val safeFuture = innerFuture ?: CompletableFuture.completedFuture<InstrumentationState?>(null)
-        return safeFuture?.thenApply { inner -> ConditionalState(enabled, inner) }
+        return safeFuture.thenApply { inner -> ConditionalState(enabled, inner) }
     }
 
     // 2 ─ Dispatch helper used by every override

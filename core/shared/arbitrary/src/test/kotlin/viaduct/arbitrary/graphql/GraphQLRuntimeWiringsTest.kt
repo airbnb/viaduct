@@ -221,7 +221,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                     input.map(gql::execute)
                 }.forAll {
                     val data = it.getData<Map<String, List<Any>>>()
-                    data["x"]!!.all { it is Int }
+                    data["x"]!!.all { v -> v is Int }
                 }
         }
 

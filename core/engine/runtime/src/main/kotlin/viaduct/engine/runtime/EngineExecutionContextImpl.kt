@@ -220,7 +220,7 @@ class EngineExecutionContextImpl(
         return engine.completeSelectionSet(handle, selectionSet, targetResult, arguments, options)
     }
 
-    private suspend inline fun <T : EngineObjectData> executeWithMetrics(block: () -> T): T {
+    private inline fun <T : EngineObjectData> executeWithMetrics(block: () -> T): T {
         return try {
             block().also { incrementSubqueryExecutionCounter(success = true) }
         } catch (e: Exception) {

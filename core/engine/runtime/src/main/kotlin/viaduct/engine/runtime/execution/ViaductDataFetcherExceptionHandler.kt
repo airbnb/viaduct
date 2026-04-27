@@ -91,7 +91,7 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
         val parentType = (params.dataFetchingEnvironment.parentType as? GraphQLNamedType)?.name
 
         val env = params.dataFetchingEnvironment
-        val graphqlSourceLocation = env.fieldDefinition?.definition?.sourceLocation
+        val graphqlSourceLocation = env.fieldDefinition.definition?.sourceLocation
         return ErrorReporter.Metadata(
             fieldName = fieldName,
             parentType = parentType,

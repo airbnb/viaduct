@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<!--
+  Baseline for the findWarningsForCleanup detekt task.
+  These are false positives caused by detekt 1.23.6 not resolving overloaded
+  private function dispatch. Each entry suppresses a specific function signature
+  in a specific file — new violations with different signatures are still caught.
+
+  Can be removed when detekt ships a fix for overloaded-private-member resolution
+-->
+<SmellBaseline>
+    <ManuallySuppressedIssues/>
+    <CurrentIssues>
+        <!-- hasNodeTypeReference has 4 overloads that call each other in a chain.
+             Detekt sees each overload individually and thinks it's unused. -->
+        <ID>UnusedPrivateMember:DefaultSchemaFactory.kt$DefaultSchemaFactory$private fun hasNodeTypeReference(def: ImplementingTypeDefinition&lt;*>): Boolean</ID>
+        <ID>UnusedPrivateMember:DefaultSchemaFactory.kt$DefaultSchemaFactory$private fun hasNodeTypeReference(types: List&lt;Type&lt;*>>): Boolean</ID>
+        <ID>UnusedPrivateMember:DefaultSchemaFactory.kt$DefaultSchemaFactory$@JvmName("hasNodeTypeReference2") private fun hasNodeTypeReference(fields: List&lt;FieldDefinition>): Boolean</ID>
+
+        <!-- filterToPath(GJSelection, List<String>) is called from filterToPath(GJSelectionSet, List<String>)
+             via .mapNotNull { filterToPath(it, path) } — detekt can't follow the overload dispatch. -->
+        <ID>UnusedPrivateMember:ParsedSelections.kt$PathFilter$private fun filterToPath( selection: GJSelection&lt;*>, path: List&lt;String> ): GJSelection&lt;*>?</ID>
+
+        <!-- maybeAppend has 3 overloads: Optional<T>, T?, and Iterable<T>.
+             toSDL() calls all three but detekt only sees the T? overload as used. -->
+        <ID>UnusedPrivateMember:TypeDefinitionRegistryExtensions.kt$private fun &lt;T : Node&lt;*>> StringBuilder.maybeAppend( node: Optional&lt;T>, predicate: Predicate&lt;T> = Predicates.alwaysTrue() ): StringBuilder</ID>
+        <ID>UnusedPrivateMember:TypeDefinitionRegistryExtensions.kt$private fun &lt;T : Node&lt;*>> StringBuilder.maybeAppend( nodes: Iterable&lt;T>, predicate: Predicate&lt;T> = Predicates.alwaysTrue() ): StringBuilder</ID>
+    </CurrentIssues>
+</SmellBaseline>

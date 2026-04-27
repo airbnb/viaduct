@@ -96,7 +96,7 @@ fun buildCtClasses(
             listOf(c)
         }.also {
             if (classFileMajorVersion != null) {
-                it.forEach { it.classFile.majorVersion = classFileMajorVersion }
+                it.forEach { inner -> inner.classFile.majorVersion = classFileMajorVersion }
             }
         }
 }

@@ -223,8 +223,8 @@ class NestedClassTest {
                 addFunction(
                     KmFunction("f").also {
                         it.visibility = Visibility.PUBLIC
-                        it.valueParameters += KmValueParameter("x").also {
-                            it.type = Outer.Inner::class.kmType
+                        it.valueParameters += KmValueParameter("x").also { param ->
+                            param.type = Outer.Inner::class.kmType
                         }
                         it.returnType = Km.UNIT.asType()
                     },
@@ -257,8 +257,8 @@ class NestedClassTest {
                 addConstructor(
                     KmConstructor().also {
                         it.visibility = Visibility.PUBLIC
-                        it.valueParameters += KmValueParameter("x").also {
-                            it.type = Outer.Inner::class.kmType
+                        it.valueParameters += KmValueParameter("x").also { param ->
+                            param.type = Outer.Inner::class.kmType
                         }
                     },
                     body = "{}"

@@ -226,9 +226,9 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
                 // @oneOf is applied during type generation, we can skip applying it here
                 acc
             } else {
-                dir.validLocations().fold(acc) { acc, loc ->
-                    val newDirs = (acc[loc] ?: emptySet()) + dir
-                    acc + (loc to newDirs)
+                dir.validLocations().fold(acc) { innerAcc, loc ->
+                    val newDirs = (innerAcc[loc] ?: emptySet()) + dir
+                    innerAcc + (loc to newDirs)
                 }
             }
         }

@@ -274,7 +274,7 @@ class ViaductExecutionStrategyTest {
 
                 val resolvers = mapOf(
                     "Query" to mapOf(
-                        "foo" to DataFetcher { (1..10).map { Bar(it) } }
+                        "foo" to DataFetcher { (1..10).map { i -> Bar(i) } }
                     ),
                     "Foo" to mapOf(
                         "bar" to DataFetcher {

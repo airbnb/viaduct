@@ -206,7 +206,7 @@ internal class FilteredSchemaDecoder(
                 memberFactory = {
                     unfilteredExt.members
                         .filter(filter::includeTypeDef)
-                        .map { filteredTypes[it.name] as SchemaWithData.Object }
+                        .map { inner -> filteredTypes[inner.name] as SchemaWithData.Object }
                 },
                 isBase = unfilteredExt == unfilteredDef.extensions.first(),
                 appliedDirectives = remapAppliedDirectives(unfilteredExt.appliedDirectives),

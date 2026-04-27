@@ -51,7 +51,7 @@ class ObjectTest {
     fun `throws on constructor`() {
         Fixture {
             addBuilder().also {
-                val ctor = KmConstructor().also { it.visibility = Visibility.PUBLIC }
+                val ctor = KmConstructor().also { c -> c.visibility = Visibility.PUBLIC }
                 assertThrows<IllegalArgumentException> {
                     it.addConstructor(ctor)
                 }
@@ -83,8 +83,8 @@ class ObjectTest {
                         String::class.kmType,
                         isVariable = false,
                         constructorProperty = false
-                    ).also {
-                        it.getterBody("""{return "PROP";}""")
+                    ).also { prop ->
+                        prop.getterBody("""{return "PROP";}""")
                     }
                 )
             }
@@ -144,8 +144,8 @@ class ObjectTest {
 
             loadKClass().also {
                 assertEquals(1, it.nestedClasses.size)
-                it.nestedClasses.first().also {
-                    assertEquals("Nested", it.simpleName)
+                it.nestedClasses.first().also { nested ->
+                    assertEquals("Nested", nested.simpleName)
                 }
             }
         }
@@ -160,8 +160,8 @@ class ObjectTest {
 
             loadKClass().also {
                 assertEquals(1, it.nestedClasses.size)
-                it.nestedClasses.first().also {
-                    assertEquals("Nested", it.simpleName)
+                it.nestedClasses.first().also { nested ->
+                    assertEquals("Nested", nested.simpleName)
                 }
             }
         }

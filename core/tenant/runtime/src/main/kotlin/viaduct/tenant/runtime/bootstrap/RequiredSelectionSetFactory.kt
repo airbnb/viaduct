@@ -174,7 +174,7 @@ private val Resolver.selectionSetVariables: List<SelectionSetVariable>
             val argIsSet = it.fromArgument != Variable.UNSET_STRING_VALUE
 
             val setFields = listOf(objectFieldIsSet, queryFieldIsSet, argIsSet)
-            val setCount = setFields.count { it }
+            val setCount = setFields.count { inner -> inner }
 
             check(setCount == 1) {
                 "Variable named `${it.name}` must set exactly one of `fromObjectField`, `fromQueryField`, or `fromArgument`. " +
@@ -218,7 +218,7 @@ internal fun Variables.asTypeMap(): Map<String, String> =
         .filter { it.isNotBlank() }.associate {
             val parts = it.trim().split(":")
             require(parts.size == 2)
-            val first = parts[0].trim().also { require(it.isNotEmpty()) }
-            val second = parts[1].trim().also { require(it.isNotEmpty()) }
+            val first = parts[0].trim().also { inner -> require(inner.isNotEmpty()) }
+            val second = parts[1].trim().also { inner -> require(inner.isNotEmpty()) }
             first to second
         }

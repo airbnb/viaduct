@@ -275,8 +275,8 @@ class DocumentBuilderTest {
 
             // nested selections
             let {
-                val a = KeyTree(qk).also { it.merge(qk, KeyTree(xk)) }
-                val b = KeyTree(qk).also { it.merge(qk, KeyTree(tk)) }
+                val a = KeyTree(qk).also { tree -> tree.merge(qk, KeyTree(xk)) }
+                val b = KeyTree(qk).also { tree -> tree.merge(qk, KeyTree(tk)) }
 
                 val result = a.merge(b).toMap()
                 assertEquals(
