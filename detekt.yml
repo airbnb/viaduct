@@ -269,7 +269,7 @@ style:
     active: false
   ForbiddenImport:
     active: true
-    imports: ['kotlinx.coroutines.runBlocking']
+    imports: ['kotlinx.coroutines.runBlocking', 'com.airbnb.common.kotlin.coroutines.runBlocking']
   ForbiddenVoid:
     active: false
     ignoreOverridden: false
