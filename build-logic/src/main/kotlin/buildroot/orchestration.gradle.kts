@@ -186,6 +186,13 @@ registerSubprojectAggregate(
     taskNames = setOf("findWarningsForCleanup")
 )
 
+// CI-oriented aggregate: compile main + test sources without running tests or producing jars
+registerSubprojectAggregate(
+    aggregateName = "orchestrationBuildRepoForCI",
+    description = "[orchestration] Compiles main and test sources for all SUBPROJECTS in THIS build.",
+    taskNames = setOf("classes", "testClasses")
+)
+
 // Publishing
 registerSubprojectAggregate(
     aggregateName = "orchestrationPublishAllToMavenLocal",
@@ -329,5 +336,11 @@ if (gradle.parent == null) {
     ensureTask("findWarningsForCleanup", "verification", "Runs findWarningsForCleanup across root and participating included builds.") {
         dependsOn(tasksNamedInSubprojects("findWarningsForCleanup"))
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationFindWarningsForCleanupAll") })
+    }
+
+    // buildRepoForCI: compile main + test classes across the repo (no test execution, no jars)
+    ensureTask("buildRepoForCI", "build", "Compiles main and test classes across the repo for CI cache priming.") {
+        dependsOn("orchestrationBuildRepoForCI")
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationBuildRepoForCI") })
     }
 }

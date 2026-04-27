@@ -79,11 +79,11 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
 
-      - name: Build project (without tests)
+      - name: Compile main and test sources
         id: build_project
         run: |
-          echo "🔨 Building project..."
-          if ./gradlew assemble --scan; then
+          echo "🔨 Compiling main and test sources..."
+          if ./gradlew buildRepoForCI --scan; then
             echo "✅ Project built successfully"
           else
             echo "❌ Build failed"
