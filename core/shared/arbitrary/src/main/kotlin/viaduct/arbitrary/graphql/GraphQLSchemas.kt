@@ -155,7 +155,8 @@ internal class AddDefaults(private val schema: ViaductSchema, private val cfg: C
      * For the purposes of generating a default value in a schema, we need our graph of type cycles
      * to include every possible edge, even edges from nullable or list-typed fields.
      */
-    private val cycleGroups = CycleGroups.allInputCycles(schema)
+    private val allEdgesGraph = CycleGroups.allInputCycles(schema)
+    private val mandatoryEdgesGraph = CycleGroups.mandatoryInputCycles(schema)
 
     // don't traverse into built-in directives
     override fun visitGraphQLDirective(
@@ -207,7 +208,7 @@ internal class AddDefaults(private val schema: ViaductSchema, private val cfg: C
     }
 
     private fun genDefaultValue(type: GraphQLInputType): Value<*> =
-        Arb.ir(schema, cycleGroups, type, cfg).map { ir ->
+        Arb.ir(schema, allEdgesGraph, mandatoryEdgesGraph, type, cfg).map { ir ->
             GJValueConv(type).invert(ir)
         }.next(rs)
 }

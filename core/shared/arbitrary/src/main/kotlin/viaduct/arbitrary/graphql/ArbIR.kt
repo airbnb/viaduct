@@ -60,9 +60,9 @@ fun Arb.Companion.objectIR(
     schema: ViaductSchema,
     cfg: Config = Config.default
 ): Arb<IR.Value.Object> {
-    val inputObjectScc = CycleGroups.mandatoryInputCycles(schema)
+    val mandatoryEdgesGraph = CycleGroups.mandatoryInputCycles(schema)
     return arbitrary { rs ->
-        IRGen(schema, inputObjectScc, cfg, rs).genObjectValue()
+        IRGen(schema, mandatoryEdgesGraph, mandatoryEdgesGraph, cfg, rs).genObjectValue()
     }
 }
 
@@ -99,20 +99,21 @@ fun Arb.Companion.ir(
     type: GraphQLType,
     cfg: Config = Config.default
 ): Arb<IR.Value> {
-    val inputObjectScc = CycleGroups.mandatoryInputCycles(schema)
+    val mandatoryEdgesGraph = CycleGroups.mandatoryInputCycles(schema)
     return arbitrary { rs ->
-        IRGen(schema, inputObjectScc, cfg, rs).genValue(type)
+        IRGen(schema, mandatoryEdgesGraph, mandatoryEdgesGraph, cfg, rs).genValue(type)
     }
 }
 
 internal fun Arb.Companion.ir(
     schema: ViaductSchema,
-    inputObjectScc: CycleGroups,
+    allEdgesGraph: CycleGroups,
+    mandatoryEdgesGraph: CycleGroups,
     type: GraphQLType,
     cfg: Config = Config.default
 ): Arb<IR.Value> =
     arbitrary { rs ->
-        IRGen(schema, inputObjectScc, cfg, rs).genValue(type)
+        IRGen(schema, allEdgesGraph, mandatoryEdgesGraph, cfg, rs).genValue(type)
     }
 
 /** Return an [Arb] that can generate an [IR.Value] for the provided [Document] */
@@ -172,7 +173,15 @@ data class TypeCtx(
 
 private class IRGen(
     private val schema: ViaductSchema,
-    private val inputCycleGroups: CycleGroups,
+    // SCC graph used to decide which input fields must be retained in the non-oneOf branch
+    // to preserve well-formedness. Callers may supply either [CycleGroups.mandatoryInputCycles]
+    // (default) or [CycleGroups.allInputCycles] (e.g. [AddDefaults], which needs finite
+    // nested-default values even through nullable cycles).
+    private val allEdgesGraph: CycleGroups,
+    // SCC graph of strictly mandatory edges, used in the oneOf branch. Only mandatory edges
+    // can force divergence — nullable/list-wrapped cycle edges terminate naturally via the
+    // `nullable && overBudget -> null` guard or via empty-list generation.
+    private val mandatoryEdgesGraph: CycleGroups,
     private val cfg: Config,
     private val rs: RandomSource,
 ) {
@@ -272,12 +281,18 @@ private class IRGen(
                 tc.type is GraphQLInputObjectType && tc.type.isOneOf -> {
                     val allFields = tc.type.fields
 
-                    // When overBudget, prioritize fields that are not input object typed
+                    // When overBudget, prefer fields that don't force further cycle recursion:
+                    // non-input-object fields, list-wrapped fields (which terminate with an empty
+                    // list), or input-object fields outside the host's mandatory cycle group.
                     val genFields = if (overBudget) {
-                        val leafFields = allFields.filter {
-                            GraphQLTypeUtil.unwrapAll(it.type) !is GraphQLInputObjectType
+                        val cycleGroup = mandatoryEdgesGraph[tc.type.name]
+                        val exitFields = allFields.filter { f ->
+                            val unwrapped = GraphQLTypeUtil.unwrapAll(f.type)
+                            unwrapped !is GraphQLInputObjectType ||
+                                GraphQLTypeUtil.unwrapNonNull(f.type) is GraphQLList ||
+                                unwrapped.name !in cycleGroup
                         }
-                        leafFields.ifEmpty { allFields }
+                        exitFields.ifEmpty { allFields }
                     } else {
                         allFields
                     }
@@ -288,7 +303,7 @@ private class IRGen(
                 }
 
                 tc.type is GraphQLInputObjectType -> {
-                    val cycleGroup = inputCycleGroups[tc.type.name]
+                    val cycleGroup = allEdgesGraph[tc.type.name]
                     val nameValuePairs = tc.type.fields
                         .filter { f ->
                             val fieldTypeName = (GraphQLTypeUtil.unwrapAll(f.type) as? GraphQLInputObjectType)?.name

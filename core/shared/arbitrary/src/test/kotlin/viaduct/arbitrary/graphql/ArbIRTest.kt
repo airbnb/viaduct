@@ -433,6 +433,36 @@ class ArbIRTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `generates input object values -- oneof with supercritical branching`(): Unit =
+        runBlocking {
+            // This test verifies that the value generator can produce values for valid OneOf types
+            // that form hard non-nullable cycles with a supercritical branching factor
+            //
+            // More on supercritical branching:
+            // https://en.wikipedia.org/wiki/Branching_process#Extinction_problem_for_a_branching_process
+            //
+            // OneOf type A forms a required cycle with type B, and contains multiple cycle edges into
+            // B to encourage the OneOf field selector to select one of these.
+            // A has an escape through field c, which allows the value generator to return an empty list
+            // to limit additional branching.
+            val schema =
+                """
+                    input A @oneOf { b1:B, b2:B c:C }
+                    input B { a1:A!, a2:A! }
+                    input C { as: [A!]! }
+                """.trimIndent().asViaductSchema
+
+            val cfg = Config.default +
+                (ExplicitNullValueWeight to 0.0) +
+                (ImplicitNullValueWeight to 0.0) +
+                (ListValueSize to 1.asIntRange()) +
+                (MaxValueDepth to 3)
+
+            Arb.ir(schema, schema.schema.getType("A").nonNullable, cfg)
+                .forAll { it is IR.Value.Object && it.name == "A" }
+        }
+
+    @Test
     fun `generates input object values -- nested input objects`(): Unit =
         runBlocking {
             val schema =
