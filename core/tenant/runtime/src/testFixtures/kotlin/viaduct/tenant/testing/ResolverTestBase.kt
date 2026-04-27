@@ -57,18 +57,8 @@ import viaduct.tenant.runtime.select.SelectionSetImpl
  * dependency injection frameworks. Subclasses should provide their own injector
  * integration as needed.
  *
- * ## Deprecation Notice
+ * ### Usage
  *
- * **This API is deprecated.** Please migrate to the new type-safe testing API in
- * `viaduct.api.testing` package, which provides:
- * - **Explicit type parameters**: No reflection-based type inference
- * - **Factory pattern**: No inheritance required
- * - **API-only dependencies**: No runtime module dependencies
- *
- * ### Migration Guide
- *
- * **Old API (deprecated):**
- * ```kotlin
  * class MyResolverTest : DefaultAbstractResolverTestBase() {
  *     override fun getSchema() = mySchema
  *
@@ -82,52 +72,9 @@ import viaduct.tenant.runtime.select.SelectionSetImpl
  *         assertEquals(expected, result)
  *     }
  * }
- * ```
- *
- * **New API:**
- * ```kotlin
- * class MyResolverTest {
- *     private val tester = FieldResolverTester.create<
- *         MyObject,           // Object type (O)
- *         Query,              // Query type (Q)
- *         MyArguments,        // Arguments type (A)
- *         MyOutput            // Output type (R)
- *     >(
- *         ResolverTester.TesterConfig(schemaSDL = MY_SCHEMA_SDL)
- *     )
- *
- *     @Test
- *     fun test() = runBlocking {
- *         val result = tester.test(MyResolver()) {
- *             objectValue = myObject
- *             arguments = myArgs
- *         }
- *         assertEquals(expected, result)
- *     }
- * }
- * ```
- *
- * ### Migration by Resolver Type
- *
- * | Old Method                | New Tester                    |
- * |---------------------------|-------------------------------|
- * | `runFieldResolver()`      | `FieldResolverTester.test()`  |
- * | `runFieldBatchResolver()` | `FieldResolverTester.testBatch()` |
- * | `runMutationFieldResolver()` | `MutationResolverTester.test()` |
- * | `runNodeResolver()`       | `NodeResolverTester.test()`   |
- * | `runNodeBatchResolver()`  | `NodeResolverTester.testBatch()` |
- *
- * @see viaduct.api.testing.FieldResolverTester
- * @see viaduct.api.testing.MutationResolverTester
- * @see viaduct.api.testing.NodeResolverTester
- * @see viaduct.api.testing.ResolverTester.TesterConfig
  */
-@Deprecated(
-    message = "ResolverTestBase interface is deprecated. Use the new type-safe testing API in viaduct.api.testing package. " +
-        "See FieldResolverTester, MutationResolverTester, or NodeResolverTester for the new API.",
-    level = DeprecationLevel.WARNING
-)
-@OptIn(VisibleForTest::class, InternalApi::class, ExperimentalApi::class)
+@ExperimentalApi
+@OptIn(VisibleForTest::class, InternalApi::class)
 interface ResolverTestBase {
     /**
      * An ExecutionContext that can be used to construct a builder, e.g. Foo.Builder(context).
@@ -156,6 +103,7 @@ interface ResolverTestBase {
      * @param contextQueryValues List of Query objects to mock results from ctx.query()
      * @return The return value of resolver.resolve()
      */
+    @ExperimentalApi
     suspend fun <T> runFieldResolver(
         resolver: ResolverBase<T>,
         objectValue: Object = NullObject,
@@ -187,6 +135,7 @@ interface ResolverTestBase {
      * @param contextMutationValues List of Mutation objects to mock results from ctx.mutation()
      * @return The return value of resolver.resolve()
      */
+    @ExperimentalApi
     suspend fun <T> runMutationFieldResolver(
         resolver: ResolverBase<T>,
         queryValue: Query = NullQuery,
@@ -217,6 +166,7 @@ interface ResolverTestBase {
      * @param contextQueryValues List of Query objects to mock results from ctx.query()
      * @return The return value of resolver.resolve()
      */
+    @ExperimentalApi
     suspend fun <T> runFieldBatchResolver(
         resolver: ResolverBase<T>,
         objectValues: List<Object> = listOf<Object>(),
@@ -256,6 +206,7 @@ interface ResolverTestBase {
      * @param selections The value of `ctx.selections()` for a selective node resolver context
      * @return The return value of resolver.resolve()
      */
+    @ExperimentalApi
     suspend fun <T : NodeObject> runNodeResolver(
         resolver: NodeResolverBase<T>,
         id: GlobalID<T>,
@@ -282,6 +233,7 @@ interface ResolverTestBase {
      *        selections, use [createNodeResolverContext] instead to construct individual Context objects
      * @return The return value of resolver.batchResolve()
      */
+    @ExperimentalApi
     suspend fun <T : NodeObject> runNodeBatchResolver(
         resolver: NodeResolverBase<T>,
         ids: List<GlobalID<T>>,
@@ -414,7 +366,6 @@ interface ResolverTestBase {
         } else {
             createFieldExecutionContext(objectValue, queryValue, arguments, requestContext, selections, contextQueries)
         }
-        // Primary constructor is null when Ctx is FieldExecutionContext
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
 
@@ -435,7 +386,6 @@ interface ResolverTestBase {
             contextQueries,
             contextMutations
         )
-        // Primary constructor is null when Ctx is MutationFieldExecutionContext
         return ctxKClass.primaryConstructor?.call(innerCtx) ?: innerCtx
     }
 
@@ -485,7 +435,7 @@ private fun <T : NodeObject> getNodeResolverContextKClass(resolver: NodeResolver
         )
 }
 
-@OptIn(InternalApi::class)
+@OptIn(InternalApi::class, ExperimentalApi::class)
 private fun <T : NodeObject> ResolverTestBase.createNodeExecutionContext(
     id: GlobalID<T>,
     selections: SelectionSet<T>,
@@ -534,6 +484,7 @@ private fun <T> getMutationFieldResolverContextKClass(resolver: ResolverBase<T>)
  *        `someFunction(createNodeResolverContext(...))`. If it can't be inferred, you can specify it like so for a node Foo:
  *        `val ctx = createNodeResolverContext<FooResolver.Context>(...)`
  */
+@OptIn(ExperimentalApi::class)
 private inline fun <T : NodeObject, reified ctx : NodeExecutionContext<T>> ResolverTestBase.createNodeResolverContext(
     id: GlobalID<T>,
     requestContext: Any? = null,
@@ -550,6 +501,7 @@ private inline fun <T : NodeObject, reified ctx : NodeExecutionContext<T>> Resol
  *        `someFunction(createResolverContext(...))`. If it can't be inferred, you can specify it like so for a field Foo.bar:
  *        `val ctx = createResolverContext<FooResolver.Bar.Context>(...)`
  */
+@OptIn(ExperimentalApi::class)
 inline fun <reified ctx : FieldExecutionContext<*, *, *, *>> ResolverTestBase.createResolverContext(
     objectValue: Object = NullObject,
     queryValue: Query = NullQuery,
@@ -559,7 +511,7 @@ inline fun <reified ctx : FieldExecutionContext<*, *, *, *>> ResolverTestBase.cr
     contextQueries: List<Query> = emptyList()
 ): ctx = createFieldResolverContext(ctx::class, objectValue, queryValue, arguments, requestContext, selections, contextQueries) as ctx
 
-@OptIn(InternalApi::class)
+@OptIn(InternalApi::class, ExperimentalApi::class)
 private fun ResolverTestBase.createFieldExecutionContext(
     objectValue: Object,
     queryValue: Query,

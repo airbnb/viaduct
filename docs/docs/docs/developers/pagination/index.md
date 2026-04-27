@@ -426,27 +426,26 @@ query {
 
 ## Testing
 
-Connection resolvers are tested like any other field resolver. Use `FieldResolverTester` with the generated connection arguments type:
+Connection resolvers are tested like any other field resolver. Extend `DefaultAbstractResolverTestBase` and use `runFieldResolver` with the generated connection arguments type:
 
 ```kotlin
-class MyConnectionResolverTest {
-  private val tester = FieldResolverTester.create<
-      Query,                    // Object type (Query for root fields)
-      Query,                    // Query type
-      Users_Arguments,          // Must implement ConnectionArguments
-      UserConnection            // Return type
-      >(TesterConfig(schemaSDL = SCHEMA_SDL))
+@OptIn(ExperimentalApi::class)
+class MyConnectionResolverTest : DefaultAbstractResolverTestBase() {
+  override fun getSchema() = mySchema
 
   @Test
   fun `first page returns correct edges`() = runBlocking {
-    val result = tester.test(UsersResolver()) {
-      objectValue = NullObject
-      arguments = Users_Arguments.Builder(tester.context).first(3).build()
-    }
+    val result = runFieldResolver(
+      resolver = UsersResolver(),
+      arguments = Users_Arguments.Builder(context).first(3).build()
+    )
     assertEquals(3, result.getEdges().size)
   }
 }
 ```
+
+!!! note
+    `DefaultAbstractResolverTestBase` and `runFieldResolver` are annotated `@ExperimentalApi`. Opt in with `@OptIn(ExperimentalApi::class)` on your test class or file.
 
 See the [resolver testing guide](../resolvers/index.md) for full testing documentation.
 

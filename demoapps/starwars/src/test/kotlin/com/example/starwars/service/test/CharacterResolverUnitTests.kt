@@ -20,13 +20,14 @@ import viaduct.api.grts.Character_CharacterProfile_Arguments
 import viaduct.api.grts.Character_CharacterStats_Arguments
 import viaduct.api.grts.Character_FormattedDescription_Arguments
 import viaduct.api.grts.Species
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 // tag::character_resolver_unit_tests[10] Example of unit tests for field resolvers
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class)
 class CharacterResolverUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
 

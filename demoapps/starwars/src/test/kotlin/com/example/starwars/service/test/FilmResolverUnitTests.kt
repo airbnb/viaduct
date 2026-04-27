@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.grts.Film
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -29,7 +30,7 @@ import viaduct.tenant.testing.DefaultAbstractResolverTestBase
  * Note: Integration tests that cover full query execution and authorization
  * are located in QueryResolverUnitTests.kt.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class)
 class FilmResolverUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
 

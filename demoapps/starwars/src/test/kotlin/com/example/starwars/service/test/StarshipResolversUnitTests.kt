@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 import viaduct.api.grts.Query
 import viaduct.api.grts.Query_AllStarships_Arguments
 import viaduct.api.grts.Starship
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -28,7 +29,7 @@ import viaduct.tenant.testing.DefaultAbstractResolverTestBase
  * Note: Integration tests that cover full query execution and authorization
  * are located in QueryResolverUnitTests.kt.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class)
 class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
     override fun getSchema(): ViaductSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
 

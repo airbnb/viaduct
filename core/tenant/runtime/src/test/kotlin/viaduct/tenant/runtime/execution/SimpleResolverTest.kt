@@ -15,9 +15,11 @@ import viaduct.api.internal.ResolverFor
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Query
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.ViaductSchema
 import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
+@OptIn(ExperimentalApi::class)
 class SimpleResolverTest : DefaultAbstractResolverTestBase() {
     private val SCHEMA_SDL = """
      type Query {
