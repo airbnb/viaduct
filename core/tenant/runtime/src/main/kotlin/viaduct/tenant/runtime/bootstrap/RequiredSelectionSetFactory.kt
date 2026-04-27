@@ -210,15 +210,25 @@ private fun KClass<out ResolverBase<*>>.variablesProvider(injector: TenantCodeIn
 
 /**
  * Parse a [Variables] into a map of types.
- * For example, a types string "a:A,b:B" will be parsed as `mapOf("a" to "A", "b" to "B")`
+ * For example, `@Variables("a:A", "b:B")` will be parsed as `mapOf("a" to "A", "b" to "B")`
  */
 internal fun Variables.asTypeMap(): Map<String, String> =
-    types.trim()
-        .split(",")
-        .filter { it.isNotBlank() }.associate {
+    types
+        .filter { it.isNotBlank() }
+        .associate {
             val parts = it.trim().split(":")
-            require(parts.size == 2)
-            val first = parts[0].trim().also { inner -> require(inner.isNotEmpty()) }
-            val second = parts[1].trim().also { inner -> require(inner.isNotEmpty()) }
+            require(parts.size == 2) {
+                "Invalid @Variables entry '${it.trim()}' — expected format 'name: Type'"
+            }
+            val first = parts[0].trim().also { name ->
+                require(name.isNotEmpty()) {
+                    "Invalid @Variables entry '${it.trim()}' — variable name is empty"
+                }
+            }
+            val second = parts[1].trim().also { type ->
+                require(type.isNotEmpty()) {
+                    "Invalid @Variables entry '${it.trim()}' — variable type is empty"
+                }
+            }
             first to second
         }

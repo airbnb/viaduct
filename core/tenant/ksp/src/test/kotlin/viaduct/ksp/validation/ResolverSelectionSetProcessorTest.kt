@@ -211,10 +211,10 @@ class ResolverSelectionSetProcessorTest {
             assertTrue(result.fragments.any { it.metadata.fragmentType == ResolverFragmentType.QUERY && it.fragment == queryFragment })
         }
 
-        private fun createMockVariablesNestedClass(typesString: String): KSClassDeclaration {
+        private fun createMockVariablesNestedClass(vararg typesStrings: String): KSClassDeclaration {
             val mockTypesArg = mockk<KSValueArgument> {
                 every { name } returns createMockKSName("types")
-                every { value } returns typesString
+                every { value } returns typesStrings.toList()
             }
             val mockVariablesAnnotation = mockk<KSAnnotation> {
                 every { shortName.asString() } returns "Variables"
@@ -249,7 +249,7 @@ class ResolverSelectionSetProcessorTest {
             val longhandFragment = "fragment Main on User { id }"
             val mockFragmentArg = createMockValueArgument("objectValueFragment", longhandFragment)
             val mockAnnotation = createMockResolverAnnotation(listOf(mockFragmentArg))
-            val nestedVariablesClass = createMockVariablesNestedClass("viewerId: ID, listingId: String!")
+            val nestedVariablesClass = createMockVariablesNestedClass("viewerId: ID", "listingId: String!")
             val mockDeclaration = createMockClassDeclaration(
                 packageName = "com.example",
                 className = "TestResolver",
@@ -570,6 +570,63 @@ class ResolverSelectionSetProcessorTest {
                 processor.process(mockResolver)
             }
             assertTrue(exception.message?.contains("validation failed") == true)
+        }
+    }
+
+    @Nested
+    inner class ParseVariableNamesFromTypes {
+        @Test
+        fun `empty list returns empty set`() {
+            assertEquals(emptySet(), parseVariableNamesFromTypes(emptyList()))
+        }
+
+        @Test
+        fun `blank entries are filtered out`() {
+            assertEquals(emptySet(), parseVariableNamesFromTypes(listOf("", " ", "\t")))
+        }
+
+        @Test
+        fun `single valid entry`() {
+            assertEquals(setOf("foo"), parseVariableNamesFromTypes(listOf("foo: Int")))
+        }
+
+        @Test
+        fun `multiple valid entries`() {
+            assertEquals(
+                setOf("foo", "bar"),
+                parseVariableNamesFromTypes(listOf("foo: Int", "bar: String!"))
+            )
+        }
+
+        @Test
+        fun `whitespace is trimmed`() {
+            assertEquals(setOf("foo"), parseVariableNamesFromTypes(listOf("  foo : Int  ")))
+        }
+
+        @Test
+        fun `malformed entry with no colon throws`() {
+            val exception = assertThrows<IllegalArgumentException> {
+                parseVariableNamesFromTypes(listOf("invalidSyntax"))
+            }
+
+            assertTrue(exception.message!!.contains("Invalid @Variables entry"))
+            assertTrue(exception.message!!.contains("expected format 'name: Type'"))
+        }
+
+        @Test
+        fun `malformed entry with too many colons throws`() {
+            val exception = assertThrows<IllegalArgumentException> {
+                parseVariableNamesFromTypes(listOf("a:b:c"))
+            }
+            assertTrue(exception.message!!.contains("Invalid @Variables entry"))
+        }
+
+        @Test
+        fun `malformed entry with empty name throws`() {
+            val exception = assertThrows<IllegalArgumentException> {
+                parseVariableNamesFromTypes(listOf(":Type"))
+            }
+            assertTrue(exception.message!!.contains("variable name is empty"))
         }
     }
 }

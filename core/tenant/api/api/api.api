@@ -49,7 +49,7 @@ public final class viaduct/api/Variable$Companion {
 }
 
 public abstract interface annotation class viaduct/api/Variables : java/lang/annotation/Annotation {
-	public abstract fun types ()Ljava/lang/String;
+	public abstract fun types ()[Ljava/lang/String;
 }
 
 public abstract interface class viaduct/api/VariablesProvider {

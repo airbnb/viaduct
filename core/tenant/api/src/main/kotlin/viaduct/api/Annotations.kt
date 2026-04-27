@@ -182,14 +182,13 @@ annotation class Variable(
 @Target(AnnotationTarget.CLASS)
 annotation class Variables(
     /**
-     * A string describing the names and types of 1 or more variables.
-     * Names and types are separated by `:`, and name-type pairs are joined by a colon.
+     * Each element describes one variable as `name: Type`.
      * All spaces are ignored.
      *
      * Example:
      * ```
-     *   "foo: Int, bar: String!"
+     *   @Variables("foo: Int", "bar: String!")
      * ```
      */
-    val types: String
+    vararg val types: String
 )

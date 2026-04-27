@@ -4,6 +4,7 @@ package viaduct.tenant.runtime.bootstrap
 
 import com.google.inject.Guice
 import kotlin.reflect.full.findAnnotation
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -533,9 +534,9 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver("__typename") // No variables used in selection
-    class CommasOnlyVariablesResolver : ResolverBase<Unit> {
-        @Variables(",,, ")
-        class CommasOnlyVariablesProvider : VariablesProvider<MockArguments> {
+    class BlankVariablesResolver : ResolverBase<Unit> {
+        @Variables("", " ")
+        class BlankVariablesProvider : VariablesProvider<MockArguments> {
             override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = emptyMap()
         }
     }
@@ -609,14 +610,14 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `@Variables string is all commas -- should be allowed at bootstrap time`() {
-        // Comma-only @Variables strings are valid and result in no variables being declared
+    fun `@Variables with blank entries -- should be allowed at bootstrap time`() {
+        // Blank @Variables entries are filtered out and result in no variables being declared
         val rss = mkFactory().createRequiredSelectionSets(
             schema = defaultSchema,
             injector = injector,
-            resolverCls = CommasOnlyVariablesResolver::class,
+            resolverCls = BlankVariablesResolver::class,
             variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = CommasOnlyVariablesResolver::class.findAnnotation<Resolver>()!!,
+            annotation = BlankVariablesResolver::class.findAnnotation<Resolver>()!!,
             resolverForType = "Query",
         ).first
 
@@ -624,8 +625,6 @@ class RequiredSelectionSetFactoryTest {
         assertEquals(emptySet<String>(), rss?.variablesResolvers?.variableNames)
     }
 
-    // TODO: The error message for this is currently just "failed requirement" which is not very descriptive.
-    // It should be improved to indicate a syntax error in the @Variables string.
     @Test
     fun `@Variables string is syntactically invalid -- should throw at bootstrap time`() {
         val exception = assertThrows<IllegalArgumentException> {
@@ -639,46 +638,44 @@ class RequiredSelectionSetFactoryTest {
             )
         }
 
-        // Verify the error message describes the syntax issue (may be generic "Failed requirement")
-        expectThat(
-            exception.message?.contains("syntax") == true ||
-                exception.message?.contains("invalid") == true ||
-                exception.message?.contains("parse") == true ||
-                exception.message?.contains("Failed requirement") == true
-        ).describedAs("Expected error message to mention syntax/parsing issue or be 'Failed requirement' but got: ${exception.message}")
-            .isTrue()
+        val message = exception.message.orEmpty().lowercase()
+        assertTrue(
+            listOf("syntax", "invalid", "parse", "failed requirement").any { it in message },
+            "Expected error message to mention syntax/parsing issue, but got: $message"
+        )
     }
 
     @Test
     fun `Variables -- asTypeMap`() {
-        fun String.assertTypeMap(vararg pairs: Pair<String, String>) = assertEquals(pairs.toMap(), Variables(this).asTypeMap())
+        fun assertTypeMap(
+            vararg types: String,
+            expected: Map<String, String>
+        ) = assertEquals(expected, Variables(*types).asTypeMap())
 
-        fun String.assertThrows() = assertThrows<IllegalArgumentException> { Variables(this).asTypeMap() }
+        fun assertThrows(vararg types: String) = assertThrows<IllegalArgumentException> { Variables(*types).asTypeMap() }
 
         // empty
-        "".assertTypeMap()
-        "  ".assertTypeMap()
-        "\t".assertTypeMap()
+        assertTypeMap(expected = emptyMap())
+        assertTypeMap("", expected = emptyMap())
+        assertTypeMap("  ", expected = emptyMap())
+        assertTypeMap("\t", expected = emptyMap())
 
         // single entry
-        "a:A".assertTypeMap("a" to "A")
-        "  a:A".assertTypeMap("a" to "A")
-        "a:A  ".assertTypeMap("a" to "A")
-        "a  :  A".assertTypeMap("a" to "A")
-        "a:A,".assertTypeMap("a" to "A")
-        ",a:A".assertTypeMap("a" to "A")
+        assertTypeMap("a:A", expected = mapOf("a" to "A"))
+        assertTypeMap("  a:A", expected = mapOf("a" to "A"))
+        assertTypeMap("a:A  ", expected = mapOf("a" to "A"))
+        assertTypeMap("a  :  A", expected = mapOf("a" to "A"))
 
         // multiple entries
-        "a:A,b:B".assertTypeMap("a" to "A", "b" to "B")
-        "   a:A,b:B".assertTypeMap("a" to "A", "b" to "B")
-        "a:A,b:B  ".assertTypeMap("a" to "A", "b" to "B")
-        "a:A   ,   b:B".assertTypeMap("a" to "A", "b" to "B")
+        assertTypeMap("a:A", "b:B", expected = mapOf("a" to "A", "b" to "B"))
+        assertTypeMap("   a:A", "b:B", expected = mapOf("a" to "A", "b" to "B"))
+        assertTypeMap("a:A", "b:B  ", expected = mapOf("a" to "A", "b" to "B"))
 
         // bad formatting
-        "a:".assertThrows()
-        ":a".assertThrows()
-        "a:b:c".assertThrows()
-        ":".assertThrows()
+        assertThrows("a:")
+        assertThrows(":a")
+        assertThrows("a:b:c")
+        assertThrows(":")
     }
 
     @Test

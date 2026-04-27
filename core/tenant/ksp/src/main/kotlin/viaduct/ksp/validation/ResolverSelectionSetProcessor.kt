@@ -176,8 +176,9 @@ class ResolverSelectionSetProcessor(
         }
 
         val variablesProviderVarNames = variablesAnnotations.firstOrNull()?.let { annotation ->
-            val typesStr = annotation.arguments.firstOrNull { it.name?.asString() == "types" }?.value as? String
-            typesStr?.let { parseVariableNamesFromTypes(it) } ?: emptySet()
+            @Suppress("UNCHECKED_CAST")
+            val typesList = annotation.arguments.firstOrNull { it.name?.asString() == "types" }?.value as? List<String> ?: emptyList()
+            if (typesList.isNotEmpty()) parseVariableNamesFromTypes(typesList) else emptySet()
         } ?: emptySet()
 
         val typeName = this.simpleName.asString()
@@ -231,12 +232,18 @@ private fun KSAnnotation.getArgString(argName: String): String? = arguments.find
 
 private fun KSAnnotation.getArgStringOrNull(argName: String): String? = getArgString(argName)?.takeIf { it != VARIABLE_UNSET_STRING_VALUE }
 
-internal fun parseVariableNamesFromTypes(types: String): Set<String> =
-    types.trim()
-        .split(",")
+internal fun parseVariableNamesFromTypes(types: List<String>): Set<String> =
+    types
         .filter { it.isNotBlank() }
-        .mapNotNull { entry ->
+        .map { entry ->
             val parts = entry.trim().split(":")
-            if (parts.size == 2) parts[0].trim().takeIf { it.isNotEmpty() } else null
+            require(parts.size == 2) {
+                "Invalid @Variables entry '${entry.trim()}' — expected format 'name: Type'"
+            }
+            val name = parts[0].trim()
+            require(name.isNotEmpty()) {
+                "Invalid @Variables entry '${entry.trim()}' — variable name is empty"
+            }
+            name
         }
         .toSet()

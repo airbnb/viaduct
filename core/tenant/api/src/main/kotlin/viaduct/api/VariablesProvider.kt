@@ -16,7 +16,7 @@ import viaduct.apiannotations.StableApi
  * @Resolver("baz(${'$'}x)")
  * class FooBarResolver : FooResolvers.Bar() {
  *
- *   @Variables("x: Int")
+ *   @Variables("x: Int", "y: String")
  *   class Vars : VariablesProvider<Arguments.NoArguments> {
  *     override suspend fun provide(context: VariablesProviderContext<Arguments.NoArguments>): Map<String, Any?> =
  *       mapOf("x" to 42)

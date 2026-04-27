@@ -167,7 +167,7 @@ class VariablesForArgumentsFeatureAppTest : VariablesForArgumentsContractTest() 
     class QueryDashboardPostsResolver : QueryResolvers.DashboardPosts() { // Generated from query field
         override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().get("getPosts", String::class)
 
-        @Variables("targetUser: String!, statusFilter: String!")
+        @Variables("targetUser: String!", "statusFilter: String!")
         class DashboardProvider : VariablesProvider<Query_DashboardPosts_Arguments> { // Generated arguments type
             override suspend fun provide(context: VariablesProviderContext<Query_DashboardPosts_Arguments>): Map<String, Any?> {
                 // ACCESS RESOLVER ARGUMENTS
