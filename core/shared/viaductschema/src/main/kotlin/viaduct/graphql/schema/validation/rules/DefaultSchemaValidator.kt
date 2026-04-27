@@ -20,6 +20,7 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * - [ConnectionEdgeStructureRule]: @edge types must have a 'node' field
  * - [ConnectionPageInfoRule]: PageInfo types must have hasNextPage/hasPreviousPage as Boolean! and nullable cursors
  * - [ConnectionArgumentsNullabilityRule]: Pagination args (first, after, last, before) must be nullable
+ * - [NoCrossModuleInputExtensionsRule]: Input types (enum, input) may not be extended across module partitions
  */
 object DefaultSchemaValidator {
     private val allowedScalarNames = GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS
@@ -40,6 +41,7 @@ object DefaultSchemaValidator {
                 ConnectionEdgeStructureRule(),
                 ConnectionPageInfoRule(),
                 ConnectionArgumentsNullabilityRule(),
+                NoCrossModuleInputExtensionsRule(modulePartitionPathPrefix),
             )
         )
     )

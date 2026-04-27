@@ -1,0 +1,7 @@
+extend enum MyStatus {
+  ARCHIVED
+}
+
+extend input MyInput {
+  tags: String
+}

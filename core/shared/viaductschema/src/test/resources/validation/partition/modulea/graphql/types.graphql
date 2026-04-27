@@ -1,0 +1,8 @@
+enum MyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+input MyInput {
+  name: String
+}

@@ -1,0 +1,7 @@
+extend enum MyStatus {
+  PENDING
+}
+
+extend input MyInput {
+  description: String
+}

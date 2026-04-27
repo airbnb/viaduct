@@ -53,4 +53,7 @@ object ValidationErrorCodes {
 
     // ConnectionArgumentsNullabilityRule
     const val CONNECTION_ARG_MUST_BE_NULLABLE = "CONNECTION_ARG_MUST_BE_NULLABLE"
+
+    // NoCrossModuleInputExtensionsRule
+    const val CROSS_MODULE_INPUT_EXTENSION = "CROSS_MODULE_INPUT_EXTENSION"
 }
