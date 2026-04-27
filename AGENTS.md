@@ -13,6 +13,7 @@ For more information about the details of how Viaduct executes GraphQL operation
 ## Navigating the Gradle build
 
 - [`impldocs/gradle-build-architecture.md`](impldocs/gradle-build-architecture.md) - Documents Viaduct's included-build architecture.
+- [`impldocs/e2e-snapshot-test.md`](impldocs/e2e-snapshot-test.md) - Test publication process using a snapshot (good to use when you've changes the Gradle artifact logic)
 
 ## Navigating the Shared Libraries
 
