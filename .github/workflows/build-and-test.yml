@@ -219,22 +219,6 @@ jobs:
           fi
         shell: bash
 
-      - name: Generate coverage and test reports
-        if: always()
-        run: |
-          echo "📊 Generating coverage reports..."
-          ./gradlew -p core testAndCoverage --no-configuration-cache || {
-            echo "::warning::Failed to generate aggregated report"
-          }
-          ./gradlew -p core jacocoTestReport --no-configuration-cache || true
-          echo "✅ Reports generated"
-        shell: bash
-
-      - name: Coverage summary
-        if: always()
-        run: python3 .github/scripts/format_coverage_summary.py core >> "$GITHUB_STEP_SUMMARY"
-        shell: bash
-
       - name: Upload JUnit test results
         if: always()
         uses: actions/upload-artifact@v6
@@ -242,19 +226,82 @@ jobs:
           name: junit-results-java-${{ matrix.java }}-${{ matrix.os }}
           path: '**/build/test-results/test/*.xml'
 
-      - name: Upload JaCoCo coverage reports
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: coverage-reports-java-${{ matrix.java }}-${{ matrix.os }}
-          path: core/build/reports/jacoco
 
-      - name: Upload all reports (for debugging)
+  coverage-reports:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
+        java: ${{ inputs.java_versions && fromJSON(format('["{0}"]', fromJSON(inputs.java_versions)[0])) || fromJSON('["17"]') }}
+        project: ["core", "build-logic", "gradle-plugins"]
+    name: Coverage (${{ matrix.project }})
+    needs: build
+    env:
+      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+          cache-read-only: 'true'
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: build-java-${{ matrix.java }}-${{ matrix.os }}
+          path: build/
+
+      - name: Run tests and generate coverage reports
+        run: |
+          ./gradlew -p ${{ matrix.project }} jacocoTestReport --no-configuration-cache --scan --continue || {
+            echo "::warning::${{ matrix.project }}: jacocoTestReport had failures"
+          }
+        shell: bash
+
+      - name: Verify coverage thresholds
+        if: always() && matrix.project == 'core'
+        run: |
+          # TODO: remove the || { ... } to make threshold violations a hard failure
+          ./gradlew -p core jacocoTestCoverageVerification --no-configuration-cache --scan || {
+            echo "::warning::Coverage thresholds not met — check the coverage report"
+          }
+        shell: bash
+
+      - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: all-reports-java-${{ matrix.java }}-${{ matrix.os }}
-          path: core/build/reports
+          name: coverage-${{ matrix.project }}
+          path: ${{ matrix.project }}/**/build/reports/jacoco
+
+  coverage-summary:
+    runs-on: ubuntu-latest
+    name: Coverage Summary
+    needs: coverage-reports
+    if: always()
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: coverage-core
+          path: core
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: coverage-build-logic
+          path: build-logic
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: coverage-gradle-plugins
+          path: gradle-plugins
+
+      - name: Coverage summary
+        run: python3 .github/scripts/format_coverage_summary.py core build-logic gradle-plugins >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
 
 
   detekt:
@@ -325,38 +372,6 @@ jobs:
           else
             echo "❌ Ktlint found code formatting violations"
             exit 1
-          fi
-        shell: bash
-
-  coverage-verification:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
-        java: ${{ inputs.java_versions && fromJSON(format('["{0}"]', fromJSON(inputs.java_versions)[0])) || fromJSON('["17"]') }}
-    name: coverage verification (Java ${{ matrix.java }}) ${{ matrix.os }}
-    needs: test
-    if: failure() || success()
-    env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
-      BUILDSCAN_PUBLISH: "true"
-      BUILDSCAN_AUTOACCEPTTERMS: "true"
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-build
-        with:
-          java-version: ${{ matrix.java }}
-          cache-read-only: 'true'
-
-      - name: Verify coverage thresholds
-        id: verify_coverage
-        run: |
-          echo "🎯 Verifying coverage thresholds..."
-          if ./gradlew -p core jacocoTestCoverageVerification --scan --no-configuration-cache; then
-            echo "✅ Coverage thresholds met successfully"
-          else
-            echo "::warning::Coverage thresholds not met — check the coverage report"
           fi
         shell: bash
 
