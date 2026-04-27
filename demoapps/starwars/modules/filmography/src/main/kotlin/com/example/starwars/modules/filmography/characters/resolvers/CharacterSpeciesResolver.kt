@@ -29,15 +29,14 @@ class CharacterSpeciesResolver
         private val characterRepository: CharacterRepository
     ) : CharacterResolvers.Species() {
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Species?>> {
-            val characterIds = contexts.map { it.objectValue.getId().internalID }
+            val characterIds = contexts.map { it.getObjectValue().getId().internalID }
 
             // Batch lookup characters and their species IDs
             val charactersById = characterRepository.findCharactersAsMap(characterIds)
 
             // Map each context to its corresponding Species in the given order
-            return contexts.map { ctx ->
-                // Related Character ID is stored in the ctx object value.
-                val characterId = ctx.getObjectValue().getId().internalID
+            return contexts.mapIndexed { i, ctx ->
+                val characterId = characterIds[i]
 
                 // Find the character and its species
                 val character = charactersById[characterId]

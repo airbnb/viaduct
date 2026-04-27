@@ -30,7 +30,7 @@ class FilmMainCharactersResolver
         private val filmCharactersRepository: FilmCharactersRepository
     ) : FilmResolvers.MainCharacters() {
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<List<viaduct.api.grts.Character>>> {
-            val filmIds = contexts.map { it.objectValue.getId().internalID }
+            val filmIds = contexts.map { it.getObjectValue().getId().internalID }
 
             // Batch lookup film-character relationships
             val filmCharacterMap = filmIds.associateWith { filmCharactersRepository.findCharactersByFilmId(it) }
@@ -41,9 +41,8 @@ class FilmMainCharactersResolver
             }
 
             // Returns the list of characters for each film context in the given order
-            return contexts.map { ctx ->
-                // Get character IDs for this film
-                val filmId = ctx.getObjectValue().getId().internalID
+            return filmIds.mapIndexed { i, filmId ->
+                val ctx = contexts[i]
                 val characterIds = filmCharacterMap[filmId] ?: emptyList()
 
                 // Map character IDs to pre-built Character objects, preserving order

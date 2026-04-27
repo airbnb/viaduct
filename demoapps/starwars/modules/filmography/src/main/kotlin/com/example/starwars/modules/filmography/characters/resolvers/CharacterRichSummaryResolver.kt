@@ -27,7 +27,8 @@ class CharacterRichSummaryResolver
         private val characterFilmsRepository: CharacterFilmsRepository
     ) : CharacterResolvers.RichSummary() {
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
-            val characterIds = contexts.map { it.objectValue.getId().internalID }
+            val objectValues = contexts.map { it.getObjectValue() }
+            val characterIds = objectValues.map { it.getId().internalID }
 
             val charactersById = characterIds.mapNotNull { characterRepository.findById(it) }.associateBy { it.id }
 
@@ -39,9 +40,8 @@ class CharacterRichSummaryResolver
             val homeworldIds = charactersById.values.mapNotNull { it.homeworldId }.toSet()
             // TODO: Obtain homeworld from Viaduct
 
-            return contexts.map { ctx ->
-                val character = ctx.getObjectValue()
-                val characterId = character.getId().internalID
+            return objectValues.mapIndexed { i, character ->
+                val characterId = characterIds[i]
                 val characterData = charactersById[characterId]
 
                 val name = character.getName() ?: "Unknown"

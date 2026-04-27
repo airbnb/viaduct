@@ -17,7 +17,7 @@ import viaduct.apiannotations.StableApi
  * class MyFieldResolver {
  *   override suspend fun resolve(ctx: Context): String {
  *     // Automatically delegates to the specified field
- *     return ctx.objectValue.getFieldName()
+ *     return ctx.getObjectValue().getFieldName()
  *   }
  * }
  * ```
@@ -40,7 +40,7 @@ import viaduct.apiannotations.StableApi
  * )
  * class MyComputedFieldResolver {
  *   override suspend fun resolve(ctx: Context): String {
- *     val obj = ctx.objectValue
+ *     val obj = ctx.getObjectValue()
  *     // Can access all specified fields
  *     return "${obj.getField1()} - ${obj.getField2()} (${obj.getField3()})"
  *   }
@@ -59,7 +59,7 @@ import viaduct.apiannotations.StableApi
  *   override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
  *     // Process multiple contexts efficiently in one batch
  *     return contexts.map { ctx ->
- *       val character = ctx.objectValue
+ *       val character = ctx.getObjectValue()
  *       FieldValue.ofValue("${character.getName()} processed in batch")
  *     }
  *   }

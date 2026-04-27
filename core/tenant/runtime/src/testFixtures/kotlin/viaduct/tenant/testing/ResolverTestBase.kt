@@ -96,8 +96,8 @@ interface ResolverTestBase {
      * Use this for non-mutation field resolvers. For mutation field resolvers, use [runMutationFieldResolver] instead.
      *
      * @param resolver The resolver to execute
-     * @param objectValue The value of `ctx.objectValue` -- the result of the required selection set defined in @Resolver
-     * @param queryValue The value of `ctx.queryValue` -- the query value
+     * @param objectValue The value of `ctx.getObjectValue()` -- the result of the required selection set defined in @Resolver
+     * @param queryValue The value of `ctx.getQueryValue()` -- the query value
      * @param arguments The value of `ctx.arguments` -- the field arguments
      * @param selections The selection set available to selective field resolver contexts
      * @param contextQueryValues List of Query objects to mock results from ctx.query()
@@ -128,7 +128,7 @@ interface ResolverTestBase {
      * Use this for mutation field resolvers. For non-mutation field resolvers, use [runFieldResolver] instead.
      *
      * @param resolver The resolver to execute
-     * @param queryValue The value of `ctx.queryValue` -- the query value
+     * @param queryValue The value of `ctx.getQueryValue()` -- the query value
      * @param arguments The value of `ctx.arguments` -- the field arguments
      * @param selections The selection set available to selective mutation field resolver contexts
      * @param contextQueryValues List of Query objects to mock results from ctx.query()
@@ -160,8 +160,8 @@ interface ResolverTestBase {
      * Use this for non-mutation field resolvers that use [FieldExecutionContext].
      *
      * @param resolver The resolver to execute
-     * @param objectValues The values of `ctx.objectValue` -- the result of the required selection set defined in @Resolver
-     * @param queryValues The values of `ctx.queryValue` -- the query values
+     * @param objectValues The values of `ctx.getObjectValue()` -- the result of the required selection set defined in @Resolver
+     * @param queryValues The values of `ctx.getQueryValue()` -- the query values
      * @param selections The selection set available to selective field resolver contexts
      * @param contextQueryValues List of Query objects to mock results from ctx.query()
      * @return The return value of resolver.resolve()
