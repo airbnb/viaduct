@@ -10,6 +10,10 @@ For more information on constructing a `Viaduct` object see `service/AGENTS.md`.
 
 For more information about the details of how Viaduct executes GraphQL operations, you can look at `engine/AGENTS.md`, although it is often helpful to start with `service/AGENTS.md` to understand how `viaduct.engine.api.Engine` instances get configured.
 
+## Navigating the Gradle build
+
+- [`impldocs/gradle-build-architecture.md`](impldocs/gradle-build-architecture.md) - Documents Viaduct's included-build architecture.
+
 ## Navigating the Shared Libraries
 
 The `shared/` directory contains libraries used across the Viaduct engine and tenant APIs:
@@ -21,6 +25,6 @@ The `shared/` directory contains libraries used across the Viaduct engine and te
 
 ## Implementation Documentation
 
-- [`core/errors/impldocs/executor-error-boundaries.md`](core/errors/impldocs/executor-error-boundaries.md) — Exception hierarchy (`PassthroughException`, `TenantException`), the two-boundary wrapping pattern on executor SPI entry points, `InvocationTargetException` unwrapping, and how attributed exceptions surface in GraphQL error responses.
+- [`core/shared/errors/impldocs/executor-error-boundaries.md`](core/shared/errors/impldocs/executor-error-boundaries.md) — Exception hierarchy (`PassthroughException`, `TenantException`), the two-boundary wrapping pattern on executor SPI entry points, `InvocationTargetException` unwrapping, and how attributed exceptions surface in GraphQL error responses.
 - [`impldocs/modern-access-check.md`](impldocs/modern-access-check.md) — Access check architecture: `CheckerExecutorFactory` SPI, QueryPlan RSS embedding, the OER multi-slot pattern, and how checker results flow through completion.
 - [`impldocs/subquery-execution.md`](impldocs/subquery-execution.md) — Cross-cutting documentation about the `ExecutionHandle` abstraction and how `ctx.query()`/`ctx.mutation()` drive subquery execution across the engine.

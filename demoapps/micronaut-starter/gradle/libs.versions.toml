@@ -19,7 +19,7 @@ viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref =
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
 viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viaduct" }
 viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
-viaduct-serve = { group = "com.airbnb.viaduct", name = "serve", version.ref = "viaduct" }
+viaduct-serve = { group = "com.airbnb.viaduct.service", name = "serve", version.ref = "viaduct" }
 
 # Micronaut
 micronaut-inject = { module = "io.micronaut:micronaut-inject", version.ref = "micronautCore" }

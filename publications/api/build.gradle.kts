@@ -8,23 +8,25 @@ plugins {
 }
 
 viaductPublishing {
-    artifactId.set("test-fixtures")
-    name.set("Test Fixtures")
-    description.set("Convenience module for testing Viaduct tenants")
+    name.set("Tenant API")
+    description.set("Fat jar bundle of the Viaduct tenant API for easier dependency management")
 }
 
 dependencies {
-    api(testFixtures(libs.viaduct.tenant.api))
-    implementation(testFixtures(libs.viaduct.tenant.runtime))
+    // Always expose as api so composite-build consumers (demo apps) get transitive deps.
+    // In the published shadow jar, these are bundled and transitive deps are suppressed below.
+    api(libs.viaduct.tenant.api)
+    api(libs.viaduct.service.api)
+    api(libs.graphql.java)  // Needed for generated resolver bases
 }
 
-// Create shaded jar for publishing (fat jar with all test fixtures)
+// Create shaded jar for publishing (fat jar with all dependencies)
 tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")  // Replace the main jar
     mergeServiceFiles()
 
-    // Package all dependencies (test fixtures from core modules)
-    configurations = listOf(project.configurations.runtimeClasspath.get())
+    // Use compileClasspath to get only compile-time API dependencies (not runtime)
+    configurations = listOf(project.configurations.compileClasspath.get())
 
     // Exclude third-party classes with rapid API churn that would cause version conflicts
     // (e.g. NoSuchMethodError) when the consumer's versions differ from the bundled ones.
@@ -33,7 +35,6 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude("kotlinx/**")
     exclude("io/kotest/**")
     exclude("org/jetbrains/**")
-    exclude("org/reactivestreams/**")
     exclude("reactor/**")
     exclude("io/projectreactor/**")
     exclude("_COROUTINE/**")
@@ -69,26 +70,18 @@ configurations {
     }
 }
 
-// Strip all transitive dependencies from the published POM and Gradle module metadata.
-// The shadow jar bundles all Viaduct classes directly, so declaring transitive deps
-// would cause consumers to resolve old versions of bundled libs (e.g. coroutines 1.8.0
-// from tenant-runtime) alongside the shadow jar, producing NoSuchMethodErrors at runtime.
-// Third-party deps excluded from the jar are resolved by consumers at their own versions.
+// Suppress runtimeElements from Gradle module metadata so consumers don't resolve
+// transitive deps that are already bundled in the shadow jar.
 plugins.withId("org.jetbrains.kotlin.jvm") {
     val javaComponent = components["java"] as AdhocComponentWithVariants
-    // Suppress runtimeElements variant from Gradle module metadata so consumers don't
-    // resolve the transitive deps that are already bundled in the shadow jar.
     javaComponent.withVariantsFromConfiguration(configurations.runtimeElements.get()) {
         skip()
     }
 }
+
+// Strip transitive dependencies from POM for Maven consumers.
 afterEvaluate {
     publishing.publications.withType<MavenPublication>().configureEach {
-        // The shadow jar bundles all Viaduct classes; transitive deps are intentionally
-        // stripped from the POM. The capability-based dep on tenant-api test fixtures
-        // cannot be represented in Maven POM but is irrelevant since the POM has no deps.
-        suppressPomMetadataWarningsFor("apiElements")
-        suppressPomMetadataWarningsFor("runtimeElements")
         pom.withXml {
             val deps = asNode().get("dependencies") as groovy.util.NodeList
             deps.forEach { (it as groovy.util.Node).parent().remove(it) }

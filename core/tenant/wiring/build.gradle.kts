@@ -1,9 +1,13 @@
+import viaduct.gradle.resetCoverageThresholds
+
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     id("conventions.viaduct-publishing")
     `java-test-fixtures`
 }
+
+resetCoverageThresholds(instructionMinimum = "0.25", branchMinimum = "0.10")
 
 dependencies {
     implementation(libs.graphql.java)

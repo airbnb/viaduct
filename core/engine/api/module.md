@@ -1,4 +1,4 @@
-# Module engine-api
+# Module api
 
 This is the Viaduct Engine API, which is used to build and run Viaduct modules.
 
@@ -48,7 +48,7 @@ Contains utilities parsing GraphQL selections.
 
 # Package viaduct.engine.runtime
 
-Contains runtime-specific value types co-located in the engine-api module:
+Contains runtime-specific value types co-located in the engine api module:
 `ObjectEngineResult` and `QueryPlanExecutionCondition`.
 
 # Package viaduct.engine.runtime.dfe

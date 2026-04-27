@@ -18,8 +18,9 @@ plugins {
     signing
 }
 
+base.archivesName.set(project.path.removePrefix(":").replace(":", "-"))
+
 abstract class ViaductPublishingExtension @Inject constructor(objects: ObjectFactory) {
-    val artifactId: Property<String> = objects.property(String::class.java).convention("")
     val name: Property<String> = objects.property(String::class.java).convention("")
     val description: Property<String> = objects.property(String::class.java).convention("")
 }
@@ -113,16 +114,15 @@ run {
 // 🔑 Defer coordinates() until after the consumer has configured viaductPublishing { ... }.
 afterEvaluate {
     // Resolve lazily here (now it's safe to .get()).
-    val resolvedArtifactId = viaductPublishing.artifactId.get().ifBlank { project.name }
     val resolvedName = viaductPublishing.name.get().ifBlank { project.name }.let { "Viaduct :: $it" }
     val resolvedDescription = viaductPublishing.description.get().ifBlank { "" }
 
     extensions.configure<MavenPublishBaseExtension> {
-        coordinates(project.group.toString(), resolvedArtifactId, project.version.toString())
+        coordinates(project.group.toString(), project.name, project.version.toString())
 
         pom {
             name.set(resolvedName)
-            if (resolvedDescription.isNotBlank()) description.set(resolvedDescription) else description.set("Viaduct library $resolvedArtifactId")
+            if (resolvedDescription.isNotBlank()) description.set(resolvedDescription) else description.set("Viaduct library ${project.name}")
         }
     }
 }

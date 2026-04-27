@@ -8,7 +8,6 @@ plugins {
 }
 
 viaductPublishing {
-    artifactId.set("runtime")
     name.set("Runtime")
     description.set("Convenience module that aggregates all Viaduct runtime modules and their transitive dependencies")
 }

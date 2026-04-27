@@ -10,7 +10,7 @@ plugins {
 viaductFeatureApp {}
 
 viaductFeatureAppContracts {
-    contractsFrom(":tenant:tenant-tutorials")
+    contractsFrom(":tenant:tutorials")
 }
 
 dependencies {

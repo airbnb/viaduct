@@ -4,6 +4,6 @@ plugins {
 }
 
 tasks.register("publishPlugins") {
-    dependsOn(":plugins-application:publishPlugins")
-    dependsOn(":plugins-module:publishPlugins")
+    dependsOn(":application:publishPlugins")
+    dependsOn(":module:publishPlugins")
 }

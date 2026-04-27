@@ -220,9 +220,9 @@ def define_env(env):
 
         # Determine module based on package prefix
         if fqcn.startswith("viaduct.service.api"):
-            module = "service/service/service-api"
+            module = "service/service/api"
         elif fqcn.startswith("viaduct.service"):
-            module = "service/service/service-wiring"
+            module = "service/service/wiring"
         elif fqcn.startswith("viaduct.api"):
             module = "tenant-api/-viaduct%20-tenant%20-a-p-i"
         else:

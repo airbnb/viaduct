@@ -30,7 +30,6 @@ val baseVersion: String = versionFile.readText().trim().ifEmpty { "0.0.0" }
 logger.info("Using version from VERSION file: $baseVersion")
 
 gradle.allprojects {
-    group = "com.airbnb.viaduct"
     version = baseVersion
 }
 
@@ -82,11 +81,11 @@ abstract class SetVersionTask : DefaultTask() {
 abstract class SyncDemoAppVersionsTask : DefaultTask() {
     @get:Internal abstract val repoRoot: DirectoryProperty
     @get:Input abstract val demoappDirs: ListProperty<String>
-    @get:Input abstract val targetVersion: Property<String>
+    @get:InputFile abstract val versionFile: RegularFileProperty
     @get:OutputFiles abstract val outputFiles: ConfigurableFileCollection
 
     @TaskAction fun run() {
-        val v = targetVersion.get()
+        val v = versionFile.get().asFile.readText().trim()
         val root = repoRoot.get().asFile
 
         demoappDirs.get().forEach { rel ->
@@ -111,14 +110,14 @@ abstract class ConfirmDemoAppVersionsTask : DefaultTask() {
     // not snapshot the whole directory tree for up-to-date checking.
     @get:Internal abstract val repoRoot: DirectoryProperty
     @get:Input abstract val demoappDirs: ListProperty<String>
-    @get:Input abstract val expectedVersion: Property<String>
+    @get:InputFile abstract val versionFile: RegularFileProperty
     @get:InputFiles abstract val inputFiles: ConfigurableFileCollection
     // Synthetic marker: written on success so Gradle can skip reruns when inputs haven't changed.
     @get:OutputFile abstract val markerFile: RegularFileProperty
 
     @TaskAction
     fun run() {
-        val expected = expectedVersion.get()
+        val expected = versionFile.get().asFile.readText().trim()
         val root = repoRoot.get().asFile
         val mismatches = mutableListOf<String>()
 
@@ -210,7 +209,7 @@ if (gradle.parent == null) {
     tasks.register<SyncDemoAppVersionsTask>("syncDemoAppVersions") {
         repoRoot.set(layout.projectDirectory)
         demoappDirs.set(demoappRelativeDirs)
-        targetVersion.set(providers.provider { layout.projectDirectory.file("VERSION").asFile.readText().trim() })
+        versionFile.set(layout.projectDirectory.file("VERSION"))
         outputFiles.setFrom(demoappRelativeDirs.map { layout.projectDirectory.file("$it/gradle.properties") })
         outputs.upToDateWhen { false }
     }
@@ -218,10 +217,7 @@ if (gradle.parent == null) {
     tasks.register<ConfirmDemoAppVersionsTask>("confirmDemoAppVersions") {
         repoRoot.set(layout.projectDirectory)
         demoappDirs.set(demoappRelativeDirs)
-        // Use a lazy provider so the VERSION file is re-read at execution time, consistent with
-        // how syncDemoAppVersions reads it. This ensures the correct value is seen even when
-        // another task mutates the VERSION file earlier in the same build.
-        expectedVersion.set(providers.provider { layout.projectDirectory.file("VERSION").asFile.readText().trim() })
+        versionFile.set(layout.projectDirectory.file("VERSION"))
         inputFiles.setFrom(demoappRelativeDirs.map { layout.projectDirectory.file("$it/gradle.properties") })
         markerFile.set(layout.buildDirectory.file("validations/confirmDemoAppVersions.marker"))
     }

@@ -1,8 +1,12 @@
+import viaduct.gradle.resetCoverageThresholds
+
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     id("conventions.viaduct-publishing")
 }
+
+resetCoverageThresholds(instructionMinimum = "0.45", branchMinimum = "0.20")
 
 dependencies {
     // Viaduct dependencies
@@ -46,5 +50,4 @@ dependencies {
 viaductPublishing {
     name.set("Viaduct Serve")
     description.set("Development server runtime for Viaduct GraphQL applications with GraphiQL IDE")
-    artifactId.set("serve")
 }

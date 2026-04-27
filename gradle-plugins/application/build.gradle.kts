@@ -12,7 +12,7 @@ java {
 }
 
 dependencies {
-    implementation(project(":plugins-common"))
+    implementation(project(":common"))
 
     // Libraries the plugin source imports directly (binary schema generation).
     // tenant-codegen and serve are NOT here — they are external tool artifacts resolved at
@@ -41,10 +41,11 @@ gradlePlugin {
     website = "https://viaduct.airbnb.tech"
     vcsUrl = "https://github.com/airbnb/viaduct"
 
+    val pluginIdPrefix: String by rootProject.extra
+
     plugins {
         create("viaductApplication") {
-            // e.g., com.airbnb.viaduct.application-gradle-plugin
-            id = "$group.application-gradle-plugin"
+            id = "$pluginIdPrefix.application-gradle-plugin"
             implementationClass = "viaduct.gradle.ViaductApplicationPlugin"
             displayName = "Viaduct :: Application Plugin"
             description = "Application plugin for Viaduct-based apps."

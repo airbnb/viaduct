@@ -51,7 +51,7 @@ dokka {
         failOnWarning.set(true)
         suppressObviousFunctions.set(true)
         suppressInheritedMembers.set(true)
-        outputDirectory.set(repoRootProject.dir("docs/site/apis/" + project.name))
+        outputDirectory.set(repoRootProject.dir("docs/site/apis/" + project.path.removePrefix(":").replace(":", "-")))
     }
 
     dokkaPublications.javadoc {
@@ -89,7 +89,8 @@ dokka {
 }
 
 fun displayName(project: Project): String {
-    return "Viaduct " + project.name
+    val qualifiedName = project.path.removePrefix(":").replace(":", "-")
+    return "Viaduct " + qualifiedName
         .replace("api", "API")
         .replace("-", " ")
         .split(" ").joinToString(" ") { it.replaceFirstChar { it2 -> it2.uppercase() }  }
