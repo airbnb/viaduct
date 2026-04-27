@@ -1,9 +1,6 @@
 package viaduct.engine.runtime
 
 import graphql.GraphQLError
-import graphql.introspection.Introspection
-import graphql.schema.GraphQLCompositeType
-import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineObjectData
@@ -108,12 +105,7 @@ open class ProxyEngineObjectData(
         selections: EngineSelectionSet
     ): EngineSelectionSet? {
         val engineSelection = selections.resolveSelection(objectEngineResult.type.name, resultKey)
-        val field = requireNotNull(objectEngineResult.type.getField(engineSelection.fieldName) ?: introspectionFields[engineSelection.fieldName])
-        return if (GraphQLTypeUtil.unwrapAll(field.type) is GraphQLCompositeType) {
-            selections.selectionSetForSelection(objectEngineResult.type.name, resultKey)
-        } else {
-            null
-        }
+        return EngineObjectDataUtils.maybeSubselections(objectEngineResult.type, engineSelection.fieldName, resultKey, selections)
     }
 
     /**
@@ -170,14 +162,6 @@ open class ProxyEngineObjectData(
                 throw error.error
             }
         }
-    }
-
-    companion object {
-        private val introspectionFields = listOf(
-            Introspection.TypeNameMetaFieldDef,
-            Introspection.SchemaMetaFieldDef,
-            Introspection.TypeMetaFieldDef
-        ).associateBy { it.name }
     }
 }
 

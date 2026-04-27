@@ -773,6 +773,57 @@ class SyncEngineObjectDataFactoryTest {
     }
 
     // ============================================================================
+    // Introspection field tests
+    // ============================================================================
+
+    @Test
+    fun `resolve with __typename does not throw`() {
+        Fixture("type Query { x: Int }") {
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("Query"),
+                mapOf(ObjectEngineResult.Key("__typename") to "Query", ObjectEngineResult.Key("x") to 1),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                createEngineSelectionSet("Query", "__typename x", emptyMap(), schema)
+            )
+            val selectionSet = mkSelectionSet("Query", "__typename x")
+
+            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+
+            assertEquals("Query", syncData.get("__typename"))
+            assertEquals(1, syncData.get("x"))
+        }
+    }
+
+    @Test
+    fun `resolve nested object with __typename does not throw`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { child: O2 }
+                type O2 { value: String }
+            """.trimIndent()
+        ) {
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O1"),
+                mapOf(ObjectEngineResult.Key("child") to mapOf("__typename" to "O2", "value" to "hello")),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                createEngineSelectionSet("O1", "child { __typename value }", emptyMap(), schema)
+            )
+            val selectionSet = mkSelectionSet("O1", "child { __typename value }")
+
+            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+
+            val nested = syncData.get("child") as EngineObjectData.Sync
+            assertEquals("O2", nested.get("__typename"))
+            assertEquals("hello", nested.get("value"))
+        }
+    }
+
+    // ============================================================================
     // Batched await tests
     // ============================================================================
 

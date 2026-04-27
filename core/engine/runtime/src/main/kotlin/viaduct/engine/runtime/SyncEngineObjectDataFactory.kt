@@ -1,8 +1,6 @@
 package viaduct.engine.runtime
 
 import graphql.execution.ResultPath
-import graphql.schema.GraphQLCompositeType
-import graphql.schema.GraphQLTypeUtil
 import kotlin.coroutines.coroutineContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
@@ -261,17 +259,7 @@ object SyncEngineObjectDataFactory {
         selectionSet: EngineSelectionSet,
         fieldName: String,
         selectionName: String,
-    ): EngineSelectionSet? {
-        val field = objectEngineResult.type.getField(fieldName)
-        return if (GraphQLTypeUtil.unwrapAll(field.type) is GraphQLCompositeType) {
-            selectionSet.selectionSetForSelection(
-                objectEngineResult.type.name,
-                selectionName
-            )
-        } else {
-            null
-        }
-    }
+    ): EngineSelectionSet? = EngineObjectDataUtils.maybeSubselections(objectEngineResult.type, fieldName, selectionName, selectionSet)
 
     private fun oerKey(
         selectionSet: EngineSelectionSet,
