@@ -1,6 +1,7 @@
 plugins {
     `kotlin-dsl`
     `java-test-fixtures`
+    jacoco
 }
 
 dependencies {
@@ -18,6 +19,21 @@ dependencies {
     testRuntimeOnly(libs.junit.engine)
 }
 
+jacoco {
+    toolVersion = libs.versions.jacoco.get()
+}
+
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.named<JacocoReport>("jacocoTestReport") {
+    dependsOn(tasks.named("test"))
+    reports {
+        xml.required = true
+        xml.outputLocation = layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml")
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir("reports/jacoco/test/html")
+        csv.required = false
+    }
 }
