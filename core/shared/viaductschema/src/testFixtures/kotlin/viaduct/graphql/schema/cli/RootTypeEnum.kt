@@ -22,9 +22,9 @@ fun ViaductSchema.rootTypeDef(rootType: RootTypeEnum): ViaductSchema.Object? =
     }
 
 /**
- * Based on Viaduct's @singleton directive, return the list of all
- * paths from a root type that consist of a sequence of @singleton
- * types followed by a non-singleton type.
+ * Based on Viaduct's @singleton and @namespaceType directives, return the
+ * list of all paths from a root type that consist of a sequence of namespace
+ * container types (@singleton or @namespaceType) followed by a non-container type.
  *
  * This identifies "root" fields - entry points into the graph that
  * clients can use to start queries.
@@ -65,13 +65,15 @@ fun ViaductSchema.roots(rootType: RootTypeEnum): Iterator<List<String>> =
                         continue
                     }
 
-                    // If the field's type is not a singleton, it's a root
-                    if (!field.type.baseTypeDef.hasAppliedDirective("singleton")) {
+                    // If the field's type is not a namespace container, it's a root
+                    if (!field.type.baseTypeDef.hasAppliedDirective("singleton") &&
+                        !field.type.baseTypeDef.hasAppliedDirective("namespaceType")
+                    ) {
                         nextResult = path.map { it.name } + field.name
                         return true
                     }
 
-                    // Otherwise, traverse into the singleton type
+                    // Otherwise, traverse into the namespace container type
                     val baseDef = field.type.baseTypeDef
                     if (baseDef is ViaductSchema.Record) {
                         // Check for cycles

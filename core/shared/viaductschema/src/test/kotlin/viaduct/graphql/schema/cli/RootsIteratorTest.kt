@@ -11,6 +11,12 @@ class RootsIteratorTest {
     companion object {
         // Singleton directive needed for root detection
         private const val SINGLETON_DIRECTIVE = "directive @singleton on OBJECT"
+
+        // NamespaceType directive also treated as a namespace container for root detection
+        private const val NAMESPACE_TYPE_DIRECTIVE = "directive @namespaceType on OBJECT"
+
+        // Both directives together for mixed-case tests
+        private const val BOTH_DIRECTIVES = "$SINGLETON_DIRECTIVE\n$NAMESPACE_TYPE_DIRECTIVE"
     }
 
     // ========== rootTypeDef() tests ==========
@@ -431,5 +437,155 @@ class RootsIteratorTest {
 
         // Should only contain the default nop field from mkSchema
         assertTrue(rootFields.size <= 2, "Should have minimal fields from base schema")
+    }
+
+    // ========== @namespaceType directive tests ==========
+
+    @Test
+    fun `namespaceType directive is properly recognized`() {
+        val schema = createSchema(
+            """
+            $NAMESPACE_TYPE_DIRECTIVE
+            type Viewer @namespaceType {
+                user: User
+            }
+            type User {
+                id: ID
+            }
+            extend type Query {
+                viewer: Viewer
+            }
+            """.trimIndent()
+        )
+
+        val viewerDef = schema.types["Viewer"]!!
+        assertTrue(viewerDef.hasAppliedDirective("namespaceType"), "Viewer should have @namespaceType directive")
+
+        val userDef = schema.types["User"]!!
+        assertFalse(userDef.hasAppliedDirective("namespaceType"), "User should NOT have @namespaceType directive")
+    }
+
+    @Test
+    fun `roots traverses one level of namespaceType`() {
+        val schema = createSchema(
+            """
+            $NAMESPACE_TYPE_DIRECTIVE
+            type Viewer @namespaceType {
+                user: User
+            }
+            type User {
+                id: ID
+                name: String
+            }
+            extend type Query {
+                viewer: Viewer
+            }
+            """.trimIndent()
+        )
+
+        val roots = schema.roots(RootTypeEnum.QUERY).asSequence().toList()
+
+        assertTrue(roots.contains(listOf("viewer", "user")), "Should contain nested user root through namespaceType viewer")
+        assertFalse(roots.any { it == listOf("viewer") }, "viewer itself should not be a root (it's a namespaceType)")
+    }
+
+    @Test
+    fun `roots traverses mixed singleton and namespaceType chain`() {
+        val schema = createSchema(
+            """
+            $BOTH_DIRECTIVES
+            type Viewer @singleton {
+                auth: Auth
+            }
+            type Auth @namespaceType {
+                user: User
+            }
+            type User {
+                id: ID
+            }
+            extend type Query {
+                viewer: Viewer
+            }
+            """.trimIndent()
+        )
+
+        val roots = schema.roots(RootTypeEnum.QUERY).asSequence().toList()
+
+        assertTrue(
+            roots.contains(listOf("viewer", "auth", "user")),
+            "Should traverse through both @singleton and @namespaceType containers"
+        )
+    }
+
+    @Test
+    fun `roots works with Mutation type using namespaceType`() {
+        val schema = createSchema(
+            """
+            $NAMESPACE_TYPE_DIRECTIVE
+            type User {
+                id: ID
+            }
+            extend type Mutation {
+                createUser: User
+                deleteUser: User
+            }
+            """.trimIndent()
+        )
+
+        val roots = schema.roots(RootTypeEnum.MUTATION).asSequence().toList()
+
+        assertTrue(roots.contains(listOf("createUser")), "Should contain createUser mutation")
+        assertTrue(roots.contains(listOf("deleteUser")), "Should contain deleteUser mutation")
+    }
+
+    @Test
+    fun `roots handles mixed namespaceType and non-container fields`() {
+        val schema = createSchema(
+            """
+            $NAMESPACE_TYPE_DIRECTIVE
+            type Viewer @namespaceType {
+                nested: Listing
+            }
+            type User {
+                id: ID
+            }
+            type Listing {
+                id: ID
+            }
+            extend type Query {
+                direct: User
+                viewer: Viewer
+            }
+            """.trimIndent()
+        )
+
+        val roots = schema.roots(RootTypeEnum.QUERY).asSequence().toList()
+
+        assertTrue(roots.contains(listOf("direct")), "Should contain direct root")
+        assertTrue(roots.contains(listOf("viewer", "nested")), "Should contain nested root through namespaceType")
+    }
+
+    @Test
+    fun `collectAllRootFields returns nested fields through namespaceType`() {
+        val schema = createSchema(
+            """
+            $NAMESPACE_TYPE_DIRECTIVE
+            type Viewer @namespaceType {
+                user: User
+            }
+            type User {
+                id: ID
+            }
+            extend type Query {
+                viewer: Viewer
+            }
+            """.trimIndent()
+        )
+
+        val rootFields = schema.collectAllRootFields()
+
+        val fieldNames = rootFields.map { it.name }
+        assertTrue(fieldNames.contains("user"), "Should contain nested user field")
+        assertFalse(fieldNames.contains("viewer"), "Should not contain namespaceType field itself")
     }
 }
