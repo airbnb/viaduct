@@ -44,7 +44,6 @@ internal data class VariableProviderDescriptor(
     val kind: String,
     val name: String,
     val path: String?,
-    // TODO: populate from @Variables(types="...") on the concrete class — currently always empty.
     val providedVariables: Map<String, String> = emptyMap(),
 )
 

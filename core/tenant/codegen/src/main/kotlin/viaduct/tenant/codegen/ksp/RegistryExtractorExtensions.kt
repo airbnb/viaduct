@@ -169,7 +169,8 @@ private fun KSClassDeclaration.toFieldResolverParams(
     val isSelective = resolverForAnnotation.boolArg("isSelective") ?: false
 
     val resolverAnnotation = firstAnnotationNamed(resolverAnnotationName)
-    val variableProviders = resolverAnnotation?.variableProviders() ?: emptyList()
+    val variablesTypeMap = variablesTypeMap()
+    val variableProviders = resolverAnnotation?.variableProviders(variablesTypeMap) ?: emptyList()
 
     val objectFragment = resolverAnnotation?.stringArg("objectValueFragment")?.takeIf { it.isNotBlank() }
     val queryFragment = resolverAnnotation?.stringArg("queryValueFragment")?.takeIf { it.isNotBlank() }
@@ -193,7 +194,7 @@ private fun KSClassDeclaration.toFieldResolverParams(
     )
 }
 
-private fun KSAnnotation.variableProviders(): List<VariableProviderDescriptor> {
+private fun KSAnnotation.variableProviders(variablesTypeMap: Map<String, String>): List<VariableProviderDescriptor> {
     val varAnnotations = arguments
         .firstOrNull { it.name?.asString() == "variables" }
         ?.value as? List<*>
@@ -201,6 +202,9 @@ private fun KSAnnotation.variableProviders(): List<VariableProviderDescriptor> {
 
     return varAnnotations.filterIsInstance<KSAnnotation>().mapNotNull { varAnn ->
         val name = varAnn.stringArg("name") ?: return@mapNotNull null
+        // Kotlin annotation parameters can't default to null, so @Variable uses a sentinel string
+        // to mean "this source was not set by the developer". Filter it out before checking which
+        // source was actually provided.
         val fromObjectField = varAnn.stringArg("fromObjectField")?.takeIf { it != variableUnsetValue }
         val fromQueryField = varAnn.stringArg("fromQueryField")?.takeIf { it != variableUnsetValue }
         val fromArgument = varAnn.stringArg("fromArgument")?.takeIf { it != variableUnsetValue }
@@ -212,8 +216,38 @@ private fun KSAnnotation.variableProviders(): List<VariableProviderDescriptor> {
             else -> return@mapNotNull null
         }
 
-        VariableProviderDescriptor(kind = kind, name = name, path = path, providedVariables = mapOf(name to ""))
+        // Use the type from @Variables if present; fall back to empty string so the bootstrapper
+        // can still iterate .keys to produce SelectionSetVariable instances at runtime.
+        val providedVariables = mapOf(name to (variablesTypeMap[name] ?: ""))
+
+        VariableProviderDescriptor(kind = kind, name = name, path = path, providedVariables = providedVariables)
     }
+}
+
+/**
+ * Parses `@Variables(types = "foo: Int!, bar: Boolean")` from any nested class of this resolver.
+ * Returns a map of variable name → type expression (e.g. `{"foo" -> "Int!", "bar" -> "Boolean"}`).
+ * At most one nested `@Variables` annotation is expected (validated separately by the KSP validator).
+ */
+private fun KSClassDeclaration.variablesTypeMap(): Map<String, String> {
+    val typesStr = declarations
+        .filterIsInstance<KSClassDeclaration>()
+        .flatMap { it.annotations }
+        .firstOrNull { it.shortName.asString() == "Variables" }
+        ?.stringArg("types")
+        ?: return emptyMap()
+
+    return typesStr.trim()
+        .split(",")
+        .filter { it.isNotBlank() }
+        .mapNotNull { entry ->
+            val parts = entry.trim().split(":")
+            if (parts.size != 2) return@mapNotNull null
+            val name = parts[0].trim().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val type = parts[1].trim().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            name to type
+        }
+        .toMap()
 }
 
 internal fun KSClassDeclaration.qualifiedResolverName(logger: KSPLogger): String? {

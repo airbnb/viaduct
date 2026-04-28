@@ -10,7 +10,6 @@ import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueArgument
 import java.lang.reflect.Proxy
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
@@ -147,68 +146,6 @@ class RegistryExtractorExtensionsTest {
         assertEquals("fragment _ on ExampleNode { firstName lastName }", result.objectSelections?.selections)
         assertTrue(result.objectSelections?.variablesProviders.isNullOrEmpty())
         assertNull(result.querySelections)
-    }
-
-    @Test
-    fun `toResolverParams populates providedVariables with variable name so bootstrapper can build SelectionSetVariables`() {
-        val logger = RecordingKspLogger()
-
-        val baseDeclaration = ksClassDeclaration(
-            qualifiedName = "com.example.feature.resolverbases.ExampleName",
-            simpleName = "ExampleName",
-            packageName = "com.example.feature.resolverbases",
-            annotations = listOf(
-                ksAnnotation(
-                    simpleName = "ResolverFor",
-                    args = mapOf(
-                        "typeName" to "ExampleNode",
-                        "fieldName" to "name",
-                        "isBatching" to false,
-                        "isSelective" to false,
-                    ),
-                ),
-            ),
-            declarations = emptyList(),
-        )
-
-        val variableAnnotation = ksAnnotation(
-            simpleName = "Variable",
-            args = mapOf(
-                "name" to "includeDetails",
-                "fromObjectField" to "flags.showDetails",
-                "fromQueryField" to Variable.UNSET_STRING_VALUE,
-                "fromArgument" to Variable.UNSET_STRING_VALUE,
-            ),
-        )
-
-        val resolverDeclaration = ksClassDeclaration(
-            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
-            simpleName = "ExampleNameResolver",
-            packageName = "com.example.feature.resolvers",
-            superDeclarations = listOf(baseDeclaration),
-            annotations = listOf(
-                ksAnnotation(
-                    simpleName = "Resolver",
-                    args = mapOf(
-                        "objectValueFragment" to "fragment _ on ExampleNode { flags { showDetails } }",
-                        "queryValueFragment" to "",
-                        "variables" to listOf(variableAnnotation),
-                    ),
-                ),
-            ),
-            declarations = emptyList(),
-        )
-
-        val result = resolverDeclaration.toResolverParams(logger)
-
-        assertTrue(result is ResolverParams.Field)
-        val provider = result.objectSelections?.variablesProviders?.single()
-        assertNotNull(provider)
-        assertEquals("includeDetails", provider.name)
-        assertEquals("fromObjectField", provider.kind)
-        assertEquals("flags.showDetails", provider.path)
-        // providedVariables must be keyed by name so ExecutionRegistryBootstrapper can build SelectionSetVariables
-        assertEquals(mapOf("includeDetails" to ""), provider.providedVariables)
     }
 
     @Test
@@ -415,6 +352,163 @@ class RegistryExtractorExtensionsTest {
             logger.warns.any { it.contains("base class has no qualified name") },
             logger.warns.joinToString("\n"),
         )
+    }
+
+    @Test
+    fun `toResolverParams populates providedVariables from @Variables nested class`() {
+        val logger = RecordingKspLogger()
+
+        val variablesAnnotation = ksAnnotation(
+            simpleName = "Variables",
+            args = mapOf("types" to "experiment: Boolean!, limit: Int"),
+        )
+        val nestedVarsClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver.Vars",
+            simpleName = "Vars",
+            packageName = "com.example.feature.resolvers",
+            annotations = listOf(variablesAnnotation),
+        )
+
+        val variableAnnotation = ksAnnotation(
+            simpleName = "Variable",
+            args = mapOf("name" to "experiment", "fromArgument" to "experiment", "fromObjectField" to Variable.UNSET_STRING_VALUE, "fromQueryField" to Variable.UNSET_STRING_VALUE),
+        )
+        val resolverAnnotation = ksAnnotation(
+            simpleName = "Resolver",
+            args = mapOf(
+                "objectValueFragment" to "fragment _ on ExampleNode { name }",
+                "queryValueFragment" to "",
+                "variables" to listOf(variableAnnotation),
+            ),
+        )
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            annotations = listOf(resolverAnnotation),
+            superDeclarations = listOf(baseDeclaration),
+            declarations = listOf(nestedVarsClass),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+        val provider = result?.objectSelections?.variablesProviders?.single()
+
+        assertEquals(mapOf("experiment" to "Boolean!"), provider?.providedVariables)
+    }
+
+    @Test
+    fun `toResolverParams providedVariables uses empty string type sentinel when no @Variables nested class present`() {
+        val logger = RecordingKspLogger()
+
+        val variableAnnotation = ksAnnotation(
+            simpleName = "Variable",
+            args = mapOf("name" to "experiment", "fromArgument" to "experiment", "fromObjectField" to Variable.UNSET_STRING_VALUE, "fromQueryField" to Variable.UNSET_STRING_VALUE),
+        )
+        val resolverAnnotation = ksAnnotation(
+            simpleName = "Resolver",
+            args = mapOf(
+                "objectValueFragment" to "fragment _ on ExampleNode { name }",
+                "queryValueFragment" to "",
+                "variables" to listOf(variableAnnotation),
+            ),
+        )
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            annotations = listOf(resolverAnnotation),
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+        val provider = result?.objectSelections?.variablesProviders?.single()
+
+        // Must be keyed by name (even with empty string) so bootstrapper can iterate .keys
+        assertEquals(mapOf("experiment" to ""), provider?.providedVariables)
+    }
+
+    @Test
+    fun `toResolverParams providedVariables only includes entries matching the variable name`() {
+        val logger = RecordingKspLogger()
+
+        // @Variables declares two variables, but only one @Variable binding exists
+        val variablesAnnotation = ksAnnotation(
+            simpleName = "Variables",
+            args = mapOf("types" to "experiment: Boolean!, unrelated: String"),
+        )
+        val nestedVarsClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver.Vars",
+            simpleName = "Vars",
+            packageName = "com.example.feature.resolvers",
+            annotations = listOf(variablesAnnotation),
+        )
+
+        val variableAnnotation = ksAnnotation(
+            simpleName = "Variable",
+            args = mapOf("name" to "experiment", "fromArgument" to "experiment", "fromObjectField" to Variable.UNSET_STRING_VALUE, "fromQueryField" to Variable.UNSET_STRING_VALUE),
+        )
+        val resolverAnnotation = ksAnnotation(
+            simpleName = "Resolver",
+            args = mapOf(
+                "objectValueFragment" to "fragment _ on ExampleNode { name }",
+                "queryValueFragment" to "",
+                "variables" to listOf(variableAnnotation),
+            ),
+        )
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            annotations = listOf(resolverAnnotation),
+            superDeclarations = listOf(baseDeclaration),
+            declarations = listOf(nestedVarsClass),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+        val provider = result?.objectSelections?.variablesProviders?.single()
+
+        // Only "experiment" matches the @Variable name — "unrelated" is not included
+        assertEquals(mapOf("experiment" to "Boolean!"), provider?.providedVariables)
     }
 }
 

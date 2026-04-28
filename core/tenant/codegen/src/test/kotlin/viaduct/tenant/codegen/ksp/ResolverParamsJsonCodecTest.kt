@@ -333,4 +333,43 @@ class ResolverParamsJsonCodecTest {
 
         assertEquals(original, decoded)
     }
+
+    @Test
+    fun `encode and decode round trip preserves providedVariables`() {
+        val codec = ResolverParamsJsonCodec()
+
+        val original = ResolverDescriptorFile(
+            nodes = emptyList(),
+            fields = listOf(
+                ResolverParams.Field(
+                    implFqn = "com.example.feature.resolvers.ExampleNameResolver",
+                    typeName = "ExampleNode",
+                    fieldName = "name",
+                    resolverBaseClass = "com.example.feature.resolverbases.ExampleName",
+                    isBatching = false,
+                    isSelective = false,
+                    objectSelections = SelectionsBlock(
+                        selections = "fragment _ on ExampleNode { name }",
+                        variablesProviders = listOf(
+                            VariableProviderDescriptor(
+                                kind = "fromArgument",
+                                name = "experiment",
+                                path = "experiment",
+                                providedVariables = mapOf("experiment" to "Boolean!"),
+                            ),
+                        ),
+                    ),
+                    querySelections = null,
+                ),
+            ),
+        )
+
+        val decoded = codec.decode(codec.encode(original))
+
+        assertEquals(original, decoded)
+        assertEquals(
+            mapOf("experiment" to "Boolean!"),
+            decoded.fields.single().objectSelections?.variablesProviders?.single()?.providedVariables,
+        )
+    }
 }
