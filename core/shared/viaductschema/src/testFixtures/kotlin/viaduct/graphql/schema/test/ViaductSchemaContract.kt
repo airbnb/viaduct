@@ -379,7 +379,7 @@ interface ViaductSchemaContract {
         }
 
         // recursive
-        mkSchema("input Input @oneOf { a: Input, value: Int }")
+        mkSchema("input Input @oneOf { a: Input }")
             .also { s ->
                 s.withType("Input") {
                     assertTrue(it.hasAppliedDirective("oneOf"), "Input")

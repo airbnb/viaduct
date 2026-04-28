@@ -2298,7 +2298,7 @@ class ViaductQueryTraverserTest {
                 .newQueryTraverser()
                 .document(createQuery("{foo}"))
                 .operationName("foo")
-                .root(Field.newField("foo").build())
+                .root(Field.newField().build())
                 .rootParentType(mockk<GraphQLObjectType>())
                 .fragmentsByName(emptyMap())
                 .build()

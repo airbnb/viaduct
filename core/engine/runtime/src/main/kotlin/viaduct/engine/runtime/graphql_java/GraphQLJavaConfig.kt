@@ -3,7 +3,6 @@ package viaduct.engine.runtime.graphql_java
 import graphql.execution.values.InputInterceptor
 import graphql.introspection.Introspection
 import graphql.parser.ParserOptions
-import graphql.validation.QueryComplexityLimits
 
 /**
  * Container for graphql-java per-execution configurations.
@@ -28,7 +27,6 @@ data class GraphQLJavaConfig(
         if (introspectionEnabled != null) {
             map.put(Introspection.INTROSPECTION_DISABLED, !introspectionEnabled)
         }
-        map.put(QueryComplexityLimits.KEY, QueryComplexityLimits.NONE)
         return map.toMap()
     }
 
