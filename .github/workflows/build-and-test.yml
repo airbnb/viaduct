@@ -69,7 +69,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: Build (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -79,80 +79,16 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
 
-      - name: Download dependencies
-        run: |
-          echo "📥 Downloading Gradle dependencies..."
-          ./gradlew dependencies || {
-            echo "❌ Failed to download dependencies"
-            exit 1
-          }
-          echo "✅ Dependencies downloaded successfully"
-        shell: bash
-
-      # Pinned 3.13 due to incompatibility between djlint and 3.14
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
-      - name: Install dependencies
-        run: pip install -r docs/requirements.txt
-
-      - name: Build project (without tests)
+      - name: Build project and compile test classes
         id: build_project
         run: |
-          echo "🔨 Building project..."
-          if ./gradlew assemble --scan; then
+          echo "🔨 Building project (main + test sources)..."
+          if ./gradlew buildRepoForCI --scan; then
             echo "✅ Project built successfully"
           else
-            echo "❌ Assemble failed"
+            echo "❌ Build failed"
             exit 1
           fi
-        shell: bash
-
-      - name: Verify Dokka output
-        run: |
-          echo "🔨 Building Dokka documentation..."
-          cd docs
-          mkdocs build
-          cd ..
-
-          echo "🔨 Building Dokka documentation..."
-          ./gradlew :core:tenant:api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:api:dokkaGenerate || { echo "❌ Dokka failed"; exit 1; }
-
-          echo "📖 Verifying Dokka documentation output..."
-
-          # Check tenant-api docs
-          if [ ! -f "docs/site/apis/tenant-api/index.html" ]; then
-            echo "❌ Missing tenant-api Dokka output: docs/site/apis/tenant-api/index.html"
-            exit 1
-          fi
-          echo "✅ tenant-api docs present"
-
-          # Check service aggregated docs
-          if [ ! -f "docs/site/apis/service/index.html" ]; then
-            echo "❌ Missing service Dokka output: docs/site/apis/service/index.html"
-            exit 1
-          fi
-          echo "✅ service docs present"
-
-          # Verify service docs contain aggregated modules
-          if [ ! -d "docs/site/apis/service/service/api" ]; then
-            echo "❌ Missing aggregated api module in service docs"
-            exit 1
-          fi
-          if [ ! -d "docs/site/apis/service/service/wiring" ]; then
-            echo "❌ Missing aggregated wiring module in service docs"
-            exit 1
-          fi
-          echo "✅ service docs contain aggregated modules (api, wiring)"
-
-          PYTHONPATH=docs:$PYTHONPATH djlint docs/site/ --lint \
-            --ignore "H005,H006,H013,H014,H020,H021,H023,H025,H026,H030,H031" \
-            --exclude "apis/" \
-            --include "LINK001" || { echo "❌ Site contains broken links"; exit 1; }
-
-          echo "✅ All Dokka documentation verified successfully"
         shell: bash
 
       - name: Collect build artifacts
@@ -191,7 +127,7 @@ jobs:
     name: Test (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -237,7 +173,7 @@ jobs:
     name: Coverage (${{ matrix.project }})
     needs: build
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -313,7 +249,7 @@ jobs:
     name: detekt (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -328,7 +264,7 @@ jobs:
         id: run_detekt
         run: |
           echo "🧹 Running Detekt static analysis..."
-          if ./gradlew detekt --scan --no-daemon --max-workers=1; then
+          if ./gradlew detekt --scan --no-daemon; then
             echo "✅ Detekt analysis passed"
           else
             echo "❌ Detekt found code style violations"
@@ -352,7 +288,7 @@ jobs:
     name: ktlint (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -367,7 +303,7 @@ jobs:
         id: run_ktlint
         run: |
           echo "🧹 Running Ktlint code formatting check..."
-          if ./gradlew ktlintCheck --scan --no-daemon --max-workers=1; then
+          if ./gradlew ktlintCheck --scan --no-daemon; then
             echo "✅ Ktlint formatting check passed"
           else
             echo "❌ Ktlint found code formatting violations"
@@ -375,4 +311,77 @@ jobs:
           fi
         shell: bash
 
+  dokka:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
+        java: ${{ inputs.java_versions && fromJSON(format('["{0}"]', fromJSON(inputs.java_versions)[0])) || fromJSON('["17"]') }}
+    name: dokka (Java ${{ matrix.java }}) ${{ matrix.os }}
+    needs: build
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+          cache-read-only: 'true'
+
+      # Pinned 3.13 due to incompatibility between djlint and 3.14
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install Python dependencies
+        run: pip install -r docs/requirements.txt
+
+      - name: Verify Dokka output
+        run: |
+          echo "🔨 Building mkdocs site..."
+          cd docs
+          mkdocs build
+          cd ..
+
+          echo "🔨 Generating Dokka API documentation..."
+          ./gradlew :core:tenant:api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:api:dokkaGenerate || { echo "❌ Dokka failed"; exit 1; }
+
+          echo "📖 Verifying Dokka documentation output..."
+
+          # Check tenant-api docs
+          if [ ! -f "docs/site/apis/tenant-api/index.html" ]; then
+            echo "❌ Missing tenant-api Dokka output: docs/site/apis/tenant-api/index.html"
+            exit 1
+          fi
+          echo "✅ tenant-api docs present"
+
+          # Check service aggregated docs
+          if [ ! -f "docs/site/apis/service/index.html" ]; then
+            echo "❌ Missing service Dokka output: docs/site/apis/service/index.html"
+            exit 1
+          fi
+          echo "✅ service docs present"
+
+          # Verify service docs contain aggregated modules
+          if [ ! -d "docs/site/apis/service/service/api" ]; then
+            echo "❌ Missing aggregated api module in service docs"
+            exit 1
+          fi
+          if [ ! -d "docs/site/apis/service/service/wiring" ]; then
+            echo "❌ Missing aggregated wiring module in service docs"
+            exit 1
+          fi
+          echo "✅ service docs contain aggregated modules (api, wiring)"
+
+          PYTHONPATH=docs:$PYTHONPATH djlint docs/site/ --lint \
+            --ignore "H005,H006,H013,H014,H020,H021,H023,H025,H026,H030,H031" \
+            --exclude "apis/" \
+            --include "LINK001" || { echo "❌ Site contains broken links"; exit 1; }
+
+          echo "✅ All Dokka documentation verified successfully"
+        shell: bash
 
