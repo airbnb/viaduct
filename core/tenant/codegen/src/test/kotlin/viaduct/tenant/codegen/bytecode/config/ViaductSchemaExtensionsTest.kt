@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.bytecode.config
 
 import java.io.File
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -592,6 +593,24 @@ class ViaductSchemaExtensionsTest {
 
         // Should use the base type, not the Value class for this field
         assertTrue(kmType.classifier.toString().contains("String"))
+    }
+
+    @Test
+    fun `kmType resolves top-level Value types without nested Value collision`() {
+        val schema = createSchema(
+            """
+            type TestObject { value: Value }
+            union Value = Child
+            type Child { field: String }
+            """.trimIndent()
+        )
+        val field = schema.field("TestObject", "value")
+
+        val baseKmType = field.kmType(KmName("pkg"), ViaductBaseTypeMapper(schema), isInput = false)
+        val valueKmType = field.kmType(KmName("pkg"), ViaductBaseTypeMapper(schema), isInput = false, useSchemaValueType = true)
+
+        assertEquals("Class(name=pkg/Value)", baseKmType.classifier.toString())
+        assertEquals("Class(name=pkg/Value)", valueKmType.classifier.toString())
     }
 
     @Test

@@ -53,7 +53,7 @@ fun ViaductSchema.TypeExpr<*>.kmType(
             !cfg.nativeGraphQLTypeToKmName(baseTypeMapper).containsKey(baseType.name)
         ) {
             val baseTypeName = "$pkg/${baseType.name}"
-            return KmType().also {
+            result = KmType().also {
                 it.classifier = KmClassifier.Class("$baseTypeName.Value")
                 it.isNullable = this.baseTypeNullable
             }

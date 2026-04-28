@@ -34,7 +34,7 @@ class ViaductWiringFactory(private val coroutineInterop: CoroutineInterop) : Wir
         }
     }
 
-    override fun providesTypeResolver(environment: InterfaceWiringEnvironment?): Boolean = true
+    override fun providesTypeResolver(environment: InterfaceWiringEnvironment): Boolean = true
 
     override fun getTypeResolver(environment: InterfaceWiringEnvironment) =
         TypeResolver {
@@ -46,7 +46,7 @@ class ViaductWiringFactory(private val coroutineInterop: CoroutineInterop) : Wir
             oer.type
         }
 
-    override fun providesTypeResolver(environment: UnionWiringEnvironment?) = true
+    override fun providesTypeResolver(environment: UnionWiringEnvironment) = true
 
     override fun getTypeResolver(environment: UnionWiringEnvironment) =
         TypeResolver {
