@@ -158,4 +158,20 @@ class IdOfTypeValidationRuleTest {
         errors shouldHaveSize 2
         errors.all { it.code == ValidationErrorCodes.ID_OF_TYPE_NOT_FOUND } shouldBe true
     }
+
+    @Test
+    fun `should fail when idOf on input field references non-existent type`() {
+        val errors = validate(
+            """
+            type Query { placeholder: String }
+            input MyInput {
+                nodeId: ID! @idOf(type: "Ghost")
+            }
+            """.trimIndent()
+        )
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.ID_OF_TYPE_NOT_FOUND
+        errors[0].message shouldContain "Ghost"
+        errors[0].message shouldContain "references undefined type"
+    }
 }

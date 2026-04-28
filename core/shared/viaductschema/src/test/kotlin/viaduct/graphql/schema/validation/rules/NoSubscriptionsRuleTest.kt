@@ -97,4 +97,43 @@ class NoSubscriptionsRuleTest {
             location.path shouldBe listOf("HelloEvents", "onHelloChanged")
         }
     }
+
+    @Test
+    fun `multiple subscription fields each produce a separate error`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            type Query { hello: String }
+            type Subscription {
+                onFoo: String
+                onBar: String
+                onBaz: String
+            }
+            """.trimIndent()
+        )
+
+        val errors = validator.validate(schema)
+
+        errors shouldHaveSize 3
+        errors.all { it.code == ValidationErrorCodes.SUBSCRIPTION_NOT_ALLOWED } shouldBe true
+        errors.map { it.location.path[1] }.toSet() shouldBe setOf("onFoo", "onBar", "onBaz")
+    }
+
+    @Test
+    fun `mix of framework dummy field and tenant fields reports only tenant fields`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            type Query { hello: String }
+            type Subscription {
+                _: String
+                onFoo: String
+            }
+            """.trimIndent()
+        )
+
+        val errors = validator.validate(schema)
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.SUBSCRIPTION_NOT_ALLOWED
+        errors[0].location.path shouldBe listOf("Subscription", "onFoo")
+    }
 }

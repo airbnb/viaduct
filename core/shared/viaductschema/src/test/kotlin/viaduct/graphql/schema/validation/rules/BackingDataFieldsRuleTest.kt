@@ -134,4 +134,32 @@ class BackingDataFieldsRuleTest {
         errors[1].code shouldBe ValidationErrorCodes.BACKING_DATA_ON_INPUT_FIELD
         errors[1].message shouldContain "MyInput.extField"
     }
+
+    @Test
+    fun `should pass when BackingData field with @backingData is on an interface`() {
+        val errors = validate(
+            """
+            type Query { placeholder: String }
+            interface MyInterface {
+                data: BackingData @backingData(class: "MyData")
+            }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `should pass silently when @backingData directive is used on input field without BackingData type`() {
+        val errors = validate(
+            """
+            type Query { placeholder: String }
+            input MyInput {
+                field: String @backingData(class: "MyData")
+            }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
 }

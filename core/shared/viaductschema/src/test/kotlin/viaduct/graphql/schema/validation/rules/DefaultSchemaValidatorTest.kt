@@ -88,4 +88,79 @@ class DefaultSchemaValidatorTest {
             ValidationErrorCodes.CUSTOM_SCALAR_NOT_ALLOWED
         )
     }
+
+    @Test
+    fun `should detect BackingData field missing @backingData directive`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            scalar BackingData
+            directive @backingData(class: String!) on FIELD_DEFINITION
+            type Query { data: BackingData }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator.validate(schema)
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.BACKING_DATA_MISSING_DIRECTIVE
+        )
+    }
+
+    @Test
+    fun `should detect @idOf referencing undefined type`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @idOf(type: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
+            interface Node { id: ID! }
+            type Query { nodeId: ID @idOf(type: "Ghost") }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator.validate(schema)
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.ID_OF_TYPE_NOT_FOUND
+        )
+    }
+
+    @Test
+    fun `should detect namespace type field with arguments`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @namespaceType on OBJECT
+            type Query { listings(region: String): Listings }
+            type Listings @namespaceType { placeholder: String }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator.validate(schema)
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_ARGS
+        )
+    }
+
+    @Test
+    fun `should detect connection type missing edges field`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @connection on OBJECT
+            directive @edge on OBJECT
+            type PageInfo {
+                hasNextPage: Boolean!
+                hasPreviousPage: Boolean!
+                startCursor: String
+                endCursor: String
+            }
+            type MyConnection @connection { pageInfo: PageInfo! }
+            type Query { items: MyConnection }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator.validate(schema)
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.CONNECTION_MISSING_EDGES_FIELD
+        )
+    }
 }
