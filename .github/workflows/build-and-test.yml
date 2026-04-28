@@ -69,7 +69,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: Build (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -127,7 +127,7 @@ jobs:
     name: Test (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -173,7 +173,7 @@ jobs:
     name: Coverage (${{ matrix.project }})
     needs: build
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -249,7 +249,7 @@ jobs:
     name: detekt (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -264,7 +264,7 @@ jobs:
         id: run_detekt
         run: |
           echo "🧹 Running Detekt static analysis..."
-          if ./gradlew detekt --scan --no-daemon --max-workers=1; then
+          if ./gradlew detekt --scan --no-daemon; then
             echo "✅ Detekt analysis passed"
           else
             echo "❌ Detekt found code style violations"
@@ -288,7 +288,7 @@ jobs:
     name: ktlint (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -303,7 +303,7 @@ jobs:
         id: run_ktlint
         run: |
           echo "🧹 Running Ktlint code formatting check..."
-          if ./gradlew ktlintCheck --scan --no-daemon --max-workers=1; then
+          if ./gradlew ktlintCheck --scan --no-daemon; then
             echo "✅ Ktlint formatting check passed"
           else
             echo "❌ Ktlint found code formatting violations"
@@ -320,7 +320,7 @@ jobs:
     name: dokka (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: build
     env:
-      GRADLE_OPTS_EXTRA: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
