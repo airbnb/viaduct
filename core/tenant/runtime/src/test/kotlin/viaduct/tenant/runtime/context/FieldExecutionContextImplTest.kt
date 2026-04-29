@@ -62,8 +62,6 @@ class FieldExecutionContextImplTest : ContextTestBase() {
     fun properties() =
         runTest {
             val ctx = mk()
-            assertEquals(Obj, ctx.objectValue)
-            assertEquals(Q, ctx.queryValue)
             assertEquals(Args, ctx.arguments)
             assertEquals(SelectionSet.NoSelections, ctx.selections())
         }

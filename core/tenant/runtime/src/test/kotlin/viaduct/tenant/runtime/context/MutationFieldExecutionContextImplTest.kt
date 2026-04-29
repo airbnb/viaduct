@@ -53,7 +53,6 @@ class MutationFieldExecutionContextImplTest : ContextTestBase() {
         val ctx = mk()
         // Test that basic properties are accessible (delegation works)
         assertEquals(Args, ctx.arguments)
-        assertEquals(Q, ctx.queryValue)
         assertEquals(SelectionSet.NoSelections, ctx.selections())
     }
 

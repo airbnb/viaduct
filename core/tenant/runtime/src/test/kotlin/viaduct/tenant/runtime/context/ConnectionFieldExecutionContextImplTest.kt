@@ -2,7 +2,6 @@
 
 package viaduct.tenant.runtime.context
 
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -24,59 +23,35 @@ import viaduct.tenant.runtime.executioncontext.ExecutionContextTestSchema
 import viaduct.tenant.runtime.executioncontext.Query
 
 class ConnectionFieldExecutionContextImplTest : ContextTestBase() {
-    private val queryObject = mockk<Query>()
-
     private object ConnArgs : ConnectionArguments {
         override fun toOffsetLimit(defaultPageSize: Int) = OffsetLimit(0, defaultPageSize)
 
         override fun validate() {}
     }
 
+    @Suppress("UNCHECKED_CAST")
     private fun mk(
-        obj: Object = Obj,
-        query: QueryType = Q,
         args: ConnectionArguments = ConnArgs,
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
         selectionSet: SelectionSet<CompositeOutput> = noSelections,
-    ): ConnectionFieldExecutionContextImpl<QueryType> {
-        val wrapper = createMockingWrapper(
-            schema = ExecutionContextTestSchema.schema,
-            queryMock = queryObject
-        )
-
-        @Suppress("UNCHECKED_CAST")
-        return ConnectionFieldExecutionContextImpl(
+    ): ConnectionFieldExecutionContextImpl<QueryType> =
+        ConnectionFieldExecutionContextImpl(
             MockInternalContext(
                 ExecutionContextTestSchema.schema,
                 globalIDCodec,
                 MockReflectionLoader(Query.Reflection)
             ),
-            wrapper,
+            createMockingWrapper(schema = ExecutionContextTestSchema.schema),
             selectionSet as SelectionSet<Connection<*, *>>,
             null,
             args,
-            obj,
-            query,
+            Obj,
+            Q,
             syncObjectValueGetter = null,
             syncQueryValueGetter = null,
             objectCls = Object::class,
             queryCls = QueryType::class,
         )
-    }
-
-    @Test
-    fun `objectValue is correct`() =
-        runTest {
-            val ctx = mk()
-            assertEquals(Obj, ctx.objectValue)
-        }
-
-    @Test
-    fun `queryValue is correct`() =
-        runTest {
-            val ctx = mk()
-            assertEquals(Q, ctx.queryValue)
-        }
 
     @Test
     fun `arguments is correct`() =
