@@ -16,33 +16,17 @@ interface BaseFieldExecutionContext<
     R : CompositeOutput
 > : ResolverExecutionContext<Q> {
     /**
-     * A value of [Q], with any (and only) selections from [viaduct.api.Resolver.queryValueFragment]
-     * populated.
-     * Attempting to access fields not declared in [viaduct.api.Resolver.queryValueFragment] will
-     * throw a runtime exception.
-     *
-     * This property provides lazy access to query selections. For synchronous access where all
-     * selections are pre-resolved, use [getQueryValue] instead.
-     */
-    @Deprecated("Use getQueryValue() instead for synchronous access with eager resolution of all selections.")
-    val queryValue: Q
-
-    /**
-     * Returns a synchronously-accessible version of [queryValue] where all selections have
+     * Returns a synchronously-accessible version of the query value where all selections have
      * been eagerly resolved.
      *
-     * Unlike [queryValue] which resolves selections lazily on access, this method awaits
-     * the resolution of all selections upfront, returning a [Q] that can be accessed
+     * All selections declared in [viaduct.api.Resolver.queryValueFragment] are available
      * synchronously without suspending.
-     *
-     * Use this when you need to ensure all query value data is available before proceeding,
-     * or when passing the query value to non-suspending code.
      */
     suspend fun getQueryValue(): Q
 
     /**
      * The value of any [A] arguments that were provided by the caller of this
-     * resolver. If this field does not take arguments, this is [Arguments.NoArguments].
+     * resolver. If this field does not have arguments, this is [Arguments.NoArguments].
      */
     val arguments: A
 }

@@ -35,7 +35,7 @@ class FieldBatchResolverFeatureAppTest : FieldBatchResolverContractTest() {
 
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
             return contexts.map { ctx ->
-                val itemId = ctx.objectValue.getId()
+                val itemId = ctx.getObjectValue().getId()
                 if (shouldReturnTenantException) {
                     FieldValue.ofError(TenantUsageException("field api misuse"))
                 } else {

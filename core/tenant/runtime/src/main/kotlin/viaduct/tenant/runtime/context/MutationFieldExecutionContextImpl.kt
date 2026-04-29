@@ -18,9 +18,8 @@ import viaduct.engine.api.EngineObjectData
  * This class extends [BaseFieldExecutionContextImpl] to add mutation-specific functionality,
  * including access to the mutation object via [mutation].
  *
- * Mutation resolvers can access query data via [queryValue] (lazy) or [getQueryValue] (synchronous).
- * The [getQueryValue] method returns a synchronously-accessible version where all selections
- * declared in the resolver's `queryValueFragment` have been eagerly resolved.
+ * Mutation resolvers can access query data via [getQueryValue], which returns a synchronously-accessible
+ * version where all selections declared in the resolver's `queryValueFragment` have been eagerly resolved.
  *
  * @param syncQueryValueGetter A suspending function that returns the synchronous query value,
  *        or null if no query selections were declared by the resolver

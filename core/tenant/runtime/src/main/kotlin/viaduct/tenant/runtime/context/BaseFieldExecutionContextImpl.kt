@@ -17,7 +17,7 @@ import viaduct.tenant.runtime.toObjectGRT
  * for field and mutation resolvers.
  *
  * This sealed class handles:
- * - Access to query value (both lazy via [queryValue] and synchronous via [getQueryValue])
+ * - Access to query value via [getQueryValue]
  * - Argument access
  * - Selection set access
  * - Request context access
@@ -35,7 +35,7 @@ sealed class BaseFieldExecutionContextImpl<Q : Query, A : Arguments, R : Composi
     private val selectionSet: SelectionSet<R>,
     override val requestContext: Any?,
     override val arguments: A,
-    override val queryValue: Q,
+    private val queryValue: Q,
     private val syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     private val queryCls: KClass<Q>,
 ) : BaseFieldExecutionContext<Q, A, R>,

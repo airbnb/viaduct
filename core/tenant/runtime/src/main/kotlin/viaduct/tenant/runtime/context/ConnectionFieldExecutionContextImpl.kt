@@ -28,7 +28,6 @@ class ConnectionFieldExecutionContextImpl<Q : Query>(
     selections: SelectionSet<Connection<*, *>>,
     requestContext: Any?,
     arguments: ConnectionArguments,
-    override val objectValue: Object,
     queryValue: Q,
     private val syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)?,
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,

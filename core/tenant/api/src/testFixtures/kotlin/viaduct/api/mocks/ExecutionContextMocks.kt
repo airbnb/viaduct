@@ -195,8 +195,8 @@ open class MockResolverExecutionContext<Q : Query>(
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 @OptIn(InternalApi::class)
 class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : CompositeOutput>(
-    override val objectValue: O,
-    override val queryValue: Q,
+    val objectValue: O,
+    val queryValue: Q,
     override val arguments: A,
     override val requestContext: Any?,
     private val selectionsValue: SelectionSet<R>,
@@ -217,8 +217,8 @@ class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 @OptIn(InternalApi::class)
 class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionArguments, R : Connection<*, *>>(
-    override val objectValue: O,
-    override val queryValue: Q,
+    val objectValue: O,
+    val queryValue: Q,
     override val arguments: A,
     override val requestContext: Any?,
     private val selectionsValue: SelectionSet<R>,
@@ -239,7 +239,7 @@ class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionA
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 @OptIn(InternalApi::class)
 class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, R : CompositeOutput>(
-    override val queryValue: Q,
+    val queryValue: Q,
     override val arguments: A,
     override val requestContext: Any?,
     private val selectionsValue: SelectionSet<R>,

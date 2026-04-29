@@ -33,7 +33,6 @@ import viaduct.tenant.runtime.globalid.User
 @ExperimentalCoroutinesApi
 class ExecutionContextImplTest : ContextTestBase() {
     private fun mk(
-        obj: Object = Obj,
         query: Query = Q,
         args: Arguments = Args,
         globalIDCodec: GlobalIDCodec = DefaultCodec,
@@ -45,7 +44,6 @@ class ExecutionContextImplTest : ContextTestBase() {
             selectionSet,
             null, // requestContext
             args,
-            obj,
             query,
             syncObjectValueGetter = null,
             syncQueryValueGetter = null,

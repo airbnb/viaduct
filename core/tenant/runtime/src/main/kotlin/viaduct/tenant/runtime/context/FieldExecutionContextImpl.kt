@@ -17,8 +17,7 @@ import viaduct.tenant.runtime.toObjectGRT
 /**
  * Implementation of [FieldExecutionContext] for non-mutation field resolvers.
  *
- * This class extends [BaseFieldExecutionContextImpl] to add object value access,
- * providing both lazy access via [objectValue] and synchronous access via [getObjectValue].
+ * This class extends [BaseFieldExecutionContextImpl] to add object value access via [getObjectValue].
  *
  * The [getObjectValue] method returns a synchronously-accessible version of the object value
  * where all selections declared in the resolver's `objectValueFragment` have been eagerly resolved.
@@ -34,7 +33,6 @@ class FieldExecutionContextImpl<Q : Query>(
     selections: SelectionSet<CompositeOutput>,
     requestContext: Any?,
     arguments: Arguments,
-    override val objectValue: Object,
     queryValue: Q,
     private val syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)?,
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,

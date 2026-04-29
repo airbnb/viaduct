@@ -117,13 +117,7 @@ class ConnectionBuilderTest {
     ) : ConnectionFieldExecutionContext<Object, Query, ConnectionArguments, TestConnection>,
         SelectiveFieldExecutionContext<TestConnection>,
         InternalContext by internalCtx {
-        override val objectValue: Object
-            get() = throw NotImplementedError("Not needed for tests")
-
         override suspend fun getObjectValue(): Object = throw NotImplementedError("Not needed for tests")
-
-        override val queryValue: Query
-            get() = throw NotImplementedError("Not needed for tests")
 
         override suspend fun getQueryValue(): Query = throw NotImplementedError("Not needed for tests")
 

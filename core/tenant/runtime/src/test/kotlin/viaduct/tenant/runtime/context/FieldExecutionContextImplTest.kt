@@ -28,7 +28,6 @@ class FieldExecutionContextImplTest : ContextTestBase() {
     private val queryObject = mockk<Query>()
 
     private fun mk(
-        obj: Object = Obj,
         query: QueryType = Q,
         args: Arguments = Args,
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
@@ -49,7 +48,6 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             selectionSet,
             null, // requestContext
             args,
-            obj,
             query,
             syncObjectValueGetter = null,
             syncQueryValueGetter = null,
