@@ -24,6 +24,7 @@ class KotlinTenantExceptionWrappingContractTest : TenantExceptionWrappingContrac
         override suspend fun resolve(ctx: Context): Item = ctx.nodeRef(ctx.arguments.id)
     }
 
+    @Resolver
     class ItemResolver : NodeResolvers.Item() {
         companion object {
             var shouldReturnTenantException = false

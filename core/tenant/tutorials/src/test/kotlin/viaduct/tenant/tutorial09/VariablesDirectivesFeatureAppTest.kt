@@ -67,6 +67,7 @@ class VariablesDirectivesFeatureAppTest : VariablesDirectivesContractTest() {
         val REVIEWS_USER_2_VERIFIED = listOf("Defective Product", "Fast delivery")
     }
 
+    @Resolver
     class UserNodeResolver : NodeResolvers.User() {
         override suspend fun resolve(ctx: Context): User {
             val userData = when (val internalID = ctx.id.internalID) {

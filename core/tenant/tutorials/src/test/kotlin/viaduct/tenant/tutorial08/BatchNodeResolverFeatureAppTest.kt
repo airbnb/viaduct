@@ -75,6 +75,7 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
      * - Maps results back to individual node requests
      * - Handles per-object error cases
      */
+    @Resolver
     class ProductNodeResolver : NodeResolvers.Product() { // Generated from "type Product implements Node @resolver"
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Product>> {
             // EXTRACT ALL INTERNAL IDS from GlobalIDs

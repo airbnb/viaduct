@@ -36,6 +36,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
         }
     }
 
+    @Resolver
     class NodeObjResolver : NodeResolvers.NodeObj() {
         companion object {
             var shouldReturnNodeReference = false

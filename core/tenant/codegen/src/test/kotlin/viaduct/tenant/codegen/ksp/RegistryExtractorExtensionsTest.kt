@@ -38,6 +38,16 @@ class RegistryExtractorExtensionsTest {
             simpleName = "ExampleNodeResolver",
             packageName = "com.example.feature.resolvers",
             superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "",
+                        "queryValueFragment" to "",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
             declarations = emptyList(),
         )
 
@@ -282,6 +292,16 @@ class RegistryExtractorExtensionsTest {
             simpleName = "ExampleNodeResolver",
             packageName = "com.example.feature.resolvers",
             superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "",
+                        "queryValueFragment" to "",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
             declarations = emptyList(),
         )
 
@@ -316,6 +336,16 @@ class RegistryExtractorExtensionsTest {
             simpleName = "ExampleNodeResolver",
             packageName = "com.example.feature.resolvers",
             superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "",
+                        "queryValueFragment" to "",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
             declarations = emptyList(),
         )
 
@@ -509,6 +539,263 @@ class RegistryExtractorExtensionsTest {
 
         // Only "experiment" matches the @Variable name — "unrelated" is not included
         assertEquals(mapOf("experiment" to "Boolean!"), provider?.providedVariables)
+    }
+
+    @Test
+    fun `toResolverParams skips node resolver without @Resolver annotation`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertNull(result)
+        assertTrue(
+            logger.infos.any { it.contains("not annotated with @Resolver") },
+            logger.infos.joinToString("\n"),
+        )
+        assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `toResolverParams errors when node resolver @Resolver has objectValueFragment`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "fragment _ on ExampleNode { id }",
+                        "queryValueFragment" to "",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertNull(result)
+        assertTrue(
+            logger.errors.any { it.contains("must not specify objectValueFragment") },
+            logger.errors.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `toResolverParams errors when node resolver @Resolver has queryValueFragment`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "",
+                        "queryValueFragment" to "fragment _ on Query { viewer { id } }",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertNull(result)
+        assertTrue(
+            logger.errors.any { it.contains("must not specify objectValueFragment, queryValueFragment, or variables") },
+            logger.errors.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `toResolverParams errors when node resolver @Resolver has variables`() {
+        val logger = RecordingKspLogger()
+
+        val variableAnnotation = ksAnnotation(
+            simpleName = "Variable",
+            args = mapOf(
+                "name" to "x",
+                "fromArgument" to "x",
+                "fromObjectField" to Variable.UNSET_STRING_VALUE,
+                "fromQueryField" to Variable.UNSET_STRING_VALUE,
+            ),
+        )
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "",
+                        "queryValueFragment" to "",
+                        "variables" to listOf(variableAnnotation),
+                    ),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertNull(result)
+        assertTrue(
+            logger.errors.any { it.contains("must not specify objectValueFragment, queryValueFragment, or variables") },
+            logger.errors.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `toResolverParams succeeds for node resolver with @Resolver that has blank fragments`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "   ",
+                        "queryValueFragment" to " \t ",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertTrue(result is ResolverParams.Node)
+        assertEquals("ExampleNode", result.typeName)
+        assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `toResolverParams succeeds for node resolver with @Resolver with no explicit args`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = emptyMap(),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertTrue(result is ResolverParams.Node)
+        assertEquals("ExampleNode", result.typeName)
+        assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }
 }
 

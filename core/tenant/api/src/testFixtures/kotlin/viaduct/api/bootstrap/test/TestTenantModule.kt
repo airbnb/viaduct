@@ -150,6 +150,7 @@ abstract class TestNodeResolverBase : NodeResolverBase<TestNode> {
     ) : NodeExecutionContext<TestNode> by inner
 }
 
+@Resolver
 class TestNodeResolver : TestNodeResolverBase() {
     override suspend fun resolve(ctx: Context): TestNode = TODO()
 }
@@ -164,6 +165,7 @@ abstract class TestBatchNodeResolverBase : NodeResolverBase<TestBatchNode> {
     ) : NodeExecutionContext<TestBatchNode> by inner
 }
 
+@Resolver
 class TestBatchNodeResolver : TestBatchNodeResolverBase() {
     override suspend fun batchResolve(ctx: List<Context>): List<TestBatchNode> = TODO()
 }
@@ -178,6 +180,7 @@ abstract class TestMissingResolverBase : NodeResolverBase<TestNode> {
     ) : NodeExecutionContext<TestNode> by inner
 }
 
+@Resolver
 class TestMissingResolver : TestMissingResolverBase() {
     override suspend fun resolve(ctx: Context): TestNode = TODO()
 }

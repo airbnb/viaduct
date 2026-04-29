@@ -57,6 +57,7 @@ class SimpleNodeResolverFeatureAppTest : SimpleNodeResolverContractTest() {
      * - Foo.Builder for type-safe object construction
      * - Automatic GlobalID encoding/decoding
      */
+    @Resolver
     class FooNodeResolver : NodeResolvers.Foo() {
         override suspend fun resolve(ctx: Context): Foo {
             // EXTRACT INTERNAL ID FROM GLOBALID

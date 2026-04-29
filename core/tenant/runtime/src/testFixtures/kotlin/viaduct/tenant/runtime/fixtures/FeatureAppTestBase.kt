@@ -157,11 +157,12 @@ abstract class FeatureAppTestBase : AbstractFeatureAppTestBase() {
             }
         }
 
-        // Check node resolvers (@NodeResolverFor base classes need any subclass)
+        // Check node resolvers (@NodeResolverFor base classes need a @Resolver subclass)
         for (baseClass in classFinder.nodeResolverForClassesInPackage()) {
             val annotation = baseClass.annotations.firstOrNull { it is NodeResolverFor } as? NodeResolverFor
                 ?: continue
             val implementations = classFinder.getSubTypesOf(baseClass)
+                .filter { it.isAnnotationPresent(Resolver::class.java) }
             if (implementations.isEmpty()) {
                 missingResolvers.add("Node(${annotation.typeName})")
             }

@@ -46,6 +46,7 @@ class SimpleResolversFeatureAppTest : SimpleResolversContractTest() {
      * and calls this resolver when ctx.nodeRef() is used with a User GlobalID.
      * Handles creating/fetching User objects with their basic data.
      */
+    @Resolver
     class UserNodeResolver : NodeResolvers.User() {
         override suspend fun resolve(ctx: Context): User {
             // Extract internal ID from GlobalID - this would typically be used for DB lookup

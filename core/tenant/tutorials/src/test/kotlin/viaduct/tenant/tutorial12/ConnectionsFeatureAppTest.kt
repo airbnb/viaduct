@@ -84,6 +84,7 @@ class ConnectionsFeatureAppTest : ConnectionsContractTest() {
 
     // ── Node resolver ─────────────────────────────────────────────────────────
 
+    @Resolver
     class BookNodeResolver : NodeResolvers.Book() {
         override suspend fun resolve(ctx: Context): Book {
             val item = ALL_BOOKS.first { it.id == ctx.id.internalID }

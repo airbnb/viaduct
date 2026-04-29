@@ -219,6 +219,57 @@ class RegistryExtractorProcessorTest {
         assertTrue(json.contains("\"fieldName\" : \"name\""), json)
         assertTrue(json.contains("\"typeName\" : \"ExampleNode\""), json)
     }
+
+    @Test
+    fun `process produces no output when node resolvers lack @Resolver`() {
+        val logger = RecordingKspLogger()
+        val codeGenerator = RecordingCodeGenerator()
+        val environment = fakeEnvironment(logger = logger, codeGenerator = codeGenerator)
+
+        val containingFile = ksFile(
+            packageName = "com.example.feature.resolvers",
+            fileName = "DraftResolvers.kt",
+        )
+
+        val nodeBase = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.Widget",
+            simpleName = "Widget",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "Widget", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            superDeclarations = emptyList(),
+            containingFile = null,
+            declarations = emptyList(),
+        )
+
+        val draftResolver = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.WidgetResolverDraft",
+            simpleName = "WidgetResolverDraft",
+            packageName = "com.example.feature.resolvers",
+            annotations = emptyList(),
+            superDeclarations = listOf(nodeBase),
+            containingFile = containingFile,
+            declarations = emptyList(),
+        )
+
+        val fileWithDraft = ksFile(
+            packageName = "com.example.feature.resolvers",
+            fileName = "DraftResolvers.kt",
+            declarations = listOf(draftResolver),
+        )
+
+        val resolver = ksResolver(files = listOf(fileWithDraft))
+        val processor = RegistryExtractorProcessor(environment)
+
+        val deferred = processor.process(resolver)
+
+        assertTrue(deferred.isEmpty())
+        assertTrue(codeGenerator.outputs.isEmpty(), "Expected no descriptor output for draft resolvers without @Resolver")
+    }
 }
 
 private fun fakeEnvironment(
@@ -264,7 +315,16 @@ private fun ksNodeResolver(
         qualifiedName = qualifiedName,
         simpleName = simpleName,
         packageName = packageName,
-        annotations = emptyList(),
+        annotations = listOf(
+            ksAnnotation(
+                simpleName = "Resolver",
+                args = mapOf(
+                    "objectValueFragment" to "",
+                    "queryValueFragment" to "",
+                    "variables" to emptyList<Any>(),
+                ),
+            ),
+        ),
         superDeclarations = listOf(base),
         containingFile = containingFile,
         declarations = emptyList(),

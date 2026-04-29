@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldValue
 import viaduct.api.NodeResolverBase
+import viaduct.api.Resolver
 import viaduct.api.ResolverBase
 import viaduct.api.bootstrap.test.grts.TestBatchNode
 import viaduct.api.bootstrap.test.grts.TestNode
@@ -92,6 +93,7 @@ class ExecutionRegistryBootstrapperTest {
         ) : NodeExecutionContext<TestNode> by inner
     }
 
+    @Resolver
     class TestNodeResolver : TestNodeResolverBase() {
         override suspend fun resolve(ctx: Context): TestNode = TestNode()
     }
@@ -106,6 +108,7 @@ class ExecutionRegistryBootstrapperTest {
         ) : NodeExecutionContext<TestBatchNode> by inner
     }
 
+    @Resolver
     class TestBatchNodeResolver : TestBatchNodeResolverBase() {
         override suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<TestBatchNode>> = emptyList()
     }

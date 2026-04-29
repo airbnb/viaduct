@@ -237,7 +237,7 @@ class ViaductTenantModuleBootstrapper(
             nodeResolverBaseClasses.associateWith { // Get all node resolver subclasses
                 tenantResolverClassFinder.getSubTypesOf(it) as Set<Class<out NodeResolverBase<*>>>
             }
-        for ((baseClass, nodeResolverClasses) in nodeResolverClassesByBaseClass) {
+        for ((baseClass, allSubclasses) in nodeResolverClassesByBaseClass) {
             val nodeResolverForAnnotation = baseClass.getAnnotation(NodeResolverFor::class.java)
                 ?: throw TenantModuleException("NodeResolverBase class $baseClass does not have a @NodeResolverFor annotation")
             val typeName = nodeResolverForAnnotation.typeName
@@ -260,13 +260,45 @@ class ViaductTenantModuleBootstrapper(
             val resolverContextFactory: NodeExecutionContextFactory =
                 NodeExecutionContextFactory(baseClass, reflectionLoader, reflectiveType, grtConvFactory)
 
-            if (nodeResolverClasses.size != 1) {
+            // Filter to only @Resolver-annotated subclasses (mirrors field resolver pattern)
+            val resolverClasses = allSubclasses.filter { it.isAnnotationPresent(Resolver::class.java) }
+            if (resolverClasses.isEmpty()) {
+                if (allSubclasses.isNotEmpty()) {
+                    throw TenantModuleException(
+                        "Found ${allSubclasses.size} subclass(es) of node resolver base for $typeName " +
+                            "(${allSubclasses.map { it.name }}), but none are annotated with @Resolver. " +
+                            "Add @Resolver to the active implementation."
+                    )
+                }
+                continue
+            }
+            if (resolverClasses.size > 1) {
                 throw TenantModuleException(
-                    "Expected exactly one resolver implementation for $typeName, " +
-                        "found ${nodeResolverClasses.size}: ${nodeResolverClasses.map { it.name }}"
+                    "Expected at most one @Resolver-annotated implementation for node resolver $typeName, " +
+                        "found ${resolverClasses.size}: ${resolverClasses.map { it.name }}"
                 )
             }
-            val resolverClass = nodeResolverClasses.first()
+            val resolverClass = resolverClasses.single()
+
+            val resolverAnnotation = resolverClass.getAnnotation(Resolver::class.java)!!
+            if (resolverAnnotation.objectValueFragment.isNotBlank()) {
+                throw TenantModuleException(
+                    "Node resolver ${resolverClass.name} for $typeName must not specify " +
+                        "objectValueFragment on @Resolver. Node resolvers do not support required selection sets."
+                )
+            }
+            if (resolverAnnotation.queryValueFragment.isNotBlank()) {
+                throw TenantModuleException(
+                    "Node resolver ${resolverClass.name} for $typeName must not specify " +
+                        "queryValueFragment on @Resolver. Node resolvers do not support required selection sets."
+                )
+            }
+            if (resolverAnnotation.variables.isNotEmpty()) {
+                throw TenantModuleException(
+                    "Node resolver ${resolverClass.name} for $typeName must not specify " +
+                        "variables on @Resolver. Node resolvers do not support required selection sets."
+                )
+            }
 
             val isSelective = nodeResolverForAnnotation.isSelective
 

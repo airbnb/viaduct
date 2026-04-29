@@ -85,6 +85,7 @@ class SimpleMutationsFeatureAppTest : SimpleMutationsContractTest() {
      * - Context with typed GlobalID (ctx.id)
      * - User.Builder for object construction
      */
+    @Resolver
     class UserNodeResolver : NodeResolvers.User() { // Generated from "type User implements Node @resolver"
         override suspend fun resolve(ctx: Context): User {
             val internalId = ctx.id.internalID

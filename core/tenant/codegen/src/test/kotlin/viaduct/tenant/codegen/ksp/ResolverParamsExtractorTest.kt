@@ -52,11 +52,22 @@ class ResolverParamsExtractorTest {
             declarations = emptyList(),
         )
 
+        val resolverAnnotation = listOf(
+            ksAnnotation(
+                simpleName = "Resolver",
+                args = mapOf(
+                    "objectValueFragment" to "",
+                    "queryValueFragment" to "",
+                    "variables" to emptyList<Any>(),
+                ),
+            ),
+        )
+
         val exampleResolverB = ksClassDeclaration(
             qualifiedName = "com.example.feature.resolvers.ZExampleNodeResolver",
             simpleName = "ZExampleNodeResolver",
             packageName = "com.example.feature.resolvers",
-            annotations = emptyList(),
+            annotations = resolverAnnotation,
             superDeclarations = listOf(exampleNodeBase),
             containingFile = file,
             declarations = emptyList(),
@@ -66,7 +77,7 @@ class ResolverParamsExtractorTest {
             qualifiedName = "com.example.feature.resolvers.AExampleNodeResolver",
             simpleName = "AExampleNodeResolver",
             packageName = "com.example.feature.resolvers",
-            annotations = emptyList(),
+            annotations = resolverAnnotation,
             superDeclarations = listOf(exampleNodeBase),
             containingFile = file,
             declarations = emptyList(),
@@ -76,7 +87,7 @@ class ResolverParamsExtractorTest {
             qualifiedName = "com.example.feature.resolvers.AccountResolver",
             simpleName = "AccountResolver",
             packageName = "com.example.feature.resolvers",
-            annotations = emptyList(),
+            annotations = resolverAnnotation,
             superDeclarations = listOf(accountBase),
             containingFile = file,
             declarations = emptyList(),
@@ -219,7 +230,16 @@ class ResolverParamsExtractorTest {
             qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
             simpleName = "ExampleNodeResolver",
             packageName = "com.example.feature.resolvers",
-            annotations = emptyList(),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "",
+                        "queryValueFragment" to "",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
             superDeclarations = listOf(exampleNodeBase),
             containingFile = null,
             declarations = emptyList(),
@@ -245,6 +265,82 @@ class ResolverParamsExtractorTest {
             logger.warns.any { it.contains("Skipping resolver without containing file") },
             logger.warns.joinToString("\n"),
         )
+    }
+
+    @Test
+    fun `extractByFile skips node resolvers without @Resolver and includes those with it`() {
+        val logger = RecordingKspLogger()
+
+        val file = ksFile(
+            packageName = "com.example.feature.resolvers",
+            fileName = "MixedResolvers.kt",
+        )
+
+        val nodeBase = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.Item",
+            simpleName = "Item",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "Item", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            containingFile = null,
+            declarations = emptyList(),
+        )
+
+        val resolverAnnotation = listOf(
+            ksAnnotation(
+                simpleName = "Resolver",
+                args = mapOf(
+                    "objectValueFragment" to "",
+                    "queryValueFragment" to "",
+                    "variables" to emptyList<Any>(),
+                ),
+            ),
+        )
+
+        val activeResolver = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ItemResolver",
+            simpleName = "ItemResolver",
+            packageName = "com.example.feature.resolvers",
+            annotations = resolverAnnotation,
+            superDeclarations = listOf(nodeBase),
+            containingFile = file,
+            declarations = emptyList(),
+        )
+
+        val draftResolver = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ItemResolverV2",
+            simpleName = "ItemResolverV2",
+            packageName = "com.example.feature.resolvers",
+            annotations = emptyList(),
+            superDeclarations = listOf(nodeBase),
+            containingFile = file,
+            declarations = emptyList(),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(
+                ksFile(
+                    packageName = "com.example.feature.resolvers",
+                    fileName = "MixedResolvers.kt",
+                    declarations = listOf(activeResolver, draftResolver),
+                ),
+            ),
+        )
+
+        val result = ResolverParamsExtractor(
+            resolver = resolver,
+            logger = logger,
+        ).extractByFile()
+
+        assertEquals(1, result.size)
+        val descriptor = result.values.single()
+        assertEquals(1, descriptor.nodes.size)
+        assertEquals("com.example.feature.resolvers.ItemResolver", descriptor.nodes.single().implFqn)
+        assertTrue(descriptor.fields.isEmpty())
     }
 }
 

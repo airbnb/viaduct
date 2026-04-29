@@ -37,6 +37,31 @@ internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverPar
 
     val nodeResolverAnnotation = directBaseDeclaration.firstAnnotationNamed(nodeResolverForAnnotationName)
     if (nodeResolverAnnotation != null) {
+        val resolverAnnotation = firstAnnotationNamed(resolverAnnotationName)
+        if (resolverAnnotation == null) {
+            logger.infoRegistryExtractor(
+                "Skipping {} because it extends a @{} base but is not annotated with @{}",
+                implFqn,
+                nodeResolverForAnnotationName,
+                resolverAnnotationName,
+            )
+            return null
+        }
+
+        val objectFragment = resolverAnnotation.stringArg("objectValueFragment")?.takeIf { it.isNotBlank() }
+        val queryFragment = resolverAnnotation.stringArg("queryValueFragment")?.takeIf { it.isNotBlank() }
+        val variables = resolverAnnotation.arguments
+            .firstOrNull { it.name?.asString() == "variables" }
+            ?.value as? List<*>
+        if (objectFragment != null || queryFragment != null || !variables.isNullOrEmpty()) {
+            logger.errorRegistryExtractor(
+                "@Resolver on node resolver {} must not specify objectValueFragment, " +
+                    "queryValueFragment, or variables. Node resolvers do not support required selection sets.",
+                implFqn,
+            )
+            return null
+        }
+
         return toNodeResolverParams(
             implFqn = implFqn,
             nodeResolverAnnotation = nodeResolverAnnotation,
