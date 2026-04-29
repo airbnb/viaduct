@@ -16,6 +16,7 @@ import viaduct.api.Resolver
  * Viaduct guarantees this resolver runs at most once per Film, regardless of
  * how many of those fields appear in the query.
  */
+// tag::backing_data_resolver[12]
 @Resolver(objectValueFragment = "fragment _ on Film { id }")
 class FilmCastDataResolver
     @Inject

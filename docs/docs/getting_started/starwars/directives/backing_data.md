@@ -1,49 +1,73 @@
 ---
 title: backingData Directive
-description: Specify backing data classes for fields to separate transformation logic from retrieval.
+description: Share pre-fetched data between sibling field resolvers to avoid duplicate calls.
 ---
 
 
-The `@backingData` directive binds a **field** to a backing data class that performs transformation, shaping, or
-preparation of data before it is exposed by GraphQL. It complements `@resolver`: the resolver wires the field into
-execution, while the backing data class centralizes the mapping logic that would otherwise live inside the resolver.
+The `@backingData` directive declares a field whose sole purpose is to fetch data once and share it with other
+resolvers on the same object. Viaduct guarantees the backing resolver runs **at most once** per parent object,
+regardless of how many sibling fields consume it.
 
-## Basic usage
+Use `@backingData` when two or more field resolvers on the same type need the same upstream data and you want to
+avoid duplicate calls.
 
-Apply `@backingData` on a field (often together with `@resolver`) and point to a Kotlin class that implements the
-backing logic.
+## Schema declaration
 
-
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "all_characters", lang="kotlin") }}
-
-
-In this demo, the class
-`com.example.starwars.modules.filmography.characters.queries.AllCharactersQueryResolver`
-is responsible for shaping the list of `Character` items returned by `allCharacters`.
-
-## How it integrates at runtime
-
-1. **Execution plan:** Viaduct identifies that `allCharacters` is a resolver-backed field with a backing data class.
-2. **Resolver step:** the resolver coordinates arguments and orchestration (for example, reads the `limit`).
-3. **Backing step:** the backing class transforms raw domain models into GraphQL objects (builders), applying any
-   mapping, filtering, or normalization rules required by the schema.
-4. **Result:** the field returns objects that already match the schema’s expectations (IDs, formatting, minimal fields).
-
-### With `@backingData` (mapping lives in a backing class)
+Apply `@backingData` on a field typed as `BackingData` (a Viaduct built-in marker type, never exposed to clients).
+The `class` argument points to the Kotlin data class that holds the fetched data:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/queries/AllCharactersQueryResolver.kt", "resolver_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Film.graphqls", "backing_data_schema", lang="graphql") }}
 
 
-Pros: fewer moving parts.
-Cons: resolver grows, mapping is harder to share or test in isolation.
+## The backing data class
+
+A simple data class holding the pre-fetched data. Keep it minimal, shared state only:
+
+
+{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/models/FilmCastData.kt", "backing_data_class", lang="kotlin") }}
+
+
+## The backing data resolver
+
+A resolver that fetches the data once per parent object. It reads the parent's ID from the object value and calls
+the repository:
+
+
+{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCastDataResolver.kt", "backing_data_resolver", lang="kotlin") }}
+
+
+## Consuming the backing data
+
+Other resolvers declare `castData` in their `objectValueFragment` to receive the pre-fetched data. Viaduct
+automatically ensures the backing resolver completes before these consumers run:
+
+
+{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCharactersResolver.kt", "backing_data_consumer", lang="kotlin") }}
+
+
+Multiple resolvers can share the same backing data, each declares it in their fragment, but the fetch happens
+only once:
+
+
+{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCharacterCountSummaryResolver.kt", "backing_data_consumer_2", lang="kotlin") }}
+
+
+## How it works at runtime
+
+1. A client queries both `characters` and `characterCountSummary` on a Film.
+2. Viaduct sees both resolvers need `castData` in their `objectValueFragment`.
+3. `FilmCastDataResolver` runs **once**, fetching character IDs from the repository.
+4. The result (`FilmCastData`) is injected into both consuming resolvers via `ctx.getObjectValue().get(...)`.
+5. Each consumer uses the shared data without any additional repository call.
 
 ## Design guidelines
 
-- Keep resolvers **thin**; put mapping/formatting in the backing data class.
-- Generate `id` values with `ctx.globalIDFor(Type.Reflection, internalId)`.
-- Request only the minimal fields you need; defer relationships to field/batch resolvers.
-- Prefer immutable outputs from the backing class (builders with final values).
+- Use `@backingData` when two or more sibling resolvers need the same upstream data.
+- Keep the data class minimal — only the shared state needed by consumers.
+- The backing resolver should do I/O; consumers should do transformation only.
+- The field type must be `BackingData` — this is a Viaduct marker type that is never exposed in the client schema.
 
+## Related
 
-
+- [Field resolvers](../core/field_resolvers.md) — `@backingData` fields always also carry `@resolver`; see field resolvers for the general resolver pattern

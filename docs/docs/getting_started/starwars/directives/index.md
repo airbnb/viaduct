@@ -9,7 +9,7 @@ directives used in the Star Wars demo and links to focused pages for details and
 
 ## What you will find here
 
-- **`@backingData`** — bind a field to a backing data class for transformation logic.
+- **`@backingData`** — share pre-fetched data between sibling field resolvers to avoid duplicate calls.
 - **`@scope`** — expose types/fields only to specific scopes (multi-module boundaries).
 - **`@idOf`** — mark `ID` fields/args with their GraphQL type for type-safe Global ID handling.
 - **`@oneOf`** — enforce exactly one non-null field in an input object (union-like inputs).

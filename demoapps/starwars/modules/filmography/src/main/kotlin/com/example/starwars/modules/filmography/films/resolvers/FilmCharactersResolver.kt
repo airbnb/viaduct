@@ -16,6 +16,7 @@ import viaduct.api.grts.Character
  * When both `characters` and `characterCountSummary` are requested for the same film,
  * the repository is called once instead of twice.
  */
+// tag::backing_data_consumer[15]
 @Resolver(objectValueFragment = "fragment _ on Film { castData }")
 class FilmCharactersResolver
     @Inject

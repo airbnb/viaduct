@@ -13,6 +13,7 @@ import viaduct.api.Resolver
  * When both `characterCountSummary` and `characters` are requested for the same film,
  * the repository is called once instead of twice.
  */
+// tag::backing_data_consumer_2[17]
 @Resolver(
     """
     fragment _ on Film {
