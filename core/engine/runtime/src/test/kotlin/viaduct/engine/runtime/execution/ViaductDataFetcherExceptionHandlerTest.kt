@@ -1,6 +1,5 @@
 package viaduct.engine.runtime.execution
 
-import com.airbnb.viaduct.errors.ViaductException
 import graphql.Scalars
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.ResultPath
@@ -47,7 +46,7 @@ class ViaductDataFetcherExceptionHandlerTest {
 
     @Test
     fun handleException() {
-        val throwable = ViaductException("message")
+        val throwable = RuntimeException("message")
         val dfe =
             mockk<DataFetchingEnvironment> {
                 every { executionStepInfo } returns mockStepInfo
@@ -83,7 +82,7 @@ class ViaductDataFetcherExceptionHandlerTest {
 
     @Test
     fun handleExceptionWithMetadata() {
-        val throwable = ViaductException("message")
+        val throwable = RuntimeException("message")
 
         val params = mockParamsWithDirectives(throwable)
         val result = exceptionHandler.handleException(params).join()
@@ -93,9 +92,8 @@ class ViaductDataFetcherExceptionHandlerTest {
         val extensions = result.errors[0].extensions
         assertTrue(extensions.containsKey("fieldName"))
         assertTrue(extensions.containsKey("parentType"))
-        assertTrue(extensions.containsKey("localizedMessage"))
         assertFalse(extensions.containsKey("isFrameworkError"))
-        assertEquals("Sorry, something went wrong. Please try again later.", extensions["localizedMessage"])
+        assertTrue(extensions.containsKey("fullyQualifiedErrorClass"))
 
         val metadata = capturedMetadata.first()
         assertEquals("fieldName", metadata.fieldName)
@@ -107,7 +105,7 @@ class ViaductDataFetcherExceptionHandlerTest {
 
     @Test
     fun handleExceptionWithMetadataNullExceptionMessage() {
-        val throwable = ViaductException()
+        val throwable = RuntimeException()
 
         val params = mockParamsWithDirectives(throwable)
         val result = exceptionHandler.handleException(params).join()
@@ -117,9 +115,8 @@ class ViaductDataFetcherExceptionHandlerTest {
         val extensions = result.errors[0].extensions
         assertTrue(extensions.containsKey("fieldName"))
         assertTrue(extensions.containsKey("parentType"))
-        assertTrue(extensions.containsKey("localizedMessage"))
         assertFalse(extensions.containsKey("isFrameworkError"))
-        assertEquals("Sorry, something went wrong. Please try again later.", extensions["localizedMessage"])
+        assertTrue(extensions.containsKey("fullyQualifiedErrorClass"))
 
         val metadata = capturedMetadata.first()
         assertEquals("fieldName", metadata.fieldName)
@@ -131,7 +128,7 @@ class ViaductDataFetcherExceptionHandlerTest {
 
     @Test
     fun handleFieldFetchingException() {
-        val cause = ViaductException("TEST MESSAGE")
+        val cause = RuntimeException("TEST MESSAGE")
         val err = FieldFetchingException.wrapWithPathAndLocation(cause, ResultPath.rootPath(), SourceLocation.EMPTY)
 
         val params = mockParamsWithDirectives(err)

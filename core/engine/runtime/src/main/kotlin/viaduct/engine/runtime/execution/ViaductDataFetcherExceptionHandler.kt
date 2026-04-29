@@ -1,6 +1,5 @@
 package viaduct.engine.runtime.execution
 
-import com.airbnb.viaduct.errors.ViaductException
 import graphql.GraphQLError
 import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherExceptionHandler
@@ -126,7 +125,6 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
         return errors
             ?: when (exception) {
                 is FieldFetchingException -> listOf(exception.toGraphQLError())
-                is ViaductException -> listOf(exception.toGraphQLError(env, metadata.toMap()))
                 else ->
                     listOf(
                         GraphqlErrorBuilder.newError(env)

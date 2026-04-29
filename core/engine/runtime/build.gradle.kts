@@ -30,7 +30,6 @@ dependencies {
     implementation(libs.viaduct.shared.deferred)
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.errors)
-    implementation(libs.viaduct.snipped.errors)
     implementation(libs.viaduct.tenant.api)
     implementation(libs.micrometer.core)
 
