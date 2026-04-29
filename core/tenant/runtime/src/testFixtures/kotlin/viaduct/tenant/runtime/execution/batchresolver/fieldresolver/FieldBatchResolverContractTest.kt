@@ -1,5 +1,7 @@
 package viaduct.tenant.runtime.execution.batchresolver.fieldresolver
 
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
@@ -30,6 +32,8 @@ import viaduct.graphql.test.assertEquals
 """
 )
 abstract class FieldBatchResolverContractTest : KotlinFeatureAppTestContractBase() {
+    protected abstract fun setBatchedFieldShouldReturnTenantException(enabled: Boolean)
+
     @Test
     fun `field batch resolver batches multiple field requests`() {
         execute(
@@ -124,6 +128,34 @@ abstract class FieldBatchResolverContractTest : KotlinFeatureAppTestContractBase
                     }
                 )
             }
+        }
+    }
+
+    @Test
+    fun `field batch resolver surfaces TenantUsageException from error FieldValue`() {
+        setBatchedFieldShouldReturnTenantException(true)
+        try {
+            val result = execute(
+                query = """
+                    query {
+                        items(count: 1) {
+                            id
+                            batchedField
+                        }
+                    }
+                """.trimIndent()
+            )
+
+            assertEquals(1, result.errors.size)
+            val error = result.errors.single()
+            assertTrue(error.message.contains("field api misuse"))
+            val data = result.getData()!!
+            val items = data["items"] as List<*>
+            val item = items.single() as Map<*, *>
+            assertEquals("item-1", item["id"])
+            assertEquals(null, item["batchedField"])
+        } finally {
+            setBatchedFieldShouldReturnTenantException(false)
         }
     }
 }

@@ -12,7 +12,6 @@ import viaduct.api.testschema.E1
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
 import viaduct.api.testschema.TestUser
-import viaduct.errors.TenantUsageException
 
 class DynamicValueBuilderTypeCheckerTest {
     private val graphqlSchema = ApiTestSchema.schema
@@ -140,7 +139,7 @@ class DynamicValueBuilderTypeCheckerTest {
 
         val invalidBackingData = o2Type.getField("invalidBackingData")
         val context3 = DynamicValueBuilderTypeChecker.FieldContext(invalidBackingData, o2Type)
-        val ex = assertThrows<TenantUsageException> {
+        val ex = assertThrows<IllegalStateException> {
             checker.checkType(invalidBackingData.type, "abc", context3)
         }
         assertEquals("Backing data field invalidBackingData must have @backingData directive defined in schema. None found.", ex.message)

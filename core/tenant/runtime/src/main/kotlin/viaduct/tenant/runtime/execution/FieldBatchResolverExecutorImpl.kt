@@ -13,9 +13,13 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
+import viaduct.errors.ErroneousFieldException
+import viaduct.errors.FrameworkException
+import viaduct.errors.PassthroughException
+import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
-import viaduct.errors.handleTenantErrorsResultSuspend
 import viaduct.errors.handleTenantErrorsSuspend
+import viaduct.errors.resultOfSuspend
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
@@ -62,11 +66,14 @@ class FieldBatchResolverExecutorImpl(
             callResolver(batchResolveFn, resolver, contexts)
         }
         if (results !is List<*>) {
-            throw TenantUsageException("Unexpected return value from batchResolve function for field $resolverId: $results")
+            throw FrameworkException("Unexpected return value from batchResolve function for field $resolverId: $results")
         }
         if (selectors.size != results.size) {
-            throw TenantUsageException(
-                "The batchResolve function in the field resolver for $resolverId was given a batch of size ${selectors.size} but returned ${results.size} elements"
+            throw TenantResolverException(
+                TenantUsageException(
+                    "The batchResolve function in the field resolver for $resolverId was given a batch of size ${selectors.size} but returned ${results.size} elements"
+                ),
+                resolverId
             )
         }
         // If a Result is exceptional, its exception must already be one of the executor-allowed types.
@@ -78,10 +85,29 @@ class FieldBatchResolverExecutorImpl(
         globalIDCodec: GlobalIDCodec
     ): Result<Any?> {
         if (fieldValue !is FieldValue<*>) {
-            throw IllegalStateException("Unexpected result type that is not a FieldValue: $fieldValue")
+            return Result.failure(
+                TenantResolverException(
+                    TenantUsageException("Unexpected result type that is not a FieldValue: $fieldValue"),
+                    resolverId
+                )
+            )
         }
 
-        return handleTenantErrorsResultSuspend(resolverId) {
+        // TODO: the pass through here for `ErroneousFieldException` is not our long-term
+        // solution. Instead, we need a mechanism for passing field-level error information
+        // from tenant exceptions into the final graphql field-error. See the
+        // "GraphQL Error Message Shaping" discussion in
+        // https://slate.sandcastle.musta.ch/I3TZD5c0dg; a solution for that would be a
+        // better solution for `ErroneousFieldException`.
+        return resultOfSuspend(
+            mapException = { e ->
+                if (e is PassthroughException || e is ErroneousFieldException) {
+                    e
+                } else {
+                    TenantResolverException(e, resolverId)
+                }
+            }
+        ) {
             unwrapFieldValue(fieldValue, globalIDCodec)
         }
     }

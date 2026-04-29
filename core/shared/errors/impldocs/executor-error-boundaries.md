@@ -1,6 +1,6 @@
 # Executor Error Boundaries
 
-The Viaduct engine calls tenant-written resolvers through a set of Executor SPI implementations. The current goal of this layer is to ensure that direct crossings into tenant code are attributed, while framework-owned code in `tenant/runtime` remains unwrapped and is handled by framework boundaries elsewhere.
+The Viaduct engine calls tenant-written resolvers through a set of Executor SPI implementations. The **invariant** this system enforces is: aside from coroutine cancellation (`CancellationException`), every exception that exits an executor entry point is *attributed*. At executor boundaries, tenant-attributed failures are normalized to `TenantResolverException`; framework-attributed failures exit as `FrameworkException`. No raw, unclassified failure crosses the executor/engine boundary.
 
 `handleTenantErrorsSuspend` (and its synchronous equivalent) is used at direct call sites that cross from framework-owned executor code into tenant-written resolver code. Framework-owned code in these executors is not eagerly wrapped with `handleFrameworkErrors*`; later framework boundaries are expected to classify those failures.
 
@@ -22,7 +22,7 @@ Marks exceptions that have already been classified and should propagate through 
 
 ### `TenantException`
 
-Exceptions that indicate a misuse of the Tenant API by tenant code. These exceptions are **not** `PassthroughException`. Framework entry points preserve them as-is so tenant misuse is not mislabeled as a framework bug. Direct tenant boundaries (`handleTenantErrors*`) wrap them, but framework-owned post-processing paths may still propagate them directly.
+Exceptions that indicate a misuse of the Tenant API by tenant code. These exceptions are **not** `PassthroughException`. Framework entry points preserve them as-is so tenant misuse is not mislabeled as a framework bug. Executor tenant boundaries, however, intentionally wrap them in `TenantResolverException` so executor outputs are normalized to framework-vs-tenant attribution.
 
 | Class | Description |
 |---|---|
@@ -30,7 +30,7 @@ Exceptions that indicate a misuse of the Tenant API by tenant code. These except
 | `UnsetFieldException` | Tenant accessed a field not in the required selection set |
 | `ErroneousFieldException` | Tenant accessed a field that is in an error state; carries `graphQLErrors: List<GraphQLError>` which must not be discarded |
 
-`TenantException` is therefore preserved by framework boundaries, and direct tenant boundaries may normalize it to `TenantResolverException` (see [Handler Semantics](#handler-semantics) below). `TenantResolverException` itself remains passthrough, and may be explicitly re-wrapped at a framework call site when code intentionally wants to extend the resolver call chain.
+`TenantException` is therefore preserved by framework boundaries but normalized by tenant boundaries (see [Handler Semantics](#handler-semantics) below). `TenantResolverException` itself remains passthrough, and may be explicitly re-wrapped at a framework call site when code intentionally wants to extend the resolver call chain.
 
 ## Error Handler Functions
 
@@ -62,7 +62,7 @@ throw TenantResolverException(e, opName)
 This means:
 - `FrameworkException` passes through tenant boundaries — a framework bug inside a resolver does not get mislabeled as a tenant error.
 - `TenantUsageException` (and subclasses) passes through framework boundaries — framework-detected API misuse does not get wrapped as a `FrameworkException`.
-- `TenantUsageException` thrown directly from tenant code while crossing a tenant boundary is wrapped as `TenantResolverException`.
+- `TenantUsageException` thrown while crossing a tenant boundary is wrapped as `TenantResolverException` so the executor exits with a normalized tenant-attributed wrapper.
 - Suspend handlers also call `ensureActive()` on `CancellationException`, so coroutine cancellation continues to propagate unchanged instead of being attributed.
 - Already-attributed passthrough exceptions (`TenantResolverException`, `FieldFetchingException`, etc.) are not re-wrapped by the handlers themselves.
 
@@ -78,7 +78,9 @@ callResolverAndHandleTenantErrors(resolverName, reflectionCall, resolver, ctx)
 
 This helper sequence still defines the direct framework-to-tenant boundary: the reflective call into tenant resolver code is wrapped by `handleTenantErrorsSuspend`, but the reflection-specific `InvocationTargetException` wrapper is stripped first at the call site. Any unexpected underlying exception from the tenant resolver, including `TenantException`, becomes a `TenantResolverException` carrying the resolver name.
 
-The reflective executor implementations where this pattern applies:
+The **inner** `handleTenantErrorsSuspend` boundary covers the reflective call into tenant resolver code. Any unexpected exception from the tenant resolver, including `TenantException`, becomes a `TenantResolverException` carrying the resolver name.
+
+The five executor implementations where this pattern applies:
 
 | Executor | Resolver type |
 |---|---|
@@ -91,7 +93,7 @@ The reflective executor implementations where this pattern applies:
 
 ### Batch Result Unwrapping
 
-The batch executors (`FieldBatchResolverExecutorImpl`, `NodeBatchResolverExecutorImpl`) call tenant code that returns `List<FieldValue<T>>`. Each `FieldValue` can hold either a success or an error. The `unwrap()` helper calls `fieldValue.get()` to extract the value or rethrow the stored exception. If that rethrows an already-attributed exception (`PassthroughException` or `TenantException`), the helper returns `Result.failure(e)` unchanged rather than adding another layer of framework-owned wrapping.
+The batch executors (`FieldBatchResolverExecutorImpl`, `NodeBatchResolverExecutorImpl`) call tenant code that returns `List<FieldValue<T>>`. Each `FieldValue` can hold either a success or an error. The `unwrap()` helper calls `fieldValue.get()` to extract the value or rethrow the stored exception. If that rethrows a `TenantException`, the executor wraps it as `TenantResolverException` before returning `Result.failure(...)`, preserving tenant attribution while normalizing the executor surface.
 
 ## `InvocationTargetException` Unwrapping
 
@@ -124,7 +126,7 @@ val isFrameworkError = when (exception) {
 }
 ```
 
-Note that field resolver errors are additionally wrapped by the engine in `FieldFetchingException` before reaching this handler. `FieldFetchingException` matches `else -> null`, so `isFrameworkError` will be `null` (not `"false"`) for errors originating in field resolvers. This is expected behavior for the current hybrid interop path and is **not** a sign of misattribution.
+Note that field resolver errors are additionally wrapped by the engine in `FieldFetchingException` before reaching this handler. `FieldFetchingException` matches `else -> null`, so `isFrameworkError` will be `null` (not `"false"`) for errors originating in field resolvers even when the executor had already normalized the underlying cause to `TenantResolverException`. This is expected behavior for the current hybrid interop path and is **not** a sign of misattribution.
 
 ## Key Files
 
@@ -141,6 +143,6 @@ Note that field resolver errors are additionally wrapped by the engine in `Field
 
 ## Testing
 
-- `core/tenant/runtime/src/testFixtures/kotlin/viaduct/tenant/runtime/fixtures/TenantExceptionPassthroughContractTest.kt` — Contract coverage for batch-resolver passthrough behavior in framework-owned unwrap paths
-- `core/tenant/runtime/src/test/kotlin/viaduct/tenant/runtime/execution/batchresolver/tenantexceptionpassthrough/KotlinTenantExceptionPassthroughContractTest.kt` — Kotlin runtime implementation of that contract
-- `core/tenant/api/src/test/kotlin/viaduct/api/TenantResolverExceptionTest` — Unit tests for `handleTenantErrorsSuspend` wrapping direct tenant exceptions
+- `core/tenant/runtime/src/testFixtures/kotlin/viaduct/tenant/runtime/fixtures/TenantExceptionWrappingContractTest.kt` — Contract coverage for normalizing node-batch `TenantUsageException` to `TenantResolverException`
+- `core/tenant/runtime/src/test/kotlin/viaduct/tenant/runtime/execution/batchresolver/tenantexceptionpassthrough/KotlinTenantExceptionWrappingContractTest.kt` — Kotlin runtime implementation of that contract
+- `core/tenant/api/src/test/kotlin/viaduct/api/TenantResolverExceptionTest` — Unit tests for `handleTenantErrorsSuspend` wrapping behavior

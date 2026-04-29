@@ -3,7 +3,6 @@
 package viaduct.tenant.runtime.execution.noderesolver
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.Resolver
@@ -69,7 +68,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
             val error = result.errors.single()
             assertTrue(error.message.contains("NodeReference returned from node resolver"))
             assertEquals("viaduct.errors.TenantUsageException", error.extensions["fullyQualifiedErrorClass"])
-            assertFalse(error.extensions.containsKey("resolvers"))
+            assertEquals("NodeObj", error.extensions["resolvers"])
         } finally {
             NodeObjResolver.shouldReturnNodeReference = false
         }

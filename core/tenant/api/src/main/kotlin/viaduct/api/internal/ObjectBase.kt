@@ -120,9 +120,10 @@ abstract class ObjectBase(
         value: Any?,
         baseFieldTypeClass: KClass<*>
     ): Any? {
+        // Reached only from internal fetch/get paths while wrapping engine data into GRT values.
         if (value == null) {
             if (GraphQLTypeUtil.isNonNull(type)) {
-                throw IllegalArgumentException("Got null value for non-null type ${GraphQLTypeUtil.simplePrint(type)}")
+                throw TenantUsageException("Got null value for non-null type ${GraphQLTypeUtil.simplePrint(type)}")
             }
             return null
         }
@@ -132,7 +133,7 @@ abstract class ObjectBase(
             is GraphQLEnumType -> wrapEnum(context, unwrappedType, value)
             is GraphQLList -> wrapList(unwrappedType, value, baseFieldTypeClass)
             is GraphQLCompositeType -> wrapObject(unwrappedType, value)
-            else -> throw RuntimeException("Unexpected type ${GraphQLTypeUtil.simplePrint(unwrappedType)}")
+            else -> throw FrameworkException("Unexpected type ${GraphQLTypeUtil.simplePrint(unwrappedType)}")
         }
     }
 
@@ -146,13 +147,13 @@ abstract class ObjectBase(
             return when (value) {
                 is Instant -> value
                 is String -> OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant()
-                else -> throw RuntimeException("Could not convert $value to Instant.")
+                else -> throw TenantUsageException("Could not convert $value to Instant.")
             }
         } else if (type.name == "JSON") {
             return value
         } else if (type.name == "BackingData") {
             if (value::class != baseFieldTypeClass) {
-                throw IllegalArgumentException(
+                throw TenantUsageException(
                     "Expected backing data value to be of type ${baseFieldTypeClass.simpleName}, got ${value::class.simpleName}"
                 )
             }
@@ -160,7 +161,7 @@ abstract class ObjectBase(
         } else if (baseFieldTypeClass == GlobalID::class) {
             return context.deserializeGlobalID<NodeObject>(value as String)
         }
-        return type.coercing.parseValue(value, GraphQLContext.getDefault(), Locale.getDefault()) ?: throw RuntimeException(
+        return type.coercing.parseValue(value, GraphQLContext.getDefault(), Locale.getDefault()) ?: throw TenantUsageException(
             "Failed to parse value $value for scalar type ${type.name}"
         )
     }
@@ -171,7 +172,7 @@ abstract class ObjectBase(
         baseFieldTypeClass: KClass<*>
     ): List<*> {
         if (value !is List<*>) {
-            throw IllegalArgumentException("Got non-list value $value for list type")
+            throw TenantUsageException("Got non-list value $value for list type")
         }
         return value.map {
             wrap(GraphQLTypeUtil.unwrapOne(type), it, baseFieldTypeClass)
@@ -183,7 +184,7 @@ abstract class ObjectBase(
         value: Any
     ): ObjectBase {
         if (value !is EngineObject) {
-            throw IllegalArgumentException("Expected value to be an instance of EngineObjectData, got $value")
+            throw TenantUsageException("Expected value to be an instance of EngineObjectData, got $value")
         }
 
         val valueType = context.reflectionLoader.reflectionFor(value.type.name)
@@ -292,7 +293,7 @@ abstract class ObjectBase(
             value: Any?
         ) {
             val fieldDefinition = type.getField(fieldName)
-                ?: throw IllegalArgumentException("Field $fieldName not found on type ${type.name}")
+                ?: throw TenantUsageException("Field $fieldName not found on type ${type.name}")
             val fieldContext = DynamicValueBuilderTypeChecker.FieldContext(fieldDefinition, type)
             DynamicValueBuilderTypeChecker(context).checkType(fieldDefinition.type, value, fieldContext)
         }

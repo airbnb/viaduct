@@ -13,6 +13,7 @@ import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
+import viaduct.errors.FrameworkException
 
 /**
  * Base builder for Connection types with pagination utilities.
@@ -179,7 +180,7 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
         endCursor: String?
     ): EngineObjectData {
         val pageInfoType = connectionContext.internal.schema.schema.getObjectType("PageInfo")
-            ?: throw IllegalStateException("PageInfo type not found in schema")
+            ?: throw FrameworkException("PageInfo type not found in schema")
 
         return EngineObjectDataBuilder.from(pageInfoType)
             .put("hasNextPage", hasNextPage)

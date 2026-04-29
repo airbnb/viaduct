@@ -359,13 +359,12 @@ class ObjectBaseTest {
                         .put("interfaceField", "hi")
                         .build()
                 )
-            val exception = assertThrows<FrameworkException> {
+            val exception = assertThrows<TenantUsageException> {
                 runBlocking {
                     o1.getInterfaceField()
                 }
             }
-            assertTrue(exception.message!!.contains("O1.interfaceField"))
-            assertEquals("Expected value to be an instance of EngineObjectData, got hi", exception.cause!!.message)
+            assertEquals("Expected value to be an instance of EngineObjectData, got hi", exception.message)
         }
 
     @Test
@@ -437,13 +436,12 @@ class ObjectBaseTest {
                         )
                         .build()
                 )
-            val exception = assertThrows<FrameworkException> {
+            val exception = assertThrows<TenantUsageException> {
                 runBlocking {
                     o1.getListField()
                 }
             }
-            assertTrue(exception.message!!.contains("O1.listField"))
-            assertTrue(exception.cause!!.message!!.contains("Got non-list value"))
+            assertTrue(exception.message!!.contains("Got non-list value"))
         }
 
     @Test
@@ -461,13 +459,12 @@ class ObjectBaseTest {
                         )
                         .build()
                 )
-            val exception = assertThrows<FrameworkException> {
+            val exception = assertThrows<TenantUsageException> {
                 runBlocking {
                     o1.getListFieldNonNullBaseType()
                 }
             }
-            assertTrue(exception.message!!.contains("O1.listFieldNonNullBaseType"))
-            assertEquals("Got null value for non-null type [O2!]!", exception.cause!!.message)
+            assertEquals("Got null value for non-null type [O2!]!", exception.message)
         }
 
     @Test
@@ -485,13 +482,12 @@ class ObjectBaseTest {
                         )
                         .build()
                 )
-            val exception = assertThrows<FrameworkException> {
+            val exception = assertThrows<TenantUsageException> {
                 runBlocking {
                     o1.getListFieldNonNullBaseType()
                 }
             }
-            assertTrue(exception.message!!.contains("O1.listFieldNonNullBaseType"))
-            assertEquals("Got null value for non-null type O2!", exception.cause!!.message)
+            assertEquals("Got null value for non-null type O2!", exception.message)
         }
 
     @Test
@@ -510,22 +506,22 @@ class ObjectBaseTest {
                         .build()
                 )
             val objectField = o1.getObjectField()!!
-            val exception = assertThrows<FrameworkException> {
+            val exception = assertThrows<TenantUsageException> {
                 runBlocking {
                     objectField.getIntField()
                 }
             }
-            assertEquals("Got null value for non-null type Int!", exception.cause!!.message)
+            assertEquals("Got null value for non-null type Int!", exception.message)
         }
 
     @Test
     fun `test unwrapping - framework errors`(): Unit =
         runBlocking {
             val builder = BuggyBuilder()
-            val e1 = assertThrows<FrameworkException> { builder.intField(null) }
-            assertEquals("Got null builder value for non-null type Int!", e1.cause!!.message)
-            val e2 = assertThrows<FrameworkException> { builder.objectField(4) }
-            assertEquals("Expected ObjectBase or EngineObjectData for builder value, got 4", e2.cause!!.message)
+            val e1 = assertThrows<TenantUsageException> { builder.intField(null) }
+            assertEquals("Got null builder value for non-null type Int!", e1.message)
+            val e2 = assertThrows<TenantUsageException> { builder.objectField(4) }
+            assertEquals("Expected ObjectBase or EngineObjectData for builder value, got 4", e2.message)
         }
 
     @Test
@@ -547,13 +543,13 @@ class ObjectBaseTest {
                         .put("backingDataField", "abc")
                         .build()
                 )
-            val exception = assertThrows<FrameworkException> {
+            val exception = assertThrows<TenantUsageException> {
                 o2.get(
                     "backingDataField",
                     Int::class
                 )
             }
-            assertTrue(exception.cause!!.message!!.contains("Expected backing data value to be of type Int, got String"))
+            assertTrue(exception.message!!.contains("Expected backing data value to be of type Int, got String"))
         }
 
     @Test
@@ -575,8 +571,8 @@ class ObjectBaseTest {
                         .put("backingDataList", listOf(1))
                         .build()
                 )
-            val exception = assertThrows<FrameworkException> { o1.get("backingDataList", String::class) }
-            assertTrue(exception.cause!!.message!!.contains("Expected backing data value to be of type String, got Int"))
+            val exception = assertThrows<TenantUsageException> { o1.get("backingDataList", String::class) }
+            assertTrue(exception.message!!.contains("Expected backing data value to be of type String, got Int"))
         }
 
     private abstract inner class NR : NodeReference {

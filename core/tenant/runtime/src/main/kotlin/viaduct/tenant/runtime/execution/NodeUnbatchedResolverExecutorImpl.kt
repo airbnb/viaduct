@@ -5,6 +5,7 @@ import kotlin.reflect.KFunction
 import viaduct.api.NodeResolverBase
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
+import viaduct.apiannotations.InTenantCode
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
@@ -13,6 +14,9 @@ import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.errors.FrameworkException
+import viaduct.errors.TenantException
+import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
@@ -54,13 +58,21 @@ class NodeUnbatchedResolverExecutorImpl(
         val result: Any? = handleTenantErrorsSuspend(typeName) {
             callResolver(resolveFunction, resolver, ctx)
         }
-        return unwrapNodeResolverResult(result)
+        try {
+            return unwrapNodeResolverResult(result)
+        } catch (e: Exception) {
+            if (e is TenantException) {
+                throw TenantResolverException(e, typeName)
+            }
+            throw e
+        }
     }
 
     companion object {
+        @InTenantCode
         internal fun unwrapNodeResolverResult(result: Any?): EngineObjectData {
             if (result !is ObjectBase) {
-                throw IllegalStateException("Unexpected result type that is not a GRT for a node object: $result")
+                throw TenantUsageException("Unexpected result type that is not a GRT for a node object: $result")
             }
 
             return when (val eo = result.engineObject) {
@@ -69,7 +81,7 @@ class NodeUnbatchedResolverExecutorImpl(
                 )
 
                 is EngineObjectData -> eo
-                else -> throw IllegalStateException("engineObject has unknown type ${eo.javaClass.name}")
+                else -> throw FrameworkException("engineObject has unknown type ${eo.javaClass.name}")
             }
         }
     }

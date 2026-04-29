@@ -4,10 +4,15 @@ package viaduct.tenant.runtime.execution.batchresolver.fieldresolver
 
 import viaduct.api.FieldValue
 import viaduct.api.Resolver
+import viaduct.errors.TenantUsageException
 import viaduct.tenant.runtime.execution.batchresolver.fieldresolver.resolverbases.ItemResolvers
 import viaduct.tenant.runtime.execution.batchresolver.fieldresolver.resolverbases.QueryResolvers
 
 class FieldBatchResolverFeatureAppTest : FieldBatchResolverContractTest() {
+    override fun setBatchedFieldShouldReturnTenantException(enabled: Boolean) {
+        Item_BatchedFieldResolver.shouldReturnTenantException = enabled
+    }
+
     @Resolver
     class Query_ItemsResolver : QueryResolvers.Items() {
         override suspend fun resolve(ctx: Context): List<Item> {
@@ -24,10 +29,18 @@ class FieldBatchResolverFeatureAppTest : FieldBatchResolverContractTest() {
         objectValueFragment = "fragment _ on Item { id }",
     )
     class Item_BatchedFieldResolver : ItemResolvers.BatchedField() {
+        companion object {
+            var shouldReturnTenantException = false
+        }
+
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
             return contexts.map { ctx ->
-                val itemId = ctx.getObjectValue().getId()
-                FieldValue.Companion.ofValue("batched-$itemId-size-${contexts.size}")
+                val itemId = ctx.objectValue.getId()
+                if (shouldReturnTenantException) {
+                    FieldValue.ofError(TenantUsageException("field api misuse"))
+                } else {
+                    FieldValue.ofValue("batched-$itemId-size-${contexts.size}")
+                }
             }
         }
     }

@@ -69,6 +69,7 @@ abstract class BatchResolverErrorHandlingContractTest : KotlinFeatureAppTestCont
                     "extensions" to {
                         "fieldName" to "foo"
                         "parentType" to "Foo"
+                        "resolvers" to "Foo"
                         "isFrameworkError" to "false"
                         "fullyQualifiedErrorClass" to "viaduct.errors.TenantUsageException"
                         "classification" to "DataFetchingException"
@@ -86,6 +87,7 @@ abstract class BatchResolverErrorHandlingContractTest : KotlinFeatureAppTestCont
                     "extensions" to {
                         "fieldName" to "foo"
                         "parentType" to "Foo"
+                        "resolvers" to "Foo"
                         "isFrameworkError" to "false"
                         "fullyQualifiedErrorClass" to "viaduct.errors.TenantUsageException"
                         "classification" to "DataFetchingException"

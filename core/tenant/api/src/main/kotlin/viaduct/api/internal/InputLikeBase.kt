@@ -40,7 +40,10 @@ abstract class InputLikeBase : InputLike {
 
     @InFrameworkCode
     private fun <T> readFieldValue(fieldName: String): T {
-        val fieldDefinition = graphQLInputObjectType.getField(fieldName) ?: throw IllegalArgumentException(
+        // FrameworkException, not TenantUsageException: fieldName is a hardcoded literal baked in
+        // by the code generator from the schema — never a runtime value from the operation. A
+        // missing field indicates GRT/schema drift, not tenant API misuse.
+        val fieldDefinition = graphQLInputObjectType.getField(fieldName) ?: throw FrameworkException(
             "Field $fieldName not found on type ${graphQLInputObjectType.name}"
         )
 
@@ -84,10 +87,8 @@ abstract class InputLikeBase : InputLike {
         protected fun put(
             fieldName: String,
             value: Any?
-        ) {
-            handleFrameworkErrors("InputLikeBase.Builder.put failed for ${graphQLInputObjectType.name}.$fieldName") {
-                writeFieldValue(fieldName, value)
-            }
+        ) = handleFrameworkErrors("InputLikeBase.Builder.put failed for ${graphQLInputObjectType.name}.$fieldName") {
+            writeFieldValue(fieldName, value)
         }
 
         @InFrameworkCode
@@ -95,9 +96,9 @@ abstract class InputLikeBase : InputLike {
             fieldName: String,
             value: Any?
         ) {
-            val field = requireNotNull(graphQLInputObjectType.getField(fieldName)) {
-                "Field $fieldName not found on type ${graphQLInputObjectType.name}"
-            }
+            // FrameworkException for the same reason as readFieldValue above.
+            val field = graphQLInputObjectType.getField(fieldName)
+                ?: throw FrameworkException("Field $fieldName not found on type ${graphQLInputObjectType.name}")
             val conv = context.grtConvFactory.createForInputField(context, field) andThen EngineValueConv(context.schema, field.type, null).inverse()
             inputData.put(fieldName, conv(value))
         }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.api.internal.EODBuilderWrapper
 import viaduct.api.mocks.createSchema
 import viaduct.engine.api.EngineObjectData
+import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 /**
@@ -84,7 +85,7 @@ class EODBuilderWrapperTest {
     fun `unwrapEnum rejects integer value`() {
         val wrapper = EODBuilderWrapper(testObjectType, globalIDCodec)
 
-        val e = assertThrows<IllegalArgumentException> {
+        val e = assertThrows<TenantUsageException> {
             wrapper.put("enumField", 42)
         }
         assertEquals("Got non-enum value 42 for enum type (expected Enum or String)", e.message)
@@ -112,7 +113,7 @@ class EODBuilderWrapperTest {
         val objectType = schemaWithNonNull.getType("TestObject") as GraphQLObjectType
         val wrapper = EODBuilderWrapper(objectType, globalIDCodec)
 
-        val e = assertThrows<IllegalArgumentException> {
+        val e = assertThrows<TenantUsageException> {
             wrapper.put("enumField", null)
         }
         assertEquals("Got null builder value for non-null type TestEnum!", e.message)
@@ -133,7 +134,7 @@ class EODBuilderWrapperTest {
     fun `unwrapEnum rejects boolean value`() {
         val wrapper = EODBuilderWrapper(testObjectType, globalIDCodec)
 
-        val e = assertThrows<IllegalArgumentException> {
+        val e = assertThrows<TenantUsageException> {
             wrapper.put("enumField", true)
         }
         assertEquals("Got non-enum value true for enum type (expected Enum or String)", e.message)
@@ -143,7 +144,7 @@ class EODBuilderWrapperTest {
     fun `unwrapEnum rejects list value`() {
         val wrapper = EODBuilderWrapper(testObjectType, globalIDCodec)
 
-        val e = assertThrows<IllegalArgumentException> {
+        val e = assertThrows<TenantUsageException> {
             wrapper.put("enumField", listOf("VALUE_A"))
         }
         assertEquals("Got non-enum value [VALUE_A] for enum type (expected Enum or String)", e.message)
@@ -153,7 +154,7 @@ class EODBuilderWrapperTest {
     fun `unwrapEnum rejects map value`() {
         val wrapper = EODBuilderWrapper(testObjectType, globalIDCodec)
 
-        val e = assertThrows<IllegalArgumentException> {
+        val e = assertThrows<TenantUsageException> {
             wrapper.put("enumField", mapOf("value" to "VALUE_A"))
         }
         assertEquals("Got non-enum value {value=VALUE_A} for enum type (expected Enum or String)", e.message)
@@ -236,7 +237,7 @@ class EODBuilderWrapperTest {
         val objectType = schemaWithList.getType("TestObject") as GraphQLObjectType
         val wrapper = EODBuilderWrapper(objectType, globalIDCodec)
 
-        val e = assertThrows<IllegalArgumentException> {
+        val e = assertThrows<TenantUsageException> {
             wrapper.put("enumList", listOf(TestEnum.VALUE_A, 42, "VALUE_B"))
         }
         assertEquals("Got non-enum value 42 for enum type (expected Enum or String)", e.message)

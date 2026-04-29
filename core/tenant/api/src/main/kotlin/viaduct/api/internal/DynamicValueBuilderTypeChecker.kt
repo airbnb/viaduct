@@ -13,7 +13,6 @@ import graphql.schema.GraphQLUnionType
 import kotlin.reflect.KClass
 import viaduct.api.globalid.GlobalID
 import viaduct.apiannotations.InternalApi
-import viaduct.errors.TenantUsageException
 import viaduct.graphql.isGlobalID
 import viaduct.graphql.schema.baseGraphqlScalarTypeMapping
 
@@ -77,7 +76,7 @@ value class DynamicValueBuilderTypeChecker(val ctx: InternalContext) {
                 typeName = type.name,
                 fieldDefinition = context.fieldDefinition,
                 parentType = context.parentType
-            ) ?: throw IllegalArgumentException(
+            ) ?: throw IllegalStateException(
                 "GraphQL scalar type ${type.name} mapping to Kotlin type not found for field ${context.fieldDefinition.name}"
             )
             if (!expectedKotlinClass.isInstance(value)) {
@@ -171,13 +170,13 @@ value class DynamicValueBuilderTypeChecker(val ctx: InternalContext) {
     private fun getKotlinTypeForBackingData(fieldDefinition: GraphQLFieldDefinition): KClass<*> {
         val directive = fieldDefinition.appliedDirectives.find { it.name == "backingData" }
         if (directive == null) {
-            throw TenantUsageException(
+            throw IllegalStateException(
                 "Backing data field ${fieldDefinition.name} must have @backingData directive defined in schema. None found."
             )
         }
         val classPath = (directive.arguments.find { it.name == "class" })?.getValue<String>()
         if (classPath == null) {
-            throw TenantUsageException(
+            throw IllegalStateException(
                 "Backing data field ${fieldDefinition.name}'s @backingData directive must define a `class` argument of string type."
             )
         }

@@ -14,6 +14,7 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
 import viaduct.graphql.isGlobalID
 import viaduct.service.api.spi.GlobalIDCodec
 
@@ -49,12 +50,13 @@ internal class EODBuilderWrapper(
         alias: String? = null
     ) {
         val field = type.getField(fieldName)
-        val fieldType = field.type ?: throw IllegalArgumentException(
+        val fieldType = field.type ?: throw TenantUsageException(
             "Field ${field.name} not found on type ${type.name}"
         )
         engineObjectDataBuilder.put(alias ?: fieldName, unwrap(field, fieldType, value))
     }
 
+    @InFrameworkCode
     private fun unwrap(
         field: GraphQLFieldDefinition,
         fieldType: GraphQLType,
@@ -62,7 +64,7 @@ internal class EODBuilderWrapper(
     ): Any? {
         if (value == null) {
             if (GraphQLTypeUtil.isNonNull(fieldType)) {
-                throw IllegalArgumentException(
+                throw TenantUsageException(
                     "Got null builder value for non-null type ${GraphQLTypeUtil.simplePrint(fieldType)}"
                 )
             }
@@ -88,7 +90,7 @@ internal class EODBuilderWrapper(
         return when (value) {
             is Enum<*> -> value.name
             is String -> value // Allow strings for schema version skew tolerance
-            else -> throw IllegalArgumentException("Got non-enum value $value for enum type (expected Enum or String)")
+            else -> throw TenantUsageException("Got non-enum value $value for enum type (expected Enum or String)")
         }
     }
 
@@ -103,7 +105,7 @@ internal class EODBuilderWrapper(
         value: Any
     ): List<*> {
         if (value !is List<*>) {
-            throw IllegalArgumentException("Got non-list builder value $value for list type")
+            throw TenantUsageException("Got non-list builder value $value for list type")
         }
         return value.map {
             unwrap(field, GraphQLTypeUtil.unwrapOne(listType), it)
@@ -121,7 +123,7 @@ internal class EODBuilderWrapper(
             }
 
             else -> {
-                throw IllegalArgumentException("Expected ObjectBase or EngineObjectData for builder value, got $value")
+                throw TenantUsageException("Expected ObjectBase or EngineObjectData for builder value, got $value")
             }
         }
     }
