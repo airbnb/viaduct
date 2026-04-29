@@ -1,7 +1,6 @@
 package viaduct.engine.api
 
 import graphql.language.FragmentDefinition
-import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.service.api.spi.GlobalIDCodec
@@ -269,7 +268,7 @@ interface EngineExecutionContext {
      */
     fun createRootFieldReference(
         rootFieldPath: List<String>,
-        type: GraphQLCompositeType,
+        type: GraphQLObjectType,
         args: Map<String, Any?>,
     ): RootFieldReference
 

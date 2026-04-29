@@ -22,7 +22,6 @@ import graphql.util.FpKit
 import java.util.concurrent.CompletionStage
 import java.util.function.Supplier
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import viaduct.deferred.asDeferred
@@ -38,7 +37,6 @@ import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
-import viaduct.engine.runtime.LazyAbstractData
 import viaduct.engine.runtime.LazyEngineObjectData
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -387,9 +385,8 @@ class FieldResolver(
      * @param parameters The execution parameters
      * @param fieldType The GraphQL output type
      * @param fetchedValue The FetchedValue containing raw data
-     * @param dataFetchingEnvironmentProvider Provides the DFE for lazy resolution
-     *   ([LazyEngineObjectData] optimistic path and [LazyAbstractData] deferred path).
-     * @return synchronous [Value] for normal data, deferred for [LazyAbstractData]
+     * @param dataFetchingEnvironmentProvider Provides the DFE for lazy resolution ([LazyEngineObjectData]).
+     * @return [Value] of [FieldResolutionResult]
      */
     private fun buildFieldResolutionResult(
         parameters: ExecutionParameters,
@@ -466,9 +463,6 @@ class FieldResolver(
 
         // Interface or union type, resolve the type and wrap it
         if (GraphQLTypeUtil.isInterfaceOrUnion(fieldType)) {
-            if (effectiveData is LazyAbstractData) {
-                return lazyAbstractFieldResolutionResult(parameters, fetchedValue, effectiveData, effectiveResolutionPolicy, dataFetchingEnvironmentProvider)
-            }
             val resolvedType = typeResolver.resolveType(
                 parameters.executionContext,
                 field.mergedField,
@@ -532,39 +526,6 @@ class FieldResolver(
             }
         }
         return engineResult
-    }
-
-    /**
-     * Creates a deferred [Value] of [FieldResolutionResult] for a [LazyAbstractData]. This is deferred
-     * because we're unable to construct the OER and [FieldResolutionResult] until we know the concrete
-     * type, which first requires async resolution. The resulting [FieldResolutionResult] contains the
-     * resolved [EngineObjectData] as originalSource and an OER with the concrete type.
-     */
-    private fun lazyAbstractFieldResolutionResult(
-        parameters: ExecutionParameters,
-        fetchedValue: FetchedValue,
-        lazyData: LazyAbstractData,
-        resolutionPolicy: ResolutionPolicy,
-        dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
-    ): Value<FieldResolutionResult> {
-        val deferred = CompletableDeferred<FieldResolutionResult>()
-        parameters.launchOnRootScope {
-            try {
-                val resolvedData = resolveLazyData(dataFetchingEnvironmentProvider, parameters.engineExecutionContext, lazyData::resolveData)
-                val oer = if (resolvedData is LazyEngineObjectData) {
-                    lazyObjectEngineResult(parameters, resolvedData.type, resolvedData, dataFetchingEnvironmentProvider)
-                } else {
-                    ObjectEngineResultImpl.newForType(resolvedData.type)
-                }
-                deferred.complete(
-                    FieldResolutionResult.fromFetchedValue(oer, fetchedValue, resolutionPolicy, originalSource = resolvedData)
-                )
-            } catch (e: Exception) {
-                if (e is CancellationException) currentCoroutineContext().ensureActive()
-                deferred.completeExceptionally(e)
-            }
-        }
-        return Value.fromDeferred(deferred)
     }
 
     /**

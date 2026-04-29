@@ -11,10 +11,10 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.errors.UnsetFieldException
 
-class RootFieldReferenceHelpersTest {
+class ObjectRootFieldReferenceTest {
     @Test
     fun `buildPathSelectionString nests fields with no args`() {
-        val result = RootFieldReferenceHelpers.buildPathSelectionString(
+        val result = ObjectRootFieldReference.buildPathSelectionString(
             listOf("_factories", "ugcText", "create"),
             emptyMap(),
             "name price"
@@ -24,7 +24,7 @@ class RootFieldReferenceHelpersTest {
 
     @Test
     fun `buildPathSelectionString with args uses variable references`() {
-        val result = RootFieldReferenceHelpers.buildPathSelectionString(
+        val result = ObjectRootFieldReference.buildPathSelectionString(
             listOf("_factories", "ugcText", "create"),
             mapOf("sourceText" to "hello", "locale" to "en"),
             "name price"
@@ -34,7 +34,7 @@ class RootFieldReferenceHelpersTest {
 
     @Test
     fun `buildPathSelectionString with single field and args`() {
-        val result = RootFieldReferenceHelpers.buildPathSelectionString(
+        val result = ObjectRootFieldReference.buildPathSelectionString(
             listOf("create"),
             mapOf("input" to "test"),
             "name"
@@ -54,7 +54,7 @@ class RootFieldReferenceHelpersTest {
             val rootType = GraphQLObjectType.newObject().name("Root").build()
             val root = ResolvedEngineObjectData.Builder(rootType).put("outer", mid).build()
 
-            val result = RootFieldReferenceHelpers.extractNestedResult(root, listOf("outer", "inner"))
+            val result = ObjectRootFieldReference.extractNestedResult(root, listOf("outer", "inner"))
             assertSame(leaf, result)
         }
 
@@ -67,7 +67,7 @@ class RootFieldReferenceHelpersTest {
             val parentType = GraphQLObjectType.newObject().name("Parent").build()
             val parent = ResolvedEngineObjectData.Builder(parentType).put("child", child).build()
 
-            val result = RootFieldReferenceHelpers.extractNestedResult(parent, listOf("child"))
+            val result = ObjectRootFieldReference.extractNestedResult(parent, listOf("child"))
             assertSame(child, result)
         }
 
@@ -78,7 +78,7 @@ class RootFieldReferenceHelpersTest {
             val root = ResolvedEngineObjectData.Builder(rootType).build()
 
             assertThrows<UnsetFieldException> {
-                RootFieldReferenceHelpers.extractNestedResult(root, listOf("nonexistent"))
+                ObjectRootFieldReference.extractNestedResult(root, listOf("nonexistent"))
             }
         }
 }

@@ -1,6 +1,5 @@
 package viaduct.engine.runtime
 
-import graphql.schema.GraphQLCompositeType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -104,53 +103,6 @@ class RootFieldReferenceResolutionTest {
     }
 
     @Test
-    fun `factory function with interface type resolves to concrete type`() {
-        MockTenantModuleBootstrapper(
-            """
-            interface Animal {
-                name: String
-            }
-            type Dog implements Animal {
-                name: String
-                breed: String
-            }
-            type AnimalFactory @namespaceType {
-                create: Animal @resolver
-            }
-            extend type Query {
-                animalFactory: AnimalFactory
-                animal: Animal @resolver
-            }
-        """
-        ) {
-            field("AnimalFactory" to "create") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        createEngineObjectData(
-                            schema.schema.getObjectType("Dog"),
-                            mapOf("name" to "Buddy", "breed" to "Golden")
-                        )
-                    }
-                }
-            }
-            field("Query" to "animal") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        ctx.createRootFieldReference(
-                            rootFieldPath = listOf("animalFactory", "create"),
-                            type = schema.schema.getType("Animal") as GraphQLCompositeType,
-                            args = emptyMap(),
-                        )
-                    }
-                }
-            }
-        }.runFeatureTest {
-            runQuery("{ animal { name ... on Dog { breed } } }")
-                .assertJson("""{"data": {"animal": {"name": "Buddy", "breed": "Golden"}}}""")
-        }
-    }
-
-    @Test
     fun `list of factory function references resolves correctly`() {
         MockTenantModuleBootstrapper(
             """
@@ -198,79 +150,6 @@ class RootFieldReferenceResolutionTest {
         }.runFeatureTest {
             runQuery("{ colors { name hex } }")
                 .assertJson("""{"data": {"colors": [{"name": "Red", "hex": "#FF0000"}, {"name": "Red", "hex": "#FF0000"}]}}""")
-        }
-    }
-
-    @Test
-    fun `failing abstract list item does not fail sibling fields`() {
-        MockTenantModuleBootstrapper(
-            """
-            interface Shape {
-                area: Int
-            }
-            type Circle implements Shape {
-                area: Int
-            }
-            type ShapeFactory @namespaceType {
-                create(shouldFail: Boolean!): Shape @resolver
-            }
-            type Gallery {
-                title: String
-                shapes: [Shape]
-            }
-            extend type Query {
-                shapeFactory: ShapeFactory
-                gallery: Gallery @resolver
-            }
-        """
-        ) {
-            field("ShapeFactory" to "create") {
-                resolver {
-                    fn { args, _, _, _, _ ->
-                        if (args.getAs<Boolean>("shouldFail")) throw RuntimeException("factory failed")
-                        createEngineObjectData(
-                            schema.schema.getObjectType("Circle"),
-                            mapOf("area" to 314)
-                        )
-                    }
-                }
-            }
-            field("Query" to "gallery") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        createEngineObjectData(
-                            schema.schema.getObjectType("Gallery"),
-                            mapOf(
-                                "title" to "My Gallery",
-                                "shapes" to listOf(
-                                    ctx.createRootFieldReference(
-                                        rootFieldPath = listOf("shapeFactory", "create"),
-                                        type = schema.schema.getType("Shape") as GraphQLCompositeType,
-                                        args = mapOf("shouldFail" to false),
-                                    ),
-                                    ctx.createRootFieldReference(
-                                        rootFieldPath = listOf("shapeFactory", "create"),
-                                        type = schema.schema.getType("Shape") as GraphQLCompositeType,
-                                        args = mapOf("shouldFail" to true),
-                                    ),
-                                )
-                            )
-                        )
-                    }
-                }
-            }
-        }.runFeatureTest {
-            val result = runQuery("{ gallery { title shapes { area } } }")
-            val data = result.getData<Map<String, Any?>>()
-            val gallery = data["gallery"] as Map<*, *>
-            assertEquals("My Gallery", gallery["title"])
-            val shapes = gallery["shapes"] as List<*>
-            assertEquals(2, shapes.size)
-            assertEquals(mapOf("area" to 314), shapes[0])
-            assertEquals(null, shapes[1])
-            assertEquals(1, result.errors.size) { "Expected exactly one GraphQL error, got ${result.errors.size}: ${result.errors.map { "path=${it.path} msg=${it.message}" }}" }
-            assertEquals(listOf("gallery", "shapes", 1), result.errors[0].path)
-            assertTrue(result.errors[0].message.contains("factory failed"))
         }
     }
 
@@ -388,51 +267,6 @@ class RootFieldReferenceResolutionTest {
         }.runFeatureTest {
             runQuery("{ painting { title color { name } } }")
                 .assertJson("""{"data": {"painting": {"title": "Sunset", "color": {"name": "Red"}}}}""")
-        }
-    }
-
-    @Test
-    fun `abstract-typed factory function error propagation`() {
-        MockTenantModuleBootstrapper(
-            """
-            interface Vehicle {
-                speed: Int
-            }
-            type Car implements Vehicle {
-                speed: Int
-                doors: Int
-            }
-            type VehicleFactory @namespaceType {
-                create: Vehicle @resolver
-            }
-            extend type Query {
-                vehicleFactory: VehicleFactory
-                vehicle: Vehicle @resolver
-            }
-        """
-        ) {
-            field("VehicleFactory" to "create") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        throw RuntimeException("abstract factory failed")
-                    }
-                }
-            }
-            field("Query" to "vehicle") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        ctx.createRootFieldReference(
-                            rootFieldPath = listOf("vehicleFactory", "create"),
-                            type = schema.schema.getType("Vehicle") as GraphQLCompositeType,
-                            args = emptyMap(),
-                        )
-                    }
-                }
-            }
-        }.runFeatureTest {
-            val result = runQuery("{ vehicle { speed ... on Car { doors } } }")
-            assertEquals(mapOf("vehicle" to null), result.getData())
-            assertTrue(result.errors.any { it.path == listOf("vehicle") })
         }
     }
 
@@ -603,63 +437,6 @@ class RootFieldReferenceResolutionTest {
         }.runFeatureTest {
             runQuery("{ product { name price } }")
                 .assertJson("""{"data": {"product": {"name": "Widget", "price": null}}}""")
-        }
-    }
-
-    @Test
-    fun `abstract root field reference nested inside resolver response`() {
-        MockTenantModuleBootstrapper(
-            """
-            interface Shape {
-                area: Int
-            }
-            type Circle implements Shape {
-                area: Int
-                radius: Int
-            }
-            type ShapeFactory @namespaceType {
-                create: Shape @resolver
-            }
-            type Canvas {
-                label: String
-                shape: Shape
-            }
-            extend type Query {
-                shapeFactory: ShapeFactory
-                canvas: Canvas @resolver
-            }
-        """
-        ) {
-            field("ShapeFactory" to "create") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        createEngineObjectData(
-                            schema.schema.getObjectType("Circle"),
-                            mapOf("area" to 314, "radius" to 10)
-                        )
-                    }
-                }
-            }
-            field("Query" to "canvas") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        createEngineObjectData(
-                            schema.schema.getObjectType("Canvas"),
-                            mapOf(
-                                "label" to "My Canvas",
-                                "shape" to ctx.createRootFieldReference(
-                                    rootFieldPath = listOf("shapeFactory", "create"),
-                                    type = schema.schema.getType("Shape") as GraphQLCompositeType,
-                                    args = emptyMap(),
-                                )
-                            )
-                        )
-                    }
-                }
-            }
-        }.runFeatureTest {
-            runQuery("{ canvas { label shape { area ... on Circle { radius } } } }")
-                .assertJson("""{"data": {"canvas": {"label": "My Canvas", "shape": {"area": 314, "radius": 10}}}}""")
         }
     }
 

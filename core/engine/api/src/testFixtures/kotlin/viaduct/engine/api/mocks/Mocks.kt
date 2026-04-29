@@ -47,7 +47,6 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
-import viaduct.engine.runtime.LazyAbstractData
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.mocks.ContextMocks
@@ -401,7 +400,7 @@ fun createEngineObjectData(
                 null -> null
                 else -> throw IllegalArgumentException("don't know how to wrap object type $type with value $value (${value::class})")
             }
-            is GraphQLCompositeType -> if (value is EngineObjectData || value is LazyAbstractData) value else throw IllegalArgumentException("don't know how to wrap type $type with value $value")
+            is GraphQLCompositeType -> if (value is EngineObjectData) value else throw IllegalArgumentException("don't know how to wrap type $type with value $value")
             else -> value
         }
 

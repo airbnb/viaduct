@@ -1,6 +1,5 @@
 package viaduct.engine.runtime
 
-import graphql.schema.GraphQLCompositeType
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -18,22 +17,6 @@ interface LazyEngineObjectData : EngineObjectData {
      * Resolves the data for this lazy object.
      *
      * @return the resolved [EngineObjectData]
-     */
-    suspend fun resolveData(
-        selections: EngineSelectionSet,
-        context: EngineExecutionContext,
-    ): EngineObjectData
-}
-
-/**
- * A lazy reference to a GraphQL interface- or union- typed value whose concrete
- * object type is not known until [resolveData] is called.
- */
-interface LazyAbstractData {
-    val type: GraphQLCompositeType
-
-    /**
-     * Resolves this reference into a concrete [EngineObjectData].
      */
     suspend fun resolveData(
         selections: EngineSelectionSet,

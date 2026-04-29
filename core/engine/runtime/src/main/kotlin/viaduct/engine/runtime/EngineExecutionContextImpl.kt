@@ -3,7 +3,6 @@ package viaduct.engine.runtime
 import graphql.execution.instrumentation.Instrumentation
 import graphql.language.FragmentDefinition
 import graphql.schema.DataFetchingEnvironment
-import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.util.FpKit
 import io.micrometer.core.instrument.MeterRegistry
@@ -140,15 +139,10 @@ class EngineExecutionContextImpl(
 
     override fun createRootFieldReference(
         rootFieldPath: List<String>,
-        type: GraphQLCompositeType,
+        type: GraphQLObjectType,
         args: Map<String, Any?>,
     ): RootFieldReference {
-        // TODO: validate the path leads to a root composite field
-        return if (type is GraphQLObjectType) {
-            ObjectRootFieldReference(rootFieldPath, type, args)
-        } else {
-            AbstractRootFieldReference(rootFieldPath, type, args)
-        }
+        return ObjectRootFieldReference(rootFieldPath, type, args)
     }
 
     override fun hasModernNodeResolver(typeName: String): Boolean {

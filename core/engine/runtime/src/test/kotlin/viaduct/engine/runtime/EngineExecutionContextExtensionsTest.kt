@@ -2,7 +2,6 @@ package viaduct.engine.runtime
 
 import graphql.ExecutionResult
 import graphql.schema.DataFetchingEnvironment
-import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import io.mockk.mockk
 import java.util.function.Supplier
@@ -265,7 +264,7 @@ class EngineExecutionContextExtensionsTest {
 
             override fun createRootFieldReference(
                 rootFieldPath: List<String>,
-                type: GraphQLCompositeType,
+                type: GraphQLObjectType,
                 args: Map<String, Any?>,
             ) = mockk<RootFieldReference>()
 

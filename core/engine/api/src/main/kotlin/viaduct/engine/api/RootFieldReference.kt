@@ -3,8 +3,7 @@ package viaduct.engine.api
 import graphql.schema.GraphQLCompositeType
 
 /**
- * A reference to an unresolved composite-typed root field.
- * Analogous to [NodeReference].
+ * A reference to an unresolved root field.
  */
 interface RootFieldReference {
     /** Path from the root type (e.g. Query) to the field, e.g. ["_factories", "translatedText", "create"] */
