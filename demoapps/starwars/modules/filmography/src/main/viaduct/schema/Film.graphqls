@@ -86,6 +86,7 @@ type Film implements Node @scope(to: ["default"]) @resolver {
   """
   mainCharacters: [Character] @resolver(isBatching: true)
 
+  # tag::backing_data_schema[8] @backingData directive usage
   """
   Character IDs fetched once from the film-character relationship store.
   Shared by the characters and characterCountSummary resolvers so both

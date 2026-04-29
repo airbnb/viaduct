@@ -8,4 +8,5 @@ package com.example.starwars.modules.filmography.films.models
  * [FilmIsEnsembleCastResolver], so a single query asking for both fields
  * causes only one repository call per film.
  */
+// tag::backing_data_class[1]
 data class FilmCastData(val characterIds: List<String>)
