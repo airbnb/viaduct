@@ -1,11 +1,13 @@
 package viaduct.engine
 
 import graphql.schema.GraphQLScalarType
+import graphql.schema.idl.FastSchemaGenerator
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.errors.SchemaProblem
 import io.github.classgraph.ClassGraph
+import kotlin.jvm.optionals.getOrNull
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 import viaduct.engine.api.ViaductSchema
@@ -160,6 +162,19 @@ class SchemaFactory(
         }.build()
 
         // Let SchemaProblem and other GraphQL validation errors pass through
-        return ViaductSchema(SchemaGenerator().makeExecutableSchema(tdr, wiring))
+        // FastSchemaGenerator does not preserve schema-level directives/extensions. Fall back to
+        // SchemaGenerator for compatibility when that metadata is present.
+        val schema =
+            if (hasSchemaLevelMetadata(tdr)) {
+                SchemaGenerator().makeExecutableSchema(tdr, wiring)
+            } else {
+                FastSchemaGenerator().makeExecutableSchema(tdr, wiring)
+            }
+        return ViaductSchema(schema)
+    }
+
+    private fun hasSchemaLevelMetadata(typeRegistry: graphql.schema.idl.TypeDefinitionRegistry): Boolean {
+        val schemaDefinition = typeRegistry.schemaDefinition().getOrNull()
+        return (schemaDefinition?.directives?.isNotEmpty() == true) || typeRegistry.schemaExtensionDefinitions.isNotEmpty()
     }
 }

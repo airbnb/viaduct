@@ -30,6 +30,7 @@ import graphql.schema.GraphQLUnionType
 import graphql.schema.GraphQLUnmodifiedType
 import graphql.schema.SchemaTransformer
 import graphql.schema.TypeResolver
+import graphql.schema.idl.FastSchemaGenerator
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaParser
 import graphql.util.TraversalControl
@@ -118,8 +119,7 @@ internal class SchemaGenerator(val cfg: Config, val rs: RandomSource) {
 
     fun createSchema(sdl: String): GraphQLSchema {
         val tdr = SchemaParser().parse(sdl)
-        return graphql.schema.idl
-            .SchemaGenerator()
+        return FastSchemaGenerator()
             .makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING)
     }
 

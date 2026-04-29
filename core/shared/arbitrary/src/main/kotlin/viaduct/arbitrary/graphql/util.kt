@@ -21,7 +21,9 @@ import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
-import graphql.schema.idl.SchemaGenerator
+import graphql.schema.idl.FastSchemaGenerator
+import graphql.schema.idl.RuntimeWiring
+import graphql.schema.idl.SchemaParser
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.bind
@@ -301,7 +303,7 @@ val String.asViaductSchema: ViaductSchema
     get() = SchemaFactory().fromSdl(this)
 
 /** Return a mocked [GraphQLSchema] described by this String value */
-val String.asSchema: GraphQLSchema get() = SchemaGenerator.createdMockedSchema(this)
+val String.asSchema: GraphQLSchema get() = FastSchemaGenerator().makeExecutableSchema(SchemaParser().parse(this), RuntimeWiring.MOCKED_WIRING)
 
 /** Return a parsed [Document] described by this String value */
 val String.asDocument: Document get() =

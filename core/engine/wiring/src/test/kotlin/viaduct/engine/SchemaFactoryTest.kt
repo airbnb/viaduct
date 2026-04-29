@@ -5,6 +5,7 @@ import kotlin.test.assertContains
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -114,6 +115,30 @@ class SchemaFactoryTest {
             assertNotNull(schema.schema.queryType, "Schema should have Query root type")
             assertNotNull(schema.schema.mutationType, "Schema should have Mutation root type")
             assertNotNull(schema.schema.subscriptionType, "Schema should have Subscription root type")
+        }
+
+        @Test
+        fun `schema-level directives fall back to SchemaGenerator and are preserved`() {
+            val sdl = """
+                directive @schemaDirective on SCHEMA
+                directive @schemaExtensionDirective on SCHEMA
+
+                schema @schemaDirective {
+                  query: Query
+                }
+
+                extend schema @schemaExtensionDirective
+
+                type Query {
+                  hello: String
+                }
+            """.trimIndent()
+
+            val schema = schemaFactory.fromSdl(sdl)
+
+            val directiveNames = schema.schema.schemaAppliedDirectives.map { it.name }.toSet()
+            assertTrue("schemaDirective" in directiveNames, "Base schema directive should be preserved")
+            assertTrue("schemaExtensionDirective" in directiveNames, "Schema extension directive should be preserved")
         }
     }
 
