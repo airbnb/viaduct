@@ -17,7 +17,8 @@ object ViaductPluginCommon {
     object Kind {
         const val SCHEMA_PARTITION = "schema-partition"
         const val CENTRAL_SCHEMA = "central-schema"
-        const val GRT_CLASSES = "grt-classes"
+        const val KOTLIN_GRT_CLASSES = "kotlin-grt-classes"
+        const val JAVA_GRT_CLASSES = "java-grt-classes"
     }
 
     object Configs {
@@ -27,8 +28,11 @@ object ViaductPluginCommon {
         /** Root/app: consumable configuration for the central schema file. */
         const val CENTRAL_SCHEMA_OUTGOING = "viaductCentralSchema"
 
-        /** Root/app: consumable configuration for the generated GRT files. */
-        const val GRT_CLASSES_OUTGOING = "viaductGRTClasses"
+        /** Root/app: consumable configuration for the Kotlin GRT jar. */
+        const val GRT_CLASSES_KOTLIN_OUTGOING = "viaductKotlinGRTClasses"
+
+        /** Root/app: consumable configuration for the Java GRT jar. */
+        const val GRT_CLASSES_JAVA_OUTGOING = "viaductJavaGRTClasses"
 
         /** Module: consumable configuration for a modules schema partition. */
         const val SCHEMA_PARTITION_OUTGOING = "viaductSchemaPartition"
@@ -36,8 +40,11 @@ object ViaductPluginCommon {
         /** Module: resolvable configuration for the central schema file. */
         const val CENTRAL_SCHEMA_INCOMING = "viaductCentralSchemaIn"
 
-        /** Module: resolvable configuration for the GRT class files. */
-        const val GRT_CLASSES_INCOMING = "viaductGRTClassesIn"
+        /** Module: resolvable configuration for the Kotlin GRT jar. */
+        const val GRT_CLASSES_KOTLIN_INCOMING = "viaductKotlinGRTClassesIn"
+
+        /** Module: resolvable configuration for the Java GRT jar. */
+        const val GRT_CLASSES_JAVA_INCOMING = "viaductJavaGRTClassesIn"
     }
 
     /**
@@ -79,6 +86,15 @@ object ViaductPluginCommon {
 
     /** Codegen tool classpath: resolves `com.airbnb.viaduct:buildtime`. */
     fun Project.createOrGetCodegenClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductCodegenClasspath", "com.airbnb.viaduct:buildtime:$pluginVersion")
+
+    /** Java codegen tool classpath: `com.airbnb.viaduct:javaapi-codegen:$pluginVersion`. */
+    fun Project.createOrGetJavaCodegenClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductJavaCodegenClasspath", "com.airbnb.viaduct:javaapi-codegen:$pluginVersion")
+
+    /**
+     * Compile classpath for the generated Java GRT sources: `com.airbnb.viaduct:javaapi-api:$pluginVersion`.
+     * Needed because javac on the generated GRT sources must resolve `JavaInputBase`/`JavaObjectBase`.
+     */
+    fun Project.createOrGetJavaGRTCompileClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductJavaGRTCompileClasspath", "com.airbnb.viaduct:javaapi-api:$pluginVersion")
 
     /** Serve tool classpath: resolves `com.airbnb.viaduct:buildtime`. */
     fun Project.createOrGetServeClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductServeClasspath", "com.airbnb.viaduct:buildtime:$pluginVersion")

@@ -1,6 +1,5 @@
 package viaduct.gradle
 
-import centralSchemaDirectoryName
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -9,25 +8,18 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
-import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import schemaPartitionDirectory
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
-import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
+import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
 import viaduct.gradle.task.AssembleSchemaPartitionTask
-import viaduct.gradle.task.GenerateResolverBasesTask
+import viaduct.gradle.task.GenerateJavaResolverBasesTask
 
-open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
-    /** Kotlin package name suffix for this module (can be empty). */
-    val modulePackageSuffix = objects.property(String::class.java)
-}
-
-class ViaductModulePlugin : Plugin<Project> {
+class ViaductJavaModulePlugin : Plugin<Project> {
     companion object {
-        private const val RESOLVER_CODEGEN_MAIN_CLASS = "viaduct.tenant.codegen.cli.ViaductGenerator\$Main"
-
         private val SUPPORTED_APPLICATION_PLUGIN_IDS = listOf(
             "com.airbnb.viaduct.application-gradle-plugin",
         )
@@ -47,12 +39,12 @@ class ViaductModulePlugin : Plugin<Project> {
                 }
             }
 
-            val grtIncomingCfg = configurations.create(ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_INCOMING).apply {
+            val grtIncomingCfg = configurations.create(ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_INCOMING).apply {
                 description = "Resolvable configuration for the GRT jar file."
                 isCanBeConsumed = false
                 isCanBeResolved = true
                 attributes {
-                    attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.KOTLIN_GRT_CLASSES)
+                    attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.JAVA_GRT_CLASSES)
                     attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
                     attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
                     attribute(
@@ -68,7 +60,7 @@ class ViaductModulePlugin : Plugin<Project> {
             val centralSchemaIncomingCfg = setupIncomingConfigurationForCentralSchema()
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleExt, centralSchemaIncomingCfg)
 
-            // Register wiring with the root application plugin (Kotlin or Java variant) if present
+            // Register wiring with the root application plugin (Kotlin or Java variant)
             SUPPORTED_APPLICATION_PLUGIN_IDS.forEach { pluginId ->
                 rootProject.pluginManager.withPlugin(pluginId) {
                     rootProject.dependencies.add(
@@ -93,11 +85,11 @@ class ViaductModulePlugin : Plugin<Project> {
                     )
 
                     dependencies.add(
-                        ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_INCOMING,
+                        ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_INCOMING,
                         project.dependencies.project(
                             mapOf(
                                 "path" to rootProject.path,
-                                "configuration" to ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_OUTGOING
+                                "configuration" to ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_OUTGOING
                             )
                         )
                     )
@@ -113,15 +105,11 @@ class ViaductModulePlugin : Plugin<Project> {
                 configurations.named("testFixturesImplementation").configure { extendsFrom(grtIncomingCfg) }
             }
 
-            // Generated resolver bases into Kotlin source set
-            pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
-                val kotlinExt = extensions.getByType(KotlinJvmProjectExtension::class.java)
-                kotlinExt.sourceSets.named("main") {
-                    kotlin.srcDir(generateResolverBasesTask.flatMap { it.outputDirectory })
-                }
-
-                kotlinExt.compilerOptions {
-                    freeCompilerArgs.add("-Xcontext-receivers")
+            // Generated resolver bases into Java `main` source set
+            pluginManager.withPlugin("java") {
+                val javaExt = extensions.getByType(JavaPluginExtension::class.java)
+                javaExt.sourceSets.named("main") {
+                    java.srcDir(generateResolverBasesTask.flatMap { it.outputDirectory })
                 }
             }
 
@@ -130,7 +118,7 @@ class ViaductModulePlugin : Plugin<Project> {
             // Convenience task for module-level codegen
             tasks.register("viaductCodegen") {
                 group = "viaduct"
-                description = "Run Viaduct code generation for this module (GRTs + resolver bases)"
+                description = "Run Viaduct code generation for this module (Java resolver bases)"
 
                 dependsOn(generateResolverBasesTask)
             }
@@ -180,27 +168,16 @@ class ViaductModulePlugin : Plugin<Project> {
     private fun Project.setupGenerateResolverBasesTask(
         moduleExt: ViaductModuleExtension,
         centralSchemaIncomingCfg: Configuration
-    ): TaskProvider<GenerateResolverBasesTask> {
-        val version = pluginVersion(ViaductModulePlugin::class.java)
-        val codegenClasspath = createOrGetCodegenClasspath(version)
-        val taskProvider = tasks.register<GenerateResolverBasesTask>("generateViaductResolverBases") {
-            buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
+    ): TaskProvider<GenerateJavaResolverBasesTask> {
+        val version = pluginVersion(ViaductJavaModulePlugin::class.java)
+        val codegenClasspath = createOrGetJavaCodegenClasspath(version)
+        val taskProvider = tasks.register<GenerateJavaResolverBasesTask>("generateViaductResolverBases") {
             centralSchemaFiles.from(
                 centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching { include("**/*.graphqls") }
             )
-            tenantFromSourceRegex.set("$centralSchemaDirectoryName/partition/(.*)/graphql")
             classpath.setFrom(codegenClasspath)
-            mainClass.set(RESOLVER_CODEGEN_MAIN_CLASS)
         }
 
-        // We intentionally validate here so same-project builds can finish configuring
-        // viaductApplication { ... } before we read modulePackagePrefix, while still
-        // failing during configuration (e.g. on `help`) instead of waiting for task execution.
-        //
-        // Keep this block narrow and "safe":
-        // - OK: plugin presence checks, reading final extension values, configuring already-registered tasks
-        // - NOT OK: filesystem probing, task registration, dependency resolution, task-graph inspection,
-        //           or any other late configuration unrelated to extension validation
         afterEvaluate {
             val appliedAppPluginId = SUPPORTED_APPLICATION_PLUGIN_IDS.firstOrNull {
                 rootProject.plugins.hasPlugin(it)
@@ -208,7 +185,7 @@ class ViaductModulePlugin : Plugin<Project> {
             if (appliedAppPluginId == null) {
                 throw GradleException(
                     "Apply one of ${SUPPORTED_APPLICATION_PLUGIN_IDS.joinToString(", ") { "'$it'" }} " +
-                        "to the root project before applying 'com.airbnb.viaduct.module-gradle-plugin'."
+                        "to the root project before applying 'com.airbnb.viaduct.module-java-gradle-plugin'."
                 )
             }
             val appExt = rootProject.extensions.getByType(ViaductApplicationExtension::class.java)
@@ -253,9 +230,9 @@ class ViaductModulePlugin : Plugin<Project> {
     }
 
     private fun isViaductModule(target: Project): Boolean {
-        if (target.plugins.hasPlugin(ViaductModulePlugin::class.java)) return true
-        // Detect the sibling Java module plugin by ID to avoid a compile dep on :plugins-module-java.
-        return target.plugins.hasPlugin("com.airbnb.viaduct.module-java-gradle-plugin")
+        if (target.plugins.hasPlugin(ViaductJavaModulePlugin::class.java)) return true
+        // Detect the sibling Kotlin module plugin by ID to avoid a compile dep on :plugins-module.
+        return target.plugins.hasPlugin("com.airbnb.viaduct.module-gradle-plugin")
     }
 }
 

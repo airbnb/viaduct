@@ -46,9 +46,6 @@ abstract class GenerateGRTClassFilesTask
         @get:PathSensitive(PathSensitivity.RELATIVE)
         abstract val schemaFiles: ConfigurableFileCollection
 
-        @get:Input
-        abstract val grtPackageName: Property<String>
-
         @get:OutputDirectory
         abstract val grtClassesDirectory: DirectoryProperty
 
@@ -72,7 +69,7 @@ abstract class GenerateGRTClassFilesTask
                     "--flag_file",
                     flagFile.absolutePath,
                     "--pkg_for_generated_classes",
-                    grtPackageName.get(),
+                    "viaduct.api.grts",
                     "--generated_directory",
                     grtClassesDirectory.get().asFile.absolutePath
                 )

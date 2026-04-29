@@ -2,6 +2,8 @@ package viaduct.gradle
 
 import centralSchemaDirectory
 import grtClassesDirectory
+import javaGrtClassesDirectory
+import javaGrtSourcesDirectory
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -12,13 +14,17 @@ import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.kotlin.dsl.register
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
+import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
+import viaduct.gradle.ViaductPluginCommon.createOrGetJavaGRTCompileClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetServeClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
+import viaduct.gradle.task.GenerateJavaGRTSourcesTask
 
 abstract class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
@@ -32,15 +38,28 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
 
-            val generateGRTsTask = setupGenerateGRTsTask(appExt, assembleCentralSchemaTask)
+            val kotlinGRTJar = setupKotlinGenerateGRTsTask(assembleCentralSchemaTask)
+            val javaGRTJar = setupJavaGenerateGRTsTask(assembleCentralSchemaTask)
 
-            configureIdeaIntegration(generateGRTsTask)
-            setupConsumableConfigurationForGRT(generateGRTsTask.flatMap { it.archiveFile })
+            configureIdeaIntegration(kotlinGRTJar)
 
-            this.dependencies.add("api", files(generateGRTsTask.flatMap { it.archiveFile }))
+            setupConsumableConfigurationForGRT(
+                ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_OUTGOING,
+                ViaductPluginCommon.Kind.KOTLIN_GRT_CLASSES,
+                kotlinGRTJar.flatMap { it.archiveFile },
+            )
+            setupConsumableConfigurationForGRT(
+                ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_OUTGOING,
+                ViaductPluginCommon.Kind.JAVA_GRT_CLASSES,
+                javaGRTJar.flatMap { it.archiveFile },
+            )
 
-            // Setup serve task
-            setupServeTask(appExt, generateGRTsTask)
+            // Expose the Kotlin GRT jar on the root project's own classpath so root sources
+            // (main + tests) can reference generated types. Java-specific root projects can
+            // depend on generateViaductJavaGRTs explicitly.
+            this.dependencies.add("api", files(kotlinGRTJar.flatMap { it.archiveFile }))
+
+            setupServeTask(appExt, kotlinGRTJar, javaGRTJar)
         }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
@@ -74,11 +93,8 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         return assembleCentralSchemaTask
     }
 
-    /** Call the bytecode-generator to generate GRT files. */
-    private fun Project.setupGenerateGRTsTask(
-        appExt: ViaductApplicationExtension,
-        assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,
-    ): TaskProvider<Jar> {
+    /** Call the bytecode-generator to generate Kotlin GRT files. */
+    private fun Project.setupKotlinGenerateGRTsTask(assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>): TaskProvider<Jar> {
         val version = pluginVersion(ViaductApplicationPlugin::class.java)
         val codegenClasspath = createOrGetCodegenClasspath(version)
 
@@ -86,7 +102,6 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             grtClassesDirectory.set(grtClassesDirectory())
             schemaFiles.setFrom(assembleCentralSchemaTask.flatMap { it.outputDirectory.map { dir -> dir.asFileTree.matching { include("**/*.graphqls") }.files } })
-            grtPackageName.set(appExt.grtPackageName)
             classpath.setFrom(codegenClasspath)
             mainClass.set(CODEGEN_MAIN_CLASS)
         }
@@ -99,6 +114,49 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             includeEmptyDirs = false
 
             from(generateGRTClassesTask.flatMap { it.grtClassesDirectory })
+
+            from(assembleCentralSchemaTask.flatMap { it.outputDirectory }) {
+                into("viaduct/centralSchema")
+                exclude(BUILTIN_SCHEMA_FILE)
+                includeEmptyDirs = false
+            }
+        }
+
+        return generateGRTsTask
+    }
+
+    /**
+     * Generate Java GRT source files from the central schema, compile them with javac,
+     * and package the resulting classes with the central schema into a Jar.
+     */
+    private fun Project.setupJavaGenerateGRTsTask(assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>): TaskProvider<Jar> {
+        val version = pluginVersion(ViaductApplicationPlugin::class.java)
+        val codegenClasspath = createOrGetJavaCodegenClasspath(version)
+        val grtCompileClasspath = createOrGetJavaGRTCompileClasspath(version)
+
+        val generateGRTSourcesTask = tasks.register<GenerateJavaGRTSourcesTask>("generateViaductJavaGRTSources") {
+            grtSourcesDirectory.set(javaGrtSourcesDirectory())
+            schemaFiles.setFrom(
+                assembleCentralSchemaTask.flatMap { it.outputDirectory.map { dir -> dir.asFileTree.matching { include("**/*.graphqls") }.files } }
+            )
+            classpath.setFrom(codegenClasspath)
+        }
+
+        val compileGRTJavaTask = tasks.register<JavaCompile>("compileViaductJavaGRTJava") {
+            source = fileTree(generateGRTSourcesTask.flatMap { it.grtSourcesDirectory })
+            destinationDirectory.set(javaGrtClassesDirectory())
+            classpath = grtCompileClasspath
+            options.isIncremental = true
+        }
+
+        val generateGRTsTask = tasks.register<Jar>("generateViaductJavaGRTs") {
+            group = "viaduct"
+            description = "Package Java GRT class files with the central schema."
+
+            archiveBaseName.set("viaduct-java-grt")
+            includeEmptyDirs = false
+
+            from(compileGRTJavaTask.map { it.destinationDirectory })
 
             from(assembleCentralSchemaTask.flatMap { it.outputDirectory }) {
                 into("viaduct/centralSchema")
@@ -125,14 +183,18 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
     }
 
-    private fun Project.setupConsumableConfigurationForGRT(artifact: Provider<RegularFile>) {
-        configurations.create(ViaductPluginCommon.Configs.GRT_CLASSES_OUTGOING).apply {
+    private fun Project.setupConsumableConfigurationForGRT(
+        configName: String,
+        kind: String,
+        artifact: Provider<RegularFile>
+    ) {
+        configurations.create(configName).apply {
             description =
                 "Consumable configuration for the jar file containing the GRT classes plus the central schema's graphqls file."
             isCanBeConsumed = true
             isCanBeResolved = false
             attributes {
-                attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.GRT_CLASSES)
+                attribute(ViaductPluginCommon.VIADUCT_KIND, kind)
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
                 attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
                 attribute(
@@ -146,7 +208,8 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
     private fun Project.setupServeTask(
         appExt: ViaductApplicationExtension,
-        generateGRTsTask: TaskProvider<Jar>
+        kotlinGRTJar: TaskProvider<Jar>,
+        javaGRTJar: TaskProvider<Jar>
     ) {
         // Capture configuration-time values for use in task (configuration cache safe)
         val isContinuousMode = gradle.startParameter.isContinuous
@@ -175,7 +238,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             description = "Start the Viaduct development server with GraphiQL IDE. Use: ./gradlew --continuous serve"
 
             // Ensure GRTs are generated and classes are compiled before starting
-            dependsOn(generateGRTsTask)
+            dependsOn(kotlinGRTJar, javaGRTJar)
             dependsOn("classes")
 
             mainClass.set("viaduct.serve.ServeServerKt")

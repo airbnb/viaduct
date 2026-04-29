@@ -14,6 +14,7 @@ httpclient = "5.5.1"
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
+viaduct-module-java = { id = "com.airbnb.viaduct.module-java-gradle-plugin", version.ref = "viaduct" }
 
 [libraries]
 viaduct-bom = { group = "com.airbnb.viaduct", name = "bom", version.ref = "viaduct" }

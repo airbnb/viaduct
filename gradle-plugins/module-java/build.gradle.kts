@@ -13,22 +13,16 @@ java {
 
 dependencies {
     implementation(project(":plugins-common"))
+    // Reuse AssembleSchemaPartitionTask + ViaductModuleExtension from the Kotlin module plugin
+    implementation(project(":plugins-module"))
 
-    // Libraries the plugin source imports directly (binary schema generation).
-    // tenant-codegen is NOT here — it is an external tool artifact resolved at
-    // build time via the viaductCodegenClasspath Configuration.
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.viaductschema)
 
-    // Do NOT leak the Kotlin Gradle Plugin at runtime
-    compileOnly(libs.kotlin.gradle.plugin)
-
-    // Testing
     testImplementation(gradleTestKit())
     testImplementation(project(":plugins-application"))
 }
 
-// Include version in JAR manifest for JAR introspection and debugging
 tasks.jar {
     manifest {
         attributes(
@@ -45,23 +39,25 @@ gradlePlugin {
     val pluginIdPrefix: String by rootProject.extra
 
     plugins {
-        create("viaductModule") {
-            id = "$pluginIdPrefix.module-gradle-plugin"
-            implementationClass = "viaduct.gradle.ViaductModulePlugin"
-            displayName = "Viaduct :: Module Plugin"
-            description = "Module plugin for Viaduct tenant modules."
-            tags.set(listOf("viaduct", "graphql", "kotlin"))
+        create("viaductJavaModule") {
+            id = "$pluginIdPrefix.module-java-gradle-plugin"
+            implementationClass = "viaduct.gradle.ViaductJavaModulePlugin"
+            displayName = "Viaduct :: Java Module Plugin"
+            description = "Module plugin for Viaduct tenant modules written in Java."
+            tags.set(listOf("viaduct", "graphql", "java"))
         }
     }
 }
 
 tasks.named<ProcessResources>("processResources") {
+    val pluginVersion = project.version.toString()
+    inputs.property("pluginVersion", pluginVersion)
     filesMatching("viaduct-plugin-version.properties") {
-        expand("version" to project.version)
+        expand("version" to pluginVersion)
     }
 }
 
 viaductPublishing {
-    name.set("Module Gradle Plugin")
-    description.set("Gradle plugin for Viaduct tenant modules.")
+    name.set("Java Module Gradle Plugin")
+    description.set("Gradle plugin for Viaduct tenant modules written in Java.")
 }

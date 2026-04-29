@@ -26,6 +26,12 @@ abstract class CodegenWorkAction : WorkAction<CodegenWorkAction.Params> {
         method.isAccessible = true
         method.invoke(null, parameters.args.get().toTypedArray())
     }
+
+    object MainClasses {
+        const val SCHEMA_OBJECTS_BYTECODE = "viaduct.tenant.codegen.cli.SchemaObjectsBytecode\$Main"
+        const val VIADUCT_GENERATOR = "viaduct.tenant.codegen.cli.ViaductGenerator\$Main"
+        const val JAVA_GRTS_GENERATOR = "viaduct.x.javaapi.codegen.cli.JavaGRTsGenerator\$Main"
+    }
 }
 
 /**
