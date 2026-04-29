@@ -1,7 +1,5 @@
 package viaduct.engine.api.fragment
 
-import com.airbnb.viaduct.errors.ViaductInternalExecutionException
-import com.airbnb.viaduct.errors.ViaductInvalidConfigurationException
 import graphql.execution.MergedField
 import graphql.language.AstPrinter
 import graphql.language.Document
@@ -55,10 +53,10 @@ data class Fragment(
         try {
             getFragmentDefinition(parsedDocument, variables.asMap().keys)
         } catch (e: Exception) {
-            throw ViaductFragmentParsingError(
+            throw IllegalStateException(
                 "Error when parsing fragment: ${e.message}. " +
                     "Fragment string:\n\n=====\n$document",
-                cause = e
+                e
             )
         }
     }
@@ -84,11 +82,11 @@ data class Fragment(
             when (selection) {
                 is Field -> listOf(selection)
                 is InlineFragment -> collectFields(selection.selectionSet)
-                is FragmentSpread -> throw ViaductInvalidConfigurationException(
+                is FragmentSpread -> throw IllegalStateException(
                     "Named fragments not supported in required selection sets"
                 )
 
-                else -> throw ViaductInvalidConfigurationException(
+                else -> throw IllegalStateException(
                     "Invalid field selection $selection"
                 )
             }
@@ -110,7 +108,7 @@ data class Fragment(
         val variableReferencesByName = fragmentDefinitions.allVariableReferencesByName()
         val unboundVariableNames = variableReferencesByName.keys.filterNot(variableNames::contains)
         if (unboundVariableNames.isNotEmpty()) {
-            throw ViaductInternalExecutionException(
+            throw IllegalStateException(
                 "Fragment '${fragmentDefinition.name}' has unbound variables:\n" +
                     unboundVariableNames.joinToString("\n") { "* $it" } +
                     "\nEnsure they are passed in the `vars` argument when creating this fragment."
@@ -175,8 +173,6 @@ interface FragmentSource {
         }
     }
 }
-
-class ViaductFragmentParsingError(message: String, cause: Throwable) : RuntimeException(message, cause)
 
 fun fragment(
     @Language("GraphQL") fragment: String,

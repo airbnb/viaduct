@@ -127,7 +127,7 @@ class FragmentTest {
     fun testThrowsErrorsWhenReferencingNonExistentVariable() {
         val var1 = FragmentVariable("var1", "some value")
         val exception =
-            assertThrows(ViaductFragmentParsingError::class.java) {
+            assertThrows(IllegalStateException::class.java) {
                 fragment(
                     """
                     fragment Foo on SomeType {
@@ -151,7 +151,7 @@ class FragmentTest {
     fun testCapturesMultipleErrorsDuringFragmentParsing() {
         val var1 = FragmentVariable("var1", "some value")
         val exception =
-            assertThrows(ViaductFragmentParsingError::class.java) {
+            assertThrows(IllegalStateException::class.java) {
                 fragment(
                     """
                     fragment Foo on SomeType {
