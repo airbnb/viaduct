@@ -2,6 +2,7 @@ package viaduct.ksp.validation
 
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
+import graphql.validation.QueryComplexityLimits
 import graphql.validation.Validator
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -21,6 +22,7 @@ class ValidateResolverFragmentsTest {
             type User {
                 id: ID!
                 name: String
+                friend: User
             }
 
             type Photo {
@@ -115,6 +117,27 @@ class ValidateResolverFragmentsTest {
 
         val errors = createValidator(listOf(spec)).validate()
         assertTrue(errors.isEmpty())
+    }
+
+    @Test
+    fun `valid objectValueFragment can exceed graphql java default query depth limit`() {
+        val nestedFriendDepth = QueryComplexityLimits.DEFAULT.maxDepth + 1
+        val deepFragmentString = buildString {
+            append("fragment Main on User {\n")
+            repeat(nestedFriendDepth) { append("friend {\n") }
+            append("id\n")
+            repeat(nestedFriendDepth) { append("}\n") }
+            append("}")
+        }
+
+        val spec = createSpec(
+            fragment = deepFragmentString,
+            fragmentType = ResolverFragmentType.OBJECT,
+            typeName = "User"
+        )
+
+        val errors = createValidator(listOf(spec)).validate()
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
     }
 
     @Test

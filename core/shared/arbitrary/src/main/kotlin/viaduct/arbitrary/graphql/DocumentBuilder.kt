@@ -22,7 +22,7 @@ import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
-import graphql.validation.rules.VariablesTypesMatcher
+import graphql.validation.VariablesTypesMatcher
 
 private typealias GJSelection = graphql.language.Selection<*>
 

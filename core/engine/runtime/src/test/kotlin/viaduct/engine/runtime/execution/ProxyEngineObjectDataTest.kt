@@ -5,6 +5,7 @@ package viaduct.engine.runtime.execution
 import graphql.GraphQLError
 import graphql.schema.GraphQLObjectType
 import graphql.validation.ValidationError
+import graphql.validation.ValidationErrorType
 import kotlin.test.assertContains
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -485,7 +486,11 @@ class ProxyEngineObjectDataTest {
     fun `fetch throws errors in FieldResolutionResult`() {
         Fixture("type Query { stringField: String }") {
             val oer = mkOER(typename = "Query")
-            val err = ValidationError.newValidationError().build()
+            val err =
+                ValidationError.newValidationError()
+                    .validationErrorType(ValidationErrorType.WrongType)
+                    .description("Test error")
+                    .build()
 
             ObjectEngineResult.Key("stringField").also { key ->
                 oer.computeIfAbsent(key) { slotSetter ->
@@ -682,7 +687,11 @@ class ProxyEngineObjectDataTest {
          */
         fun mkOerWithListFieldError(queryType: GraphQLObjectType): OerWithListFieldError {
             val oer = ObjectEngineResultImpl.newForType(queryType)
-            val err = ValidationError.newValidationError().build()
+            val err =
+                ValidationError.newValidationError()
+                    .validationErrorType(ValidationErrorType.WrongType)
+                    .description("Test error")
+                    .build()
 
             // Create a list where element 1 (the middle one) has an error
             val listWithError = listOf(

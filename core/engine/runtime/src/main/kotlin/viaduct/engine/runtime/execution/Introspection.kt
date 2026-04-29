@@ -19,9 +19,8 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.collectFields
  * - [GJIntrospection.enabledJvmWide] can be used to configure introspection across the whole JVM,
  *   rather than per-request. This functionality is not supported by this component.
  *
- * - graphql-java will run an additional [graphql.introspection.GoodFaithIntrospection] check,
- *   which will reject expensive introspection queries even when introspection is allowed.
- *   This functionality is not supported by this component.
+ * - graphql-java's [graphql.introspection.GoodFaithIntrospection] check is explicitly disabled
+ *   in Viaduct's engine configuration.
  */
 object Introspection {
     internal val disallowedIntrospectionFields: Set<String> = setOf(SchemaMetaFieldDef.name, TypeMetaFieldDef.name)

@@ -3,6 +3,7 @@ package viaduct.ksp.validation
 import graphql.language.FragmentDefinition
 import graphql.parser.Parser
 import graphql.schema.GraphQLSchema
+import graphql.validation.QueryComplexityLimits
 import graphql.validation.ValidationErrorType
 import graphql.validation.Validator
 import java.util.Locale
@@ -71,7 +72,7 @@ internal class ValidateResolverFragments(
 
     private fun validateAgainstSchema(spec: ResolverFragmentSpec): List<ErrorMessage> {
         return fragmentValidator
-            .validateDocument(schema, spec.fragmentDocument(), Locale("en"))
+            .validateDocument(schema, spec.fragmentDocument(), { true }, Locale("en"), QueryComplexityLimits.NONE)
             .filterNot { FILTERED_VALIDATION_ERROR.contains(it.validationErrorType as ValidationErrorType) }
             .map { error ->
                 val baseMessage = "Fragment validation failed for ${spec.metadata.fullClassName}: ${error.message}"

@@ -7,6 +7,7 @@ import graphql.schema.GraphQLInputType
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNamedSchemaElement
+import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
@@ -77,8 +78,8 @@ class ScopedSchemaBuilder(
                             it != inputSchema.mutationType &&
                             it != inputSchema.subscriptionType &&
                             it !is GraphQLScalarType
-                    }.map { type ->
-                        replaceChildrenWithTypeReferences(type)
+                    }.mapNotNull { type ->
+                        replaceChildrenWithTypeReferences(type) as? GraphQLNamedType
                     }.toSet()
             it.clearAdditionalTypes()
             it.additionalTypes(additionalTypes)
