@@ -1,0 +1,6 @@
+directive @resolver(isSelective: Boolean! = false, isBatching: Boolean! = false) on OBJECT | FIELD_DEFINITION
+
+type MyObject {
+  id: String
+  name: String
+}

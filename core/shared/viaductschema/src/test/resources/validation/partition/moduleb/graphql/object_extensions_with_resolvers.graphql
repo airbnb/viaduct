@@ -1,0 +1,4 @@
+extend type MyObject {
+  score: Int @resolver
+  tag: String @resolver
+}

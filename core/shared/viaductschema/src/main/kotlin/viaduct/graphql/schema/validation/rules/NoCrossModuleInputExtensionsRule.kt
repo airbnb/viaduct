@@ -51,11 +51,11 @@ class NoCrossModuleInputExtensionsRule(
         typeKeyword: String
     ) {
         val baseExtension = extensions.firstOrNull { it.isBase } ?: return
-        val baseTenant = tenantFromLocation(baseExtension.sourceLocation) ?: return
+        val baseTenant = tenantFromLocation(baseExtension.sourceLocation, modulePathPrefix) ?: return
 
         for (ext in extensions) {
             if (ext.isBase) continue
-            val extTenant = tenantFromLocation(ext.sourceLocation) ?: continue
+            val extTenant = tenantFromLocation(ext.sourceLocation, modulePathPrefix) ?: continue
             if (extTenant != baseTenant) {
                 ctx.reportError(
                     code = ValidationErrorCodes.CROSS_MODULE_INPUT_EXTENSION,
@@ -66,10 +66,13 @@ class NoCrossModuleInputExtensionsRule(
             }
         }
     }
+}
 
-    private fun tenantFromLocation(location: ViaductSchema.SourceLocation?): String? {
-        val sourceName = location?.sourceName ?: return null
-        if (!sourceName.contains(modulePathPrefix)) return null
-        return sourceName.substringAfter(modulePathPrefix).substringBefore("/")
-    }
+internal fun tenantFromLocation(
+    location: ViaductSchema.SourceLocation?,
+    modulePathPrefix: String
+): String? {
+    val sourceName = location?.sourceName ?: return null
+    if (!sourceName.contains(modulePathPrefix)) return null
+    return sourceName.substringAfter(modulePathPrefix).substringBefore("/")
 }

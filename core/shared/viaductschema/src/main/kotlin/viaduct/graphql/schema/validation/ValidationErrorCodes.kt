@@ -56,4 +56,10 @@ object ValidationErrorCodes {
 
     // NoCrossModuleInputExtensionsRule
     const val CROSS_MODULE_INPUT_EXTENSION = "CROSS_MODULE_INPUT_EXTENSION"
+
+    // StructuralDirectivesOnBaseTypeRule
+    const val STRUCTURAL_DIRECTIVE_ON_EXTENSION = "STRUCTURAL_DIRECTIVE_ON_EXTENSION"
+
+    // CrossModuleExtensionFieldsResolverRule
+    const val CROSS_MODULE_EXTENSION_FIELD_MISSING_RESOLVER = "CROSS_MODULE_EXTENSION_FIELD_MISSING_RESOLVER"
 }
