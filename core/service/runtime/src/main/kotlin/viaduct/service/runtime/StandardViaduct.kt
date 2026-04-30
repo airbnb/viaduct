@@ -35,6 +35,7 @@ import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
+import viaduct.engine.runtime.tenantloading.MissingResolversException
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
@@ -129,6 +130,7 @@ class StandardViaduct
             private var allowSubscriptions: Boolean = false
             private var globalIDCodec: GlobalIDCodec? = null
             private var proxyResolverFactory: ProxyResolverFactory? = null
+            private var lenientResolverValidation: Boolean = false
 
             fun enableAirbnbBypassDoNotUse(tenantNameResolver: TenantNameResolver,): Builder =
                 apply {
@@ -278,6 +280,16 @@ class StandardViaduct
                 }
 
             /**
+             * When set to true, suppresses the startup error that occurs when a
+             * @resolver-annotated field or type has no registered resolver.
+             * Default is false (strict: missing resolver = startup error).
+             */
+            fun withLenientResolverValidation(lenient: Boolean = true): Builder =
+                apply {
+                    this.lenientResolverValidation = lenient
+                }
+
+            /**
              * Builds the Guice Module within Viaduct and gets Viaduct from the injector.
              * Uses the factory pattern for proper dependency injection.
              *
@@ -323,6 +335,7 @@ class StandardViaduct
                     checkerExecutorFactoryCreator = checkerExecutorFactoryCreator,
                     documentProviderFactory = documentProviderFactory,
                     proxyResolverFactory = proxyResolverFactory,
+                    lenientResolverValidation = lenientResolverValidation,
                 )
 
                 try {
@@ -375,6 +388,11 @@ class StandardViaduct
              */
             private fun throwDispatcherRegistryError(exception: ProvisionException): GraphQLBuildError {
                 return when (exception.cause) {
+                    is MissingResolversException -> {
+                        val cause = exception.cause as MissingResolversException
+                        GraphQLBuildError(cause.message ?: "Missing resolver implementations", cause)
+                    }
+
                     is RequiredSelectionsAreInvalid -> GraphQLBuildError(
                         "Found GraphQL validation errors: %s".format(
                             (exception.cause as RequiredSelectionsAreInvalid).errors,
