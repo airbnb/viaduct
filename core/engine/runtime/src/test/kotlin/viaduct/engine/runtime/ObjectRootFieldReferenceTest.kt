@@ -3,13 +3,13 @@
 package viaduct.engine.runtime
 
 import graphql.schema.GraphQLObjectType
+import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ResolvedEngineObjectData
-import viaduct.errors.UnsetFieldException
 
 class ObjectRootFieldReferenceTest {
     @Test
@@ -72,13 +72,36 @@ class ObjectRootFieldReferenceTest {
         }
 
     @Test
-    fun `extractNestedResult throws on missing field`(): Unit =
+    fun `extractNestedResult returns null when leaf field is null`(): Unit =
         runTest {
             val rootType = GraphQLObjectType.newObject().name("Root").build()
-            val root = ResolvedEngineObjectData.Builder(rootType).build()
+            val root = ResolvedEngineObjectData.Builder(rootType).put("child", null).build()
 
-            assertThrows<UnsetFieldException> {
-                ObjectRootFieldReference.extractNestedResult(root, listOf("nonexistent"))
+            val result = ObjectRootFieldReference.extractNestedResult(root, listOf("child"))
+            assertNull(result)
+        }
+
+    @Test
+    fun `extractNestedResult returns null when leaf is null through namespace`(): Unit =
+        runTest {
+            val nsType = GraphQLObjectType.newObject().name("Namespace").build()
+            val ns = ResolvedEngineObjectData.Builder(nsType).put("create", null).build()
+
+            val rootType = GraphQLObjectType.newObject().name("Root").build()
+            val root = ResolvedEngineObjectData.Builder(rootType).put("factory", ns).build()
+
+            val result = ObjectRootFieldReference.extractNestedResult(root, listOf("factory", "create"))
+            assertNull(result)
+        }
+
+    @Test
+    fun `extractNestedResult throws when intermediate segment is not EngineObjectData`(): Unit =
+        runTest {
+            val rootType = GraphQLObjectType.newObject().name("Root").build()
+            val root = ResolvedEngineObjectData.Builder(rootType).put("factory", "not-an-eod").build()
+
+            assertThrows<IllegalStateException> {
+                ObjectRootFieldReference.extractNestedResult(root, listOf("factory", "create"))
             }
         }
 }

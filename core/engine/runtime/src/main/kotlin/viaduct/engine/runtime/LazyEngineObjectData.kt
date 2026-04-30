@@ -16,34 +16,34 @@ interface LazyEngineObjectData : EngineObjectData {
     /**
      * Resolves the data for this lazy object.
      *
-     * @return the resolved [EngineObjectData]
+     * @return the resolved [EngineObjectData], or null if the lazy object resolved to null
      */
     suspend fun resolveData(
         selections: EngineSelectionSet,
         context: EngineExecutionContext,
-    ): EngineObjectData
+    ): EngineObjectData?
 }
 
 /**
  * Helper for lazy data implementations that ensures a resolution block runs at most once.
- * Subsequent calls await the first resolution and return the resolved [EngineObjectData]
+ * Subsequent calls await the first resolution and return the resolved value
  * (or re-throw the exception thrown by that first resolution).
  */
-internal class ResolveOnce {
-    private val deferred = CompletableDeferred<EngineObjectData>()
+internal class ResolveOnce<T> {
+    private val deferred = CompletableDeferred<T>()
     private val called = AtomicBoolean(false)
 
     /** Suspends until the first [resolve] call completes and returns its result. */
-    suspend fun await(): EngineObjectData = deferred.await()
+    suspend fun await(): T = deferred.await()
 
     /**
      * Runs [block] exactly once. Subsequent calls await the first resolution and return
      * the same result (or re-throw the original exception).
      *
-     * @return the [EngineObjectData] produced by [block]
+     * @return the value produced by [block]
      * @throws Exception if [block] threw
      */
-    suspend fun resolve(block: suspend () -> EngineObjectData): EngineObjectData {
+    suspend fun resolve(block: suspend () -> T): T {
         if (!called.compareAndSet(false, true)) {
             return deferred.await()
         }

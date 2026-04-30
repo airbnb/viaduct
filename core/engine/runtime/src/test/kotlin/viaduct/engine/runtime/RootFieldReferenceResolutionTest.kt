@@ -2,8 +2,10 @@ package viaduct.engine.runtime
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -839,6 +841,95 @@ class RootFieldReferenceResolutionTest {
         }.runFeatureTest {
             runQuery("{ product { name } }")
                 .assertJson("""{"data": {"product": {"name": "DefaultWidget"}}}""")
+        }
+    }
+
+    @Test
+    fun `root field reference resolves to null`() {
+        MockTenantModuleBootstrapper(
+            """
+            type Widget {
+                name: String
+            }
+            type WidgetFactory @namespaceType {
+                create: Widget @resolver
+            }
+            extend type Query {
+                widgetFactory: WidgetFactory
+                widget: Widget @resolver
+            }
+        """
+        ) {
+            field("WidgetFactory" to "create") {
+                resolver {
+                    fn { _, _, _, _, _ -> null }
+                }
+            }
+            field("Query" to "widget") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createRootFieldReference(
+                            rootFieldPath = listOf("widgetFactory", "create"),
+                            type = schema.schema.getObjectType("Widget"),
+                            args = emptyMap(),
+                        )
+                    }
+                }
+            }
+            type("Widget") {
+                checker {
+                    fn { _, _ -> CheckerResult.Success }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ widget { name } }")
+            assertEquals(mapOf("widget" to null), result.getData())
+            assertTrue(result.errors.isEmpty()) { "Expected no errors but got: ${result.errors.map { "${it.path}: ${it.message}" }}" }
+        }
+    }
+
+    @Test
+    fun `root field reference to non-null field resolves to null propagates field error`() {
+        MockTenantModuleBootstrapper(
+            """
+            type Widget {
+                name: String
+            }
+            type WidgetFactory @namespaceType {
+                create: Widget @resolver
+            }
+            extend type Query {
+                widgetFactory: WidgetFactory
+                widget: Widget! @resolver
+            }
+        """
+        ) {
+            field("WidgetFactory" to "create") {
+                resolver {
+                    fn { _, _, _, _, _ -> null }
+                }
+            }
+            field("Query" to "widget") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createRootFieldReference(
+                            rootFieldPath = listOf("widgetFactory", "create"),
+                            type = schema.schema.getObjectType("Widget"),
+                            args = emptyMap(),
+                        )
+                    }
+                }
+            }
+            type("Widget") {
+                checker {
+                    fn { _, _ -> CheckerResult.Success }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ widget { name } }")
+            assertNull(result.getData())
+            assertTrue(result.errors.isNotEmpty()) { "Expected field error for non-null field resolving to null" }
+            assertEquals(listOf("widget"), result.errors.first().path)
         }
     }
 }

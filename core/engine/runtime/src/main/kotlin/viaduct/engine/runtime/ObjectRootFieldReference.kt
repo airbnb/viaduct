@@ -15,18 +15,30 @@ class ObjectRootFieldReference(
     override val type: GraphQLObjectType,
     override val args: Map<String, Any?>,
 ) : RootFieldReference, LazyEngineObjectData {
-    private val resolveOnce = ResolveOnce()
+    private val resolveOnce = ResolveOnce<EngineObjectData?>()
 
-    override suspend fun fetch(selection: String): Any? = resolveOnce.await().fetch(selection)
+    override suspend fun fetch(selection: String): Any? {
+        val resolved = resolveOnce.await()
+            ?: throw IllegalStateException("Cannot fetch fields from a root field reference that resolved to null")
+        return resolved.fetch(selection)
+    }
 
-    override suspend fun fetchOrNull(selection: String): Any? = resolveOnce.await().fetchOrNull(selection)
+    override suspend fun fetchOrNull(selection: String): Any? {
+        val resolved = resolveOnce.await()
+            ?: throw IllegalStateException("Cannot fetch fields from a root field reference that resolved to null")
+        return resolved.fetchOrNull(selection)
+    }
 
-    override suspend fun fetchSelections(): Iterable<String> = resolveOnce.await().fetchSelections()
+    override suspend fun fetchSelections(): Iterable<String> {
+        val resolved = resolveOnce.await()
+            ?: throw IllegalStateException("Cannot fetch fields from a root field reference that resolved to null")
+        return resolved.fetchSelections()
+    }
 
     override suspend fun resolveData(
         selections: EngineSelectionSet,
         context: EngineExecutionContext,
-    ): EngineObjectData =
+    ): EngineObjectData? =
         resolveOnce.resolve {
             resolveRootFieldReference(rootFieldPath, args, selections, context)
         }
@@ -42,7 +54,7 @@ class ObjectRootFieldReference(
             args: Map<String, Any?>,
             selections: EngineSelectionSet,
             context: EngineExecutionContext,
-        ): EngineObjectData {
+        ): EngineObjectData? {
             require(rootFieldPath.isNotEmpty()) { "rootFieldPath must not be empty" }
 
             val leafSelections = selections.printAsFieldSet()
@@ -100,17 +112,23 @@ class ObjectRootFieldReference(
         internal suspend fun extractNestedResult(
             data: EngineObjectData,
             path: List<String>,
-        ): EngineObjectData {
+        ): EngineObjectData? {
             var current: EngineObjectData = data
-            for ((index, field) in path.withIndex()) {
-                val fetched = current.fetch(field)
+            for (i in 0 until path.size - 1) {
+                val fieldName = path[i]
+                val fetched = current.fetch(fieldName)
                 check(fetched is EngineObjectData) {
-                    "Expected EngineObjectData at path segment '$field' (index $index in ${path.joinToString(".")}), " +
+                    "Expected EngineObjectData at path segment '$fieldName' (index $i in ${path.joinToString(".")}), " +
                         "got ${fetched?.let { it::class.simpleName } ?: "null"}"
                 }
                 current = fetched
             }
-            return current
+            return current.fetch(path.last())?.let { value ->
+                check(value is EngineObjectData) {
+                    "Expected EngineObjectData at path ${path.joinToString(".")}, got ${value::class.simpleName}"
+                }
+                value
+            }
         }
     }
 }

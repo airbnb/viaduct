@@ -120,6 +120,7 @@ open class ProxyEngineObjectData(
             is ObjectEngineResultImpl -> {
                 val exception = value.resolvedExceptionOrNull()
                 if (exception != null) throw exception
+                if (value.isResolvedToNull()) return null
                 createInstance(value, errorMessage, subselections)
             }
             is List<*> -> value.map { marshal(it, subselections) }

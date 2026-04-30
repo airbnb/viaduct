@@ -47,34 +47,36 @@ class ObjectEngineResultImpl private constructor(
     private val storage = ConcurrentHashMap<ObjectEngineResult.Key, Cell>()
 
     /**
-     * The engine supports lazy nodes, which is are node-objects with an id field set
-     * but no other fields set. When a resolver returns a lazy node, we "optimistically"
-     * allocate an OER for it to store the id and to indicate that the node resolver still
-     * needs to be called.
+     * The engine supports unresolved lazy references (e.g. for nodes and root fields).
+     * When a resolver returns a lazy reference, we "optimistically" allocate an OER for it to
+     * store any already-resolved data (e.g. node id) and to indicate that it's pending resolution.
      *
-     * During resolution the node resolver is called in parallel with field-resolvers on that
-     * node, meaning fields of this this OER might get filled out with values even though,
-     * eventually, if the node resolver fails, we're going to discard those results and treat
+     * During resolution the pending resolver is called in parallel with field-resolvers on that
+     * object, meaning fields of this this OER might get filled out with values even though,
+     * eventually, if the pending resolver fails, we're going to discard those results and treat
      * the entire field containing the OER as failed.
      *
      * A key observation here is that during resolution, it's okay to treat the OER as if it's
      * going to be successful (we're "optimistic" during resolution). However, during completion,
-     * if the node resolver has failed, we need to treat the field containing the OER as if it
+     * if the pending resolver has failed, we need to treat the field containing the OER as if it
      * failed (and discard any results we optimistically resolved).
      *
      * To implement these semantics, OERs have a property called [lazyResolutionState], which is a CompletableDeferred.
      * While [lazyResolutionState] is uncompleted, we say that the OER is "pending", which means its in its "optimistic"
      * phase and fetches of its fields return normally. However, once the node resolver returns,
-     * [lazyResolutionState] is completed either normally or exceptionally based on the success of the node resolver.
-     * After that point, fetches of its values will fail if [lazyResolutionState] was completed exceptionally.
+     * [lazyResolutionState] is completed to one of three states:
+     * - [LazyResolutionResult.VALUE]: resolution succeeded and the OER contains valid data
+     * - [LazyResolutionResult.NULL]: resolution succeeded and this object resolved to null. This OER should be discarded
+     *      during completion.
+     * - Exceptionally: resolution failed (fetches of the OER's fields will fail)
      */
-    val lazyResolutionState: CompletableDeferred<Unit> = let {
+    internal val lazyResolutionState: CompletableDeferred<LazyResolutionResult> = let {
         if (pending) {
             // create a new pending deferred
             CompletableDeferred()
         } else {
             // otherwise, create a pre-completed deferred
-            completedDeferred(Unit)
+            completedDeferred(LazyResolutionResult.VALUE)
         }
     }
 
@@ -113,6 +115,9 @@ class ObjectEngineResultImpl private constructor(
         if (lazyResolutionState.isCompleted) {
             lazyResolutionState.getCompletionExceptionOrNull()?.let {
                 return Value.fromThrowable<Nothing>(it)
+            }
+            if (isResolvedToNull()) {
+                return Value.nullValue
             }
         }
         // It's possible that [lazyResolutionState] is completed between the isCompleted check above
@@ -153,6 +158,14 @@ class ObjectEngineResultImpl private constructor(
     }
 
     /**
+     * Returns true if this OER resolved to null. [lazyResolutionState] must be completed before calling this method.
+     */
+    internal fun isResolvedToNull(): Boolean {
+        check(lazyResolutionState.isCompleted) { "Cannot call isResolvedToNull before resolution completes" }
+        return lazyResolutionState.getCompleted() == LazyResolutionResult.NULL
+    }
+
+    /**
      * Initializes a field with an unwritten cell.
      *
      * @param key The key to initialize
@@ -189,18 +202,43 @@ class ObjectEngineResultImpl private constructor(
     }
 
     /**
-     * Resolves this OER if it is in the pending state.
-     * If already resolved normally, this is a no-op.
+     * Resolves this OER with data if it is in the pending state.
+     * After this call, field accesses proceed normally.
+     * If already resolved with VALUE, this is a no-op.
      *
-     * @throws IllegalStateException if this OER is already resolved exceptionally
+     * @throws IllegalStateException if this OER is already resolved exceptionally or to null
      */
-    internal fun resolve() {
-        if (!lazyResolutionState.complete(Unit)) {
+    internal fun resolveToValue() {
+        if (!lazyResolutionState.complete(LazyResolutionResult.VALUE)) {
             lazyResolutionState.getCompletionExceptionOrNull()?.let {
                 throw IllegalStateException("Invariant: already resolved exceptionally", it)
             }
+            check(lazyResolutionState.getCompleted() == LazyResolutionResult.VALUE) {
+                "Invariant: already resolved to null"
+            }
         }
     }
+
+    /**
+     * Resolves this OER to null if it is in the pending state. This indicates the
+     * underlying nullable field resolved to null (e.g., a root field reference to a
+     * nullable field that returned null). After this call, field accesses return null
+     * and the [FieldCompleter] will complete this object as a null value.
+     *
+     * @throws IllegalStateException if this OER is already resolved exceptionally or with VALUE
+     */
+    internal fun resolveToNull() {
+        if (!lazyResolutionState.complete(LazyResolutionResult.NULL)) {
+            lazyResolutionState.getCompletionExceptionOrNull()?.let {
+                throw IllegalStateException("Invariant: already resolved exceptionally", it)
+            }
+            check(lazyResolutionState.getCompleted() == LazyResolutionResult.NULL) {
+                "Invariant: already resolved with VALUE"
+            }
+        }
+    }
+
+    internal enum class LazyResolutionResult { VALUE, NULL }
 
     companion object {
         private val DEFAULT_SLOT_COUNT = 2

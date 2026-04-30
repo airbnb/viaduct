@@ -516,8 +516,12 @@ class FieldResolver(
         nodeInstrCtx?.onDispatched()
         parameters.launchOnRootScope {
             try {
-                resolveLazyData(dataFetchingEnvironmentProvider, parameters.engineExecutionContext, lazyData::resolveData)
-                engineResult.resolve()
+                val result = resolveLazyData(dataFetchingEnvironmentProvider, parameters.engineExecutionContext, lazyData::resolveData)
+                if (result != null) {
+                    engineResult.resolveToValue()
+                } else {
+                    engineResult.resolveToNull()
+                }
                 nodeInstrCtx?.onCompleted(null, null)
             } catch (e: Exception) {
                 if (e is CancellationException) currentCoroutineContext().ensureActive()
@@ -535,8 +539,8 @@ class FieldResolver(
     private suspend fun resolveLazyData(
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
         engineExecutionContext: EngineExecutionContext,
-        resolveData: suspend (EngineSelectionSet, EngineExecutionContext) -> EngineObjectData,
-    ): EngineObjectData {
+        resolveData: suspend (EngineSelectionSet, EngineExecutionContext) -> EngineObjectData?,
+    ): EngineObjectData? {
         val dfe = dataFetchingEnvironmentProvider.get()
         val selections = engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(dfe)
             ?: throw IllegalStateException("No selection set for lazy data resolution")

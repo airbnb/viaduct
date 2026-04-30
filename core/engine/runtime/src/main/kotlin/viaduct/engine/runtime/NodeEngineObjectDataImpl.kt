@@ -12,7 +12,7 @@ class NodeEngineObjectDataImpl(
     override val type: GraphQLObjectType,
     private val dispatcherRegistry: DispatcherRegistry
 ) : NodeEngineObjectData, NodeReference, LazyEngineObjectData {
-    private val resolveOnce = ResolveOnce()
+    private val resolveOnce = ResolveOnce<EngineObjectData>()
 
     override suspend fun fetch(selection: String): Any? {
         if (selection == "id") return id
@@ -26,11 +26,6 @@ class NodeEngineObjectDataImpl(
 
     override suspend fun fetchSelections(): Iterable<String> = resolveOnce.await().fetchSelections()
 
-    /**
-     * To be called by the engine to resolve this node reference.
-     *
-     * @return the resolved [EngineObjectData]
-     */
     override suspend fun resolveData(
         selections: EngineSelectionSet,
         context: EngineExecutionContext

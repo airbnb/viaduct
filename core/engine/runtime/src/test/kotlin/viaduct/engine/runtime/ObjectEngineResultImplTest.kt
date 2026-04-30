@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -737,7 +738,7 @@ class ObjectEngineResultImplTest {
         runBlocking {
             val engine = ObjectEngineResultImpl.newPendingForType(graphQLObjectType)
             val deferred = testScope.async { engine.resolvedExceptionOrNull() }
-            engine.resolve()
+            engine.resolveToValue()
             assertNull(deferred.await())
         }
     }
@@ -754,6 +755,36 @@ class ObjectEngineResultImplTest {
             }
         }
     }
+
+    @Test
+    fun `test resolveToNull completes lazyResolutionState`() =
+        runBlocking {
+            val engine = ObjectEngineResultImpl.newPendingForType(graphQLObjectType)
+            engine.resolveToNull()
+            assertNull(engine.resolvedExceptionOrNull())
+            assertTrue(engine.isResolvedToNull())
+        }
+
+    @Test
+    fun `test fetch after resolveToNull returns null`() =
+        runBlocking {
+            val engine = ObjectEngineResultImpl.newPendingForType(graphQLObjectType)
+            val key = ObjectEngineResult.Key("test")
+            engine.computeIfAbsent(key) { setter ->
+                setter.set(RAW_VALUE_SLOT, Value.fromValue("hello"))
+                setter.set(ACCESS_CHECK_SLOT, Value.nullValue)
+            }
+            engine.resolveToNull()
+            assertNull(engine.fetch(key, RAW_VALUE_SLOT))
+        }
+
+    @Test
+    fun `test isResolvedToNull returns false for normally resolved OER`() =
+        runBlocking {
+            val engine = ObjectEngineResultImpl.newPendingForType(graphQLObjectType)
+            engine.resolveToValue()
+            assertFalse(engine.isResolvedToNull())
+        }
 
     @Nested
     inner class NewFromMap {

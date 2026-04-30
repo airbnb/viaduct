@@ -121,6 +121,9 @@ class FieldCompleter(
                             parameters.errorAccumulator += it.errors
                             Value.fromThrowable(err)
                         }
+                } else if (parentOER.isResolvedToNull()) {
+                    ctxCompleteObject.onCompleted(null, null)
+                    completeValueForNull(parameters)
                 } else {
                     objectFieldMap(parameters).map { resolvedData ->
                         ctxCompleteObject.onCompleted(resolvedData, null)

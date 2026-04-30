@@ -2,6 +2,7 @@ package viaduct.engine.runtime
 
 import io.mockk.mockk
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
@@ -13,7 +14,7 @@ class ResolveOnceTest {
     @Test
     fun `resolve runs block only once`() =
         runTest {
-            val resolveOnce = ResolveOnce()
+            val resolveOnce = ResolveOnce<EngineObjectData>()
             val first = mockk<EngineObjectData>()
             val second = mockk<EngineObjectData>()
 
@@ -27,7 +28,7 @@ class ResolveOnceTest {
     @Test
     fun `await suspends until resolve completes`() =
         runTest {
-            val resolveOnce = ResolveOnce()
+            val resolveOnce = ResolveOnce<EngineObjectData>()
             val expected = mockk<EngineObjectData>()
 
             val deferred = async { resolveOnce.await() }
@@ -39,7 +40,7 @@ class ResolveOnceTest {
     @Test
     fun `exception propagates to subsequent resolve and await calls`() =
         runTest {
-            val resolveOnce = ResolveOnce()
+            val resolveOnce = ResolveOnce<EngineObjectData>()
 
             assertThrows<IllegalStateException> {
                 resolveOnce.resolve { throw IllegalStateException("boom") }
@@ -55,9 +56,17 @@ class ResolveOnceTest {
         }
 
     @Test
+    fun `resolve and await return null when block returns null`() =
+        runTest {
+            val resolveOnce = ResolveOnce<EngineObjectData?>()
+            assertNull(resolveOnce.resolve { null })
+            assertNull(resolveOnce.await())
+        }
+
+    @Test
     fun `concurrent resolves return same result`() =
         runTest {
-            val resolveOnce = ResolveOnce()
+            val resolveOnce = ResolveOnce<EngineObjectData>()
             val expected = mockk<EngineObjectData>()
             var callCount = 0
 

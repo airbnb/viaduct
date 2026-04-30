@@ -188,6 +188,7 @@ object SyncEngineObjectDataFactory {
             is ObjectEngineResultImpl -> {
                 val exception = value.resolvedExceptionOrNull()
                 if (exception != null) return exception // Store exception, don't throw
+                if (value.isResolvedToNull()) return null
                 // Nested objects always have subselections (they're composite types)
                 val nestedSelections = requireNotNull(subselections) {
                     "Expected subselections for nested ObjectEngineResultImpl"
