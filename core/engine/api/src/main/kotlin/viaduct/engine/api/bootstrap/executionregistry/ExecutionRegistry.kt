@@ -68,10 +68,12 @@ data class FieldAPIData(
     val resolverClass: String,
     /** Generated resolver base class name, used as a stable join key with codegen output. */
     val resolverBaseClass: String,
-    /**
-     * FQN: optional return type name for debugging/introspection.
-     */
+    /** Simple GraphQL type name of the field's return type (e.g. "TestNode"). Used to resolve the result GRT class at bootstrap time. Null for scalar/enum return types. */
     val returnTypeName: String? = null,
+    /** True if the resolver's Context declares a non-[Arguments.NoArguments] type parameter. Used to resolve the generated Arguments GRT class at bootstrap time. */
+    val hasArguments: Boolean = false,
+    /** Name of the root query type (e.g. "Query"). Used to resolve the generated Query GRT class at bootstrap time without needing the runtime schema. */
+    val queryTypeName: String,
 )
 
 data class SelectionsBlock(

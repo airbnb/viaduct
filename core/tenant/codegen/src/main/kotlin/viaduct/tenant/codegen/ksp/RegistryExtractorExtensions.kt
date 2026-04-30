@@ -76,6 +76,7 @@ internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverPar
             implFqn = implFqn,
             resolverForAnnotation = resolverForAnnotation,
             resolverBaseClass = resolverBaseClass,
+            baseDeclaration = directBaseDeclaration,
             logger = logger,
         )
     }
@@ -170,6 +171,7 @@ private fun KSClassDeclaration.toFieldResolverParams(
     implFqn: String,
     resolverForAnnotation: KSAnnotation,
     resolverBaseClass: String,
+    baseDeclaration: KSClassDeclaration,
     logger: KSPLogger,
 ): ResolverParams.Field? {
     val typeName = resolverForAnnotation.stringArg("typeName") ?: run {
@@ -207,6 +209,35 @@ private fun KSClassDeclaration.toFieldResolverParams(
     }
     val querySelections = queryFragment?.let { SelectionsBlock(selections = it) }
 
+    val contextTypeArgs = baseDeclaration.declarations
+        .filterIsInstance<KSClassDeclaration>()
+        .firstOrNull { it.simpleName.asString() == "Context" }
+        ?.superTypes?.firstOrNull()?.resolve()?.arguments
+        ?.mapNotNull { it.type?.resolve() }
+        .orEmpty()
+
+    // NoArguments is a unique sentinel — if absent among type args, the field has a generated Arguments class.
+    val hasArguments = contextTypeArgs.none {
+        it.declaration.qualifiedName?.asString() == "viaduct.api.types.Arguments.NoArguments"
+    }
+
+    val queryTypeName = contextTypeArgs.firstOrNull { typeArg ->
+        (typeArg.declaration as? KSClassDeclaration)?.superTypes?.any {
+            it.resolve().declaration.qualifiedName?.asString() == "viaduct.api.types.Query"
+        } ?: false
+    }?.declaration?.simpleName?.asString() ?: "Query"
+
+    val returnTypeName = baseDeclaration.superTypes
+        .firstOrNull { it.resolve().declaration.simpleName.asString() == "ResolverBase" }
+        ?.resolve()?.arguments?.firstOrNull()?.type?.resolve()
+        ?.let { resolvedType ->
+            if (resolvedType.declaration.simpleName.asString() == "List") {
+                resolvedType.arguments.firstOrNull()?.type?.resolve()?.declaration?.simpleName?.asString()
+            } else {
+                resolvedType.declaration.simpleName.asString()
+            }
+        }
+
     return ResolverParams.Field(
         implFqn = implFqn,
         typeName = typeName,
@@ -216,6 +247,9 @@ private fun KSClassDeclaration.toFieldResolverParams(
         isSelective = isSelective,
         objectSelections = objectSelections,
         querySelections = querySelections,
+        hasArguments = hasArguments,
+        queryTypeName = queryTypeName,
+        returnTypeName = returnTypeName,
     )
 }
 

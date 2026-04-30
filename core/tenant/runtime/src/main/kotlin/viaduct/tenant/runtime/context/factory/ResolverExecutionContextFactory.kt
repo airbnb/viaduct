@@ -218,6 +218,46 @@ class FieldExecutionContextFactory internal constructor(
     }
 
     companion object {
+        @Suppress("UNCHECKED_CAST")
+        fun of(
+            resolverBaseClass: Class<out ResolverBase<*>>,
+            reflectionLoader: ReflectionLoader,
+            typeName: String,
+            fieldName: String,
+            hasArguments: Boolean,
+            queryTypeName: String,
+            returnTypeName: String?,
+            grtConvFactory: GRTConvFactory,
+        ): FieldExecutionContextFactory {
+            val expectedContextInterface = resolveExpectedContextInterface(resolverBaseClass)
+            val queryCls = reflectionLoader.reflectionFor(queryTypeName).kcls as KClass<Query>
+            val objectCls = reflectionLoader.reflectionFor(typeName).kcls as KClass<Object>
+            val argumentsCls = resolveArgumentsCls(reflectionLoader, typeName, fieldName, hasArguments)
+            // takeIf guards against enum GRTs: enums have a Reflection object so reflectionFor succeeds,
+            // but they are not CompositeOutput and must not be treated as composite.
+            val returnTypeKClass = returnTypeName?.let {
+                runCatching {
+                    @Suppress("UNCHECKED_CAST")
+                    reflectionLoader.reflectionFor(it).kcls
+                        .takeIf { cls -> cls.isSubclassOf(CompositeOutput::class) } as KClass<CompositeOutput>?
+                }.getOrNull()
+            }
+            val resultType = Type.ofClass(returnTypeKClass ?: CompositeOutput.NotComposite::class)
+
+            return FieldExecutionContextFactory(
+                resolverBaseClass,
+                expectedContextInterface,
+                reflectionLoader,
+                resultType,
+                argumentsCls,
+                objectCls,
+                queryCls,
+                grtConvFactory,
+                graphqlTypeName = typeName,
+                graphqlFieldName = fieldName,
+            )
+        }
+
         /**
          * Returns a field execution context factory for a field def.  Could be
          * a "regular" or "mutation" context factory based on the type of the
@@ -238,34 +278,10 @@ class FieldExecutionContextFactory internal constructor(
             val fieldDef = schema.schema.getObjectType(typeName)?.getFieldDefinition(fieldName)
                 ?: throw IllegalArgumentException("Called on a missing field coordinate ($typeName.$fieldName).")
 
-            val contextKClass: KClass<out ExecutionContext> =
-                resolverBaseClass.declaredClasses.firstOrNull {
-                    BaseFieldExecutionContext::class.java.isAssignableFrom(it)
-                }?.kotlin as? KClass<out ExecutionContext>
-                    ?: throw IllegalArgumentException("No nested Context class found in ${resolverBaseClass.name}")
-
-            val expectedContextInterface: Class<out BaseFieldExecutionContext<*, *, *>> =
-                when {
-                    contextKClass.isSubclassOf(MutationFieldExecutionContext::class) ->
-                        MutationFieldExecutionContext::class.java
-
-                    contextKClass.isSubclassOf(ConnectionFieldExecutionContext::class) ->
-                        ConnectionFieldExecutionContext::class.java
-
-                    else ->
-                        FieldExecutionContext::class.java
-                }
-
+            val expectedContextInterface = resolveExpectedContextInterface(resolverBaseClass)
             val queryCls = reflectionLoader.reflectionFor(schema.schema.queryType.name).kcls as KClass<Query>
-
             val objectCls = reflectionLoader.reflectionFor(typeName).kcls as KClass<Object>
-
-            val argumentsCls = if (fieldDef.arguments.isEmpty()) {
-                Arguments.NoArguments::class
-            } else {
-                val fn = fieldName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(getDefault()) else it.toString() }
-                reflectionLoader.getGRTKClassFor("${typeName}_${fn}_Arguments")
-            } as KClass<Arguments>
+            val argumentsCls = resolveArgumentsCls(reflectionLoader, typeName, fieldName, fieldDef.arguments.isNotEmpty())
 
             val resultType = Type.ofClass(
                 (GraphQLTypeUtil.unwrapAll(fieldDef.type) as? GraphQLCompositeType)?.let { type ->
@@ -286,5 +302,39 @@ class FieldExecutionContextFactory internal constructor(
                 graphqlFieldName = fieldName,
             )
         }
+
+        @Suppress("UNCHECKED_CAST")
+        private fun resolveExpectedContextInterface(resolverBaseClass: Class<out ResolverBase<*>>): Class<out BaseFieldExecutionContext<*, *, *>> {
+            val contextKClass: KClass<out ExecutionContext> =
+                resolverBaseClass.declaredClasses.firstOrNull {
+                    BaseFieldExecutionContext::class.java.isAssignableFrom(it)
+                }?.kotlin as? KClass<out ExecutionContext>
+                    ?: throw IllegalArgumentException("No nested Context class found in ${resolverBaseClass.name}")
+
+            return when {
+                contextKClass.isSubclassOf(MutationFieldExecutionContext::class) ->
+                    MutationFieldExecutionContext::class.java
+
+                contextKClass.isSubclassOf(ConnectionFieldExecutionContext::class) ->
+                    ConnectionFieldExecutionContext::class.java
+
+                else ->
+                    FieldExecutionContext::class.java
+            }
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        private fun resolveArgumentsCls(
+            reflectionLoader: ReflectionLoader,
+            typeName: String,
+            fieldName: String,
+            hasArguments: Boolean,
+        ): KClass<Arguments> =
+            if (!hasArguments) {
+                Arguments.NoArguments::class
+            } else {
+                val fn = fieldName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(getDefault()) else it.toString() }
+                reflectionLoader.getGRTKClassFor("${typeName}_${fn}_Arguments")
+            } as KClass<Arguments>
     }
 }

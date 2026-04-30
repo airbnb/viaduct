@@ -126,9 +126,11 @@ class ResolverParamsJsonCodecTest {
                   "fields" : [ {
                     "attribution" : "ExampleNameResolver",
                     "fieldName" : "name",
+                    "hasArguments" : false,
                     "implFqn" : "com.example.feature.resolvers.ExampleNameResolver",
                     "isBatching" : false,
                     "isSelective" : false,
+                    "queryTypeName" : "Query",
                     "resolverBaseClass" : "com.example.feature.resolverbases.ExampleName",
                     "typeName" : "ExampleNode"
                   } ],
@@ -177,6 +179,7 @@ class ResolverParamsJsonCodecTest {
                   "fields" : [ {
                     "attribution" : "ExampleNameResolver",
                     "fieldName" : "name",
+                    "hasArguments" : false,
                     "implFqn" : "com.example.feature.resolvers.ExampleNameResolver",
                     "isBatching" : false,
                     "isSelective" : false,
@@ -189,6 +192,7 @@ class ResolverParamsJsonCodecTest {
                         "providedVariables" : { }
                       } ]
                     },
+                    "queryTypeName" : "Query",
                     "resolverBaseClass" : "com.example.feature.resolverbases.ExampleName",
                     "typeName" : "ExampleNode"
                   } ],
@@ -232,6 +236,7 @@ class ResolverParamsJsonCodecTest {
                   "fields" : [ {
                     "attribution" : "GreetingResolver",
                     "fieldName" : "greeting",
+                    "hasArguments" : false,
                     "implFqn" : "com.example.feature.resolvers.GreetingResolver",
                     "isBatching" : false,
                     "isSelective" : false,
@@ -243,6 +248,7 @@ class ResolverParamsJsonCodecTest {
                       "selections" : "fragment _ on Query { viewer { displayName } }",
                       "variablesProviders" : [ ]
                     },
+                    "queryTypeName" : "Query",
                     "resolverBaseClass" : "com.example.feature.resolverbases.CharacterResolvers.Greeting",
                     "typeName" : "Character"
                   } ],

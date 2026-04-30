@@ -6,6 +6,7 @@ import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSName
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeArgument
 import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueArgument
 import java.lang.reflect.Proxy
@@ -797,6 +798,335 @@ class RegistryExtractorExtensionsTest {
         assertEquals("ExampleNode", result.typeName)
         assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }
+
+    @Test
+    fun `toResolverParams - hasArguments is false when Context supertype includes NoArguments`() {
+        val logger = RecordingKspLogger()
+
+        val noArgumentsDeclaration = ksClassDeclaration(
+            qualifiedName = "viaduct.api.types.Arguments.NoArguments",
+            simpleName = "NoArguments",
+            packageName = "viaduct.api.types",
+            declarations = emptyList(),
+        )
+        val contextSupertype = ksClassDeclaration(
+            qualifiedName = "com.example.ContextBase",
+            simpleName = "ContextBase",
+            packageName = "com.example",
+            declarations = emptyList(),
+        )
+        val contextTypeArg = ksTypeArgument(ksTypeReference(noArgumentsDeclaration))
+        val contextClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName.Context",
+            simpleName = "Context",
+            packageName = "com.example.feature.resolverbases",
+            superDeclarations = emptyList(),
+            declarations = emptyList(),
+            contextSuperTypeRef = ksTypeReferenceWithArgs(contextSupertype, listOf(contextTypeArg)),
+        )
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = listOf(contextClass),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+
+        assertEquals(false, result?.hasArguments)
+    }
+
+    @Test
+    fun `toResolverParams - hasArguments is true when Context supertype has no NoArguments type arg`() {
+        val logger = RecordingKspLogger()
+
+        val someArgumentsDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.SomeArguments",
+            simpleName = "SomeArguments",
+            packageName = "com.example",
+            declarations = emptyList(),
+        )
+        val contextSupertype = ksClassDeclaration(
+            qualifiedName = "com.example.ContextBase",
+            simpleName = "ContextBase",
+            packageName = "com.example",
+            declarations = emptyList(),
+        )
+        val contextTypeArg = ksTypeArgument(ksTypeReference(someArgumentsDeclaration))
+        val contextClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName.Context",
+            simpleName = "Context",
+            packageName = "com.example.feature.resolverbases",
+            superDeclarations = emptyList(),
+            declarations = emptyList(),
+            contextSuperTypeRef = ksTypeReferenceWithArgs(contextSupertype, listOf(contextTypeArg)),
+        )
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = listOf(contextClass),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+
+        assertEquals(true, result?.hasArguments)
+    }
+
+    @Test
+    fun `toResolverParams - queryTypeName defaults to Query when no Context class present`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+
+        assertEquals("Query", result?.queryTypeName)
+    }
+
+    @Test
+    fun `toResolverParams - queryTypeName is extracted from Context supertype type arg that implements Query`() {
+        val logger = RecordingKspLogger()
+
+        val queryInterfaceDeclaration = ksClassDeclaration(
+            qualifiedName = "viaduct.api.types.Query",
+            simpleName = "Query",
+            packageName = "viaduct.api.types",
+            declarations = emptyList(),
+        )
+        val queryTypeDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.grts.SomeQuery",
+            simpleName = "SomeQuery",
+            packageName = "com.example.grts",
+            superDeclarations = listOf(queryInterfaceDeclaration),
+            declarations = emptyList(),
+        )
+        val contextSupertype = ksClassDeclaration(
+            qualifiedName = "com.example.ContextBase",
+            simpleName = "ContextBase",
+            packageName = "com.example",
+            declarations = emptyList(),
+        )
+        val contextTypeArg = ksTypeArgument(ksTypeReference(queryTypeDeclaration))
+        val contextClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName.Context",
+            simpleName = "Context",
+            packageName = "com.example.feature.resolverbases",
+            superDeclarations = emptyList(),
+            declarations = emptyList(),
+            contextSuperTypeRef = ksTypeReferenceWithArgs(contextSupertype, listOf(contextTypeArg)),
+        )
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = listOf(contextClass),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+
+        assertEquals("SomeQuery", result?.queryTypeName)
+    }
+
+    @Test
+    fun `toResolverParams - queryTypeName defaults to Query when Context has no type arg implementing Query`() {
+        val logger = RecordingKspLogger()
+
+        val noArgumentsDeclaration = ksClassDeclaration(
+            qualifiedName = "viaduct.api.types.Arguments.NoArguments",
+            simpleName = "NoArguments",
+            packageName = "viaduct.api.types",
+            declarations = emptyList(),
+        )
+        val contextSupertype = ksClassDeclaration(
+            qualifiedName = "com.example.ContextBase",
+            simpleName = "ContextBase",
+            packageName = "com.example",
+            declarations = emptyList(),
+        )
+        val contextTypeArg = ksTypeArgument(ksTypeReference(noArgumentsDeclaration))
+        val contextClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName.Context",
+            simpleName = "Context",
+            packageName = "com.example.feature.resolverbases",
+            superDeclarations = emptyList(),
+            declarations = emptyList(),
+            contextSuperTypeRef = ksTypeReferenceWithArgs(contextSupertype, listOf(contextTypeArg)),
+        )
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = listOf(contextClass),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+
+        assertEquals("Query", result?.queryTypeName)
+    }
+
+    @Test
+    fun `toResolverParams - returnTypeName is extracted from ResolverBase type argument`() {
+        val logger = RecordingKspLogger()
+
+        val returnTypeDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.grts.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.grts",
+            declarations = emptyList(),
+        )
+        val resolverBaseDeclaration = ksClassDeclaration(
+            qualifiedName = "viaduct.api.ResolverBase",
+            simpleName = "ResolverBase",
+            packageName = "viaduct.api",
+            declarations = emptyList(),
+        )
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+            superTypeRefs = listOf(
+                ksTypeReferenceWithArgs(resolverBaseDeclaration, listOf(ksTypeArgument(ksTypeReference(returnTypeDeclaration)))),
+            ),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+
+        assertEquals("ExampleNode", result?.returnTypeName)
+    }
+
+    @Test
+    fun `toResolverParams - returnTypeName is null when ResolverBase has no type argument`() {
+        val logger = RecordingKspLogger()
+
+        val resolverBaseDeclaration = ksClassDeclaration(
+            qualifiedName = "viaduct.api.ResolverBase",
+            simpleName = "ResolverBase",
+            packageName = "viaduct.api",
+            declarations = emptyList(),
+        )
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+            superTypeRefs = listOf(
+                ksTypeReferenceWithArgs(resolverBaseDeclaration, emptyList()),
+            ),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
+
+        assertNull(result?.returnTypeName)
+    }
 }
 
 private fun ksClassDeclaration(
@@ -806,11 +1136,15 @@ private fun ksClassDeclaration(
     annotations: List<KSAnnotation> = emptyList(),
     superDeclarations: List<KSClassDeclaration> = emptyList(),
     declarations: List<KSDeclaration> = emptyList(),
+    contextSuperTypeRef: KSTypeReference? = null,
+    superTypeRefs: List<KSTypeReference>? = null,
 ): KSClassDeclaration {
     val qualifiedNameValue = ksName(qualifiedName)
     val simpleNameValue = ksName(simpleName)
     val packageNameValue = ksName(packageName)
-    val superTypes = superDeclarations.map { ksTypeReference(it) }
+    val superTypes = superTypeRefs
+        ?: contextSuperTypeRef?.let { listOf(it) }
+        ?: superDeclarations.map { ksTypeReference(it) }
 
     return proxy(KSClassDeclaration::class.java) { method, _ ->
         when (method.name) {
@@ -865,6 +1199,38 @@ private fun ksTypeReference(declaration: KSClassDeclaration): KSTypeReference {
     val type = proxy(KSType::class.java) { method, _ ->
         when (method.name) {
             "getDeclaration" -> declaration
+            "toString" -> declaration.toString()
+            else -> unsupported("KSType.${method.name}")
+        }
+    }
+
+    return proxy(KSTypeReference::class.java) { method, _ ->
+        when (method.name) {
+            "resolve" -> type
+            "toString" -> declaration.toString()
+            else -> unsupported("KSTypeReference.${method.name}")
+        }
+    }
+}
+
+private fun ksTypeArgument(typeRef: KSTypeReference): KSTypeArgument {
+    return proxy(KSTypeArgument::class.java) { method, _ ->
+        when (method.name) {
+            "getType" -> typeRef
+            "toString" -> typeRef.toString()
+            else -> unsupported("KSTypeArgument.${method.name}")
+        }
+    }
+}
+
+private fun ksTypeReferenceWithArgs(
+    declaration: KSClassDeclaration,
+    typeArgs: List<KSTypeArgument>,
+): KSTypeReference {
+    val type = proxy(KSType::class.java) { method, _ ->
+        when (method.name) {
+            "getDeclaration" -> declaration
+            "getArguments" -> typeArgs
             "toString" -> declaration.toString()
             else -> unsupported("KSType.${method.name}")
         }

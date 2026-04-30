@@ -49,6 +49,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     tenantAPIData = FieldAPIData(
                         resolverClass = "$base\$QueryNodeObjResolver",
                         resolverBaseClass = "$resolverBases.QueryResolvers\$NodeObj",
+                        queryTypeName = "Query",
                     ),
                 ),
                 FieldEntry(
@@ -60,6 +61,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     tenantAPIData = FieldAPIData(
                         resolverClass = "$base\$NodeReferenceResolver",
                         resolverBaseClass = "$resolverBases.QueryResolvers\$NodeReference",
+                        queryTypeName = "Query",
                     ),
                 ),
                 FieldEntry(
@@ -71,6 +73,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     tenantAPIData = FieldAPIData(
                         resolverClass = "$base\$ObjectWithNodeFieldResolver",
                         resolverBaseClass = "$resolverBases.QueryResolvers\$ObjectWithNodeField",
+                        queryTypeName = "Query",
                     ),
                 ),
             ),

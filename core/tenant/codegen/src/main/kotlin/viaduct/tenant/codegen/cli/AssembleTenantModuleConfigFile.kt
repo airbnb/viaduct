@@ -108,6 +108,9 @@ class AssembleTenantModuleConfigFile : CliktCommand(
                 tenantAPIData = FieldAPIData(
                     resolverClass = field.implFqn,
                     resolverBaseClass = field.resolverBaseClass,
+                    returnTypeName = field.returnTypeName,
+                    hasArguments = field.hasArguments,
+                    queryTypeName = field.queryTypeName,
                 ),
             )
         }

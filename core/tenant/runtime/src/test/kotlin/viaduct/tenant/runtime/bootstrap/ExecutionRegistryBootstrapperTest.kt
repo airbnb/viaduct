@@ -144,6 +144,7 @@ class ExecutionRegistryBootstrapperTest {
         tenantAPIData = FieldAPIData(
             resolverClass = "$pkg\$$resolverSimpleName",
             resolverBaseClass = "$pkg\$$resolverBaseSimpleName",
+            queryTypeName = "Query",
         ),
     )
 

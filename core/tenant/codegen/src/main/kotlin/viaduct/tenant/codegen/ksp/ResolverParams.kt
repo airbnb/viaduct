@@ -32,6 +32,9 @@ internal sealed interface ResolverParams {
         @get:JsonProperty("isSelective") val isSelective: Boolean,
         val objectSelections: SelectionsBlock? = null,
         val querySelections: SelectionsBlock? = null,
+        @get:JsonProperty("hasArguments") val hasArguments: Boolean = false,
+        val queryTypeName: String = "Query",
+        val returnTypeName: String? = null,
     ) : ResolverParams
 }
 
