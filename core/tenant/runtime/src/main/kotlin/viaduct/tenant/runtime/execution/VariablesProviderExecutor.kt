@@ -6,7 +6,8 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.internal
 import viaduct.api.types.Arguments
-import viaduct.apiannotations.InTenantCode
+import viaduct.apiannotations.Attribution
+import viaduct.apiannotations.AttributionContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver
 import viaduct.errors.handleTenantErrorsSuspend
@@ -44,7 +45,7 @@ class VariablesProviderExecutor(
         }
     }
 
-    @InTenantCode
+    @Attribution(AttributionContext.TENANT)
     private suspend fun provideVariables(
         provider: VariablesProvider<*>,
         context: VariablesProviderContext<Arguments>

@@ -8,4 +8,4 @@ This is the main and only package for the Viaduct Shared Annotation API, contain
 
 API stability annotations: `@StableApi`, `@ExperimentalApi`, `@InternalApi`, `@VisibleForTest`, `@Deprecated`.
 
-Execution-context annotations: `@InFrameworkCode`, `@InTenantCode`. See the README for details.
+Execution-context annotations: `@Attribution(AttributionContext.FRAMEWORK)`, `@Attribution(AttributionContext.TENANT)`, `@Attribution(AttributionContext.INHERIT_CALLER)`. See the README for details.

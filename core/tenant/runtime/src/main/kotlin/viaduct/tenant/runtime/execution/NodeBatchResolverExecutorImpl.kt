@@ -5,7 +5,8 @@ import kotlin.reflect.KFunction
 import viaduct.api.FieldValue
 import viaduct.api.NodeResolverBase
 import viaduct.api.internal.ReflectionLoader
-import viaduct.apiannotations.InTenantCode
+import viaduct.apiannotations.Attribution
+import viaduct.apiannotations.AttributionContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
@@ -88,6 +89,6 @@ class NodeBatchResolverExecutorImpl(
         }
     }
 
-    @InTenantCode
+    @Attribution(AttributionContext.TENANT)
     private fun unwrapFieldValue(fieldValue: FieldValue<*>): EngineObjectData = NodeUnbatchedResolverExecutorImpl.unwrapNodeResolverResult(fieldValue.get())
 }

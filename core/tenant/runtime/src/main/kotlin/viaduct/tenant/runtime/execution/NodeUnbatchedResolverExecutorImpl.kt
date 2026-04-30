@@ -5,7 +5,8 @@ import kotlin.reflect.KFunction
 import viaduct.api.NodeResolverBase
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ReflectionLoader
-import viaduct.apiannotations.InTenantCode
+import viaduct.apiannotations.Attribution
+import viaduct.apiannotations.AttributionContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
@@ -69,7 +70,7 @@ class NodeUnbatchedResolverExecutorImpl(
     }
 
     companion object {
-        @InTenantCode
+        @Attribution(AttributionContext.TENANT)
         internal fun unwrapNodeResolverResult(result: Any?): EngineObjectData {
             if (result !is ObjectBase) {
                 throw TenantUsageException("Unexpected result type that is not a GRT for a node object: $result")

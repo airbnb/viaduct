@@ -342,35 +342,43 @@ These annotations are unrelated to API stability. They document the *error-attri
 context* in which a function executes — relevant to Viaduct's two-boundary
 error-attribution model.
 
-### `@InFrameworkCode`
+### `@Attribution(AttributionContext.FRAMEWORK)`
 
-Marks a function or class as executing in *framework context*, even though it lives in a
+Marks a function as executing in *framework context*, even though it lives in a
 module that defaults to tenant context (e.g. `tenant/api` or generated GRT code).
 
 Most code in `tenant/api` executes in tenant context — any unattributed exception thrown
-there is attributed to tenant code. `@InFrameworkCode` marks the exceptions: functions that
-are part of the framework machinery and whose unattributed exceptions should be treated as
-framework bugs.
+there is attributed to tenant code. `@Attribution(AttributionContext.FRAMEWORK)` marks
+the exceptions: functions that are part of the framework machinery and whose unattributed
+exceptions should be treated as framework bugs.
 
-`@InFrameworkCode` must not appear on functions that tenants call directly. It must be
-paired with `private`, `internal`, or `@InternalApi`.
+`@Attribution(AttributionContext.FRAMEWORK)` must not appear on functions that tenants
+call directly. It must be paired with `private`, `internal`, or `@InternalApi`.
 
-Any tenant-context function that calls an `@InFrameworkCode` function must ensure that
-exceptions thrown from that call site are attributed to the framework, not tenant code.
-Using a `handleFrameworkErrors` block is the standard way to achieve this.
+Any tenant-context function that calls an `@Attribution(AttributionContext.FRAMEWORK)`
+function must ensure that exceptions thrown from that call site are attributed to the
+framework, not tenant code. Using a `handleFrameworkErrors` block is the standard way to
+achieve this.
 
-### `@InTenantCode`
+### `@Attribution(AttributionContext.TENANT)`
 
-Marks a function or class as executing in *tenant context*, even though it lives in a
+Marks a function as executing in *tenant context*, even though it lives in a
 module that defaults to framework context (e.g. `tenant/runtime`).
 
 Most code in `tenant/runtime` executes in framework context — any unattributed exception
-thrown there is wrapped as a `FrameworkException`. `@InTenantCode` marks the exceptions:
-functions where an unattributed exception should instead be attributed to tenant code.
+thrown there is wrapped as a `FrameworkException`. `@Attribution(AttributionContext.TENANT)`
+marks the exceptions: functions where an unattributed exception should instead be
+attributed to tenant code.
 
-Any framework-context function that calls an `@InTenantCode` function must ensure that
-exceptions thrown from that call site are attributed to tenant code, not framework code.
-Using a `handleTenantErrors` block is the standard way to achieve this.
+Any framework-context function that calls an `@Attribution(AttributionContext.TENANT)`
+function must ensure that exceptions thrown from that call site are attributed to tenant
+code, not framework code. Using a `handleTenantErrors` block is the standard way to
+achieve this.
+
+### `@Attribution(AttributionContext.INHERIT_CALLER)`
+
+Marks a function as inheriting its caller's attribution context. Useful for utility code
+that should not shift attribution — exceptions propagate with the caller's context.
 
 ## Relationship with BCV and `.api` baselines
 

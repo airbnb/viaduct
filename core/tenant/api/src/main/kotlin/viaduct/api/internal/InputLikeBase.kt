@@ -4,7 +4,8 @@ import graphql.language.Value
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.api.types.InputLike
-import viaduct.apiannotations.InFrameworkCode
+import viaduct.apiannotations.Attribution
+import viaduct.apiannotations.AttributionContext
 import viaduct.apiannotations.InternalApi
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
@@ -38,7 +39,7 @@ abstract class InputLikeBase : InputLike {
             readFieldValue(fieldName)
         }
 
-    @InFrameworkCode
+    @Attribution(AttributionContext.FRAMEWORK)
     private fun <T> readFieldValue(fieldName: String): T {
         // FrameworkException, not TenantUsageException: fieldName is a hardcoded literal baked in
         // by the code generator from the schema — never a runtime value from the operation. A
@@ -91,7 +92,7 @@ abstract class InputLikeBase : InputLike {
             writeFieldValue(fieldName, value)
         }
 
-        @InFrameworkCode
+        @Attribution(AttributionContext.FRAMEWORK)
         private fun writeFieldValue(
             fieldName: String,
             value: Any?

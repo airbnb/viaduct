@@ -1,6 +1,7 @@
 package viaduct.api.mapping
 
-import viaduct.apiannotations.InFrameworkCode
+import viaduct.apiannotations.Attribution
+import viaduct.apiannotations.AttributionContext
 import viaduct.errors.handleFrameworkErrors
 import viaduct.mapping.graphql.Conv
 
@@ -15,13 +16,13 @@ internal fun <From, To> Conv<From, To>.handleFrameworkErrors(message: String): C
         inverse = { to -> handleFrameworkErrors(message) { applyInverse(this, to) } },
     )
 
-@InFrameworkCode
+@Attribution(AttributionContext.FRAMEWORK)
 private fun <From, To> applyForward(
     conv: Conv<From, To>,
     from: From
 ): To = conv(from)
 
-@InFrameworkCode
+@Attribution(AttributionContext.FRAMEWORK)
 private fun <From, To> applyInverse(
     conv: Conv<From, To>,
     to: To

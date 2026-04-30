@@ -6,7 +6,8 @@ import graphql.schema.GraphQLTypeUtil
 import kotlin.reflect.KClass
 import viaduct.api.context.ExecutionContext
 import viaduct.api.types.GRT
-import viaduct.apiannotations.InFrameworkCode
+import viaduct.apiannotations.Attribution
+import viaduct.apiannotations.AttributionContext
 import viaduct.apiannotations.InternalApi
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrors
@@ -69,7 +70,7 @@ class ViaductObjectBuilder<T : GRT> private constructor(
             buildInFrameworkCode()
         }
 
-    @InFrameworkCode
+    @Attribution(AttributionContext.FRAMEWORK)
     private fun buildInFrameworkCode(): T = grtClazz.constructors.first().call(context, underlyingWrapper.getEngineObjectData())
 
     companion object {

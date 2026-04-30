@@ -22,7 +22,8 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
-import viaduct.apiannotations.InFrameworkCode
+import viaduct.apiannotations.Attribution
+import viaduct.apiannotations.AttributionContext
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
@@ -114,7 +115,7 @@ abstract class ObjectBase(
         return (if (result == NULL_VALUE) null else result) as T
     }
 
-    @InFrameworkCode
+    @Attribution(AttributionContext.FRAMEWORK)
     private fun wrap(
         type: GraphQLType,
         value: Any?,

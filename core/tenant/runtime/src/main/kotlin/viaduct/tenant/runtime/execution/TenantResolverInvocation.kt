@@ -3,9 +3,10 @@ package viaduct.tenant.runtime.execution
 import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
-import viaduct.apiannotations.InTenantCode
+import viaduct.apiannotations.Attribution
+import viaduct.apiannotations.AttributionContext
 
-@InTenantCode
+@Attribution(AttributionContext.TENANT)
 internal suspend fun <T> callResolver(
     resolverFunction: KFunction<*>,
     vararg args: Any?,

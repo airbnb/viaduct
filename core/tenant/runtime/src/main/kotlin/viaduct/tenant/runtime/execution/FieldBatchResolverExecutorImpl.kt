@@ -5,7 +5,8 @@ import kotlin.reflect.KFunction
 import viaduct.api.FieldValue
 import viaduct.api.ResolverBase
 import viaduct.api.internal.ReflectionLoader
-import viaduct.apiannotations.InTenantCode
+import viaduct.apiannotations.Attribution
+import viaduct.apiannotations.AttributionContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
@@ -112,7 +113,7 @@ class FieldBatchResolverExecutorImpl(
         }
     }
 
-    @InTenantCode
+    @Attribution(AttributionContext.TENANT)
     private fun unwrapFieldValue(
         fieldValue: FieldValue<*>,
         globalIDCodec: GlobalIDCodec
