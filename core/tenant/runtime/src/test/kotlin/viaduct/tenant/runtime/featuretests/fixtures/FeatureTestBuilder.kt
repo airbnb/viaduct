@@ -432,7 +432,6 @@ class FeatureTestBuilder(
         @Suppress("DEPRECATION")
         val standardViaduct = StandardViaduct.Builder()
             .withTenantAPIBootstrapperBuilders(builders)
-            .withLenientResolverValidation()
             .withFlagManager(
                 MockFlagManager.create(
                     Flags.EXECUTE_ACCESS_CHECKS,

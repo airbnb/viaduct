@@ -55,7 +55,6 @@ class ScopeFilteringIntrospectionTest {
         subject = StandardViaduct.Builder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
             .withDataFetcherExceptionHandler(mockk())
             .withSchemaConfiguration(schemaConfiguration)
             .build()

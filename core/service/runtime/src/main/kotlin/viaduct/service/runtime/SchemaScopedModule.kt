@@ -5,7 +5,6 @@ import com.google.inject.Exposed
 import com.google.inject.PrivateModule
 import com.google.inject.Provides
 import com.google.inject.Singleton
-import javax.inject.Named
 import javax.inject.Qualifier
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineFactory
@@ -20,9 +19,6 @@ import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
-import viaduct.engine.runtime.tenantloading.MissingResolverValidationCtx
-import viaduct.engine.runtime.tenantloading.MissingResolverValidator
-import viaduct.engine.runtime.validation.Validator
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper
 import viaduct.utils.slf4j.logger
@@ -110,26 +106,16 @@ internal class SchemaScopedModule(
         schema: ViaductSchema,
         tenantBootstrapper: BaseTenantAPIBootstrapper<TenantModuleBootstrapper>,
         proxyResolverFactory: ProxyResolverFactory,
-        resolverInstrumentation: ViaductResolverInstrumentation,
-        @Named("lenientResolverValidation") lenientResolverValidation: Boolean,
+        resolverInstrumentation: ViaductResolverInstrumentation
     ): DispatcherRegistry {
         log.info("Creating DispatcherRegistry for Viaduct Modern")
         val startTime = System.currentTimeMillis()
-
-        val missingResolverValidator: Validator<MissingResolverValidationCtx> =
-            if (lenientResolverValidation) {
-                Validator.Unvalidated
-            } else {
-                MissingResolverValidator(schema)
-            }
-
         val dispatcherRegistry = DispatcherRegistryFactory(
             tenantBootstrapper,
             validator,
             checkerExecutorFactory,
             resolverInstrumentation = resolverInstrumentation,
             proxyResolverFactory = proxyResolverFactory,
-            missingResolverValidator = missingResolverValidator,
         ).create(schema)
         val elapsedTime = System.currentTimeMillis() - startTime
         log.info("Created DispatcherRegistry for Viaduct Modern after [{}] ms", elapsedTime)

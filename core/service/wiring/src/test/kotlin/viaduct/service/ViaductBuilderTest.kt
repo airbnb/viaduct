@@ -11,10 +11,7 @@ import java.util.concurrent.CompletableFuture
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.service.api.spi.ErrorReporter
@@ -57,7 +54,6 @@ class ViaductBuilderTest {
         ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .build().let {
                 assertNotNull(it)
@@ -74,7 +70,6 @@ class ViaductBuilderTest {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withMeterRegistry(meterRegistry)
             .build()
@@ -94,7 +89,6 @@ class ViaductBuilderTest {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withResolverErrorReporter(errorReporter)
             .build()
@@ -112,7 +106,6 @@ class ViaductBuilderTest {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withDataFetcherErrorBuilder(errorBuilder)
             .build()
@@ -136,7 +129,6 @@ class ViaductBuilderTest {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withDataFetcherExceptionHandler(exceptionHandler)
             .build()
@@ -165,7 +157,6 @@ class ViaductBuilderTest {
         val result = builder
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withMeterRegistry(meterRegistry)
             .withResolverErrorReporter(errorReporter)
@@ -201,7 +192,6 @@ class ViaductBuilderTest {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withMeterRegistry(meterRegistry)
             .withResolverErrorReporter(errorReporter)
@@ -226,7 +216,6 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withMeterRegistry(meterRegistry) // Observability before other methods
             .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
             .withResolverErrorReporter(errorReporter) // Observability in the middle
             .withSchemaConfiguration(schemaConfiguration)
             .build()
@@ -248,22 +237,6 @@ class ViaductBuilderTest {
         // Verify that the method returns the same builder instance for chaining
         assertSame(builder, returned)
         assertEquals(builder, returned)
-    }
-
-    @Test
-    fun `strict mode rejects missing resolver at build time`() {
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
-        val exception = assertThrows<GraphQLBuildError> {
-            ViaductBuilder()
-                .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
-                .withSchemaConfiguration(schemaConfiguration)
-                .build()
-        }
-        assertTrue(exception.message!!.contains("helloWorld"))
     }
 
     private fun mkSchema(sdl: String): ViaductSchema = ViaductSchema(SchemaGenerator().makeExecutableSchema(SchemaParser().parse(sdl), RuntimeWiring.MOCKED_WIRING))

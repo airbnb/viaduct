@@ -147,12 +147,6 @@ class ViaductBuilder {
             builder.withProxyResolverFactory(proxyResolverFactory)
         }
 
-    /** @see StandardViaduct.Builder.withLenientResolverValidation */
-    fun withLenientResolverValidation(lenient: Boolean = true) =
-        apply {
-            builder.withLenientResolverValidation(lenient)
-        }
-
     /**
      * Builds and returns a [Viaduct] instance ready to execute GraphQL operations.
      *

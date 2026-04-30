@@ -222,44 +222,6 @@ class StandardViaductTest {
                 .build()
         }
     }
-
-    @Test
-    fun `build should throw GraphQLBuildError when resolver field has no registered executor`() {
-        val sdl = """
-            extend type Query {
-                missing: String @resolver
-            }
-        """.trimIndent()
-        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
-
-        val exception = assertThrows<GraphQLBuildError> {
-            StandardViaduct.Builder()
-                .withNoTenantAPIBootstrapper()
-                .withSchemaConfiguration(schemaConfiguration)
-                .build()
-        }
-
-        assertEquals(true, exception.message?.contains("Query.missing"))
-        assertEquals("MissingResolversException", exception.cause?.javaClass?.simpleName)
-    }
-
-    @Test
-    fun `build should succeed with lenient resolver validation when resolver field has no executor`() {
-        val sdl = """
-            extend type Query {
-                missing: String @resolver
-            }
-        """.trimIndent()
-        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
-
-        assertDoesNotThrow {
-            StandardViaduct.Builder()
-                .withNoTenantAPIBootstrapper()
-                .withLenientResolverValidation()
-                .withSchemaConfiguration(schemaConfiguration)
-                .build()
-        }
-    }
 }
 
 private fun makeSchema(schema: String): ViaductSchema {

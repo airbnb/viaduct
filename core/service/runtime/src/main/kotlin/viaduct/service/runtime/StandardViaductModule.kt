@@ -6,7 +6,6 @@ import com.google.inject.AbstractModule
 import com.google.inject.Provides
 import com.google.inject.Singleton
 import com.google.inject.TypeLiteral
-import com.google.inject.name.Names
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.instrumentation.Instrumentation
 import io.micrometer.core.instrument.MeterRegistry
@@ -37,7 +36,6 @@ class StandardViaductModule(
     private val checkerExecutorFactoryCreator: CheckerExecutorFactoryCreator?,
     private val documentProviderFactory: DocumentProviderFactory?,
     private val proxyResolverFactory: ProxyResolverFactory?,
-    private val lenientResolverValidation: Boolean = false,
 ) : AbstractModule() {
     override fun configure() {
         bind(StandardViaduct.Factory::class.java)
@@ -70,8 +68,6 @@ class StandardViaductModule(
         bind(CheckerExecutorFactoryCreator::class.java).toInstance(resolvedCheckerExecutorFactoryCreator)
 
         bind(ProxyResolverFactory::class.java).toInstance(proxyResolverFactory ?: ProxyResolverFactory.NO_OP)
-
-        bindConstant().annotatedWith(Names.named("lenientResolverValidation")).to(lenientResolverValidation)
     }
 
     @Provides
