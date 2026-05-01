@@ -5,6 +5,7 @@ import kotlinx.metadata.KmFunction
 import kotlinx.metadata.KmValueParameter
 import kotlinx.metadata.Modality
 import kotlinx.metadata.Visibility
+import kotlinx.metadata.isNullable
 import kotlinx.metadata.isSuspend
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
@@ -48,6 +49,14 @@ internal fun GRTClassFilesBuilder.interfaceGen(def: ViaductSchema.Interface) {
                 baseTypeMapper,
                 KmValueParameter("alias").also { it.type = Km.STRING.asNullableType() }
             )
+            it.addSuspendingGetterFun(f, pkg, baseTypeMapper, orNull = true)
+            it.addSuspendingGetterFun(
+                f,
+                pkg,
+                baseTypeMapper,
+                KmValueParameter("alias").also { it.type = Km.STRING.asNullableType() },
+                orNull = true
+            )
         }
 
         this.reflectedTypeGen(def, it)
@@ -59,19 +68,26 @@ private fun CustomClassBuilder.addSuspendingGetterFun(
     field: ViaductSchema.Field,
     pkg: KmName,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
-    valueParam: KmValueParameter? = null
+    valueParam: KmValueParameter? = null,
+    orNull: Boolean = false
 ): CustomClassBuilder {
-    val getter = KmFunction(getterName(field.name)).also {
+    val suffix = if (orNull) "OrNull" else ""
+    val methodName = getterName(field.name) + suffix
+    val getter = KmFunction(methodName).also {
         it.visibility = Visibility.PUBLIC
         it.modality = Modality.ABSTRACT
         it.isSuspend = true
-        it.returnType = field.kmType(pkg, baseTypeMapper)
+        it.returnType = field.kmType(pkg, baseTypeMapper).also { t ->
+            if (orNull) t.isNullable = true
+        }
     }
     valueParam?.let { getter.valueParameters.add(it) }
 
     this.addSuspendFunction(
         getter,
-        returnTypeAsInputForSuspend = field.kmType(pkg, baseTypeMapper, isInput = true),
+        returnTypeAsInputForSuspend = field.kmType(pkg, baseTypeMapper, isInput = true).also { t ->
+            if (orNull) t.isNullable = true
+        },
     )
     return this
 }

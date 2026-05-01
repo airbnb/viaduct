@@ -23,7 +23,7 @@ import viaduct.graphql.test.assertEquals
         "Return a User with id=\"viewer-123\", name=\"ViewerUser\""
         viewer: User @resolver
         "Return null"
-        viewerOrNull: User @resolver
+        nullableViewer: User @resolver
         "Return a User with id=<id>, name=\"User-<id>\""
         user(id: ID!): User @resolver
     }
@@ -38,7 +38,7 @@ import viaduct.graphql.test.assertEquals
         name: String!
         "Use queryValueFragment to fetch viewer; return \"<user.id>-displayedBy-<viewer.name>\""
         displayName: String! @resolver
-        "Use queryValueFragment to fetch viewerOrNull; when null return \"<user.id>-displayedBy-Unknown\""
+        "Use queryValueFragment to fetch nullableViewer; when null return \"<user.id>-displayedBy-Unknown\""
         displayNameFromNullViewer: String! @resolver
         "Use queryValueFragment to fetch viewer with displayName; return \"Hello User-<id>, from <viewer.id> (displayed by <viewer.displayName>)\""
         greeting: String! @resolver

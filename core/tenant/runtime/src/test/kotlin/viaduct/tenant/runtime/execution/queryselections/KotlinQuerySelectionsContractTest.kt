@@ -20,7 +20,7 @@ class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
     }
 
     @Resolver
-    class Query_ViewerOrNullResolver : QueryResolvers.ViewerOrNull() {
+    class Query_NullableViewerResolver : QueryResolvers.NullableViewer() {
         override suspend fun resolve(ctx: Context): User? {
             return null
         }
@@ -51,12 +51,12 @@ class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
 
     @Resolver(
         objectValueFragment = "fragment _ on User { id }",
-        queryValueFragment = "fragment _ on Query { viewerOrNull { name } }"
+        queryValueFragment = "fragment _ on Query { nullableViewer { name } }"
     )
     class User_DisplayNameFromNullViewerResolver : UserResolvers.DisplayNameFromNullViewer() {
         override suspend fun resolve(ctx: Context): String {
             val userId = ctx.getObjectValue().getId()
-            val viewerName = ctx.getQueryValue().getViewerOrNull()?.getName() ?: "Unknown"
+            val viewerName = ctx.getQueryValue().getNullableViewer()?.getName() ?: "Unknown"
             return "$userId-displayedBy-$viewerName"
         }
     }

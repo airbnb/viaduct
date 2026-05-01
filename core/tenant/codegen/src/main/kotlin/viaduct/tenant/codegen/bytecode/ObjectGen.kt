@@ -10,6 +10,7 @@ import kotlinx.metadata.KmVariance
 import kotlinx.metadata.Modality
 import kotlinx.metadata.Visibility
 import kotlinx.metadata.hasAnnotations
+import kotlinx.metadata.isNullable
 import kotlinx.metadata.isOperator
 import kotlinx.metadata.isSuspend
 import kotlinx.metadata.jvm.annotations
@@ -163,35 +164,50 @@ private class ObjectClassGenV2(
         for (field in def.codegenIncludedFields) {
             // Generate two field getters per field.
             // One to handle alias param and fetch the field value.
-            this.addFieldGetter(field)
+            this.addFieldGetter(field, orNull = false)
             // The other is just to pass default null as alias and
             // invoke the first getter.
-            this.addFieldGetterToPassDefaultValue(field)
+            this.addFieldGetterToPassDefaultValue(field, orNull = false)
+
+            // Emit OrNull variants that swallow exceptions and return null.
+            this.addFieldGetter(field, orNull = true)
+            this.addFieldGetterToPassDefaultValue(field, orNull = true)
         }
         return this
     }
 
-    private fun CustomClassBuilder.addFieldGetter(field: ViaductSchema.Field) {
+    private fun CustomClassBuilder.addFieldGetter(
+        field: ViaductSchema.Field,
+        orNull: Boolean
+    ) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
-        val kmFun = KmFunction(getterName(field.name)).also {
-            it.visibility = Visibility.PUBLIC
-            it.modality = Modality.FINAL
-            it.isSuspend = true
-            it.returnType = field.kmType(pkg, baseTypeMapper)
-            it.valueParameters.add(
-                KmValueParameter("alias").also {
-                    it.type = Km.STRING.asNullableType()
+        val fetchMethod = if (orNull) "fetchOrNull" else "fetch"
+        val getterSuffix = if (orNull) "OrNull" else ""
+        val methodName = getterName(field.name) + getterSuffix
+
+        val kmFun = KmFunction(methodName).apply {
+            visibility = Visibility.PUBLIC
+            modality = Modality.FINAL
+            isSuspend = true
+            returnType = field.kmType(pkg, baseTypeMapper).also { t ->
+                if (orNull) t.isNullable = true
+            }
+            valueParameters.add(
+                KmValueParameter("alias").apply {
+                    type = Km.STRING.asNullableType()
                 }
             )
         }
 
         this.addSuspendFunction(
             kmFun,
-            returnTypeAsInputForSuspend = field.kmType(pkg, baseTypeMapper, isInput = true),
+            returnTypeAsInputForSuspend = field.kmType(pkg, baseTypeMapper, isInput = true).also { t ->
+                if (orNull) t.isNullable = true
+            },
             body = buildString {
                 append("{\n")
-                append("return this.fetch(\n")
+                append("return this.$fetchMethod(\n")
                 append("\"${field.name}\", \n")
                 append(
                     // class of field base type
@@ -204,22 +220,31 @@ private class ObjectClassGenV2(
         )
     }
 
-    private fun CustomClassBuilder.addFieldGetterToPassDefaultValue(field: ViaductSchema.Field) {
+    private fun CustomClassBuilder.addFieldGetterToPassDefaultValue(
+        field: ViaductSchema.Field,
+        orNull: Boolean
+    ) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
-        val kmFun = KmFunction(getterName(field.name)).also {
+        val methodName = if (orNull) "${getterName(field.name)}OrNull" else getterName(field.name)
+
+        val kmFun = KmFunction(methodName).also {
             it.visibility = Visibility.PUBLIC
             it.modality = Modality.FINAL
             it.isSuspend = true
-            it.returnType = field.kmType(pkg, baseTypeMapper)
+            it.returnType = field.kmType(pkg, baseTypeMapper).also { t ->
+                if (orNull) t.isNullable = true
+            }
         }
 
         this.addSuspendFunction(
             kmFun,
-            returnTypeAsInputForSuspend = field.kmType(pkg, baseTypeMapper, isInput = true),
+            returnTypeAsInputForSuspend = field.kmType(pkg, baseTypeMapper, isInput = true).also { t ->
+                if (orNull) t.isNullable = true
+            },
             body = buildString {
                 append("{\n")
-                append("return this.${getterName(field.name)}((String)null, $1);")
+                append("return this.$methodName((String)null, $1);")
                 append("}")
             }
         )

@@ -650,7 +650,11 @@ class ObjectBaseTest {
     ) : ObjectBase(context, engineObject), viaduct.api.types.Object {
         suspend fun getIntField(): Int = fetch("intField", Int::class, null)
 
+        suspend fun getIntFieldOrNull(): Int? = fetchOrNull("intField", Int::class, null)
+
         suspend fun getArgumentedField(): String? = fetch("argumentedField", String::class, null)
+
+        suspend fun getArgumentedFieldOrNull(): String? = fetchOrNull("argumentedField", String::class, null)
 
         // toBuilder implementation that would normally be provided by codegen
         fun toBuilder(): Builder =
@@ -748,6 +752,41 @@ class ObjectBaseTest {
 
                 assertEquals(original.getIntField(), copy.getIntField())
                 assertEquals(original.getArgumentedField(), copy.getArgumentedField())
+            }
+
+        @Test
+        fun `fetchOrNull returns value on success`() =
+            runBlocking {
+                val o = TestObject.Builder(executionContext)
+                    .intField(42)
+                    .argumentedField("hello")
+                    .build()
+
+                assertEquals(42, o.getIntFieldOrNull())
+                assertEquals("hello", o.getArgumentedFieldOrNull())
+            }
+
+        @Test
+        fun `fetchOrNull rethrows UnsetFieldException`() =
+            runBlocking {
+                // intField is not set on the builder, so fetch() throws UnsetFieldException
+                val o = TestObject.Builder(executionContext).build()
+
+                assertThrows<UnsetFieldException> { runBlocking { o.getIntField() } }
+                assertThrows<UnsetFieldException> { runBlocking { o.getIntFieldOrNull() } }
+            }
+
+        @Test
+        fun `fetchOrNull rethrows UnsetFieldException from NodeReference`() =
+            runBlocking {
+                val nodeRef = object : NodeReference {
+                    override val type = gqlSchema.schema.getObjectType("O2")
+                    override val id get() = throw RuntimeException("boom")
+                }
+                val o = TestObject(internalContext, nodeRef)
+
+                // fetch() on a NodeReference for a non-id field throws UnsetFieldException
+                assertThrows<UnsetFieldException> { runBlocking { o.getIntFieldOrNull() } }
             }
 
         @Test

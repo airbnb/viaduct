@@ -42,7 +42,8 @@ abstract class ObjectBase(
     private val fieldCache = ConcurrentHashMap<String, Any>()
 
     /**
-     * Called by the generated GRT getters. For internal framework use only.
+     * Fetches a field value, throwing on failure. Called by generated GRT getters.
+     * For internal framework use only.
      */
     protected suspend fun <T> fetch(
         fieldName: String,
@@ -54,12 +55,25 @@ abstract class ObjectBase(
         }
 
     /**
+     * Fetches a field value, returning `null` on failure instead of throwing. Called by generated
+     * GRT `getXxxOrNull` getters. For internal framework use only.
+     */
+    protected suspend fun <T> fetchOrNull(
+        fieldName: String,
+        baseFieldTypeClass: KClass<*>,
+        alias: String? = null
+    ): T? =
+        handleFrameworkErrorsSuspend("${engineObject.type.name}.$fieldName") {
+            getOrNull(fieldName, baseFieldTypeClass, alias)
+        }
+
+    /**
      * Fetches the given selection from the EngineObjectData and wraps it into a typed GRT or scalar value.
      * Public function called by extension getter function on the GRT.
      *
-     * @param selection the GraphQL response key of a selection (see https://spec.graphql.org/draft/#sec-Field-Alias)
+     * @param fieldName the name of the field being fetched
      * @param baseFieldTypeClass the KClass that represents the generated base type of the provided selection
-     * @param fieldName the name of the field being selected by [selection]
+     * @param alias the GraphQL response key of the selection, if aliased (see https://spec.graphql.org/draft/#sec-Field-Alias)
      */
     @Suppress("UNCHECKED_CAST")
     @Attribution(AttributionContext.FRAMEWORK)
@@ -67,6 +81,36 @@ abstract class ObjectBase(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
+    ): T {
+        return getInternal(alias, fieldName, baseFieldTypeClass) { eod, selection ->
+            eod.fetch(selection) as T
+        }
+    }
+
+    /**
+     * Fetches the given selection from the EngineObjectData and wraps it into a typed GRT or scalar value,
+     * returning `null` if the field value is absent. Public function called by generated GRT `getXxxOrNull` getters.
+     *
+     * @param fieldName the name of the field being fetched
+     * @param baseFieldTypeClass the KClass that represents the generated base type of the provided selection
+     * @param alias the GraphQL response key of the selection, if aliased (see https://spec.graphql.org/draft/#sec-Field-Alias)
+     */
+    @Suppress("UNCHECKED_CAST")
+    suspend fun <T> getOrNull(
+        fieldName: String,
+        baseFieldTypeClass: KClass<*>,
+        alias: String? = null
+    ): T? {
+        return getInternal(alias, fieldName, baseFieldTypeClass) { eod, selection ->
+            eod.fetchOrNull(selection) as T?
+        }
+    }
+
+    private suspend fun <T> getInternal(
+        alias: String?,
+        fieldName: String,
+        baseFieldTypeClass: KClass<*>,
+        extractingFunction: suspend (eod: EngineObjectData, selection: String) -> T
     ): T {
         val selection = alias ?: fieldName
         val result = fieldCache.getOrPut(selection) {
@@ -88,7 +132,7 @@ abstract class ObjectBase(
                             )
                         }
                     }
-                    is EngineObjectData -> engineObject.fetch(selection)
+                    is EngineObjectData -> extractingFunction(engineObject, selection)
                     else -> throw FrameworkException("Unknown EngineObject subclass ${engineObject.javaClass.name}")
                 }
                 wrap(fieldDefinition.type, fieldValue, baseFieldTypeClass)

@@ -41,7 +41,7 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
   }
 
   @Resolver
-  public static class ViewerOrNullResolver extends QueryResolvers.ViewerOrNull {
+  public static class NullableViewerResolver extends QueryResolvers.NullableViewer {
     @Override
     public CompletableFuture<User> resolve(Context ctx) {
       return CompletableFuture.completedFuture(null);
@@ -73,13 +73,13 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
 
   @Resolver(
       objectValueFragment = "fragment _ on User { id }",
-      queryValueFragment = "fragment _ on Query { viewerOrNull { name } }")
+      queryValueFragment = "fragment _ on Query { nullableViewer { name } }")
   public static class DisplayNameFromNullViewerResolver
       extends UserResolvers.DisplayNameFromNullViewer {
     @Override
     public CompletableFuture<String> resolve(Context ctx) {
       String userId = ctx.getObjectValue().getId();
-      User viewer = ctx.getQueryValue().getViewerOrNull();
+      User viewer = ctx.getQueryValue().getNullableViewer();
       String viewerName = viewer != null ? viewer.getName() : "Unknown";
       return CompletableFuture.completedFuture(userId + "-displayedBy-" + viewerName);
     }

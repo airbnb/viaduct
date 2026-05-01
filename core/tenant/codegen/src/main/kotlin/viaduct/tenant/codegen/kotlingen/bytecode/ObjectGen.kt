@@ -117,6 +117,9 @@ private interface ObjectModel {
 
         /** Kotlin GRT-type of this field. */
         val kotlinType: String = fieldDef.kmType(JavaName(pkg).asKmName, baseTypeMapper).kotlinTypeString
+
+        /** Nullable variant of [kotlinType], used for `OrNull` getters. */
+        val kotlinTypeOrNull: String = if (kotlinType.endsWith("?")) kotlinType else "$kotlinType?"
     }
 }
 
@@ -140,6 +143,8 @@ private val objectSTGroup = stTemplate(
         <mdl.fields: { f |
           <f.overrideKeywords> suspend fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
           <f.overrideKeywords> suspend fun <f.getterName>(): <f.kotlinType> = TODO()
+          <f.overrideKeywords> suspend fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
+          <f.overrideKeywords> suspend fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
         }; separator="\n">
 
         fun toBuilder(): Builder =
@@ -200,6 +205,8 @@ private val connectionObjectSTGroup = stTemplate(
         <mdl.fields: { f |
           <f.overrideKeywords> suspend fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
           <f.overrideKeywords> suspend fun <f.getterName>(): <f.kotlinType> = TODO()
+          <f.overrideKeywords> suspend fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
+          <f.overrideKeywords> suspend fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
         }; separator="\n">
 
         fun toBuilder(): Builder =
