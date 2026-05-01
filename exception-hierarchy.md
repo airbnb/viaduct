@@ -18,6 +18,8 @@ Marks exceptions that classify an error as caused by tenant code. These exceptio
 | `UnsetFieldException` | Tenant accessed a field not in the required selection set |
 | `ErroneousFieldException` | Tenant accessed a selected field that is in an error state |
 
+Use this exception when "in framework code" to flag detected tenant errors: these will pass through `handleFrameworkError` and will get wrapped by `handleTenantError`.  Do **not** use these when "in tenant code:" instead use "natural" exceptions like `IllegalArgumentException` or `NoSuchElementException`.
+
 ### `PassthroughException` (standalone marker interface)
 
 Marks exceptions that have already been classified and should propagate through error boundaries without being re-wrapped.
@@ -27,6 +29,8 @@ Marks exceptions that have already been classified and should propagate through 
 | `FrameworkException` | A bug in framework code; should not be attributed to tenant |
 | `TenantResolverException` | Wraps an arbitrary exception thrown by a tenant resolver |
 | `FieldFetchingException` | Wraps exceptions from data fetchers (hybrid interop) |
+
+Note: The `TenantException` group is also treated as passthrough by the framework error handler — see below.
 
 ## Error Handler Semantics
 

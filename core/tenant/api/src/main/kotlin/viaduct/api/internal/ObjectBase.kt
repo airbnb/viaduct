@@ -15,9 +15,6 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import viaduct.api.globalid.GlobalID
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
@@ -29,10 +26,10 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.errors.FrameworkException
-import viaduct.errors.TenantException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.UnsetFieldException
 import viaduct.errors.handleFrameworkErrors
+import viaduct.errors.handleFrameworkErrorsSuspend
 
 /**
  * Base class for object type GRTs
@@ -51,18 +48,10 @@ abstract class ObjectBase(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
-    ): T {
-        try {
-            return get(fieldName, baseFieldTypeClass, alias)
-        } catch (ex: Exception) {
-            if (ex is CancellationException) currentCoroutineContext().ensureActive()
-            when (ex) {
-                is TenantException, is FrameworkException -> throw ex
-                is EngineObjectDataFetchException -> throw ex.cause!!
-                else -> throw FrameworkException("ObjectBase.fetch failed for ${engineObject.type.name}.$fieldName. ($ex)", ex)
-            }
+    ): T =
+        handleFrameworkErrorsSuspend("${engineObject.type.name}.$fieldName") {
+            get(fieldName, baseFieldTypeClass, alias)
         }
-    }
 
     /**
      * Fetches the given selection from the EngineObjectData and wraps it into a typed GRT or scalar value.
@@ -73,6 +62,7 @@ abstract class ObjectBase(
      * @param fieldName the name of the field being selected by [selection]
      */
     @Suppress("UNCHECKED_CAST")
+    @Attribution(AttributionContext.FRAMEWORK)
     suspend fun <T> get(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
@@ -84,8 +74,8 @@ abstract class ObjectBase(
             val fieldDefinition = objectType.getField(fieldName) ?: throw FrameworkException(
                 "Field $fieldName not found on type ${objectType.name}"
             )
-            val fieldValue = try {
-                when (engineObject) {
+            handleFrameworkErrorsSuspend("${objectType.name}.$selection") {
+                val fieldValue = when (engineObject) {
                     is NodeReference -> {
                         // If the EOD is a node reference, only allow access to its ID field
                         if (selection == "id") {
@@ -101,14 +91,6 @@ abstract class ObjectBase(
                     is EngineObjectData -> engineObject.fetch(selection)
                     else -> throw FrameworkException("Unknown EngineObject subclass ${engineObject.javaClass.name}")
                 }
-            } catch (ex: Exception) {
-                if (ex is CancellationException) currentCoroutineContext().ensureActive()
-                when (ex) {
-                    is TenantException, is FrameworkException -> throw ex
-                    else -> throw EngineObjectDataFetchException("engineObjectData.fetch failed on field $fieldName", ex)
-                }
-            }
-            handleFrameworkErrors("ObjectBase.get wrap failed for ${objectType.name}.$fieldName") {
                 wrap(fieldDefinition.type, fieldValue, baseFieldTypeClass)
             } ?: NULL_VALUE
         }
@@ -121,7 +103,6 @@ abstract class ObjectBase(
         value: Any?,
         baseFieldTypeClass: KClass<*>
     ): Any? {
-        // Reached only from internal fetch/get paths while wrapping engine data into GRT values.
         if (value == null) {
             if (GraphQLTypeUtil.isNonNull(type)) {
                 throw TenantUsageException("Got null value for non-null type ${GraphQLTypeUtil.simplePrint(type)}")
@@ -138,6 +119,7 @@ abstract class ObjectBase(
         }
     }
 
+    @Attribution(AttributionContext.FRAMEWORK)
     private fun wrapScalar(
         type: GraphQLScalarType,
         value: Any,
@@ -167,6 +149,7 @@ abstract class ObjectBase(
         )
     }
 
+    @Attribution(AttributionContext.FRAMEWORK)
     private fun wrapList(
         type: GraphQLList,
         value: Any,
@@ -180,6 +163,7 @@ abstract class ObjectBase(
         }
     }
 
+    @Attribution(AttributionContext.FRAMEWORK)
     private fun wrapObject(
         type: GraphQLCompositeType,
         value: Any
@@ -299,9 +283,6 @@ abstract class ObjectBase(
             DynamicValueBuilderTypeChecker(context).checkType(fieldDefinition.type, value, fieldContext)
         }
     }
-
-    // Internal for testing
-    internal class EngineObjectDataFetchException(message: String, cause: Throwable) : RuntimeException(message, cause)
 
     companion object {
         // Used to represent null in the field cache, since ConcurrentHashMap does not allow null values

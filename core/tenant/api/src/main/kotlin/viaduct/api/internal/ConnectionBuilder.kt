@@ -13,7 +13,7 @@ import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
-import viaduct.errors.FrameworkException
+import viaduct.errors.handleFrameworkErrors
 
 /**
  * Base builder for Connection types with pagination utilities.
@@ -83,13 +83,14 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
         edges: List<E>,
         hasNextPage: Boolean = false,
         hasPreviousPage: Boolean = false
-    ): ConnectionBuilder<C, E, N> {
-        put("edges", edges)
-        val startCursor = edges.firstOrNull()?.let { extractCursor(it) }
-        val endCursor = edges.lastOrNull()?.let { extractCursor(it) }
-        putInternal("pageInfo", createPageInfo(hasNextPage, hasPreviousPage, startCursor, endCursor))
-        return this
-    }
+    ): ConnectionBuilder<C, E, N> =
+        handleFrameworkErrors("ConnectionBuilder.fromEdges") {
+            put("edges", edges)
+            val startCursor = edges.firstOrNull()?.let { extractCursor(it) }
+            val endCursor = edges.lastOrNull()?.let { extractCursor(it) }
+            putInternal("pageInfo", createPageInfo(hasNextPage, hasPreviousPage, startCursor, endCursor))
+            this
+        }
 
     private fun extractCursor(edge: E): String {
         val eod = (edge as ObjectBase).engineObject as EngineObjectData.Sync
@@ -180,7 +181,7 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
         endCursor: String?
     ): EngineObjectData {
         val pageInfoType = connectionContext.internal.schema.schema.getObjectType("PageInfo")
-            ?: throw FrameworkException("PageInfo type not found in schema")
+            ?: error("PageInfo type not found in schema")
 
         return EngineObjectDataBuilder.from(pageInfoType)
             .put("hasNextPage", hasNextPage)

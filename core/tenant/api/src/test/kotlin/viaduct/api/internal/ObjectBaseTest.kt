@@ -595,6 +595,7 @@ class ObjectBaseTest {
             assertThrows<UnsetFieldException> { o1.getStringField() }
         }
 
+    @Test
     fun `test various exceptions`(): Unit =
         runBlocking {
             val o11 = O1(
@@ -625,7 +626,7 @@ class ObjectBaseTest {
                 }
             )
             val e13 = runCatching { o13.getId() }.exceptionOrNull()!!
-            assertEquals("EngineObjectDataFetchException", e13::class.simpleName)
+            assertInstanceOf(FrameworkException::class.java, e13)
             assertEquals("foo", e13.cause!!.message)
         }
 
