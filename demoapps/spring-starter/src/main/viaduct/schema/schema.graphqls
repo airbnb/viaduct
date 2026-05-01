@@ -1,0 +1,5 @@
+# tag::schema-config[4] Basic Schema configuration
+extend type Query {
+  greeting: String @resolver
+  author: String @resolver
+}

@@ -75,6 +75,8 @@ class JavaResolversCodegenTest {
         Files.readString(resolverPackageDir.resolve("QueryResolvers.java"));
     assertThat(queryResolverContent)
         .contains("package com.example.tenant.resolverbases;")
+        .contains("import com.example.grt.*;")
+        .doesNotContain("import com.example.tenant.*;")
         .contains("public final class QueryResolvers")
         .contains(
             "@ResolverFor(typeName = \"Query\", fieldName = \"user\", isSelective = false,"

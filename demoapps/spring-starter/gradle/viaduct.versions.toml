@@ -1,0 +1,30 @@
+[versions]
+coroutines = "1.5.2"
+jackson = "2.17.3"
+junit = "5.11.3"
+junitPlatform = "1.11.3"
+logback = "1.5.21"
+
+[plugins]
+viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
+viaduct-module-java = { id = "com.airbnb.viaduct.module-java-gradle-plugin", version.ref = "viaduct" }
+
+[libraries]
+# Viaduct
+viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viaduct" }
+viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
+viaduct-javaapi-api = { group = "com.airbnb.viaduct.javaapi", name = "api", version.ref = "viaduct" }
+viaduct-javaapi-runtime = { group = "com.airbnb.viaduct.javaapi", name = "runtime", version.ref = "viaduct" }
+viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures", version.ref = "viaduct" }
+
+# Runtime dependencies
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-jdk8 = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-jdk8", version.ref = "coroutines" }
+reactive-streams = { group = "org.reactivestreams", name = "reactive-streams", version = "1.0.4" }
+jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version.ref = "jackson" }
+
+# Test dependencies
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
+junit-jupiter-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junitPlatform" }

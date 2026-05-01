@@ -36,7 +36,7 @@ public final class JavaResolverGenerator {
           import viaduct.java.api.types.Arguments;
           import viaduct.java.api.types.CompositeOutput;
           import viaduct.java.api.types.NodeCompositeOutput;
-          import <mdl.packageName>.*;
+          import <mdl.grtPackage>.*;
 
           /**
            * Generated resolver base classes for <mdl.typeName> type.

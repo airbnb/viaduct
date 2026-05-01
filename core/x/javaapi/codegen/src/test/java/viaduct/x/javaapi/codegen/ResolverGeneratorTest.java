@@ -26,12 +26,15 @@ class ResolverGeneratorTest {
             false); // isBatching = false: generates resolve()
 
     ResolversFileModel fileModel =
-        new ResolversFileModel("com.example.tenant", "User", List.of(resolverModel));
+        new ResolversFileModel(
+            "com.example.tenant", "com.example.grt", "User", List.of(resolverModel));
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
     assertThat(generated)
         .contains("package com.example.tenant.resolverbases;")
+        .contains("import com.example.grt.*;")
+        .doesNotContain("import com.example.tenant.*;")
         .contains("public final class UserResolvers")
         .contains(
             "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = false,"
@@ -64,7 +67,8 @@ class ResolverGeneratorTest {
             true); // isBatching = true: generates batchResolve()
 
     ResolversFileModel fileModel =
-        new ResolversFileModel("com.example.tenant", "User", List.of(resolverModel));
+        new ResolversFileModel(
+            "com.example.tenant", "com.example.grt", "User", List.of(resolverModel));
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
@@ -97,7 +101,8 @@ class ResolverGeneratorTest {
             false); // isBatching = false: generates resolve()
 
     ResolversFileModel fileModel =
-        new ResolversFileModel("com.example.tenant", "Query", List.of(resolverModel));
+        new ResolversFileModel(
+            "com.example.tenant", "com.example.grt", "Query", List.of(resolverModel));
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
@@ -127,7 +132,8 @@ class ResolverGeneratorTest {
             false); // isBatching = false for mutations (mutations never batch)
 
     ResolversFileModel fileModel =
-        new ResolversFileModel("com.example.tenant", "Mutation", List.of(resolverModel));
+        new ResolversFileModel(
+            "com.example.tenant", "com.example.grt", "Mutation", List.of(resolverModel));
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
@@ -174,7 +180,8 @@ class ResolverGeneratorTest {
             false);
 
     ResolversFileModel fileModel =
-        new ResolversFileModel("com.example.tenant", "User", List.of(resolver1, resolver2));
+        new ResolversFileModel(
+            "com.example.tenant", "com.example.grt", "User", List.of(resolver1, resolver2));
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
@@ -209,7 +216,8 @@ class ResolverGeneratorTest {
             false);
 
     ResolversFileModel fileModel =
-        new ResolversFileModel("com.example.tenant", "User", List.of(resolverModel));
+        new ResolversFileModel(
+            "com.example.tenant", "com.example.grt", "User", List.of(resolverModel));
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
@@ -240,7 +248,8 @@ class ResolverGeneratorTest {
             false);
 
     ResolversFileModel fileModel =
-        new ResolversFileModel("com.example.tenant", "User", List.of(resolverModel));
+        new ResolversFileModel(
+            "com.example.tenant", "com.example.grt", "User", List.of(resolverModel));
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
@@ -284,7 +293,8 @@ class ResolverGeneratorTest {
             true);
 
     ResolversFileModel fileModel =
-        new ResolversFileModel("com.example.tenant", "Container", List.of(resolverModel));
+        new ResolversFileModel(
+            "com.example.tenant", "com.example.grt", "Container", List.of(resolverModel));
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
@@ -323,7 +333,8 @@ class ResolverGeneratorTest {
             true);
 
     ResolversFileModel fileModel =
-        new ResolversFileModel("com.example.tenant", "Container", List.of(resolverModel));
+        new ResolversFileModel(
+            "com.example.tenant", "com.example.grt", "Container", List.of(resolverModel));
 
     String generated = JavaResolverGenerator.generate(fileModel);
 

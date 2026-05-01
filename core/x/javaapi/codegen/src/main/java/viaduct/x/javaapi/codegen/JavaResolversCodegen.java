@@ -62,7 +62,8 @@ public class JavaResolversCodegen {
       String typeName = entry.getKey();
       List<ResolverModel> resolvers = entry.getValue();
 
-      ResolversFileModel fileModel = new ResolversFileModel(tenantPackage, typeName, resolvers);
+      ResolversFileModel fileModel =
+          new ResolversFileModel(tenantPackage, grtPackage, typeName, resolvers);
       generatedFiles.add(JavaResolverGenerator.generateToFile(fileModel, resolverOutputDir));
       resolverCount += resolvers.size();
     }

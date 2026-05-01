@@ -293,6 +293,42 @@ class JavaGRTsGeneratorCliTest {
     }
 
     @Test
+    fun `resolver bases import from grt package when it differs from tenant package`() {
+        val schemaFile = tempDir.resolve("schema.graphqls")
+        Files.writeString(
+            schemaFile,
+            """
+            directive @resolver on OBJECT | FIELD_DEFINITION
+            type Query {
+              greeting: String @resolver
+            }
+            """.trimIndent()
+        )
+
+        val grtOutputDir = tempDir.resolve("grt-output")
+        val resolverOutputDir = tempDir.resolve("resolver-output")
+
+        JavaGRTsGenerator().parse(
+            listOf(
+                "--schema_files=${schemaFile.toAbsolutePath()}",
+                "--grt_output_dir=${grtOutputDir.toAbsolutePath()}",
+                "--grt_package=viaduct.java.grts",
+                "--resolver_generated_dir=${resolverOutputDir.toAbsolutePath()}",
+                "--tenant_package=com.example.viadapp.resolvers",
+                "--include_root_types"
+            )
+        )
+
+        val resolverContent = java.nio.file.Files.readString(
+            resolverOutputDir.resolve("com/example/viadapp/resolvers/resolverbases/QueryResolvers.java")
+        )
+        assertThat(resolverContent)
+            .contains("package com.example.viadapp.resolvers.resolverbases;")
+            .contains("import viaduct.java.grts.*;")
+            .doesNotContain("import com.example.viadapp.resolvers.*;")
+    }
+
+    @Test
     fun `errors when neither grt_package nor grt_package_file provided`() {
         val schemaFile = tempDir.resolve("schema.graphqls")
         Files.writeString(schemaFile, "enum Status { ACTIVE }")

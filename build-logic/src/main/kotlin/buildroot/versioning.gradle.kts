@@ -40,6 +40,7 @@ val demoappRelativeDirs = listOf(
     "demoapps/jetty-starter",
     "demoapps/ktor-starter",
     "demoapps/micronaut-starter",
+    "demoapps/spring-starter",
     "demoapps/starwars"
 )
 

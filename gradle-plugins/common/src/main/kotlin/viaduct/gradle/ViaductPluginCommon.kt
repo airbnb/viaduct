@@ -21,6 +21,9 @@ object ViaductPluginCommon {
         const val JAVA_GRT_CLASSES = "java-grt-classes"
     }
 
+    /** Fixed package for generated Java GRT types. Mirrors the Kotlin convention of a single shared GRT package. */
+    const val JAVA_GRT_PACKAGE = "viaduct.java.grts"
+
     object Configs {
         /** Root/app: resolvable configuration that modules add their schema partitions to. */
         const val ALL_SCHEMA_PARTITIONS_INCOMING = "viaductAllSchemaPartitionsIn"

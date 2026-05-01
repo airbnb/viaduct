@@ -14,6 +14,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkerExecutor
 import viaduct.gradle.CodegenWorkAction
+import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.runCodegen
 
 @CacheableTask
@@ -56,11 +57,11 @@ abstract class GenerateJavaGRTSourcesTask
                     "--grt_output_dir",
                     outputDir.absolutePath,
                     "--grt_package",
-                    "viaduct.java.grts",
+                    ViaductPluginCommon.JAVA_GRT_PACKAGE,
                     "--resolver_generated_dir",
                     resolverDiscardDir.absolutePath,
                     "--tenant_package",
-                    "viaduct.java.grts",
+                    ViaductPluginCommon.JAVA_GRT_PACKAGE,
                     "--include_root_types"
                 )
             )

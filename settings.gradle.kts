@@ -40,6 +40,7 @@ includeBuild("demoapps/cli-starter")
 includeBuild("demoapps/jetty-starter")
 includeBuild("demoapps/ktor-starter")
 includeBuild("demoapps/micronaut-starter")
+includeBuild("demoapps/spring-starter")
 includeBuild("demoapps/starwars")
 
 include(":docs")

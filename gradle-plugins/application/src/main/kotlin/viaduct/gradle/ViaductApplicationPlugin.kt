@@ -143,6 +143,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
 
         val compileGRTJavaTask = tasks.register<JavaCompile>("compileViaductJavaGRTJava") {
+            dependsOn(generateGRTSourcesTask)
             source = fileTree(generateGRTSourcesTask.flatMap { it.grtSourcesDirectory })
             destinationDirectory.set(javaGrtClassesDirectory())
             classpath = grtCompileClasspath
@@ -151,18 +152,12 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
         val generateGRTsTask = tasks.register<Jar>("generateViaductJavaGRTs") {
             group = "viaduct"
-            description = "Package Java GRT class files with the central schema."
+            description = "Package Java GRT class files (without central schema — already bundled in Kotlin GRT jar)."
 
             archiveBaseName.set("viaduct-java-grt")
             includeEmptyDirs = false
 
             from(compileGRTJavaTask.map { it.destinationDirectory })
-
-            from(assembleCentralSchemaTask.flatMap { it.outputDirectory }) {
-                into("viaduct/centralSchema")
-                exclude(BUILTIN_SCHEMA_FILE)
-                includeEmptyDirs = false
-            }
         }
 
         return generateGRTsTask

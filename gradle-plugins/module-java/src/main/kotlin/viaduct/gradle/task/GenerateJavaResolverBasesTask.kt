@@ -6,7 +6,6 @@ import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
@@ -22,6 +21,7 @@ import org.gradle.workers.WorkerExecutor
 import viaduct.gradle.CodegenWorkAction
 import viaduct.gradle.ViaductApplicationExtension
 import viaduct.gradle.ViaductModuleExtension
+import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.runCodegen
 
 @CacheableTask
@@ -75,7 +75,7 @@ abstract class GenerateJavaResolverBasesTask
                     "--grt_output_dir",
                     grtDiscardDir.absolutePath,
                     "--grt_package",
-                    fullPackage,
+                    ViaductPluginCommon.JAVA_GRT_PACKAGE,
                     "--resolver_generated_dir",
                     resolverDir.absolutePath,
                     "--tenant_package",
@@ -94,8 +94,9 @@ abstract class GenerateJavaResolverBasesTask
             val pkgProv = tenantPackage(moduleExt, appExt)
             tenantPackage.set(pkgProv)
 
-            val outputAugmentedDir = outputAugmentedDir(pkgPrefixProv, pkgProv)
-            outputDirectory.set(outputAugmentedDir)
+            // The codegen CLI writes files at {outputDir}/{package-as-path}/resolverbases/*.java,
+            // so outputDirectory must be the source set root — not a pre-augmented subdirectory.
+            outputDirectory.set(javaResolverBasesDirectory())
         }
 
         private fun tenantPackagePrefix(
@@ -124,22 +125,5 @@ abstract class GenerateJavaResolverBasesTask
                 }
             }
             return pkgProv
-        }
-
-        private fun Project.outputAugmentedDir(
-            pkgPrefixProv: Provider<String>,
-            pkgProv: Provider<String>,
-        ): Provider<Directory> {
-            val outputAugmentedDir = javaResolverBasesDirectory().flatMap { base ->
-                pkgPrefixProv
-                    .flatMap { pfx ->
-                        pkgProv.map { pkg ->
-                            (if (pkg.isBlank()) pfx else "$pfx.$pkg").trim('.').replace('.', '/')
-                        }
-                    }
-                    .map { rel -> base.asFile.toPath().resolve(rel).toFile() }
-                    .map { dir -> objects.directoryProperty().apply { set(dir) }.get() }
-            }
-            return outputAugmentedDir
         }
     }
