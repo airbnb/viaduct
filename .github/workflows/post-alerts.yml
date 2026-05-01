@@ -92,7 +92,7 @@ jobs:
 
   post-call:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_call'
+    if: inputs.text != ''
     steps:
       - name: Post to Slack
         env:
