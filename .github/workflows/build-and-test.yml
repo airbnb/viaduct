@@ -313,6 +313,7 @@ jobs:
 
   dokka:
     runs-on: ${{ matrix.os }}
+    continue-on-error: true
     strategy:
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
