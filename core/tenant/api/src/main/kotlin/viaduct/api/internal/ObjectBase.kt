@@ -216,14 +216,14 @@ abstract class ObjectBase(
      * @return The EngineObjectData backing this GRT
      * @throws TenantUsageException if called on a NodeReference
      */
-    protected fun toBuilderEOD(): EngineObjectData {
+    protected fun toBuilderEOD(): EngineObjectData.Sync {
         if (engineObject is NodeReference) {
             throw TenantUsageException(
                 "Cannot call toBuilder() on an unresolved NodeReference."
             )
         }
 
-        return engineObject as EngineObjectData
+        return engineObject as EngineObjectData.Sync
     }
 
     /**
@@ -235,13 +235,13 @@ abstract class ObjectBase(
     abstract class Builder<T>(
         protected val context: InternalContext,
         private val type: GraphQLObjectType,
-        private val baseEngineObjectData: EngineObjectData?
+        private val baseEngineObjectData: EngineObjectData.Sync?
     ) : DynamicOutputValueBuilder<T> {
         private val wrapper = EODBuilderWrapper(type, context.globalIDCodec)
 
-        protected fun buildEngineObjectData(): EngineObjectData =
+        protected fun buildEngineObjectData(): EngineObjectData.Sync =
             handleFrameworkErrors("ObjectBase.Builder.buildEngineObjectData failed") {
-                val overlay = wrapper.getEngineObjectData()
+                val overlay = wrapper.getEngineObjectData() as EngineObjectData.Sync
                 baseEngineObjectData?.let { base ->
                     OverlayEngineObjectData(overlay, base)
                 } ?: overlay

@@ -15,32 +15,24 @@ import viaduct.engine.api.EngineObjectData
  */
 @InternalApi
 class OverlayEngineObjectData(
-    private val overlay: EngineObjectData,
-    private val base: EngineObjectData
-) : EngineObjectData {
+    private val overlay: EngineObjectData.Sync,
+    private val base: EngineObjectData.Sync
+) : EngineObjectData.Sync {
     override val type: GraphQLObjectType = base.type
 
-    override suspend fun fetch(selection: String): Any? {
-        val overlaySelections = overlay.fetchSelections()
-        return if (selection in overlaySelections) {
-            overlay.fetch(selection)
-        } else {
-            base.fetch(selection)
-        }
-    }
+    override fun get(selection: String): Any? = if (selection in overlay.getSelections()) overlay.get(selection) else base.get(selection)
 
-    override suspend fun fetchOrNull(selection: String): Any? {
-        val overlaySelections = overlay.fetchSelections()
-        return if (selection in overlaySelections) {
-            overlay.fetchOrNull(selection)
-        } else {
-            base.fetchOrNull(selection)
-        }
-    }
+    override fun getOrNull(selection: String): Any? = if (selection in overlay.getSelections()) overlay.getOrNull(selection) else base.getOrNull(selection)
 
-    override suspend fun fetchSelections(): Iterable<String> =
+    override fun getSelections(): Iterable<String> =
         buildSet {
-            addAll(overlay.fetchSelections())
-            addAll(base.fetchSelections())
+            addAll(overlay.getSelections())
+            addAll(base.getSelections())
         }
+
+    override suspend fun fetch(selection: String) = get(selection)
+
+    override suspend fun fetchOrNull(selection: String) = getOrNull(selection)
+
+    override suspend fun fetchSelections(): Iterable<String> = getSelections()
 }

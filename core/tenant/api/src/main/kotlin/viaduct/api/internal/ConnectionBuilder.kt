@@ -49,7 +49,7 @@ import viaduct.errors.FrameworkException
 abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
     protected val connectionContext: ConnectionFieldExecutionContext<*, *, *, C>,
     graphQLObjectType: GraphQLObjectType,
-    baseEngineObjectData: EngineObjectData?,
+    baseEngineObjectData: EngineObjectData.Sync?,
     private val edgeType: Type<E>,
 ) : ObjectBase.Builder<C>(connectionContext.internal, graphQLObjectType, baseEngineObjectData) {
     /**

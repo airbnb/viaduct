@@ -112,6 +112,6 @@ class ObjectGenTest {
         assertTrue(result.contains("internal constructor("))
         assertTrue(result.contains("context: InternalContext"))
         assertTrue(result.contains("type: graphql.schema.GraphQLObjectType"))
-        assertTrue(result.contains("baseEngineObjectData: EngineObjectData"))
+        assertTrue(result.contains("baseEngineObjectData: EngineObjectData.Sync"))
     }
 }

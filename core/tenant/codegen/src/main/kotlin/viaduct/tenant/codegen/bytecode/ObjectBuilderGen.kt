@@ -156,7 +156,7 @@ private class ObjectBuilderGenV2(
                         it.type = cfg.GRAPHQL_OBJECT_TYPE.asKmName.asType()
                     },
                     KmValueParameter("baseEngineObjectData").also {
-                        it.type = cfg.ENGINE_OBJECT_DATA.asKmName.asType()
+                        it.type = cfg.ENGINE_OBJECT_DATA_SYNC.asKmName.asType()
                     },
                 )
             )
@@ -177,7 +177,7 @@ private class ObjectBuilderGenV2(
                 append("{\n")
                 append(checkNotNullParameterExpression(cfg.INTERNAL_CONTEXT.asKmName.asType(), 1, "context"))
                 append(checkNotNullParameterExpression(cfg.GRAPHQL_OBJECT_TYPE.asKmName.asType(), 2, "type"))
-                append(checkNotNullParameterExpression(cfg.ENGINE_OBJECT_DATA.asKmName.asType(), 3, "baseEngineObjectData"))
+                append(checkNotNullParameterExpression(cfg.ENGINE_OBJECT_DATA_SYNC.asKmName.asType(), 3, "baseEngineObjectData"))
                 append("}")
             }
         )

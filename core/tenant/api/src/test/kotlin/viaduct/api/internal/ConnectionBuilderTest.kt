@@ -153,7 +153,7 @@ class ConnectionBuilderTest {
     private inner class TestConnectionBuilder(
         context: ConnectionFieldExecutionContext<*, *, *, TestConnection>,
         graphQLObjectType: GraphQLObjectType,
-        baseEngineObjectData: EngineObjectData? = null
+        baseEngineObjectData: EngineObjectData.Sync? = null
     ) : ConnectionBuilder<TestConnection, TestEdge, Any>(
             context,
             graphQLObjectType,

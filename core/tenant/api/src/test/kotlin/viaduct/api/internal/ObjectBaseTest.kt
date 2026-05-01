@@ -662,7 +662,7 @@ class ObjectBaseTest {
         class Builder(
             context: InternalContext,
             type: GraphQLObjectType,
-            baseEngineObjectData: EngineObjectData? = null
+            baseEngineObjectData: EngineObjectData.Sync? = null
         ) : ObjectBase.Builder<TestObject>(context, type, baseEngineObjectData) {
             constructor(context: viaduct.api.context.ExecutionContext) : this(
                 context.internal,

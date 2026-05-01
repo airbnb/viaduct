@@ -161,7 +161,7 @@ private val objectSTGroup = stTemplate(
             internal constructor(
                 context: InternalContext,
                 type: graphql.schema.GraphQLObjectType,
-                baseEngineObjectData: EngineObjectData
+                baseEngineObjectData: EngineObjectData.Sync
             ) : super(context, type, baseEngineObjectData)
 
             <mdl.fields: { f |
@@ -222,7 +222,7 @@ private val connectionObjectSTGroup = stTemplate(
             internal constructor(
                 context: InternalContext,
                 type: graphql.schema.GraphQLObjectType,
-                baseEngineObjectData: EngineObjectData
+                baseEngineObjectData: EngineObjectData.Sync
             ) : super(
                     context as ConnectionFieldExecutionContext\<*, *, out ConnectionArguments, <mdl.className>\>,
                     type,

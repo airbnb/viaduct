@@ -157,6 +157,8 @@ object cfg {
         JavaBinaryName("viaduct.engine.api.EngineObject")
     val ENGINE_OBJECT_DATA =
         JavaBinaryName("viaduct.engine.api.EngineObjectData")
+    val ENGINE_OBJECT_DATA_SYNC =
+        JavaBinaryName("viaduct.engine.api.EngineObjectData\$Sync")
     val GRAPHQL_OBJECT_TYPE =
         JavaBinaryName("graphql.schema.GraphQLObjectType")
     val EXECUTION_CONTEXT =
