@@ -18,5 +18,7 @@ include(":runtime")
 include(":buildtime")
 include(":test-fixtures")
 include(":bom")
-include(":javaapi-api")
-include(":javaapi-codegen")
+if (!providers.gradleProperty("publishMinimal").isPresent) {
+    include(":javaapi-api")
+    include(":javaapi-codegen")
+}
