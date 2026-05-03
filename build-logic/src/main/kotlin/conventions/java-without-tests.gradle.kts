@@ -15,11 +15,6 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
     }
-    // Note: The java-stub.md document specifies source/target compatibility 1.8,
-    // but this causes JVM-target mismatch when mixed with Kotlin (which uses target 17).
-    // Using target 17 for now - can be revisited if pure-Java projects need 1.8.
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
 }
 
 checkstyle {
