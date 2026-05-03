@@ -4,7 +4,7 @@ Viaduct is an opinionated GraphQL server.
 
 A systems builder wanting to embed Viaduct into their web server would create an instance of [`viaduct.service.api.Viaduct`](service/api/src/main/kotlin/viaduct/service/api/Viaduct.kt) and create a route that would call the `Viaduct.execute` method.  This method, under the covers, calls [`viaduct.engine.api.Engine.execute`](engine/api/src/main/kotlin/viaduct/engine/api/Engine.kt).
 
-For an end-to-end example of a service that embeds Viaduct, see the demonstration applications in `demoapps`, especially `demoapps/starwars`.
+For an end-to-end example of a service that embeds Viaduct, see the demonstration applications in `demoapps`, especially `demoapps/starwars`.  For more on testing with the demoapps see `demoapps/AGENTS.md`
 
 For more information on constructing a `Viaduct` object see `service/AGENTS.md`.
 
