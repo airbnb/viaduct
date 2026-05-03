@@ -8,23 +8,20 @@ plugins {
 }
 
 viaductPublishing {
-    name.set("Java Tenant API")
-    description.set("Fat jar bundle of the Viaduct Java tenant API for use as a GRT compile classpath")
+    name.set("Java Runtime")
+    description.set("Fat jar bundle of the Viaduct Java-to-Kotlin bridge runtime")
 }
 
 dependencies {
     // Always expose as api so composite-build consumers (demo apps) get transitive deps.
     // In the published shadow jar, these are bundled and transitive deps are suppressed below.
-    api(libs.viaduct.javaapi.api)
+    api(libs.viaduct.javaapi.runtime)
 }
 
 // Create shaded jar for publishing (fat jar with all dependencies)
 tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")  // Replace the main jar
     mergeServiceFiles()
-
-    // Use compileClasspath to get only compile-time API dependencies (not runtime)
-    configurations = listOf(project.configurations.compileClasspath.get())
 
     // Exclude third-party classes with rapid API churn that would cause version conflicts
     // (e.g. NoSuchMethodError) when the consumer's versions differ from the bundled ones.
