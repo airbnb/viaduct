@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter]
+        demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter, spring-starter]
         java: ['17', '21']
     name: Test ${{ matrix.demoapp }} (Java ${{ matrix.java }})
     env:

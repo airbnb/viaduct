@@ -1,5 +1,5 @@
 [versions]
-coroutines = "1.5.2"
+coroutines = "1.10.2"
 jackson = "2.17.3"
 junit = "5.11.3"
 junitPlatform = "1.11.3"
@@ -13,8 +13,8 @@ viaduct-module-java = { id = "com.airbnb.viaduct.module-java-gradle-plugin", ver
 # Viaduct
 viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viaduct" }
 viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
-viaduct-javaapi-api = { group = "com.airbnb.viaduct.javaapi", name = "api", version.ref = "viaduct" }
-viaduct-javaapi-runtime = { group = "com.airbnb.viaduct.javaapi", name = "runtime", version.ref = "viaduct" }
+viaduct-javaapi-api = { group = "com.airbnb.viaduct", name = "javaapi-api", version.ref = "viaduct" }
+viaduct-javaapi-runtime = { group = "com.airbnb.viaduct", name = "javaapi-runtime", version.ref = "viaduct" }
 viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures", version.ref = "viaduct" }
 
 # Runtime dependencies
