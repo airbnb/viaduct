@@ -180,6 +180,11 @@ abstract class ViaductContractCodegenTaskBase : DefaultTask() {
         // The codegen CLIs create package subdirs inside sourceDir, so files live at
         // sourceDir/<pkgPath>/Foo.class. The delete and copy zones are consistent because
         // relPath always starts with pkgPath.
+        //
+        // deleteRecursively() removes this contract's full output subtree (including
+        // nested subdirs like resolverbases/) without touching sibling contracts. This is
+        // safe because no contract's pkgPath may be a prefix of another contract's pkgPath
+        // — i.e., contracts must not be nested inside one another's package.
         File(mergedRoot, pkgPath).deleteRecursively()
         if (sourceDir.exists() && sourceDir.listFiles()?.isNotEmpty() == true) {
             sourceDir.walkTopDown().filter { it.isFile }.forEach { src ->

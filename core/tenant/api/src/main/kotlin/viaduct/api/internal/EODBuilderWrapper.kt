@@ -3,11 +3,13 @@ package viaduct.api.internal
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLEnumType
 import graphql.schema.GraphQLFieldDefinition
+import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
+import graphql.schema.GraphQLUnionType
 import viaduct.api.globalid.GlobalID
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
@@ -82,7 +84,7 @@ internal class EODBuilderWrapper(
 
             is GraphQLEnumType -> unwrapEnum(value)
             is GraphQLList -> unwrapList(field, unwrappedType, value)
-            is GraphQLCompositeType -> unwrapObject(value)
+            is GraphQLCompositeType -> unwrapObject(unwrappedType, value)
             else -> throw FrameworkException("Unexpected schema type ${GraphQLTypeUtil.simplePrint(unwrappedType)}")
         }
     }
@@ -113,19 +115,35 @@ internal class EODBuilderWrapper(
         }
     }
 
-    private fun unwrapObject(value: Any): EngineObject {
-        return when (value) {
-            is ObjectBase -> {
-                value.engineObject
+    private fun unwrapObject(
+        expectedType: GraphQLCompositeType,
+        value: Any
+    ): EngineObject {
+        val engineObject = when (value) {
+            is ObjectBase -> value.engineObject
+            is EngineObjectData -> value
+            else -> throw TenantUsageException("Expected ObjectBase or EngineObjectData for builder value, got $value")
+        }
+        // engineObject is null when an ObjectBase subclass is mocked in tests (Mockito/Objenesis
+        // bypasses the constructor, leaving the field at its JVM default of null despite the
+        // non-null Kotlin declaration). Skip type validation in that case.
+        if (engineObject != null) {
+            val actualTypeName = engineObject.type.name
+            val valid = when (expectedType) {
+                is GraphQLObjectType -> actualTypeName == expectedType.name
+                is GraphQLInterfaceType -> engineObject.type.interfaces.any { it.name == expectedType.name }
+                is GraphQLUnionType -> expectedType.isPossibleType(engineObject.type)
+                // GraphQLCompositeType has exactly three concrete subtypes (object, interface, union).
+                // This branch can only be reached if graphql-java adds a new subtype; blame the
+                // framework, not the tenant.
+                else -> throw FrameworkException("Unexpected composite type ${GraphQLTypeUtil.simplePrint(expectedType)}")
             }
-
-            is EngineObjectData -> {
-                value
-            }
-
-            else -> {
-                throw TenantUsageException("Expected ObjectBase or EngineObjectData for builder value, got $value")
+            if (!valid) {
+                throw TenantUsageException(
+                    "Expected object of type ${expectedType.name} for builder value, got $actualTypeName"
+                )
             }
         }
+        return engineObject
     }
 }

@@ -525,6 +525,20 @@ class ObjectBaseTest {
         }
 
     @Test
+    fun `test unwrapping - wrong object type in list element is caught despite type erasure`(): Unit =
+        runBlocking {
+            val o1 = O1.Builder(executionContext).stringField("hello").build()
+            val builder = BuggyO1Builder()
+            // listField is [[O2]], but we pass O1 as the inner list element.
+            // JVM type erasure means List<O1> and List<O2> look identical at runtime,
+            // so the type check must happen inside unwrapObject, not via generics.
+            val e = assertThrows<TenantUsageException> {
+                builder.listField(listOf(listOf(o1)))
+            }
+            assertEquals("Expected object of type O2 for builder value, got O1", e.message)
+        }
+
+    @Test
     fun `test wrap - backing data`(): Unit =
         runBlocking {
             var o2 =
@@ -642,6 +656,15 @@ class ObjectBaseTest {
         }
 
         override fun build() = O2(context, buildEngineObjectData())
+    }
+
+    inner class BuggyO1Builder : ObjectBase.Builder<O1>(internalContext, gqlSchema.schema.getObjectType("O1"), null) {
+        fun listField(v: Any?): BuggyO1Builder {
+            putInternal("listField", v)
+            return this
+        }
+
+        override fun build() = O1(context, buildEngineObjectData())
     }
 
     private class TestObject(
