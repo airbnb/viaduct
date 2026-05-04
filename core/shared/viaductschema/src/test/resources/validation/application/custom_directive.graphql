@@ -1,5 +1,0 @@
-directive @custom on FIELD_DEFINITION
-
-type Query {
-  data: String
-}

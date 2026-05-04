@@ -11,7 +11,6 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * Bundles the following rules into a single validation phase:
  * - [NoSubscriptionsRule]: Disallows subscription type definitions
  * - [NoCustomScalarsRule]: Only allows built-in GraphQL scalars
- * - [NoCustomDirectivesRule]: Only allows built-in GraphQL directives
  * - [ApplicationOnlyDefinitionsRule]: Directives and scalars must be defined at application level
  * - [BackingDataFieldsRule]: BackingData type and @backingData directive must be used together
  * - [IdOfTypeValidationRule]: @idOf type parameter must reference an existing Node type
@@ -26,7 +25,6 @@ import viaduct.graphql.schema.validation.SchemaValidator
  */
 object DefaultSchemaValidator {
     private val allowedScalarNames = GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS
-    private val allowedDirectiveNames = GraphQLBuiltIns.DIRECTIVES + GraphQLBuiltIns.VIADUCT_DIRECTIVES
     private val modulePartitionPathPrefix = "partition/"
 
     private val validator = SchemaValidator(
@@ -34,7 +32,6 @@ object DefaultSchemaValidator {
             listOf(
                 NoSubscriptionsRule(),
                 NoCustomScalarsRule(allowedScalarNames),
-                NoCustomDirectivesRule(allowedDirectiveNames),
                 ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix),
                 BackingDataFieldsRule(),
                 IdOfTypeValidationRule(),

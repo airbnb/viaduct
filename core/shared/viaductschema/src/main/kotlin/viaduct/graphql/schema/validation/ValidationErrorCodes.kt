@@ -13,9 +13,6 @@ object ValidationErrorCodes {
     // NoCustomScalarsRule
     const val CUSTOM_SCALAR_NOT_ALLOWED = "CUSTOM_SCALAR_NOT_ALLOWED"
 
-    // NoCustomDirectivesRule
-    const val CUSTOM_DIRECTIVE_NOT_ALLOWED = "CUSTOM_DIRECTIVE_NOT_ALLOWED"
-
     // ApplicationOnlyDefinitionsRule
     const val DIRECTIVE_DEFINED_IN_MODULE = "DIRECTIVE_DEFINED_IN_MODULE"
     const val SCALAR_DEFINED_IN_MODULE = "SCALAR_DEFINED_IN_MODULE"
