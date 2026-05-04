@@ -176,11 +176,6 @@ fun ViaductSchema.Object.isEligible(
         // When schema is not provided, check against conventional and likely custom root type patterns
         // This handles both standard names (Query, Mutation, Subscription) and custom names that are
         // actual root types in schemas with custom schema definitions
-        val nativeTypes = cfg.nativeGraphQLTypeToKmName(baseTypeMapper)
-        // Root types in nativeGraphQLTypeToKmName include Query and Mutation but not Subscription,
-        // so we need explicit handling. Any type that's a native type BUT is Query/Mutation should be eligible.
-        // However, we can't distinguish custom root types from regular types without schema context.
-        // The safest approach: if it's not in nativeTypes OR it's Query/Mutation/Subscription, it's eligible.
         if (name in setOf("Query", "Mutation", "Subscription")) {
             return true
         }

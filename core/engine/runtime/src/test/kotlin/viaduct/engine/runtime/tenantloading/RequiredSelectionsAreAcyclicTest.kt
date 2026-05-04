@@ -568,7 +568,7 @@ class RequiredSelectionsAreAcyclicTest {
             $sdl
             """.trimIndent()
         )
-        val validator = RequiredSelectionsAreAcyclic(schema)
+        RequiredSelectionsAreAcyclic(schema)
 
         val coordToValidate = registry.entries
             .map {

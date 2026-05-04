@@ -19,7 +19,7 @@ import org.gradle.kotlin.dsl.register
 class ViaductContractSchemaPublisherPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         // Create the outgoing configuration eagerly — consumers need it to exist
-        val contractSchemas = project.configurations.create("contractSchemas") {
+        project.configurations.create("contractSchemas") {
             isCanBeConsumed = true
             isCanBeResolved = false
         }

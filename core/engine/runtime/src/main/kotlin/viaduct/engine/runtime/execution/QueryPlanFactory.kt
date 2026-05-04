@@ -416,7 +416,7 @@ private class QueryPlanBuilder(
     }
 
     /** Build a QueryPlan for each variable referenced by a node */
-    private fun buildVariablesPlans(selection: AbstractNode<*>,): List<QueryPlan> {
+    private fun buildVariablesPlans(selection: AbstractNode<*>): List<QueryPlan> {
         val varRefs = selection.collectVariableReferences()
         if (varRefs.isEmpty()) return emptyList()
 

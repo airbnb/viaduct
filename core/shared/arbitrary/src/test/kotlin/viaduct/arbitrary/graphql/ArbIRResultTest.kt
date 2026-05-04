@@ -70,7 +70,7 @@ class ArbIRResultTest : KotestPropertyBase() {
                 ).bind()
                 Triple(type, cfg, value)
             }
-            arb.checkInvariants { (type, cfg, value), check ->
+            arb.checkInvariants { (_, cfg, value), check ->
                 if (cfg[ExplicitNullValueWeight] == 1.0) {
                     check.isSameInstanceAs(IR.Value.Null, value, "expected enull")
                 } else {

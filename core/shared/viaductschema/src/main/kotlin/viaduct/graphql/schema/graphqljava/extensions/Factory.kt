@@ -19,7 +19,7 @@ import viaduct.utils.timer.Timer
  * Creates a [GraphQLSchema] from SDL and uses it to create a
  * [ViaductSchema].
  */
-fun ViaductSchema.Companion.fromGraphQLSchema(inputFiles: List<URL>,): ViaductSchema = gjSchemaFromURLs(inputFiles)
+fun ViaductSchema.Companion.fromGraphQLSchema(inputFiles: List<URL>): ViaductSchema = gjSchemaFromURLs(inputFiles)
 
 /**
  * Creates a [GraphQLSchema] from SDL and uses it to create a
@@ -40,13 +40,13 @@ fun ViaductSchema.Companion.fromGraphQLSchema(
 ): ViaductSchema = gjSchemaFromRegistry(registry, timer)
 
 /** Creates a [ViaductSchema] from a [GraphQLSchema]. */
-fun ViaductSchema.Companion.fromGraphQLSchema(schema: GraphQLSchema,): ViaductSchema = gjSchemaFromSchema(schema)
+fun ViaductSchema.Companion.fromGraphQLSchema(schema: GraphQLSchema): ViaductSchema = gjSchemaFromSchema(schema)
 
 /**
  * Creates a [TypeDefinitionRegistry] from SDL and uses it to
  * create a [ViaductSchema].
  */
-fun ViaductSchema.Companion.fromTypeDefinitionRegistry(inputFiles: List<URL>,): ViaductSchema = gjSchemaRawFromURLs(inputFiles)
+fun ViaductSchema.Companion.fromTypeDefinitionRegistry(inputFiles: List<URL>): ViaductSchema = gjSchemaRawFromURLs(inputFiles)
 
 /**
  * Creates a [TypeDefinitionRegistry] from SDL and uses it to

@@ -633,7 +633,7 @@ internal val IR.Value.maxDepth: Int
                 if (this.fields.isEmpty()) {
                     0
                 } else {
-                    val maxFieldDepth = this.fields.toList().fold(0) { acc, (k, v) ->
+                    val maxFieldDepth = this.fields.toList().fold(0) { acc, (_, v) ->
                         max(acc, v.maxDepth)
                     }
                     1 + maxFieldDepth

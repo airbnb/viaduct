@@ -28,7 +28,7 @@ data class FieldResolutionResult(
                     throw IllegalStateException("Expected CompositeLocalContext but found ${ctx::class}")
             }
 
-        fun fromErrors(errors: List<GraphQLError>,) =
+        fun fromErrors(errors: List<GraphQLError>) =
             FieldResolutionResult(
                 engineResult = null,
                 errors = errors,

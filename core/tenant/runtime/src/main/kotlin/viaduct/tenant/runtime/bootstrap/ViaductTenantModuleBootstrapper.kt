@@ -66,11 +66,9 @@ class ViaductTenantModuleBootstrapper(
                 }
                 it.asSubclass(tenantFunctionClass)
             }
-        @Suppress("UNCHECKED_CAST")
         val resolverClassesByBaseClass: Map<Class<out ResolverBase<*>>, List<Class<out ResolverBase<*>>>> =
             resolverBaseClasses.associateWith { type ->
-                // Get all @Resolver subclasses
-                tenantResolverClassFinder.getSubTypesOf(type).filter { it.isAnnotationPresent(Resolver::class.java) } as List<Class<out ResolverBase<*>>>
+                tenantResolverClassFinder.getSubTypesOf(type).filter { it.isAnnotationPresent(Resolver::class.java) }
             }
         for ((baseClass, resolverClasses) in resolverClassesByBaseClass) {
             val resolverForAnnotation = baseClass.getAnnotation(ResolverFor::class.java)
@@ -232,10 +230,9 @@ class ViaductTenantModuleBootstrapper(
                 }
                 it.asSubclass(nodeResolverBase)
             }
-        @Suppress("UNCHECKED_CAST")
         val nodeResolverClassesByBaseClass: Map<Class<out NodeResolverBase<*>>, Set<Class<out NodeResolverBase<*>>>> =
-            nodeResolverBaseClasses.associateWith { // Get all node resolver subclasses
-                tenantResolverClassFinder.getSubTypesOf(it) as Set<Class<out NodeResolverBase<*>>>
+            nodeResolverBaseClasses.associateWith {
+                tenantResolverClassFinder.getSubTypesOf(it)
             }
         for ((baseClass, allSubclasses) in nodeResolverClassesByBaseClass) {
             val nodeResolverForAnnotation = baseClass.getAnnotation(NodeResolverFor::class.java)

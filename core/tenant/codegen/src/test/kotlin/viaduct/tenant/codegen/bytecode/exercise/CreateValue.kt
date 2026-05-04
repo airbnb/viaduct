@@ -442,7 +442,7 @@ internal data class RecordValue(val concreteTypeDef: ViaductGraphQLSchema.Record
         when (this) {
             null -> null
             is List<*> -> map { it.unwrap() }
-            is Map<*, *> -> mapValues { (k, v) -> v.unwrap() }
+            is Map<*, *> -> mapValues { (_, v) -> v.unwrap() }
             else -> this
         }
 

@@ -518,7 +518,7 @@ class JavaClassLoaderClassFinderTest {
         fun threeDArrayMethod(arr: Array<Array<DoubleArray>>) = Unit
     }
 
-    @Suppress("unused")
+    @Suppress("unused", "UNUSED_PARAMETER")
     class ConstructorTestClass {
         constructor()
         private constructor(x: Int)

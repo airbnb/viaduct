@@ -73,7 +73,7 @@ class NodeResolverTest {
                 }
             }
             type("Baz") {
-                nodeUnbatchedExecutor { id, _, _ ->
+                nodeUnbatchedExecutor { _, _, _ ->
                     createEngineObjectData(
                         objectType,
                         mapOf("x" to 99)

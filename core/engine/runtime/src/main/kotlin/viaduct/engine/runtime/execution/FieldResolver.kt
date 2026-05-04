@@ -135,7 +135,7 @@ class FieldResolver(
             val parentOER = parameters.parentEngineResult
             // We don't use the result of this operation, but we need to ensure it's scheduled
             // so that the resolution state is updated when the immediate values are ready.
-            immediate.thenApply { _, throwable ->
+            immediate.thenApply { _, _ ->
                 parentOER.fieldResolutionState.complete(Unit)
             }
 

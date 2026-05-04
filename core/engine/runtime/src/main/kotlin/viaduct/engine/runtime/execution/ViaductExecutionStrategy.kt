@@ -215,7 +215,7 @@ class ViaductExecutionStrategy internal constructor(
                 //    relying on the query plan and the object engine result
                 launch {
                     supervisorScope {
-                        val (value, duration) = measureTimedValue {
+                        val (_, duration) = measureTimedValue {
                             if (isSerial) {
                                 fieldResolver.fetchObjectSerially(objType, parameters)
                             } else {

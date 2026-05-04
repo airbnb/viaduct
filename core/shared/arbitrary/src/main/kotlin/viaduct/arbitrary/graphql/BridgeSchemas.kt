@@ -11,11 +11,11 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 
 /** Generate an Arb of [ViaductSchema] from Config */
-fun Arb.Companion.viaductExtendedSchema(config: Config = Config.default,): Arb<ViaductSchema> = Arb.graphQLSchema(config).map { schema -> ViaductSchema.fromGraphQLSchema(schema) }
+fun Arb.Companion.viaductExtendedSchema(config: Config = Config.default): Arb<ViaductSchema> = Arb.graphQLSchema(config).map { schema -> ViaductSchema.fromGraphQLSchema(schema) }
 
 /** Generate an arbitrary [ViaductSchema.TypeExpr] */
 @VisibleForTest
-fun Arb.Companion.typeExpr(config: Config = Config.default,): Arb<ViaductSchema.TypeExpr<*>> =
+fun Arb.Companion.typeExpr(config: Config = Config.default): Arb<ViaductSchema.TypeExpr<*>> =
     viaductExtendedSchema(config)
         .filter { it.types.values.isNotEmpty() }
         .flatMap { schema ->

@@ -439,7 +439,7 @@ private fun <T : NodeObject> getNodeResolverContextKClass(resolver: NodeResolver
 private fun <T : NodeObject> ResolverTestBase.createNodeExecutionContext(
     id: GlobalID<T>,
     selections: SelectionSet<T>,
-    requestContext: Any? = null,
+    @Suppress("UNUSED_PARAMETER") requestContext: Any? = null,
     contextQueryValues: List<Query> = emptyList()
 ): NodeExecutionContext<T> {
     val internalContext = context.internal

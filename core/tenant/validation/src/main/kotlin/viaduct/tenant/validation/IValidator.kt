@@ -9,7 +9,7 @@ typealias ErrorMessage = String
  */
 interface IValidator {
     fun validateAndReportErrors(): ErrorMessage? {
-        var errors = emptyList<ErrorMessage>()
+        val errors: List<ErrorMessage>
         try {
             errors = validate()
         } catch (ex: Exception) {

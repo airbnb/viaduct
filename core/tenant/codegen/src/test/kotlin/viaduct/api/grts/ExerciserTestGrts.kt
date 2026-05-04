@@ -422,7 +422,7 @@ class MissingGetterImplInputV2 internal constructor(
     class Builder internal constructor(
         override val context: InternalContext,
         override val graphQLInputObjectType: GraphQLInputObjectType,
-        inputData: Map<String, Any?> = LinkedHashMap()
+        @Suppress("UNUSED_PARAMETER") inputData: Map<String, Any?> = LinkedHashMap()
     ) : InputLikeBase.Builder() {
         constructor(context: ExecutionContext) : this(
             context.internal,

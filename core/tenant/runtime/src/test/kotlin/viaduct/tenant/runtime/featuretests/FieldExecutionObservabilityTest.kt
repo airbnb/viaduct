@@ -315,7 +315,7 @@ class FieldExecutionObservabilityTest {
                 "Query" to "string1",
                 objectValueFragment = "idField",
                 resolveFn = { ctx: UntypedFieldContext ->
-                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
+                    ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     // Wait until the child plan is executed before returning values. Otherwise, the child plan may be cancelled.
                     // Wait for 1s as a safeguard to indefinite waiting.
                     queryString1ResolverChildPlanExecuted.await(1, TimeUnit.SECONDS).toString()
@@ -326,7 +326,7 @@ class FieldExecutionObservabilityTest {
                 "Query" to "string2",
                 objectValueFragment = "idField",
                 resolveFn = { ctx: UntypedFieldContext ->
-                    val idFieldValue = ctx.getObjectValue().get<GlobalID<Baz>>("idField")
+                    ctx.getObjectValue().get<GlobalID<Baz>>("idField")
                     // Wait until the child plan is executed before returning values. Otherwise, the child plan may be cancelled.
                     // Wait for 1s as a safeguard to indefinite waiting.
                     queryString2ResolverChildPlanExecuted.await(1, TimeUnit.SECONDS).toString()

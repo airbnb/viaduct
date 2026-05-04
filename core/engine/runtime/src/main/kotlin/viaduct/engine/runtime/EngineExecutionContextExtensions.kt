@@ -74,7 +74,7 @@ object EngineExecutionContextExtensions {
      * Returns a new [EngineExecutionContextImpl.FieldExecutionScopeImpl] with [attribution] replaced,
      * preserving all other field scope state from this context.
      */
-    internal fun EngineExecutionContext.fieldScopeWithAttribution(attribution: ExecutionAttribution,): EngineExecutionContextImpl.FieldExecutionScopeImpl =
+    internal fun EngineExecutionContext.fieldScopeWithAttribution(attribution: ExecutionAttribution): EngineExecutionContextImpl.FieldExecutionScopeImpl =
         EngineExecutionContextImpl.FieldExecutionScopeImpl(
             fragments = fieldScope.fragments,
             variables = fieldScope.variables,
