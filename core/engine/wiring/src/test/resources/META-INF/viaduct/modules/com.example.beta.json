@@ -1,0 +1,6 @@
+{
+  "version" : "1",
+  "executorFactory" : "viaduct.engine.WiringTestExecutorFactory",
+  "nodes" : [ ],
+  "fields" : [ ]
+}

@@ -77,7 +77,6 @@ open class ViaductTenantAPIBootstrapper
             protected var tenantPackageFinder: TenantPackageFinder? = null
             protected var tenantResolverClassFinderFactory: TenantResolverClassFinderFactory? = null
             protected var grtConvFactory: GRTConvFactory = CachingGRTConvFactory()
-            private var useFileBasedBootstrap: Boolean = false
 
             fun tenantCodeInjector(tenantCodeInjector: TenantCodeInjector) =
                 apply {
@@ -106,8 +105,6 @@ open class ViaductTenantAPIBootstrapper
                     this.grtConvFactory = grtConvFactory
                 }
 
-            fun useFileBasedBootstrap() = apply { this.useFileBasedBootstrap = true }
-
             protected fun resolvedTenantPackageFinder(): TenantPackageFinder =
                 when {
                     tenantPackagePrefix != null -> TenantPackageFinder { setOf(TenantPackageInfo(tenantPackagePrefix!!)) }
@@ -118,20 +115,12 @@ open class ViaductTenantAPIBootstrapper
             protected fun resolvedTenantResolverClassFinderFactory(): TenantResolverClassFinderFactory = tenantResolverClassFinderFactory ?: ViaductTenantResolverClassFinderFactory()
 
             override fun create(): TenantAPIBootstrapper =
-                if (useFileBasedBootstrap) {
-                    ExecutionRegistryTenantAPIBootstrapper(
-                        tenantCodeInjector = tenantCodeInjector,
-                        tenantPackagePrefix = tenantPackagePrefix ?: error("tenantPackagePrefix required for file-based bootstrap"),
-                        grtConvFactory = grtConvFactory,
-                    )
-                } else {
-                    ViaductTenantAPIBootstrapper(
-                        tenantCodeInjector = tenantCodeInjector,
-                        tenantPackageFinder = resolvedTenantPackageFinder(),
-                        tenantResolverClassFinderFactory = resolvedTenantResolverClassFinderFactory(),
-                        grtConvFactory = grtConvFactory,
-                    )
-                }
+                ViaductTenantAPIBootstrapper(
+                    tenantCodeInjector = tenantCodeInjector,
+                    tenantPackageFinder = resolvedTenantPackageFinder(),
+                    tenantResolverClassFinderFactory = resolvedTenantResolverClassFinderFactory(),
+                    grtConvFactory = grtConvFactory,
+                )
         }
 
         companion object {

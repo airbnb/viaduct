@@ -14,6 +14,8 @@ viaductPublishing {
 dependencies {
     implementation(libs.graphql.java)
     implementation(libs.jackson.annotations)
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.module)
     implementation(libs.javax.inject)
     implementation(libs.kotlinx.coroutines.core.jvm)
 

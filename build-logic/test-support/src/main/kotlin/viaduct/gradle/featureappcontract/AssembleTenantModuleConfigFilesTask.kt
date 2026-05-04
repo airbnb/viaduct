@@ -209,7 +209,7 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
     }
 }
 
-internal const val MODERN_KOTLIN_EXECUTOR_FACTORY = "viaduct.tenant.runtime.ModernKotlinExecutorFactory"
+internal const val MODERN_KOTLIN_EXECUTOR_FACTORY = "viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory"
 
 /**
  * Actions that the incremental logic can perform. The task implements this

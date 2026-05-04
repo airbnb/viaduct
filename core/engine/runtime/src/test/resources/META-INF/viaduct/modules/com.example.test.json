@@ -1,0 +1,6 @@
+{
+  "version" : "1",
+  "executorFactory" : "viaduct.engine.runtime.tenantloading.TestExecutorFactory",
+  "nodes" : [ ],
+  "fields" : [ ]
+}

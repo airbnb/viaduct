@@ -256,6 +256,23 @@ internal class BasicViaductFactoryTest {
     }
 
     @Nested
+    inner class CreateFromResourceTests {
+        @Test
+        fun `createFromResource should attempt to build Viaduct from classpath registry`() {
+            assertThrows<Exception> {
+                BasicViaductFactory.createFromResource()
+            }
+        }
+
+        @Test
+        fun `createFromResource should accept a custom injector`() {
+            assertThrows<Exception> {
+                BasicViaductFactory.createFromResource(tenantCodeInjector = TenantCodeInjector.Naive)
+            }
+        }
+    }
+
+    @Nested
     inner class CreateForTestingTests {
         @Test
         fun `createForTesting should attempt to build Viaduct with valid configuration`() {

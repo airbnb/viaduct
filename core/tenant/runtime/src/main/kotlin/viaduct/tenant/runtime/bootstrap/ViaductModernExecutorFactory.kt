@@ -1,10 +1,10 @@
 package viaduct.tenant.runtime.bootstrap
 
+import java.net.URL
 import kotlin.reflect.full.declaredMemberFunctions
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
 import viaduct.api.internal.DefaultGRTConvFactory
-import viaduct.api.internal.GRTConvFactory
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.ExecutionAttribution
@@ -13,6 +13,7 @@ import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
+import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
 import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
@@ -33,18 +34,22 @@ import viaduct.utils.slf4j.logger
 
 class ViaductModernExecutorFactory(
     private val tenantCodeInjector: TenantCodeInjector,
-    private val grtPackagePrefix: String,
-    private val grtConvFactory: GRTConvFactory = DefaultGRTConvFactory,
+    private val moduleName: String,
+    @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {
+    private val grtConvFactory = DefaultGRTConvFactory
     private val reflectionLoader = ReflectionLoaderImpl { name ->
         @Suppress("UNCHECKED_CAST")
-        Class.forName("$grtPackagePrefix.$name").kotlin
+        Class.forName("$moduleName.$name").kotlin
     }
 
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(reflectionLoader)
 
     @Suppress("UNCHECKED_CAST")
-    override fun createFieldResolverExecutor(configData: FieldEntry): FieldResolverExecutor {
+    override fun createFieldResolverExecutor(
+        configData: FieldEntry,
+        schema: ViaductSchema
+    ): FieldResolverExecutor {
         val resolverClass = loadClass<ResolverBase<*>>(configData.tenantAPIData.resolverClass, "field ${configData.typeName}.${configData.fieldName}")
         val resolverBaseClass = loadClass<ResolverBase<*>>(configData.tenantAPIData.resolverBaseClass, "field resolver base for ${configData.typeName}.${configData.fieldName}")
 
@@ -105,7 +110,10 @@ class ViaductModernExecutorFactory(
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun createNodeResolverExecutor(configData: NodeEntry): NodeResolverExecutor {
+    override fun createNodeResolverExecutor(
+        configData: NodeEntry,
+        schema: ViaductSchema
+    ): NodeResolverExecutor {
         val resolverClass = loadClass<NodeResolverBase<*>>(configData.tenantAPIData.resolverClass, "node ${configData.typeName}")
         val resolverBaseClass = loadClass<NodeResolverBase<*>>(configData.tenantAPIData.resolverBaseClass, "node resolver base for ${configData.typeName}")
 

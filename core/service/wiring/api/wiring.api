@@ -4,6 +4,10 @@ public final class viaduct/service/BasicViaductFactory {
 	public final fun create (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/TenantRegistrationInfo;Lviaduct/engine/api/spi/ProxyResolverFactory;)Lviaduct/service/api/Viaduct;
 	public final fun create (Lviaduct/service/TenantRegistrationInfo;)Lviaduct/service/api/Viaduct;
 	public static synthetic fun create$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/TenantRegistrationInfo;Lviaduct/engine/api/spi/ProxyResolverFactory;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
+	public final fun createFromResource ()Lviaduct/service/api/Viaduct;
+	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;)Lviaduct/service/api/Viaduct;
+	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/TenantCodeInjector;)Lviaduct/service/api/Viaduct;
+	public static synthetic fun createFromResource$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/TenantCodeInjector;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
 }
 
 public final class viaduct/service/BasicViaductFactoryKt {

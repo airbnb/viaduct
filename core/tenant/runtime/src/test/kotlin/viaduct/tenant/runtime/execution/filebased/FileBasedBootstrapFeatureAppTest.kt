@@ -1,4 +1,5 @@
 @file:Suppress("unused", "ClassName")
+@file:OptIn(viaduct.apiannotations.VisibleForTest::class)
 
 package viaduct.tenant.runtime.execution.filebased
 
@@ -6,8 +7,7 @@ import com.google.inject.AbstractModule
 import com.google.inject.Guice
 import com.google.inject.Singleton
 import viaduct.api.Resolver
-import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
-import viaduct.api.internal.DefaultGRTConvFactory
+import viaduct.engine.BootstrapperFactory
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
@@ -32,10 +32,12 @@ class FileBasedBootstrapFeatureAppTest : FileBasedBootstrapContractTest() {
             }
         )
 
-        return ViaductTenantAPIBootstrapper.Builder()
-            .tenantCodeInjector(GuiceTenantCodeInjector(injector))
-            .tenantPackagePrefix("viaduct.tenant.runtime.execution.filebased")
-            .grtConvFactory(DefaultGRTConvFactory)
-            .useFileBasedBootstrap()
+        return object : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
+            override fun create() =
+                BootstrapperFactory.fromResources(
+                    tenantCodeInjector = GuiceTenantCodeInjector(injector),
+                    packagePrefix = FileBasedBootstrapFeatureAppTest::class.java.packageName,
+                )
+        }
     }
 }

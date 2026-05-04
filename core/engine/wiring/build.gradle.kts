@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.engine.runtime)
     implementation(libs.viaduct.service.api)
+    implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.shared.deferred)
     implementation(libs.viaduct.shared.utils)
 
@@ -29,6 +30,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.jdk8)
     implementation(libs.micrometer.core)
 
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.io.mockk.dsl)
     testImplementation(testFixtures(libs.viaduct.engine.api))

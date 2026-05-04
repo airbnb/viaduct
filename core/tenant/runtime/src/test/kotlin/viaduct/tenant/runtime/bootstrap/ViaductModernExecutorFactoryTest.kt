@@ -1,5 +1,6 @@
 package viaduct.tenant.runtime.bootstrap
 
+import java.net.URI
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldValue
@@ -10,7 +11,6 @@ import viaduct.api.bootstrap.test.grts.TestBatchNode
 import viaduct.api.bootstrap.test.grts.TestNode
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
-import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
@@ -21,6 +21,7 @@ import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
 import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlock
+import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.TenantCodeInjector
@@ -80,13 +81,15 @@ class ViaductModernExecutorFactoryTest {
         override suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<TestBatchNode>> = emptyList()
     }
 
+    private val schema = MockSchema.mk("type TestType { aField: String }")
+
     private val pkg = ViaductModernExecutorFactoryTest::class.java.name
 
     private fun factory() =
         ViaductModernExecutorFactory(
             tenantCodeInjector = TenantCodeInjector.Naive,
-            grtPackagePrefix = "viaduct.api.bootstrap.test.grts",
-            grtConvFactory = DefaultGRTConvFactory,
+            moduleName = "viaduct.api.bootstrap.test.grts",
+            configUrl = URI("file:///dev/null").toURL(),
         )
 
     private fun fieldEntry(
@@ -137,6 +140,7 @@ class ViaductModernExecutorFactoryTest {
     fun `createFieldResolverExecutor - non-batching field produces non-batching executor`() {
         val executor = factory().createFieldResolverExecutor(
             fieldEntry(resolverSimpleName = "TestFieldResolver", resolverBaseSimpleName = "TestFieldResolverBase"),
+            schema,
         )
         assert(!executor.isBatching)
     }
@@ -149,6 +153,7 @@ class ViaductModernExecutorFactoryTest {
                 resolverBaseSimpleName = "TestBatchFieldResolverBase",
                 isBatching = true,
             ),
+            schema,
         )
         assert(executor.isBatching)
     }
@@ -162,6 +167,7 @@ class ViaductModernExecutorFactoryTest {
                     resolverBaseSimpleName = "TestFieldResolverBase",
                     isBatching = true,
                 ),
+                schema,
             )
         }
     }
@@ -182,6 +188,7 @@ class ViaductModernExecutorFactoryTest {
                         queryTypeName = "Query",
                     ),
                 ),
+                schema,
             )
         }
     }
@@ -194,6 +201,7 @@ class ViaductModernExecutorFactoryTest {
                 resolverBaseSimpleName = "TestFieldResolverBase",
                 querySelections = SelectionsBlock(selections = "fragment _ on Query { __typename }"),
             ),
+            schema,
         )
         assert(executor is FieldResolverExecutor)
     }
@@ -207,6 +215,7 @@ class ViaductModernExecutorFactoryTest {
                     resolverBaseSimpleName = "TestFieldResolverBase",
                     querySelections = SelectionsBlock(selections = "{ __typename }"),
                 ),
+                schema,
             )
         }
     }
@@ -217,6 +226,7 @@ class ViaductModernExecutorFactoryTest {
     fun `createNodeResolverExecutor - non-batching node produces non-batching executor`() {
         val executor = factory().createNodeResolverExecutor(
             nodeEntry("TestNode", "TestNodeResolver", "TestNodeResolverBase"),
+            schema,
         )
         assert(executor is NodeResolverExecutor)
         assert(!executor.isBatching)
@@ -226,6 +236,7 @@ class ViaductModernExecutorFactoryTest {
     fun `createNodeResolverExecutor - batching node produces batching executor`() {
         val executor = factory().createNodeResolverExecutor(
             nodeEntry("TestBatchNode", "TestBatchNodeResolver", "TestBatchNodeResolverBase", isBatching = true),
+            schema,
         )
         assert(executor.isBatching)
     }
@@ -235,6 +246,7 @@ class ViaductModernExecutorFactoryTest {
         assertThrows<IllegalStateException> {
             factory().createNodeResolverExecutor(
                 nodeEntry("TestNode", "TestNodeResolver", "TestNodeResolverBase", isBatching = true),
+                schema,
             )
         }
     }
@@ -253,6 +265,7 @@ class ViaductModernExecutorFactoryTest {
                         resolverBaseClass = "com.does.not.ExistBase",
                     ),
                 ),
+                schema,
             )
         }
     }

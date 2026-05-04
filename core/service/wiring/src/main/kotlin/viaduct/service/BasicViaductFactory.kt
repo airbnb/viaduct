@@ -3,9 +3,12 @@ package viaduct.service
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
+import viaduct.engine.BootstrapperFactory
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
+import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.TenantCodeInjector
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
@@ -54,6 +57,31 @@ object BasicViaductFactory {
         return builder
             .withProxyResolverFactory(proxyResolverFactory)
             .withSchemaConfiguration(schemaConfiguration)
+            .build()
+    }
+
+    /**
+     * Factory function for [Viaduct] instances that bootstrap tenant modules from
+     * pre-generated registry JSON files at META-INF/viaduct/modules/ on the classpath.
+     *
+     * Tenant configuration comes entirely from the JSON files — no [TenantRegistrationInfo] needed.
+     *
+     * @param tenantCodeInjector the injector used to instantiate resolver classes.
+     *        Defaults to [TenantCodeInjector.Naive] (reflection with zero-arg constructors).
+     *        Pass a DI-backed injector (e.g. Guice, Micronaut) when resolvers have dependencies.
+     */
+    @JvmOverloads
+    fun createFromResource(
+        schemaRegistrationInfo: SchemaRegistrationInfo = SchemaRegistrationInfo(),
+        tenantCodeInjector: TenantCodeInjector = TenantCodeInjector.Naive,
+    ): Viaduct {
+        val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
+            override fun create() = BootstrapperFactory.fromResources(tenantCodeInjector)
+        }
+
+        return StandardViaduct.Builder()
+            .withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
+            .withSchemaConfiguration(applySchemaRegistry(schemaRegistrationInfo))
             .build()
     }
 

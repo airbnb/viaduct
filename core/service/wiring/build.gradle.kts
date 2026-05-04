@@ -22,6 +22,7 @@ dependencies {
 
 
     implementation(libs.viaduct.engine.api)
+    implementation(libs.viaduct.engine.wiring)
     implementation(libs.viaduct.tenant.wiring)
     implementation(libs.viaduct.shared.apiannotations)
 
