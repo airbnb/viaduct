@@ -24,6 +24,21 @@ viaductFeatureAppContracts {
     contractsFrom(":tenant:api")
 }
 
+val testFileBasedBootstrap by tasks.registering(Test::class) {
+    description = "Runs all contract tests using the file-based bootstrap"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("feature-app-contract-test")
+    }
+    environment("USE_FILE_BASED_BOOTSTRAP", "true")
+}
+
+tasks.named("check") {
+    dependsOn(testFileBasedBootstrap)
+}
+
 dependencies {
     /** Viaduct dependencies **/
     implementation(libs.viaduct.engine.api)
@@ -42,6 +57,7 @@ dependencies {
 
     /** Test fixtures - Viaduct dependencies **/
     testFixturesApi(libs.viaduct.engine.api)
+    testFixturesApi(libs.viaduct.engine.wiring)
     testFixturesApi(libs.viaduct.service.api)
     testFixturesApi(libs.viaduct.service.runtime)
     testFixturesApi(libs.viaduct.service.wiring)

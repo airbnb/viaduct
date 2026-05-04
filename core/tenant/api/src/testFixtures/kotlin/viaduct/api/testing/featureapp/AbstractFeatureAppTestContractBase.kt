@@ -6,6 +6,7 @@ import com.google.inject.Module
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
 import viaduct.api.testing.TestSchema
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.ViaductBuilder
@@ -26,6 +27,7 @@ import viaduct.service.runtime.StandardViaduct
  * This class provides the common test lifecycle, builder wiring, and query execution
  * logic shared by both the Kotlin and Java contract test bases.
  */
+@Tag("feature-app-contract-test")
 abstract class AbstractFeatureAppTestContractBase {
     private val sdl: String = requireNotNull(
         this::class.java.getAnnotation(TestSchema::class.java)?.value?.trimIndent()

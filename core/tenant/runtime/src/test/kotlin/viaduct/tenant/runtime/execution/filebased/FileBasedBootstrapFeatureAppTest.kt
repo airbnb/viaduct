@@ -1,43 +1,87 @@
 @file:Suppress("unused", "ClassName")
-@file:OptIn(viaduct.apiannotations.VisibleForTest::class)
 
 package viaduct.tenant.runtime.execution.filebased
 
 import com.google.inject.AbstractModule
-import com.google.inject.Guice
+import com.google.inject.Module
 import com.google.inject.Singleton
 import viaduct.api.Resolver
-import viaduct.engine.BootstrapperFactory
-import viaduct.engine.api.spi.TenantModuleBootstrapper
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
+import viaduct.api.Variable
+import viaduct.api.Variables
+import viaduct.api.VariablesProvider
+import viaduct.api.context.VariablesProviderContext
+import viaduct.api.types.Arguments
+import viaduct.tenant.runtime.execution.filebased.resolverbases.ItemResolvers
 import viaduct.tenant.runtime.execution.filebased.resolverbases.NodeResolvers
+import viaduct.tenant.runtime.execution.filebased.resolverbases.QueryResolvers
 
 class FileBasedBootstrapFeatureAppTest : FileBasedBootstrapContractTest() {
     override val validateResolverCompleteness = false
 
     @Resolver
-    class ItemResolver : NodeResolvers.Item() {
+    class ItemNodeResolver : NodeResolvers.Item() {
         override suspend fun resolve(ctx: Context): Item {
             return Item.Builder(ctx).id(ctx.id).name(ctx.id.internalID).build()
         }
     }
 
-    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
-        val injector = Guice.createInjector(
+    @Resolver("id")
+    class Item_LabelResolver : ItemResolvers.Label() {
+        override suspend fun resolve(ctx: Context): String {
+            return "label:${ctx.getObjectValue().getId().internalID}"
+        }
+    }
+
+    @Resolver(
+        queryValueFragment = "fragment _ on Query { echoWithTag(tag: \$theTag) }",
+        variables = [Variable(name = "theTag", fromArgument = "tag")]
+    )
+    class Item_EchoTagResolver : ItemResolvers.EchoTag() {
+        override suspend fun resolve(ctx: Context): String {
+            return ctx.getQueryValue().getEchoWithTag()
+        }
+    }
+
+    @Resolver
+    class Query_ItemResolver : QueryResolvers.Item() {
+        override suspend fun resolve(ctx: Context) = ctx.nodeRef(ctx.globalIDFor(Item.Reflection, ctx.arguments.id))
+    }
+
+    @Resolver
+    class Query_EchoWithTagResolver : QueryResolvers.EchoWithTag() {
+        override suspend fun resolve(ctx: Context): String {
+            return ctx.arguments.tag
+        }
+    }
+
+    @Resolver(
+        queryValueFragment = "fragment _ on Query { echoWithTag(tag: \$myTag) }"
+    )
+    class Query_TaggedLabelResolver : QueryResolvers.TaggedLabel() {
+        override suspend fun resolve(ctx: Context): String {
+            return ctx.getQueryValue().getEchoWithTag()
+        }
+
+        @Variables("myTag: String!")
+        class TagProvider : VariablesProvider<Arguments.NoArguments> {
+            override suspend fun provide(context: VariablesProviderContext<Arguments.NoArguments>): Map<String, Any?> {
+                return mapOf("myTag" to "from-provider")
+            }
+        }
+    }
+
+    override fun guiceModules(): List<Module> =
+        listOf(
             object : AbstractModule() {
                 override fun configure() {
-                    bind(ItemResolver::class.java).`in`(Singleton::class.java)
+                    bind(ItemNodeResolver::class.java).`in`(Singleton::class.java)
+                    bind(Item_LabelResolver::class.java).`in`(Singleton::class.java)
+                    bind(Item_EchoTagResolver::class.java).`in`(Singleton::class.java)
+                    bind(Query_ItemResolver::class.java).`in`(Singleton::class.java)
+                    bind(Query_EchoWithTagResolver::class.java).`in`(Singleton::class.java)
+                    bind(Query_TaggedLabelResolver::class.java).`in`(Singleton::class.java)
+                    bind(Query_TaggedLabelResolver.TagProvider::class.java).`in`(Singleton::class.java)
                 }
             }
         )
-
-        return object : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
-            override fun create() =
-                BootstrapperFactory.fromResources(
-                    tenantCodeInjector = GuiceTenantCodeInjector(injector),
-                    packagePrefix = FileBasedBootstrapFeatureAppTest::class.java.packageName,
-                )
-        }
-    }
 }

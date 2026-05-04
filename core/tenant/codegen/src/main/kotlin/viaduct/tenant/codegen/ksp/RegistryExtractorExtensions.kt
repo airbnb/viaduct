@@ -202,12 +202,14 @@ private fun KSClassDeclaration.toFieldResolverParams(
     val objectFragment = resolverAnnotation?.stringArg("objectValueFragment")?.takeIf { it.isNotBlank() }
     val queryFragment = resolverAnnotation?.stringArg("queryValueFragment")?.takeIf { it.isNotBlank() }
 
-    // Variable providers are attached to objectSelections by convention (they reference object fields).
-    // querySelections has no variable providers in the current model.
+    // Variable providers go on objectSelections when it exists; otherwise fall back to querySelections.
+    // This ensures @Variable bindings are reachable regardless of which fragment type the resolver uses.
     val objectSelections = objectFragment?.let {
         SelectionsBlock(selections = it, variablesProviders = variableProviders)
     }
-    val querySelections = queryFragment?.let { SelectionsBlock(selections = it) }
+    val querySelections = queryFragment?.let {
+        SelectionsBlock(selections = it, variablesProviders = if (objectFragment == null) variableProviders else emptyList())
+    }
 
     val contextTypeArgs = baseDeclaration.declarations
         .filterIsInstance<KSClassDeclaration>()
@@ -284,21 +286,21 @@ private fun KSAnnotation.variableProviders(variablesTypeMap: Map<String, String>
 }
 
 /**
- * Parses `@Variables(types = "foo: Int!, bar: Boolean")` from any nested class of this resolver.
+ * Parses `@Variables(types = ["foo: Int!", "bar: Boolean"])` from any nested class of this resolver.
  * Returns a map of variable name → type expression (e.g. `{"foo" -> "Int!", "bar" -> "Boolean"}`).
  * At most one nested `@Variables` annotation is expected (validated separately by the KSP validator).
  */
 private fun KSClassDeclaration.variablesTypeMap(): Map<String, String> {
-    val typesStr = declarations
+    val typesList = declarations
         .filterIsInstance<KSClassDeclaration>()
         .flatMap { it.annotations }
         .firstOrNull { it.shortName.asString() == "Variables" }
-        ?.stringArg("types")
+        ?.arguments
+        ?.firstOrNull { it.name?.asString() == "types" }
+        ?.value as? List<*>
         ?: return emptyMap()
 
-    return typesStr.trim()
-        .split(",")
-        .filter { it.isNotBlank() }
+    return typesList.filterIsInstance<String>()
         .mapNotNull { entry ->
             val parts = entry.trim().split(":")
             if (parts.size != 2) return@mapNotNull null

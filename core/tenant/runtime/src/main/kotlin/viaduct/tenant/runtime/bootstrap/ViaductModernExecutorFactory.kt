@@ -1,6 +1,7 @@
 package viaduct.tenant.runtime.bootstrap
 
 import java.net.URL
+import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberFunctions
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
@@ -67,13 +68,14 @@ class ViaductModernExecutorFactory(
             grtConvFactory = grtConvFactory,
         )
 
+        val resolverKClass = resolverClass.kotlin
+
         val (objectSelectionSet, querySelectionSet) = buildSelectionSets(
             entry = configData,
+            resolverKClass = resolverKClass,
             attribution = attribution,
             contextFactory = contextFactory,
         )
-
-        val resolverKClass = resolverClass.kotlin
         val resolverId = "${configData.typeName}.${configData.fieldName}"
 
         return if (configData.isBatching) {
@@ -160,6 +162,7 @@ class ViaductModernExecutorFactory(
 
     private fun buildSelectionSets(
         entry: FieldEntry,
+        resolverKClass: KClass<out ResolverBase<*>>,
         attribution: ExecutionAttribution,
         contextFactory: FieldExecutionContextFactory,
     ): Pair<RequiredSelectionSet?, RequiredSelectionSet?> {
@@ -173,7 +176,7 @@ class ViaductModernExecutorFactory(
         if (objectSelections == null && querySelections == null) return Pair(null, null)
 
         return requiredSelectionSetFactory.createRequiredSelectionSets(
-            variablesProvider = null,
+            variablesProvider = resolverKClass.variablesProvider(tenantCodeInjector),
             objectSelections = objectSelections,
             querySelections = querySelections,
             variablesProviderContextFactory = contextFactory,

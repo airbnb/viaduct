@@ -195,7 +195,7 @@ private val Resolver.selectionSetVariables: List<SelectionSetVariable>
  * [VariablesProvider] class within the provided [ResolverBase] kclass.
  */
 @Suppress("UNCHECKED_CAST")
-private fun KClass<out ResolverBase<*>>.variablesProvider(injector: TenantCodeInjector): VariablesProviderInfo? =
+internal fun KClass<out ResolverBase<*>>.variablesProvider(injector: TenantCodeInjector): VariablesProviderInfo? =
     nestedClasses
         .firstOrNull { it.hasAnnotation<Variables>() }
         ?.let {

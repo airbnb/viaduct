@@ -12,6 +12,21 @@ viaductFeatureAppContracts {
     contractsFrom(":tenant:runtime")
 }
 
+val testFileBasedBootstrap by tasks.registering(Test::class) {
+    description = "Runs all contract tests using the file-based bootstrap"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("feature-app-contract-test")
+    }
+    environment("USE_FILE_BASED_BOOTSTRAP", "true")
+}
+
+tasks.named("check") {
+    dependsOn(testFileBasedBootstrap)
+}
+
 viaductPublishing {
     name.set("Tenant Runtime")
     description.set("The Viaduct tenant runtime.")

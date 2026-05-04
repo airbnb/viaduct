@@ -257,7 +257,6 @@ class ViaductTenantModuleBootstrapper(
             val resolverContextFactory: NodeExecutionContextFactory =
                 NodeExecutionContextFactory(baseClass, reflectionLoader, reflectiveType, grtConvFactory)
 
-            // Filter to only @Resolver-annotated subclasses (mirrors field resolver pattern)
             val resolverClasses = allSubclasses.filter { it.isAnnotationPresent(Resolver::class.java) }
             if (resolverClasses.isEmpty()) {
                 if (allSubclasses.isNotEmpty()) {

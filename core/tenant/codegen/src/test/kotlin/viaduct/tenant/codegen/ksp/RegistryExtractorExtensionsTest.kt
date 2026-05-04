@@ -391,7 +391,7 @@ class RegistryExtractorExtensionsTest {
 
         val variablesAnnotation = ksAnnotation(
             simpleName = "Variables",
-            args = mapOf("types" to "experiment: Boolean!, limit: Int"),
+            args = mapOf("types" to listOf("experiment: Boolean!", "limit: Int")),
         )
         val nestedVarsClass = ksClassDeclaration(
             qualifiedName = "com.example.feature.resolvers.ExampleNameResolver.Vars",
@@ -492,7 +492,7 @@ class RegistryExtractorExtensionsTest {
         // @Variables declares two variables, but only one @Variable binding exists
         val variablesAnnotation = ksAnnotation(
             simpleName = "Variables",
-            args = mapOf("types" to "experiment: Boolean!, unrelated: String"),
+            args = mapOf("types" to listOf("experiment: Boolean!", "unrelated: String")),
         )
         val nestedVarsClass = ksClassDeclaration(
             qualifiedName = "com.example.feature.resolvers.ExampleNameResolver.Vars",
