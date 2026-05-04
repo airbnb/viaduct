@@ -15,6 +15,8 @@ data class ExecutionRegistry(
     val version: String,
     /** FQN of the ExecutorFactory implementation. */
     val executorFactory: String,
+    /** Package where GRT classes live for this module (e.g. "viaduct.api.grts"). Extracted by KSP. */
+    val grtPackagePrefix: String,
     val nodes: List<NodeEntry> = emptyList(),
     val fields: List<FieldEntry> = emptyList(),
 )

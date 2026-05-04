@@ -111,9 +111,18 @@ class AssembleTenantModuleConfigFile : CliktCommand(
             )
         }
 
+        val hasResolvers = nodes.isNotEmpty() || fields.isNotEmpty()
+        val grtPackagePrefix = descriptors.firstNotNullOfOrNull { it.grtPackagePrefix }
+            ?: if (hasResolvers) {
+                error("No grtPackagePrefix found in any descriptor — KSP failed to extract GRT package from resolver base supertypes")
+            } else {
+                ""
+            }
+
         return ExecutionRegistry(
             version = REGISTRY_VERSION,
             executorFactory = executorFactory,
+            grtPackagePrefix = grtPackagePrefix,
             nodes = nodes,
             fields = fields,
         )

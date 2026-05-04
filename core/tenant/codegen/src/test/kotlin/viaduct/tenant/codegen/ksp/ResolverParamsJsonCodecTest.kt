@@ -22,6 +22,7 @@ class ResolverParamsJsonCodecTest {
                     ),
                 ),
                 fields = emptyList(),
+                grtPackagePrefix = "viaduct.api.grts",
             ),
         )
 
@@ -29,6 +30,7 @@ class ResolverParamsJsonCodecTest {
             """
                 {
                   "fields" : [ ],
+                  "grtPackagePrefix" : "viaduct.api.grts",
                   "nodes" : [ {
                     "attribution" : "ExampleNodeResolver",
                     "implFqn" : "com.example.feature.resolvers.ExampleNodeResolver",
@@ -117,6 +119,7 @@ class ResolverParamsJsonCodecTest {
                         querySelections = null,
                     ),
                 ),
+                grtPackagePrefix = "viaduct.api.grts",
             ),
         )
 
@@ -134,6 +137,7 @@ class ResolverParamsJsonCodecTest {
                     "resolverBaseClass" : "com.example.feature.resolverbases.ExampleName",
                     "typeName" : "ExampleNode"
                   } ],
+                  "grtPackagePrefix" : "viaduct.api.grts",
                   "nodes" : [ ]
                 }
 
@@ -170,6 +174,7 @@ class ResolverParamsJsonCodecTest {
                         querySelections = null,
                     ),
                 ),
+                grtPackagePrefix = "viaduct.api.grts",
             ),
         )
 
@@ -196,6 +201,7 @@ class ResolverParamsJsonCodecTest {
                     "resolverBaseClass" : "com.example.feature.resolverbases.ExampleName",
                     "typeName" : "ExampleNode"
                   } ],
+                  "grtPackagePrefix" : "viaduct.api.grts",
                   "nodes" : [ ]
                 }
 
@@ -227,6 +233,7 @@ class ResolverParamsJsonCodecTest {
                         ),
                     ),
                 ),
+                grtPackagePrefix = "viaduct.api.grts",
             ),
         )
 
@@ -252,6 +259,7 @@ class ResolverParamsJsonCodecTest {
                     "resolverBaseClass" : "com.example.feature.resolverbases.CharacterResolvers.Greeting",
                     "typeName" : "Character"
                   } ],
+                  "grtPackagePrefix" : "viaduct.api.grts",
                   "nodes" : [ ]
                 }
 

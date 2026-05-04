@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import viaduct.service.BasicViaductFactory
-import viaduct.service.TenantRegistrationInfo
 import viaduct.service.api.ExecutionInput
 
 fun main(argv: Array<String>) {
@@ -18,11 +17,7 @@ fun main(argv: Array<String>) {
 
     // Create a Viaduct engine using the BasicViaductFactory
     // tag::building-viaduct[5] Building viaduct from BasicViaductFactory
-    val viaduct = BasicViaductFactory.create(
-        tenantRegistrationInfo = TenantRegistrationInfo(
-            tenantPackagePrefix = "com.example.viadapp"
-        )
-    )
+    val viaduct = BasicViaductFactory.createFromResource()
 
     // Create an execution input
     // tag::create-execution-input[12] Creating an execution input

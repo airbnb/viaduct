@@ -5,7 +5,6 @@ import io.micronaut.context.annotation.Factory
 import viaduct.service.BasicViaductFactory
 import viaduct.service.SchemaRegistrationInfo
 import viaduct.service.SchemaScopeInfo
-import viaduct.service.TenantRegistrationInfo
 import viaduct.service.api.Viaduct
 
 val SCHEMA_ID = "default"
@@ -24,14 +23,11 @@ class ViaductConfiguration(
 ) {
     @Bean
     fun providesViaduct(): Viaduct {
-        return BasicViaductFactory.create(
+        return BasicViaductFactory.createFromResource(
             schemaRegistrationInfo = SchemaRegistrationInfo(
                 scopes = listOf(SchemaScopeInfo(SCHEMA_ID)),
             ),
-            tenantRegistrationInfo = TenantRegistrationInfo(
-                tenantPackagePrefix = "com.example.viadapp",
-                tenantCodeInjector = micronautTenantCodeInjector
-            )
+            tenantCodeInjector = micronautTenantCodeInjector,
         )
     }
 }

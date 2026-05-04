@@ -1090,6 +1090,63 @@ class RegistryExtractorExtensionsTest {
     }
 
     @Test
+    fun `extractGrtPackagePrefix finds prefix from resolver nested more than two levels deep`() {
+        val grtClass = ksClassDeclaration(
+            qualifiedName = "viaduct.api.grts.SomeGrtClass",
+            simpleName = "SomeGrtClass",
+            packageName = "viaduct.api.grts",
+            declarations = emptyList(),
+        )
+        val contextSupertype = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.FieldContext",
+            simpleName = "FieldContext",
+            packageName = "com.example.feature.resolverbases",
+            declarations = emptyList(),
+        )
+        val contextClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName.Context",
+            simpleName = "Context",
+            packageName = "com.example.feature.resolverbases",
+            declarations = emptyList(),
+            contextSuperTypeRef = ksTypeReferenceWithArgs(contextSupertype, listOf(ksTypeArgument(ksTypeReference(grtClass)))),
+        )
+        val resolverBase = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "fieldName" to "name", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = listOf(contextClass),
+        )
+        // Resolver at depth 3: outerClass → middleClass → deepResolver
+        val deepResolver = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.outer.Middle.DeepResolver",
+            simpleName = "DeepResolver",
+            packageName = "com.example.feature.resolvers.outer",
+            superDeclarations = listOf(resolverBase),
+            declarations = emptyList(),
+        )
+        val middleClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.outer.Middle",
+            simpleName = "Middle",
+            packageName = "com.example.feature.resolvers.outer",
+            declarations = listOf(deepResolver),
+        )
+        val outerClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.Outer",
+            simpleName = "Outer",
+            packageName = "com.example.feature.resolvers",
+            declarations = listOf(middleClass),
+        )
+
+        assertEquals("viaduct.api.grts", extractGrtPackagePrefix(listOf(outerClass)))
+    }
+
+    @Test
     fun `toResolverParams - returnTypeName is null when ResolverBase has no type argument`() {
         val logger = RecordingKspLogger()
 

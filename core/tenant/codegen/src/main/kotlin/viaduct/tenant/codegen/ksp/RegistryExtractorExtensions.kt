@@ -326,3 +326,69 @@ internal fun KSClassDeclaration.qualifiedResolverName(logger: KSPLogger): String
         null
     }
 }
+
+/**
+ * Extracts the GRT package prefix from the given class declarations by inspecting resolver
+ * base supertypes. Scoped to a specific source file's declarations so each descriptor gets
+ * the prefix of its own resolvers rather than an arbitrary one from the whole compilation unit.
+ */
+internal fun extractGrtPackagePrefix(classDeclarations: List<KSClassDeclaration>): String? {
+    return classDeclarations
+        .asSequence()
+        .flatMap { it.selfAndNestedClasses() }
+        .mapNotNull { it.directResolverBasePkg() }
+        .firstOrNull()
+}
+
+private fun KSClassDeclaration.selfAndNestedClasses(): Sequence<KSClassDeclaration> =
+    sequence {
+        yield(this@selfAndNestedClasses)
+        for (nested in declarations.filterIsInstance<KSClassDeclaration>()) {
+            yieldAll(nested.selfAndNestedClasses())
+        }
+    }
+
+private fun KSClassDeclaration.directResolverBasePkg(): String? {
+    val base = superTypes.toList()
+        .mapNotNull { it.resolve().declaration as? KSClassDeclaration }
+        .firstOrNull { base ->
+            base.firstAnnotationNamed(nodeResolverForAnnotationName) != null ||
+                base.firstAnnotationNamed(resolverForAnnotationName) != null
+        } ?: return null
+
+    return pkgFromContextClass(base) ?: pkgFromNodeResolverBase(base)
+}
+
+private fun pkgFromContextClass(base: KSClassDeclaration): String? {
+    val contextClass = base.declarations
+        .filterIsInstance<KSClassDeclaration>()
+        .firstOrNull { it.simpleName.asString() == "Context" } ?: return null
+
+    return contextClass.superTypes
+        .firstOrNull()
+        ?.resolve()
+        ?.arguments
+        ?.firstOrNull()
+        ?.type
+        ?.resolve()
+        ?.declaration
+        ?.qualifiedName
+        ?.asString()
+        ?.substringBeforeLast('.')
+        ?.takeIf { it.isNotEmpty() }
+}
+
+private fun pkgFromNodeResolverBase(base: KSClassDeclaration): String? {
+    return base.superTypes
+        .map { it.resolve() }
+        .firstOrNull { it.declaration.simpleName.asString() == "NodeResolverBase" }
+        ?.arguments
+        ?.firstOrNull()
+        ?.type
+        ?.resolve()
+        ?.declaration
+        ?.qualifiedName
+        ?.asString()
+        ?.substringBeforeLast('.')
+        ?.takeIf { it.isNotEmpty() }
+}

@@ -1,6 +1,7 @@
 {
   "version" : "1",
   "executorFactory" : "viaduct.engine.WiringTestExecutorFactory",
+  "grtPackagePrefix" : "viaduct.api.grts",
   "nodes" : [ ],
   "fields" : [ ]
 }

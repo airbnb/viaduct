@@ -9,7 +9,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler
 import org.eclipse.jetty.servlet.ServletHolder
 import org.slf4j.LoggerFactory
 import viaduct.service.BasicViaductFactory
-import viaduct.service.TenantRegistrationInfo
 
 class JettyViaductApp(private val port: Int = 8080) {
     private val server: Server
@@ -19,11 +18,7 @@ class JettyViaductApp(private val port: Int = 8080) {
         rootLogger.level = Level.INFO
 
         // Create a Viaduct engine using the BasicViaductFactory
-        val viaduct = BasicViaductFactory.create(
-            tenantRegistrationInfo = TenantRegistrationInfo(
-                tenantPackagePrefix = "com.example.viadapp"
-            )
-        )
+        val viaduct = BasicViaductFactory.createFromResource()
 
         // Create the servlets
         val viaductServlet = ViaductServlet(viaduct)

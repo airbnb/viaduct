@@ -53,6 +53,7 @@ internal data class VariableProviderDescriptor(
 internal data class ResolverDescriptorFile(
     val nodes: List<ResolverParams.Node>,
     val fields: List<ResolverParams.Field>,
+    val grtPackagePrefix: String? = null,
 ) {
     @JsonIgnore
     fun isEmpty(): Boolean = nodes.isEmpty() && fields.isEmpty()

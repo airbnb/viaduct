@@ -24,7 +24,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
         }
 
     @Test
-    fun `valid registry URL creates module bootstrapper with correct module name`() =
+    fun `valid registry URL creates module bootstrapper with grtPackagePrefix from JSON`() =
         runTest {
             val url = requireNotNull(
                 Thread.currentThread().contextClassLoader
@@ -33,7 +33,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
 
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(injector, listOf(url))
             assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
-            assertEquals("com.example.test", TestExecutorFactory.lastModuleName)
+            assertEquals("viaduct.api.grts", TestExecutorFactory.lastGrtPackagePrefix)
         }
 
     @Test
@@ -42,6 +42,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
             {
               "version": "1",
               "executorFactory": "com.nonexistent.DoesNotExist",
+              "grtPackagePrefix": "viaduct.api.grts",
               "nodes": [],
               "fields": []
             }
@@ -66,11 +67,11 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
  */
 class TestExecutorFactory(
     @Suppress("UNUSED_PARAMETER") injector: TenantCodeInjector,
-    moduleName: String,
+    grtPackagePrefix: String,
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {
     init {
-        lastModuleName = moduleName
+        lastGrtPackagePrefix = grtPackagePrefix
     }
 
     override fun createFieldResolverExecutor(
@@ -88,6 +89,6 @@ class TestExecutorFactory(
     }
 
     companion object {
-        var lastModuleName: String? = null
+        var lastGrtPackagePrefix: String? = null
     }
 }

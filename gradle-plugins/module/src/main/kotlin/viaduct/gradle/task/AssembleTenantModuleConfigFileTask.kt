@@ -128,7 +128,7 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
     }
 
     companion object {
-        const val EXECUTOR_FACTORY = "viaduct.tenant.runtime.ModernKotlinExecutorFactory"
+        const val EXECUTOR_FACTORY = "viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory"
 
         // TODO: Keep this routing helper for future re-enablement of true task-internal
         // incrementality once execution-style tests exist. It is intentionally not used

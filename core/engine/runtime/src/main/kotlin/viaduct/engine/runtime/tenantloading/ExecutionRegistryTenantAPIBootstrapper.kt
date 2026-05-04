@@ -40,8 +40,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
             registryUrls.map { url ->
                 async {
                     val registry = url.openStream().use { objectMapper.readValue<ExecutionRegistry>(it) }
-                    val moduleName = url.path.substringAfterLast('/').removeSuffix(".json")
-                    val executorFactory = instantiateExecutorFactory(registry.executorFactory, moduleName, url)
+                    val executorFactory = instantiateExecutorFactory(registry.executorFactory, registry.grtPackagePrefix, url)
                     ExecutionRegistryTenantModuleBootstrapper(registry, executorFactory)
                 }
             }.awaitAll()
@@ -50,7 +49,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
 
     private fun instantiateExecutorFactory(
         fqn: String,
-        moduleName: String,
+        grtPackagePrefix: String,
         configUrl: URL
     ): ExecutorFactory {
         val ctor = Class.forName(fqn).getDeclaredConstructor(
@@ -59,7 +58,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
             URL::class.java,
         )
         @Suppress("UNCHECKED_CAST")
-        return ctor.newInstance(tenantCodeInjector, moduleName, configUrl) as ExecutorFactory
+        return ctor.newInstance(tenantCodeInjector, grtPackagePrefix, configUrl) as ExecutorFactory
     }
 
     companion object {

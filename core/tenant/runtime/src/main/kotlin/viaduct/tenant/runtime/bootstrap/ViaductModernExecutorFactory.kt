@@ -34,13 +34,13 @@ import viaduct.utils.slf4j.logger
 
 class ViaductModernExecutorFactory(
     private val tenantCodeInjector: TenantCodeInjector,
-    private val moduleName: String,
+    private val grtPackagePrefix: String,
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {
     private val grtConvFactory = DefaultGRTConvFactory
     private val reflectionLoader = ReflectionLoaderImpl { name ->
         @Suppress("UNCHECKED_CAST")
-        Class.forName("$moduleName.$name").kotlin
+        Class.forName("$grtPackagePrefix.$name").kotlin
     }
 
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(reflectionLoader)

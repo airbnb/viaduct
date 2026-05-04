@@ -86,7 +86,8 @@ class AssembleTenantModuleConfigFileTest {
                 "resolverBaseClass": "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
                 "typeName": "ExampleNode"
               } ],
-              "fields": []
+              "fields": [],
+              "grtPackagePrefix": "viaduct.api.grts"
             }
             """.trimIndent(),
         )
@@ -114,7 +115,8 @@ class AssembleTenantModuleConfigFileTest {
                 "resolverBaseClass": "com.example.feature.resolverbases.ExampleName",
                 "typeName": "ExampleNode",
                 "fieldName": "name"
-              } ]
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
             }
             """.trimIndent(),
         )
@@ -131,10 +133,10 @@ class AssembleTenantModuleConfigFileTest {
     fun `descriptors from multiple files are merged into single registry`() {
         val descriptors = descriptorDir()
         File(descriptors, "AResolvers.json").writeText(
-            """{"nodes": [{"attribution":"ANodeResolver","implFqn":"com.example.ANodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.A","typeName":"A"}],"fields":[]}""",
+            """{"nodes": [{"attribution":"ANodeResolver","implFqn":"com.example.ANodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.A","typeName":"A"}],"fields":[],"grtPackagePrefix":"viaduct.api.grts"}""",
         )
         File(descriptors, "BResolvers.json").writeText(
-            """{"nodes": [{"attribution":"BNodeResolver","implFqn":"com.example.BNodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.B","typeName":"B"}],"fields":[]}""",
+            """{"nodes": [{"attribution":"BNodeResolver","implFqn":"com.example.BNodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.B","typeName":"B"}],"fields":[],"grtPackagePrefix":"viaduct.api.grts"}""",
         )
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
@@ -173,7 +175,7 @@ class AssembleTenantModuleConfigFileTest {
         val descriptors = descriptorDir()
         val subDir = File(descriptors, "com/example/feature/resolvers").also { it.mkdirs() }
         File(subDir, "ExampleNodeResolver.json").writeText(
-            """{"nodes": [{"attribution":"ExampleNodeResolver","implFqn":"com.example.feature.resolvers.ExampleNodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.feature.resolverbases.NodeResolvers.ExampleNode","typeName":"ExampleNode"}],"fields":[]}""",
+            """{"nodes": [{"attribution":"ExampleNodeResolver","implFqn":"com.example.feature.resolvers.ExampleNodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.feature.resolverbases.NodeResolvers.ExampleNode","typeName":"ExampleNode"}],"fields":[],"grtPackagePrefix":"viaduct.api.grts"}""",
         )
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
@@ -186,7 +188,7 @@ class AssembleTenantModuleConfigFileTest {
     fun `resolver class names are preserved in output`() {
         val descriptors = descriptorDir()
         File(descriptors, "ExampleResolvers.json").writeText(
-            "{\"nodes\": [{\"attribution\":\"A\",\"implFqn\":\"com.example.resolvers.AResolver\",\"isBatching\":false,\"isSelective\":false,\"resolverBaseClass\":\"com.example.bases.A\",\"typeName\":\"A\"}],\"fields\":[]}",
+            "{\"nodes\": [{\"attribution\":\"A\",\"implFqn\":\"com.example.resolvers.AResolver\",\"isBatching\":false,\"isSelective\":false,\"resolverBaseClass\":\"com.example.bases.A\",\"typeName\":\"A\"}],\"fields\":[],\"grtPackagePrefix\":\"viaduct.api.grts\"}",
         )
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)

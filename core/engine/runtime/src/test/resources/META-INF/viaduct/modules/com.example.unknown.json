@@ -1,6 +1,7 @@
 {
   "version" : "1",
   "executorFactory" : "com.does.not.exist.UnknownExecutorFactory",
+  "grtPackagePrefix" : "viaduct.api.grts",
   "nodes" : [ ],
   "fields" : [ ]
 }

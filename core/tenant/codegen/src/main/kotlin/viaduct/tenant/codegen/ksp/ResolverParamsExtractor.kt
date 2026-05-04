@@ -37,6 +37,7 @@ internal class ResolverParamsExtractor(
         val allFiles = (groupedNodesByFile.keys + groupedFieldsByFile.keys).toSortedSet(compareBy { it.filePath })
 
         val descriptorsByFile = allFiles.associateWith { file ->
+            val classesInFile = file.declarations.filterIsInstance<KSClassDeclaration>().toList()
             ResolverDescriptorFile(
                 nodes = groupedNodesByFile[file]
                     .orEmpty()
@@ -44,6 +45,7 @@ internal class ResolverParamsExtractor(
                 fields = groupedFieldsByFile[file]
                     .orEmpty()
                     .sortedWith(compareBy({ it.typeName }, { it.fieldName }, { it.implFqn })),
+                grtPackagePrefix = extractGrtPackagePrefix(classesInFile),
             )
         }.toSortedMap(compareBy { file -> file.filePath })
 
