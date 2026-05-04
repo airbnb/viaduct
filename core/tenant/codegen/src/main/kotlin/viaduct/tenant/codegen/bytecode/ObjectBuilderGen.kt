@@ -21,8 +21,8 @@ import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.tenant.codegen.bytecode.config.builderFields
 import viaduct.tenant.codegen.bytecode.config.cfg
-import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
 import viaduct.tenant.codegen.bytecode.config.connectionEdgeTypeName
 import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
 import viaduct.tenant.codegen.bytecode.config.kmType
@@ -185,7 +185,7 @@ private class ObjectBuilderGenV2(
     }
 
     private fun CustomClassBuilder.addFieldSetters(): CustomClassBuilder {
-        for (field in def.codegenIncludedFields) {
+        for (field in def.builderFields(grtClassFilesBuilder.allowExtObjectSetters)) {
             this.addFieldSetter(field)
         }
         return this

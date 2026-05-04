@@ -69,6 +69,8 @@ class SchemaObjectsBytecode : CliktCommand() {
     val compilationSchemaBinary: File? by option("--compilation_schema_binary").file(mustExist = false, canBeDir = false)
     val flagFile: File? by option("--flag_file").file(mustExist = true, canBeDir = false)
 
+    private val allowExtObjectSetters: Boolean by option("--allow_ext_object_setters").flag()
+
     override fun run() {
         // Validation:
         // - If flag file has enable_binary_schema (True or False): --binary_schema_file required
@@ -120,6 +122,7 @@ class SchemaObjectsBytecode : CliktCommand() {
             workerCount = workerCount,
             timer = timer,
             baseTypeMapper = ViaductBaseTypeMapper(schema),
+            allowExtObjectSetters = allowExtObjectSetters
         )
 
         val grtBuilder = GRTClassFilesBuilderBase.builderFrom(codegenArgs)

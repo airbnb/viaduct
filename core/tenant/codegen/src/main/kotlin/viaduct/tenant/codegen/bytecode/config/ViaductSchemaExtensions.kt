@@ -245,6 +245,23 @@ val ViaductSchema.SourceLocation.tenantModule: String?
     }?.substringBefore("/src/")
 
 /**
+ * Fields to include as setters in the generated Builder for an object type.
+ *
+ * When [allowExtObjectSetters] is false, restricts to fields owned by the defining module
+ * (the one containing the `isBase == true` extension) to prevent cross-module setter leakage.
+ */
+fun ViaductSchema.Object.builderFields(allowExtObjectSetters: Boolean): Iterable<ViaductSchema.Field> {
+    val fields = codegenIncludedFields
+    if (allowExtObjectSetters) return fields
+    val definingModule = extensions.firstOrNull { it.isBase }?.sourceLocation?.tenantModule
+        ?: return fields
+    return fields.filter { field ->
+        val fieldModule = field.containingExtension.sourceLocation?.tenantModule
+        fieldModule == null || fieldModule == definingModule
+    }
+}
+
+/**
  * True if this type has the @edge directive applied.
  */
 val ViaductSchema.TypeDef.hasEdgeDirective: Boolean

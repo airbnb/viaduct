@@ -32,6 +32,7 @@ class GRTClassFilesBuilderBaseTest {
             workerCount = 1,
             timer = Timer(),
             baseTypeMapper = ViaductBaseTypeMapper(schema),
+            allowExtObjectSetters = false
         )
         return GRTClassFilesBuilder(args)
     }

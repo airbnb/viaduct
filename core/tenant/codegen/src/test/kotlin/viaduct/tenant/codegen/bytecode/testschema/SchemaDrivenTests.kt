@@ -93,6 +93,7 @@ class SchemaDrivenTests {
             workerCount = 1,
             timer = Timer(),
             baseTypeMapper = ViaductBaseTypeMapper(schema),
+            allowExtObjectSetters = false
         )
 
     /**
