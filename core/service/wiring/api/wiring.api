@@ -68,6 +68,8 @@ public final class viaduct/service/ViaductBuilder {
 	public final fun withDataFetcherExceptionHandler (Lgraphql/execution/DataFetcherExceptionHandler;)Lviaduct/service/ViaductBuilder;
 	public final fun withFlagManager (Lviaduct/service/api/spi/FlagManager;)Lviaduct/service/ViaductBuilder;
 	public final fun withGlobalIDCodec (Lviaduct/service/api/spi/GlobalIDCodec;)Lviaduct/service/ViaductBuilder;
+	public final fun withLenientResolverValidation (Z)Lviaduct/service/ViaductBuilder;
+	public static synthetic fun withLenientResolverValidation$default (Lviaduct/service/ViaductBuilder;ZILjava/lang/Object;)Lviaduct/service/ViaductBuilder;
 	public final fun withMeterRegistry (Lio/micrometer/core/instrument/MeterRegistry;)Lviaduct/service/ViaductBuilder;
 	public final fun withProxyResolverFactory (Lviaduct/engine/api/spi/ProxyResolverFactory;)Lviaduct/service/ViaductBuilder;
 	public final fun withResolverErrorReporter (Lviaduct/service/api/spi/ErrorReporter;)Lviaduct/service/ViaductBuilder;

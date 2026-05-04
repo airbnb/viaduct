@@ -33,6 +33,7 @@ class DispatcherRegistryFactory(
     private val checkerExecutorFactory: CheckerExecutorFactory,
     private val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
     private val proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
+    private val missingResolverValidator: Validator<MissingResolverValidationCtx> = Validator.Unvalidated,
 ) {
     companion object {
         private fun log() = getLogger(this::class.java.name.substringBefore("\$Companion"))
@@ -129,6 +130,9 @@ class DispatcherRegistryFactory(
                 dispatcherRegistry, // need requiredSelectionSetRegistry on dispatcherRegistry for validation
             )
         )
+
+        missingResolverValidator.validate(MissingResolverValidationCtx(dispatcherRegistry))
+
         return dispatcherRegistry
     }
 }

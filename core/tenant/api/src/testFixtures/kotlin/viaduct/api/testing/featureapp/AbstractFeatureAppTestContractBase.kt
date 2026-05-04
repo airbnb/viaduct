@@ -92,6 +92,7 @@ abstract class AbstractFeatureAppTestContractBase {
         if (!::viaductBuilder.isInitialized) {
             viaductBuilder = ViaductBuilder()
                 .withFlagManager(flagManager)
+                .withLenientResolverValidation()
                 .withTenantAPIBootstrapperBuilder(createBootstrapperBuilder())
         }
     }
