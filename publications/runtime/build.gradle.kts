@@ -50,6 +50,7 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude("reactor/**")
     exclude("io/projectreactor/**")
     exclude("_COROUTINE/**")
+    exclude("org/junit/**")
 
     // Relocate common dependencies to avoid conflicts
     relocate("com.google.common", "viaduct.shaded.guava")
