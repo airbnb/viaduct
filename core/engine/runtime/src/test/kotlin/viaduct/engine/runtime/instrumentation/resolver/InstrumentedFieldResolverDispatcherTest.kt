@@ -2,6 +2,9 @@
 
 package viaduct.engine.runtime.instrumentation.resolver
 
+import graphql.execution.ExecutionStepInfo
+import graphql.execution.ResultPath
+import graphql.schema.DataFetchingEnvironment
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -21,6 +24,8 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
+import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvironment
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.mocks.ContextMocks
@@ -384,6 +389,55 @@ internal class InstrumentedFieldResolverDispatcherTest {
             // Then — context is a plain EngineExecutionContextImpl, not wrapped
             assertFalse(capturedContext.captured is InstrumentedEngineExecutionContext)
             assertInstanceOf(EngineExecutionContextImpl::class.java, capturedContext.captured)
+        }
+
+    @Test
+    fun `resolve passes executionPath from dataFetchingEnvironment to instrumentation parameters`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+            val mockResolverMetadata = ResolverMetadata.forMock("mock-resolver")
+            val expectedPath = ResultPath.parse("/Query/user")
+
+            every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+
+            val mockExecutionStepInfo = mockk<ExecutionStepInfo>()
+            every { mockExecutionStepInfo.path } returns expectedPath
+            val mockDfe = mockk<DataFetchingEnvironment>()
+            every { mockDfe.executionStepInfo } returns mockExecutionStepInfo
+
+            val contextWithDfe = defaultContext.copy(dataFetchingEnvironment = mockDfe)
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, contextWithDfe)
+
+            // Then
+            val executeContext = instrumentation.executeResolverContexts.first()
+            assertEquals(expectedPath, executeContext.parameters.executionPath)
+        }
+
+    @Test
+    fun `resolve passes null executionPath when dataFetchingEnvironment is not set`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+
+            // defaultContext has no dataFetchingEnvironment set
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+
+            // Then
+            val executeContext = instrumentation.executeResolverContexts.first()
+            assertNull(executeContext.parameters.executionPath)
         }
 
     @Test

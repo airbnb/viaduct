@@ -11,6 +11,7 @@ import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
+import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvironment
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldScopeWithAttribution
 import viaduct.engine.runtime.FieldResolverDispatcher
 
@@ -48,6 +49,7 @@ class InstrumentedFieldResolverDispatcher(
             resolverMetadata = dispatcher.resolverMetadata,
             fieldCoordinate = coordinate,
             syncValueComputation = syncValueComputation,
+            executionPath = context.dataFetchingEnvironment?.executionStepInfo?.path,
         )
 
         val wrapFetchSelections = instrumentation.shouldInstrumentFetchSelections(state)
