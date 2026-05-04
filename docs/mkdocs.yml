@@ -94,79 +94,77 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Getting Started:
+      - getting_started/index.md
+      - Setup:
+          - getting_started/setup/index.md
+          - Clone Existing Tenant: getting_started/setup/clone/index.md
+          - From Scratch: getting_started/setup/from_scratch/index.md
+      - Tour: getting_started/tour/index.md
+      - Tutorial: tutorials/index.md
+      - Star Wars Tutorial:
+          - getting_started/starwars/index.md
+          - Core Concepts:
+              - getting_started/starwars/core/index.md
+              - Node Resolvers: getting_started/starwars/core/node_resolvers.md
+              - Field Resolvers: getting_started/starwars/core/field_resolvers.md
+              - Batch Resolvers: getting_started/starwars/core/batch_resolvers.md
+              - Global IDs: getting_started/starwars/core/global_id.md
+              - Resolver Integrations: getting_started/starwars/core/resolver_integrations.md
+          - Directives:
+              - getting_started/starwars/directives/index.md
+              - Backing Data: getting_started/starwars/directives/backing_data.md
+              - Scope: getting_started/starwars/directives/scope.md
+              - IDOf: getting_started/starwars/directives/idof.md
+              - OneOf: getting_started/starwars/directives/oneof.md
+              - Connection: getting_started/starwars/directives/connection.md
+              - Edge: getting_started/starwars/directives/edge.md
+          - Pagination: getting_started/starwars/pagination/index.md
+          - Mutations: getting_started/starwars/mutations/index.md
+          - Variables: getting_started/starwars/variables/index.md
+          - Request Context: getting_started/starwars/requestcontext/index.md
+          - Testing: getting_started/starwars/testing/index.md
+          - Architecture:
+              - getting_started/starwars/architecture/index.md
+              - Schemas: getting_started/starwars/architecture/schemas.md
+              - Tenants: getting_started/starwars/architecture/tenants.md
+              - Viaduct Builder: getting_started/starwars/architecture/viaduct_builder.md
+      - Extending: getting_started/extending/index.md
+  - Developers:
+    - docs/developers/index.md
+    - Resolvers:
+      - docs/developers/resolvers/index.md
+      - Resolver Annotation: docs/developers/resolvers/resolver_annotation.md
+      - Node Resolvers: docs/developers/resolvers/node_resolvers.md
+      - Field Resolvers: docs/developers/resolvers/field_resolvers.md
+      - Batch Resolution: docs/developers/resolvers/batch_resolution.md
+      - Mutations: docs/developers/resolvers/mutations.md
+      - Node References: docs/developers/resolvers/node_references.md
+      - Subqueries: docs/developers/resolvers/subqueries.md
+    - Generated Code: docs/developers/generated_code/index.md
+    - Global IDs: docs/developers/globalids/index.md
+    - Pagination: docs/developers/pagination/index.md
+    - Api Stability:
+      - docs/developers/api_stability/index.md
+      - Contributors guide: docs/developers/api_stability/contributors_guide.md
+    - Scopes: docs/developers/scopes/index.md
+    - Schema Reference: docs/developers/schema_reference/index.md
+    - Serve: docs/developers/serve/index.md
+    - Viaduct Api: docs/developers/viaduct_api/index.md
+    - Testing: docs/developers/testing/index.md
+  - Service Engineers:
+    - docs/service_engineers/index.md
+    - Schema Extensions: docs/service_engineers/schema_extensions/index.md
+    - Multi-tenancy: docs/service_engineers/multi_tenancy/index.md
+    - Observability:
+      - docs/service_engineers/observability/index.md
+      - Error Handling: docs/service_engineers/observability/error_handling.md
+      - Setup: docs/service_engineers/observability/setup.md
+  - Contributors:
+    - docs/contributors/index.md
+    - Architecture: docs/contributors/architecture/index.md
+    - IDE Testing: docs/contributors/ide_testing/index.md
   - About: about/index.md
-  - Documentation:
-    - docs/index.md
-    - Getting Started:
-        - getting_started/index.md
-        - Setup:
-            - getting_started/setup/index.md
-            - Clone Existing Tenant: getting_started/setup/clone/index.md
-            - From Scratch: getting_started/setup/from_scratch/index.md
-        - Tour: getting_started/tour/index.md
-        - Tutorial: tutorials/index.md
-        - Star Wars Tutorial:
-            - getting_started/starwars/index.md
-            - Core Concepts:
-                - getting_started/starwars/core/index.md
-                - Node Resolvers: getting_started/starwars/core/node_resolvers.md
-                - Field Resolvers: getting_started/starwars/core/field_resolvers.md
-                - Batch Resolvers: getting_started/starwars/core/batch_resolvers.md
-                - Global IDs: getting_started/starwars/core/global_id.md
-                - Resolver Integrations: getting_started/starwars/core/resolver_integrations.md
-            - Directives:
-                - getting_started/starwars/directives/index.md
-                - Backing Data: getting_started/starwars/directives/backing_data.md
-                - Scope: getting_started/starwars/directives/scope.md
-                - IDOf: getting_started/starwars/directives/idof.md
-                - OneOf: getting_started/starwars/directives/oneof.md
-                - Connection: getting_started/starwars/directives/connection.md
-                - Edge: getting_started/starwars/directives/edge.md
-            - Pagination: getting_started/starwars/pagination/index.md
-            - Mutations: getting_started/starwars/mutations/index.md
-            - Variables: getting_started/starwars/variables/index.md
-            - Request Context: getting_started/starwars/requestcontext/index.md
-            - Testing: getting_started/starwars/testing/index.md
-            - Architecture:
-                - getting_started/starwars/architecture/index.md
-                - Schemas: getting_started/starwars/architecture/schemas.md
-                - Tenants: getting_started/starwars/architecture/tenants.md
-                - Viaduct Builder: getting_started/starwars/architecture/viaduct_builder.md
-        - Extending: getting_started/extending/index.md
-    - Developers:
-      - docs/developers/index.md
-      - Resolvers:
-        - docs/developers/resolvers/index.md
-        - Resolver Annotation: docs/developers/resolvers/resolver_annotation.md
-        - Node Resolvers: docs/developers/resolvers/node_resolvers.md
-        - Field Resolvers: docs/developers/resolvers/field_resolvers.md
-        - Batch Resolution: docs/developers/resolvers/batch_resolution.md
-        - Mutations: docs/developers/resolvers/mutations.md
-        - Node References: docs/developers/resolvers/node_references.md
-        - Subqueries: docs/developers/resolvers/subqueries.md
-      - Generated Code: docs/developers/generated_code/index.md
-      - Global IDs: docs/developers/globalids/index.md
-      - Pagination: docs/developers/pagination/index.md
-      - Api Stability:
-        - docs/developers/api_stability/index.md
-        - Contributors guide: docs/developers/api_stability/contributors_guide.md
-      - Scopes: docs/developers/scopes/index.md
-      - Schema Reference: docs/developers/schema_reference/index.md
-      - Serve: docs/developers/serve/index.md
-      - Viaduct Api: docs/developers/viaduct_api/index.md
-      - Testing: docs/developers/testing/index.md
-    - Service Engineers:
-      - docs/service_engineers/index.md
-      - Schema Extensions: docs/service_engineers/schema_extensions/index.md
-      - Multi-tenancy: docs/service_engineers/multi_tenancy/index.md
-      - Observability:
-        - docs/service_engineers/observability/index.md
-        - Error Handling: docs/service_engineers/observability/error_handling.md
-        - Setup: docs/service_engineers/observability/setup.md
-    - Contributors:
-      - docs/contributors/index.md
-      - Architecture: docs/contributors/architecture/index.md
-      - IDE Testing: docs/contributors/ide_testing/index.md
   - Roadmap: roadmap/index.md
   - Blog: blog/index.md
   - Community: community/index.md
