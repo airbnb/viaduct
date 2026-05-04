@@ -5,12 +5,6 @@ plugins {
     application
 }
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
-}
-
 viaductApplication {
     modulePackagePrefix.set("com.example.viadapp")
 }
@@ -26,16 +20,17 @@ dependencies {
     implementation(libs.viaduct.javaapi.runtime)
 
     implementation(libs.logback.classic)
+    implementation(libs.kotlinx.coroutines.core)
     implementation(libs.jackson.databind)
 
-    // Viaduct runtime is Kotlin-based; coroutines are needed transitively
-    implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.jdk8)
     implementation(libs.reactive.streams)
 
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.junit.jupiter.engine)
     testRuntimeOnly(libs.junit.platform.launcher)
+
+    // Use test fixtures bundle
     testImplementation(libs.viaduct.test.fixtures)
 }
 

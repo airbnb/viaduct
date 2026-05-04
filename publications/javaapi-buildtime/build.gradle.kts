@@ -8,8 +8,8 @@ plugins {
 }
 
 viaductPublishing {
-    name.set("Java GRT Codegen")
-    description.set("Fat jar of the Viaduct Java GRT source code generator for plugin tool classpaths")
+    name.set("Java Build Time Tools")
+    description.set("Fat jar bundling the Viaduct Java GRT code generator for plugin tool classpaths")
 }
 
 dependencies {
@@ -19,10 +19,6 @@ dependencies {
 tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")
     mergeServiceFiles()
-    configurations = listOf(project.configurations.compileClasspath.get())
-    exclude("kotlin/**")
-    exclude("kotlinx/**")
-    exclude("org/jetbrains/**")
 }
 
 tasks.named<Jar>("jar") {
@@ -44,10 +40,13 @@ configurations {
     }
 }
 
+// Suppress Gradle module metadata — the fat jar is self-contained and the standard
+// variants would reference internal viaduct coordinates that aren't published individually.
 tasks.withType<GenerateModuleMetadata> {
     enabled = false
 }
 
+// Strip all transitive dependencies from the POM — everything is bundled in the fat jar.
 afterEvaluate {
     publishing.publications.withType<MavenPublication>().configureEach {
         pom.withXml {

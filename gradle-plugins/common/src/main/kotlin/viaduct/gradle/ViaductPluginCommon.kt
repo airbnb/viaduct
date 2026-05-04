@@ -90,8 +90,8 @@ object ViaductPluginCommon {
     /** Codegen tool classpath: resolves `com.airbnb.viaduct:buildtime`. */
     fun Project.createOrGetCodegenClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductCodegenClasspath", "com.airbnb.viaduct:buildtime:$pluginVersion")
 
-    /** Java codegen tool classpath: `com.airbnb.viaduct:javaapi-codegen:$pluginVersion`. */
-    fun Project.createOrGetJavaCodegenClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductJavaCodegenClasspath", "com.airbnb.viaduct:javaapi-codegen:$pluginVersion")
+    /** Java codegen tool classpath: `com.airbnb.viaduct:javaapi-buildtime:$pluginVersion`. */
+    fun Project.createOrGetJavaCodegenClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductJavaCodegenClasspath", "com.airbnb.viaduct:javaapi-buildtime:$pluginVersion")
 
     /**
      * Compile classpath for the generated Java GRT sources: `com.airbnb.viaduct:javaapi-api:$pluginVersion`.

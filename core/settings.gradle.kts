@@ -30,12 +30,10 @@ include(":tenant:runtime")
 include(":tenant:tutorials")
 include(":tenant:wiring")
 
-// Include Java API modules (skipped when publishMinimal is set — not needed by demoapps)
-if (!providers.gradleProperty("publishMinimal").isPresent) {
-    include(":x:javaapi:api")
-    include(":x:javaapi:codegen")
-    include(":x:javaapi:runtime")
-}
+// Java API modules
+include(":x:javaapi:api")
+include(":x:javaapi:codegen")
+include(":x:javaapi:runtime")
 
 // Include all shared modules
 include(":shared:apiannotations")
