@@ -5,6 +5,7 @@ import graphql.GraphqlErrorBuilder
 import graphql.schema.DataFetchingEnvironment
 import graphql.validation.ValidationError
 import java.io.Serializable
+import viaduct.errors.TenantException
 
 // Non-fatal exceptions should only be used internally to Viaduct framework not for tenant code.
 // If you are adding a new exception class that's non-fatal, put it in the Internal class below to clearly show
@@ -80,7 +81,7 @@ val DEFAULT_LOCALIZED_MESSAGE_MAP =
 open class ViaductException(
     message: String? = null,
     cause: Throwable? = null
-) : Exception(message, cause) {
+) : Exception(message, cause), TenantException {
     fun toGraphQLError(
         dataFetchingEnvironment: DataFetchingEnvironment,
         additionalExtensions: Map<String, Serializable> = emptyMap()
