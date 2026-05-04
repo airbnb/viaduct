@@ -4,6 +4,7 @@ junit5 = "5.11.3"
 junitPlatform = "1.11.3"
 kotest = "6.1.4"
 kotlin = "2.2.21"
+ksp = "2.2.21-2.0.5"
 micronaut = "4.6.1"
 micronautKotlin = "4.7.0"
 reactor = "3.8.0"
@@ -16,6 +17,7 @@ micronautGraphql = "4.8.0"
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinKapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 micronautApplication = { id = "io.micronaut.application", version.ref = "micronaut" }
 viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }

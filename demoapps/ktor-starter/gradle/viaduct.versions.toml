@@ -3,12 +3,14 @@ coroutinesReactor = "1.10.2"
 junit5 = "5.11.3"
 junitPlatform = "1.11.3"
 kotest = "6.1.4"
-kotlin = "2.2.21"
+kotlin = "2.1.20"
+ksp = "2.1.20-2.0.1"
 reactor = "3.8.0"
 ktor = "3.3.2"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
 viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }

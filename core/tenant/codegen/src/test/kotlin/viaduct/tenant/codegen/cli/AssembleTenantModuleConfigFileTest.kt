@@ -14,13 +14,8 @@ class AssembleTenantModuleConfigFileTest {
 
     private fun outputDir(): File = File(tempDir, "output")
 
-    private fun schemaFile(content: String = "type Query { hello: String }"): File {
-        return File(tempDir, "schema.graphql").also { it.writeText(content) }
-    }
-
     private fun runCli(
         descriptors: File = descriptorDir(),
-        schema: File = schemaFile(),
         tenantPkg: String = "com.example.feature",
         executorFactory: String = "com.example.feature.ExampleExecutorFactory",
         out: File = outputDir(),
@@ -29,8 +24,6 @@ class AssembleTenantModuleConfigFileTest {
             listOf(
                 "--descriptor-dir",
                 descriptors.absolutePath,
-                "--schema-file",
-                schema.absolutePath,
                 "--tenant-package",
                 tenantPkg,
                 "--executor-factory",

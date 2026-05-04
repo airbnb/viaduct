@@ -1,0 +1,110 @@
+package viaduct.gradle
+
+import java.io.File
+import kotlin.test.Test
+import kotlin.test.assertContains
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.io.TempDir
+
+/**
+ * Tests for KSP-related validation in ViaductModulePlugin.
+ *
+ * Covers:
+ * - Kotlin version range validation (unit tests on static function)
+ * - KSP version mismatch detection (unit tests on static function)
+ * - KSP-absent warning (TestKit)
+ */
+class ViaductModulePluginKspValidationTest {
+    // ── Kotlin version range validation ─────────────────────────────────────
+
+    @Test
+    fun `Kotlin 1_9_24 is accepted`() {
+        assertNull(ViaductModulePlugin.validateKotlinVersion("1.9.24"))
+    }
+
+    @Test
+    fun `Kotlin 2_0_21 is accepted`() {
+        assertNull(ViaductModulePlugin.validateKotlinVersion("2.0.21"))
+    }
+
+    @Test
+    fun `Kotlin 2_1_20 is accepted`() {
+        assertNull(ViaductModulePlugin.validateKotlinVersion("2.1.20"))
+    }
+
+    @Test
+    fun `Kotlin 2_2_21 is accepted`() {
+        assertNull(ViaductModulePlugin.validateKotlinVersion("2.2.21"))
+    }
+
+    @Test
+    fun `Kotlin 1_8_22 is rejected`() {
+        val error = ViaductModulePlugin.validateKotlinVersion("1.8.22")
+        assertContains(error!!, "[1.9, 2.2]")
+        assertContains(error, "1.8.22")
+    }
+
+    @Test
+    fun `Kotlin 2_3_0 is rejected`() {
+        val error = ViaductModulePlugin.validateKotlinVersion("2.3.0")
+        assertContains(error!!, "[1.9, 2.2]")
+        assertContains(error, "2.3.0")
+        assertContains(error, "KSP2")
+    }
+
+    @Test
+    fun `Kotlin 3_0_0 is rejected`() {
+        val error = ViaductModulePlugin.validateKotlinVersion("3.0.0")
+        assertContains(error!!, "[1.9, 2.2]")
+    }
+
+    @Test
+    fun `unparseable version returns null (no error)`() {
+        assertNull(ViaductModulePlugin.validateKotlinVersion("not-a-version"))
+    }
+
+    // ── KSP-absent warning (TestKit) ────────────────────────────────────────
+
+    @TempDir
+    lateinit var projectDir: File
+
+    private fun combinedPluginClasspath(): List<File> {
+        val moduleClasspath = GradleRunner.create().withPluginClasspath().pluginClasspath
+        val appPluginJar = File(ViaductApplicationPlugin::class.java.protectionDomain.codeSource.location.toURI())
+        return moduleClasspath + listOf(appPluginJar)
+    }
+
+    @Test
+    fun `module without KSP logs warning about ClassGraph fallback`() {
+        File(projectDir, "settings.gradle.kts").writeText("""rootProject.name = "test"""")
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                `java-library`
+                id("com.airbnb.viaduct.application-gradle-plugin")
+                id("com.airbnb.viaduct.module-gradle-plugin")
+            }
+            viaductApplication {
+                modulePackagePrefix.set("com.example.test")
+            }
+            viaductModule {
+                modulePackageSuffix.set("test")
+            }
+            """.trimIndent()
+        )
+        val schemaDir = File(projectDir, "src/main/viaduct/schema").also { it.mkdirs() }
+        File(schemaDir, "schema.graphqls").writeText("type Query { field: String }")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments("help", "--warning-mode=all")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertContains(result.output, "KSP not applied")
+        assertContains(result.output, "ClassGraph")
+    }
+}

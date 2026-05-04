@@ -9,6 +9,7 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
@@ -17,6 +18,7 @@ import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
 import viaduct.gradle.task.AssembleSchemaPartitionTask
+import viaduct.gradle.task.AssembleTenantModuleConfigFileTask
 import viaduct.gradle.task.GenerateResolverBasesTask
 
 open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
@@ -25,14 +27,6 @@ open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
 }
 
 class ViaductModulePlugin : Plugin<Project> {
-    companion object {
-        private const val RESOLVER_CODEGEN_MAIN_CLASS = "viaduct.tenant.codegen.cli.ViaductGenerator\$Main"
-
-        private val SUPPORTED_APPLICATION_PLUGIN_IDS = listOf(
-            "com.airbnb.viaduct.application-gradle-plugin",
-        )
-    }
-
     override fun apply(project: Project): Unit =
         with(project) {
             val moduleExt = extensions.findByType(ViaductModuleExtension::class.java)
@@ -67,6 +61,8 @@ class ViaductModulePlugin : Plugin<Project> {
 
             val centralSchemaIncomingCfg = setupIncomingConfigurationForCentralSchema()
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleExt, centralSchemaIncomingCfg)
+
+            setupKspRegistryExtractor(moduleExt)
 
             // Register wiring with the root application plugin (Kotlin or Java variant) if present
             SUPPORTED_APPLICATION_PLUGIN_IDS.forEach { pluginId ->
@@ -175,6 +171,121 @@ class ViaductModulePlugin : Plugin<Project> {
                 }
             }
         return centralSchemaIncomingCfg
+    }
+
+    private fun Project.setupKspRegistryExtractor(moduleExt: ViaductModuleExtension) {
+        val version = pluginVersion(ViaductModulePlugin::class.java)
+        val codegenClasspath = createOrGetCodegenClasspath(version)
+
+        // React when KSP is applied by the consumer — add the registry-extractor
+        // processor and wire up the assembly task.
+        pluginManager.withPlugin("com.google.devtools.ksp") {
+            dependencies.add("ksp", "com.airbnb.viaduct:buildtime:$version")
+
+            val descriptorRoot = layout.buildDirectory.dir(
+                "generated/ksp/main/resources/viaduct-registry"
+            )
+
+            val assembleTask = tasks.register<AssembleTenantModuleConfigFileTask>(
+                "assembleViaductModuleConfigFile"
+            ) {
+                group = "viaduct"
+                description = "Assembles tenant module config from KSP descriptors"
+
+                descriptorDir.set(descriptorRoot)
+                executorFactory.set(AssembleTenantModuleConfigFileTask.EXECUTOR_FACTORY)
+                this.codegenClasspath.from(codegenClasspath)
+                outputDir.set(
+                    project.layout.buildDirectory.dir("generated-resources/viaduct-registry")
+                )
+
+                dependsOn("kspKotlin")
+            }
+
+            // Wire assembly output into main resources so it lands in the module's JAR
+            pluginManager.withPlugin("java") {
+                val mainSourceSet = project.extensions
+                    .getByType(JavaPluginExtension::class.java)
+                    .sourceSets.getByName("main")
+                mainSourceSet.resources.srcDir(assembleTask.flatMap { it.outputDir })
+            }
+
+            // Wire tenant package (needs afterEvaluate to read appExt)
+            afterEvaluate {
+                val appExt = rootProject.extensions.findByType(ViaductApplicationExtension::class.java)
+                if (appExt != null) {
+                    val pkg = computeTenantPackage(moduleExt, appExt)
+                    assembleTask.configure { tenantPackage.set(pkg) }
+                }
+                validateKspConfiguration()
+            }
+        }
+
+        // If KSP is not applied by afterEvaluate, log a warning. The module will
+        // still build but won't produce a module config file (runtime will fall back
+        // to ClassGraph scanning).
+        afterEvaluate {
+            if (!plugins.hasPlugin("com.google.devtools.ksp")) {
+                logger.warn(
+                    "Viaduct module '{}': KSP not applied. " +
+                        "Apply 'com.google.devtools.ksp' to enable file-based module registration " +
+                        "(eliminates ClassGraph scanning at startup).",
+                    project.path
+                )
+            }
+        }
+    }
+
+    /**
+     * We intentionally validate only the Kotlin plugin version that Viaduct supports.
+     *
+     * We can reliably detect whether `com.google.devtools.ksp` is applied, but Gradle's public
+     * plugin APIs do not expose the resolved version of an applied plugin.
+     *
+     * We intentionally do not duplicate Kotlin/KSP's own compatibility checks here. They already
+     * detect version mismatches and report them clearly, so this plugin only enforces Viaduct's
+     * supported Kotlin range.
+     */
+    private fun Project.validateKspConfiguration() {
+        val kotlinVersion = getKotlinPluginVersion()
+        val error = validateKotlinVersion(kotlinVersion)
+        if (error != null) throw GradleException(error)
+    }
+
+    internal companion object {
+        private const val RESOLVER_CODEGEN_MAIN_CLASS = "viaduct.tenant.codegen.cli.ViaductGenerator\$Main"
+
+        private val SUPPORTED_APPLICATION_PLUGIN_IDS = listOf(
+            "com.airbnb.viaduct.application-gradle-plugin",
+        )
+
+        fun validateKotlinVersion(kotlinVersion: String): String? {
+            val major = kotlinVersion.substringBefore('.').toIntOrNull() ?: return null
+            val minor = kotlinVersion.substringAfter('.').substringBefore('.').toIntOrNull() ?: return null
+
+            return if (major < 1 || (major == 1 && minor < 9) || major > 2 || (major == 2 && minor > 2)) {
+                "Viaduct requires Kotlin version in the range [1.9, 2.2] for KSP1 support. " +
+                    "Found: $kotlinVersion. " +
+                    "Kotlin 2.3+ requires KSP2 which is not yet supported by Viaduct."
+            } else {
+                null
+            }
+        }
+    }
+
+    private fun Project.getKotlinPluginVersion(): String {
+        val kotlinExt = extensions.findByType(KotlinJvmProjectExtension::class.java)
+            ?: throw GradleException("Kotlin JVM plugin must be applied before the Viaduct module plugin.")
+        return kotlinExt.coreLibrariesVersion
+    }
+
+    private fun computeTenantPackage(
+        moduleExt: ViaductModuleExtension,
+        appExt: ViaductApplicationExtension
+    ): String {
+        val prefix = appExt.modulePackagePrefix.get()
+        val suffix = moduleExt.modulePackageSuffix.getOrElse("")
+        return if (suffix.isBlank()) prefix else "$prefix.$suffix"
     }
 
     private fun Project.setupGenerateResolverBasesTask(

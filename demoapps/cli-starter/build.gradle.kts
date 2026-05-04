@@ -2,6 +2,7 @@
 // tag::plugins-config[7] How plugins for viaduct are setup.
 plugins {
     alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.viaduct.application)
     alias(libs.plugins.viaduct.module)
     application

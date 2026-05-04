@@ -127,8 +127,6 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
             listOf(
                 "--descriptor-dir",
                 contractDescriptorDir.absolutePath,
-                "--schema-file",
-                schemaFile.absolutePath,
                 "--tenant-package",
                 pkg,
                 "--executor-factory",

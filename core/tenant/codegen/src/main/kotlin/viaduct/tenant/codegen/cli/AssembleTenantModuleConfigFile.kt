@@ -22,8 +22,8 @@ import viaduct.tenant.codegen.ksp.ResolverDescriptorFile
 import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
 
 /**
- * Aggregation CLI that combines per-file KSP descriptors and a schema file into
- * a single tenant module config file at `META-INF/viaduct/modules/<tenantpkg>.json`.
+ * Aggregation CLI that combines per-file KSP descriptors into a single tenant module
+ * config file at `META-INF/viaduct/modules/<tenantpkg>.json`.
  *
  * Deserializes each per-file [ResolverDescriptorFile], maps them to a typed [ExecutionRegistry],
  * then serializes that — so the JSON shape is always governed by the real data model and a
@@ -36,10 +36,6 @@ class AssembleTenantModuleConfigFile : CliktCommand(
 ) {
     private val descriptorDir: File by option("--descriptor-dir")
         .file(mustExist = true, canBeFile = false)
-        .required()
-
-    private val schemaFile: File by option("--schema-file")
-        .file(mustExist = true, canBeDir = false)
         .required()
 
     private val tenantPackage: String by option("--tenant-package")

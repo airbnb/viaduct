@@ -1,7 +1,8 @@
 [versions]
 jetty = "11.0.26"
 kotest = "5.9.1"
-kotlin = "1.9.24"
+kotlin = "2.0.21"
+ksp = "2.0.21-1.0.28"
 coroutines = "1.5.2"
 jackson = "2.20.1"
 jakarta = "6.0.0"
@@ -12,6 +13,7 @@ httpclient = "5.5.1"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
 viaduct-module-java = { id = "com.airbnb.viaduct.module-java-gradle-plugin", version.ref = "viaduct" }

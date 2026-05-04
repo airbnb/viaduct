@@ -26,6 +26,7 @@ dependencies {
     // Testing
     testImplementation(gradleTestKit())
     testImplementation(project(":plugins-application"))
+    testImplementation(libs.assertj.core)
 }
 
 // Include version in JAR manifest for JAR introspection and debugging

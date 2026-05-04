@@ -1,5 +1,6 @@
 [versions]
 kotlin = "1.9.24"
+ksp = "1.9.24-1.0.20"
 logback = "1.5.21"
 coroutines = "1.5.2"
 jackson = "2.17.3"
@@ -8,6 +9,7 @@ junitPlatform = "1.11.3"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
 viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
 
