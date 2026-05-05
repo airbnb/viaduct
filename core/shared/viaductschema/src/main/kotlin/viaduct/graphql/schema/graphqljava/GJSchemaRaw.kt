@@ -120,7 +120,7 @@ internal fun gjSchemaRawFromRegistry(
         for (def in unionDefs) {
             def.memberTypes.forEach {
                 unionsMap
-                    .getOrPut((it as TypeName).name) {
+                    .getOrPut((it as TypeName).name!!) {
                         mutableSetOf()
                     }.add(def.name)
             }
@@ -135,7 +135,7 @@ internal fun gjSchemaRawFromRegistry(
         for (def in implTypeDefs) {
             def.implements.forEach {
                 membersMap
-                    .getOrPut((it as TypeName).name) {
+                    .getOrPut((it as TypeName).name!!) {
                         mutableSetOf()
                     }.add(def)
             }
@@ -325,5 +325,5 @@ internal fun <T : ViaductSchema.TypeDef> Type<*>.toTypeExpr(createTypeExpr: (Str
             throw IllegalStateException("Unexpected GraphQL wrapper $this.")
         }
     }
-    return createTypeExpr(t.name, (currentNullableBit == 1L), listNullable.build())
+    return createTypeExpr(t.name!!, (currentNullableBit == 1L), listNullable.build())
 }

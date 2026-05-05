@@ -29,7 +29,7 @@ fun Value<*>.toViaductValue(): ViaductSchema.Literal =
     when (this) {
         is NullValue -> ViaductSchema.NULL
         is BooleanValue -> if (isValue) ViaductSchema.TRUE else ViaductSchema.FALSE
-        is StringValue -> ViaductSchema.StringLiteral.of(value)
+        is StringValue -> ViaductSchema.StringLiteral.of(value!!)
         is IntValue -> ViaductSchema.IntLiteral.of(value.toString())
         is FloatValue -> ViaductSchema.FloatLiteral.of(value.toString())
         is EnumValue -> ViaductSchema.EnumLit.of(name)

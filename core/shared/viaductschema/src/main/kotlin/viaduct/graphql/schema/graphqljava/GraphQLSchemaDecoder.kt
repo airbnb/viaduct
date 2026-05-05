@@ -180,7 +180,7 @@ internal class GraphQLSchemaDecoder(
         // base and extensions into the scalar's appliedDirectives. So we create extensions
         // from the language-level definitions if available, falling back to merged directives.
         val langDefs = listOf(gjDef.definition) + gjDef.extensionDefinitions
-        return if (langDefs.all { it == null } || (gjDef.extensionDefinitions.isEmpty() && gjDef.definition == null)) {
+        return if (langDefs.all { it == null }) {
             // No language definitions available - create single extension with merged directives
             listOf(
                 ViaductSchema.Extension.of(
@@ -195,7 +195,7 @@ internal class GraphQLSchemaDecoder(
             // Have language definitions - but graphql-java loses extension definitions for scalars
             // So we only have the base definition. Use its directives from the language AST,
             // but get extension directives from the merged appliedDirectives.
-            val baseDirectives = gjDef.definition?.let { decodeAppliedDirectivesFromLang(it.directives) } ?: emptyList()
+            val baseDirectives = decodeAppliedDirectivesFromLang(gjDef.definition.directives)
             val allDirectives = decodeAppliedDirectives(gjDef)
             // Extension directives are all directives that aren't in the base
             val baseDirectiveSet = baseDirectives.map { it.name to it.arguments }.toSet()
@@ -370,7 +370,7 @@ internal class GraphQLSchemaDecoder(
                 supers = if (gjLangTypeDef == null) {
                     gjDef.interfaces.map { types[it.name] as SchemaWithData.Interface }
                 } else {
-                    gjLangTypeDef.implements.map { types[(it as TypeName).name] as SchemaWithData.Interface }
+                    gjLangTypeDef.implements.map { types[(it as TypeName).name!!] as SchemaWithData.Interface }
                 },
                 sourceLocation = decodeSourceLocation(gjLangTypeDef)
             )
@@ -420,7 +420,7 @@ internal class GraphQLSchemaDecoder(
                 supers = if (gjLangTypeDef == null) {
                     gjDef.interfaces.map { types[it.name] as SchemaWithData.Interface }
                 } else {
-                    gjLangTypeDef.implements.map { types[(it as TypeName).name] as SchemaWithData.Interface }
+                    gjLangTypeDef.implements.map { types[(it as TypeName).name!!] as SchemaWithData.Interface }
                 },
                 sourceLocation = decodeSourceLocation(gjLangTypeDef)
             )
@@ -440,7 +440,7 @@ internal class GraphQLSchemaDecoder(
                     } else {
                         gjLangTypeDef.memberTypes
                             .filter { (it as TypeName).name != ViaductSchema.VIADUCT_IGNORE_SYMBOL }
-                            .map { types[(it as TypeName).name] as SchemaWithData.Object }
+                            .map { types[(it as TypeName).name!!] as SchemaWithData.Object }
                     }
                 },
                 isBase = gjLangTypeDef == gjDef.definition,

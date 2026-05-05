@@ -47,7 +47,7 @@ internal class TypeDefinitionRegistryDecoder(
 
     fun decodeDefaultValue(ivd: InputValueDefinition): ViaductSchema.Literal? =
         if (ivd.defaultValue != null) {
-            ValueConverter.convert(decodeTypeExpr(ivd.type), ivd.defaultValue)
+            ValueConverter.convert(decodeTypeExpr(ivd.type), ivd.defaultValue!!)
         } else {
             null
         }
@@ -134,7 +134,7 @@ internal class TypeDefinitionRegistryDecoder(
                 },
                 isBase = gjLangTypeDef == interfaceDef.gjrDef,
                 appliedDirectives = decodeAppliedDirectives(gjLangTypeDef.directives),
-                supers = gjLangTypeDef.implements.map { types[(it as TypeName).name] as SchemaWithData.Interface },
+                supers = gjLangTypeDef.implements.map { types[(it as TypeName).name!!] as SchemaWithData.Interface },
                 sourceLocation = decodeSourceLocation(gjLangTypeDef)
             )
         }
@@ -159,7 +159,7 @@ internal class TypeDefinitionRegistryDecoder(
                 },
                 isBase = gjLangTypeDef == objectDef.gjrDef,
                 appliedDirectives = decodeAppliedDirectives(gjLangTypeDef.directives),
-                supers = gjLangTypeDef.implements.map { types[(it as TypeName).name] as SchemaWithData.Interface },
+                supers = gjLangTypeDef.implements.map { types[(it as TypeName).name!!] as SchemaWithData.Interface },
                 sourceLocation = decodeSourceLocation(gjLangTypeDef)
             )
         }
@@ -174,7 +174,7 @@ internal class TypeDefinitionRegistryDecoder(
                 memberFactory = { _ ->
                     gjLangTypeDef.memberTypes
                         .filter { (it as TypeName).name != ViaductSchema.VIADUCT_IGNORE_SYMBOL }
-                        .map { types[(it as TypeName).name] as SchemaWithData.Object }
+                        .map { types[(it as TypeName).name!!] as SchemaWithData.Object }
                 },
                 isBase = gjLangTypeDef == unionDef.gjrDef,
                 appliedDirectives = decodeAppliedDirectives(gjLangTypeDef.directives),
@@ -195,7 +195,7 @@ internal class TypeDefinitionRegistryDecoder(
         val args = def.inputValueDefinitions.map {
             val hasDefault = it.defaultValue != null
             val default = if (hasDefault) {
-                ValueConverter.convert(decodeTypeExpr(it.type), it.defaultValue)
+                ValueConverter.convert(decodeTypeExpr(it.type), it.defaultValue!!)
             } else {
                 null
             }
@@ -229,7 +229,7 @@ internal class TypeDefinitionRegistryDecoder(
         fieldDef.inputValueDefinitions.map { ivd ->
             val hasDefault = ivd.defaultValue != null
             val default = if (hasDefault) {
-                ValueConverter.convert(decodeTypeExpr(ivd.type), ivd.defaultValue)
+                ValueConverter.convert(decodeTypeExpr(ivd.type), ivd.defaultValue!!)
             } else {
                 null
             }

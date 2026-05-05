@@ -112,8 +112,8 @@ internal fun gjSchemaFromSchema(schema: GraphQLSchema): SchemaWithData {
     }
 
     // Determine root types and populate schema
-    val queryTypeDef = rootDef(types, schema.queryType?.name, "Query")
-        ?: throw IllegalStateException("Query name (${schema.queryType?.name}) not found.")
+    val queryTypeDef = rootDef(types, schema.queryType.name, "Query")
+        ?: throw IllegalStateException("Query name (${schema.queryType.name}) not found.")
     val mutationTypeDef = rootDef(types, schema.mutationType?.name, "Mutation")
     val subscriptionTypeDef = rootDef(types, schema.subscriptionType?.name, "Subscription")
 
