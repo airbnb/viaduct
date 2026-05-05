@@ -28,11 +28,11 @@ This is the simplest way to build an instance of Viaduct.
 import viaduct.service.BasicViaductFactory
 import viaduct.service.TenantRegistrationInfo
 import viaduct.service.api.Viaduct
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 
 val tenantInfo = TenantRegistrationInfo(
   tenantPackagePrefix = "com.example.myservice", // where tenant-generated code lives
-  tenantCodeInjector = TenantCodeInjector.Naive  // or your DI-backed injector
+  codeInjector = CodeInjector.Naive  // or your DI-backed injector
 )
 
 val viaduct: Viaduct =
