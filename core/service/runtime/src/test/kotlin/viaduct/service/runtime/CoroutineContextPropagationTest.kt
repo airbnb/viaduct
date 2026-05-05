@@ -8,8 +8,8 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
@@ -25,7 +25,7 @@ class CoroutineContextPropagationTest {
     @Test
     fun `coroutine context is propagated to resolver functions`() {
         val sdl = "extend type Query { result: Int }"
-        val module = MockTenantModuleBootstrapper(sdl) {
+        val module = MockLegacyTenantModuleBootstrapper(sdl) {
             field("Query" to "result") {
                 resolver {
                     fn { _, _, _, _, _ ->

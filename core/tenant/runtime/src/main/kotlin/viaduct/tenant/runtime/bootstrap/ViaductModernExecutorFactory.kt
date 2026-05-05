@@ -23,7 +23,7 @@ import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
@@ -34,7 +34,7 @@ import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.utils.slf4j.logger
 
 class ViaductModernExecutorFactory(
-    private val tenantCodeInjector: TenantCodeInjector,
+    private val tenantCodeInjector: CodeInjector,
     private val grtPackagePrefix: String,
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {

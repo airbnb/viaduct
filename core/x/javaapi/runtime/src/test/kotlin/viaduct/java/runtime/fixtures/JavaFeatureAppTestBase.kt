@@ -4,13 +4,13 @@ package viaduct.java.runtime.fixtures
 
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.TenantModuleBootstrapper
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder
 import viaduct.java.runtime.bridge.JavaModuleBootstrapper
 import viaduct.service.api.SchemaId
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
+import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.service.api.spi.TenantCodeInjector
 import viaduct.tenant.runtime.fixtures.AbstractFeatureAppTestBase
 
 /**
@@ -86,12 +86,12 @@ abstract class JavaFeatureAppTestBase : AbstractFeatureAppTestBase() {
 
     // Bootstrapper for Java resolvers
     private val bootstrapper by lazy {
-        JavaModuleBootstrapper(classFinder, TenantCodeInjector.Naive)
+        JavaModuleBootstrapper(classFinder, CodeInjector.Naive)
     }
 
     override fun sdl(): String = getSdl()
 
-    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> = MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(listOf(bootstrapper)))
+    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> = MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(listOf(bootstrapper)))
 
     /**
      * Returns the field resolver executor for a given type and field.

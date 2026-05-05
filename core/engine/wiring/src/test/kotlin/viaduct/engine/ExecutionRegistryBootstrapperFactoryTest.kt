@@ -11,11 +11,11 @@ import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 
 @OptIn(VisibleForTest::class)
 class ExecutionRegistryBootstrapperFactoryTest {
-    private val injector = TenantCodeInjector.Naive
+    private val injector = CodeInjector.Naive
 
     @Test
     fun `no prefix loads all registry files`() =
@@ -48,7 +48,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
 }
 
 class WiringTestExecutorFactory(
-    @Suppress("UNUSED_PARAMETER") injector: TenantCodeInjector,
+    @Suppress("UNUSED_PARAMETER") injector: CodeInjector,
     @Suppress("UNUSED_PARAMETER") moduleName: String,
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {

@@ -32,20 +32,20 @@ import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockNodeBatchResolverExecutor
 import viaduct.engine.api.mocks.MockNodeUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.Samples
 import viaduct.engine.api.mocks.assertRequiredSelectionSetListEquals
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedNodeResolverDispatcher
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
@@ -227,8 +227,8 @@ class DispatcherRegistryTest {
     @Test
     fun `bootstraps subset of bootstrappable tenants`() {
         // Create two modules - one empty and one with resolvers
-        val emptyModule = MockTenantModuleBootstrapper(Samples.testSchema) { }
-        val moduleWithResolvers = MockTenantModuleBootstrapper(Samples.testSchema) {
+        val emptyModule = MockLegacyTenantModuleBootstrapper(Samples.testSchema) { }
+        val moduleWithResolvers = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 resolver {
                     fn { _, _, _, _, _ -> "aField" }
@@ -287,7 +287,7 @@ class DispatcherRegistryTest {
             """.trimIndent()
         )
 
-        class MismatchThrowingBootstrapper(private val expected: ViaductSchema) : TenantModuleBootstrapper {
+        class MismatchThrowingBootstrapper(private val expected: ViaductSchema) : LegacyTenantModuleBootstrapper {
             override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> {
                 if (schema !== expected) throw TenantModuleException("Schema mismatch in tenant bootstrapper")
                 return emptyList()
@@ -334,7 +334,7 @@ class DispatcherRegistryTest {
 
     @Test
     fun `should log warning when registry is empty with non-contributing modern bootstrappers`() {
-        class ViaductTenantModuleBootstrapper : TenantModuleBootstrapper {
+        class ViaductTenantModuleBootstrapper : LegacyTenantModuleBootstrapper {
             override fun fieldResolverExecutors(schema: ViaductSchema) = emptyList<Pair<Coordinate, FieldResolverExecutor>>()
 
             override fun nodeResolverExecutors(schema: ViaductSchema) = emptyList<Pair<String, NodeResolverExecutor>>()
@@ -365,7 +365,7 @@ class DispatcherRegistryTest {
 
     @Test
     fun `handles TenantModuleException gracefully`() {
-        val throwingModule = object : TenantModuleBootstrapper {
+        val throwingModule = object : LegacyTenantModuleBootstrapper {
             override fun fieldResolverExecutors(schema: ViaductSchema) = throw TenantModuleException("Test exception")
 
             override fun nodeResolverExecutors(schema: ViaductSchema) = emptyList<Pair<String, NodeResolverExecutor>>()
@@ -383,14 +383,14 @@ class DispatcherRegistryTest {
 
     @Test
     fun `resolver coordinate collision - last wins`() {
-        val module1 = MockTenantModuleBootstrapper(Samples.testSchema) {
+        val module1 = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 resolver {
                     fn { _, _, _, _, _ -> "module1" }
                 }
             }
         }
-        val module2 = MockTenantModuleBootstrapper(Samples.testSchema) {
+        val module2 = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 resolver {
                     fn { _, _, _, _, _ -> "module2" }
@@ -456,7 +456,7 @@ class DispatcherRegistryTest {
 
     @Test
     fun `multiple tenant modules with mixed resolver types`() {
-        val module1 = MockTenantModuleBootstrapper(Samples.testSchema) {
+        val module1 = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "field1") {
                 resolver {
                     fn { _, _, _, _, _ -> "field1" }
@@ -472,7 +472,7 @@ class DispatcherRegistryTest {
             }
         }
 
-        val module2 = MockTenantModuleBootstrapper(Samples.testSchema) {
+        val module2 = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "field2") {
                 resolver {
                     fn { _, _, _, _, _ -> "field2" }
@@ -514,7 +514,7 @@ class DispatcherRegistryTest {
 
     @Test
     fun `node resolver and batch resolver do not conflict`() {
-        val moduleWithBoth = MockTenantModuleBootstrapper(Samples.testSchema) {
+        val moduleWithBoth = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
             // Regular node resolver
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->

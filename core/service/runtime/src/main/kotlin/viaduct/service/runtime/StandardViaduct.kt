@@ -27,9 +27,9 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TemporaryBypassAccessCheck
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.flatten
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
@@ -46,6 +46,7 @@ import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.service.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrapper
 
@@ -122,7 +123,8 @@ class StandardViaduct
             private var schemaConfiguration: SchemaConfiguration = SchemaConfiguration.DEFAULT
             private var documentProviderFactory: DocumentProviderFactory? = null
             private var tenantNameResolver: TenantNameResolver = TenantNameResolver()
-            private var tenantAPIBootstrapperBuilders: List<TenantAPIBootstrapperBuilder<TenantModuleBootstrapper>> = emptyList()
+            private var tenantAPIBootstrapperBuilders: List<TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>> = emptyList()
+            private var tenantModuleBootstrapper: TenantModuleBootstrapper? = null
             private var chainInstrumentationWithDefaults: Boolean = false
             private var defaultQueryNodeResolversEnabled: Boolean = true
             private var meterRegistry: MeterRegistry? = null
@@ -138,8 +140,9 @@ class StandardViaduct
                     this.airbnbModeEnabled = true
                 }
 
-            /** See [withTenantAPIBootstrapperBuilder]. */
-            fun withTenantAPIBootstrapperBuilder(builder: TenantAPIBootstrapperBuilder<TenantModuleBootstrapper>): Builder = withTenantAPIBootstrapperBuilders(listOf(builder))
+            /** See [withTenantAPIBootstrapperBuilders]. */
+            @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
+            fun withTenantAPIBootstrapperBuilder(builder: TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>): Builder = withTenantAPIBootstrapperBuilders(listOf(builder))
 
             /**
              * Adds a TenantAPIBootstrapperBuilder to be used for creating TenantAPIBootstrapper instances.
@@ -149,7 +152,8 @@ class StandardViaduct
              * @param builders The builder instance that will be used to create a TenantAPIBootstrapper
              * @return This Builder instance for method chaining
              */
-            fun withTenantAPIBootstrapperBuilders(builders: List<TenantAPIBootstrapperBuilder<TenantModuleBootstrapper>>): Builder =
+            @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
+            fun withTenantAPIBootstrapperBuilders(builders: List<TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>>): Builder =
                 apply {
                     tenantAPIBootstrapperBuilders = builders
                 }
@@ -161,7 +165,18 @@ class StandardViaduct
              * this is a programming error that should be flagged early.
              */
             @InternalApi
+            @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
             fun withNoTenantAPIBootstrapper() = apply { withTenantAPIBootstrapperBuilders(emptyList()) }
+
+            /**
+             * Configures the [TenantModuleBootstrapper] used to provide per-tenant bootstrapping.
+             * Called once per tenant during startup with the tenant name and the
+             * `@TenantBootstrapper`-annotated class from the tenant's config file (or `null` if absent).
+             */
+            fun withTenantModuleBootstrapper(tenantModuleBootstrapper: TenantModuleBootstrapper): Builder =
+                apply {
+                    this.tenantModuleBootstrapper = tenantModuleBootstrapper
+                }
 
             /**
              * By default, Viaduct instances implement `Query.node` and `Query.nodes`
@@ -336,6 +351,7 @@ class StandardViaduct
                     documentProviderFactory = documentProviderFactory,
                     proxyResolverFactory = proxyResolverFactory,
                     lenientResolverValidation = lenientResolverValidation,
+                    tenantModuleBootstrapper = tenantModuleBootstrapper,
                 )
 
                 try {

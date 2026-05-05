@@ -2,9 +2,9 @@ package viaduct.java.runtime.test
 
 import graphql.ExecutionResult
 import java.util.function.Consumer
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.runFeatureTest
-import viaduct.engine.api.spi.TenantModuleBootstrapper
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.graphql.test.assertJson
 
 /**
@@ -16,7 +16,7 @@ import viaduct.graphql.test.assertJson
  * Example usage from Java:
  * ```java
  * String schema = "extend type Query { greeting: String }";
- * TenantModuleBootstrapper bootstrapper = new SimpleJavaBootstrapper();
+ * LegacyTenantModuleBootstrapper bootstrapper = new SimpleJavaBootstrapper();
  *
  * JavaFeatureTestHelper.run(schema, bootstrapper, test -> {
  *     test.runQueryAndAssert("{ greeting }", "{data: {greeting: \"Hello, World!\"}}");
@@ -34,11 +34,11 @@ object JavaFeatureTestHelper {
     @JvmStatic
     fun run(
         schemaSDL: String,
-        bootstrapper: TenantModuleBootstrapper,
+        bootstrapper: LegacyTenantModuleBootstrapper,
         testBlock: Consumer<TestContext>
     ) {
-        // Create a MockTenantModuleBootstrapper using DSL
-        MockTenantModuleBootstrapper(schemaSDL) {
+        // Create a MockLegacyTenantModuleBootstrapper using DSL
+        MockLegacyTenantModuleBootstrapper(schemaSDL) {
             // Register field resolvers from the bootstrapper
             val fieldResolvers = bootstrapper.fieldResolverExecutors(schema)
             for (entry in fieldResolvers) {

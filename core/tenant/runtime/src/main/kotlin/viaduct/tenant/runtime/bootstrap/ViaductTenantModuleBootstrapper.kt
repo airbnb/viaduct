@@ -15,10 +15,10 @@ import viaduct.api.types.NodeObject
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
@@ -38,10 +38,10 @@ import viaduct.utils.slf4j.logger
  * @param tenantModulePackage Viaduct tenant module package name.
  */
 class ViaductTenantModuleBootstrapper(
-    private val tenantCodeInjector: TenantCodeInjector,
+    private val tenantCodeInjector: CodeInjector,
     private val tenantResolverClassFinder: TenantResolverClassFinder,
     private val grtConvFactory: GRTConvFactory = DefaultGRTConvFactory,
-) : TenantModuleBootstrapper {
+) : LegacyTenantModuleBootstrapper {
     private val reflectionLoader = ReflectionLoaderImpl { name -> tenantResolverClassFinder.grtClassForName(name) }
 
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(reflectionLoader)

@@ -29,7 +29,7 @@ class MicronautViaductFactory : ViaductFactory {
     override fun mkViaduct(): Viaduct {
         // Start a minimal ApplicationContext with limited package scanning
         // Only scan the packages needed for Viaduct:
-        // - production: ViaductConfiguration, MicronautTenantCodeInjector
+        // - production: ViaductConfiguration, MicronautCodeInjector
         // - resolvers: Resolver implementations
         val context = ApplicationContext.builder()
             .packages(

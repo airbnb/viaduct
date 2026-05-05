@@ -4,10 +4,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import viaduct.api.internal.GRTConvFactory
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantModuleBootstrapper
+import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.service.api.spi.TenantCodeInjector
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinder
@@ -20,14 +20,14 @@ import viaduct.utils.slf4j.logger
 
 /**
  * ViaductTenantAPIBootstrapper is responsible for discovering all Viaduct tenant modules and creating
- * TenantModuleBootstrapper(s), one for each Viaduct TenantModule.
+ * LegacyTenantModuleBootstrapper(s), one for each Viaduct TenantModule.
  *
  * Subclasses can override [createResolverClassFinder] to control how the class finder is created
  * for each tenant package (e.g., to support hotswap scenarios with a fresh scanner).
  */
 open class ViaductTenantAPIBootstrapper
     protected constructor(
-        private val tenantCodeInjector: TenantCodeInjector,
+        private val tenantCodeInjector: CodeInjector,
         private val tenantPackageFinder: TenantPackageFinder,
         private val tenantResolverClassFinderFactory: TenantResolverClassFinderFactory,
         private val grtConvFactory: GRTConvFactory,
@@ -35,9 +35,9 @@ open class ViaductTenantAPIBootstrapper
         /**
          * Discovers all Viaduct TenantModule(s) and creates ViaductTenantModuleBootstrapper for each tenant.
          *
-         * @return List of all TenantModuleBootstrapper(s), one for each Viaduct TenantModule.
+         * @return List of all LegacyTenantModuleBootstrapper(s), one for each Viaduct TenantModule.
          */
-        override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> {
+        override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> {
             log.info("Viaduct Modern Tenant API Bootstrapper: Creating bootstrappers for tenant modules")
             val tenantPackageInfos = tenantPackageFinder.tenantPackages()
 
@@ -71,14 +71,14 @@ open class ViaductTenantAPIBootstrapper
         /**
          * Builder for creating a ViaductTenantAPIBootstrapper instance.
          */
-        open class Builder : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
-            protected var tenantCodeInjector: TenantCodeInjector = TenantCodeInjector.Naive
+        open class Builder : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
+            protected var tenantCodeInjector: CodeInjector = CodeInjector.Naive
             protected var tenantPackagePrefix: String? = null
             protected var tenantPackageFinder: TenantPackageFinder? = null
             protected var tenantResolverClassFinderFactory: TenantResolverClassFinderFactory? = null
             protected var grtConvFactory: GRTConvFactory = CachingGRTConvFactory()
 
-            fun tenantCodeInjector(tenantCodeInjector: TenantCodeInjector) =
+            fun tenantCodeInjector(tenantCodeInjector: CodeInjector) =
                 apply {
                     this.tenantCodeInjector = tenantCodeInjector
                 }

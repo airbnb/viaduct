@@ -45,7 +45,7 @@ class TenantPackageFilteringFeatureAppTest : TenantPackageFilteringContractTest(
     @Suppress("DEPRECATION")
     fun `Tenant package filtering affects resolver availability`() {
         withViaductBuilder {
-            withTenantAPIBootstrapperBuilder(
+            builder.withTenantAPIBootstrapperBuilder(
                 viaductTenantAPIBootstrapperBuilder.tenantPackageFinder(
                     TestTenantPackageFinder(listOf(Tenant1Module::class))
                 )
@@ -101,7 +101,7 @@ class TenantPackageFilteringFeatureAppTest : TenantPackageFilteringContractTest(
         )
 
         withViaductBuilder {
-            withTenantAPIBootstrapperBuilder(
+            builder.withTenantAPIBootstrapperBuilder(
                 viaductTenantAPIBootstrapperBuilder.tenantPackageFinder(
                     TestTenantPackageFinder(listOf(Tenant1Module::class))
                 )

@@ -3,14 +3,14 @@ package viaduct.tenant.runtime.execution.defaults;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper;
-import viaduct.engine.api.spi.TenantModuleBootstrapper;
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.annotations.Variable;
 import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder;
 import viaduct.java.runtime.bridge.JavaModuleBootstrapper;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
+import viaduct.service.api.spi.CodeInjector;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
-import viaduct.service.api.spi.TenantCodeInjector;
 import viaduct.tenant.runtime.execution.defaults.resolverbases.QueryResolvers;
 
 public class JavaDefaultsContractTest extends DefaultsContractTest {
@@ -19,10 +19,11 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
       new DefaultJavaResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
 
   private final JavaModuleBootstrapper bootstrapper =
-      new JavaModuleBootstrapper(classFinder, TenantCodeInjector.Companion.getNaive());
+      new JavaModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
 
   @Override
-  protected TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> createBootstrapperBuilder() {
+  protected TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>
+      createBootstrapperBuilder() {
     return MockTenantAPIBootstrapperBuilder.INSTANCE.invoke(
         new MockTenantAPIBootstrapper(List.of(bootstrapper)));
   }

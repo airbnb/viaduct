@@ -56,7 +56,7 @@ class ViaductBuilderTest {
         )
         ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
+            .also { it.builder.withNoTenantAPIBootstrapper() }
             .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .build().let {
@@ -73,7 +73,7 @@ class ViaductBuilderTest {
         )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
+            .also { it.builder.withNoTenantAPIBootstrapper() }
             .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withMeterRegistry(meterRegistry)
@@ -93,7 +93,7 @@ class ViaductBuilderTest {
         )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
+            .also { it.builder.withNoTenantAPIBootstrapper() }
             .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withResolverErrorReporter(errorReporter)
@@ -111,7 +111,7 @@ class ViaductBuilderTest {
         )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
+            .also { it.builder.withNoTenantAPIBootstrapper() }
             .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withDataFetcherErrorBuilder(errorBuilder)
@@ -135,7 +135,7 @@ class ViaductBuilderTest {
         )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
+            .also { it.builder.withNoTenantAPIBootstrapper() }
             .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withDataFetcherExceptionHandler(exceptionHandler)
@@ -164,7 +164,7 @@ class ViaductBuilderTest {
         val builder = ViaductBuilder()
         val result = builder
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
+            .also { it.builder.withNoTenantAPIBootstrapper() }
             .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withMeterRegistry(meterRegistry)
@@ -200,7 +200,7 @@ class ViaductBuilderTest {
         // Test that all observability methods can be used together
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
+            .also { it.builder.withNoTenantAPIBootstrapper() }
             .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .withMeterRegistry(meterRegistry)
@@ -225,7 +225,7 @@ class ViaductBuilderTest {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withMeterRegistry(meterRegistry) // Observability before other methods
-            .withNoTenantAPIBootstrapper()
+            .also { it.builder.withNoTenantAPIBootstrapper() }
             .withLenientResolverValidation()
             .withResolverErrorReporter(errorReporter) // Observability in the middle
             .withSchemaConfiguration(schemaConfiguration)
@@ -259,7 +259,7 @@ class ViaductBuilderTest {
         val exception = assertThrows<GraphQLBuildError> {
             ViaductBuilder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
+                .also { it.builder.withNoTenantAPIBootstrapper() }
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
         }

@@ -26,10 +26,10 @@ import viaduct.api.bootstrap.test.TestNodeResolver
 import viaduct.api.bootstrap.test.TestTenantModule
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantModuleBootstrapper
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinder
@@ -81,7 +81,7 @@ class ViaductTenantAPIBootstrapperTest {
     private lateinit var tenantCodeInjector: Injector
     private lateinit var tenantResolverClassFinder: TenantResolverClassFinder
     private lateinit var tenantAPIBootstrapper: TenantAPIBootstrapper
-    private lateinit var tenantModuleBootstrappers: Iterable<TenantModuleBootstrapper>
+    private lateinit var tenantModuleBootstrappers: Iterable<LegacyTenantModuleBootstrapper>
     private lateinit var fieldResolverExecutors: Map<Pair<String, String>, FieldResolverExecutor>
     private lateinit var nodeResolverExecutors: Map<String, NodeResolverExecutor>
 
@@ -109,7 +109,7 @@ class ViaductTenantAPIBootstrapperTest {
                     override fun configure() {
                         bind(GraphQLSchema::class.java).toInstance(schema.schema)
                         bind(TenantPackageFinder::class.java).toInstance(TestTenantPackageFinder(listOf(TestTenantModule::class)))
-                        bind(TenantCodeInjector::class.java).toInstance(GuiceTenantCodeInjector(tenantCodeInjector))
+                        bind(CodeInjector::class.java).toInstance(GuiceTenantCodeInjector(tenantCodeInjector))
 
                         bind(AFieldResolver::class.java).`in`(Singleton::class.java)
                         bind(TestBatchNodeResolver::class.java).`in`(Singleton::class.java)

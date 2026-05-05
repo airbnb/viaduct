@@ -7,7 +7,7 @@ import viaduct.apiannotations.StableApi
  * that are needed to bootstrap all tenant modules for one flavor of the Tenant API.
  *
  * This is a generic interface where T represents the type of module bootstrapper.
- * The engine layer provides a concrete type for T (TenantModuleBootstrapper).
+ * The engine layer provides a concrete type for T (LegacyTenantModuleBootstrapper).
  */
 @StableApi
 interface TenantAPIBootstrapper<T> {

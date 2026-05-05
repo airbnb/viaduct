@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.StandardResolutionValue
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -63,7 +63,7 @@ class ParentManagedValueTest {
 
     @Test
     fun `resolver takes over nested selection`() {
-        MockTenantModuleBootstrapper(schema) {
+        MockLegacyTenantModuleBootstrapper(schema) {
             field("Query" to "foo") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -87,7 +87,7 @@ class ParentManagedValueTest {
 
     @Test
     fun `policy propagates through deep nesting`() {
-        MockTenantModuleBootstrapper(schema) {
+        MockLegacyTenantModuleBootstrapper(schema) {
             field("Query" to "nested") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -146,7 +146,7 @@ class ParentManagedValueTest {
 
     @Test
     fun `policy propagates to list items`() {
-        MockTenantModuleBootstrapper(schema) {
+        MockLegacyTenantModuleBootstrapper(schema) {
             field("Query" to "list") {
                 resolver {
                     fn { _, _, _, _, _ ->

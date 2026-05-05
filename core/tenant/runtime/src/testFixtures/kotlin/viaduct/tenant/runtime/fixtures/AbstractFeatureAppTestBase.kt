@@ -5,7 +5,7 @@ package viaduct.tenant.runtime.fixtures
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
-import viaduct.engine.api.spi.TenantModuleBootstrapper
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.service.ViaductBuilder
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
@@ -40,7 +40,7 @@ abstract class AbstractFeatureAppTestBase {
      * Kotlin subclasses return a `ViaductTenantAPIBootstrapper.Builder`;
      * Java subclasses return a `MockTenantAPIBootstrapperBuilder` wrapper.
      */
-    protected abstract fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<TenantModuleBootstrapper>
+    protected abstract fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>
 
     /**
      * Hook called just before [ViaductBuilder.build]. Override to add pre-build
@@ -79,7 +79,7 @@ abstract class AbstractFeatureAppTestBase {
         if (!::viaductBuilder.isInitialized) {
             viaductBuilder = ViaductBuilder()
                 .withFlagManager(flagManager)
-                .withTenantAPIBootstrapperBuilder(createBootstrapperBuilder())
+                .also { it.builder.withTenantAPIBootstrapperBuilder(createBootstrapperBuilder()) }
         }
     }
 

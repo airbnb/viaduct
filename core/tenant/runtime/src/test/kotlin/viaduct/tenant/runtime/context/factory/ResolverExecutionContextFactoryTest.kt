@@ -343,7 +343,7 @@ class ResolverExecutionContextFactoryTest {
     }
 
     // Note: invoke() tests for FieldExecutionContextFactory are covered by integration tests
-    // like FieldExecutionContextFactoryCtorBugTest which use MockTenantModuleBootstrapper
+    // like FieldExecutionContextFactoryCtorBugTest which use MockLegacyTenantModuleBootstrapper
 
     // ============================================================================
     // Test Fixtures

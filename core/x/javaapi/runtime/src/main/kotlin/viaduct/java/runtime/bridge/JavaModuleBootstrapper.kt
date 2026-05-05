@@ -6,8 +6,8 @@ import java.util.concurrent.CompletableFuture
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
@@ -15,10 +15,10 @@ import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.runtime.bootstrap.JavaResolverClassFinder
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 
 /**
- * Bootstrapper for Java resolvers that implements the Viaduct [TenantModuleBootstrapper] interface.
+ * Bootstrapper for Java resolvers that implements the Viaduct [LegacyTenantModuleBootstrapper] interface.
  *
  * This class automatically discovers and registers Java resolvers using classpath scanning.
  * It mirrors the functionality of Kotlin's `ViaductTenantModuleBootstrapper` but for Java resolvers.
@@ -41,7 +41,7 @@ import viaduct.service.api.spi.TenantCodeInjector
  *
  * val bootstrapper = JavaModuleBootstrapper(
  *     classFinder = classFinder,
- *     injector = TenantCodeInjector.Naive
+ *     injector = CodeInjector.Naive
  * )
  * ```
  *
@@ -59,8 +59,8 @@ import viaduct.service.api.spi.TenantCodeInjector
  */
 class JavaModuleBootstrapper(
     private val classFinder: JavaResolverClassFinder,
-    private val injector: TenantCodeInjector,
-) : TenantModuleBootstrapper {
+    private val injector: CodeInjector,
+) : LegacyTenantModuleBootstrapper {
     companion object {
         private val log = LoggerFactory.getLogger(JavaModuleBootstrapper::class.java)
     }

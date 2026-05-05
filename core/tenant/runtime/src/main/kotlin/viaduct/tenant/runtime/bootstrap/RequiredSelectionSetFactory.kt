@@ -23,7 +23,7 @@ import viaduct.engine.api.checkDisjoint
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.collectVariableReferences
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
 import viaduct.tenant.runtime.execution.VariablesProviderExecutor
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
@@ -39,7 +39,7 @@ class RequiredSelectionSetFactory(
      */
     fun createRequiredSelectionSets(
         schema: ViaductSchema,
-        injector: TenantCodeInjector,
+        injector: CodeInjector,
         resolverCls: KClass<out ResolverBase<*>>,
         variablesProviderContextFactory: VariablesProviderContextFactory,
         annotation: Resolver,
@@ -195,7 +195,7 @@ private val Resolver.selectionSetVariables: List<SelectionSetVariable>
  * [VariablesProvider] class within the provided [ResolverBase] kclass.
  */
 @Suppress("UNCHECKED_CAST")
-internal fun KClass<out ResolverBase<*>>.variablesProvider(injector: TenantCodeInjector): VariablesProviderInfo? =
+internal fun KClass<out ResolverBase<*>>.variablesProvider(injector: CodeInjector): VariablesProviderInfo? =
     nestedClasses
         .firstOrNull { it.hasAnnotation<Variables>() }
         ?.let {

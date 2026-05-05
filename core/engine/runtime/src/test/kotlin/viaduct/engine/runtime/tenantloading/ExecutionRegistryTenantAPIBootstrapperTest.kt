@@ -11,10 +11,10 @@ import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 
 class ExecutionRegistryTenantAPIBootstrapperTest {
-    private val injector = TenantCodeInjector.Naive
+    private val injector = CodeInjector.Naive
 
     @Test
     fun `empty URL list returns empty iterable`() =
@@ -66,7 +66,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
  * Minimal [ExecutorFactory] used in tests. Captures constructor args so tests can assert on them.
  */
 class TestExecutorFactory(
-    @Suppress("UNUSED_PARAMETER") injector: TenantCodeInjector,
+    @Suppress("UNUSED_PARAMETER") injector: CodeInjector,
     grtPackagePrefix: String,
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {

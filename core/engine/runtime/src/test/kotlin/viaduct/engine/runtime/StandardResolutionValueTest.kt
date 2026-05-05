@@ -4,7 +4,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.StandardResolutionValue
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -34,7 +34,7 @@ class StandardResolutionValueTest {
 
     @Test
     fun `resolver returning StandardResolutionValue unwraps value and resolves children with standard policy`() {
-        MockTenantModuleBootstrapper(schema) {
+        MockLegacyTenantModuleBootstrapper(schema) {
             field("Query" to "foo") {
                 resolver {
                     // Returning via Any? boxes the @JvmInline value class

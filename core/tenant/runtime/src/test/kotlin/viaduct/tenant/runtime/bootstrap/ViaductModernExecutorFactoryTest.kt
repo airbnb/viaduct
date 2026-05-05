@@ -24,7 +24,7 @@ import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlock
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 
 class ViaductModernExecutorFactoryTest {
     abstract class TestFieldResolverBase : ResolverBase<String> {
@@ -87,7 +87,7 @@ class ViaductModernExecutorFactoryTest {
 
     private fun factory() =
         ViaductModernExecutorFactory(
-            tenantCodeInjector = TenantCodeInjector.Naive,
+            tenantCodeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.api.bootstrap.test.grts",
             configUrl = URI("file:///dev/null").toURL(),
         )

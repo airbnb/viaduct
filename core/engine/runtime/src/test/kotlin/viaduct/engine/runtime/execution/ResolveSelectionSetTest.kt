@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -31,7 +31,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSetSync returns EngineObjectData Sync with scalar fields`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 name: String
@@ -76,7 +76,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSetSync data supports getOrNull`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 name: String
@@ -121,7 +121,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSetSync data supports getSelections`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 x: Int
@@ -170,7 +170,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSetSync works with mutation operation type`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -217,7 +217,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSet returns async EngineObjectData with scalar fields`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 name: String
@@ -264,7 +264,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSet supports fetchOrNull and fetchSelections`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 x: Int
@@ -310,7 +310,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSet works with mutation operation type`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -356,7 +356,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `both flavors produce the same scalar values`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 value: Int
@@ -411,7 +411,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `both flavors produce the same nested object values`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 person: Person

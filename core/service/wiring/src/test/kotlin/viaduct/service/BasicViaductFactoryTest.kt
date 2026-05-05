@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.service.api.SchemaId
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 
 internal class BasicViaductFactoryTest {
     @Test
@@ -28,7 +28,7 @@ internal class BasicViaductFactoryTest {
             val tenantInfo = TenantRegistrationInfo("com.airbnb.test")
 
             assertEquals("com.airbnb.test", tenantInfo.tenantPackagePrefix)
-            assertEquals(TenantCodeInjector.Naive, tenantInfo.tenantCodeInjector)
+            assertEquals(CodeInjector.Naive, tenantInfo.tenantCodeInjector)
         }
 
         @Test
@@ -267,7 +267,7 @@ internal class BasicViaductFactoryTest {
         @Test
         fun `createFromResource should accept a custom injector`() {
             assertThrows<Exception> {
-                BasicViaductFactory.createFromResource(tenantCodeInjector = TenantCodeInjector.Naive)
+                BasicViaductFactory.createFromResource(tenantCodeInjector = CodeInjector.Naive)
             }
         }
     }

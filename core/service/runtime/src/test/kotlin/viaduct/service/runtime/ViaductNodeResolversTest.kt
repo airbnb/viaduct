@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -39,7 +39,7 @@ class ViaductNodeResolversTest {
                   irrelevant: String!
               }
           """
-        private val bootstrapper = MockTenantModuleBootstrapper(SCHEMA) {
+        private val bootstrapper = MockLegacyTenantModuleBootstrapper(SCHEMA) {
             type("User") {
                 nodeUnbatchedExecutor { id, _, _ ->
                     createEngineObjectData(
@@ -280,7 +280,7 @@ class ViaductNodeResolversTest {
                   name: String!
               }
           """
-        MockTenantModuleBootstrapper(schemaWithoutNodes) {
+        MockLegacyTenantModuleBootstrapper(schemaWithoutNodes) {
             field("Query" to "user") {
                 resolver {
                     fn { _, _, _, _, _ ->

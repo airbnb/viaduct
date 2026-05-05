@@ -5,7 +5,7 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.runFeatureTest
@@ -34,7 +34,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `object-typed completion with scalar fields`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -82,7 +82,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `object-typed completion with explicit targetResult`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -133,7 +133,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `isFieldTypePlan requires targetResult`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -190,7 +190,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `query-typed completion via querySelections`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 rootValue: Int
@@ -239,7 +239,7 @@ class CompleteSelectionSetTest {
     @Test
     fun `query-typed completion with explicit targetResult via resolveSelectionSet`() {
         // Explicit targetResult is honored even for Query-typed selections (engine fix).
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 rootValue: Int
@@ -295,7 +295,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `rejects invalid targetResult type`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 rootValue: Int
@@ -354,7 +354,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `rejects incompatible targetResult type for selection set`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container

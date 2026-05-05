@@ -16,7 +16,7 @@ val EXTRAS_SCHEMA_ID = SchemaId.Scoped("publicSchemaWithExtras", setOf(DEFAULT_S
 // tag::viaduct_configuration[20]
 @Factory
 class ViaductConfiguration(
-    val micronautTenantCodeInjector: MicronautTenantCodeInjector
+    val micronautCodeInjector: MicronautCodeInjector
 ) {
     @Bean
     fun providesViaduct(): Viaduct {
@@ -29,7 +29,7 @@ class ViaductConfiguration(
                 )
             ),
             // end::schema_registration
-            tenantCodeInjector = micronautTenantCodeInjector,
+            tenantCodeInjector = micronautCodeInjector,
         )
     }
 }

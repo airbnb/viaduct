@@ -4,7 +4,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
@@ -13,7 +13,7 @@ import viaduct.engine.api.mocks.runFeatureTest
 class VariablesResolverTest {
     @Test
     fun `variables provider -- const`() =
-        MockTenantModuleBootstrapper("extend type Query { foo: Int, bar(x: Int!): Int! }") {
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar(x: Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -33,7 +33,7 @@ class VariablesResolverTest {
 
     @Test
     fun `variables provider -- transform dependent field arg`() =
-        MockTenantModuleBootstrapper("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -54,7 +54,7 @@ class VariablesResolverTest {
     @Disabled("Disabled until validation of variables-provider behavior is in engine.")
     @Test
     fun `variables provider -- returns extra variables`() =
-        MockTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -76,7 +76,7 @@ class VariablesResolverTest {
 
     @Test
     fun `variables provider -- returns null value`() =
-        MockTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int): Int! }") {
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -97,7 +97,7 @@ class VariablesResolverTest {
     @Disabled("Disabled until validation of variables-provider behavior is in engine.")
     @Test
     fun `variables provider -- does not return declared variable value`() =
-        MockTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -121,7 +121,7 @@ class VariablesResolverTest {
     fun `variables provider -- variable name overlaps with unbound field arg`() =
         // this test defines a variable provider that defines a variable with a name that overlaps with
         // a field argument. The field argument is not bound to a variable, so this is allowed
-        MockTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$x)") {
@@ -143,7 +143,7 @@ class VariablesResolverTest {
     @Test
     fun `invalid variable reference`() {
         assertThrows<Exception> {
-            MockTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
+            MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
                 field("Query" to "foo") {
                     resolver {
                         objectSelections("bar(x:\$invalid)")
@@ -161,7 +161,7 @@ class VariablesResolverTest {
 
     @Test
     fun `variables are coerced`() {
-        MockTenantModuleBootstrapper("extend type Query { foo: Int, bar(x: [Int!]): Int! }") {
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar(x: [Int!]): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {

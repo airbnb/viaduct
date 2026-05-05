@@ -2,7 +2,7 @@ package viaduct.engine.runtime.execution
 
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.fetchAs
@@ -74,7 +74,7 @@ class SubquerySchemaTest {
         val fullSchema = createSchemaWithWiring(fullSchemaSDL)
         val scopedSchema = createSchemaWithWiring(scopedSchemaSDL)
 
-        MockTenantModuleBootstrapper(fullSchema) {
+        MockLegacyTenantModuleBootstrapper(fullSchema) {
             fieldWithValue("Query" to "publicField", "public value")
             fieldWithValue("Query" to "internalField", "internal value")
 
@@ -150,7 +150,7 @@ class SubquerySchemaTest {
 
         var internalCounter = 0
 
-        MockTenantModuleBootstrapper(fullSchema) {
+        MockLegacyTenantModuleBootstrapper(fullSchema) {
             field("Mutation" to "publicMutation") {
                 resolver {
                     fn { _, _, _, _, _ -> 0 }
@@ -204,7 +204,7 @@ class SubquerySchemaTest {
      */
     @Test
     fun `subquery works normally when fullSchema equals scopedSchema`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 rootValue: Int

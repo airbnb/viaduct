@@ -43,9 +43,9 @@ import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -303,18 +303,18 @@ class MockNodeBatchResolverExecutor(
 }
 
 class MockTenantAPIBootstrapper(
-    val tenantModuleBootstrappers: List<TenantModuleBootstrapper> = emptyList()
+    val tenantModuleBootstrappers: List<LegacyTenantModuleBootstrapper> = emptyList()
 ) : TenantAPIBootstrapper {
-    override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = tenantModuleBootstrappers
+    override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> = tenantModuleBootstrappers
 }
 
-class MockTenantModuleBootstrapper(
+class MockLegacyTenantModuleBootstrapper(
     val fullSchema: ViaductSchema,
     val fieldResolverExecutors: Iterable<Pair<Coordinate, FieldResolverExecutor>> = emptyList(),
     val nodeResolverExecutors: Iterable<Pair<String, NodeResolverExecutor>> = emptyList(),
     val checkerExecutors: Map<Coordinate, CheckerExecutor> = emptyMap(),
     val typeCheckerExecutors: Map<String, CheckerExecutor> = emptyMap(),
-) : TenantModuleBootstrapper {
+) : LegacyTenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> = fieldResolverExecutors
 
     override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = nodeResolverExecutors
@@ -325,23 +325,23 @@ class MockTenantModuleBootstrapper(
 
     companion object {
         /**
-         * Create a [MockTenantModuleBootstrapper] with the provided schema SDL.
+         * Create a [MockLegacyTenantModuleBootstrapper] with the provided schema SDL.
          * This will parse the SDL and create a [ViaductSchema] with actual wiring.
          */
         operator fun invoke(
             schemaSDL: String,
-            block: MockTenantModuleBootstrapperDSL<Unit>.() -> Unit
+            block: MockLegacyTenantModuleBootstrapperDSL<Unit>.() -> Unit
         ) = invoke(createSchemaWithWiring(schemaSDL), block)
 
         /**
-         * Create a [MockTenantModuleBootstrapper] with the provided [ViaductSchema].
+         * Create a [MockLegacyTenantModuleBootstrapper] with the provided [ViaductSchema].
          * The provided schema should already be built with actual wiring via `mkSchemaWithWiring`,
          * not `mkSchema` with mock wiring.
          */
         operator fun invoke(
             schemaWithWiring: ViaductSchema,
-            block: MockTenantModuleBootstrapperDSL<Unit>.() -> Unit
-        ) = MockTenantModuleBootstrapperDSL(schemaWithWiring, Unit).apply { block() }.create()
+            block: MockLegacyTenantModuleBootstrapperDSL<Unit>.() -> Unit
+        ) = MockLegacyTenantModuleBootstrapperDSL(schemaWithWiring, Unit).apply { block() }.create()
     }
 
     fun resolveField(
@@ -453,7 +453,7 @@ object Samples {
         """.trimIndent()
     )
 
-    val mockTenantModule = MockTenantModuleBootstrapper(testSchema) {
+    val mockTenantModule = MockLegacyTenantModuleBootstrapper(testSchema) {
         // Add resolver for aField
         field("TestType" to "aField") {
             resolver {

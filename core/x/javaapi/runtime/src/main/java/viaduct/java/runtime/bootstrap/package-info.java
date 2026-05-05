@@ -12,7 +12,7 @@
  *   <li>{@code viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder} - Default implementation
  *       using ClassGraphScanner (Kotlin)
  *   <li>{@code viaduct.java.runtime.bridge.JavaModuleBootstrapper} - Bootstrapper that implements
- *       {@code TenantModuleBootstrapper} for Java resolvers (Kotlin)
+ *       {@code LegacyTenantModuleBootstrapper} for Java resolvers (Kotlin)
  * </ul>
  *
  * <h2>Usage</h2>
@@ -25,9 +25,9 @@
  * );
  *
  * // Create the bootstrapper
- * TenantModuleBootstrapper bootstrapper = new JavaModuleBootstrapper(
+ * LegacyTenantModuleBootstrapper bootstrapper = new JavaModuleBootstrapper(
  *     classFinder,
- *     TenantCodeInjector.Naive  // Or use your DI framework's injector
+ *     CodeInjector.Naive  // Or use your DI framework's injector
  * );
  *
  * // Use the bootstrapper in a feature test

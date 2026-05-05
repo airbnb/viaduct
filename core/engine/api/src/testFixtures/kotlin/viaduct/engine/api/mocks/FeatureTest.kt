@@ -29,7 +29,7 @@ import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrap
  *
  * Usage:
  * ```kotlin
- *    MockTenantModuleBootstrapper("""
+ *    MockLegacyTenantModuleBootstrapper("""
  *       type Query {
  *           foo: String
  *           bar(answer: Int): Int
@@ -48,7 +48,7 @@ import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrap
  *
  * ```
  *
- * See [MockTenantModuleBootstrapper.toEngineFactory] to understand how the
+ * See [MockLegacyTenantModuleBootstrapper.toEngineFactory] to understand how the
  * Viaduct engine is initialized for the feature test.
  *
  * Inside the FeatureTest block are the following:
@@ -62,7 +62,7 @@ import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrap
  *
  * @param engineConfig The [EngineConfigruation] to use for this test. If null, EngineConfiguration.featureTestDefault will be used
  */
-fun MockTenantModuleBootstrapper.runFeatureTest(
+fun MockLegacyTenantModuleBootstrapper.runFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
     schema: ViaductSchema? = null,
     engineConfig: EngineConfiguration? = null,
@@ -80,7 +80,7 @@ val EngineConfiguration.Companion.featureTestDefault: EngineConfiguration
     )
 
 /**
- * Convert a MockTenantModuleBootstrapper into an EngineFactory
+ * Convert a MockLegacyTenantModuleBootstrapper into an EngineFactory
  * that has been initialized with a dispatcher registry constructed from:
  *
  * - the full schema
@@ -89,7 +89,7 @@ val EngineConfiguration.Companion.featureTestDefault: EngineConfiguration
  *
  * and an [EngineConfiguration] constructed with MockFlagManager.Enabled.
  */
-private fun MockTenantModuleBootstrapper.toEngineFactory(
+private fun MockLegacyTenantModuleBootstrapper.toEngineFactory(
     withoutDefaultQueryNodeResolvers: Boolean,
     engineConfig: EngineConfiguration?
 ): EngineFactory {

@@ -4,9 +4,9 @@ import viaduct.api.internal.ReflectionLoader
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl
@@ -18,10 +18,10 @@ class FeatureTestTenantAPIBootstrapperBuilder(
     val nodeUnbatchedResolverStubs: Map<String, NodeUnbatchedResolverStub>,
     val nodeBatchResolverStubs: Map<String, NodeBatchResolverStub>,
     val reflectionLoader: ReflectionLoader,
-) : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
+) : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
     override fun create() =
         object : TenantAPIBootstrapper {
-            val module: TenantModuleBootstrapper = FeatureTestTenantModuleBootstrapper(
+            val module: LegacyTenantModuleBootstrapper = FeatureTestTenantModuleBootstrapper(
                 fieldUnbatchedResolverStubs,
                 nodeUnbatchedResolverStubs,
                 nodeBatchResolverStubs,
@@ -38,7 +38,7 @@ class FeatureTestTenantModuleBootstrapper(
     val nodeUnbatchedResolverStubs: Map<String, NodeUnbatchedResolverStub>,
     val nodeBatchResolverExecutorStubs: Map<String, NodeBatchResolverStub>,
     val reflectionLoader: ReflectionLoader,
-) : TenantModuleBootstrapper {
+) : LegacyTenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> =
         fieldUnbatchedResolverStubs.mapNotNull { (coord, stub) ->
             // Skip resolvers for fields that don't exist in the schema (e.g., after schema hot-swap)

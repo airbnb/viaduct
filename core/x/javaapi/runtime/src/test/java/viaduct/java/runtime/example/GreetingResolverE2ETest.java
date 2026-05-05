@@ -5,7 +5,7 @@ import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder;
 import viaduct.java.runtime.bridge.JavaModuleBootstrapper;
 import viaduct.java.runtime.example.resolverbases.QueryResolvers;
 import viaduct.java.runtime.test.JavaFeatureTestHelper;
-import viaduct.service.api.spi.TenantCodeInjector;
+import viaduct.service.api.spi.CodeInjector;
 
 /**
  * End-to-end test demonstrating a Java resolver being called through the Viaduct engine.
@@ -45,7 +45,7 @@ public class GreetingResolverE2ETest {
 
     // Create the bootstrapper with automatic resolver discovery
     JavaModuleBootstrapper bootstrapper =
-        new JavaModuleBootstrapper(classFinder, TenantCodeInjector.Companion.getNaive());
+        new JavaModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
 
     // Run the feature test
     JavaFeatureTestHelper.run(

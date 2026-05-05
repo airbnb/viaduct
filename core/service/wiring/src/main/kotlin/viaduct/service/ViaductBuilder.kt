@@ -3,14 +3,12 @@ package viaduct.service
 import graphql.execution.DataFetcherExceptionHandler
 import io.micrometer.core.instrument.MeterRegistry
 import viaduct.apiannotations.StableApi
-import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.service.api.spi.TenantModuleBootstrapper
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
@@ -24,7 +22,7 @@ import viaduct.service.runtime.StandardViaduct
  * Typical usage:
  * ```kotlin
  * val viaduct = ViaductBuilder()
- *     .withTenantAPIBootstrapperBuilders(builders)
+ *     .withTenantModuleBootstrapper(myBootstrapper)
  *     .withMeterRegistry(meterRegistry)
  *     .withResolverErrorReporter(errorReporter)
  *     .build()
@@ -37,34 +35,14 @@ import viaduct.service.runtime.StandardViaduct
 class ViaductBuilder {
     val builder = StandardViaduct.Builder()
 
-    /** Convenience for [withTenantAPIBootstrapperBuilders] with a single builder. */
-    fun withTenantAPIBootstrapperBuilder(builder: TenantAPIBootstrapperBuilder<TenantModuleBootstrapper>) =
-        apply {
-            this.builder.withTenantAPIBootstrapperBuilders(listOf(builder))
-        }
-
     /**
-     * Adds a TenantAPIBootstrapperBuilder to be used for creating TenantAPIBootstrapper instances.
-     * Multiple builders can be added, and all their TenantAPIBootstrapper instances will be used
-     * together to bootstrap tenant modules.
-     *
-     * @param builders The builder instance that will be used to create a TenantAPIBootstrapper
-     * @return This Builder instance for method chaining
+     * Configures the [TenantModuleBootstrapper] used to provide per-tenant bootstrapping.
+     * The bootstrapper is called once per tenant during startup with the tenant name and the
+     * `@TenantBootstrapper`-annotated class from the tenant's config file (or `null` if absent).
      */
-    fun withTenantAPIBootstrapperBuilders(builders: List<TenantAPIBootstrapperBuilder<TenantModuleBootstrapper>>) =
+    fun withTenantModuleBootstrapper(tenantModuleBootstrapper: TenantModuleBootstrapper) =
         apply {
-            builder.withTenantAPIBootstrapperBuilders(builders)
-        }
-
-    /**
-     * A convenience function to indicate that no bootstrapper is
-     * wanted.  Used for testing purposes.
-     * Failing to provide a bootstrapper is an error that should be flagged at build() time.
-     */
-    @VisibleForTest
-    fun withNoTenantAPIBootstrapper() =
-        apply {
-            builder.withTenantAPIBootstrapperBuilders(emptyList())
+            builder.withTenantModuleBootstrapper(tenantModuleBootstrapper)
         }
 
     /** Configures the [FlagManager] for controlling framework feature flags. */

@@ -7,8 +7,8 @@ import strikt.assertions.isA
 import strikt.assertions.isEqualTo
 import strikt.assertions.isFailure
 
-class NaiveTenantCodeInjectorTests {
-    private val subject = TenantCodeInjector.Naive as NaiveTenantCodeInjector
+class NaiveCodeInjectorTests {
+    private val subject = CodeInjector.Naive as NaiveCodeInjector
 
     @Test
     fun `When good fixture then succeed`() {

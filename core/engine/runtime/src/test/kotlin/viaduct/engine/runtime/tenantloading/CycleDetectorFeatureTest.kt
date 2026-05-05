@@ -3,7 +3,7 @@ package viaduct.engine.runtime.tenantloading
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -14,7 +14,7 @@ class CycleDetectorFeatureTest {
         // This should throw an exception during construction due to the cycle:
         // foo requires bar, bar requires foo
         assertThrows<RequiredSelectionsCycleException> {
-            MockTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int }") {
+            MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int }") {
                 field("Query" to "foo") {
                     resolver {
                         objectSelections("bar") // foo requires bar

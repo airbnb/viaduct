@@ -4,12 +4,12 @@ import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.BootstrapperFactory
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
+import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.service.api.spi.TenantCodeInjector
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
@@ -67,15 +67,15 @@ object BasicViaductFactory {
      * Tenant configuration comes entirely from the JSON files — no [TenantRegistrationInfo] needed.
      *
      * @param tenantCodeInjector the injector used to instantiate resolver classes.
-     *        Defaults to [TenantCodeInjector.Naive] (reflection with zero-arg constructors).
+     *        Defaults to [CodeInjector.Naive] (reflection with zero-arg constructors).
      *        Pass a DI-backed injector (e.g. Guice, Micronaut) when resolvers have dependencies.
      */
     @JvmOverloads
     fun createFromResource(
         schemaRegistrationInfo: SchemaRegistrationInfo = SchemaRegistrationInfo(),
-        tenantCodeInjector: TenantCodeInjector = TenantCodeInjector.Naive,
+        tenantCodeInjector: CodeInjector = CodeInjector.Naive,
     ): Viaduct {
-        val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
+        val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
             override fun create() = BootstrapperFactory.fromResources(tenantCodeInjector)
         }
 
@@ -147,12 +147,12 @@ object BasicViaductFactory {
  *
  * @param tenantPackagePrefix the package prefix under which tenant-generated code is found
  * @param tenantCodeInjector the injector used to instantiate resolver and other tenant classes;
- *        defaults to [TenantCodeInjector.Naive] which uses reflection with zero-arg constructors
+ *        defaults to [CodeInjector.Naive] which uses reflection with zero-arg constructors
  */
 @StableApi
 data class TenantRegistrationInfo(
     val tenantPackagePrefix: String,
-    val tenantCodeInjector: TenantCodeInjector = TenantCodeInjector.Naive,
+    val tenantCodeInjector: CodeInjector = CodeInjector.Naive,
 )
 
 /**

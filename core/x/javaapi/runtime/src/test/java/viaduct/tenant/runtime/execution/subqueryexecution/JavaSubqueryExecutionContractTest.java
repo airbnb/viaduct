@@ -5,13 +5,13 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper;
-import viaduct.engine.api.spi.TenantModuleBootstrapper;
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder;
 import viaduct.java.runtime.bridge.JavaModuleBootstrapper;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
+import viaduct.service.api.spi.CodeInjector;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
-import viaduct.service.api.spi.TenantCodeInjector;
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.CalculatorResolvers;
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.ContainerResolvers;
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.Level1Resolvers;
@@ -28,10 +28,11 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
       new DefaultJavaResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
 
   private final JavaModuleBootstrapper bootstrapper =
-      new JavaModuleBootstrapper(classFinder, TenantCodeInjector.Companion.getNaive());
+      new JavaModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
 
   @Override
-  protected TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> createBootstrapperBuilder() {
+  protected TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>
+      createBootstrapperBuilder() {
     return MockTenantAPIBootstrapperBuilder.INSTANCE.invoke(
         new MockTenantAPIBootstrapper(List.of(bootstrapper)));
   }

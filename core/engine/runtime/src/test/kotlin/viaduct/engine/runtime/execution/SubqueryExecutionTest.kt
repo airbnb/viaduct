@@ -13,7 +13,7 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.mocks.FeatureTest
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
@@ -48,7 +48,7 @@ import viaduct.engine.runtime.EngineExecutionContextImpl
 class SubqueryExecutionTest {
     @Test
     fun `ctx query executes subquery against Query root`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 rootValue: Int
@@ -99,7 +99,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx query accesses multiple Query fields`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 firstName: String
@@ -151,7 +151,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx query with field arguments`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 multiply(n: Int!): Int
@@ -207,7 +207,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx query with GraphQL variables`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 multiply(n: Int!): Int
@@ -262,7 +262,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx mutation with GraphQL variables`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -327,7 +327,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx mutation executes subquery against Mutation root`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -396,7 +396,7 @@ class SubqueryExecutionTest {
         // available in mutation resolvers), the engine itself supports this.
         // This behavior is not recommended but is documented in subquery-execution.md.
 
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 queryFieldThatMutates: Int
@@ -449,7 +449,7 @@ class SubqueryExecutionTest {
         // accessing Query root fields. ctx.query() is an alternative that provides
         // more explicit control and works with ExecutionHandle.
 
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 rootValue: Int
@@ -509,7 +509,7 @@ class SubqueryExecutionTest {
     @Test
     fun `nested subquery execution`() {
         // Test that subqueries can themselves trigger additional subqueries
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 level1: Level1
@@ -572,7 +572,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx mutation returns error when schema has no mutation type`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -633,7 +633,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx query returns error with fieldResolutionFailed when resolver throws`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 failingField: String
@@ -693,7 +693,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx query fails when selection type does not match Query root`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -749,7 +749,7 @@ class SubqueryExecutionTest {
     fun `ctx mutation executes fields serially`() {
         val events = Collections.synchronizedList(mutableListOf<String>())
 
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container
@@ -835,7 +835,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `nested subqueries with different variables are isolated`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 multiply(n: Int!): Int
@@ -904,7 +904,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `subquery variables do not leak to parent query`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 valueFromVar(v: Int!): Int
@@ -957,7 +957,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `regression -- ctx query hangs when a resolver reads an aliased object selection`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 run: Int
@@ -997,7 +997,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `regression -- ctx query hangs when a resolver reads an object selection with arguments`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 run: Int
@@ -1039,7 +1039,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `regression -- ctx query hangs when a resolver reads a plain object selection`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 run: Int
@@ -1079,7 +1079,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx query with fragment spreads and variables`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 user(id: ID!): User
@@ -1203,7 +1203,7 @@ class SubqueryExecutionTest {
             meterRegistry = meterRegistry
         )
 
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 rootValue: Int
@@ -1259,7 +1259,7 @@ class SubqueryExecutionTest {
 
     @Test
     fun `ctx query wraps QueryPlan build failures in SubqueryExecutionException`() {
-        MockTenantModuleBootstrapper(
+        MockLegacyTenantModuleBootstrapper(
             """
             extend type Query {
                 container: Container

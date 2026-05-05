@@ -16,11 +16,11 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CheckerExecutorFactoryCreator
 import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NoOpCheckerExecutorFactoryImpl
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.fragment.ExecutableFragmentParser
 import viaduct.engine.runtime.fragment.ViaductExecutableFragmentParser
@@ -28,6 +28,7 @@ import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper
+import viaduct.service.api.spi.TenantModuleBootstrapper
 
 class StandardViaductModule(
     private val tenantBootstrapper: TenantAPIBootstrapper,
@@ -38,6 +39,7 @@ class StandardViaductModule(
     private val documentProviderFactory: DocumentProviderFactory?,
     private val proxyResolverFactory: ProxyResolverFactory?,
     private val lenientResolverValidation: Boolean = false,
+    private val tenantModuleBootstrapper: TenantModuleBootstrapper? = null,
 ) : AbstractModule() {
     override fun configure() {
         bind(StandardViaduct.Factory::class.java)
@@ -55,7 +57,7 @@ class StandardViaductModule(
         bind(TemporaryBypassAccessCheck::class.java).toInstance(engineConfiguration.temporaryBypassAccessCheck)
         bind(ErrorReporter::class.java).toInstance(engineConfiguration.resolverErrorReporter)
         bind(ResolverErrorBuilder::class.java).toInstance(engineConfiguration.resolverErrorBuilder)
-        bind(object : TypeLiteral<BaseTenantAPIBootstrapper<TenantModuleBootstrapper>>() {}).toInstance(tenantBootstrapper)
+        bind(object : TypeLiteral<BaseTenantAPIBootstrapper<LegacyTenantModuleBootstrapper>>() {}).toInstance(tenantBootstrapper)
         bind(TenantNameResolver::class.java).toInstance(tenantNameResolver)
         bind(ViaductResolverInstrumentation::class.java).toInstance(engineConfiguration.resolverInstrumentation)
 
@@ -72,6 +74,10 @@ class StandardViaductModule(
         bind(ProxyResolverFactory::class.java).toInstance(proxyResolverFactory ?: ProxyResolverFactory.NO_OP)
 
         bindConstant().annotatedWith(Names.named("lenientResolverValidation")).to(lenientResolverValidation)
+
+        if (tenantModuleBootstrapper != null) {
+            bind(TenantModuleBootstrapper::class.java).toInstance(tenantModuleBootstrapper)
+        }
     }
 
     @Provides

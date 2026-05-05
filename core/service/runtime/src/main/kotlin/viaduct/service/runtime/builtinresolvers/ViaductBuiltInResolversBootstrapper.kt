@@ -1,7 +1,7 @@
 package viaduct.service.runtime.builtinresolvers
 
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 
 /**
@@ -12,14 +12,14 @@ import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
  * - Namespace type field resolvers: synthetic resolvers for fields returning `@namespaceType` types
  */
 class ViaductBuiltInResolversBootstrapper : TenantAPIBootstrapper {
-    override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> {
+    override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> {
         return listOf(
             ViaductQueryNodeResolverModuleBootstrapper(),
             NamespaceTypeResolverModuleBootstrapper(),
         )
     }
 
-    class Builder : TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> {
+    class Builder : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
         override fun create(): TenantAPIBootstrapper = ViaductBuiltInResolversBootstrapper()
     }
 }

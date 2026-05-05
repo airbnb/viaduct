@@ -10,8 +10,8 @@ import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 
 /**
  * Registers synthetic field resolvers for fields returning `@namespaceType` types.
@@ -20,7 +20,7 @@ import viaduct.engine.api.spi.TenantModuleBootstrapper
  * resolvers (or return other namespace types). Thus, these resolvers simply create an empty
  * [ResolvedEngineObjectData].
  */
-class NamespaceTypeResolverModuleBootstrapper : TenantModuleBootstrapper {
+class NamespaceTypeResolverModuleBootstrapper : LegacyTenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> =
         buildList {
             val graphQLSchema = schema.schema

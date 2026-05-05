@@ -5,7 +5,7 @@ import java.net.URL
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantAPIBootstrapper
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 
 private const val REGISTRY_RESOURCE_PATH = "META-INF/viaduct/modules"
 
@@ -16,7 +16,7 @@ object BootstrapperFactory {
     /**
      * Returns a bootstrapper that loads all tenant module registry files from the classpath.
      */
-    fun fromResources(tenantCodeInjector: TenantCodeInjector): TenantAPIBootstrapper =
+    fun fromResources(tenantCodeInjector: CodeInjector): TenantAPIBootstrapper =
         ExecutionRegistryTenantAPIBootstrapper(
             tenantCodeInjector = tenantCodeInjector,
             registryUrls = collectRegistryUrls(packagePrefix = null),
@@ -30,7 +30,7 @@ object BootstrapperFactory {
      */
     @VisibleForTest
     fun fromResources(
-        tenantCodeInjector: TenantCodeInjector,
+        tenantCodeInjector: CodeInjector,
         packagePrefix: String,
     ): TenantAPIBootstrapper =
         ExecutionRegistryTenantAPIBootstrapper(

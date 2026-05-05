@@ -13,7 +13,7 @@ import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
-import viaduct.engine.api.spi.TenantModuleBootstrapper
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
@@ -96,7 +96,7 @@ abstract class FeatureAppTestBase : AbstractFeatureAppTestBase() {
 
     override fun sdl(): String = sdl
 
-    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<TenantModuleBootstrapper> = viaductTenantAPIBootstrapperBuilder
+    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> = viaductTenantAPIBootstrapperBuilder
 
     override fun onBeforeBuild() {
         if (validateResolverCompleteness) {

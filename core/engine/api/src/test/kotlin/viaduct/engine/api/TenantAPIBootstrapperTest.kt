@@ -5,19 +5,19 @@ package viaduct.engine.api
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.spi.flatten
 
 class TenantAPIBootstrapperTest {
     @Test
     fun `test flatten function`(): Unit =
         runBlocking {
-            // Create mock TenantModuleBootstrapper instances
-            val tenantModuleBootstrapper1 = MockTenantModuleBootstrapper(MockSchema.minimal)
-            val tenantModuleBootstrapper2 = MockTenantModuleBootstrapper(MockSchema.minimal)
-            val tenantModuleBootstrapper3 = MockTenantModuleBootstrapper(MockSchema.minimal)
+            // Create mock LegacyTenantModuleBootstrapper instances
+            val tenantModuleBootstrapper1 = MockLegacyTenantModuleBootstrapper(MockSchema.minimal)
+            val tenantModuleBootstrapper2 = MockLegacyTenantModuleBootstrapper(MockSchema.minimal)
+            val tenantModuleBootstrapper3 = MockLegacyTenantModuleBootstrapper(MockSchema.minimal)
 
             // Create MockTenantAPIBootstrapper instances
             val tenantAPIBootstrapper1 = MockTenantAPIBootstrapper(listOf(tenantModuleBootstrapper1, tenantModuleBootstrapper2))

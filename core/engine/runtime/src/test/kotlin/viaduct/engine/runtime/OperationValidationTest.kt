@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.graphql.scopes.ScopedSchemaBuilder
 
@@ -19,7 +19,7 @@ class OperationValidationTest {
         }
         """
 
-    private val bootstrapper = MockTenantModuleBootstrapper(testSchema) {
+    private val bootstrapper = MockLegacyTenantModuleBootstrapper(testSchema) {
         fieldWithValue("Query" to "f1", 1)
         fieldWithValue("Query" to "f2", 2)
     }

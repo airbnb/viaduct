@@ -17,7 +17,7 @@ import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
 import viaduct.java.api.types.Query
 import viaduct.java.runtime.bootstrap.JavaResolverClassFinder
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 
 class JavaModuleBootstrapperTest {
     // Test fixtures
@@ -82,7 +82,7 @@ class JavaModuleBootstrapperTest {
         val mockClassFinder = mockk<JavaResolverClassFinder>()
         every { mockClassFinder.resolverClassesInPackage() } returns emptySet()
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, TenantCodeInjector.Naive)
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchema()
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
@@ -95,7 +95,7 @@ class JavaModuleBootstrapperTest {
         val mockClassFinder = mockk<JavaResolverClassFinder>()
         every { mockClassFinder.resolverClassesInPackage() } returns setOf(TestResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, TenantCodeInjector.Naive)
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         // Schema without TestType
         val schema = createMockSchema()
 
@@ -120,7 +120,7 @@ class JavaModuleBootstrapperTest {
                 SelectiveResolverBase::class.java
             )
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, TenantCodeInjector.Naive)
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithTestType()
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
@@ -136,7 +136,7 @@ class JavaModuleBootstrapperTest {
     @Test
     fun `nodeResolverExecutors returns empty list`() {
         val mockClassFinder = mockk<JavaResolverClassFinder>()
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, TenantCodeInjector.Naive)
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchema()
 
         val executors = bootstrapper.nodeResolverExecutors(schema).toList()
@@ -151,7 +151,7 @@ class JavaModuleBootstrapperTest {
         every { mockClassFinder.getSubTypesOf(FieldResolverBase::class.java) } returns
             setOf(PersonFullNameResolver::class.java, PersonFullNameResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, TenantCodeInjector.Naive)
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithPerson()
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
@@ -172,7 +172,7 @@ class JavaModuleBootstrapperTest {
         every { mockClassFinder.getSubTypesOf(FieldResolverBase::class.java) } returns
             setOf(PersonAgeResolver::class.java, PersonAgeResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, TenantCodeInjector.Naive)
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithPerson()
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()

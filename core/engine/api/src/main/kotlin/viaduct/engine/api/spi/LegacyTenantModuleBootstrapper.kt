@@ -6,8 +6,13 @@ import viaduct.engine.api.ViaductSchema
 /**
  * Interface for the data that a tenant API provides to the engine to bootstrap
  * the tenant's execution environment.
+ *
+ * @deprecated Replaced by [viaduct.service.api.spi.TenantModuleBootstrapper]. Retained as a
+ * compatibility shim while the reflection-based bootstrap path ([viaduct.api.bootstrap.ViaductTenantAPIBootstrapper])
+ * is still in use. Will be removed once the file-based bootstrap is fully rolled out.
  */
-interface TenantModuleBootstrapper {
+@Deprecated("Use viaduct.service.api.spi.TenantModuleBootstrapper instead")
+interface LegacyTenantModuleBootstrapper {
     /**
      * Will be called by the engine once when the tenant module is bootstrapped,
      * and the resulting iterator will be used just once.  This iterator is
@@ -43,7 +48,7 @@ interface TenantModuleBootstrapper {
 }
 
 /**
- * Thrown by member of [TenantModuleBootstrapper] to indicate an error in loading a
+ * Thrown by member of [LegacyTenantModuleBootstrapper] to indicate an error in loading a
  * module that should terminate the attempt to load this module but that isn't
  * fatal in the sense that it should necessarily terminate the loading of other modules.
  */

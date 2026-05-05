@@ -5,7 +5,7 @@ package viaduct.engine.runtime.execution
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -33,7 +33,7 @@ class FieldResolverExecutionConditionTest {
         // Track whether the child resolver was called
         val childResolverCallCount = AtomicInteger(0)
 
-        val bootstrapper = MockTenantModuleBootstrapper(schemaSDL) {
+        val bootstrapper = MockLegacyTenantModuleBootstrapper(schemaSDL) {
             field("Query" to "parent") {
                 resolver {
                     fn { _, _, _, _, _ ->

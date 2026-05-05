@@ -16,7 +16,7 @@ import viaduct.api.internal.ObjectBase
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.TenantModuleException
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 
 class ViaductTenantModuleBootstrapperNodeResolverTest {
     private val schema = MockSchema.mk(
@@ -96,7 +96,7 @@ class ViaductTenantModuleBootstrapperNodeResolverTest {
             every { resolverClassesInPackage() } returns emptySet()
         }
         return ViaductTenantModuleBootstrapper(
-            tenantCodeInjector = TenantCodeInjector.Naive,
+            tenantCodeInjector = CodeInjector.Naive,
             tenantResolverClassFinder = classFinder,
             grtConvFactory = DefaultGRTConvFactory,
         )
