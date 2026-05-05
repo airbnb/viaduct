@@ -77,8 +77,8 @@ internal fun EngineSelectionSet.relation(
     schema: ViaductSchema,
     selection: EngineSelection
 ): GraphQLTypeRelation.Relation {
-    val ssType = schema.schema.getTypeAs<GraphQLCompositeType>(type)
-    val selectionType = schema.schema.getTypeAs<GraphQLCompositeType>(selection.typeCondition)
+    val ssType = schema.schema.getTypeAs<GraphQLCompositeType>(type)!!
+    val selectionType = schema.schema.getTypeAs<GraphQLCompositeType>(selection.typeCondition)!!
     return schema.rels.relation(ssType, selectionType)
 }
 

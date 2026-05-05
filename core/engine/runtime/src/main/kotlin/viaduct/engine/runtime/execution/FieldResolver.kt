@@ -140,10 +140,10 @@ class FieldResolver(
             }
 
             // Wait for all values to be completed.
+            @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
             return overall
                 .map {
                     resolveObjectCtx.onCompleted(Unit, null)
-                    it
                 }.recover { t ->
                     resolveObjectCtx.onCompleted(null, t)
                     Value.fromThrowable(t)
@@ -205,7 +205,6 @@ class FieldResolver(
                 }
             }.map {
                 resolveObjectCtx.onCompleted(Unit, null)
-                it
             }.recover { t ->
                 resolveObjectCtx.onCompleted(null, t)
                 Value.fromThrowable(t)
@@ -633,7 +632,7 @@ class FieldResolver(
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
     ): Pair<Value<FieldResolutionResult>, Value<out CheckerResult?>> =
         try {
-            val fieldDef = parameters.executionStepInfo.fieldDefinition
+            val fieldDef = parameters.executionStepInfo.fieldDefinition!!
             var dataFetcher = parameters.graphQLSchema.codeRegistry.getDataFetcher(
                 FieldExecutionHelpers.coordinateOfField(parameters, field),
                 fieldDef
@@ -661,7 +660,7 @@ class FieldResolver(
 
             // For top-level mutation and subscription fields, execute the data fetcher only if the access check succeeds.
             // For everything else, execute the access check in parallel with the data fetcher.
-            val executeCheckerSequentially = when (parameters.executionStepInfo.objectType.name) {
+            val executeCheckerSequentially = when (parameters.executionStepInfo.objectType!!.name) {
                 parameters.graphQLSchema.mutationType?.name,
                 parameters.graphQLSchema.subscriptionType?.name -> true
                 else -> false

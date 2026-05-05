@@ -135,6 +135,7 @@ class ViaductExecutionStrategy internal constructor(
                 }
             }.getOrNull()
 
+            @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
             return ExecutionResult.newExecutionResult()
                 .data(data)
                 .errors(errors)
@@ -284,8 +285,8 @@ class ViaductExecutionStrategy internal constructor(
         val schema = executionContext.graphQLSchema
         return when (operation) {
             OperationDefinition.Operation.QUERY -> ObjectEngineResultImpl.newForType(schema.queryType)
-            OperationDefinition.Operation.MUTATION -> ObjectEngineResultImpl.newForType(schema.mutationType)
-            OperationDefinition.Operation.SUBSCRIPTION -> ObjectEngineResultImpl.newForType(schema.subscriptionType)
+            OperationDefinition.Operation.MUTATION -> ObjectEngineResultImpl.newForType(schema.mutationType!!)
+            OperationDefinition.Operation.SUBSCRIPTION -> ObjectEngineResultImpl.newForType(schema.subscriptionType!!)
             else -> throw IllegalStateException("Unsupported operation type: $operation")
         }
     }

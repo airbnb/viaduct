@@ -116,6 +116,7 @@ data class ExecutionParameters(
     /** The root ObjectEngineResult for the entire request */
     val rootEngineResult: ObjectEngineResultImpl = constants.rootEngineResult
 
+    @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
     val gjParameters: ExecutionStrategyParameters = ExecutionStrategyParameters.newParameters()
         // graphql-java requires a merged selection set, though our execution strategy doesn't use it.
         // provide a placeholder value
@@ -158,7 +159,7 @@ data class ExecutionParameters(
         field: QueryPlan.CollectedField
     ): ExecutionParameters {
         val coord = objectType.name to field.mergedField.name
-        val fieldDef = executionContext.graphQLSchema.getFieldDefinition(coord.gj)
+        val fieldDef = executionContext.graphQLSchema.getFieldDefinition(coord.gj)!!
         val path = path.segment(field.responseKey)
         val mergedField = field.mergedField
         val executionStepInfo = FieldExecutionHelpers.createExecutionStepInfo(
@@ -283,6 +284,7 @@ data class ExecutionParameters(
         parentFieldStepInfo: ExecutionStepInfo?,
     ): ExecutionParameters {
         // Build execution step info based on plan type
+        @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
         val childExecutionStepInfo = if (isRootQueryQueryPlan) {
             // Query-type child plans get a completely fresh execution context
             ExecutionStepInfo.newExecutionStepInfo()
@@ -298,8 +300,8 @@ data class ExecutionParameters(
             val esiBuilder = ExecutionStepInfo.newExecutionStepInfo(parentFieldStepInfo).type(objectType)
             // if the field isn't null, update it
             if (parentFieldStepInfo.field != null) {
-                val parentMergedField = parentFieldStepInfo.field
-                val parentFieldType = parentFieldStepInfo.fieldDefinition.type?.let(GraphQLTypeUtil::unwrapAll)
+                val parentMergedField = parentFieldStepInfo.field!!
+                val parentFieldType = GraphQLTypeUtil.unwrapAll(parentFieldStepInfo.fieldDefinition!!.type)
                 val requiresInlineFragment = parentFieldType !is GraphQLObjectType
                 val updatedSelectionSet: GJSelectionSet =
                     if (requiresInlineFragment) {
@@ -333,9 +335,9 @@ data class ExecutionParameters(
             esiBuilder.build()
         }
 
-        val localContext = if (isRootQueryQueryPlan) {
+        val localContext: CompositeLocalContext = if (isRootQueryQueryPlan) {
             // For root query plans, we use the root local context
-            executionContext.getLocalContext()
+            executionContext.getLocalContext() as CompositeLocalContext
         } else {
             // For object plans, we use the current local context
             localContext
@@ -460,7 +462,7 @@ data class ExecutionParameters(
                     coercedVariables = executionContext.coercedVariables,
                     queryPlan = queryPlan,
                     source = executionContext.getRoot(),
-                    localContext = executionContext.getLocalContext(),
+                    localContext = executionContext.getLocalContext() as CompositeLocalContext,
                     executionStepInfo = parameters.executionStepInfo,
                     selectionSet = queryPlan.selectionSet,
                     errorAccumulator = ErrorAccumulator(),

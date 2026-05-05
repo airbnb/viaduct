@@ -94,7 +94,7 @@ private fun validateNoUnusedFragments(document: Document): List<ValidationError>
                         fragment.name
                     }' is unused."
                 )
-                .sourceLocation(fragment.sourceLocation)
+                .sourceLocation(fragment.sourceLocation!!)
                 .build()
         }
     }

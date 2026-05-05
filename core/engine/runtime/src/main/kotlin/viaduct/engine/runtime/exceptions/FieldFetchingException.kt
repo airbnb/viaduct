@@ -23,7 +23,7 @@ class FieldFetchingException private constructor(
 
     fun toGraphQLError(): GraphQLError {
         return GraphQLError.newError()
-            .message(cause?.message)
+            .message(cause?.message ?: "Unknown error")
             .errorType(ErrorClassification.errorClassification("VIADUCT_FIELD_FETCHING_EXCEPTION"))
             .path(path)
             .location(location)

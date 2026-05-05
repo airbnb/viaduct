@@ -164,7 +164,7 @@ class FromFieldVariablesHaveValidPaths(
             .firstOrNull { it.selectionName == segment }
             ?: throw InvalidVariableException(coord, variableName, "No selection found for $segment in path $selectionPath")
 
-        val selectionType = schema.schema.getFieldDefinition(selection.coord.gj).type
+        val selectionType = schema.schema.getFieldDefinition(selection.coord.gj)!!.type
         if (isTerminal) {
             val unwrappedSelectionType = GraphQLTypeUtil.unwrapAll(selectionType)
             if (unwrappedSelectionType !is GraphQLScalarType && unwrappedSelectionType !is GraphQLEnumType) {

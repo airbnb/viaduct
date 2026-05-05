@@ -78,7 +78,6 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
         operationName: String?,
         exception: Throwable,
     ): ErrorReporter.Metadata {
-        if (params.fieldDefinition == null) return ErrorReporter.Metadata.EMPTY
         val isFrameworkError = when (exception) {
             is FrameworkException -> true
             is TenantResolverException -> false
@@ -86,7 +85,7 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
             else -> null
         }
 
-        val fieldName = params.fieldDefinition?.name
+        val fieldName = params.fieldDefinition.name
         val parentType = (params.dataFetchingEnvironment.parentType as? GraphQLNamedType)?.name
 
         val env = params.dataFetchingEnvironment
@@ -118,7 +117,7 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
             viaductError.locations?.let { locations ->
                 builder.locations(locations.map { graphql.language.SourceLocation(it.line, it.column, it.sourceName) })
             }
-            builder.extensions(viaductError.extensions ?: emptyMap())
+            builder.extensions(viaductError.extensions)
             builder.build()
         }
 

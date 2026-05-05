@@ -12,7 +12,7 @@ import viaduct.engine.runtime.validation.Validator
 class MissingResolverValidator(
     private val schema: ViaductSchema,
 ) : Validator<MissingResolverValidationCtx> {
-    override fun validate(ctx: MissingResolverValidationCtx) {
+    override fun validate(t: MissingResolverValidationCtx) {
         val missingFieldResolvers = mutableListOf<String>()
         val missingNodeResolvers = mutableListOf<String>()
 
@@ -20,15 +20,15 @@ class MissingResolverValidator(
             if (type !is GraphQLObjectType || type.name.startsWith("__")) return@forEach
 
             if (type.hasAppliedDirective(RESOLVER_DIRECTIVE)) {
-                if (ctx.dispatcherRegistry.getNodeResolverDispatcher(type.name) == null) {
+                if (t.dispatcherRegistry.getNodeResolverDispatcher(type.name) == null) {
                     missingNodeResolvers.add(type.name)
                 }
             }
 
-            type.fieldDefinitions.forEach { field ->
-                if (field.name.startsWith("__")) return@forEach
+            type.fieldDefinitions.forEach fieldLoop@{ field ->
+                if (field.name.startsWith("__")) return@fieldLoop
                 if (field.hasAppliedDirective(RESOLVER_DIRECTIVE)) {
-                    if (ctx.dispatcherRegistry.getFieldResolverDispatcher(type.name, field.name) == null) {
+                    if (t.dispatcherRegistry.getFieldResolverDispatcher(type.name, field.name) == null) {
                         missingFieldResolvers.add("${type.name}.${field.name}")
                     }
                 }

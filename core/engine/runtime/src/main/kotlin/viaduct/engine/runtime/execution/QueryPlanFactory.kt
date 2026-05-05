@@ -149,7 +149,7 @@ interface QueryPlanFactory {
             require(gjSelectionSet.selections.isNotEmpty()) {
                 "Empty selections are not supported for completeSelectionSet execution"
             }
-            val parentType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(parsedSelections.typeName)
+            val parentType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(parsedSelections.typeName)!!
             return QueryPlanBuilder(
                 parameters.copy(query = parsedSelections.printAsFieldSet(), executionCondition = executionCondition),
                 parsedSelections.fragmentMap,
@@ -172,12 +172,12 @@ interface QueryPlanFactory {
             return when (definition) {
                 is OperationDefinition -> when (definition.operation) {
                     OperationDefinition.Operation.QUERY -> parameters.schema.schema.queryType
-                    OperationDefinition.Operation.MUTATION -> parameters.schema.schema.mutationType
-                    OperationDefinition.Operation.SUBSCRIPTION -> parameters.schema.schema.subscriptionType
+                    OperationDefinition.Operation.MUTATION -> parameters.schema.schema.mutationType!!
+                    OperationDefinition.Operation.SUBSCRIPTION -> parameters.schema.schema.subscriptionType!!
                     else -> throw IllegalStateException("Unsupported operation type: ${definition.operation}")
                 }
 
-                is GJFragmentDefinition -> parameters.schema.schema.getType(definition.typeCondition.name) as? GraphQLCompositeType
+                is GJFragmentDefinition -> parameters.schema.schema.getType(definition.typeCondition.name!!) as? GraphQLCompositeType
                     ?: throw IllegalStateException("Type ${definition.typeCondition.name} not found in schema.")
 
                 else -> throw IllegalArgumentException("Unsupported definition type: ${definition::class}")
@@ -435,7 +435,7 @@ private class QueryPlanBuilder(
     ): State =
         with(state) {
             val coord = (state.parentType.name to sel.name)
-            val fieldDef = parameters.schema.schema.getFieldDefinition(coord.gj)
+            val fieldDef = parameters.schema.schema.getFieldDefinition(coord.gj)!!
             val fieldType = GraphQLTypeUtil.unwrapAll(fieldDef.type) as GraphQLNamedOutputType
 
             val possibleParentTypes = parameters.schema.rels.possibleObjectTypes(parentType)
@@ -541,7 +541,7 @@ private class QueryPlanBuilder(
         with(state) {
             val name = sel.name
             val gjdef = checkNotNull(fragmentsByName[name]) { "Missing fragment definition: $name" }
-            val fragType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(gjdef.typeCondition.name)
+            val fragType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(gjdef.typeCondition.name!!)!!
 
             if (name !in fragments) {
                 val fragState = buildState(
@@ -639,7 +639,7 @@ private fun buildRssPlan(
         rssBuildContext
     }
     localBuildContext.building.add(rss)
-    val parentType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(rss.selections.typeName)
+    val parentType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(rss.selections.typeName)!!
     val plan = QueryPlanBuilder(parameters, rss.selections.fragmentMap, rss.variablesResolvers, localBuildContext)
         .build(rss.selections.selections, parentType, rss.attribution, rss.executionCondition)
     localBuildContext.building.remove(rss)

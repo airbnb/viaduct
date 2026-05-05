@@ -116,12 +116,10 @@ object SyncEngineObjectDataFactory {
             val cell = objectEngineResult.getCellOptimistically(oerKey(selectionSet, engineSelection))
             selectionStates += SelectionState(selectionName, selectionPath, cell, subselections)
 
-            if (cell is Cell) {
-                @Suppress("UNCHECKED_CAST")
-                cellValues += cell.getValue(RAW_VALUE_SLOT) as Value<Any?>
-                @Suppress("UNCHECKED_CAST")
-                cellValues += cell.getValue(ACCESS_CHECK_SLOT) as Value<Any?>
-            }
+            @Suppress("UNCHECKED_CAST")
+            cellValues += cell.getValue(RAW_VALUE_SLOT) as Value<Any?>
+            @Suppress("UNCHECKED_CAST")
+            cellValues += cell.getValue(ACCESS_CHECK_SLOT) as Value<Any?>
         }
 
         // Single suspension point: await all incomplete cell slot values concurrently.

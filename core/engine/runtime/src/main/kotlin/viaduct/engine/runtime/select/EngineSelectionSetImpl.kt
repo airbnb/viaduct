@@ -50,8 +50,9 @@ data class FieldSelection(
 ) {
     override fun toString(): String =
         buildString {
-            if (field.alias != null) {
-                append(field.alias + ":")
+            val alias = field.alias
+            if (alias != null) {
+                append("$alias:")
             }
             append(typeCondition.name)
             append(".")
@@ -256,11 +257,12 @@ data class EngineSelectionSetImpl(
                         )
 
                     is InlineFragment -> {
+                        val typeConditionName = sel.typeCondition?.name
                         val u =
-                            if (sel.typeCondition == null) {
+                            if (typeConditionName == null) {
                                 type
                             } else {
-                                compositeType(sel.typeCondition.name)
+                                compositeType(typeConditionName)
                             }
                         acc.withTypedSelections(u, sel.selectionSet, childConstraints, spreadFragments)
                     }
@@ -271,7 +273,7 @@ data class EngineSelectionSetImpl(
                         }
 
                         val frag = getFragmentDefinition(sel.name)
-                        val u = compositeType(frag.typeCondition.name)
+                        val u = compositeType(frag.typeCondition.name!!)
                         acc.withTypedSelections(
                             u,
                             frag.selectionSet,
@@ -402,10 +404,11 @@ data class EngineSelectionSetImpl(
                 withDirectives(sel.directives).clearTypes()
 
             is InlineFragment -> {
-                val typeCondition = if (sel.typeCondition == null) {
+                val typeConditionName = sel.typeCondition?.name
+                val typeCondition = if (typeConditionName == null) {
                     def
                 } else {
-                    compositeType(sel.typeCondition.name)
+                    compositeType(typeConditionName)
                 }
                 withDirectives(sel.directives).narrowToImpls(typeCondition, ctx.schema)
             }
@@ -413,7 +416,7 @@ data class EngineSelectionSetImpl(
             is FragmentSpread -> {
                 val frag = getFragmentDefinition(sel.name)
                 withDirectives(sel.directives).narrowToImpls(
-                    compositeType(frag.typeCondition.name),
+                    compositeType(frag.typeCondition.name!!),
                     ctx.schema
                 )
             }
@@ -432,7 +435,7 @@ data class EngineSelectionSetImpl(
                 val u = cfs.first().typeCondition
                 if (u is GraphQLFieldsContainer) {
                     val coord = (u.name to fname).gj
-                    val field = ctx.schema.schema.getFieldDefinition(coord)
+                    val field = ctx.schema.schema.getFieldDefinition(coord)!!
                     if (GraphQLTypeUtil.unwrapAll(field.type) is GraphQLCompositeType) {
                         selectionSetForField(u.name, fname).isTransitivelyEmpty()
                     } else {
@@ -476,7 +479,7 @@ data class EngineSelectionSetImpl(
 
     private fun fieldDefinition(sel: FieldSelection): GraphQLFieldDefinition {
         val coord = (sel.typeCondition.name to sel.field.name).gj
-        return ctx.schema.schema.getFieldDefinition(coord)
+        return ctx.schema.schema.getFieldDefinition(coord)!!
     }
 
     private fun asEagerlyInlined(
@@ -502,7 +505,7 @@ data class EngineSelectionSetImpl(
                 if (sel.selectionSet == null) {
                     sel
                 } else {
-                    asEagerlyInlined(sel.selectionSet, child)?.let { ss ->
+                    asEagerlyInlined(sel.selectionSet!!, child)?.let { ss ->
                         sel.transform { it.selectionSet(ss) }
                     }
                 }

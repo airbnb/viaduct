@@ -27,7 +27,7 @@ class InternalEngineException private constructor(
 
     fun toGraphQLError(): GraphQLError {
         return GraphQLError.newError()
-            .message(cause?.message)
+            .message(cause?.message ?: "Unknown error")
             .errorType(ErrorClassification.errorClassification("VIADUCT_INTERNAL_ENGINE_EXCEPTION"))
             .path(path)
             .location(location)

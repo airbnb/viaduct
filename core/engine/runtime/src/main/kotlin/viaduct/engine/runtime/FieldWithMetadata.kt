@@ -36,8 +36,8 @@ class FieldWithMetadata(
         return FieldWithMetadata(
             name,
             alias,
-            deepCopy(arguments),
-            deepCopy(directives),
+            deepCopy(arguments)!!,
+            deepCopy(directives)!!,
             deepCopy(selectionSet),
             sourceLocation,
             comments,
@@ -58,7 +58,7 @@ class FieldWithMetadata(
             '}'
     }
 
-    override fun transform(builderConsumer: Consumer<Builder>?): Field {
+    override fun transform(builderConsumer: Consumer<Builder>): Field {
         return super.transform(builderConsumer).let {
             fromFieldWithMetadata(it, metadata)
         }

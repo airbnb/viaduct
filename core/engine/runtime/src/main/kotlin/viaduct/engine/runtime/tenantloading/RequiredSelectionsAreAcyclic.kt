@@ -134,7 +134,7 @@ class RequiredSelectionsAreAcyclic(
         val type = schema.schema.getType(typeName)
         return when (type) {
             is GraphQLObjectType -> listOf(typeName)
-            is GraphQLInterfaceType -> schema.schema.getImplementations(type).map { it.name }
+            is GraphQLInterfaceType -> schema.schema.getImplementations(type)!!.map { it.name }
             is GraphQLUnionType -> type.types.map { it.name }
             else -> throw IllegalArgumentException("Unexpected non-composite type $type")
         }

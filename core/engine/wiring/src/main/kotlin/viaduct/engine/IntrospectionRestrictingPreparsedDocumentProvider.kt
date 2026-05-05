@@ -35,7 +35,7 @@ class IntrospectionRestrictingPreparsedDocumentProvider(
                         .validationErrorType(ValidationErrorType.SubselectionNotAllowed)
                         .description("$operationType operations cannot introspect the schema.")
                         .build()
-                    PreparsedDocumentEntry(baseEntry.document, baseEntry.errors + error)
+                    PreparsedDocumentEntry(baseEntry.document!!, baseEntry.errors + error)
                 }
 
                 OperationDefinition.Operation.QUERY -> {
@@ -46,7 +46,7 @@ class IntrospectionRestrictingPreparsedDocumentProvider(
                             .validationErrorType(ValidationErrorType.SubselectionNotAllowed)
                             .description("Introspective queries cannot select non-introspective fields.")
                             .build()
-                        PreparsedDocumentEntry(baseEntry.document, (baseEntry?.errors ?: emptyList<GraphQLError>()) + error)
+                        PreparsedDocumentEntry(baseEntry.document!!, (baseEntry.errors ?: emptyList<GraphQLError>()) + error)
                     }
                 }
             }

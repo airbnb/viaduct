@@ -111,7 +111,7 @@ internal class ProjectedEngineSelectionSet(
                 val u = cfs.first().typeCondition
                 if (u is GraphQLFieldsContainer) {
                     val coord = (u.name to fname).gj
-                    val field = ctx.schema.schema.getFieldDefinition(coord)
+                    val field = ctx.schema.schema.getFieldDefinition(coord)!!
 
                     val unwrapped = GraphQLTypeUtil.unwrapAll(field.type)
                     if (unwrapped is GraphQLCompositeType) {
@@ -176,7 +176,7 @@ internal class ProjectedEngineSelectionSet(
 
     private fun fieldDef(sel: FieldSelection): GraphQLFieldDefinition {
         val coord = (sel.typeCondition.name to sel.field.name).gj
-        return ctx.schema.schema.getFieldDefinition(coord)
+        return ctx.schema.schema.getFieldDefinition(coord)!!
     }
 
     private fun FieldSelection.toEngineSelection(): EngineSelection =

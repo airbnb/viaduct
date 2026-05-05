@@ -55,7 +55,7 @@ object FieldExecutionHelpers {
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField
     ): FieldCoordinates {
-        val objectType = parameters.executionStepInfo.objectType
+        val objectType = parameters.executionStepInfo.objectType!!
         val fieldName = field.mergedField.name
         return (objectType.name to fieldName).gj
     }
@@ -90,7 +90,7 @@ object FieldExecutionHelpers {
         val mergedField = checkNotNull(field.mergedField) {
             "FieldExecutionHelpers.buildDataFetchingEnvironment requires a merged field"
         }
-        val fieldDef = parameters.executionStepInfo.fieldDefinition
+        val fieldDef = parameters.executionStepInfo.fieldDefinition!!
         val execStepInfoSupplier = { parameters.executionStepInfo }
         val argumentValuesSupplier = { parameters.executionStepInfo.arguments }
         val normalizedFieldSupplier = getNormalizedField(parameters.executionContext, parameters.gjParameters, execStepInfoSupplier)
@@ -98,6 +98,7 @@ object FieldExecutionHelpers {
             // ViaductExecutionStrategy does not use NormalizedVariables, though the GJ interface requires them.
             NormalizedVariables.emptyVariables()
         }
+        @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
         val fieldCollector = DataFetchingFieldSelectionSetImpl.newCollector(
             parameters.graphQLSchema,
             fieldDef.type,
@@ -138,6 +139,7 @@ object FieldExecutionHelpers {
             }
         }
 
+        @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
         val dfe = DataFetchingEnvironmentImpl.newDataFetchingEnvironment(parameters.executionContext)
             .source(parameters.source)
             .localContext(localContext)
@@ -177,6 +179,7 @@ object FieldExecutionHelpers {
     ): ExecutionStepInfo {
         val fieldType = fieldDefinition.type
 
+        @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
         return ExecutionStepInfo.newExecutionStepInfo()
             .type(fieldType)
             .fieldDefinition(fieldDefinition)

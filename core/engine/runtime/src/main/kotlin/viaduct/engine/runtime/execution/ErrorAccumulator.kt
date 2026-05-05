@@ -12,7 +12,7 @@ class ErrorAccumulator {
 
     /** add a single error */
     fun add(error: GraphQLError) {
-        val pathString = pathString(error.path)
+        val pathString = pathString(error.path ?: emptyList())
         errors.putIfAbsent(pathString, error)
     }
 

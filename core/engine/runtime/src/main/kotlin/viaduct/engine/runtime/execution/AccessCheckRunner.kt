@@ -47,7 +47,7 @@ class AccessCheckRunner(
 
         val field = checkNotNull(parameters.field) { "Expected field to be non-null." }
         val fieldName = field.fieldName
-        val parentTypeName = parameters.executionStepInfo.objectType.name
+        val parentTypeName = parameters.executionStepInfo.objectType!!.name
         val checkerDispatcher = engineExecutionContext.dispatcherRegistry.getFieldCheckerDispatcher(parentTypeName, fieldName)
             ?: return Value.nullValue // No access check for this field, return immediately
 
@@ -196,7 +196,7 @@ class AccessCheckRunner(
             }
             log.ifDebug {
                 val fieldCoord = if (checkerType == CheckerExecutor.CheckerType.FIELD) {
-                    "${parameters.executionStepInfo.objectType.name}.${parameters.field!!.fieldName}"
+                    "${parameters.executionStepInfo.objectType!!.name}.${parameters.field!!.fieldName}"
                 } else {
                     "${objectEngineResult.type.name}"
                 }

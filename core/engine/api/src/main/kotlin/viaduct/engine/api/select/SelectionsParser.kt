@@ -13,7 +13,7 @@ object SelectionsParser {
     /** Return a [ParsedSelections] from the provided [Fragment] */
     fun parse(fragment: Fragment): ParsedSelections =
         ParsedSelections(
-            fragment.definition.typeCondition.name,
+            fragment.definition.typeCondition.name!!,
             fragment.definition.selectionSet,
             fragment.parsedDocument.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
         )
