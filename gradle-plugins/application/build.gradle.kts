@@ -12,7 +12,7 @@ java {
 }
 
 dependencies {
-    implementation(project(":plugins-common"))
+    implementation(project(":common"))
 
     // Libraries the plugin source imports directly (binary schema generation).
     // tenant-codegen and serve are NOT here — they are external tool artifacts resolved at
