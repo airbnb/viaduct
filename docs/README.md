@@ -102,7 +102,12 @@ If any broken links are found, the linter will report them with the file, line n
 
 ### CI Integration
 
-The linter runs automatically in the `docs-link-check` job in the GitHub Actions workflow. It runs after the build job completes (since it needs the Dokka-generated API documentation).
+The linter runs automatically in two places:
+
+- The `dokka` job in the GitHub Actions `build-and-test` workflow.
+- The internal `Validate MkDocs Build` JORB job (`_infra/ci/jobs/validate_mkdocs_build.yml`).
+
+Both jobs build the MkDocs site and generate Dokka output before running `djlint` with the `LINK001` rule.
 
 ## Directory Structure
 
