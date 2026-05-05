@@ -1,6 +1,7 @@
 package viaduct.api.internal
 
 import kotlin.collections.Map as KMap
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineSelectionSet
 
 /**
@@ -13,6 +14,7 @@ import viaduct.engine.api.EngineSelectionSet
  * A [KeyMapping] is a "type hint" about the nature of an object key, which can be used by
  * a Conv to correctly map object values.
  */
+@InternalApi
 data class KeyMapping(val fromType: KeyType, val toType: KeyType) {
     /** The type of key in an object */
     enum class KeyType {

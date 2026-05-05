@@ -12,6 +12,7 @@ import graphql.schema.GraphQLType
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.mapping.graphql.Conv
@@ -23,6 +24,7 @@ import viaduct.mapping.graphql.IR
  *
  * @see JsonConv.invoke
  */
+@InternalApi
 object JsonConv {
     private val objectMapper = ObjectMapper()
     @Suppress("ObjectPropertyNaming")
