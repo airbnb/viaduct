@@ -70,8 +70,12 @@ public abstract class JavaInputBase implements GraphQLInput {
         "JavaInputBase.getScalarList: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
-          if (value == null) return null;
-          if (value instanceof List<?>) return (List<T>) value;
+          if (value == null) {
+            return null;
+          }
+          if (value instanceof List<?>) {
+            return (List<T>) value;
+          }
           throw new FrameworkException(
               "Expected List for field '" + fieldName + "', got " + value.getClass().getName(),
               null);
@@ -92,7 +96,9 @@ public abstract class JavaInputBase implements GraphQLInput {
         "JavaInputBase.getScalarList: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
-          if (value == null) return null;
+          if (value == null) {
+            return null;
+          }
           if (value instanceof List<?> list) {
             List<Object> coerced = new ArrayList<>(list.size());
             for (Object element : list) {
@@ -118,8 +124,12 @@ public abstract class JavaInputBase implements GraphQLInput {
         "JavaInputBase.getInput: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
-          if (value == null) return null;
-          if (value instanceof JavaInputBase) return (T) value;
+          if (value == null) {
+            return null;
+          }
+          if (value instanceof JavaInputBase) {
+            return (T) value;
+          }
           if (value instanceof Map<?, ?> map) {
             return constructor.apply((Map<String, Object>) map);
           }
@@ -138,7 +148,9 @@ public abstract class JavaInputBase implements GraphQLInput {
         "JavaInputBase.getInputList: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
-          if (value == null) return null;
+          if (value == null) {
+            return null;
+          }
           if (value instanceof List<?> list) {
             List<T> wrapped = new ArrayList<>(list.size());
             for (Object element : list) {
@@ -169,8 +181,12 @@ public abstract class JavaInputBase implements GraphQLInput {
         "JavaInputBase.getEnum: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
-          if (value == null) return null;
-          if (enumClass.isInstance(value)) return (E) value;
+          if (value == null) {
+            return null;
+          }
+          if (enumClass.isInstance(value)) {
+            return (E) value;
+          }
           return Enum.valueOf(enumClass, value.toString());
         });
   }
@@ -183,7 +199,9 @@ public abstract class JavaInputBase implements GraphQLInput {
         "JavaInputBase.getEnumList: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
-          if (value == null) return null;
+          if (value == null) {
+            return null;
+          }
           if (value instanceof List<?> list) {
             List<E> wrapped = new ArrayList<>(list.size());
             for (Object element : list) {
