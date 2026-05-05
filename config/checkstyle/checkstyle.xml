@@ -17,6 +17,24 @@
         <property name="eachLine" value="true"/>
     </module>
 
+    <!-- Suppress MethodName in test sources to allow underscores (idiomatic Java test naming) -->
+    <module name="SuppressionSingleFilter">
+        <property name="checks" value="MethodName"/>
+        <property name="files" value="src[\\/]test[\\/]"/>
+    </module>
+
+    <!-- Suppress InterfaceIsType for marker interfaces with constants -->
+    <module name="SuppressionSingleFilter">
+        <property name="checks" value="InterfaceIsType"/>
+        <property name="files" value="(CompositeOutput|Arguments)\.java$"/>
+    </module>
+
+    <!-- Suppress ConstantName for intentional marker constants -->
+    <module name="SuppressionSingleFilter">
+        <property name="checks" value="ConstantName"/>
+        <property name="files" value="(CompositeOutput|Arguments)\.java$"/>
+    </module>
+
     <module name="TreeWalker">
         <!-- Checks for Naming Conventions -->
         <module name="ConstantName"/>

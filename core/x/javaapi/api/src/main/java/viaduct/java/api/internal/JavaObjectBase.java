@@ -479,7 +479,9 @@ public abstract class JavaObjectBase implements GraphQLObject {
     return HandleErrors.framework(
         "JavaObjectBase.coerceScalar: " + scalarType,
         () -> {
-          if (raw == null || scalarType == null) return raw;
+          if (raw == null || scalarType == null) {
+            return raw;
+          }
           return switch (scalarType) {
             case "DateTime" -> coerceToInstant(raw);
             case "Date" -> coerceToLocalDate(raw);
@@ -494,7 +496,9 @@ public abstract class JavaObjectBase implements GraphQLObject {
    * Instant pass-through, String parsed as ISO_OFFSET_DATE_TIME and converted to Instant.
    */
   private static Instant coerceToInstant(Object value) throws FrameworkException {
-    if (value instanceof Instant instant) return instant;
+    if (value instanceof Instant instant) {
+      return instant;
+    }
     if (value instanceof String s) {
       return OffsetDateTime.parse(s, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant();
     }
@@ -506,8 +510,12 @@ public abstract class JavaObjectBase implements GraphQLObject {
    * LocalDate.parse().
    */
   private static LocalDate coerceToLocalDate(Object value) throws FrameworkException {
-    if (value instanceof LocalDate date) return date;
-    if (value instanceof String s) return LocalDate.parse(s);
+    if (value instanceof LocalDate date) {
+      return date;
+    }
+    if (value instanceof String s) {
+      return LocalDate.parse(s);
+    }
     throw new FrameworkException("Could not convert " + value + " to LocalDate.", null);
   }
 
@@ -516,8 +524,12 @@ public abstract class JavaObjectBase implements GraphQLObject {
    * OffsetTime.parse().
    */
   private static OffsetTime coerceToOffsetTime(Object value) throws FrameworkException {
-    if (value instanceof OffsetTime time) return time;
-    if (value instanceof String s) return OffsetTime.parse(s);
+    if (value instanceof OffsetTime time) {
+      return time;
+    }
+    if (value instanceof String s) {
+      return OffsetTime.parse(s);
+    }
     throw new FrameworkException("Could not convert " + value + " to OffsetTime.", null);
   }
 }

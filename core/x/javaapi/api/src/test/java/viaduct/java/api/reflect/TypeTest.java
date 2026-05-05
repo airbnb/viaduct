@@ -8,11 +8,11 @@ import viaduct.java.api.types.GRT;
 
 class TypeTest {
 
-  static class TestGRT implements GRT {}
+  static class TestGRT implements GRT { }
 
-  static class AnotherTestGRT implements GRT {}
+  static class AnotherTestGRT implements GRT { }
 
-  static class NotAGRT {}
+  static class NotAGRT { }
 
   @Test
   void ofClass_returnsTypeWithCorrectName() {

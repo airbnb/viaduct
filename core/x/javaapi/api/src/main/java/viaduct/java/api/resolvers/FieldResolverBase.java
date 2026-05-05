@@ -74,5 +74,5 @@ public interface FieldResolverBase<
    */
   interface Context<
           O extends GraphQLObject, Q extends Query, A extends Arguments, S extends CompositeOutput>
-      extends FieldExecutionContext<O, Q, A, S> {}
+      extends FieldExecutionContext<O, Q, A, S> { }
 }

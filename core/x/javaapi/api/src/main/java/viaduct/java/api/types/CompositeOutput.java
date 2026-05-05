@@ -4,7 +4,7 @@ package viaduct.java.api.types;
 public interface CompositeOutput extends GRT {
 
   final class None implements CompositeOutput {
-    private None() {}
+    private None() { }
   }
 
   /**

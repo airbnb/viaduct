@@ -66,7 +66,7 @@ import viaduct.java.api.types.NodeObject;
 public interface NodeResolverBase<R extends NodeObject> {
 
   /** Context type alias for node resolvers, providing type-safe access to the node's global ID. */
-  interface Context<R extends NodeObject> extends NodeExecutionContext<R> {}
+  interface Context<R extends NodeObject> extends NodeExecutionContext<R> { }
 
   /**
    * Resolves a single node by its global ID.
