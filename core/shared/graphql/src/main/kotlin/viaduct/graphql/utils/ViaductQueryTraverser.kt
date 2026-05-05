@@ -179,7 +179,7 @@ class ViaductQueryTraverser private constructor(
     ): T? {
         var acc: T? = initialValue
         visitPostOrder(object : QueryVisitorStub() {
-            override fun visitField(env: QueryVisitorFieldEnvironment?) {
+            override fun visitField(env: QueryVisitorFieldEnvironment) {
                 acc = queryReducer.reduceField(env, acc)
             }
         })
@@ -201,7 +201,7 @@ class ViaductQueryTraverser private constructor(
     ): T? {
         var acc: T? = initialValue
         visitPreOrder(object : QueryVisitorStub() {
-            override fun visitField(env: QueryVisitorFieldEnvironment?) {
+            override fun visitField(env: QueryVisitorFieldEnvironment) {
                 acc = queryReducer.reduceField(env, acc)
             }
         })
