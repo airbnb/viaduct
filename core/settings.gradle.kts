@@ -13,6 +13,9 @@ plugins {
 // auto-substitution. Without self-inclusion, `version = INCLUDED` module deps resolve externally.
 includeBuild(".")
 includeBuild("../build-logic")
+// Core modules depend on the experimental x/remoteresolvers module; include it here so standalone
+// core builds (e.g. the OSV Gradle CI job) can substitute its coordinate too.
+includeBuild("../x/remoteresolvers")
 
 // Include core modules
 include(":engine:api")

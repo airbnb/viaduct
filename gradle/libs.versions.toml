@@ -30,7 +30,11 @@ kotlinx-debug = "1.8.1"
 kotlinx-metadata = "0.9.0"
 mockk-jvm = "1.13.3"
 reflections = "0.10.2"
+grpc = "1.66.0"
+grpc-kotlin = "1.4.1"
+protobuf = "3.25.1"
 slf4j = "2.0.7"
+slf4j-simple = "2.0.7"
 jspecify = "1.0.0"
 strikt = "0.35.1"
 micrometer = "1.10.8"
@@ -101,6 +105,8 @@ viaduct-snipped-errors = { module = "com.airbnb.viaduct:errors", version.ref = "
 viaduct-buildtime = { module = "com.airbnb.viaduct:buildtime", version.ref = "project" }
 viaduct-serve = { module = "com.airbnb.viaduct.service:serve", version.ref = "project" }
 
+viaduct-x-remoteresolvers = { module = "com.airbnb.viaduct:remoteresolvers", version.ref = "project" }
+
 # Kotlin
 ksp-gradle-plugin = { module = "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 ksp-symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
@@ -145,6 +151,18 @@ ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.re
 ktor-serialization-jackson = { module = "io.ktor:ktor-serialization-jackson", version.ref = "ktor" }
 micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometer" }
 idea-gradle-plugin = { module = "org.jetbrains.gradle.plugin.idea-ext:org.jetbrains.gradle.plugin.idea-ext.gradle.plugin", version.ref = "idea-gradle-plugin" }
+
+# gRPC and Protocol Buffers
+grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpc-kotlin" }
+grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
+grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+grpc-core = { module = "io.grpc:grpc-core", version.ref = "grpc" }
+grpc-inprocess = { module = "io.grpc:grpc-inprocess", version.ref = "grpc" }
+grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
+grpc-services = { module = "io.grpc:grpc-services", version.ref = "grpc" }
+protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
+protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j-simple" }
 
 # Testing
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }

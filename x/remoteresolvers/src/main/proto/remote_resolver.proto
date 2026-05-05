@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package viaduct.remote.grpc;
+
+option java_package = "viaduct.remote.grpc";
+option java_multiple_files = true;
+option java_outer_classname = "RemoteResolverProto";
+
+// Service for executing resolvers remotely (RRP -> RRS)
+service RemoteResolverService {
+  // Execute a batch of node resolver invocations
+  rpc BatchResolveNode(BatchResolveNodeRequest) returns (BatchResolveNodeResponse);
+}
+
+// Service for callbacks from resolver back to engine (RRS -> RRP)
+service EngineCallbackService {
+  // Execute a GraphQL query
+  rpc ExecuteQuery(QueryRequest) returns (QueryResponse);
+
+  // Execute a GraphQL mutation
+  rpc ExecuteMutation(QueryRequest) returns (QueryResponse);
+}
+
+// Request to resolve a batch of nodes
+message BatchResolveNodeRequest {
+  // Identifier for the NodeResolverExecutor to invoke
+  string executor_id = 1;
+
+  // List of node selectors to resolve
+  repeated Selector selectors = 2;
+
+  // Opaque handle to an EngineExecutionContext held by the sender; valid only for
+  // the duration of the request.
+  string context_handle = 3;
+
+  // Endpoint the remote service dials for re-entrant callbacks. Accepts either
+  // "host:port" (network) or an in-process channel name.
+  string callback_endpoint = 4;
+}
+
+// A single node to be resolved
+message Selector {
+  // Node ID
+  string id = 1;
+
+  // Opaque handle to an EngineSelectionSet held by the sender.
+  string selections_handle = 2;
+}
+
+// Response containing resolved nodes
+message BatchResolveNodeResponse {
+  // Results for each selector
+  repeated ResolvedNode results = 1;
+}
+
+// Result for a single node resolution
+message ResolvedNode {
+  // The selector ID this result corresponds to
+  string selector_id = 1;
+
+  // The resolution result (either success or error)
+  oneof result {
+    // Success: Map<String, Any?> serialized as JSON
+    bytes data_json = 2;
+
+    // Failure: error information
+    ErrorInfo error = 3;
+  }
+}
+
+// Error information for failed resolutions
+message ErrorInfo {
+  // Error message
+  string message = 1;
+
+  // Error type (fully qualified class name)
+  string error_type = 2;
+}
+
+// Request to execute a query or mutation
+message QueryRequest {
+  // Handle to the EngineExecutionContext
+  string context_handle = 1;
+
+  // Handle to RawSelectionSet for the query
+  string selections_handle = 2;
+
+  // Resolver ID for instrumentation
+  string resolver_id = 3;
+}
+
+// Response from query/mutation execution
+message QueryResponse {
+  // EngineObjectData serialized as JSON
+  bytes object_data_json = 1;
+}

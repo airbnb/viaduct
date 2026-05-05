@@ -35,6 +35,9 @@ includeBuild("core")
 includeBuild("publications")
 includeBuild("gradle-plugins")
 
+// experimental - include remoteresolvers as an included build so demo apps can depend on it
+includeBuild("x/remoteresolvers")
+
 // demo apps
 includeBuild("demoapps/cli-starter")
 includeBuild("demoapps/jetty-starter")

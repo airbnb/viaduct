@@ -1,0 +1,6 @@
+build:
+  maxIssues: -1
+
+viaduct-detekt-rules:
+  NoStringDependenciesInGradle:
+    active: false  # Disable for experimental module with gRPC/protobuf dependencies not yet in version catalog
