@@ -17,7 +17,7 @@ micronaut-starter/
 │   ├── main/kotlin/com/example/viadapp/
 │   │   └── production/                        # Production code (included in all builds)
 │   │       ├── ViaductConfiguration.kt        # Viaduct bean factory
-│   │       └── MicronautTenantCodeInjector.kt # DI bridge
+│   │       └── MicronautCodeInjector.kt # DI bridge
 │   └── dev/kotlin/com/example/viadapp/
 │       └── dev/                               # Development-only code (excluded from production)
 │           └── MicronautViaductFactory.kt    # ViaductServer integration
