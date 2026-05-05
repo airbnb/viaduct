@@ -33,7 +33,7 @@ object Scalars {
         GraphQLScalarType
             .newScalar()
             .name(ExtendedScalars.DateTime.name)
-            .description(ExtendedScalars.DateTime.description)
+            .description(ExtendedScalars.DateTime.description!!)
             .coercing(
                 object : Coercing<Any, Any> {
                     override fun serialize(

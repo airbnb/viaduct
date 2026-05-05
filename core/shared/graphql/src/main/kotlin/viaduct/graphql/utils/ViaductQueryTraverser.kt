@@ -134,10 +134,11 @@ class ViaductQueryTraverser private constructor(
             schema: GraphQLSchema,
             operationDefinition: OperationDefinition
         ): GraphQLObjectType =
-            when (operationDefinition.operation!!) {
+            when (val op = operationDefinition.operation) {
                 OperationDefinition.Operation.MUTATION -> checkNotNull(schema.mutationType)
                 OperationDefinition.Operation.QUERY -> checkNotNull(schema.queryType)
                 OperationDefinition.Operation.SUBSCRIPTION -> checkNotNull(schema.subscriptionType)
+                else -> throw IllegalStateException("Unknown operation: $op")
             }
 
         fun newQueryTraverser(): Builder = Builder()
@@ -173,17 +174,19 @@ class ViaductQueryTraverser private constructor(
      * @return the calculated overall value T
      * */
 
+    @Suppress("UPPER_BOUND_VIOLATED_BASED_ON_JAVA_ANNOTATIONS", "UNCHECKED_CAST")
     fun <T> reducePostOrder(
         queryReducer: QueryReducer<T?>,
         initialValue: T?
     ): T? {
-        var acc: T? = initialValue
+        val reducer = queryReducer as QueryReducer<Any?>
+        var acc: Any? = initialValue
         visitPostOrder(object : QueryVisitorStub() {
-            override fun visitField(env: QueryVisitorFieldEnvironment?) {
-                acc = queryReducer.reduceField(env, acc)
+            override fun visitField(env: QueryVisitorFieldEnvironment) {
+                acc = reducer.reduceField(env, acc as Any)
             }
         })
-        return acc
+        return acc as T?
     }
 
     /**
@@ -195,24 +198,26 @@ class ViaductQueryTraverser private constructor(
      *
      * @return the calculated overall value
      </T> */
+    @Suppress("UPPER_BOUND_VIOLATED_BASED_ON_JAVA_ANNOTATIONS", "UNCHECKED_CAST")
     fun <T> reducePreOrder(
         queryReducer: QueryReducer<T?>,
         initialValue: T?
     ): T? {
-        var acc: T? = initialValue
+        val reducer = queryReducer as QueryReducer<Any?>
+        var acc: Any? = initialValue
         visitPreOrder(object : QueryVisitorStub() {
-            override fun visitField(env: QueryVisitorFieldEnvironment?) {
-                acc = queryReducer.reduceField(env, acc)
+            override fun visitField(env: QueryVisitorFieldEnvironment) {
+                acc = reducer.reduceField(env, acc as Any)
             }
         })
-        return acc
+        return acc as T?
     }
 
-    private fun childrenOf(node: Node<*>): MutableList<Node<*>?>? {
+    private fun childrenOf(node: Node<*>): List<Node<*>?> {
         if (node !is FragmentSpread) {
             return node.children
         }
-        return mutableListOf<Node<*>?>(fragmentsByName[node.name])
+        return listOf(fragmentsByName[node.name])
     }
 
     private fun visitImpl(

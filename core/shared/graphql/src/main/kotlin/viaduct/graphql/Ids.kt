@@ -24,7 +24,7 @@ fun isGlobalID(field: GraphQLInputObjectField): Boolean = field.hasIdOfDirective
  */
 private fun globalIDType(dir: GraphQLAppliedDirective): String {
     require(dir.name == idOf)
-    return dir.getArgument("type").getValue()
+    return dir.getArgument("type")!!.getValue()
 }
 
 /**

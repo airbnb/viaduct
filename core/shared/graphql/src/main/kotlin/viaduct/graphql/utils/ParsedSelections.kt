@@ -145,7 +145,7 @@ private class PathFilter(val parsedSelections: ParsedSelections) {
                     ?.let { field ->
                         // traverse into subselections
                         if (field.selectionSet != null) {
-                            filterToPath(field.selectionSet, path.drop(1))
+                            filterToPath(field.selectionSet!!, path.drop(1))
                                 ?.let { filteredSelectionSet ->
                                     field.transform {
                                         it.selectionSet(filteredSelectionSet)

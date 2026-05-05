@@ -67,9 +67,9 @@ class ScopedSchemaBuilder(
 
     private fun replaceAllTypesWithReferences(inputSchema: GraphQLSchema): GraphQLSchema =
         inputSchema.transform {
-            it.query(replaceChildrenWithTypeReferences(inputSchema.queryType) as GraphQLObjectType?)
-            it.mutation(replaceChildrenWithTypeReferences(inputSchema.mutationType) as GraphQLObjectType?)
-            it.subscription(replaceChildrenWithTypeReferences(inputSchema.subscriptionType) as GraphQLObjectType?)
+            it.query(replaceChildrenWithTypeReferences(inputSchema.queryType) as GraphQLObjectType)
+            inputSchema.mutationType?.let { mt -> it.mutation(replaceChildrenWithTypeReferences(mt) as GraphQLObjectType) }
+            inputSchema.subscriptionType?.let { st -> it.subscription(replaceChildrenWithTypeReferences(st) as GraphQLObjectType) }
             val additionalTypes =
                 inputSchema.allTypesAsList
                     .filter {

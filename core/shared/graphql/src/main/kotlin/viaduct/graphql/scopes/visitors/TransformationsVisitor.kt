@@ -159,7 +159,7 @@ internal class TransformationsVisitor(
                         )
 
                         val values = newChildren.map { it.definition }
-                        val newEnumTypeDefinition = element.definition?.transform {
+                        val newEnumTypeDefinition = element.definition.transform {
                             it.enumValueDefinitions(values)
                         }
                         it.definition(newEnumTypeDefinition)
@@ -175,7 +175,7 @@ internal class TransformationsVisitor(
                         it.replacePossibleTypes(newPossibleTypes as List<GraphQLObjectType>)
 
                         val members = newPossibleTypes.map { TypeName.newTypeName(it.name).build() }
-                        val newUnionTypeDefinition = element.definition?.transform {
+                        val newUnionTypeDefinition = element.definition.transform {
                             it.memberTypes(members)
                         }
                         it.definition(newUnionTypeDefinition)

@@ -251,7 +251,7 @@ internal class ScopeDirectiveParser(
         val scopesArrayValue =
             scopesDirectives
                 .first()
-                .getArgument(SCOPED_TO_ARG)
+                .getArgument(SCOPED_TO_ARG)!!
                 .value as? ArrayValue
                 ?: throw SchemaScopeValidationError(
                     "@$directiveName's '$SCOPED_TO_ARG' argument must be passed an array of strings.",

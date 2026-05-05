@@ -59,7 +59,7 @@ internal class VariableUsageInfoVisitor(
                 )
                 is GraphQLInputObjectField -> {
                     // For nested input object fields, get the parent's type
-                    val parent = env.argumentInputValue.parent
+                    val parent = env.argumentInputValue.parent!!
                     val inputType = GraphQLTypeUtil.unwrapAll(parent.inputType) as GraphQLInputObjectType
                     VariableUsageInfo(
                         unwrapLists(inputValueDefinition.type, env.traverserContext),

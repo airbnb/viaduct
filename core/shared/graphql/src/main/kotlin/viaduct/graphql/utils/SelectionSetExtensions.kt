@@ -18,7 +18,7 @@ fun SelectionSet.addTypeName(): SelectionSet {
 
                 is Field -> {
                     if (sel.selectionSet?.selections?.isNotEmpty() == true) {
-                        val subselections = sel.selectionSet
+                        val subselections = sel.selectionSet!!
                         sel.transform {
                             val selSet = subselections.addTypeName()
                             it.selectionSet(selSet)
