@@ -7,6 +7,7 @@ import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
+import viaduct.apiannotations.InternalApi
 import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.GlobalIDCodec as ServiceGlobalIDCodec
 
@@ -23,6 +24,7 @@ import viaduct.service.api.spi.GlobalIDCodec as ServiceGlobalIDCodec
  * @param serviceGlobalIDCodec The service-level GlobalIDCodec for string-based operations
  * @param reflectionLoader The reflection loader for type reconstruction
  */
+@InternalApi
 class GlobalIDCodec(
     private val serviceGlobalIDCodec: ServiceGlobalIDCodec,
     private val reflectionLoader: ReflectionLoader

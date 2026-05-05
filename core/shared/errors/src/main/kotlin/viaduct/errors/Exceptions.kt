@@ -122,6 +122,7 @@ suspend fun <T> handleFrameworkErrorsSuspend(
  * Use this to wrap calls into tenant code from the framework. Catches any exception and
  * attributes it to tenant code unless it is already a [PassthroughException].
  */
+@InternalApi
 fun <T> handleTenantErrors(
     opName: String,
     block: () -> T,
@@ -138,6 +139,7 @@ fun <T> handleTenantErrors(
 /**
  * Same as [handleTenantErrors] but for suspend functions.
  */
+@InternalApi
 suspend fun <T> handleTenantErrorsSuspend(
     opName: String,
     block: suspend () -> T,
