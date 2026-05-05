@@ -210,7 +210,7 @@ private class GraphQLOperationGen(
 
         return OperationDefinition
             .newOperationDefinition()
-            .name(name)
+            .apply { name?.let { name(it) } }
             .operation(operationType)
             .selectionSet(selectionSetGen.gen(ctx))
             .directives(directiveGen.gen(directiveLocation, ctx))
@@ -355,7 +355,7 @@ private class GraphQLSelectionSetGen(
                 // a fragment may have been generated in the context of another operation, and used variables
                 // that are incompatible with the variables defined for this operation. Filter them out
                 frag.variables.all { fv ->
-                    when (val extant = ctx.variables[fv.name]) {
+                    when (val extant = ctx.variables[fv.name!!]) {
                         null -> true
                         else -> extant == fv
                     }
@@ -381,7 +381,7 @@ private class GraphQLSelectionSetGen(
         // if the fragment was generated for a different operation, we may need to install any new variables
         // required by the fragment into the current operation's variables
         fragment.variables.forEach { fv ->
-            if (ctx.variables[fv.name] == null) {
+            if (ctx.variables[fv.name!!] == null) {
                 ctx.variables.add(fv)
             }
         }
@@ -508,7 +508,7 @@ private class GraphQLArgumentsGen(
             } else {
                 Arb.of(possibleVariables).next(rs)
             }
-            VariableReference(variable.name)
+            VariableReference(variable.name!!)
         } else {
             GJValueConv(type).invert(genValue(type))
         }

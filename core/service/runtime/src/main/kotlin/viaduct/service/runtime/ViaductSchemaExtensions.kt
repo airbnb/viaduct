@@ -20,7 +20,7 @@ fun ViaductSchema.scopes(): SortedSet<String> {
 
         val allScopes = type.getAppliedDirectives("scope")
             .map {
-                it.getArgument("to").getValue<List<String>>()!!
+                it.getArgument("to")!!.getValue<List<String>>()!!
             }
             .flatten()
             .filter { it != "*" }

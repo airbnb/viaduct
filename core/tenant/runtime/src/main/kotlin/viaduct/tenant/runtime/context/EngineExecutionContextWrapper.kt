@@ -94,7 +94,7 @@ class EngineExecutionContextWrapperImpl(
     ): T =
         handleFrameworkErrors("nodeRef(${globalID.type.name})") {
             val typeName = globalID.type.name
-            val graphqlObjectType = ctx.schema.schema.getObjectType(typeName)
+            val graphqlObjectType = ctx.schema.schema.getObjectType(typeName)!!
             val id = ctx.globalIDCodec.serialize(globalID.type.name, globalID.internalID)
             val nodeReference = engineExecutionContext.createNodeReference(id, graphqlObjectType)
 

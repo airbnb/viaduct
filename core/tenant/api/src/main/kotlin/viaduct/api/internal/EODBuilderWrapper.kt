@@ -127,6 +127,7 @@ internal class EODBuilderWrapper(
         // engineObject is null when an ObjectBase subclass is mocked in tests (Mockito/Objenesis
         // bypasses the constructor, leaving the field at its JVM default of null despite the
         // non-null Kotlin declaration). Skip type validation in that case.
+        @Suppress("SENSELESS_COMPARISON")
         if (engineObject != null) {
             val actualTypeName = engineObject.type.name
             val valid = when (expectedType) {

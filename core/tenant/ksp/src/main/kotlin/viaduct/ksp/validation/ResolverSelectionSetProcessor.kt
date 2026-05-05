@@ -35,8 +35,8 @@ class ResolverSelectionSetProcessor(
     private val logger: KSPLogger = environment.logger
     private val fragmentsOutputFile: String? = environment.options[FRAGMENTS_OUTPUT_OPTION]
 
-    private fun getCompilationSchemaSDL(kspResolver: Resolver): String {
-        val compilationSchemaFile = kspResolver.findCompilationSchemaFile()
+    private fun getCompilationSchemaSDL(resolver: Resolver): String {
+        val compilationSchemaFile = resolver.findCompilationSchemaFile()
             ?: throw RuntimeException("Unable to read compilation schema SDL to validate resolver required selection set.")
 
         return compilationSchemaFile.unwrapSchemaFromFile()
@@ -55,10 +55,10 @@ class ResolverSelectionSetProcessor(
     // Track if we've already generated the file in this compilation session
     private var hasGeneratedFragments = false
 
-    override fun process(kspResolver: Resolver): List<KSAnnotated> {
+    override fun process(resolver: Resolver): List<KSAnnotated> {
         val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(
             SchemaParser().parse(
-                getCompilationSchemaSDL(kspResolver)
+                getCompilationSchemaSDL(resolver)
             )
         )
 
@@ -66,7 +66,7 @@ class ResolverSelectionSetProcessor(
         val annotationSpecs = mutableListOf<ResolverAnnotationSpec>()
         val resolverFiles = mutableSetOf<KSFile>()
 
-        kspResolver.getAllFiles().forEach { file ->
+        resolver.getAllFiles().forEach { file ->
             resolverFiles.add(file)
             file.declarations.forEach { declaration ->
                 if (declaration is KSClassDeclaration) {

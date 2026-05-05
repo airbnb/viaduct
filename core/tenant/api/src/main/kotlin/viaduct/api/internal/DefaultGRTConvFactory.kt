@@ -328,7 +328,7 @@ object DefaultGRTConvFactory : GRTConvFactory {
                                 .selections()
                                 .associate { sel ->
                                     val coord = (sel.typeCondition to sel.fieldName).gj
-                                    val fieldDef = internalContext.schema.schema.getFieldDefinition(coord)
+                                    val fieldDef = internalContext.schema.schema.getFieldDefinition(coord)!!
 
                                     val subselections = ctx.selectionSet
                                         .takeIf { fieldDef.type.supportsSelections }

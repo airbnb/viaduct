@@ -77,7 +77,7 @@ private class GraphQLExecutionInputGen(
                         conv.invert(it)
                     }
                     .next(rs)
-                acc + (def.name to value)
+                acc + (def.name!! to value)
             }
         }
 

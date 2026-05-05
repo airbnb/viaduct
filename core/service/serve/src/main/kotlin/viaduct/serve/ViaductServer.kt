@@ -98,6 +98,7 @@ class ViaductServer(
             embeddedServer.start(wait = false)
 
             // Get the engine - handle both Ktor 2.x and 3.x
+            @Suppress("CAST_NEVER_SUCCEEDS")
             val engine: NettyApplicationEngine = try {
                 // Ktor 3.x: EmbeddedServer has .engine property
                 val engineProperty = embeddedServer::class.members.find { it.name == "engine" }
@@ -414,7 +415,7 @@ class ViaductServer(
 
                     val response = mapOf(
                         "data" to result.getData(),
-                        "errors" to result.errors?.map { error ->
+                        "errors" to result.errors.map { error ->
                             mapOf(
                                 "message" to error.message,
                                 "locations" to error.locations,

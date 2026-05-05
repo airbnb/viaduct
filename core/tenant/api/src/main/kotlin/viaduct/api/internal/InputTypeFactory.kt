@@ -55,7 +55,7 @@ object InputTypeFactory {
                 .type(it.type)
                 .replaceAppliedDirectives(
                     it.appliedDirectives.filter {
-                        val def = schema.schema.getDirective(it.name)
+                        val def = schema.schema.getDirective(it.name)!!
                         Introspection.DirectiveLocation.INPUT_FIELD_DEFINITION in def.validLocations()
                     }
                 )

@@ -67,7 +67,7 @@ internal fun <From, To> createSelectionConvs(
     if (selectionSet != null) {
         selectionSet.selections().associate { sel ->
             val coord = (sel.typeCondition to sel.fieldName).gj
-            val fieldDef = schema.schema.getFieldDefinition(coord)
+            val fieldDef = schema.schema.getFieldDefinition(coord)!!
             val subSelections = if (fieldDef.type.supportsSelections) {
                 selectionSet.selectionSetForSelection(sel.typeCondition, sel.selectionName)
             } else {

@@ -20,7 +20,7 @@ import viaduct.apiannotations.StableApi
  * ```
  */
 @StableApi
-suspend inline fun <T> fetchOrNull(block: suspend () -> T): T? = fetchOrDefault<T?>(null) { block() }
+suspend inline fun <T> fetchOrNull(block: () -> T): T? = fetchOrDefault<T?>(null) { block() }
 
 /**
  * Executes the given [block] and returns its result, or [default] if an exception is thrown.
@@ -41,7 +41,7 @@ suspend inline fun <T> fetchOrNull(block: suspend () -> T): T? = fetchOrDefault<
 @StableApi
 suspend inline fun <T> fetchOrDefault(
     default: T,
-    block: suspend () -> T
+    block: () -> T
 ): T =
     try {
         block()

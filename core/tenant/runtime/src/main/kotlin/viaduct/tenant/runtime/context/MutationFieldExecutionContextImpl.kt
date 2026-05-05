@@ -52,7 +52,7 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
         selections: String,
         variables: Map<String, Any?>
     ): M {
-        val mutationType = reflectionLoader.reflectionFor(schema.schema.mutationType.name) as Type<M>
+        val mutationType = reflectionLoader.reflectionFor(schema.schema.mutationType!!.name) as Type<M>
         return mutation(selectionsFor(mutationType, selections, variables))
     }
 

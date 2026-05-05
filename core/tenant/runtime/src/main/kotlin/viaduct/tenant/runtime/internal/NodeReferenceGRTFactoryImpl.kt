@@ -26,7 +26,7 @@ class NodeReferenceGRTFactoryImpl(
         id: GlobalID<T>,
         internalContext: InternalContext
     ): T {
-        val type = internalContext.schema.schema.getObjectType(id.type.name)
+        val type = internalContext.schema.schema.getObjectType(id.type.name)!!
         val nodeReference = nodeReferenceFactory(
             internalContext.globalIDCodec.serialize(id.type.name, id.internalID),
             type,

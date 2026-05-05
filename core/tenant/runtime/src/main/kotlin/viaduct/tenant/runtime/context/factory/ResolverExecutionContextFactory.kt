@@ -143,7 +143,7 @@ class FieldExecutionContextFactory internal constructor(
         expectedContextInterface,
         resultType
     ) {
-    @Suppress("UNCHECKED_CAST")
+    @Suppress("UNCHECKED_CAST", "UNUSED_PARAMETER")
     operator fun invoke(
         engineExecutionContext: EngineExecutionContext,
         engineSelections: EngineSelectionSet?,

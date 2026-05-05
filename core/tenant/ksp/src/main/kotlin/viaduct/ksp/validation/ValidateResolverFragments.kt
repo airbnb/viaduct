@@ -67,7 +67,7 @@ internal class ValidateResolverFragments(
         val document = Parser().parseDocument(fragmentString)
         val fragments = document.definitions.filterIsInstance<FragmentDefinition>()
         val entryPoint = SelectionsParserUtils.findEntryPointFragment(fragments)
-        return entryPoint.typeCondition.name
+        return entryPoint.typeCondition.name!!
     }
 
     private fun validateAgainstSchema(spec: ResolverFragmentSpec): List<ErrorMessage> {

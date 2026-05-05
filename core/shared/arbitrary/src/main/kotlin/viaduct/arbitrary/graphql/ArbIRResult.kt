@@ -134,7 +134,7 @@ internal class IRResultGen(
 
                 is FragmentSpread -> {
                     val fragment = requireNotNull(fragments[sel.name]) { "missing fragment `${sel.name}`" }
-                    val fragmentType = schema.schema.getTypeAs<GraphQLCompositeType>(fragment.typeCondition.name)
+                    val fragmentType = schema.schema.getTypeAs<GraphQLCompositeType>(fragment.typeCondition.name!!)!!
                     if (schema.rels.isSpreadable(concreteType, fragmentType)) {
                         val fragmentResult = genObject(concreteType, fragment.selectionSet, fragments)
                         acc.copy(fields = acc.fields + fragmentResult.fields)
@@ -206,7 +206,7 @@ internal class IRResultGen(
                     val fragment = requireNotNull(fragments[sel.name]) {
                         "missing fragment `${sel.name}`"
                     }
-                    val typeCondition = schema.schema.getTypeAs<GraphQLCompositeType>(fragment.typeCondition.name)
+                    val typeCondition = schema.schema.getTypeAs<GraphQLCompositeType>(fragment.typeCondition.name!!)
                     val newAcc = (typeCondition as? GraphQLObjectType)?.let { acc + it } ?: acc
                     val newPending = pending.drop(1) + fragment.selectionSet.selections
                     loop(newAcc, newPending)

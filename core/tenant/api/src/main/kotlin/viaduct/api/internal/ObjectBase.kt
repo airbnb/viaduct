@@ -119,7 +119,7 @@ abstract class ObjectBase(
                 "Field $fieldName not found on type ${objectType.name}"
             )
             handleFrameworkErrorsSuspend("${objectType.name}.$selection") {
-                val fieldValue = when (engineObject) {
+                val fieldValue: Any? = when (engineObject) {
                     is NodeReference -> {
                         // If the EOD is a node reference, only allow access to its ID field
                         if (selection == "id") {
@@ -138,6 +138,7 @@ abstract class ObjectBase(
                 wrap(fieldDefinition.type, fieldValue, baseFieldTypeClass)
             } ?: NULL_VALUE
         }
+        @Suppress("UNCHECKED_CAST")
         return (if (result == NULL_VALUE) null else result) as T
     }
 

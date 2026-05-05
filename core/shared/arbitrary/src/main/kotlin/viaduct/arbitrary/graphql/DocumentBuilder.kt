@@ -52,7 +52,7 @@ internal class Fragments(
         }
         fragmentsByName += (fragment.name to fragment)
 
-        val fragType = schemas.schema.getTypeAs<GraphQLCompositeType>(fragment.typeCondition.name)
+        val fragType = schemas.schema.getTypeAs<GraphQLCompositeType>(fragment.typeCondition.name)!!
         if (!fragmentsByType.contains(fragType)) fragmentsByType[fragType] = mutableListOf()
         fragmentsByType[fragType]!! += fragment
     }
@@ -103,10 +103,10 @@ internal class Variables(
         }
 
     fun add(variable: VariableDefinition) {
-        require(!variablesByName.containsKey(variable.name)) {
+        require(!variablesByName.containsKey(variable.name!!)) {
             "cannot overwrite variable with name `${variable.name}`"
         }
-        variablesByName += (variable.name to variable)
+        variablesByName += (variable.name!! to variable)
     }
 }
 
@@ -152,10 +152,10 @@ internal class FieldSelection private constructor(
             val field = Field
                 .newField()
                 .name(key.fieldName)
-                .alias(key.alias)
+                .apply { key.alias?.let { alias(it) } }
                 .arguments(
                     key.arguments.map { it.arg }.toList()
-                ).selectionSet(selections?.build())
+                ).apply { selections?.build()?.let { selectionSet(it) } }
                 .directives(directives)
                 .build()
             return FieldSelection(key, field, selections?.mergeKeyTree)
@@ -174,7 +174,7 @@ internal data class InlineFragmentSelection(
     ) : this(
         InlineFragment
             .newInlineFragment()
-            .typeCondition(sdlTypeCondition?.let(::TypeName))
+            .apply { sdlTypeCondition?.let { typeCondition(TypeName(it)) } }
             .selectionSet(SelectionsBuilder(selections).build())
             .directives(directives)
             .build(),

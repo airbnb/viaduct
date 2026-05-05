@@ -281,7 +281,7 @@ fun Type<*>.asSchemaType(schema: GraphQLSchema): GraphQLType =
     when (this) {
         is ListType -> GraphQLList.list(type.asSchemaType(schema))
         is NonNullType -> GraphQLNonNull.nonNull(type.asSchemaType(schema))
-        is TypeName -> schema.getTypeAs(this.name)
+        is TypeName -> schema.getTypeAs<GraphQLType>(this.name!!)!!
         else ->
             throw UnsupportedOperationException("unsupported language Type: $this")
     }
