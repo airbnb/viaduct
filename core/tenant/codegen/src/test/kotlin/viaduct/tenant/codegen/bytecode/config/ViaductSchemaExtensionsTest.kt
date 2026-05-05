@@ -11,6 +11,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.codegen.km.KmClassFilesBuilder
 import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.KmName
+import viaduct.graphql.schema.ViaductReverseSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.fromBinaryFile
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
@@ -725,5 +726,81 @@ class ViaductSchemaExtensionsTest {
         val obj = schema.typedef("Obj") as ViaductSchema.Object
         val names = obj.builderFields(allowExtObjectSetters = false).map { it.name }.toSet()
         assertEquals(setOf("f1", "f2"), names)
+    }
+
+    @Test
+    fun `pathFromQueryRoot returns empty list for Query type`() {
+        val schema = createSchema("extend type Query { x: Int }")
+        val reverseSchema = ViaductReverseSchema.from(schema)
+        val queryType = schema.queryTypeDef!!
+
+        assertEquals(emptyList<String>(), queryType.pathFromQueryRoot(reverseSchema, queryType))
+    }
+
+    @Test
+    fun `pathFromQueryRoot returns null for Mutation type`() {
+        val schema = createSchema("")
+        val reverseSchema = ViaductReverseSchema.from(schema)
+        val mutationType = schema.mutationTypeDef!! as ViaductSchema.Object
+
+        assertNull(mutationType.pathFromQueryRoot(reverseSchema, schema.queryTypeDef!!))
+    }
+
+    @Test
+    fun `pathFromQueryRoot returns null for non-root types`() {
+        val schema = createSchema("type User { name: String }")
+        val reverseSchema = ViaductReverseSchema.from(schema)
+        val userType = schema.typedef("User") as ViaductSchema.Object
+
+        assertNull(userType.pathFromQueryRoot(reverseSchema, schema.queryTypeDef!!))
+    }
+
+    @Test
+    fun `pathFromQueryRoot returns path for namespace type reachable from Query`() {
+        val schema = createSchema(
+            """
+            directive @namespaceType on OBJECT
+            type Foo { name: String }
+            type Factories @namespaceType { create: Foo }
+            extend type Query { _factories: Factories }
+            """.trimIndent()
+        )
+        val reverseSchema = ViaductReverseSchema.from(schema)
+        val factoriesType = schema.typedef("Factories") as ViaductSchema.Object
+
+        assertEquals(listOf("_factories"), factoriesType.pathFromQueryRoot(reverseSchema, schema.queryTypeDef!!))
+    }
+
+    @Test
+    fun `pathFromQueryRoot returns path through nested namespace types`() {
+        val schema = createSchema(
+            """
+            directive @namespaceType on OBJECT
+            type Product { name: String }
+            type ProductFactory @namespaceType { create: Product }
+            type Factories @namespaceType { products: ProductFactory }
+            extend type Query { _factories: Factories }
+            """.trimIndent()
+        )
+        val reverseSchema = ViaductReverseSchema.from(schema)
+        val productFactory = schema.typedef("ProductFactory") as ViaductSchema.Object
+
+        assertEquals(listOf("_factories", "products"), productFactory.pathFromQueryRoot(reverseSchema, schema.queryTypeDef!!))
+    }
+
+    @Test
+    fun `pathFromQueryRoot returns null for namespace type reachable only from Mutation`() {
+        val schema = createSchema(
+            """
+            directive @namespaceType on OBJECT
+            type Result { ok: Boolean }
+            type MutationFactory @namespaceType { doThing: Result }
+            extend type Mutation { _factories: MutationFactory }
+            """.trimIndent()
+        )
+        val reverseSchema = ViaductReverseSchema.from(schema)
+        val mutationFactory = schema.typedef("MutationFactory") as ViaductSchema.Object
+
+        assertNull(mutationFactory.pathFromQueryRoot(reverseSchema, schema.queryTypeDef!!))
     }
 }

@@ -1,0 +1,27 @@
+package viaduct.api.reflect
+
+import viaduct.api.types.Arguments
+import viaduct.api.types.GRT
+import viaduct.api.types.Object
+import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.StableApi
+
+/**
+ * A RootObjectField describes static properties of a field on a root query field (a field on the
+ * root query type or a namespace type reachable from the root query type), whose output type is a
+ * non-list object type.
+ *
+ * The [A] type parameter captures the field's arguments type for compile-time type safety
+ * in `ctx.rootFieldRef(field, args)`.
+ */
+@StableApi
+interface RootObjectField<Parent : GRT, UnwrappedType : Object, A : Arguments> :
+    CompositeField<Parent, UnwrappedType> {
+    /**
+     * Path of field names from the query root (optionally through `@namespaceType` types) to this field.
+     * For example, `["_factories", "products", "create"]` for a field `create` on a namespace
+     * type reachable via `Query._factories.products`.
+     */
+    @InternalApi
+    val pathFromQueryRoot: List<String>
+}

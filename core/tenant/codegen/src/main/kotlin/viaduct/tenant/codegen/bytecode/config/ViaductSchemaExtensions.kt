@@ -9,6 +9,7 @@ import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
+import viaduct.graphql.schema.ViaductReverseSchema
 import viaduct.graphql.schema.ViaductSchema
 
 // Utilities expressed as extension functions go here.  Constants and
@@ -228,11 +229,42 @@ val ViaductSchema.TypeDef.hasReflectedType: Boolean
     get() = this !is ViaductSchema.Scalar
 
 /**
- * True if a field on a root type should emit [RootCompositeField] instead of [CompositeField].
- * Requires: the containing type is a root type, the field's return type is composite (object/interface/union,
- * NOT enum), and the field is not list-wrapped (CompositeField.type strips list wrappers).
+ * True if a field on a root type should emit [RootObjectField] instead of [CompositeField].
+ * Requires: the containing type is a root type, the field's return type is an object type
+ * and the field is not list-wrapped.
  */
-fun ViaductSchema.Field.isRootCompositeFieldEligible(isRootField: Boolean): Boolean = isRootField && !type.isList && type.baseTypeDef.isComposite
+fun ViaductSchema.Field.isRootObjectFieldEligible(pathToParentObject: List<String>?): Boolean = pathToParentObject != null && !type.isList && type.baseTypeDef.kind == ViaductSchema.TypeDefKind.OBJECT
+
+/**
+ * Returns the field path from the root query type to this root type:
+ * - root query itself: returns `emptyList()`
+ * - `@namespaceType` reachable from root query (e.g., `Bar` via `Query.foo.bar`):
+ *   returns the path (e.g. `["foo", "bar"]`)
+ * - non-root type or `@namespaceType` unreachable from root query: returns `null`
+ *
+ * Uses [ViaductReverseSchema.inboundFields] to walk backwards. The `NamespaceTypeConstraintsRule`
+ * guarantees each namespace type is referenced by exactly one field, and thus references are acyclical.
+ */
+fun ViaductSchema.TypeDef.pathFromQueryRoot(
+    reverseSchema: ViaductReverseSchema,
+    queryTypeDef: ViaductSchema.Object?
+): List<String>? {
+    if (queryTypeDef == null) return null
+    val fields = mutableListOf<String>()
+    var current: ViaductSchema.TypeDef = this
+    while (current !== queryTypeDef) {
+        if (current !is ViaductSchema.Object || !current.hasAppliedDirective("namespaceType")) return null
+        val inboundFields = reverseSchema.inboundFields(current)
+        check(inboundFields.size == 1) {
+            "Expected exactly one inbound field for namespace type '${current.name}', " +
+                "found ${inboundFields.size}"
+        }
+        val parentField = inboundFields.single()
+        fields.add(parentField.name)
+        current = parentField.containingDef
+    }
+    return fields.reversed()
+}
 
 val ViaductSchema.SourceLocation.tenantModule: String?
     get() = this.sourceName.let {

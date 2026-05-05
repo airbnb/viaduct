@@ -31,9 +31,10 @@ class ObjectGenTest {
             type Query { foo(id: ID!): Foo }
         """.trimIndent()
         val result = genObject(sdl, "Query").toString()
-        assertTrue(result.contains("${cfg.REFLECTED_ROOT_COMPOSITE_FIELD}"), "Should emit RootCompositeField for root composite field")
-        assertTrue(result.contains("${cfg.REFLECTED_ROOT_COMPOSITE_FIELD_IMPL}"), "Should use RootCompositeFieldImpl")
+        assertTrue(result.contains("${cfg.REFLECTED_ROOT_OBJECT_FIELD}"), "Should emit RootObjectField for root composite field")
+        assertTrue(result.contains("${cfg.REFLECTED_ROOT_OBJECT_FIELD_IMPL}"), "Should use RootObjectFieldImpl")
         assertTrue(result.contains("pkg.Query_Foo_Arguments"), "Should include Arguments type")
+        assertTrue(result.contains("""listOf("foo")"""), "Should include rootFieldPath with single element")
     }
 
     @Test
@@ -43,18 +44,45 @@ class ObjectGenTest {
             type Query { foo: Foo }
         """.trimIndent()
         val result = genObject(sdl, "Query").toString()
-        assertTrue(result.contains("${cfg.REFLECTED_ROOT_COMPOSITE_FIELD}"), "Should emit RootCompositeField for zero-arg root composite field")
+        assertTrue(result.contains("${cfg.REFLECTED_ROOT_OBJECT_FIELD}"), "Should emit RootObjectField for zero-arg root composite field")
         assertTrue(result.contains(cfg.ARGUMENTS_NO_ARGUMENTS.toString().replace('$', '.')), "Should use Arguments.NoArguments for zero-arg field")
+        assertTrue(result.contains("""listOf("foo")"""), "Should include rootFieldPath")
     }
 
     @Test
-    fun `root enum field stays CompositeField not RootCompositeField`() {
+    fun `root composite field on namespace type has correct path`() {
+        val sdl = """
+            directive @namespaceType on OBJECT
+            type Foo { name: String }
+            type Factories @namespaceType { create: Foo }
+            type Query { _factories: Factories }
+        """.trimIndent()
+        val result = genObject(sdl, "Factories").toString()
+        assertTrue(result.contains("${cfg.REFLECTED_ROOT_OBJECT_FIELD}"), "Should emit RootObjectField on namespace type")
+        assertTrue(result.contains("""listOf("_factories", "create")"""), "Should include full path from Query through namespace")
+    }
+
+    @Test
+    fun `root composite field on deeply nested namespace type has correct path`() {
+        val sdl = """
+            directive @namespaceType on OBJECT
+            type Product { name: String }
+            type ProductFactory @namespaceType { create: Product }
+            type Factories @namespaceType { products: ProductFactory }
+            type Query { _factories: Factories }
+        """.trimIndent()
+        val result = genObject(sdl, "ProductFactory").toString()
+        assertTrue(result.contains("""listOf("_factories", "products", "create")"""), "Should include full path through two namespace levels")
+    }
+
+    @Test
+    fun `root enum field stays CompositeField not RootObjectField`() {
         val sdl = """
             enum Status { ACTIVE INACTIVE }
             type Query { status: Status }
         """.trimIndent()
         val result = genObject(sdl, "Query").toString()
-        assertFalse(result.contains("${cfg.REFLECTED_ROOT_COMPOSITE_FIELD}"), "Should NOT emit RootCompositeField for enum field")
+        assertFalse(result.contains("${cfg.REFLECTED_ROOT_OBJECT_FIELD}"), "Should NOT emit RootObjectField for enum field")
     }
 
     @Test
@@ -64,7 +92,7 @@ class ObjectGenTest {
             type Query { foos: [Foo] }
         """.trimIndent()
         val result = genObject(sdl, "Query").toString()
-        assertFalse(result.contains("${cfg.REFLECTED_ROOT_COMPOSITE_FIELD}"), "Should NOT emit RootCompositeField for list field")
+        assertFalse(result.contains("${cfg.REFLECTED_ROOT_OBJECT_FIELD}"), "Should NOT emit RootObjectField for list field")
         assertTrue(result.contains("${cfg.REFLECTED_COMPOSITE_FIELD}"), "Should use CompositeField for list field")
     }
 
@@ -76,14 +104,14 @@ class ObjectGenTest {
             type Query { dummy: Int }
         """.trimIndent()
         val result = genObject(sdl, "Foo").toString()
-        assertFalse(result.contains("${cfg.REFLECTED_ROOT_COMPOSITE_FIELD}"), "Should NOT emit RootCompositeField for non-root type")
+        assertFalse(result.contains("${cfg.REFLECTED_ROOT_OBJECT_FIELD}"), "Should NOT emit RootObjectField for non-root type")
         assertTrue(result.contains("${cfg.REFLECTED_COMPOSITE_FIELD}"), "Should use CompositeField for non-root type")
     }
 
     @Test
     fun `scalar field on root stays Field`() {
         val result = genObject("type Query { x: Int }", "Query").toString()
-        assertFalse(result.contains("${cfg.REFLECTED_ROOT_COMPOSITE_FIELD}"), "Should NOT emit RootCompositeField for scalar field")
+        assertFalse(result.contains("${cfg.REFLECTED_ROOT_OBJECT_FIELD}"), "Should NOT emit RootObjectField for scalar field")
     }
 
     @Test

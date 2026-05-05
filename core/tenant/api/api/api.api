@@ -135,7 +135,8 @@ public abstract interface class viaduct/api/reflect/Field {
 	public abstract fun getName ()Ljava/lang/String;
 }
 
-public abstract interface class viaduct/api/reflect/RootCompositeField : viaduct/api/reflect/CompositeField {
+public abstract interface class viaduct/api/reflect/RootObjectField : viaduct/api/reflect/CompositeField {
+	public abstract fun getPathFromQueryRoot ()Ljava/util/List;
 }
 
 public abstract interface class viaduct/api/reflect/Type {

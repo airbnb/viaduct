@@ -182,10 +182,10 @@ object cfg {
         JavaBinaryName("viaduct.api.reflect.CompositeField")
     val REFLECTED_COMPOSITE_FIELD_IMPL =
         JavaBinaryName("viaduct.api.internal.CompositeFieldImpl")
-    val REFLECTED_ROOT_COMPOSITE_FIELD =
-        JavaBinaryName("viaduct.api.reflect.RootCompositeField")
-    val REFLECTED_ROOT_COMPOSITE_FIELD_IMPL =
-        JavaBinaryName("viaduct.api.internal.RootCompositeFieldImpl")
+    val REFLECTED_ROOT_OBJECT_FIELD =
+        JavaBinaryName("viaduct.api.reflect.RootObjectField")
+    val REFLECTED_ROOT_OBJECT_FIELD_IMPL =
+        JavaBinaryName("viaduct.api.internal.RootObjectFieldImpl")
     val ARGUMENTS_NO_ARGUMENTS =
         JavaBinaryName("viaduct.api.types.Arguments\$NoArguments")
     val REFLECTED_TYPE_FIELDS =

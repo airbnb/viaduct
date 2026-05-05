@@ -11,17 +11,18 @@ import viaduct.codegen.utils.JavaName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.hasReflectedType
-import viaduct.tenant.codegen.bytecode.config.isRootCompositeFieldEligible
+import viaduct.tenant.codegen.bytecode.config.isRootObjectFieldEligible
 import viaduct.tenant.codegen.bytecode.config.kmType
+import viaduct.tenant.codegen.bytecode.config.pathFromQueryRoot
 
 @VisibleForTest
 fun KotlinGRTFilesBuilder.reflectedTypeGen(def: ViaductSchema.TypeDef): STContents = STContents(stGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper))
 
 @VisibleForTest
-fun KotlinGRTFilesBuilder.fieldsObjectGen(
-    def: ViaductSchema.TypeDef,
-    isRootField: Boolean = false
-): STContents = STContents(fieldsSTGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper, isRootField))
+fun KotlinGRTFilesBuilder.fieldsObjectGen(def: ViaductSchema.TypeDef): STContents {
+    val pathToParentObject = def.pathFromQueryRoot(reverseSchema, schema.queryTypeDef)
+    return STContents(fieldsSTGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper, pathToParentObject))
+}
 
 private interface ReflectedTypeModel {
     /** GraphQL name of this type */
@@ -62,11 +63,14 @@ private interface ReflectedFieldModel {
     /** If [typeHasReflection], then the fully qualified name of the reflected type that describing this fields type */
     val reflectedTypeFqName: String?
 
-    /** true if this field should be emitted as a RootCompositeField (root type, composite, non-list) */
-    val isRootCompositeField: Boolean
+    /** true if this field should be emitted as a RootObjectField (root type, object, non-list) */
+    val isRootObjectField: Boolean
 
     /** FQN of the Arguments type for root composite fields, null otherwise */
     val argumentsTypeFqName: String?
+
+    /** Comma-separated quoted path elements for rootFieldPath, null if not a root composite field */
+    val rootFieldPathLiteral: String?
 }
 
 private val typeST =
@@ -95,16 +99,17 @@ private val fieldST =
     stTemplate(
         "field(mdl)",
         """
-    <if(mdl.rootCompositeField)>
-        final val <mdl.escapedName>: ${cfg.REFLECTED_ROOT_COMPOSITE_FIELD}\<<\\>
+    <if(mdl.rootObjectField)>
+        final val <mdl.escapedName>: ${cfg.REFLECTED_ROOT_OBJECT_FIELD}\<<\\>
             <mdl.containingType.grtFqName>, <\\>
             <mdl.unwrappedKotlinType>, <\\>
             <mdl.argumentsTypeFqName><\\>
         > =
-            ${cfg.REFLECTED_ROOT_COMPOSITE_FIELD_IMPL}(<\\>
+            ${cfg.REFLECTED_ROOT_OBJECT_FIELD_IMPL}(<\\>
                 "<mdl.name>", <\\>
                 <mdl.containingType.reflectedTypeFqName>, <\\>
-                <mdl.reflectedTypeFqName><\\>
+                <mdl.reflectedTypeFqName>, <\\>
+                listOf(<mdl.rootFieldPathLiteral>)<\\>
             )
     <elseif(mdl.typeHasReflection)>
         final val <mdl.escapedName>: ${cfg.REFLECTED_COMPOSITE_FIELD}\<<\\>
@@ -135,7 +140,7 @@ private class ReflectedTypeModelImpl(
     val pkg: String,
     val def: ViaductSchema.TypeDef,
     val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
-    val isRootField: Boolean = false
+    val pathToParentObject: List<String>? = null
 ) : ReflectedTypeModel {
     override val name: String = def.name
     override val grtFqName: String = "$pkg.$name"
@@ -144,7 +149,7 @@ private class ReflectedTypeModelImpl(
     override val fields: List<ReflectedFieldModel>
         get() {
             val defFields = ((def as? ViaductSchema.Record)?.fields ?: emptyList())
-                .map { ReflectedFieldModelImpl(pkg, this, it, baseTypeMapper, isRootField) }
+                .map { ReflectedFieldModelImpl(pkg, this, it, baseTypeMapper, pathToParentObject) }
             return listOf(__typename(this)) + defFields
         }
 }
@@ -156,8 +161,9 @@ private class __typename(override val containingType: ReflectedTypeModel) : Refl
     override val kotlinType: String = "kotlin.String"
     override val unwrappedKotlinType: String = "kotlin.String"
     override val reflectedTypeFqName: String = "null"
-    override val isRootCompositeField: Boolean = false
+    override val isRootObjectField: Boolean = false
     override val argumentsTypeFqName: String? = null
+    override val rootFieldPathLiteral: String? = null
 }
 
 private class ReflectedFieldModelImpl(
@@ -165,7 +171,7 @@ private class ReflectedFieldModelImpl(
     override val containingType: ReflectedTypeModel,
     field: ViaductSchema.Field,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
-    isRootField: Boolean
+    pathToParentObject: List<String>?
 ) : ReflectedFieldModel {
     private val kmPkg = JavaName(pkg).asKmName
 
@@ -185,12 +191,19 @@ private class ReflectedFieldModelImpl(
             null
         }
 
-    override val isRootCompositeField: Boolean =
-        field.isRootCompositeFieldEligible(isRootField)
+    override val isRootObjectField: Boolean =
+        field.isRootObjectFieldEligible(pathToParentObject)
 
     override val argumentsTypeFqName: String? = when {
-        !isRootCompositeField -> null
+        !isRootObjectField -> null
         field.hasArgs -> "$pkg.${cfg.argumentTypeName(field)}"
         else -> cfg.ARGUMENTS_NO_ARGUMENTS.toString().replace('$', '.')
     }
+
+    override val rootFieldPathLiteral: String? =
+        if (isRootObjectField) {
+            (pathToParentObject!! + field.name).joinToString(", ") { "\"$it\"" }
+        } else {
+            null
+        }
 }

@@ -17,7 +17,8 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.hasReflectedType
-import viaduct.tenant.codegen.bytecode.config.isRootCompositeFieldEligible
+import viaduct.tenant.codegen.bytecode.config.isRootObjectFieldEligible
+import viaduct.tenant.codegen.bytecode.config.pathFromQueryRoot
 
 internal fun GRTClassFilesBuilder.reflectedTypeGen(
     def: ViaductSchema.TypeDef,
@@ -114,10 +115,9 @@ private class ReflectedTypeBuilder(
 internal fun GRTClassFilesBuilder.fieldsObjectGen(
     def: ViaductSchema.TypeDef,
     container: CustomClassBuilder,
-    isRootField: Boolean = false
 ) {
     if (def is ViaductSchema.Record || def is ViaductSchema.Union) {
-        FieldsObjectBuilder(this, container, def, isRootField).build()
+        FieldsObjectBuilder(this, container, def).build()
     }
 }
 
@@ -125,8 +125,9 @@ private class FieldsObjectBuilder(
     override val grtClassFilesBuilder: GRTClassFilesBuilder,
     container: CustomClassBuilder,
     private val def: ViaductSchema.TypeDef,
-    private val isRootField: Boolean = false
 ) : MirrorUtils {
+    private val pathToParentObject: List<String>? =
+        def.pathFromQueryRoot(grtClassFilesBuilder.reverseSchema, grtClassFilesBuilder.schema.queryTypeDef)
     private val fieldsBuilder =
         container.nestedClassBuilder(
             simpleName = JavaIdName("Fields"),
@@ -151,8 +152,8 @@ private class FieldsObjectBuilder(
                 }
                 val reflectedType = f.type.baseTypeDef.takeIf { it.hasReflectedType }
 
-                if (reflectedType != null && f.isRootCompositeFieldEligible(isRootField)) {
-                    buildRootCompositeFieldProperty(f, unwrappedType, reflectedType)
+                if (reflectedType != null && f.isRootObjectFieldEligible(pathToParentObject)) {
+                    buildRootObjectFieldProperty(f, unwrappedType, reflectedType)
                 } else if (reflectedType != null) {
                     buildCompositeFieldProperty(f.name, unwrappedType, reflectedType)
                 } else {
@@ -239,8 +240,8 @@ private class FieldsObjectBuilder(
         )
     }
 
-    /** build a [viaduct.api.reflect.RootCompositeField] property for a root type field with a composite return type */
-    private fun buildRootCompositeFieldProperty(
+    /** build a [viaduct.api.reflect.RootObjectField] property for a root type field with a composite return type */
+    private fun buildRootObjectFieldProperty(
         field: ViaductSchema.Field,
         unwrappedFieldType: KmType,
         reflectedType: ViaductSchema.TypeDef
@@ -251,8 +252,8 @@ private class FieldsObjectBuilder(
             cfg.ARGUMENTS_NO_ARGUMENTS.asKmName.asType()
         }
 
-        val fieldType = cfg.REFLECTED_ROOT_COMPOSITE_FIELD.asKmName.asType().also {
-            // RootCompositeField<Parent: GRT, UnwrappedType: CompositeOutput, A: Arguments>
+        val fieldType = cfg.REFLECTED_ROOT_OBJECT_FIELD.asKmName.asType().also {
+            // RootObjectField<Parent: GRT, UnwrappedType: Object, A: Arguments>
             it.arguments += KmTypeProjection(KmVariance.INVARIANT, def.grtType)
             it.arguments += KmTypeProjection(KmVariance.INVARIANT, unwrappedFieldType)
             it.arguments += KmTypeProjection(KmVariance.INVARIANT, argsKmType)
@@ -267,8 +268,13 @@ private class FieldsObjectBuilder(
             ).also {
                 it.getterBody(
                     buildString {
+                        val fullPath = pathToParentObject!! + field.name
                         append("{\n")
-                        append("return new ${cfg.REFLECTED_ROOT_COMPOSITE_FIELD_IMPL}(\n")
+                        append("java.util.ArrayList __path = new java.util.ArrayList(${fullPath.size});\n")
+                        for (segment in fullPath) {
+                            append("__path.add(\"$segment\");\n")
+                        }
+                        append("return new ${cfg.REFLECTED_ROOT_OBJECT_FIELD_IMPL}(\n")
                         // name
                         append("\"${field.name}\",\n")
                         // containingType
@@ -276,6 +282,9 @@ private class FieldsObjectBuilder(
                         append(",\n")
                         // type
                         append(reflectedType.instanceExpr)
+                        append(",\n")
+                        // rootFieldPath
+                        append("java.util.Collections.unmodifiableList(__path)")
                         append("\n);\n")
                         append("}")
                     }

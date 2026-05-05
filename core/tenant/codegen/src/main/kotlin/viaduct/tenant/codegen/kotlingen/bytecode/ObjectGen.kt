@@ -24,7 +24,7 @@ fun KotlinGRTFilesBuilder.objectKotlinGen(typeDef: ViaductSchema.Object): STCont
         typeDef = typeDef,
         pkg = pkg,
         reflectedTypeGen = reflectedTypeGen(typeDef),
-        fieldsObjectGen = fieldsObjectGen(typeDef, isRootField = typeDef.isRootFieldEligibleType()),
+        fieldsObjectGen = fieldsObjectGen(typeDef),
         baseTypeMapper = baseTypeMapper,
         isQueryType = typeDef.isQueryType(),
         isMutationType = typeDef.isMutationType(),

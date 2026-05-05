@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
 import viaduct.apiannotations.VisibleForTest
+import viaduct.graphql.schema.ViaductReverseSchema
 import viaduct.graphql.schema.ViaductSchema
 
 /** This class represents the public API to the Kotlin code generator.  Everything
@@ -35,6 +36,11 @@ abstract class KotlinGRTFilesBuilder protected constructor(
         private set
 
     /**
+     * Reverse index over [schema]
+     */
+    internal val reverseSchema: ViaductReverseSchema by lazy { ViaductReverseSchema.from(schema) }
+
+    /**
      * Returns a type definition by name from the schema.
      */
     internal fun getType(type: String): ViaductSchema.TypeDef? = schema.types[type]
@@ -53,13 +59,6 @@ abstract class KotlinGRTFilesBuilder protected constructor(
      * Returns true if the given object type is the subscription root type in the schema.
      */
     internal fun ViaductSchema.Object.isSubscriptionType(): Boolean = this === schema.subscriptionTypeDef
-
-    /**
-     * Returns true if the given object type is eligible for [RootCompositeField] emission.
-     * Includes the query root type and namespace types (marked with `@namespaceType`).
-     * Excludes mutation and subscription to prevent invoking mutations from non-mutation resolvers.
-     */
-    internal fun ViaductSchema.Object.isRootFieldEligibleType(): Boolean = isQueryType() || hasAppliedDirective("namespaceType")
 
     /**
      * Initialize the schema for tests that call individual gen methods directly without going through [addAll].
