@@ -13,7 +13,6 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.mocks.variables
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
 import viaduct.tenant.runtime.globalid.Query
 import viaduct.tenant.runtime.globalid.User
@@ -22,7 +21,8 @@ import viaduct.tenant.runtime.select.SelectionSetImpl
 @ExperimentalCoroutinesApi
 class NodeExecutionContextImplTest : ContextTestBase() {
     private val queryObject = mockk<Query>()
-    private val userId: GlobalID<NodeObject> = GlobalIDImpl(User.Reflection, "123")
+    @Suppress("UNCHECKED_CAST")
+    private val userId: GlobalID<NodeObject> = GlobalID(User.Reflection, "123") as GlobalID<NodeObject>
 
     private fun mk(
         userId: GlobalID<NodeObject> = this.userId,

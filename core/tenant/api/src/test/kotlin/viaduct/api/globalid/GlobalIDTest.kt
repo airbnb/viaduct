@@ -1,4 +1,4 @@
-package viaduct.tenant.runtime.globalid
+package viaduct.api.globalid
 
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -9,7 +9,7 @@ import viaduct.api.reflect.Type
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 
-class GlobalIDImplTest {
+class GlobalIDTest {
     class Foo : NodeObject
 
     class Bar : NodeObject
@@ -18,28 +18,28 @@ class GlobalIDImplTest {
 
     @Test
     fun `equals returns true for same type and internalID`() {
-        val fooID1 = GlobalIDImpl(Type.Companion.ofClass(Foo::class), "123")
-        val fooID2 = GlobalIDImpl(Type.Companion.ofClass(Foo::class), "123")
+        val fooID1 = GlobalID(Type.Companion.ofClass(Foo::class), "123")
+        val fooID2 = GlobalID(Type.Companion.ofClass(Foo::class), "123")
         assertEquals(fooID1, fooID2)
     }
 
     @Test
     fun `equals returns false for different types`() {
-        val fooID = GlobalIDImpl(Type.Companion.ofClass(Foo::class), "123")
-        val barID = GlobalIDImpl(Type.Companion.ofClass(Bar::class), "123")
-        assertFalse(fooID == barID)
+        val fooID = GlobalID(Type.Companion.ofClass(Foo::class), "123")
+        val barID = GlobalID(Type.Companion.ofClass(Bar::class), "123")
+        assertFalse(fooID.equals(barID))
     }
 
     @Test
     fun `equals returns false for different internalIDs`() {
-        val fooID1 = GlobalIDImpl(Type.Companion.ofClass(Foo::class), "123")
-        val fooID2 = GlobalIDImpl(Type.Companion.ofClass(Foo::class), "456")
+        val fooID1 = GlobalID(Type.Companion.ofClass(Foo::class), "123")
+        val fooID2 = GlobalID(Type.Companion.ofClass(Foo::class), "456")
         assertNotEquals(fooID1, fooID2)
     }
 
     @Test
-    fun `equals returns false when comparing with non-GlobalIDImpl instance`() {
-        val fooID = GlobalIDImpl(Type.Companion.ofClass(Foo::class), "123")
+    fun `equals returns false when comparing with non-GlobalID instance`() {
+        val fooID = GlobalID(Type.Companion.ofClass(Foo::class), "123")
         val someID = "Some String"
         assertFalse(fooID.equals(someID))
     }
@@ -52,7 +52,7 @@ class GlobalIDImplTest {
             // testing the runtime check
             @Suppress("UNCHECKED_CAST")
             val notNodeType = Type.Companion.ofClass(NotNode::class) as Type<NodeObject>
-            GlobalIDImpl(notNodeType, "123")
+            GlobalID(notNodeType, "123")
         }
     }
 }

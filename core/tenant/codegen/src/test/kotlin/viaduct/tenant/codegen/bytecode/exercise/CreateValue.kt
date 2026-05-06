@@ -2,7 +2,7 @@ package viaduct.tenant.codegen.bytecode.exercise
 
 import graphql.schema.GraphQLInputObjectType
 import java.time.ZoneOffset
-import viaduct.api.globalid.GlobalIDImpl
+import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
@@ -264,7 +264,7 @@ internal fun ViaductGraphQLSchema.HasDefaultValue.valueV2FromGenericValue(
                 val globalIDTypeName = grtNameForIdParam()
                 if (globalIDTypeName != null) {
                     val type = classResolver.reflectionFor(globalIDTypeName) as Type<NodeObject>
-                    GlobalIDImpl(type, baseValue as String)
+                    GlobalID(type, baseValue as String)
                 } else {
                     baseValue
                 }

@@ -26,7 +26,6 @@ import viaduct.errors.FrameworkException
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault as DefaultCodec
-import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
 import viaduct.tenant.runtime.globalid.User
 
@@ -59,7 +58,7 @@ class ExecutionContextImplTest : ContextTestBase() {
 
         assertEquals(User.Reflection, result.type)
         assertEquals("123", result.internalID)
-        assertTrue(result is GlobalIDImpl<*>)
+        assertTrue(result is GlobalID<*>)
     }
 
     @Test
@@ -90,7 +89,7 @@ class ExecutionContextImplTest : ContextTestBase() {
 
         assertEquals(User.Reflection, result.type)
         assertEquals("", result.internalID)
-        assertTrue(result is GlobalIDImpl<*>)
+        assertTrue(result is GlobalID<*>)
     }
 
     @Test
@@ -103,7 +102,7 @@ class ExecutionContextImplTest : ContextTestBase() {
 
         assertEquals(User.Reflection, result.type)
         assertEquals(specialInternalId, result.internalID)
-        assertTrue(result is GlobalIDImpl<*>)
+        assertTrue(result is GlobalID<*>)
     }
 
     @Test
@@ -116,7 +115,7 @@ class ExecutionContextImplTest : ContextTestBase() {
 
         assertEquals(User.Reflection, result.type)
         assertEquals(unicodeInternalId, result.internalID)
-        assertTrue(result is GlobalIDImpl<*>)
+        assertTrue(result is GlobalID<*>)
     }
 
     @Test
@@ -129,7 +128,7 @@ class ExecutionContextImplTest : ContextTestBase() {
 
         assertEquals(User.Reflection, result.type)
         assertEquals(whitespaceInternalId, result.internalID)
-        assertTrue(result is GlobalIDImpl<*>)
+        assertTrue(result is GlobalID<*>)
     }
 
     @Test
@@ -143,7 +142,7 @@ class ExecutionContextImplTest : ContextTestBase() {
         assertEquals(User.Reflection, result.type)
         assertEquals(longInternalId, result.internalID)
         assertEquals(10000, result.internalID.length)
-        assertTrue(result is GlobalIDImpl<*>)
+        assertTrue(result is GlobalID<*>)
     }
 
     @Test

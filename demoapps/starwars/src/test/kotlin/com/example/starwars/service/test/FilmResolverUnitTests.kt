@@ -13,7 +13,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.api.globalid.GlobalIDImpl
+import viaduct.api.globalid.GlobalID
 import viaduct.api.grts.Film
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.SchemaFactory
@@ -123,7 +123,8 @@ class FilmResolverUnitTests : DefaultAbstractResolverTestBase() {
             val result = runFieldResolver(
                 resolver = resolver,
                 objectValue = Film.Builder(context)
-                    .id(GlobalIDImpl(Film.Reflection, "1"))
+                    .id(GlobalID(Film.Reflection, "1"))
+                    .title("A New Hope")
                     .build(),
             )
 

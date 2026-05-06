@@ -5,7 +5,7 @@ import java.time.LocalDate
 import java.time.OffsetTime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import viaduct.api.globalid.GlobalIDImpl
+import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.KeyMapping
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.putWithAlias
@@ -75,7 +75,7 @@ class GRTDomainTest : KotestPropertyBase() {
                     Input2.Builder(executionContext)
                         .stringField("str")
                         .id1("id")
-                        .id2(GlobalIDImpl(TestUser.Reflection, "1"))
+                        .id2(GlobalID(TestUser.Reflection, "1"))
                         .build()
                 )
                 .build()

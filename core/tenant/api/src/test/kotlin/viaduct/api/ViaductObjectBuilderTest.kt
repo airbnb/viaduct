@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.globalid.GlobalIDImpl
+import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.ViaductObjectBuilder
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.testschema.ApiTestSchema
@@ -176,7 +176,7 @@ class ViaductObjectBuilderTest {
     @Test
     fun testIDType(): Unit =
         runBlocking {
-            val globalId = GlobalIDImpl(TestUser.Reflection, "42")
+            val globalId = GlobalID(TestUser.Reflection, "42")
 
             ViaductObjectBuilder.dynamicBuilderFor(context, TestUser::class)
                 .put("id", globalId)

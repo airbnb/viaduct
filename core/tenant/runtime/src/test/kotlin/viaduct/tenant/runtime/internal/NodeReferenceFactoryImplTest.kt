@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import strikt.api.expectThat
 import strikt.assertions.isA
+import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.mocks.MockInternalContext
@@ -22,7 +23,6 @@ import viaduct.api.types.NodeObject
 import viaduct.engine.api.NodeReference
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
 import viaduct.tenant.runtime.globalid.User
 
@@ -32,7 +32,7 @@ class NodeReferenceFactoryImplTest {
     fun `nodeRef returns a Node Reference`(): Unit =
         runBlocking {
             val schema = GlobalIdTestSchema.schema
-            val globalId = GlobalIDImpl(User.Reflection, "123")
+            val globalId = GlobalID(User.Reflection, "123")
             val factory = NodeReferenceGRTFactoryImpl { _: String, objectType: GraphQLObjectType ->
                 mockk {
                     every { type } returns objectType
@@ -52,7 +52,7 @@ class NodeReferenceFactoryImplTest {
         )
 
     private fun createDefaultNodeReference(
-        globalIDImpl: GlobalIDImpl<out NodeObject>,
+        globalIDImpl: GlobalID<out NodeObject>,
         graphqlObjectType: GraphQLObjectType = GlobalIdTestSchema.schema.schema.getObjectType(globalIDImpl.type.name),
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
     ): NodeReference {
@@ -67,7 +67,7 @@ class NodeReferenceFactoryImplTest {
 
     @Test
     fun `nodeRef - valid User type with proper constructor succeeds`() {
-        val globalId = GlobalIDImpl(User.Reflection, "123")
+        val globalId = GlobalID(User.Reflection, "123")
 
         val nodeEngineObjectData = createDefaultNodeReference(globalId)
         val nodeReferenceFactory: (String, GraphQLObjectType) -> NodeReference = { _, _ ->
@@ -86,7 +86,7 @@ class NodeReferenceFactoryImplTest {
     @Test
     fun `nodeRef - type name not found in schema, throws exception`() {
         val invalidNameUserType = MockType("TypeThatDoesNotExist", User::class)
-        val globalId = GlobalIDImpl(invalidNameUserType, "123")
+        val globalId = GlobalID(invalidNameUserType, "123")
 
         createDefaultNodeReference(
             globalId,
@@ -107,7 +107,7 @@ class NodeReferenceFactoryImplTest {
     @Test
     fun `nodeRef - type is invalid, throws exception for constructor not found`() {
         val userNameInvalidType = MockType("User", NodeObject::class)
-        val globalId = GlobalIDImpl(userNameInvalidType, "123")
+        val globalId = GlobalID(userNameInvalidType, "123")
         val nodeReferenceFactory: (String, GraphQLObjectType) -> NodeReference = { _, _ ->
             createDefaultNodeReference(globalId)
         }
@@ -123,7 +123,7 @@ class NodeReferenceFactoryImplTest {
     @Test
     fun `nodeRef - user returned from function can get the id `() {
         val internalId = "123"
-        val globalId = GlobalIDImpl(User.Reflection, internalId)
+        val globalId = GlobalID(User.Reflection, internalId)
         val nodeReferenceFactory: (String, GraphQLObjectType) -> NodeReference = { _, _ ->
             createDefaultNodeReference(globalId)
         }

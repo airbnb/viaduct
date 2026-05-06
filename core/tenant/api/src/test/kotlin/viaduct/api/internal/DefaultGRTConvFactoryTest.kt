@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.globalid.GlobalIDImpl
+import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.api.mocks.testGlobalId
@@ -69,7 +69,7 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
                 schema.typeAs("O1"),
                 selectionSet = null
             ),
-            GlobalIDImpl(O1.Reflection, "foo"),
+            GlobalID(O1.Reflection, "foo"),
             IR.Value.String(O1.Reflection.testGlobalId("foo"))
         )
     }
@@ -126,8 +126,8 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
                 selectionSet = null
             ),
             listOf(
-                GlobalIDImpl(TestUser.Reflection, "foo"),
-                GlobalIDImpl(TestUser.Reflection, "bar"),
+                GlobalID(TestUser.Reflection, "foo"),
+                GlobalID(TestUser.Reflection, "bar"),
             ),
             IR.Value.List(
                 listOf(IR.Value.String(TestUser.Reflection.testGlobalId("foo")), IR.Value.String(TestUser.Reflection.testGlobalId("bar")))
@@ -148,7 +148,7 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
     fun `ID -- id field of input type with idOf directive is a GlobalID`() {
         assertRoundtrip(
             factory.createForInputField(internalContext, schema.inputField("InputWithGlobalIDs" to "id2")),
-            GlobalIDImpl(TestUser.Reflection, "foo"),
+            GlobalID(TestUser.Reflection, "foo"),
             IR.Value.String(TestUser.Reflection.testGlobalId("foo"))
         )
     }
@@ -158,8 +158,8 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
         assertRoundtrip(
             factory.createForInputField(internalContext, schema.inputField("InputWithGlobalIDs" to "id3")),
             listOf(
-                GlobalIDImpl(O1.Reflection, "foo"),
-                GlobalIDImpl(O1.Reflection, "bar"),
+                GlobalID(O1.Reflection, "foo"),
+                GlobalID(O1.Reflection, "bar"),
             ),
             IR.Value.List(
                 listOf(
@@ -391,7 +391,7 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
                     "objectField",
                     "obj",
                     O2.Builder(executionContext)
-                        .putWithAlias("id", "y", GlobalIDImpl(O2.Reflection, "1"))
+                        .putWithAlias("id", "y", GlobalID(O2.Reflection, "1"))
                         .build(),
                 )
                 .build(),

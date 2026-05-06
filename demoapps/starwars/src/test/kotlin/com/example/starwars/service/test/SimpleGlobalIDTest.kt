@@ -43,7 +43,7 @@ class SimpleGlobalIDTest {
         val character = data.get("node")
         assertNotNull(character)
 
-        // Verify the GlobalID is encoded properly using GlobalIDImpl
+        // Verify the GlobalID is encoded properly
         val globalId = character.get("id").asText()
         val expectedGlobalId = Character.Reflection.globalId("1")
         assertEquals(expectedGlobalId, globalId)

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
-import viaduct.api.globalid.GlobalIDImpl
+import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
@@ -108,7 +108,7 @@ class VariablesProviderExecutorTest {
                 GraphQLInputObjectType.newInputObject().name("MockInputType").build()
             )
             val userType = MockType.mkNodeObject("User")
-            val mockGlobalID = GlobalIDImpl(userType, "1234")
+            val mockGlobalID = GlobalID(userType, "1234")
 
             val adapter = VariablesProviderExecutor(
                 variablesProvider = VariablesProviderInfo(setOf("foo", "bar")) {

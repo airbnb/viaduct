@@ -120,9 +120,17 @@ public final class viaduct/api/exception/ValueMapperException : java/lang/Except
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
-public abstract interface class viaduct/api/globalid/GlobalID {
-	public abstract fun getInternalID ()Ljava/lang/String;
-	public abstract fun getType ()Lviaduct/api/reflect/Type;
+public final class viaduct/api/globalid/GlobalID {
+	public fun <init> (Lviaduct/api/reflect/Type;Ljava/lang/String;)V
+	public final fun component1 ()Lviaduct/api/reflect/Type;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Lviaduct/api/reflect/Type;Ljava/lang/String;)Lviaduct/api/globalid/GlobalID;
+	public static synthetic fun copy$default (Lviaduct/api/globalid/GlobalID;Lviaduct/api/reflect/Type;Ljava/lang/String;ILjava/lang/Object;)Lviaduct/api/globalid/GlobalID;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInternalID ()Ljava/lang/String;
+	public final fun getType ()Lviaduct/api/reflect/Type;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class viaduct/api/globalid/GlobalIDCodec {

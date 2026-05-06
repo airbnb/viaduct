@@ -35,7 +35,6 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.globalid.GlobalIDImpl
 import viaduct.tenant.runtime.toObjectGRT
 
 interface PrebakedResults<T : CompositeOutput> {
@@ -102,7 +101,7 @@ class MockInternalContext(
         val (typeName, localID) = globalIDCodec.deserialize(serialized)
         @Suppress("UNCHECKED_CAST")
         val type = reflectionLoader.reflectionFor(typeName) as Type<T>
-        return GlobalIDImpl(type, localID)
+        return GlobalID(type, localID)
     }
 
     companion object {
@@ -123,7 +122,7 @@ open class MockExecutionContext(
         type: Type<T>,
         internalID: String
     ): GlobalID<T> {
-        return GlobalIDImpl(type, internalID)
+        return GlobalID(type, internalID)
     }
 
     companion object {

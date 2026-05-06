@@ -3,7 +3,6 @@ package viaduct.api.internal
 import kotlin.reflect.full.isSubclassOf
 import viaduct.api.globalid.GlobalID
 import viaduct.api.globalid.GlobalIDCodec as TenantGlobalIDCodec
-import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
@@ -58,6 +57,6 @@ class GlobalIDCodec(
             it as Type<T>
         }
 
-        return GlobalIDImpl(type, localID)
+        return GlobalID(type, localID)
     }
 }

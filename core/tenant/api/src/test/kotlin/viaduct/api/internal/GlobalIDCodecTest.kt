@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.globalid.GlobalIDImpl
+import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.MockType
 import viaduct.api.mocks.testGlobalId
@@ -17,7 +17,7 @@ class GlobalIDCodecTest {
     @Test
     fun `serialize delegates to service codec`() {
         val type = MockType.mkNodeObject("TestType")
-        val globalId = GlobalIDImpl(type, "internal-123")
+        val globalId = GlobalID(type, "internal-123")
         val reflectionLoader = MockReflectionLoader(type)
 
         val codec = GlobalIDCodec(GlobalIDCodecDefault, reflectionLoader)
@@ -45,7 +45,7 @@ class GlobalIDCodecTest {
         val reflectionLoader = MockReflectionLoader(type)
         val codec = GlobalIDCodec(GlobalIDCodecDefault, reflectionLoader)
 
-        val originalId = GlobalIDImpl(type, "user-456")
+        val originalId = GlobalID(type, "user-456")
         val serialized = codec.serialize(originalId)
         val deserialized = codec.deserialize<NodeObject>(serialized)
 

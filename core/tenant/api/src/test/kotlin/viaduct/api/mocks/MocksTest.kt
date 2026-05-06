@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalID
-import viaduct.api.globalid.GlobalIDImpl
 import viaduct.api.internal.internal
 import viaduct.api.reflect.Type
 import viaduct.api.types.Object
@@ -54,13 +53,13 @@ class MocksTest {
         }
 
     @Test
-    fun `GlobalIDImpl equals`(): Unit =
+    fun `GlobalID equals`(): Unit =
         runBlocking {
             Arb.graphQLName().forAll { typeName ->
                 val internalId = Arb.string().bind()
                 val type = MockType.mkNodeObject(typeName)
-                val id1: GlobalID<*> = GlobalIDImpl(type, internalId)
-                val id2: GlobalID<*> = GlobalIDImpl(type, internalId)
+                val id1: GlobalID<*> = GlobalID(type, internalId)
+                val id2: GlobalID<*> = GlobalID(type, internalId)
                 id1 == id2
             }
         }

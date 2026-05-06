@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.globalid.GlobalIDImpl
+import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.api.mocks.testGlobalId
@@ -298,8 +298,8 @@ class InputLikeBaseTest {
     @Test
     fun `GlobalID wrapping`() {
         val id = "a"
-        val id2 = GlobalIDImpl(O1.Reflection, "b")
-        val id3 = GlobalIDImpl(O2.Reflection, "1")
+        val id2 = GlobalID(O1.Reflection, "b")
+        val id3 = GlobalID(O2.Reflection, "1")
         val ids = listOf(listOf(null, id3))
 
         val input = InputWithGlobalIDs.Builder(executionContext)
@@ -324,7 +324,7 @@ class InputLikeBaseTest {
     @Test
     fun `GlobalID wrapping -- nested`() {
         val id1 = "a"
-        val id2 = GlobalIDImpl(TestUser.Reflection, "b")
+        val id2 = GlobalID(TestUser.Reflection, "b")
 
         val inp = Input1.Builder(executionContext)
             // non-null field
