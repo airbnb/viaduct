@@ -100,6 +100,7 @@ private interface ResolverModel {
     val ctxInterface: String
     val selectiveCtxInterface: String
     val ctxOutputType: String
+    val resolverBase: String
 }
 
 private class ResolversModelImpl(
@@ -171,6 +172,15 @@ private class ResolverModelImpl(
                 "viaduct.api.context.FieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
         }
     override val selectiveCtxInterface: String = "viaduct.api.context.SelectiveFieldExecutionContext<$grtOutputName>"
+    override val resolverBase: String
+        get() = when {
+            mutationTypeName != null && this.field.containingDef.name == mutationTypeName ->
+                "viaduct.api.MutationResolverBase<$queryGrtTypeName, $mutationGrtTypeName, $grtArgsName, $typeSpecifier>"
+            isConnectionField ->
+                "viaduct.api.ConnectionResolverBase<$grtTypeName, $queryGrtTypeName, $grtArgsName, $typeSpecifier>"
+            else ->
+                "viaduct.api.FieldResolverBase<$grtTypeName, $queryGrtTypeName, $grtArgsName, $typeSpecifier>"
+        }
 }
 
 private val resolversST = stTemplate(
@@ -181,7 +191,6 @@ private val resolversST = stTemplate(
     import viaduct.apiannotations.InternalApi
     import viaduct.api.context.FieldExecutionContext
     import viaduct.api.internal.InternalContext
-    import viaduct.api.ResolverBase
     import viaduct.api.internal.ResolverFor
     import viaduct.api.types.Arguments.NoArguments
     import viaduct.api.types.CompositeOutput
@@ -199,7 +208,7 @@ private val resolverST = stTemplate(
     "resolver(mdl)",
     """
     @ResolverFor(typeName = "<mdl.gqlTypeName>", fieldName = "<mdl.gqlFieldName>", isSelective = <mdl.selectiveLiteral>, isBatching = <mdl.batchingLiteral>)
-    abstract class <mdl.resolverName> : ResolverBase\<<mdl.typeSpecifier>\> {
+    abstract class <mdl.resolverName> : <mdl.resolverBase> {
         class Context(
             private val inner: <mdl.ctxInterface>
         ) : <mdl.ctxInterface> by inner<if(mdl.selective)>, <mdl.selectiveCtxInterface><endif>, InternalContext by (inner as InternalContext) {

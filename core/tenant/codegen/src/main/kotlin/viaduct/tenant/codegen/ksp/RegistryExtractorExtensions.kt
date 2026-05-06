@@ -14,6 +14,17 @@ private val resolverForAnnotationName = requireNotNull(ResolverFor::class.simple
 private val resolverAnnotationName = requireNotNull(Resolver::class.simpleName)
 private val variableUnsetValue = Variable.UNSET_STRING_VALUE
 
+// Resolver base classes whose final type argument is the resolver's return type.
+// ResolverBase<R> — R is the only type arg.
+// FieldResolverBase<O, Q, A, R> / ConnectionResolverBase<O, Q, A, R> — R is the last type arg.
+// MutationResolverBase<Q, M, A, R> — R is the last type arg.
+private val RESOLVER_BASE_SIMPLE_NAMES = setOf(
+    "ResolverBase",
+    "FieldResolverBase",
+    "ConnectionResolverBase",
+    "MutationResolverBase",
+)
+
 /**
  * Converts a resolver implementation into the intermediate descriptor model consumed by the
  * registry extractor. Emits both node resolvers (@NodeResolverFor) and field resolvers
@@ -230,8 +241,10 @@ private fun KSClassDeclaration.toFieldResolverParams(
     }?.declaration?.simpleName?.asString() ?: "Query"
 
     val returnTypeName = baseDeclaration.superTypes
-        .firstOrNull { it.resolve().declaration.simpleName.asString() == "ResolverBase" }
-        ?.resolve()?.arguments?.firstOrNull()?.type?.resolve()
+        .firstOrNull {
+            it.resolve().declaration.simpleName.asString() in RESOLVER_BASE_SIMPLE_NAMES
+        }
+        ?.resolve()?.arguments?.lastOrNull()?.type?.resolve()
         ?.let { resolvedType ->
             if (resolvedType.declaration.simpleName.asString() == "List") {
                 resolvedType.arguments.firstOrNull()?.type?.resolve()?.declaration?.simpleName?.asString()
