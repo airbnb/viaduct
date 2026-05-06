@@ -12,15 +12,15 @@ java {
 }
 
 dependencies {
-    implementation(project(":plugins-common"))
+    implementation(project(":common"))
     // Reuse AssembleSchemaPartitionTask + ViaductModuleExtension from the Kotlin module plugin
-    implementation(project(":plugins-module"))
+    implementation(project(":module"))
 
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.viaductschema)
 
     testImplementation(gradleTestKit())
-    testImplementation(project(":plugins-application"))
+    testImplementation(project(":application"))
 }
 
 tasks.jar {
