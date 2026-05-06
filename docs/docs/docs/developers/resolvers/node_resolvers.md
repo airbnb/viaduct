@@ -47,11 +47,12 @@ The nested `Context` class is described in more detail [below](#context).
 
 ## Implementation
 
-Implement a node resolver by subclassing the generated base class and overriding exactly one of either `resolve` or `batchResolve`.
+Implement a node resolver by subclassing the generated base class, annotating the class with `@Resolver`, and overriding exactly one of either `resolve` or `batchResolve`.
 
 Here's an example of a non-batching resolver for `User` that calls a user service to get data for a single user:
 
 ```kotlin
+@Resolver
 class UserNodeResolver @Inject constructor(
   val userService: UserServiceClient
 ): NodeResolvers.User() {
@@ -110,6 +111,7 @@ type User implements Node @resolver(isSelective: true) {
 When a node is declared with `@resolver(isSelective: true)`, the generated resolver `Context` implements {{ kdoc("viaduct.api.context.SelectiveNodeExecutionContext") }} and exposes `ctx.selections()`:
 
 ```kotlin
+@Resolver
 class SelectiveUserNodeResolver @Inject constructor(
   val userService: UserServiceClient
 ): NodeResolvers.User() {

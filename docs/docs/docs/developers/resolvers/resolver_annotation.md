@@ -4,7 +4,7 @@ description: Using the @Resolver annotation
 ---
 
 
-Field resolvers must be annotated with `@Resolver` to be registered. This annotation class also allows resolvers to declare data dependencies in the form of *required selection sets* via `objectValueFragment` and `queryValueFragment`:
+Both field resolvers and node resolvers must be annotated with `@Resolver` to be registered. For node resolvers, `@Resolver` must use default (empty) parameters since node resolvers do not yet support required selection sets. This annotation class also allows field resolvers to declare data dependencies in the form of *required selection sets* via `objectValueFragment` and `queryValueFragment`:
 
 ```kotlin
 annotation class Resolver(
