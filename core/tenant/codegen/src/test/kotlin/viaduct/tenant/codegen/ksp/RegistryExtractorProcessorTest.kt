@@ -16,6 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.api.Resolver as ResolverAnnotation
 
 private val KOTLIN_VERSION_1_9 = KotlinVersion(1, 9)
 
@@ -54,7 +55,7 @@ class RegistryExtractorProcessorTest {
             declarations = listOf(nodeResolver),
         )
 
-        val resolver = ksResolver(files = listOf(fileWithResolver))
+        val resolver = ksResolver(files = listOf(fileWithResolver), resolverAnnotated = listOf(nodeResolver))
         val processor = RegistryExtractorProcessor(environment)
 
         val deferred = processor.process(resolver)
@@ -110,7 +111,7 @@ class RegistryExtractorProcessorTest {
             declarations = listOf(nodeResolver),
         )
 
-        val resolver = ksResolver(files = listOf(fileWithResolver))
+        val resolver = ksResolver(files = listOf(fileWithResolver), resolverAnnotated = listOf(nodeResolver))
         val processor = RegistryExtractorProcessor(environment)
 
         // First call generates output
@@ -150,7 +151,7 @@ class RegistryExtractorProcessorTest {
             declarations = listOf(nodeResolver),
         )
 
-        val resolver = ksResolver(files = listOf(fileWithResolver))
+        val resolver = ksResolver(files = listOf(fileWithResolver), resolverAnnotated = listOf(nodeResolver))
         val processor = RegistryExtractorProcessor(environment)
 
         processor.process(resolver)
@@ -208,7 +209,7 @@ class RegistryExtractorProcessorTest {
             declarations = listOf(fieldResolver),
         )
 
-        val resolver = ksResolver(files = listOf(fileWithFieldResolver))
+        val resolver = ksResolver(files = listOf(fileWithFieldResolver), resolverAnnotated = listOf(fieldResolver))
         val processor = RegistryExtractorProcessor(environment)
 
         processor.process(resolver)
@@ -280,7 +281,7 @@ class RegistryExtractorProcessorTest {
             declarations = listOf(nodeResolver),
         )
 
-        val resolver = ksResolver(files = listOf(fileWithResolver))
+        val resolver = ksResolver(files = listOf(fileWithResolver), resolverAnnotated = listOf(nodeResolver))
         val processor = RegistryExtractorProcessor(environment)
 
         processor.process(resolver)
@@ -356,17 +357,18 @@ private fun fakeEnvironment(
 private fun ksResolver(
     files: List<KSFile>,
     bootstrapperAnnotated: List<KSAnnotated> = emptyList(),
+    resolverAnnotated: List<KSAnnotated> = emptyList(),
 ): Resolver {
     val tenantBootstrapperFqn = requireNotNull(viaduct.service.api.spi.TenantBootstrapper::class.qualifiedName)
+    val resolverAnnotationFqn = requireNotNull(ResolverAnnotation::class.qualifiedName)
     return proxy(Resolver::class.java) { method, args ->
         when (method.name) {
             "getAllFiles" -> files.asSequence()
             "getSymbolsWithAnnotation" -> {
-                val name = args?.firstOrNull() as? String
-                if (name == tenantBootstrapperFqn) {
-                    bootstrapperAnnotated.asSequence()
-                } else {
-                    emptySequence()
+                when (args?.firstOrNull() as? String) {
+                    tenantBootstrapperFqn -> bootstrapperAnnotated.asSequence()
+                    resolverAnnotationFqn -> resolverAnnotated.asSequence()
+                    else -> emptySequence()
                 }
             }
             else -> unsupported("Resolver.${method.name}")

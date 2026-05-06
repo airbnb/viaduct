@@ -14,6 +14,7 @@ import java.lang.reflect.Proxy
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.api.Resolver as ResolverAnnotation
 import viaduct.service.api.spi.TenantBootstrapper
 
 class ResolverParamsExtractorTest {
@@ -107,6 +108,7 @@ class ResolverParamsExtractorTest {
                     ),
                 ),
             ),
+            resolverAnnotated = listOf(exampleResolverB, exampleResolverA, accountResolver),
         )
 
         val result = ResolverParamsExtractor(
@@ -194,6 +196,7 @@ class ResolverParamsExtractorTest {
                     declarations = listOf(fieldResolver, nonResolver),
                 ),
             ),
+            resolverAnnotated = listOf(fieldResolver),
         )
 
         val result = ResolverParamsExtractor(
@@ -255,6 +258,7 @@ class ResolverParamsExtractorTest {
                     declarations = listOf(resolverWithoutFile),
                 ),
             ),
+            resolverAnnotated = listOf(resolverWithoutFile),
         )
 
         val result = ResolverParamsExtractor(
@@ -331,6 +335,7 @@ class ResolverParamsExtractorTest {
                     declarations = listOf(activeResolver, draftResolver),
                 ),
             ),
+            resolverAnnotated = listOf(activeResolver),
         )
 
         val result = ResolverParamsExtractor(
@@ -424,17 +429,18 @@ class ResolverParamsExtractorTest {
 private fun ksResolver(
     files: List<KSFile>,
     bootstrapperAnnotated: List<KSAnnotated> = emptyList(),
+    resolverAnnotated: List<KSAnnotated> = emptyList(),
 ): Resolver {
     val tenantBootstrapperFqn = requireNotNull(TenantBootstrapper::class.qualifiedName)
+    val resolverAnnotationFqn = requireNotNull(ResolverAnnotation::class.qualifiedName)
     return proxy(Resolver::class.java) { method, args ->
         when (method.name) {
             "getAllFiles" -> files.asSequence()
             "getSymbolsWithAnnotation" -> {
-                val name = args?.firstOrNull() as? String
-                if (name == tenantBootstrapperFqn) {
-                    bootstrapperAnnotated.asSequence()
-                } else {
-                    emptySequence()
+                when (args?.firstOrNull() as? String) {
+                    tenantBootstrapperFqn -> bootstrapperAnnotated.asSequence()
+                    resolverAnnotationFqn -> resolverAnnotated.asSequence()
+                    else -> emptySequence()
                 }
             }
             else -> unsupported("Resolver.${method.name}")

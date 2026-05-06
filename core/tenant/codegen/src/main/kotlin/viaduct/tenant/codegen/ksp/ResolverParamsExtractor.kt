@@ -3,14 +3,16 @@ package viaduct.tenant.codegen.ksp
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
+import viaduct.api.Resolver as ResolverAnnotation
 import viaduct.service.api.spi.TenantBootstrapper
+
+private val RESOLVER_ANNOTATION = requireNotNull(ResolverAnnotation::class.qualifiedName)
 
 /**
  * Extracts file-scoped resolver descriptors from the current KSP compilation unit.
  *
- * The extractor walks all class declarations, including nested classes, reduces them
+ * The extractor finds all classes annotated with [ResolverAnnotation], reduces them
  * into [ResolverParams], and groups both node and field resolvers by their containing
  * source file. It also detects classes annotated with [TenantBootstrapper] and embeds
  * their FQN in the per-file descriptor. At most one [TenantBootstrapper] class may
@@ -25,9 +27,7 @@ internal class ResolverParamsExtractor(
         val groupedFieldsByFile = mutableMapOf<KSFile, MutableList<ResolverParams.Field>>()
 
         resolver
-            .getAllFiles()
-            .flatMap { file -> file.declarations.asSequence() }
-            .flatMap { declaration -> declaration.selfAndNestedDeclarations() }
+            .getSymbolsWithAnnotation(RESOLVER_ANNOTATION)
             .filterIsInstance<KSClassDeclaration>()
             .forEach { declaration ->
                 collectResolverParams(
@@ -115,18 +115,6 @@ internal class ResolverParamsExtractor(
             is ResolverParams.Node -> groupedNodesByFile.getOrPut(containingFile) { mutableListOf() }.add(params)
             is ResolverParams.Field -> groupedFieldsByFile.getOrPut(containingFile) { mutableListOf() }.add(params)
             null -> Unit
-        }
-    }
-}
-
-private fun KSDeclaration.selfAndNestedDeclarations(): Sequence<KSDeclaration> {
-    return sequence {
-        yield(this@selfAndNestedDeclarations)
-
-        if (this@selfAndNestedDeclarations is KSClassDeclaration) {
-            for (nested in declarations) {
-                yieldAll(nested.selfAndNestedDeclarations())
-            }
         }
     }
 }
