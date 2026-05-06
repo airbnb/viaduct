@@ -35,6 +35,7 @@ viaduct-engine-wiring = { group = "com.airbnb.viaduct.engine", name = "wiring", 
 viaduct-service-wiring = { group = "com.airbnb.viaduct.service", name = "wiring", version.ref = "viaduct" }
 viaduct-tenant-api = { group = "com.airbnb.viaduct.tenant", name = "api", version.ref = "viaduct" }
 viaduct-tenant-runtime = { group = "com.airbnb.viaduct.tenant", name = "runtime", version.ref = "viaduct" }
+viaduct-x-remoteresolvers = { group = "com.airbnb.viaduct", name = "remoteresolvers", version.ref = "viaduct" }
 guice = { group = "com.google.inject", name = "guice", version.ref = "guice" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
 kotlinx-coroutines-reactor = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-reactor", version.ref = "coroutinesReactor" }

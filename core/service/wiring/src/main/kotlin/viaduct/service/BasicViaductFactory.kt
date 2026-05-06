@@ -69,11 +69,15 @@ object BasicViaductFactory {
      * @param tenantCodeInjector the injector used to instantiate resolver classes.
      *        Defaults to [CodeInjector.Naive] (reflection with zero-arg constructors).
      *        Pass a DI-backed injector (e.g. Guice, Micronaut) when resolvers have dependencies.
+     *
+     * @param proxyResolverFactory factory for wrapping resolvers with proxies (e.g., for remote execution).
+     *        Defaults to [ProxyResolverFactory.NO_OP], which leaves all resolvers executing locally.
      */
     @JvmOverloads
     fun createFromResource(
         schemaRegistrationInfo: SchemaRegistrationInfo = SchemaRegistrationInfo(),
         tenantCodeInjector: CodeInjector = CodeInjector.Naive,
+        proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
     ): Viaduct {
         val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
             override fun create() = BootstrapperFactory.fromResources(tenantCodeInjector)
@@ -81,6 +85,7 @@ object BasicViaductFactory {
 
         return StandardViaduct.Builder()
             .withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
+            .withProxyResolverFactory(proxyResolverFactory)
             .withSchemaConfiguration(applySchemaRegistry(schemaRegistrationInfo))
             .build()
     }
