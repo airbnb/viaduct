@@ -30,7 +30,6 @@ import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.UnsetFieldException
 import viaduct.errors.handleFrameworkErrors
-import viaduct.errors.handleFrameworkErrorsSuspend
 
 /**
  * Base class for object type GRTs
@@ -46,12 +45,12 @@ abstract class ObjectBase(
      * Fetches a field value, throwing on failure. Called by generated GRT getters.
      * For internal framework use only.
      */
-    protected suspend fun <T> fetch(
+    protected fun <T> fetch(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
     ): T =
-        handleFrameworkErrorsSuspend("${engineObject.type.name}.$fieldName") {
+        handleFrameworkErrors("${engineObject.type.name}.$fieldName") {
             get(fieldName, baseFieldTypeClass, alias)
         }
 
@@ -59,18 +58,19 @@ abstract class ObjectBase(
      * Fetches a field value, returning `null` on failure instead of throwing. Called by generated
      * GRT `getXxxOrNull` getters. For internal framework use only.
      */
-    protected suspend fun <T> fetchOrNull(
+    protected fun <T> fetchOrNull(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
     ): T? =
-        handleFrameworkErrorsSuspend("${engineObject.type.name}.$fieldName") {
+        handleFrameworkErrors("${engineObject.type.name}.$fieldName") {
             getOrNull(fieldName, baseFieldTypeClass, alias)
         }
 
     /**
      * Fetches the given selection from the EngineObjectData and wraps it into a typed GRT or scalar value.
-     * Public function called by extension getter function on the GRT.
+     * Called by generated GRT field getters and also directly by tenant code for backing data fields,
+     * for which no getter is generated.
      *
      * @param fieldName the name of the field being fetched
      * @param baseFieldTypeClass the KClass that represents the generated base type of the provided selection
@@ -78,13 +78,13 @@ abstract class ObjectBase(
      */
     @Suppress("UNCHECKED_CAST")
     @Attribution(AttributionContext.FRAMEWORK)
-    suspend fun <T> get(
+    fun <T> get(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
     ): T {
         return getInternal(alias, fieldName, baseFieldTypeClass) { eod, selection ->
-            eod.fetch(selection) as T
+            eod.get(selection) as T
         }
     }
 
@@ -97,21 +97,21 @@ abstract class ObjectBase(
      * @param alias the GraphQL response key of the selection, if aliased (see https://spec.graphql.org/draft/#sec-Field-Alias)
      */
     @Suppress("UNCHECKED_CAST")
-    suspend fun <T> getOrNull(
+    fun <T> getOrNull(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
     ): T? {
         return getInternal(alias, fieldName, baseFieldTypeClass) { eod, selection ->
-            eod.fetchOrNull(selection) as T?
+            eod.getOrNull(selection) as T?
         }
     }
 
-    private suspend fun <T> getInternal(
+    private fun <T> getInternal(
         alias: String?,
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
-        extractingFunction: suspend (eod: EngineObjectData, selection: String) -> T
+        extractingFunction: (eod: EngineObjectData.Sync, selection: String) -> T
     ): T {
         val selection = alias ?: fieldName
         val result = fieldCache.getOrPut(selection) {
@@ -119,7 +119,7 @@ abstract class ObjectBase(
             val fieldDefinition = objectType.getField(fieldName) ?: throw FrameworkException(
                 "Field $fieldName not found on type ${objectType.name}"
             )
-            handleFrameworkErrorsSuspend("${objectType.name}.$selection") {
+            handleFrameworkErrors("${objectType.name}.$selection") {
                 val fieldValue = when (engineObject) {
                     is NodeReference -> {
                         // If the EOD is a node reference, only allow access to its ID field
@@ -140,7 +140,10 @@ abstract class ObjectBase(
                             "fields cannot be accessed on an unresolved root field reference created using Context.rootFieldRef"
                         )
                     }
-                    is EngineObjectData -> extractingFunction(engineObject, selection)
+                    is EngineObjectData.Sync -> extractingFunction(engineObject, selection)
+                    is EngineObjectData -> throw FrameworkException(
+                        "Expected EngineObjectData.Sync but got ${engineObject.javaClass.name} for ${objectType.name}.$fieldName"
+                    )
                     else -> throw FrameworkException("Unknown EngineObject subclass ${engineObject.javaClass.name}")
                 }
                 wrap(fieldDefinition.type, fieldValue, baseFieldTypeClass)
@@ -269,6 +272,20 @@ abstract class ObjectBase(
     }
 
     /**
+     * Returns the InternalContext for use in generated toBuilder() implementations.
+     * Using this method avoids JVM VerifyErrors when a GRT has a GraphQL field named "context",
+     * which would generate a getContext() method that conflicts with the inherited property accessor.
+     */
+    protected fun getBuilderContext(): InternalContext = context
+
+    /**
+     * Returns the EngineObject for use in generated toBuilder() implementations.
+     * Using this method avoids JVM VerifyErrors when a GRT has a GraphQL field named "engineObject",
+     * which would generate a getEngineObject() method that conflicts with the inherited property accessor.
+     */
+    protected fun getBuilderEngineObject(): EngineObject = engineObject
+
+    /**
      * Usually directly used by tenant developers to build Viaduct object in resolvers by calling
      * `MyType.Builder(context)`, where `MyType` is a generated GRT class that extends ObjectBase class.
      *
@@ -288,6 +305,13 @@ abstract class ObjectBase(
                     OverlayEngineObjectData(overlay, base)
                 } ?: overlay
             }
+
+        /**
+         * Returns the InternalContext for use in generated build() implementations.
+         * Using this method avoids JVM VerifyErrors when a GRT has a GraphQL field named "context",
+         * which would generate a getContext() method that conflicts with the inherited property accessor.
+         */
+        protected fun getBuilderContext(): InternalContext = context
 
         /**
          * Called by strictly typed static builder-setters in generated GRT

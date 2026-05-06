@@ -178,13 +178,22 @@ class CustomClassBuilder internal constructor(
      *   a set of indices that a synthetic bridge method should be generated for,
      *   where 0 describes the first valueParameter, 1 describes the second, etc.
      *   A value of -1 can be used to bridge the function return type
+     * @param bridgeReturnType
+     *   when set, the bridge method uses this type as its return type instead of the default
+     *   `java.lang.Object`. Requires [bridgeParameters] to contain `-1`. Used for covariant
+     *   return-type overrides where the bridge must match the supertype's declared return type.
+     * @param bridgeBody
+     *   optional body for the bridge method. When null, defaults to casting and returning the
+     *   result of calling the primary function.
      */
     fun addFunction(
         function: KmFunction,
         body: String? = null,
         defaultParamValues: Map<JavaIdName, String> = emptyMap(),
         annotations: Set<Pair<KmAnnotation, Boolean>> = emptySet(),
-        bridgeParameters: Set<Int> = emptySet()
+        bridgeParameters: Set<Int> = emptySet(),
+        bridgeReturnType: KmType? = null,
+        bridgeBody: String? = null,
     ): CustomClassBuilder {
         functions.add(
             KmFunctionWrapper(
@@ -192,7 +201,9 @@ class CustomClassBuilder internal constructor(
                 body,
                 defaultParamValues,
                 annotations,
-                bridgeParameters
+                bridgeParameters,
+                bridgeReturnType,
+                bridgeBody,
             )
         )
         return this

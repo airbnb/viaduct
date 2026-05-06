@@ -141,14 +141,14 @@ private val objectSTGroup = stTemplate(
         : ObjectBase(context, engineObject), <mdl.superTypes>
     {
         <mdl.fields: { f |
-          <f.overrideKeywords> suspend fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
-          <f.overrideKeywords> suspend fun <f.getterName>(): <f.kotlinType> = TODO()
-          <f.overrideKeywords> suspend fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
-          <f.overrideKeywords> suspend fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
+          <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
+          <f.overrideKeywords> fun <f.getterName>(): <f.kotlinType> = TODO()
+          <f.overrideKeywords> fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
+          <f.overrideKeywords> fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
         }; separator="\n">
 
         fun toBuilder(): Builder =
-            Builder(context, engineObject.type, toBuilderEOD())
+            Builder(getBuilderContext(), getBuilderEngineObject().type, toBuilderEOD())
 
         object of {
             operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): <mdl.className> =
@@ -203,14 +203,14 @@ private val connectionObjectSTGroup = stTemplate(
         : ObjectBase(context, engineObject), <mdl.superTypes>
     {
         <mdl.fields: { f |
-          <f.overrideKeywords> suspend fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
-          <f.overrideKeywords> suspend fun <f.getterName>(): <f.kotlinType> = TODO()
-          <f.overrideKeywords> suspend fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
-          <f.overrideKeywords> suspend fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
+          <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
+          <f.overrideKeywords> fun <f.getterName>(): <f.kotlinType> = TODO()
+          <f.overrideKeywords> fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
+          <f.overrideKeywords> fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
         }; separator="\n">
 
         fun toBuilder(): Builder =
-            Builder(context, engineObject.type, toBuilderEOD())
+            Builder(getBuilderContext(), getBuilderEngineObject().type, toBuilderEOD())
 
         object of {
             operator fun invoke(context: ConnectionFieldExecutionContext\<*, *, out ConnectionArguments, <mdl.className>\>, block: Builder.() -> Unit): <mdl.className> =

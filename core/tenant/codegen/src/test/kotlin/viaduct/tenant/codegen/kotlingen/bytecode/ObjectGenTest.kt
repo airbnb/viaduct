@@ -123,7 +123,7 @@ class ObjectGenTest {
         """.trimIndent()
         val result = genObject(sdl, "User").toString()
         assertTrue(result.contains("fun toBuilder(): Builder ="))
-        assertTrue(result.contains("Builder(context, engineObject.type, toBuilderEOD())"))
+        assertTrue(result.contains("Builder(getBuilderContext(), getBuilderEngineObject().type, toBuilderEOD())"))
     }
 
     @Test

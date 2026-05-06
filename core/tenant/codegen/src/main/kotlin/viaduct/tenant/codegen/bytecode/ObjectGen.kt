@@ -4,6 +4,7 @@ import kotlinx.metadata.ClassKind
 import kotlinx.metadata.KmAnnotation
 import kotlinx.metadata.KmConstructor
 import kotlinx.metadata.KmFunction
+import kotlinx.metadata.KmType
 import kotlinx.metadata.KmTypeProjection
 import kotlinx.metadata.KmValueParameter
 import kotlinx.metadata.KmVariance
@@ -16,8 +17,10 @@ import kotlinx.metadata.isSuspend
 import kotlinx.metadata.jvm.annotations
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
+import viaduct.codegen.ct.javaTypeName
 import viaduct.codegen.km.CustomClassBuilder
 import viaduct.codegen.km.boxedJavaName
+import viaduct.codegen.km.castObjectExpression
 import viaduct.codegen.km.checkNotNullParameterExpression
 import viaduct.codegen.km.getterName
 import viaduct.codegen.utils.JavaIdName
@@ -59,6 +62,11 @@ private class ObjectClassGenV2(
 ) {
     private val pkg = grtClassFilesBuilder.pkg
     private val baseTypeMapper = grtClassFilesBuilder.baseTypeMapper
+
+    private data class ReturnTypeBridge(
+        val returnType: KmType,
+        val body: String
+    )
 
     init {
         for (s in (def.supers + def.unions)) {
@@ -189,7 +197,7 @@ private class ObjectClassGenV2(
         val kmFun = KmFunction(methodName).apply {
             visibility = Visibility.PUBLIC
             modality = Modality.FINAL
-            isSuspend = true
+            isSuspend = false
             returnType = field.kmType(pkg, baseTypeMapper).also { t ->
                 if (orNull) t.isNullable = true
             }
@@ -200,23 +208,15 @@ private class ObjectClassGenV2(
             )
         }
 
-        this.addSuspendFunction(
+        val returnType = field.kmType(pkg, baseTypeMapper).also { t ->
+            if (orNull) t.isNullable = true
+        }
+        val fetchExpr = field.fetchExpression("$1", fetchMethod)
+        val bridge = field.covariantReturnTypeBridge(returnType, fetchExpr)
+        this.addFunctionWithReturnTypeBridge(
             kmFun,
-            returnTypeAsInputForSuspend = field.kmType(pkg, baseTypeMapper, isInput = true).also { t ->
-                if (orNull) t.isNullable = true
-            },
-            body = buildString {
-                append("{\n")
-                append("return this.$fetchMethod(\n")
-                append("\"${field.name}\", \n")
-                append(
-                    // class of field base type
-                    "kotlin.jvm.internal.Reflection.getOrCreateKotlinClass((Class)${field.baseTypeKmType(pkg, baseTypeMapper).boxedJavaName()}.class), \n"
-                )
-                append("$1, \n") // alias
-                append("$2);\n") // continuation
-                append("}")
-            }
+            body = returnBody(returnType, fetchExpr),
+            bridge = bridge,
         )
     }
 
@@ -231,23 +231,101 @@ private class ObjectClassGenV2(
         val kmFun = KmFunction(methodName).also {
             it.visibility = Visibility.PUBLIC
             it.modality = Modality.FINAL
-            it.isSuspend = true
+            it.isSuspend = false
             it.returnType = field.kmType(pkg, baseTypeMapper).also { t ->
                 if (orNull) t.isNullable = true
             }
         }
 
-        this.addSuspendFunction(
+        val fetchMethod = if (orNull) "fetchOrNull" else "fetch"
+        val bridge = field.covariantReturnTypeBridge(kmFun.returnType, field.fetchExpression("(String)null", fetchMethod))
+        this.addFunctionWithReturnTypeBridge(
             kmFun,
-            returnTypeAsInputForSuspend = field.kmType(pkg, baseTypeMapper, isInput = true).also { t ->
-                if (orNull) t.isNullable = true
-            },
             body = buildString {
                 append("{\n")
-                append("return this.$methodName((String)null, $1);")
+                append("return this.$methodName((String)null);")
                 append("}")
-            }
+            },
+            bridge = bridge,
         )
+    }
+
+    private fun CustomClassBuilder.addFunctionWithReturnTypeBridge(
+        function: KmFunction,
+        body: String,
+        bridge: ReturnTypeBridge?
+    ) {
+        this.addFunction(
+            function,
+            body = body,
+            bridgeParameters = bridge?.let { setOf(-1) } ?: emptySet(),
+            bridgeReturnType = bridge?.returnType,
+            bridgeBody = bridge?.body,
+        )
+    }
+
+    private fun returnBody(
+        returnType: KmType,
+        expression: String
+    ): String =
+        buildString {
+            append("{\n")
+            val castExpression =
+                if (returnType.isNullable) "(${returnType.boxedJavaName()})$expression" else castObjectExpression(returnType, expression)
+            append("return $castExpression;\n")
+            append("}")
+        }
+
+    private fun ViaductSchema.Field.fetchExpression(
+        aliasExpression: String,
+        fetchMethod: String = "fetch"
+    ): String =
+        buildString {
+            append("this.$fetchMethod(\n")
+            append("\"$name\", \n")
+            append(
+                // class of field base type
+                "kotlin.jvm.internal.Reflection.getOrCreateKotlinClass((Class)${baseTypeKmType(pkg, baseTypeMapper).boxedJavaName()}.class), \n"
+            )
+            append("$aliasExpression)")
+        }
+
+    private fun ViaductSchema.Field.covariantOverrideBridgeReturnType(returnKmType: KmType): KmType? {
+        if (!isOverride) return null
+        val overriddenField = def.findOverriddenFieldWithDifferentType(name, returnKmType) ?: return null
+        grtClassFilesBuilder.addSchemaGRTReference(overriddenField.type.baseTypeDef)
+        return overriddenField.kmType(pkg, baseTypeMapper)
+    }
+
+    private fun ViaductSchema.Field.covariantReturnTypeBridge(
+        returnType: KmType,
+        fetchExpr: String
+    ): ReturnTypeBridge? {
+        val bridgeReturnType = covariantOverrideBridgeReturnType(returnType)?.also {
+            it.isNullable = returnType.isNullable
+        } ?: return null
+        if (bridgeReturnType.javaTypeName == returnType.javaTypeName) return null
+        return ReturnTypeBridge(
+            returnType = bridgeReturnType,
+            body = returnBody(bridgeReturnType, fetchExpr)
+        )
+    }
+
+    // Finds the nearest ancestor field whose JVM type differs from concreteType.
+    // Using firstNotNullOfOrNull (stops at first match) would return Node.id (GlobalID<Node>)
+    // before a non-node interface's id (String), making the bridge type comparison a no-op.
+    private fun ViaductSchema.Object.findOverriddenFieldWithDifferentType(
+        fieldName: String,
+        concreteType: KmType
+    ): ViaductSchema.Field? = supers.firstNotNullOfOrNull { it.findFieldWithDifferentTypeInHierarchy(fieldName, concreteType) }
+
+    private fun ViaductSchema.Interface.findFieldWithDifferentTypeInHierarchy(
+        fieldName: String,
+        concreteType: KmType
+    ): ViaductSchema.Field? {
+        val f = field(fieldName)
+        if (f != null && f.kmType(pkg, baseTypeMapper).javaTypeName != concreteType.javaTypeName) return f
+        return supers.firstNotNullOfOrNull { it.findFieldWithDifferentTypeInHierarchy(fieldName, concreteType) }
     }
 
     /**
@@ -330,8 +408,8 @@ private class ObjectClassGenV2(
             body = buildString {
                 append("{\n")
                 append("return new ${builderName.asJavaName}(\n")
-                append("    this.getContext(),\n")
-                append("    this.getEngineObject().getType(),\n")
+                append("    this.getBuilderContext(),\n")
+                append("    this.getBuilderEngineObject().getType(),\n")
                 append("    this.toBuilderEOD()\n")
                 append(");\n")
                 append("}")

@@ -1,6 +1,8 @@
 package viaduct.codegen.km
 
+import actualspkg.CovariantRead
 import actualspkg.Iface
+import actualspkg.StringRead
 import java.lang.reflect.Method
 import javassist.ClassPool
 import javassist.bytecode.AccessFlag
@@ -25,6 +27,10 @@ class Impl : Iface<String> {
     final override fun write(t: String): Boolean = true
 }
 
+class CovariantImpl : CovariantRead {
+    final override fun read(): String = "a"
+}
+
 private const val actualPkg = "actuals"
 
 class SyntheticBridgeTest {
@@ -36,6 +42,12 @@ class SyntheticBridgeTest {
         val readBridge: Method?
         val write: Method?
         val writeBridge: Method?
+        val covariantImpl: Class<*>
+        val covariantRead: Method?
+        val covariantReadBridge: Method?
+        val objectReadImpl: Class<*>
+        val objectRead: Method?
+        val objectReadBridge: Method?
 
         val pool: ClassPool
             get() = builders.classPool
@@ -75,8 +87,41 @@ class SyntheticBridgeTest {
                     )
                 }
             )
+            builders.addBuilder(
+                CustomClassBuilder(ClassKind.CLASS, KmName("$actualPkg/CovariantImpl")).apply {
+                    addSupertype(JavaName(CovariantRead::class.qualifiedName!!).asKmName.asType())
+                    addEmptyCtor()
+                    addFunction(
+                        KmFunction("read").apply {
+                            visibility = Visibility.PUBLIC
+                            returnType = Km.STRING.asType()
+                        },
+                        "{ return \"a\"; }",
+                        bridgeParameters = setOf(-1),
+                        bridgeReturnType = JavaName("java.lang.CharSequence").asKmName.asType()
+                    )
+                }
+            )
+            builders.addBuilder(
+                CustomClassBuilder(ClassKind.CLASS, KmName("$actualPkg/ObjectReadImpl")).apply {
+                    addSupertype(JavaName(StringRead::class.qualifiedName!!).asKmName.asType())
+                    addEmptyCtor()
+                    addFunction(
+                        KmFunction("read").apply {
+                            visibility = Visibility.PUBLIC
+                            returnType = Km.ANY.asType()
+                        },
+                        "{ return (Object)\"a\"; }",
+                        bridgeParameters = setOf(-1),
+                        bridgeReturnType = Km.STRING.asType(),
+                        bridgeBody = "{ return (String)(Object)\"a\"; }"
+                    )
+                }
+            )
             val loader = builders.buildClassLoader()
             impl = loader.loadClass("$actualPkg.Impl")
+            covariantImpl = loader.loadClass("$actualPkg.CovariantImpl")
+            objectReadImpl = loader.loadClass("$actualPkg.ObjectReadImpl")
 
             read =
                 impl.declaredMethods.firstOrNull { m ->
@@ -94,6 +139,22 @@ class SyntheticBridgeTest {
                 impl.declaredMethods.firstOrNull { m ->
                     m.name == "write" && hasBridgeFlags(m) && m.parameterTypes.first() == java.lang.Object::class.java
                 }
+            covariantRead =
+                covariantImpl.declaredMethods.firstOrNull { m ->
+                    m.name == "read" && !m.isSynthetic && m.returnType == String::class.java
+                }
+            covariantReadBridge =
+                covariantImpl.declaredMethods.firstOrNull { m ->
+                    m.name == "read" && hasBridgeFlags(m) && m.returnType == CharSequence::class.java
+                }
+            objectRead =
+                objectReadImpl.declaredMethods.firstOrNull { m ->
+                    m.name == "read" && !m.isSynthetic && m.returnType == java.lang.Object::class.java
+                }
+            objectReadBridge =
+                objectReadImpl.declaredMethods.firstOrNull { m ->
+                    m.name == "read" && hasBridgeFlags(m) && m.returnType == String::class.java
+                }
         }
 
         private fun hasBridgeFlags(m: Method): Boolean = (m.modifiers and (AccessFlag.PUBLIC or AccessFlag.SYNTHETIC or AccessFlag.BRIDGE)) != 0
@@ -106,6 +167,10 @@ class SyntheticBridgeTest {
             assertNotNull(readBridge)
             assertNotNull(write)
             assertNotNull(writeBridge)
+            assertNotNull(covariantRead)
+            assertNotNull(covariantReadBridge)
+            assertNotNull(objectRead)
+            assertNotNull(objectReadBridge)
         }
     }
 
@@ -118,6 +183,7 @@ class SyntheticBridgeTest {
                 javassistPool = fixture.pool
             ).let { diff ->
                 diff.compare(Impl::class.java, fixture.impl)
+                diff.compare(CovariantImpl::class.java, fixture.covariantImpl)
                 diff.diffs.assertEmpty("\n")
             }
         }
@@ -132,6 +198,14 @@ class SyntheticBridgeTest {
             assertEquals("a", readBridge!!.invoke(obj))
             assertEquals(true, write!!.invoke(obj, "a"))
             assertEquals(true, writeBridge!!.invoke(obj, "a"))
+
+            val covariantObj = this.covariantImpl.getConstructor().newInstance()
+            assertEquals("a", covariantRead!!.invoke(covariantObj))
+            assertEquals("a", covariantReadBridge!!.invoke(covariantObj))
+
+            val objectReadObj = this.objectReadImpl.getConstructor().newInstance()
+            assertEquals("a", objectRead!!.invoke(objectReadObj))
+            assertEquals("a", objectReadBridge!!.invoke(objectReadObj))
         }
     }
 }

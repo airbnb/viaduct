@@ -335,7 +335,9 @@ private fun CtClass.addBridgedClassFunction(
     // To simplify this case, if only the return type is bridged, we can reuse the
     // bridged body with the base method body, which javassist is ok with.
     val bridgeBody =
-        if (fnWrapper.bridgeParameters == setOf(-1)) {
+        if (fnWrapper.bridgeBody != null) {
+            fnWrapper.bridgeBody
+        } else if (fnWrapper.bridgeParameters == setOf(-1)) {
             fnWrapper.body!!
         } else {
             bridgeMethodBody(bridgeTo, fnWrapper.bridgeParameters)
@@ -343,7 +345,7 @@ private fun CtClass.addBridgedClassFunction(
 
     val bridgeReturnType =
         if (fnWrapper.bridgeParameters.contains(-1)) {
-            ctx.getClass(Ct.OBJECT)
+            fnWrapper.bridgeReturnType?.let { ctx.getClass(it.javaTypeName) } ?: ctx.getClass(Ct.OBJECT)
         } else {
             bridgeTo.returnType
         }

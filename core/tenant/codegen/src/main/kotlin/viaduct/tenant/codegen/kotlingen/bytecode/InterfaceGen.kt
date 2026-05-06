@@ -65,10 +65,10 @@ private val interfaceSTGroup =
 
     interface <mdl.className> : <mdl.superTypes> {
         <mdl.fieldsNeedingGetter: { f |
-          suspend fun <f.getterName>(alias: String?): <f.kotlinType>
-          suspend fun <f.getterName>(): <f.kotlinType>
-          suspend fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull>
-          suspend fun <f.getterName>OrNull(): <f.kotlinTypeOrNull>
+          fun <f.getterName>(alias: String?): <f.kotlinType>
+          fun <f.getterName>(): <f.kotlinType>
+          fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull>
+          fun <f.getterName>OrNull(): <f.kotlinTypeOrNull>
         }; separator="\n">
 
         <mdl.reflection>

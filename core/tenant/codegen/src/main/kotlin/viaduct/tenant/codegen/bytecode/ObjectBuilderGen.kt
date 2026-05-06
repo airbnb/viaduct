@@ -231,7 +231,7 @@ private class ObjectBuilderGenV2(
             kmFun,
             body = buildString {
                 append("{\n")
-                append("return new ${builderFor.name.asJavaBinaryName}(this.getContext(), this.buildEngineObjectData());\n")
+                append("return new ${builderFor.name.asJavaBinaryName}(this.getBuilderContext(), this.buildEngineObjectData());\n")
                 append("}")
             },
             bridgeParameters = setOf(-1)

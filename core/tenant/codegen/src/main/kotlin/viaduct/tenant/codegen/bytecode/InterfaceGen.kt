@@ -42,15 +42,15 @@ internal fun GRTClassFilesBuilder.interfaceGen(def: ViaductSchema.Interface) {
             if (f.isOverride) {
                 continue
             }
-            it.addSuspendingGetterFun(f, pkg, baseTypeMapper)
-            it.addSuspendingGetterFun(
+            it.addGetterFun(f, pkg, baseTypeMapper)
+            it.addGetterFun(
                 f,
                 pkg,
                 baseTypeMapper,
                 KmValueParameter("alias").also { it.type = Km.STRING.asNullableType() }
             )
-            it.addSuspendingGetterFun(f, pkg, baseTypeMapper, orNull = true)
-            it.addSuspendingGetterFun(
+            it.addGetterFun(f, pkg, baseTypeMapper, orNull = true)
+            it.addGetterFun(
                 f,
                 pkg,
                 baseTypeMapper,
@@ -64,7 +64,7 @@ internal fun GRTClassFilesBuilder.interfaceGen(def: ViaductSchema.Interface) {
     }
 }
 
-private fun CustomClassBuilder.addSuspendingGetterFun(
+private fun CustomClassBuilder.addGetterFun(
     field: ViaductSchema.Field,
     pkg: KmName,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
@@ -76,18 +76,13 @@ private fun CustomClassBuilder.addSuspendingGetterFun(
     val getter = KmFunction(methodName).also {
         it.visibility = Visibility.PUBLIC
         it.modality = Modality.ABSTRACT
-        it.isSuspend = true
+        it.isSuspend = false
         it.returnType = field.kmType(pkg, baseTypeMapper).also { t ->
             if (orNull) t.isNullable = true
         }
     }
     valueParam?.let { getter.valueParameters.add(it) }
 
-    this.addSuspendFunction(
-        getter,
-        returnTypeAsInputForSuspend = field.kmType(pkg, baseTypeMapper, isInput = true).also { t ->
-            if (orNull) t.isNullable = true
-        },
-    )
+    this.addFunction(getter)
     return this
 }

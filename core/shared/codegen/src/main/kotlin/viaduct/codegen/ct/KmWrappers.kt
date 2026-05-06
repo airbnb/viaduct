@@ -181,6 +181,9 @@ class KmConstructorWrapper(
 }
 
 /**
+ * @param body
+ *        Optional Kotlin source body for the primary method. When null, a default implementation
+ *        is generated (e.g., delegating to a backing field or supertype).
  * @param bridgeParameters
  *        On the JVM, implementing a function with generics requires a "synthetic bridge" method.
  *        This method is intended for interop with java and operates on java.lang.Object types that
@@ -192,13 +195,26 @@ class KmConstructorWrapper(
  *        A use case of the bridgeParameters is a GRT builder's `build` method, which implements
  *        `BuilderBase<T>.build(): T`. It needs to set bridgeParameters to `setOf(-1)` to generate
  *        synthetic bridge.
+ * @param bridgeReturnType
+ *        When the bridge method's return type should differ from `java.lang.Object` (the default),
+ *        set this to the desired return type. Requires `bridgeParameters` to contain `-1`.
+ *        Use case: covariant return-type overrides. When a concrete class field overrides an
+ *        interface field with a narrower return type (e.g., `id: GlobalID<T>` overriding
+ *        `id: String`), the JVM verifier requires a synthetic bridge method whose return type
+ *        matches the interface declaration. Set `bridgeReturnType` to the interface's field type
+ *        so the bridge is emitted with the correct descriptor.
+ * @param bridgeBody
+ *        Optional Kotlin source body for the bridge method. When null, the bridge body defaults
+ *        to casting and returning the result of calling the primary function.
  */
 open class KmFunctionWrapper(
     private val fn: KmFunction,
     val body: String? = null,
     val defaultParamValues: Map<JavaIdName, String> = emptyMap(),
     annotations: Set<Pair<KmAnnotation, Boolean>> = emptySet(),
-    val bridgeParameters: Set<Int> = emptySet()
+    val bridgeParameters: Set<Int> = emptySet(),
+    val bridgeReturnType: KmType? = null,
+    val bridgeBody: String? = null
 ) : KmWrapper(annotations) {
     init {
         val invalidBridgeParams =
@@ -216,6 +232,12 @@ open class KmFunctionWrapper(
             require(fn.modality == Modality.FINAL) {
                 "non-empty bridgeParameters are only allowed on final classes"
             }
+        }
+        require(bridgeReturnType == null || bridgeParameters.contains(-1)) {
+            "bridgeReturnType requires return type bridging"
+        }
+        require(bridgeBody == null || bridgeParameters.isNotEmpty()) {
+            "bridgeBody requires bridgeParameters"
         }
     }
 
