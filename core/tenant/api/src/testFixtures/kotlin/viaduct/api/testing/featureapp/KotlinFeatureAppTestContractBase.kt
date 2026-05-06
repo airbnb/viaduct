@@ -17,6 +17,7 @@ import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.BootstrapperFactory
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
+import viaduct.service.api.spi.SharedTenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
@@ -93,7 +94,7 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
             object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
                 override fun create() =
                     BootstrapperFactory.fromResources(
-                        codeInjector = guiceCodeInjector,
+                        tenantModuleBootstrapper = SharedTenantModuleBootstrapper(guiceCodeInjector),
                         packagePrefix = derivedClassPackagePrefix,
                     )
             }

@@ -39,6 +39,8 @@ class ViaductBuilder {
      * Configures the [TenantModuleBootstrapper] used to provide per-tenant bootstrapping.
      * The bootstrapper is called once per tenant during startup with the tenant name and the
      * `@TenantBootstrapper`-annotated class from the tenant's config file (or `null` if absent).
+     * After all bootstrap calls complete successfully, [TenantModuleBootstrapper.finalize]
+     * is called before any returned [viaduct.service.api.spi.CodeInjector] is used.
      */
     fun withTenantModuleBootstrapper(tenantModuleBootstrapper: TenantModuleBootstrapper) =
         apply {

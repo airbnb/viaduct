@@ -9,7 +9,9 @@ import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.NaiveTenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.service.api.spi.TenantModuleBootstrapper
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
@@ -66,21 +68,20 @@ object BasicViaductFactory {
      *
      * Tenant configuration comes entirely from the JSON files — no [TenantRegistrationInfo] needed.
      *
-     * @param tenantCodeInjector the injector used to instantiate resolver classes.
-     *        Defaults to [CodeInjector.Naive] (reflection with zero-arg constructors).
-     *        Pass a DI-backed injector (e.g. Guice, Micronaut) when resolvers have dependencies.
-     *
+     * @param tenantModuleBootstrapper bootstrapper used for tenant modules discovered from the
+     *        classpath. Defaults to [NaiveTenantModuleBootstrapper]. Use
+     *        [SharedTenantModuleBootstrapper] when all tenants should share a single custom injector.
      * @param proxyResolverFactory factory for wrapping resolvers with proxies (e.g., for remote execution).
      *        Defaults to [ProxyResolverFactory.NO_OP], which leaves all resolvers executing locally.
      */
     @JvmOverloads
     fun createFromResource(
         schemaRegistrationInfo: SchemaRegistrationInfo = SchemaRegistrationInfo(),
-        tenantCodeInjector: CodeInjector = CodeInjector.Naive,
+        tenantModuleBootstrapper: TenantModuleBootstrapper = NaiveTenantModuleBootstrapper,
         proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
     ): Viaduct {
         val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
-            override fun create() = BootstrapperFactory.fromResources(tenantCodeInjector)
+            override fun create() = BootstrapperFactory.fromResources(tenantModuleBootstrapper)
         }
 
         return StandardViaduct.Builder()

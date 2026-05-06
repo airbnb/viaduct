@@ -20,7 +20,7 @@ val EXTRAS_SCHEMA_ID = SchemaId.Scoped("publicSchemaWithExtras", setOf(DEFAULT_S
 // tag::viaduct_configuration[20]
 @Factory
 class ViaductConfiguration(
-    val micronautCodeInjector: MicronautCodeInjector
+    val tenantModuleBootstrapper: MicronautTenantModuleBootstrapper,
 ) {
     // @Singleton so the proxy-factory bean below sees the same instance Micronaut
     // calls close() on; without it the bean defaults to prototype scope and the
@@ -43,7 +43,7 @@ class ViaductConfiguration(
                 )
             ),
             // end::schema_registration
-            tenantCodeInjector = micronautCodeInjector,
+            tenantModuleBootstrapper = tenantModuleBootstrapper,
             proxyResolverFactory = proxyResolverFactory,
         )
 }

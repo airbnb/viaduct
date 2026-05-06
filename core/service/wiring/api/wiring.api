@@ -6,9 +6,9 @@ public final class viaduct/service/BasicViaductFactory {
 	public static synthetic fun create$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/TenantRegistrationInfo;Lviaduct/engine/api/spi/ProxyResolverFactory;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
 	public final fun createFromResource ()Lviaduct/service/api/Viaduct;
 	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;)Lviaduct/service/api/Viaduct;
-	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/CodeInjector;)Lviaduct/service/api/Viaduct;
-	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/CodeInjector;Lviaduct/engine/api/spi/ProxyResolverFactory;)Lviaduct/service/api/Viaduct;
-	public static synthetic fun createFromResource$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/CodeInjector;Lviaduct/engine/api/spi/ProxyResolverFactory;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
+	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/TenantModuleBootstrapper;)Lviaduct/service/api/Viaduct;
+	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/TenantModuleBootstrapper;Lviaduct/engine/api/spi/ProxyResolverFactory;)Lviaduct/service/api/Viaduct;
+	public static synthetic fun createFromResource$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/TenantModuleBootstrapper;Lviaduct/engine/api/spi/ProxyResolverFactory;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
 }
 
 public final class viaduct/service/BasicViaductFactoryKt {

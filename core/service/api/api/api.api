@@ -199,6 +199,10 @@ public final class viaduct/service/api/spi/NaiveCodeInjector : viaduct/service/a
 	public fun getProvider (Ljava/lang/Class;Ljava/lang/annotation/Annotation;)Ljavax/inject/Provider;
 }
 
+public final class viaduct/service/api/spi/NaiveTenantModuleBootstrapper : viaduct/service/api/spi/SharedTenantModuleBootstrapper {
+	public static final field INSTANCE Lviaduct/service/api/spi/NaiveTenantModuleBootstrapper;
+}
+
 public abstract interface class viaduct/service/api/spi/ResolverErrorBuilder {
 	public static final field Companion Lviaduct/service/api/spi/ResolverErrorBuilder$Companion;
 	public abstract fun exceptionToGraphQLError (Ljava/lang/Throwable;Lviaduct/service/api/spi/ErrorReporter$Metadata;)Ljava/util/List;
@@ -206,6 +210,12 @@ public abstract interface class viaduct/service/api/spi/ResolverErrorBuilder {
 
 public final class viaduct/service/api/spi/ResolverErrorBuilder$Companion {
 	public final fun getNOOP ()Lviaduct/service/api/spi/ResolverErrorBuilder;
+}
+
+public class viaduct/service/api/spi/SharedTenantModuleBootstrapper : viaduct/service/api/spi/TenantModuleBootstrapper {
+	public fun <init> (Lviaduct/service/api/spi/CodeInjector;)V
+	public fun bootstrap (Ljava/lang/String;Ljava/lang/Class;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun finalize (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class viaduct/service/api/spi/TenantAPIBootstrapper {
@@ -226,6 +236,11 @@ public abstract interface annotation class viaduct/service/api/spi/TenantBootstr
 
 public abstract interface class viaduct/service/api/spi/TenantModuleBootstrapper {
 	public abstract fun bootstrap (Ljava/lang/String;Ljava/lang/Class;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun finalize (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class viaduct/service/api/spi/TenantModuleBootstrapper$DefaultImpls {
+	public static fun finalize (Lviaduct/service/api/spi/TenantModuleBootstrapper;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class viaduct/service/api/spi/globalid/GlobalIDCodecDefault : viaduct/service/api/spi/GlobalIDCodec {

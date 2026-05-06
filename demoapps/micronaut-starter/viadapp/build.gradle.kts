@@ -11,4 +11,5 @@ viaductModule {
 
 dependencies {
     api(libs.viaduct.api)
+    implementation(project(":common"))
 }

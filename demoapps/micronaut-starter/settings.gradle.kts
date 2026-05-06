@@ -36,4 +36,5 @@ dependencyResolutionManagement {
     }
 }
 
+include(":common")
 include(":viadapp")

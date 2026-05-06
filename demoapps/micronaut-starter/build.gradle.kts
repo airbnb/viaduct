@@ -38,6 +38,7 @@ dependencies {
 
     implementation(libs.kotlin.reflect)
 
+    implementation(project(":common"))
     implementation(project(":viadapp"))
 
     testImplementation(enforcedPlatform(libs.junit.bom))

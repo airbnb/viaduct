@@ -12,14 +12,12 @@ val SCHEMA_ID = "default"
 /**
  * Micronaut factory that provides the Viaduct instance.
  *
- * This configuration uses dependency injection for the CodeInjector,
- * allowing resolvers to have their dependencies automatically injected.
- *
- * This is used in both production and development modes.
+ * Uses [MicronautTenantModuleBootstrapper] so Viaduct resolves tenant classes through the
+ * application's shared Micronaut [io.micronaut.context.BeanContext].
  */
 @Factory
 class ViaductConfiguration(
-    private val micronautCodeInjector: MicronautCodeInjector
+    private val tenantModuleBootstrapper: MicronautTenantModuleBootstrapper,
 ) {
     @Bean
     fun providesViaduct(): Viaduct {
@@ -27,7 +25,7 @@ class ViaductConfiguration(
             schemaRegistrationInfo = SchemaRegistrationInfo(
                 scopes = listOf(SchemaScopeInfo(SCHEMA_ID)),
             ),
-            tenantCodeInjector = micronautCodeInjector,
+            tenantModuleBootstrapper = tenantModuleBootstrapper,
         )
     }
 }

@@ -12,6 +12,8 @@ import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.SharedTenantModuleBootstrapper
+import viaduct.service.api.spi.TenantModuleBootstrapper
 
 class ExecutionRegistryTenantAPIBootstrapperTest {
     private val injector = CodeInjector.Naive
@@ -19,7 +21,10 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
     @Test
     fun `empty URL list returns empty iterable`() =
         runTest {
-            val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(injector, emptyList())
+            val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
+                registryUrls = emptyList(),
+                tenantModuleBootstrapper = RecordingTenantModuleBootstrapper(),
+            )
             assertEquals(0, bootstrapper.tenantModuleBootstrappers().count())
         }
 
@@ -31,9 +36,51 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
                     .getResource("META-INF/viaduct/modules/com.example.test.json")
             ) { "Test resource not found on classpath" }
 
-            val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(injector, listOf(url))
+            val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
+                registryUrls = listOf(url),
+                tenantModuleBootstrapper = SharedTenantModuleBootstrapper(injector),
+            )
             assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
             assertEquals("viaduct.api.grts", TestExecutorFactory.lastGrtPackagePrefix)
+        }
+
+    @Test
+    fun `tenantModuleBootstrapper is called with tenant name and null bootstrap class when no bootstrapClass in registry`() =
+        runTest {
+            val url = requireNotNull(
+                Thread.currentThread().contextClassLoader
+                    .getResource("META-INF/viaduct/modules/com.example.test.json")
+            ) { "Test resource not found on classpath" }
+
+            val recordingBootstrapper = RecordingTenantModuleBootstrapper()
+            val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
+                registryUrls = listOf(url),
+                tenantModuleBootstrapper = recordingBootstrapper,
+            )
+            bootstrapper.tenantModuleBootstrappers()
+
+            assertEquals(listOf("com.example.test" to null), recordingBootstrapper.calls)
+        }
+
+    @Test
+    fun `tenantModuleBootstrapper is called with tenant name and loaded bootstrap class when bootstrapClass present in registry`() =
+        runTest {
+            val url = requireNotNull(
+                Thread.currentThread().contextClassLoader
+                    .getResource("META-INF/viaduct/modules/com.example.bootstrapped.json")
+            ) { "Test resource not found on classpath" }
+
+            val recordingBootstrapper = RecordingTenantModuleBootstrapper()
+            val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
+                registryUrls = listOf(url),
+                tenantModuleBootstrapper = recordingBootstrapper,
+            )
+            bootstrapper.tenantModuleBootstrappers()
+
+            assertEquals(
+                listOf("com.example.bootstrapped" to TestBootstrapClass::class.java),
+                recordingBootstrapper.calls,
+            )
         }
 
     @Test
@@ -54,11 +101,74 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
         }
 
         val url = tempFile.toURI().toURL()
-        val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(injector, listOf(url))
+        val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
+            registryUrls = listOf(url),
+            tenantModuleBootstrapper = SharedTenantModuleBootstrapper(injector),
+        )
 
         assertThrows<ClassNotFoundException> {
             runTest { bootstrapper.tenantModuleBootstrappers() }
         }
+    }
+
+    @Test
+    fun `finalize is called after all bootstrap calls and before executor factory construction`() =
+        runTest {
+            val urlWithoutBootstrapClass = requireNotNull(
+                Thread.currentThread().contextClassLoader
+                    .getResource("META-INF/viaduct/modules/com.example.test.json")
+            ) { "Test resource not found on classpath" }
+            val urlWithBootstrapClass = requireNotNull(
+                Thread.currentThread().contextClassLoader
+                    .getResource("META-INF/viaduct/modules/com.example.bootstrapped.json")
+            ) { "Test resource not found on classpath" }
+
+            val recordingBootstrapper = FinalizingTenantModuleBootstrapper()
+            TestExecutorFactory.constructorEvents.clear()
+
+            val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
+                registryUrls = listOf(urlWithoutBootstrapClass, urlWithBootstrapClass),
+                tenantModuleBootstrapper = recordingBootstrapper,
+            )
+
+            bootstrapper.tenantModuleBootstrappers()
+
+            assertEquals(
+                listOf(
+                    "bootstrap:com.example.test",
+                    "bootstrap:com.example.bootstrapped",
+                    "finalize",
+                ),
+                recordingBootstrapper.events,
+            )
+            assertEquals(
+                listOf(
+                    "constructor:finalized=true",
+                    "constructor:finalized=true",
+                ),
+                TestExecutorFactory.constructorEvents,
+            )
+        }
+
+    @Test
+    fun `finalize is not called when bootstrap fails`() {
+        val url = requireNotNull(
+            Thread.currentThread().contextClassLoader
+                .getResource("META-INF/viaduct/modules/com.example.test.json")
+        ) { "Test resource not found on classpath" }
+
+        val throwingBootstrapper = ThrowingTenantModuleBootstrapper()
+        val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
+            registryUrls = listOf(url),
+            tenantModuleBootstrapper = throwingBootstrapper,
+        )
+
+        assertThrows<IllegalStateException> {
+            runTest { bootstrapper.tenantModuleBootstrappers() }
+        }
+
+        assertEquals(1, throwingBootstrapper.bootstrapCalls)
+        assertEquals(0, throwingBootstrapper.finalizeCalls)
     }
 }
 
@@ -72,6 +182,10 @@ class TestExecutorFactory(
 ) : ExecutorFactory {
     init {
         lastGrtPackagePrefix = grtPackagePrefix
+        val finalizingInjector = injector as? FinalizingCodeInjector
+        if (finalizingInjector != null) {
+            constructorEvents.add("constructor:finalized=${finalizingInjector.finalized}")
+        }
     }
 
     override fun createFieldResolverExecutor(
@@ -90,5 +204,67 @@ class TestExecutorFactory(
 
     companion object {
         var lastGrtPackagePrefix: String? = null
+        val constructorEvents = mutableListOf<String>()
     }
 }
+
+class RecordingTenantModuleBootstrapper : TenantModuleBootstrapper {
+    val calls = mutableListOf<Pair<String, Class<*>?>>()
+
+    override suspend fun bootstrap(
+        tenantName: String,
+        tenantBootstrapClass: Class<*>?
+    ): CodeInjector {
+        calls.add(tenantName to tenantBootstrapClass)
+        return CodeInjector.Naive
+    }
+}
+
+private class FinalizingCodeInjector : CodeInjector {
+    var finalized: Boolean = false
+
+    override fun <T> getProvider(clazz: Class<T>) = throw UnsupportedOperationException("not needed for bootstrapper tests")
+
+    override fun <T> getProvider(
+        clazz: Class<T>,
+        qualifier: Annotation,
+    ) = throw UnsupportedOperationException("not needed for bootstrapper tests")
+}
+
+private class FinalizingTenantModuleBootstrapper : TenantModuleBootstrapper {
+    val events = mutableListOf<String>()
+    private val injectors = mutableListOf<FinalizingCodeInjector>()
+
+    override suspend fun bootstrap(
+        tenantName: String,
+        tenantBootstrapClass: Class<*>?,
+    ): CodeInjector {
+        events.add("bootstrap:$tenantName")
+        return FinalizingCodeInjector().also(injectors::add)
+    }
+
+    override suspend fun finalize() {
+        events.add("finalize")
+        injectors.forEach { it.finalized = true }
+    }
+}
+
+private class ThrowingTenantModuleBootstrapper : TenantModuleBootstrapper {
+    var bootstrapCalls: Int = 0
+    var finalizeCalls: Int = 0
+
+    override suspend fun bootstrap(
+        tenantName: String,
+        tenantBootstrapClass: Class<*>?,
+    ): CodeInjector {
+        bootstrapCalls += 1
+        throw IllegalStateException("boom")
+    }
+
+    override suspend fun finalize() {
+        finalizeCalls += 1
+    }
+}
+
+/** Marker class used as the bootstrapClass in com.example.bootstrapped.json test fixture. */
+class TestBootstrapClass

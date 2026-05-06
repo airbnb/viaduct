@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.SharedTenantModuleBootstrapper
 
 internal class BasicViaductFactoryTest {
     @Test
@@ -265,9 +266,11 @@ internal class BasicViaductFactoryTest {
         }
 
         @Test
-        fun `createFromResource should accept a custom injector`() {
+        fun `createFromResource should accept a custom tenant module bootstrapper`() {
             assertThrows<Exception> {
-                BasicViaductFactory.createFromResource(tenantCodeInjector = CodeInjector.Naive)
+                BasicViaductFactory.createFromResource(
+                    tenantModuleBootstrapper = SharedTenantModuleBootstrapper(CodeInjector.Naive)
+                )
             }
         }
     }

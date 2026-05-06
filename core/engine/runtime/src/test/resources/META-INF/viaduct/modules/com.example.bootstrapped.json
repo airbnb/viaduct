@@ -1,0 +1,8 @@
+{
+  "version" : "1",
+  "executorFactory" : "viaduct.engine.runtime.tenantloading.TestExecutorFactory",
+  "grtPackagePrefix" : "viaduct.api.grts",
+  "bootstrapClass" : "viaduct.engine.runtime.tenantloading.TestBootstrapClass",
+  "nodes" : [ ],
+  "fields" : [ ]
+}
