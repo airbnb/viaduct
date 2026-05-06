@@ -71,11 +71,11 @@ internal class ResolverParamsExtractor(
             .filterIsInstance<KSClassDeclaration>()
             .mapNotNull { declaration ->
                 val file = declaration.containingFile ?: run {
-                    logger.error("@TenantBootstrapper class has no containing file", declaration)
+                    logger.errorRegistryExtractor("@TenantBootstrapper class has no containing file", declaration)
                     return@mapNotNull null
                 }
                 val fqn = declaration.qualifiedName?.asString() ?: run {
-                    logger.error("@TenantBootstrapper class has no qualified name", declaration)
+                    logger.errorRegistryExtractor("@TenantBootstrapper class has no qualified name", declaration)
                     return@mapNotNull null
                 }
                 file to fqn

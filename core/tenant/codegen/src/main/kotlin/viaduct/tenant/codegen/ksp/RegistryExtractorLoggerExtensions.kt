@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.ksp
 
 import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.symbol.KSNode
 
 /**
  * Adapts `KSPLogger` calls to SLF4J-style `{}` placeholder formatting.
@@ -28,6 +29,13 @@ internal fun KSPLogger.errorRegistryExtractor(
     vararg args: Any?,
 ) {
     error("[RegistryExtractor] ${formatSlf4j(message, *args)}")
+}
+
+internal fun KSPLogger.errorRegistryExtractor(
+    message: String,
+    symbol: KSNode,
+) {
+    error("[RegistryExtractor] $message", symbol)
 }
 
 private fun formatSlf4j(
