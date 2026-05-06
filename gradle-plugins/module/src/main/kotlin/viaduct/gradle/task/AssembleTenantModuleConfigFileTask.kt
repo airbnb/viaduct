@@ -104,19 +104,21 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
     // ── IncrementalActions implementation ────────────────────────────────────
 
     override fun assembleConfig(descriptorRoot: File) {
+        val args = listOf(
+            "--descriptor-dir",
+            descriptorRoot.absolutePath,
+            "--tenant-package",
+            tenantPackage.get(),
+            "--executor-factory",
+            executorFactory.get(),
+            "--output-dir",
+            outputDir.get().asFile.absolutePath,
+        )
+
         workerExecutor.runCodegen(
             codegenClasspath,
             CodegenWorkAction.MainClasses.ASSEMBLE_TENANT_MODULE_CONFIG_FILE,
-            listOf(
-                "--descriptor-dir",
-                descriptorRoot.absolutePath,
-                "--tenant-package",
-                tenantPackage.get(),
-                "--executor-factory",
-                executorFactory.get(),
-                "--output-dir",
-                outputDir.get().asFile.absolutePath,
-            ),
+            args,
         )
     }
 

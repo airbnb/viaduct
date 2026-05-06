@@ -50,11 +50,13 @@ internal data class VariableProviderDescriptor(
     val providedVariables: Map<String, String> = emptyMap(),
 )
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 internal data class ResolverDescriptorFile(
     val nodes: List<ResolverParams.Node>,
     val fields: List<ResolverParams.Field>,
     val grtPackagePrefix: String? = null,
+    val bootstrapClass: String? = null,
 ) {
     @JsonIgnore
-    fun isEmpty(): Boolean = nodes.isEmpty() && fields.isEmpty()
+    fun isEmpty(): Boolean = nodes.isEmpty() && fields.isEmpty() && bootstrapClass == null
 }

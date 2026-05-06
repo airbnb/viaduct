@@ -19,6 +19,8 @@ data class ExecutionRegistry(
     val grtPackagePrefix: String,
     val nodes: List<NodeEntry> = emptyList(),
     val fields: List<FieldEntry> = emptyList(),
+    /** FQN of the class annotated with @TenantBootstrapper, or null if none was declared. */
+    val bootstrapClass: String? = null,
 )
 
 data class NodeEntry(

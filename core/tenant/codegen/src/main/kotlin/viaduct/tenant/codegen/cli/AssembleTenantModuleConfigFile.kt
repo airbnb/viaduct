@@ -61,9 +61,18 @@ class AssembleTenantModuleConfigFile : CliktCommand(
         val codec = ResolverParamsJsonCodec()
         val descriptors: List<ResolverDescriptorFile> = descriptorFiles.map { codec.decode(it.readText()) }
 
+        val bootstrapClasses = descriptors.mapNotNull { it.bootstrapClass }
+        if (bootstrapClasses.size > 1) {
+            error(
+                "Each tenant module may declare at most one @TenantBootstrapper class, " +
+                    "but found ${bootstrapClasses.size}: $bootstrapClasses",
+            )
+        }
+
         val registry = buildExecutionRegistry(
             executorFactory = executorFactory,
             descriptors = descriptors,
+            bootstrapClass = bootstrapClasses.singleOrNull(),
         )
 
         val outputFile = outputDir
@@ -78,6 +87,7 @@ class AssembleTenantModuleConfigFile : CliktCommand(
     private fun buildExecutionRegistry(
         executorFactory: String,
         descriptors: List<ResolverDescriptorFile>,
+        bootstrapClass: String?,
     ): ExecutionRegistry {
         val nodes = descriptors.flatMap { it.nodes }.map { node ->
             NodeEntry(
@@ -125,6 +135,7 @@ class AssembleTenantModuleConfigFile : CliktCommand(
             grtPackagePrefix = grtPackagePrefix,
             nodes = nodes,
             fields = fields,
+            bootstrapClass = bootstrapClass,
         )
     }
 

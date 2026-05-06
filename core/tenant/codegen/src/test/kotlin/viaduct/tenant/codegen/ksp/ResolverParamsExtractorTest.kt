@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.ksp
 
 import com.google.devtools.ksp.processing.Resolver
+import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
@@ -13,6 +14,7 @@ import java.lang.reflect.Proxy
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.service.api.spi.TenantBootstrapper
 
 class ResolverParamsExtractorTest {
     @Test
@@ -342,12 +344,99 @@ class ResolverParamsExtractorTest {
         assertEquals("com.example.feature.resolvers.ItemResolver", descriptor.nodes.single().implFqn)
         assertTrue(descriptor.fields.isEmpty())
     }
+
+    @Test
+    fun `extractByFile sets bootstrapClass when a TenantBootstrapper-annotated class is found`() {
+        val logger = RecordingKspLogger()
+
+        val bootstrapperFile = ksFile(
+            packageName = "com.example.feature",
+            fileName = "FeatureTenantBootstrapper.kt",
+        )
+        val bootstrapperClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.FeatureTenantBootstrapper",
+            simpleName = "FeatureTenantBootstrapper",
+            packageName = "com.example.feature",
+            containingFile = bootstrapperFile,
+        )
+        val fileWithBootstrapper = ksFile(
+            packageName = "com.example.feature",
+            fileName = "FeatureTenantBootstrapper.kt",
+            declarations = listOf(bootstrapperClass),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(fileWithBootstrapper),
+            bootstrapperAnnotated = listOf(bootstrapperClass),
+        )
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        assertEquals(1, result.size)
+        assertEquals(
+            "com.example.feature.FeatureTenantBootstrapper",
+            result.values.single().bootstrapClass,
+        )
+        assertTrue(logger.errors.isEmpty(), "Expected no errors: ${logger.errors}")
+    }
+
+    @Test
+    fun `extractByFile logs error and excludes file when two TenantBootstrapper classes are in same file`() {
+        val logger = RecordingKspLogger()
+
+        val bootstrapperFile = ksFile(
+            packageName = "com.example.feature",
+            fileName = "Bootstrappers.kt",
+        )
+        val firstClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.BootstrapperA",
+            simpleName = "BootstrapperA",
+            packageName = "com.example.feature",
+            containingFile = bootstrapperFile,
+        )
+        val secondClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.BootstrapperB",
+            simpleName = "BootstrapperB",
+            packageName = "com.example.feature",
+            containingFile = bootstrapperFile,
+        )
+        val fileWithTwo = ksFile(
+            packageName = "com.example.feature",
+            fileName = "Bootstrappers.kt",
+            declarations = listOf(firstClass, secondClass),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(fileWithTwo),
+            bootstrapperAnnotated = listOf(firstClass, secondClass),
+        )
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        assertTrue(result.isEmpty(), "Expected no descriptors when file has two bootstrappers")
+        assertTrue(
+            logger.errors.any { it.contains("at most one") },
+            "Expected 'at most one' error: ${logger.errors}",
+        )
+    }
 }
 
-private fun ksResolver(files: List<KSFile>): Resolver {
-    return proxy(Resolver::class.java) { method, _ ->
+private fun ksResolver(
+    files: List<KSFile>,
+    bootstrapperAnnotated: List<KSAnnotated> = emptyList(),
+): Resolver {
+    val tenantBootstrapperFqn = requireNotNull(TenantBootstrapper::class.qualifiedName)
+    return proxy(Resolver::class.java) { method, args ->
         when (method.name) {
             "getAllFiles" -> files.asSequence()
+            "getSymbolsWithAnnotation" -> {
+                val name = args?.firstOrNull() as? String
+                if (name == tenantBootstrapperFqn) {
+                    bootstrapperAnnotated.asSequence()
+                } else {
+                    emptySequence()
+                }
+            }
             else -> unsupported("Resolver.${method.name}")
         }
     }

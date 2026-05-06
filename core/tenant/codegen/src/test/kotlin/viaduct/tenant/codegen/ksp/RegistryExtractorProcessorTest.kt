@@ -2,6 +2,7 @@ package viaduct.tenant.codegen.ksp
 
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
+import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
@@ -12,6 +13,7 @@ import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueArgument
 import java.lang.reflect.Proxy
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -221,6 +223,73 @@ class RegistryExtractorProcessorTest {
     }
 
     @Test
+    fun `process captures bootstrapClass from TenantBootstrapper-annotated class in descriptor`() {
+        val logger = RecordingKspLogger()
+        val codeGenerator = RecordingCodeGenerator()
+        val environment = fakeEnvironment(logger = logger, codeGenerator = codeGenerator)
+
+        val bootstrapperFile = ksFile(
+            packageName = "com.example.feature",
+            fileName = "FeatureTenantBootstrapper.kt",
+        )
+        val bootstrapperClass = ksClassDeclaration(
+            qualifiedName = "com.example.feature.FeatureTenantBootstrapper",
+            simpleName = "FeatureTenantBootstrapper",
+            packageName = "com.example.feature",
+            containingFile = bootstrapperFile,
+        )
+        val fileWithBootstrapper = ksFile(
+            packageName = "com.example.feature",
+            fileName = "FeatureTenantBootstrapper.kt",
+            declarations = listOf(bootstrapperClass),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(fileWithBootstrapper),
+            bootstrapperAnnotated = listOf(bootstrapperClass),
+        )
+        val processor = RegistryExtractorProcessor(environment)
+
+        processor.process(resolver)
+
+        assertEquals(1, codeGenerator.outputs.size)
+        val json = codeGenerator.outputs.values.single()
+        assertTrue(json.contains("com.example.feature.FeatureTenantBootstrapper"), json)
+        assertTrue(json.contains("bootstrapClass"), json)
+    }
+
+    @Test
+    fun `process emits no bootstrapClass when no TenantBootstrapper annotation present`() {
+        val logger = RecordingKspLogger()
+        val codeGenerator = RecordingCodeGenerator()
+        val environment = fakeEnvironment(logger = logger, codeGenerator = codeGenerator)
+
+        val nodeResolver = ksNodeResolverWithFile(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            typeName = "ExampleNode",
+            containingFile = ksFile(
+                packageName = "com.example.feature.resolvers",
+                fileName = "ExampleResolvers.kt",
+            ),
+        )
+        val fileWithResolver = ksFile(
+            packageName = "com.example.feature.resolvers",
+            fileName = "ExampleResolvers.kt",
+            declarations = listOf(nodeResolver),
+        )
+
+        val resolver = ksResolver(files = listOf(fileWithResolver))
+        val processor = RegistryExtractorProcessor(environment)
+
+        processor.process(resolver)
+
+        val json = codeGenerator.outputs.values.single()
+        assertFalse(json.contains("bootstrapClass"), json)
+    }
+
+    @Test
     fun `process produces no output when node resolvers lack @Resolver`() {
         val logger = RecordingKspLogger()
         val codeGenerator = RecordingCodeGenerator()
@@ -284,10 +353,22 @@ private fun fakeEnvironment(
     )
 }
 
-private fun ksResolver(files: List<KSFile>): Resolver {
-    return proxy(Resolver::class.java) { method, _ ->
+private fun ksResolver(
+    files: List<KSFile>,
+    bootstrapperAnnotated: List<KSAnnotated> = emptyList(),
+): Resolver {
+    val tenantBootstrapperFqn = requireNotNull(viaduct.service.api.spi.TenantBootstrapper::class.qualifiedName)
+    return proxy(Resolver::class.java) { method, args ->
         when (method.name) {
             "getAllFiles" -> files.asSequence()
+            "getSymbolsWithAnnotation" -> {
+                val name = args?.firstOrNull() as? String
+                if (name == tenantBootstrapperFqn) {
+                    bootstrapperAnnotated.asSequence()
+                } else {
+                    emptySequence()
+                }
+            }
             else -> unsupported("Resolver.${method.name}")
         }
     }

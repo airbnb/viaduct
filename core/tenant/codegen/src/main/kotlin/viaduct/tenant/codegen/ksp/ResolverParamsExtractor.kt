@@ -5,13 +5,16 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
+import viaduct.service.api.spi.TenantBootstrapper
 
 /**
  * Extracts file-scoped resolver descriptors from the current KSP compilation unit.
  *
  * The extractor walks all class declarations, including nested classes, reduces them
  * into [ResolverParams], and groups both node and field resolvers by their containing
- * source file.
+ * source file. It also detects classes annotated with [TenantBootstrapper] and embeds
+ * their FQN in the per-file descriptor. At most one [TenantBootstrapper] class may
+ * appear per source file; a KSP error is emitted if more than one is found.
  */
 internal class ResolverParamsExtractor(
     private val resolver: Resolver,
@@ -34,7 +37,10 @@ internal class ResolverParamsExtractor(
                 )
             }
 
-        val allFiles = (groupedNodesByFile.keys + groupedFieldsByFile.keys).toSortedSet(compareBy { it.filePath })
+        val bootstrapClassByFile = extractBootstrapClassByFile()
+
+        val allFiles = (groupedNodesByFile.keys + groupedFieldsByFile.keys + bootstrapClassByFile.keys)
+            .toSortedSet(compareBy { it.filePath })
 
         val descriptorsByFile = allFiles.associateWith { file ->
             val classesInFile = file.declarations.filterIsInstance<KSClassDeclaration>().toList()
@@ -46,6 +52,7 @@ internal class ResolverParamsExtractor(
                     .orEmpty()
                     .sortedWith(compareBy({ it.typeName }, { it.fieldName }, { it.implFqn })),
                 grtPackagePrefix = extractGrtPackagePrefix(classesInFile),
+                bootstrapClass = bootstrapClassByFile[file],
             )
         }.toSortedMap(compareBy { file -> file.filePath })
 
@@ -55,6 +62,40 @@ internal class ResolverParamsExtractor(
         )
 
         return descriptorsByFile
+    }
+
+    private fun extractBootstrapClassByFile(): Map<KSFile, String> {
+        val annotationName = requireNotNull(TenantBootstrapper::class.qualifiedName)
+        return resolver
+            .getSymbolsWithAnnotation(annotationName)
+            .filterIsInstance<KSClassDeclaration>()
+            .mapNotNull { declaration ->
+                val file = declaration.containingFile ?: run {
+                    logger.error("@TenantBootstrapper class has no containing file", declaration)
+                    return@mapNotNull null
+                }
+                val fqn = declaration.qualifiedName?.asString() ?: run {
+                    logger.error("@TenantBootstrapper class has no qualified name", declaration)
+                    return@mapNotNull null
+                }
+                file to fqn
+            }
+            .groupBy(keySelector = { it.first }, valueTransform = { it.second })
+            .entries
+            .mapNotNull { (file, fqns) ->
+                if (fqns.size > 1) {
+                    logger.errorRegistryExtractor(
+                        "Each source file may contain at most one @TenantBootstrapper class, but {} contains {}: {}",
+                        file.filePath,
+                        fqns.size,
+                        fqns,
+                    )
+                    null
+                } else {
+                    file to fqns.single()
+                }
+            }
+            .toMap()
     }
 
     private fun collectResolverParams(

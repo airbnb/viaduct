@@ -4,6 +4,7 @@ import java.io.File
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 
 class AssembleTenantModuleConfigFileTest {
@@ -195,5 +196,44 @@ class AssembleTenantModuleConfigFileTest {
 
         val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
         assertTrue(json.contains("com.example.resolvers.AResolver"), json)
+    }
+
+    @Test
+    fun `bootstrapClass is present in output when descriptor file contains bootstrapClass`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FeatureTenantBootstrapper.json").writeText(
+            """{"nodes":[],"fields":[],"bootstrapClass":"com.example.feature.FeatureTenantBootstrapper"}""",
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("com.example.feature.FeatureTenantBootstrapper"), json)
+        assertTrue(json.contains("bootstrapClass"), json)
+    }
+
+    @Test
+    fun `bootstrapClass is absent from output when no descriptor contains bootstrapClass`() {
+        val out = outputDir()
+        runCli(out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertFalse(json.contains("bootstrapClass"), json)
+    }
+
+    @Test
+    fun `throws when two descriptor files both contain bootstrapClass`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "BootstrapperA.json").writeText(
+            """{"nodes":[],"fields":[],"bootstrapClass":"com.example.feature.BootstrapperA"}""",
+        )
+        File(descriptors, "BootstrapperB.json").writeText(
+            """{"nodes":[],"fields":[],"bootstrapClass":"com.example.feature.BootstrapperB"}""",
+        )
+
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir())
+        }
+        assertTrue(exception.message!!.contains("at most one"), exception.message)
     }
 }
