@@ -58,7 +58,7 @@ class FieldWithMetadata(
             '}'
     }
 
-    override fun transform(builderConsumer: Consumer<Builder>?): Field {
+    override fun transform(builderConsumer: Consumer<Builder>): Field {
         return super.transform(builderConsumer).let {
             fromFieldWithMetadata(it, metadata)
         }

@@ -72,7 +72,7 @@ class StandardViaductTest {
     internal class SuccessfulExecutionResult : ExecutionResult {
         override fun getErrors(): MutableList<GraphQLError> = mutableListOf()
 
-        override fun <T : Any?> getData() = null
+        override fun <T : Any> getData(): T? = null
 
         override fun isDataPresent() = true
 

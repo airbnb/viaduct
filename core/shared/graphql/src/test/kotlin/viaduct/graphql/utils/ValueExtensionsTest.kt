@@ -876,13 +876,13 @@ class ValueExtensionsTest {
             }
 
             override fun accept(
-                context: TraverserContext<Node<Node<*>>>?,
-                visitor: NodeVisitor?
+                context: TraverserContext<Node<Node<*>>>,
+                visitor: NodeVisitor
             ): TraversalControl {
                 TODO("Not yet implemented")
             }
 
-            override fun withNewChildren(newChildren: NodeChildrenContainer?): UnknownValue {
+            override fun withNewChildren(newChildren: NodeChildrenContainer): UnknownValue {
                 TODO("Not yet implemented")
             }
         }

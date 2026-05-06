@@ -48,7 +48,7 @@ open class ViaductInstrumentationAdapter(
     override fun beginParse(
         parameters: InstrumentationExecutionParameters,
         state: InstrumentationState?
-    ): InstrumentationContext<Document?>? = viaductInstrumentation.beginParse(parameters, state)
+    ): InstrumentationContext<Document>? = viaductInstrumentation.beginParse(parameters, state)
 
     override fun beginValidation(
         parameters: InstrumentationValidationParameters,

@@ -56,7 +56,7 @@ interface IViaductInstrumentation {
     fun beginParse(
         parameters: InstrumentationExecutionParameters,
         state: InstrumentationState?
-    ): InstrumentationContext<Document?>? = default.beginParse(parameters, state)
+    ): InstrumentationContext<Document>? = default.beginParse(parameters, state)
 
     fun beginValidation(
         parameters: InstrumentationValidationParameters,
