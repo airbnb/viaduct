@@ -87,7 +87,7 @@ class ViaductModernExecutorFactoryTest {
 
     private fun factory() =
         ViaductModernExecutorFactory(
-            tenantCodeInjector = CodeInjector.Naive,
+            codeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.api.bootstrap.test.grts",
             configUrl = URI("file:///dev/null").toURL(),
         )

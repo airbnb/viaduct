@@ -78,7 +78,7 @@ class ViaductTenantAPIBootstrapperTest {
     )
 
     private lateinit var injector: Injector
-    private lateinit var tenantCodeInjector: Injector
+    private lateinit var codeInjector: Injector
     private lateinit var tenantResolverClassFinder: TenantResolverClassFinder
     private lateinit var tenantAPIBootstrapper: TenantAPIBootstrapper
     private lateinit var tenantModuleBootstrappers: Iterable<LegacyTenantModuleBootstrapper>
@@ -92,7 +92,7 @@ class ViaductTenantAPIBootstrapperTest {
 
     @BeforeEach
     fun setUp() {
-        tenantCodeInjector =
+        codeInjector =
             Guice.createInjector(
                 object : AbstractModule() {
                     override fun configure() {
@@ -109,7 +109,7 @@ class ViaductTenantAPIBootstrapperTest {
                     override fun configure() {
                         bind(GraphQLSchema::class.java).toInstance(schema.schema)
                         bind(TenantPackageFinder::class.java).toInstance(TestTenantPackageFinder(listOf(TestTenantModule::class)))
-                        bind(CodeInjector::class.java).toInstance(GuiceTenantCodeInjector(tenantCodeInjector))
+                        bind(CodeInjector::class.java).toInstance(GuiceTenantCodeInjector(codeInjector))
 
                         bind(AFieldResolver::class.java).`in`(Singleton::class.java)
                         bind(TestBatchNodeResolver::class.java).`in`(Singleton::class.java)
@@ -125,7 +125,7 @@ class ViaductTenantAPIBootstrapperTest {
         runBlocking {
             @Suppress("DEPRECATION")
             tenantAPIBootstrapper = ViaductTenantAPIBootstrapper.Builder()
-                .tenantCodeInjector(GuiceTenantCodeInjector(tenantCodeInjector))
+                .tenantCodeInjector(GuiceTenantCodeInjector(codeInjector))
                 .tenantPackageFinder(injector.getInstance(TenantPackageFinder::class.java))
                 .tenantResolverClassFinderFactory { tenantResolverClassFinder }
                 .create()
@@ -179,9 +179,9 @@ class ViaductTenantAPIBootstrapperTest {
 
     @Test
     fun `ensure injectors are working as assumed`() { // Test of the test setup
-        val tenantAFieldResolver = tenantCodeInjector.getInstance(AFieldResolver::class.java)
+        val tenantAFieldResolver = codeInjector.getInstance(AFieldResolver::class.java)
         val systemAFieldResolver = injector.getInstance(AFieldResolver::class.java)
-        assertSame(tenantAFieldResolver, tenantCodeInjector.getInstance(AFieldResolver::class.java))
+        assertSame(tenantAFieldResolver, codeInjector.getInstance(AFieldResolver::class.java))
         assertSame(systemAFieldResolver, injector.getInstance(AFieldResolver::class.java))
         assertNotSame(tenantAFieldResolver, systemAFieldResolver)
     }
@@ -189,7 +189,7 @@ class ViaductTenantAPIBootstrapperTest {
     @Test
     fun `ensure the tenant code injector is used for fields`() {
         assertSame(
-            tenantCodeInjector.getInstance(AFieldResolver::class.java),
+            codeInjector.getInstance(AFieldResolver::class.java),
             (fieldResolverExecutors[Pair("TestType", "aField")] as FieldUnbatchedResolverExecutorImpl)
                 .resolver.get()
         )
@@ -198,7 +198,7 @@ class ViaductTenantAPIBootstrapperTest {
     @Test
     fun `ensure the tenant code injector is used for nodes`() {
         assertSame(
-            tenantCodeInjector.getInstance(TestNodeResolver::class.java),
+            codeInjector.getInstance(TestNodeResolver::class.java),
             (nodeResolverExecutors["TestNode"] as NodeUnbatchedResolverExecutorImpl)
                 .resolver.get()
         )
@@ -207,7 +207,7 @@ class ViaductTenantAPIBootstrapperTest {
     @Test
     fun `ensure the tenant code injector is used for batched nodes`() {
         assertSame(
-            tenantCodeInjector.getInstance(TestBatchNodeResolver::class.java),
+            codeInjector.getInstance(TestBatchNodeResolver::class.java),
             (nodeResolverExecutors["TestBatchNode"] as NodeBatchResolverExecutorImpl)
                 .resolver.get()
         )

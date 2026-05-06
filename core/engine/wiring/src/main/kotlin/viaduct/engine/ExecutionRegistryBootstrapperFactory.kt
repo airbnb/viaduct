@@ -16,9 +16,9 @@ object BootstrapperFactory {
     /**
      * Returns a bootstrapper that loads all tenant module registry files from the classpath.
      */
-    fun fromResources(tenantCodeInjector: CodeInjector): TenantAPIBootstrapper =
+    fun fromResources(codeInjector: CodeInjector): TenantAPIBootstrapper =
         ExecutionRegistryTenantAPIBootstrapper(
-            tenantCodeInjector = tenantCodeInjector,
+            codeInjector = codeInjector,
             registryUrls = collectRegistryUrls(packagePrefix = null),
         )
 
@@ -30,11 +30,11 @@ object BootstrapperFactory {
      */
     @VisibleForTest
     fun fromResources(
-        tenantCodeInjector: CodeInjector,
+        codeInjector: CodeInjector,
         packagePrefix: String,
     ): TenantAPIBootstrapper =
         ExecutionRegistryTenantAPIBootstrapper(
-            tenantCodeInjector = tenantCodeInjector,
+            codeInjector = codeInjector,
             registryUrls = collectRegistryUrls(packagePrefix = packagePrefix),
         )
 

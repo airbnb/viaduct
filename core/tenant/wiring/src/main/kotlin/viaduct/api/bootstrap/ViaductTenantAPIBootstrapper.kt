@@ -27,7 +27,7 @@ import viaduct.utils.slf4j.logger
  */
 open class ViaductTenantAPIBootstrapper
     protected constructor(
-        private val tenantCodeInjector: CodeInjector,
+        private val codeInjector: CodeInjector,
         private val tenantPackageFinder: TenantPackageFinder,
         private val tenantResolverClassFinderFactory: TenantResolverClassFinderFactory,
         private val grtConvFactory: GRTConvFactory,
@@ -47,7 +47,7 @@ open class ViaductTenantAPIBootstrapper
                     async {
                         log.info("Creating bootstrapper for tenant module: {}", packageInfo.packageName)
                         ViaductTenantModuleBootstrapper(
-                            tenantCodeInjector,
+                            codeInjector,
                             createResolverClassFinder(packageInfo),
                             grtConvFactory,
                         )
@@ -72,7 +72,7 @@ open class ViaductTenantAPIBootstrapper
          * Builder for creating a ViaductTenantAPIBootstrapper instance.
          */
         open class Builder : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
-            protected var tenantCodeInjector: CodeInjector = CodeInjector.Naive
+            protected var codeInjector: CodeInjector = CodeInjector.Naive
             protected var tenantPackagePrefix: String? = null
             protected var tenantPackageFinder: TenantPackageFinder? = null
             protected var tenantResolverClassFinderFactory: TenantResolverClassFinderFactory? = null
@@ -80,7 +80,7 @@ open class ViaductTenantAPIBootstrapper
 
             fun tenantCodeInjector(tenantCodeInjector: CodeInjector) =
                 apply {
-                    this.tenantCodeInjector = tenantCodeInjector
+                    this.codeInjector = tenantCodeInjector
                 }
 
             fun tenantPackagePrefix(tenantPackagePrefix: String) =
@@ -116,7 +116,7 @@ open class ViaductTenantAPIBootstrapper
 
             override fun create(): TenantAPIBootstrapper =
                 ViaductTenantAPIBootstrapper(
-                    tenantCodeInjector = tenantCodeInjector,
+                    codeInjector = codeInjector,
                     tenantPackageFinder = resolvedTenantPackageFinder(),
                     tenantResolverClassFinderFactory = resolvedTenantResolverClassFinderFactory(),
                     grtConvFactory = grtConvFactory,

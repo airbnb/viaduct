@@ -96,7 +96,7 @@ class ViaductTenantModuleBootstrapperNodeResolverTest {
             every { resolverClassesInPackage() } returns emptySet()
         }
         return ViaductTenantModuleBootstrapper(
-            tenantCodeInjector = CodeInjector.Naive,
+            codeInjector = CodeInjector.Naive,
             tenantResolverClassFinder = classFinder,
             grtConvFactory = DefaultGRTConvFactory,
         )

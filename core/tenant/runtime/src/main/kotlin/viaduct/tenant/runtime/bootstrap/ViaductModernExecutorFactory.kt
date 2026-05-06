@@ -34,7 +34,7 @@ import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.utils.slf4j.logger
 
 class ViaductModernExecutorFactory(
-    private val tenantCodeInjector: CodeInjector,
+    private val codeInjector: CodeInjector,
     private val grtPackagePrefix: String,
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {
@@ -54,7 +54,7 @@ class ViaductModernExecutorFactory(
         val resolverClass = loadClass<ResolverBase<*>>(configData.tenantAPIData.resolverClass, "field ${configData.typeName}.${configData.fieldName}")
         val resolverBaseClass = loadClass<ResolverBase<*>>(configData.tenantAPIData.resolverBaseClass, "field resolver base for ${configData.typeName}.${configData.fieldName}")
 
-        val provider = tenantCodeInjector.getProvider(resolverClass)
+        val provider = codeInjector.getProvider(resolverClass)
         val attribution = ExecutionAttribution.fromResolver(configData.tenantAPIData.resolverClass)
 
         val contextFactory = FieldExecutionContextFactory.of(
@@ -119,7 +119,7 @@ class ViaductModernExecutorFactory(
         val resolverClass = loadClass<NodeResolverBase<*>>(configData.tenantAPIData.resolverClass, "node ${configData.typeName}")
         val resolverBaseClass = loadClass<NodeResolverBase<*>>(configData.tenantAPIData.resolverBaseClass, "node resolver base for ${configData.typeName}")
 
-        val provider = tenantCodeInjector.getProvider(resolverClass)
+        val provider = codeInjector.getProvider(resolverClass)
 
         val reflectiveType = reflectionLoader.reflectionFor(configData.typeName) as Type<NodeObject>
         val contextFactory = NodeExecutionContextFactory(
@@ -176,7 +176,7 @@ class ViaductModernExecutorFactory(
         if (objectSelections == null && querySelections == null) return Pair(null, null)
 
         return requiredSelectionSetFactory.createRequiredSelectionSets(
-            variablesProvider = resolverKClass.variablesProvider(tenantCodeInjector),
+            variablesProvider = resolverKClass.variablesProvider(codeInjector),
             objectSelections = objectSelections,
             querySelections = querySelections,
             variablesProviderContextFactory = contextFactory,

@@ -28,7 +28,7 @@ import viaduct.utils.slf4j.logger
  * [viaduct.engine.BootstrapperFactory] in engine/wiring.
  */
 class ExecutionRegistryTenantAPIBootstrapper(
-    private val tenantCodeInjector: CodeInjector,
+    private val codeInjector: CodeInjector,
     private val registryUrls: List<URL>,
 ) : TenantAPIBootstrapper {
     override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> {
@@ -58,7 +58,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
             URL::class.java,
         )
         @Suppress("UNCHECKED_CAST")
-        return ctor.newInstance(tenantCodeInjector, grtPackagePrefix, configUrl) as ExecutorFactory
+        return ctor.newInstance(codeInjector, grtPackagePrefix, configUrl) as ExecutorFactory
     }
 
     companion object {

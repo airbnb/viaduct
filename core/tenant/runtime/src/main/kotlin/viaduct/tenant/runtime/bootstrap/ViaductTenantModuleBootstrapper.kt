@@ -38,7 +38,7 @@ import viaduct.utils.slf4j.logger
  * @param tenantModulePackage Viaduct tenant module package name.
  */
 class ViaductTenantModuleBootstrapper(
-    private val tenantCodeInjector: CodeInjector,
+    private val codeInjector: CodeInjector,
     private val tenantResolverClassFinder: TenantResolverClassFinder,
     private val grtConvFactory: GRTConvFactory = DefaultGRTConvFactory,
 ) : LegacyTenantModuleBootstrapper {
@@ -95,7 +95,7 @@ class ViaductTenantModuleBootstrapper(
             // for Viaduct, register their providers with the injector provided in the constructor for this class,
             // and create the resolver executors for Viaduct engine.
             val resolverContainerProvider = try {
-                tenantCodeInjector.getProvider(resolverClass)
+                codeInjector.getProvider(resolverClass)
             } catch (e: NoClassDefFoundError) {
                 // This can happen, at times, for tenant JARs, whose dependencies don't resolve.
                 // By re-throwing a TenantModuleException, we ensure we only skip the bootstrapping of one offending tenant.
@@ -130,7 +130,7 @@ class ViaductTenantModuleBootstrapper(
 
             val (objectSelectionSet, querySelectionSet) = requiredSelectionSetFactory.createRequiredSelectionSets(
                 schema,
-                tenantCodeInjector,
+                codeInjector,
                 resolverKClass,
                 fieldExecutionContextFactory,
                 resolverAnnotation,
@@ -302,7 +302,7 @@ class ViaductTenantModuleBootstrapper(
             // for Viaduct, register their providers with the injector provided in the constructor for this class,
             // and create the resolver executors for Viaduct engine.
             val resolverContainerProvider = try {
-                tenantCodeInjector.getProvider(resolverClass)
+                codeInjector.getProvider(resolverClass)
             } catch (e: NoClassDefFoundError) {
                 // This can happen, at times, for tenant JARs, whose dependencies don't resolve.
                 // By re-throwing a TenantModuleException, we ensure we only skip the bootstrapping of one offending tenant.
