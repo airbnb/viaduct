@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+
 package viaduct.utils.collections
 
 import kotlinx.coroutines.CoroutineScope

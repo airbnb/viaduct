@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.service
 
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper

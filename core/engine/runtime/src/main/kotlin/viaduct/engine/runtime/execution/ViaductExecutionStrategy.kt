@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalTime::class)
+@file:Suppress("DEPRECATION")
 
 package viaduct.engine.runtime.execution
 

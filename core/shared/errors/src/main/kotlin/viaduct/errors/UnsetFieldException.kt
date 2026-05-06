@@ -1,3 +1,5 @@
+@file:OptIn(viaduct.apiannotations.InternalApi::class)
+
 package viaduct.errors
 
 import graphql.schema.GraphQLObjectType

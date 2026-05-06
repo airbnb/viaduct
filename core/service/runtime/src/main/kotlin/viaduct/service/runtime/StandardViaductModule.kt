@@ -1,4 +1,4 @@
-@file:Suppress("DEPRECATION")
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
 
 package viaduct.service.runtime
 

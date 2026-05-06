@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
+
 package viaduct.api.bootstrap
 
 import kotlinx.coroutines.async

@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
+
 package viaduct.engine.api.spi
 
 import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper

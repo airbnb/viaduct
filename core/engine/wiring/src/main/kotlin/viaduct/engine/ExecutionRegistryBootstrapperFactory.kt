@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
+
 package viaduct.engine
 
 import io.github.classgraph.ClassGraph

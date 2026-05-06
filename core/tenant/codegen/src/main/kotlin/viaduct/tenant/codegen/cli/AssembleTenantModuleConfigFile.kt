@@ -3,7 +3,7 @@ package viaduct.tenant.codegen.cli
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonMapperBuilder
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
@@ -150,9 +150,10 @@ class AssembleTenantModuleConfigFile : CliktCommand(
         // backwards-incompatible way so the bootstrapper can reject stale artifacts.
         const val REGISTRY_VERSION = "1"
 
-        val MAPPER: ObjectMapper = jacksonObjectMapper()
-            .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true)
-            .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+        val MAPPER: ObjectMapper = jacksonMapperBuilder()
+            .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .serializationInclusion(JsonInclude.Include.NON_NULL)
+            .build()
     }
 
     object Main {

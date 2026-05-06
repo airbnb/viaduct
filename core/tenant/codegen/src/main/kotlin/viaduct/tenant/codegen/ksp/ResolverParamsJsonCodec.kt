@@ -2,7 +2,8 @@ package viaduct.tenant.codegen.ksp
 
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.module.kotlin.jacksonMapperBuilder
 
 /**
  * JSON codec for the intermediate file-scoped resolver descriptor.
@@ -20,14 +21,16 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
  * decode path only runs in the CLI (process-isolated worker JVM), never inside KSP.
  */
 internal class ResolverParamsJsonCodec {
-    private val encoder: ObjectMapper = ObjectMapper()
-        .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true)
+    private val encoder: ObjectMapper = JsonMapper.builder()
+        .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+        .build()
 
     private val encoderWriter = encoder.writerWithDefaultPrettyPrinter()
 
     private val decoder: ObjectMapper by lazy {
-        jacksonObjectMapper()
-            .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true)
+        jacksonMapperBuilder()
+            .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+            .build()
     }
 
     fun encode(descriptorFile: ResolverDescriptorFile): String {

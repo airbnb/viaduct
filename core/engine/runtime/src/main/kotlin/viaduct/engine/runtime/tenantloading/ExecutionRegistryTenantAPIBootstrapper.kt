@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
+
 package viaduct.engine.runtime.tenantloading
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper

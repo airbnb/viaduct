@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.service.runtime.builtinresolvers
 
 import graphql.schema.GraphQLObjectType

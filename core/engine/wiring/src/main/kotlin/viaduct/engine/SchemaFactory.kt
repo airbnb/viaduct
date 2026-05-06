@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine
 
 import graphql.schema.GraphQLScalarType

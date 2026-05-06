@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.tenant.runtime.bootstrap
 
 import kotlin.reflect.full.declaredMemberFunctions

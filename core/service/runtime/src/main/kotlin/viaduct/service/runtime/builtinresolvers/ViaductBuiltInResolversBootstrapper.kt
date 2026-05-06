@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
+
 package viaduct.service.runtime.builtinresolvers
 
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
