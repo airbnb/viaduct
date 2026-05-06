@@ -25,6 +25,7 @@ import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
+import viaduct.engine.api.RootFieldReference
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.UnsetFieldException
@@ -131,6 +132,13 @@ abstract class ObjectBase(
                                 "only id can be accessed on an unresolved Node reference created using Context.nodeRef"
                             )
                         }
+                    }
+                    is RootFieldReference -> {
+                        throw UnsetFieldException(
+                            selection,
+                            objectType,
+                            "fields cannot be accessed on an unresolved root field reference created using Context.rootFieldRef"
+                        )
                     }
                     is EngineObjectData -> extractingFunction(engineObject, selection)
                     else -> throw FrameworkException("Unknown EngineObject subclass ${engineObject.javaClass.name}")
@@ -239,15 +247,21 @@ abstract class ObjectBase(
 
     /**
      * Helper method for generated toBuilder() implementations.
-     * Returns the EngineObjectData for this GRT instance, throwing if called on a NodeReference.
+     * Returns the EngineObjectData for this GRT instance, throwing if called on an
+     * unresolved reference (NodeReference or RootFieldReference).
      *
      * @return The EngineObjectData backing this GRT
-     * @throws TenantUsageException if called on a NodeReference
+     * @throws TenantUsageException if called on an unresolved reference
      */
     protected fun toBuilderEOD(): EngineObjectData.Sync {
         if (engineObject is NodeReference) {
             throw TenantUsageException(
                 "Cannot call toBuilder() on an unresolved NodeReference."
+            )
+        }
+        if (engineObject is RootFieldReference) {
+            throw TenantUsageException(
+                "Cannot call toBuilder() on an unresolved RootFieldReference."
             )
         }
 

@@ -1,12 +1,16 @@
 package viaduct.api.context
 
 import viaduct.api.globalid.GlobalID
+import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.select.Selections
+import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
+import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 
 /** A generic context for resolving fields or types */
@@ -55,4 +59,25 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
         type: Type<T>,
         internalID: String
     ): String
+
+    /**
+     * Creates a lazy reference to a root field that will be later resolved
+     * by the engine. [field] must be either a field on the root query type, or a field
+     * reachable from the root query type through @namespaceType-typed fields. It must
+     * also have an object type.
+     *
+     * No fields are accessible from the returned value. Attempting to access fields
+     * will result in an exception. The returned value may be used as a resolver return
+     * value or passed to a GRT builder.
+     *
+     * Example usage:
+     * ```
+     * val product = ctx.rootFieldRef(ProductFactory.Fields.create, args)
+     * ```
+     */
+    @ExperimentalApi
+    fun <A : Arguments, BR : Object> rootFieldRef(
+        field: RootObjectField<*, BR, A>,
+        arguments: A
+    ): BR
 }

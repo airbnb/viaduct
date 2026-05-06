@@ -16,6 +16,7 @@ import viaduct.api.internal.GRTConvFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.select.SelectionSetFactory
+import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
@@ -174,6 +175,13 @@ open class MockResolverExecutionContext<Q : Query>(
         val id = globalIDCodec.serialize(globalID.type.name, globalID.internalID)
         val graphqlObjectType = schema.schema.getObjectType(globalID.type.name)
         return MockNodeEngineObjectData(id, graphqlObjectType).toObjectGRT(this, globalID.type.kcls)
+    }
+
+    override fun <A : Arguments, BR : Object> rootFieldRef(
+        field: RootObjectField<*, BR, A>,
+        arguments: A
+    ): BR {
+        throw UnsupportedOperationException("rootFieldRef() is not supported in mock contexts")
     }
 
     override fun <T : NodeObject> globalIDStringFor(

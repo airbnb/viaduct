@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalApi::class)
+
 package viaduct.api.internal
 
 import viaduct.api.reflect.RootObjectField
@@ -5,6 +7,7 @@ import viaduct.api.reflect.Type
 import viaduct.api.types.Arguments
 import viaduct.api.types.GRT
 import viaduct.api.types.Object
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 
 @InternalApi

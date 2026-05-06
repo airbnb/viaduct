@@ -16,6 +16,9 @@ directive @connection on OBJECT
 "Marks an object type as a Relay Edge type"
 directive @edge on OBJECT
 
+"Marks an object type as a namespace type (non-entity container for grouping resolvers)"
+directive @namespaceType on OBJECT
+
 interface Node @scope(to: ["*"]) {
   id: ID!
 }

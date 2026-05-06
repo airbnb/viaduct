@@ -1,7 +1,10 @@
+@file:OptIn(ExperimentalApi::class)
+
 package viaduct.tenant.runtime.context
 
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
+import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
@@ -10,6 +13,7 @@ import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.mocks.ContextMocks
 
@@ -78,6 +82,12 @@ abstract class ContextTestBase {
                 selections: String,
                 variables: Map<String, Any?>
             ): SelectionSet<T> = realWrapper.selectionsFor(type, selections, variables)
+
+            override fun <A : Arguments, BR : Object> rootFieldRef(
+                ctx: InternalContext,
+                field: RootObjectField<*, BR, A>,
+                arguments: A
+            ): BR = realWrapper.rootFieldRef(ctx, field, arguments)
         }
     }
 }

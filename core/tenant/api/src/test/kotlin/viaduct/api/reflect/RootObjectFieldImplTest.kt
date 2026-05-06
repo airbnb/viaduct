@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalApi::class)
+
 package viaduct.api.reflect
 
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -7,6 +9,7 @@ import viaduct.api.internal.RootObjectFieldImpl
 import viaduct.api.types.Arguments
 import viaduct.api.types.GRT
 import viaduct.api.types.Object
+import viaduct.apiannotations.ExperimentalApi
 
 class RootObjectFieldImplTest {
     private class Foo : GRT

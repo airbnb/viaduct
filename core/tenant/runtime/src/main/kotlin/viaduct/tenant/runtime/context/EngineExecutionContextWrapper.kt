@@ -1,14 +1,21 @@
+@file:OptIn(ExperimentalApi::class)
+
 package viaduct.tenant.runtime.context
 
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
+import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
+import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
+import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObject
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
@@ -45,6 +52,12 @@ interface EngineExecutionContextWrapper {
         selections: String,
         variables: Map<String, Any?>
     ): SelectionSet<T>
+
+    fun <A : Arguments, BR : Object> rootFieldRef(
+        ctx: InternalContext,
+        field: RootObjectField<*, BR, A>,
+        arguments: A
+    ): BR
 }
 
 class EngineExecutionContextWrapperImpl(
@@ -99,5 +112,28 @@ class EngineExecutionContextWrapperImpl(
             val nodeReference = engineExecutionContext.createNodeReference(id, graphqlObjectType)
 
             nodeReference.toObjectGRT(ctx, globalID.type.kcls)
+        }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <A : Arguments, T : Object> rootFieldRef(
+        ctx: InternalContext,
+        field: RootObjectField<*, T, A>,
+        arguments: A
+    ): T =
+        handleFrameworkErrors("rootFieldRef(${field.type.name})") {
+            val graphqlType = ctx.schema.schema.getObjectType(field.type.name)
+            val argsMap = when (arguments) {
+                is Arguments.NoArguments -> emptyMap()
+                is viaduct.api.internal.InputLikeBase -> arguments.inputData
+                else -> throw IllegalArgumentException(
+                    "Expected Arguments class to be NoArguments or an instance of InputLikeBase, got $arguments"
+                )
+            }
+            val rootFieldReference = engineExecutionContext.createRootFieldReference(
+                field.pathFromQueryRoot,
+                graphqlType,
+                argsMap
+            )
+            (rootFieldReference as EngineObject).toObjectGRT(ctx, field.type.kcls as kotlin.reflect.KClass<Object>) as T
         }
 }

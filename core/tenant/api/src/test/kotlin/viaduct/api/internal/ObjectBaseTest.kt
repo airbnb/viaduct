@@ -23,6 +23,7 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.NodeReference
+import viaduct.engine.api.RootFieldReference
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantException
 import viaduct.errors.TenantUsageException
@@ -593,6 +594,18 @@ class ObjectBaseTest {
         override val type = gqlSchema.schema.getObjectType("O1")
     }
 
+    private inner class MockRootFieldRef(typeName: String = "O1") : RootFieldReference, EngineObjectData {
+        override val rootFieldPath = listOf("_factories", "create")
+        override val type = gqlSchema.schema.getObjectType(typeName)
+        override val args = emptyMap<String, Any?>()
+
+        override suspend fun fetch(selection: String): Any? = error("should not be called")
+
+        override suspend fun fetchOrNull(selection: String): Any? = error("should not be called")
+
+        override suspend fun fetchSelections(): Iterable<String> = error("should not be called")
+    }
+
     @Test
     fun `test noderef - fetch`(): Unit =
         runBlocking {
@@ -607,6 +620,14 @@ class ObjectBaseTest {
             assertEquals("foo", globalId.internalID)
             assertThrows<FrameworkException> { o1.get("thisFieldDoesNotExist", String::class) }
             assertThrows<UnsetFieldException> { o1.getStringField() }
+        }
+
+    @Test
+    fun `test rootFieldRef - field access throws immediately`(): Unit =
+        runBlocking {
+            val o1 = O1(internalContext, MockRootFieldRef())
+            val exception = assertThrows<UnsetFieldException> { o1.getStringField() }
+            assertTrue(exception.message!!.contains("rootFieldRef"))
         }
 
     @Test
@@ -761,6 +782,18 @@ class ObjectBaseTest {
 
             assertTrue(exception.message!!.contains("Cannot call toBuilder()"))
             assertTrue(exception.message!!.contains("NodeReference"))
+        }
+
+        @Test
+        fun `toBuilder throws on RootFieldReference`() {
+            val testObject = TestObject(internalContext, MockRootFieldRef("O2"))
+
+            val exception = assertThrows<TenantUsageException> {
+                testObject.toBuilder()
+            }
+
+            assertTrue(exception.message!!.contains("Cannot call toBuilder()"))
+            assertTrue(exception.message!!.contains("RootFieldReference"))
         }
 
         @Test

@@ -3,8 +3,8 @@ package viaduct.api.reflect
 import viaduct.api.types.Arguments
 import viaduct.api.types.GRT
 import viaduct.api.types.Object
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
-import viaduct.apiannotations.StableApi
 
 /**
  * A RootObjectField describes static properties of a field on a root query field (a field on the
@@ -14,7 +14,7 @@ import viaduct.apiannotations.StableApi
  * The [A] type parameter captures the field's arguments type for compile-time type safety
  * in `ctx.rootFieldRef(field, args)`.
  */
-@StableApi
+@ExperimentalApi
 interface RootObjectField<Parent : GRT, UnwrappedType : Object, A : Arguments> :
     CompositeField<Parent, UnwrappedType> {
     /**
