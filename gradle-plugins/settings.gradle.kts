@@ -1,5 +1,3 @@
-import viaduct.gradle.internal.includeNamed
-
 pluginManagement {
     repositories {
         gradlePluginPortal()
@@ -27,11 +25,12 @@ plugins {
 includeBuild("../core")
 includeBuild("../build-logic")
 
-includeNamed(":common", projectName = "plugins-common")
-includeNamed(":application", projectName = "plugins-application")
-includeNamed(":module", projectName = "plugins-module")
-includeNamed(":module-java", projectName = "plugins-module-java")
+include(":common")
+include(":application")
+include(":module")
+include(":module-java")
 
 gradle.allprojects {
+    group = "com.airbnb.viaduct.gradle"
     extra["pluginIdPrefix"] = "com.airbnb.viaduct"
 }

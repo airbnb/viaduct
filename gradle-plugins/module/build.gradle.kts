@@ -12,7 +12,7 @@ java {
 }
 
 dependencies {
-    implementation(project(":plugins-common"))
+    implementation(project(":common"))
 
     // Libraries the plugin source imports directly (binary schema generation).
     // tenant-codegen is NOT here — it is an external tool artifact resolved at
@@ -25,7 +25,7 @@ dependencies {
 
     // Testing
     testImplementation(gradleTestKit())
-    testImplementation(project(":plugins-application"))
+    testImplementation(project(":application"))
     testImplementation(libs.assertj.core)
 }
 
