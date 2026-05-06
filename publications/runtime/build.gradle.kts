@@ -40,6 +40,8 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude("kotlin/**")
     exclude("kotlinx/**")
     exclude("io/kotest/**")
+    exclude("org/junit/**")
+    exclude("META-INF/versions/**/org/junit/**")
     exclude("org/jetbrains/**")
     exclude("reactor/**")
     exclude("io/projectreactor/**")
