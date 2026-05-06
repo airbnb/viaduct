@@ -2,7 +2,9 @@ package viaduct.java.runtime.bridge
 
 import java.lang.reflect.Method
 import java.lang.reflect.ParameterizedType
+import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
+import javax.inject.Provider
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -152,12 +154,6 @@ class JavaModuleBootstrapper(
                 throw TenantModuleException("Resolver class $resolverClass could not be injected", e)
             }
 
-            // Find the resolve method
-            val resolveMethod = findResolveMethod(resolverClass)
-                ?: throw TenantModuleException(
-                    "Resolver class $resolverClass does not have a 'resolve' method"
-                )
-
             // Extract the Arguments, object value, and query value classes from the resolver base's generic type parameters
             val argumentsClass = extractArgumentsClass(baseClass)
             val objectValueClass = extractObjectValueClass(baseClass)
@@ -176,26 +172,55 @@ class JavaModuleBootstrapper(
                 resolverClassName = resolverName
             )
 
-            log.info(
-                "- Adding entry for resolver for '{}.{}' to {} via {}",
-                typeName,
-                fieldName,
-                resolverName,
-                resolverClass.classLoader
-            )
-
-            val executor = JavaFieldResolverExecutor(
-                resolveFunction = { ctx -> invokeResolver(resolverProvider, resolveMethod, ctx) },
-                resolverId = resolverId,
-                resolverName = resolverName,
-                argumentsClass = argumentsClass,
-                objectSelectionSet = requiredSelections.objectSelections,
-                querySelectionSet = requiredSelections.querySelections,
-                isSelective = resolverForAnnotation.isSelective,
-                objectValueClass = objectValueClass,
-                queryValueClass = queryValueClass,
-                graphqlSchema = schema.schema,
-            )
+            val executor = if (resolverForAnnotation.isBatching) {
+                val batchResolveMethod = findResolveMethod(resolverClass, "batchResolve")
+                    ?: throw TenantModuleException(
+                        "Resolver class $resolverClass is annotated with isBatching=true but does not have a 'batchResolve' method"
+                    )
+                log.info(
+                    "- Adding entry for batch resolver for '{}.{}' to {} via {}",
+                    typeName,
+                    fieldName,
+                    resolverName,
+                    resolverClass.classLoader
+                )
+                JavaFieldBatchResolverExecutor(
+                    batchResolveFunction = { ctxList -> invokeBatchResolver(resolverProvider, batchResolveMethod, ctxList) },
+                    resolverId = resolverId,
+                    resolverName = resolverName,
+                    argumentsClass = argumentsClass,
+                    objectSelectionSet = requiredSelections.objectSelections,
+                    querySelectionSet = requiredSelections.querySelections,
+                    isSelective = resolverForAnnotation.isSelective,
+                    objectValueClass = objectValueClass,
+                    queryValueClass = queryValueClass,
+                    graphqlSchema = schema.schema,
+                )
+            } else {
+                val resolveMethod = findResolveMethod(resolverClass)
+                    ?: throw TenantModuleException(
+                        "Resolver class $resolverClass does not have a 'resolve' method"
+                    )
+                log.info(
+                    "- Adding entry for resolver for '{}.{}' to {} via {}",
+                    typeName,
+                    fieldName,
+                    resolverName,
+                    resolverClass.classLoader
+                )
+                JavaFieldResolverExecutor(
+                    resolveFunction = { ctx -> invokeResolver(resolverProvider, resolveMethod, ctx) },
+                    resolverId = resolverId,
+                    resolverName = resolverName,
+                    argumentsClass = argumentsClass,
+                    objectSelectionSet = requiredSelections.objectSelections,
+                    querySelectionSet = requiredSelections.querySelections,
+                    isSelective = resolverForAnnotation.isSelective,
+                    objectValueClass = objectValueClass,
+                    queryValueClass = queryValueClass,
+                    graphqlSchema = schema.schema,
+                )
+            }
 
             val coordinate = typeName to fieldName
             result.put(coordinate, executor)?.let { existing ->
@@ -280,29 +305,25 @@ class JavaModuleBootstrapper(
     }
 
     /**
-     * Finds the resolve method on the resolver class.
-     *
-     * Looks for a method named "resolve" that takes a Context parameter and returns CompletableFuture.
-     * Prefers declared methods to inherited ones to avoid bridge method issues.
+     * Finds a named method on [resolverClass] that takes one parameter and returns CompletableFuture.
+     * Prefers declared methods to avoid bridge methods from generics erasure.
      */
-    private fun findResolveMethod(resolverClass: Class<*>): Method? {
-        // First try declared methods (to avoid bridge methods from generics)
-        val declaredMethod = resolverClass.declaredMethods.firstOrNull { method ->
-            method.name == "resolve" &&
-                method.parameterCount == 1 &&
-                CompletableFuture::class.java.isAssignableFrom(method.returnType) &&
-                !method.isBridge
+    private fun findResolveMethod(
+        resolverClass: Class<*>,
+        name: String = "resolve"
+    ): Method? {
+        val declared = resolverClass.declaredMethods.firstOrNull { m ->
+            m.name == name &&
+                m.parameterCount == 1 &&
+                CompletableFuture::class.java.isAssignableFrom(m.returnType) &&
+                !m.isBridge
         }
-        if (declaredMethod != null) {
-            return declaredMethod
-        }
-
-        // Fall back to all methods (including inherited)
-        return resolverClass.methods.firstOrNull { method ->
-            method.name == "resolve" &&
-                method.parameterCount == 1 &&
-                CompletableFuture::class.java.isAssignableFrom(method.returnType) &&
-                !method.isBridge
+        if (declared != null) return declared
+        return resolverClass.methods.firstOrNull { m ->
+            m.name == name &&
+                m.parameterCount == 1 &&
+                CompletableFuture::class.java.isAssignableFrom(m.returnType) &&
+                !m.isBridge
         }
     }
 
@@ -317,7 +338,7 @@ class JavaModuleBootstrapper(
      */
     @Suppress("UNCHECKED_CAST")
     private fun invokeResolver(
-        provider: javax.inject.Provider<*>,
+        provider: Provider<*>,
         resolveMethod: Method,
         context: FieldExecutionContext<*, *, *, *>,
     ): CompletableFuture<Any?> {
@@ -329,6 +350,56 @@ class JavaModuleBootstrapper(
             resolveMethod.invoke(resolver, wrappedContext) as CompletableFuture<Any?>
         } catch (e: Exception) {
             CompletableFuture<Any?>().apply { completeExceptionally(e) }
+        }
+    }
+
+    /**
+     * Invokes the batchResolve method on a fresh resolver instance.
+     *
+     * Wraps each context in the resolver-specific Context class, then calls
+     * batchResolve(List<Context>). The method returns CompletableFuture<Map<Context, T>>.
+     * The Context keys are then remapped to their inner FieldExecutionContext so that the caller
+     * can do key-based lookup regardless of the Map type returned by the tenant (e.g. HashMap vs
+     * LinkedHashMap).
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun invokeBatchResolver(
+        provider: Provider<*>,
+        batchResolveMethod: Method,
+        contexts: List<FieldExecutionContext<*, *, *, *>>,
+    ): CompletableFuture<Map<FieldExecutionContext<*, *, *, *>, *>> {
+        return try {
+            val resolver = provider.get()
+            // Wrap each FieldExecutionContext in the resolver's inner Context.
+            // batchResolveMethod takes List<Context> — extract the Context class from generics.
+            val listParamElementType =
+                (batchResolveMethod.genericParameterTypes[0] as? ParameterizedType)
+                    ?.actualTypeArguments?.firstOrNull() as? Class<*>
+            val wrappedContexts = if (listParamElementType != null) {
+                contexts.map { wrapContext(listParamElementType, it) }
+            } else {
+                // Fallback: pass contexts unwrapped (should not happen with well-formed codegen)
+                contexts
+            }
+            // Build a reverse lookup: wrapped Context instance → original FieldExecutionContext.
+            // Uses IdentityHashMap to match by reference, not equals(), which is important since
+            // generated Context classes don't override equals().
+            val wrappedToOriginal = IdentityHashMap<Any, FieldExecutionContext<*, *, *, *>>()
+            wrappedContexts.zip(contexts).forEach { (wrapped, original) ->
+                wrappedToOriginal[wrapped] = original
+            }
+            val future = batchResolveMethod.invoke(resolver, wrappedContexts) as CompletableFuture<Map<*, *>>
+            future.thenApply { contextToValue ->
+                contextToValue.entries.associate { (wrappedCtx, value) ->
+                    val original = wrappedToOriginal[wrappedCtx]
+                        ?: throw TenantModuleException(
+                            "batchResolve returned a key that was not in the input context list: $wrappedCtx"
+                        )
+                    original to value
+                }
+            }
+        } catch (e: Exception) {
+            CompletableFuture<Map<FieldExecutionContext<*, *, *, *>, *>>().apply { completeExceptionally(e) }
         }
     }
 
