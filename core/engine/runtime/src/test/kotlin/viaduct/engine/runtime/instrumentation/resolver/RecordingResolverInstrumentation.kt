@@ -61,7 +61,7 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
             }
         }
 
-    override fun <T> instrumentSyncFetchSelection(
+    override fun <T> instrumentReadSelection(
         fetchFn: SyncFetchFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
         state: ViaductResolverInstrumentation.InstrumentationState?,

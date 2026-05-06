@@ -101,7 +101,7 @@ class InstrumentedEngineObjectData(
                 selection = selection,
                 parentTypeName = engineObjectData.type.name
             )
-            val value = resolverInstrumentation.instrumentSyncFetchSelection(
+            val value = resolverInstrumentation.instrumentReadSelection(
                 SyncFetchFunction { getBlock() },
                 params,
                 instrumentationState

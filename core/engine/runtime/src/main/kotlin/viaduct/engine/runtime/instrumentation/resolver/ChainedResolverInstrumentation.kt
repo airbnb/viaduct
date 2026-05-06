@@ -65,7 +65,7 @@ class ChainedResolverInstrumentation(
         }
     }
 
-    override fun <T> instrumentSyncFetchSelection(
+    override fun <T> instrumentReadSelection(
         fetchFn: SyncFetchFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
         state: ViaductResolverInstrumentation.InstrumentationState?,
@@ -73,7 +73,7 @@ class ChainedResolverInstrumentation(
         state as ChainedInstrumentationState
         return instrumentations.foldRight(fetchFn) { instrumentation, next ->
             val instrState = state.getState(instrumentation)
-            instrumentation.instrumentSyncFetchSelection(next, parameters, instrState)
+            instrumentation.instrumentReadSelection(next, parameters, instrState)
         }
     }
 

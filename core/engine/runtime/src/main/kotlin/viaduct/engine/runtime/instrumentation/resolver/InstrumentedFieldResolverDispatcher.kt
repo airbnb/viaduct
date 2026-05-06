@@ -53,32 +53,31 @@ class InstrumentedFieldResolverDispatcher(
         )
 
         val wrapFetchSelections = instrumentation.shouldInstrumentFetchSelections(state)
-        // Wrap both lazy and sync object/query values with instrumentation when enabled,
-        // regardless of whether this is a sync or lazy resolver. Lazy values are wrapped
-        // with InstrumentedEngineObjectData (async path). Sync getters are wrapped via
-        // withContext(ResolverInstrumentationContext) so that SyncEngineObjectDataFactory
-        // fires instrumentFetchSelection per field during pre-resolution. withContext is
-        // scoped only to the getter call — not the resolver body — so exceptions thrown
-        // by the resolver after fetching data do not cross a withContext boundary and
-        // preserve their identity through Kotlin's stack trace recovery.
+        // Lazy object/query values are wrapped with InstrumentedEngineObjectData when
+        // shouldInstrumentFetchSelections is true (debug / opt-in feature flag).
+        // Sync getters are always wrapped with InstrumentedEngineObjectData.Sync so that
+        // instrumentReadSelection fires for every field read — independent of the debug gate.
+        // The withContext(ResolverInstrumentationContext) around the getter is still scoped
+        // to shouldInstrumentFetchSelections so that SyncEngineObjectDataFactory fires
+        // instrumentFetchSelection during pre-resolution only when that path is enabled.
         val resolvedObjectValue = if (wrapFetchSelections) InstrumentedEngineObjectData(objectValue, instrumentation, state) else objectValue
         val resolvedQueryValue = if (wrapFetchSelections) InstrumentedEngineObjectData(queryValue, instrumentation, state) else queryValue
         val instrumentationContext = ResolverInstrumentationContext(instrumentation, state)
-        val resolvedSyncObjectGetter: suspend () -> EngineObjectData.Sync = if (wrapFetchSelections) {
-            {
-                val syncData = withContext(instrumentationContext) { syncObjectValueGetter() }
-                InstrumentedEngineObjectData.Sync(syncData, instrumentation, state)
+        val resolvedSyncObjectGetter: suspend () -> EngineObjectData.Sync = {
+            val syncData = if (wrapFetchSelections) {
+                withContext(instrumentationContext) { syncObjectValueGetter() }
+            } else {
+                syncObjectValueGetter()
             }
-        } else {
-            syncObjectValueGetter
+            InstrumentedEngineObjectData.Sync(syncData, instrumentation, state)
         }
-        val resolvedSyncQueryGetter: suspend () -> EngineObjectData.Sync = if (wrapFetchSelections) {
-            {
-                val syncData = withContext(instrumentationContext) { syncQueryValueGetter() }
-                InstrumentedEngineObjectData.Sync(syncData, instrumentation, state)
+        val resolvedSyncQueryGetter: suspend () -> EngineObjectData.Sync = {
+            val syncData = if (wrapFetchSelections) {
+                withContext(instrumentationContext) { syncQueryValueGetter() }
+            } else {
+                syncQueryValueGetter()
             }
-        } else {
-            syncQueryValueGetter
+            InstrumentedEngineObjectData.Sync(syncData, instrumentation, state)
         }
         val implWithAttribution = context.copy(
             fieldScopeSupplier = FpKit.intraThreadMemoize {

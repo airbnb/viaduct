@@ -46,12 +46,13 @@ interface ViaductResolverInstrumentation {
     interface InstrumentationState
 
     /**
-     * Whether this instrumentation performs any meaningful work in [instrumentFetchSelection] or
-     * [instrumentSyncFetchSelection] for a given request.
+     * Whether this instrumentation performs any meaningful work in [instrumentFetchSelection]
+     * for a given request.
      *
      * When true, [viaduct.engine.runtime.instrumentation.resolver.InstrumentedEngineObjectData]
      * wraps nested [viaduct.engine.api.EngineObjectData] values returned by fetch operations.
      * When false, wrapping is skipped, avoiding unnecessary allocations on the hot path.
+     * [instrumentReadSelection] is always invoked on field reads and is not gated by this flag.
      * Resolver instrumentation via [instrumentResolverExecution] is unaffected by this flag.
      *
      */
@@ -115,13 +116,14 @@ interface ViaductResolverInstrumentation {
     ): FetchFunction<T> = fetchFn
 
     /**
-     * Wraps synchronous selection fetching with instrumentation.
+     * Wraps synchronous selection reading with instrumentation.
+     * Called when reading pre-materialized field data from [viaduct.engine.api.EngineObjectData.Sync].
      * @param fetchFn The sync fetch function to instrument
-     * @param parameters Parameters for the fetch operation
+     * @param parameters Parameters for the read operation
      * @param state The instrumentation state
      * @return The instrumented sync fetch function
      */
-    fun <T> instrumentSyncFetchSelection(
+    fun <T> instrumentReadSelection(
         fetchFn: SyncFetchFunction<T>,
         parameters: InstrumentFetchSelectionParameters,
         state: InstrumentationState?,

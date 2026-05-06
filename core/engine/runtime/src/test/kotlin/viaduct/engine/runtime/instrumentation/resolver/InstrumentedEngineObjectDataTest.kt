@@ -324,7 +324,7 @@ internal class InstrumentedEngineObjectDataTest {
         fun `get propagates instrumentation exceptions`() {
             // Given
             val mockEngineObjectData: EngineObjectData.Sync = mockk()
-            val instrumentation = ThrowingResolverInstrumentation(throwOnInstrumentSyncFetch = true)
+            val instrumentation = ThrowingResolverInstrumentation(throwOnInstrumentReadSelection = true)
             val state = instrumentation.createInstrumentationState(
                 parameters = mockk()
             )

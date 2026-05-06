@@ -465,4 +465,47 @@ internal class InstrumentedFieldResolverDispatcherTest {
             // Then — even in the sync path, the context is wrapped in InstrumentedEngineExecutionContext
             assertInstanceOf(InstrumentedEngineExecutionContext::class.java, capturedContext.captured)
         }
+
+    @Test
+    fun `sync getter is always wrapped with InstrumentedEngineObjectData_Sync when shouldInstrumentFetchSelections is true`() =
+        runBlocking {
+            // Given
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val instrumentation = RecordingResolverInstrumentation() // shouldInstrumentFetchSelections = true
+            val capturedSyncObjectGetter = slot<suspend () -> EngineObjectData.Sync>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery {
+                mockDispatcher.resolve(any(), any(), any(), capture(capturedSyncObjectGetter), any(), any(), any())
+            } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+
+            // Then — sync getter returns InstrumentedEngineObjectData.Sync
+            assertInstanceOf(InstrumentedEngineObjectData.Sync::class.java, capturedSyncObjectGetter.captured())
+        }
+
+    @Test
+    fun `sync getter is always wrapped with InstrumentedEngineObjectData_Sync even when shouldInstrumentFetchSelections is false`() =
+        runBlocking {
+            // Given — DEFAULT instrumentation returns false for shouldInstrumentFetchSelections
+            val mockDispatcher: FieldResolverDispatcher = mockk()
+            val capturedSyncObjectGetter = slot<suspend () -> EngineObjectData.Sync>()
+
+            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
+            coEvery {
+                mockDispatcher.resolve(any(), any(), any(), capture(capturedSyncObjectGetter), any(), any(), any())
+            } returns "result"
+
+            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)
+
+            // When
+            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+
+            // Then — sync getter still returns InstrumentedEngineObjectData.Sync regardless of the debug gate
+            assertInstanceOf(InstrumentedEngineObjectData.Sync::class.java, capturedSyncObjectGetter.captured())
+        }
 }

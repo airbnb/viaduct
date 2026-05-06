@@ -15,7 +15,7 @@ class ThrowingResolverInstrumentation(
     private val throwOnCreateState: Boolean = false,
     private val throwOnInstrumentExecute: Boolean = false,
     private val throwOnInstrumentFetch: Boolean = false,
-    private val throwOnInstrumentSyncFetch: Boolean = false,
+    private val throwOnInstrumentReadSelection: Boolean = false,
     private val throwOnInstrumentChecker: Boolean = false
 ) : ViaductResolverInstrumentation {
     override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
@@ -47,12 +47,12 @@ class ThrowingResolverInstrumentation(
         return fetchFn
     }
 
-    override fun <T> instrumentSyncFetchSelection(
+    override fun <T> instrumentReadSelection(
         fetchFn: SyncFetchFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
         state: ViaductResolverInstrumentation.InstrumentationState?,
     ): SyncFetchFunction<T> {
-        if (throwOnInstrumentSyncFetch) {
+        if (throwOnInstrumentReadSelection) {
             throw RuntimeException(exceptionMessage)
         }
         return fetchFn
