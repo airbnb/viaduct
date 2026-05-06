@@ -77,7 +77,6 @@ abstract class ObjectBase(
      * @param alias the GraphQL response key of the selection, if aliased (see https://spec.graphql.org/draft/#sec-Field-Alias)
      */
     @Suppress("UNCHECKED_CAST")
-    @Attribution(AttributionContext.FRAMEWORK)
     fun <T> get(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
