@@ -138,8 +138,8 @@ private suspend fun Exerciser.exerciseBuilderRoundtrip(
                 )
             } else if (field.type.baseTypeDef.isComposite) {
                 check.isEqualTo(
-                    (expValue as ObjectBase).engineObject,
-                    (actValue as ObjectBase).engineObject,
+                    (expValue as ObjectBase).__engineObject,
+                    (actValue as ObjectBase).__engineObject,
                     "OBJECT_GETTER_ENGINE_OBJECT_DATA:$fName"
                 )
             } else if (field.type.baseTypeDef is ViaductSchema.Enum) {
@@ -158,7 +158,7 @@ private fun unwrapList(result: List<Any?>): Any? {
         if (it is List<*>) {
             unwrapList(it)
         } else if (it is ObjectBase) {
-            it.engineObject
+            it.__engineObject
         } else {
             it
         }

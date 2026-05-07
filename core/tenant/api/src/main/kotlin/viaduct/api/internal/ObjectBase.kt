@@ -32,12 +32,17 @@ import viaduct.errors.UnsetFieldException
 import viaduct.errors.handleFrameworkErrors
 
 /**
- * Base class for object type GRTs
+ * Base class for object type GRTs.
+ *
+ * The `__context` and `__engineObject` fields use a double-underscore prefix to avoid JVM
+ * VerifyErrors: a tenant GraphQL field named "context" or "engineObject" would cause the
+ * generated getter (e.g. `getContext()`) to collide with the inherited Kotlin property
+ * accessor, which the JVM verifier rejects. The `__` prefix ensures no such collision.
  */
 @InternalApi
 abstract class ObjectBase(
-    protected val context: InternalContext,
-    val engineObject: EngineObject,
+    @Suppress("ConstructorParameterNaming") protected val __context: InternalContext,
+    @Suppress("ConstructorParameterNaming") val __engineObject: EngineObject,
 ) : Object {
     private val fieldCache = ConcurrentHashMap<String, Any>()
 
@@ -50,7 +55,7 @@ abstract class ObjectBase(
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
     ): T =
-        handleFrameworkErrors("${engineObject.type.name}.$fieldName") {
+        handleFrameworkErrors("${__engineObject.type.name}.$fieldName") {
             get(fieldName, baseFieldTypeClass, alias)
         }
 
@@ -63,7 +68,7 @@ abstract class ObjectBase(
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
     ): T? =
-        handleFrameworkErrors("${engineObject.type.name}.$fieldName") {
+        handleFrameworkErrors("${__engineObject.type.name}.$fieldName") {
             getOrNull(fieldName, baseFieldTypeClass, alias)
         }
 
@@ -114,16 +119,16 @@ abstract class ObjectBase(
     ): T {
         val selection = alias ?: fieldName
         val result = fieldCache.getOrPut(selection) {
-            val objectType = engineObject.type
+            val objectType = __engineObject.type
             val fieldDefinition = objectType.getField(fieldName) ?: throw FrameworkException(
                 "Field $fieldName not found on type ${objectType.name}"
             )
             handleFrameworkErrors("${objectType.name}.$selection") {
-                val fieldValue = when (engineObject) {
+                val fieldValue = when (__engineObject) {
                     is NodeReference -> {
                         // If the EOD is a node reference, only allow access to its ID field
                         if (selection == "id") {
-                            engineObject.id
+                            __engineObject.id
                         } else {
                             throw UnsetFieldException(
                                 selection,
@@ -139,11 +144,11 @@ abstract class ObjectBase(
                             "fields cannot be accessed on an unresolved root field reference created using Context.rootFieldRef"
                         )
                     }
-                    is EngineObjectData.Sync -> extractingFunction(engineObject, selection)
+                    is EngineObjectData.Sync -> extractingFunction(__engineObject, selection)
                     is EngineObjectData -> throw FrameworkException(
-                        "Expected EngineObjectData.Sync but got ${engineObject.javaClass.name} for ${objectType.name}.$fieldName"
+                        "Expected EngineObjectData.Sync but got ${__engineObject.javaClass.name} for ${objectType.name}.$fieldName"
                     )
-                    else -> throw FrameworkException("Unknown EngineObject subclass ${engineObject.javaClass.name}")
+                    else -> throw FrameworkException("Unknown EngineObject subclass ${__engineObject.javaClass.name}")
                 }
                 wrap(fieldDefinition.type, fieldValue, baseFieldTypeClass)
             } ?: NULL_VALUE
@@ -166,7 +171,7 @@ abstract class ObjectBase(
 
         return when (val unwrappedType = GraphQLTypeUtil.unwrapNonNull(type)) {
             is GraphQLScalarType -> wrapScalar(unwrappedType, value, baseFieldTypeClass)
-            is GraphQLEnumType -> wrapEnum(context, unwrappedType, value)
+            is GraphQLEnumType -> wrapEnum(__context, unwrappedType, value)
             is GraphQLList -> wrapList(unwrappedType, value, baseFieldTypeClass)
             is GraphQLCompositeType -> wrapObject(unwrappedType, value)
             else -> throw FrameworkException("Unexpected type ${GraphQLTypeUtil.simplePrint(unwrappedType)}")
@@ -196,7 +201,7 @@ abstract class ObjectBase(
             }
             return value
         } else if (baseFieldTypeClass == GlobalID::class) {
-            return context.deserializeGlobalID<NodeObject>(value as String)
+            return __context.deserializeGlobalID<NodeObject>(value as String)
         }
         return type.coercing.parseValue(value, GraphQLContext.getDefault(), Locale.getDefault()) ?: throw TenantUsageException(
             "Failed to parse value $value for scalar type ${type.name}"
@@ -226,7 +231,7 @@ abstract class ObjectBase(
             throw TenantUsageException("Expected value to be an instance of EngineObjectData, got $value")
         }
 
-        val valueType = context.reflectionLoader.reflectionFor(value.type.name)
+        val valueType = __context.reflectionLoader.reflectionFor(value.type.name)
 
         if (type is GraphQLObjectType) {
             require(type.name == value.type.name) {
@@ -234,7 +239,7 @@ abstract class ObjectBase(
             }
         } else {
             // type is an interface or union
-            val typeType = context.reflectionLoader.reflectionFor(type.name)
+            val typeType = __context.reflectionLoader.reflectionFor(type.name)
             require(valueType.kcls.isSubclassOf(typeType.kcls)) {
                 "Expected value to be a subtype of ${type.name}, got ${valueType.name}"
             }
@@ -244,7 +249,7 @@ abstract class ObjectBase(
         }
 
         @Suppress("UNCHECKED_CAST")
-        return wrapOutputObject(context, valueType as Type<Object>, value) as ObjectBase
+        return wrapOutputObject(__context, valueType as Type<Object>, value) as ObjectBase
     }
 
     /**
@@ -256,33 +261,19 @@ abstract class ObjectBase(
      * @throws TenantUsageException if called on an unresolved reference
      */
     protected fun toBuilderEOD(): EngineObjectData.Sync {
-        if (engineObject is NodeReference) {
+        if (__engineObject is NodeReference) {
             throw TenantUsageException(
                 "Cannot call toBuilder() on an unresolved NodeReference."
             )
         }
-        if (engineObject is RootFieldReference) {
+        if (__engineObject is RootFieldReference) {
             throw TenantUsageException(
                 "Cannot call toBuilder() on an unresolved RootFieldReference."
             )
         }
 
-        return engineObject as EngineObjectData.Sync
+        return __engineObject as EngineObjectData.Sync
     }
-
-    /**
-     * Returns the InternalContext for use in generated toBuilder() implementations.
-     * Using this method avoids JVM VerifyErrors when a GRT has a GraphQL field named "context",
-     * which would generate a getContext() method that conflicts with the inherited property accessor.
-     */
-    protected fun getBuilderContext(): InternalContext = context
-
-    /**
-     * Returns the EngineObject for use in generated toBuilder() implementations.
-     * Using this method avoids JVM VerifyErrors when a GRT has a GraphQL field named "engineObject",
-     * which would generate a getEngineObject() method that conflicts with the inherited property accessor.
-     */
-    protected fun getBuilderEngineObject(): EngineObject = engineObject
 
     /**
      * Usually directly used by tenant developers to build Viaduct object in resolvers by calling
@@ -291,11 +282,11 @@ abstract class ObjectBase(
      * Can also be constructed with a base EOD to enable calling `toBuilder` on GRTs.
      */
     abstract class Builder<T>(
-        protected val context: InternalContext,
+        @Suppress("ConstructorParameterNaming") protected val __context: InternalContext,
         private val type: GraphQLObjectType,
         private val baseEngineObjectData: EngineObjectData.Sync?
     ) : DynamicOutputValueBuilder<T> {
-        private val wrapper = EODBuilderWrapper(type, context.globalIDCodec)
+        private val wrapper = EODBuilderWrapper(type, __context.globalIDCodec)
 
         protected fun buildEngineObjectData(): EngineObjectData.Sync =
             handleFrameworkErrors("ObjectBase.Builder.buildEngineObjectData failed") {
@@ -304,13 +295,6 @@ abstract class ObjectBase(
                     OverlayEngineObjectData(overlay, base)
                 } ?: overlay
             }
-
-        /**
-         * Returns the InternalContext for use in generated build() implementations.
-         * Using this method avoids JVM VerifyErrors when a GRT has a GraphQL field named "context",
-         * which would generate a getContext() method that conflicts with the inherited property accessor.
-         */
-        protected fun getBuilderContext(): InternalContext = context
 
         /**
          * Called by strictly typed static builder-setters in generated GRT
@@ -361,7 +345,7 @@ abstract class ObjectBase(
             val fieldDefinition = type.getField(fieldName)
                 ?: throw TenantUsageException("Field $fieldName not found on type ${type.name}")
             val fieldContext = DynamicValueBuilderTypeChecker.FieldContext(fieldDefinition, type)
-            DynamicValueBuilderTypeChecker(context).checkType(fieldDefinition.type, value, fieldContext)
+            DynamicValueBuilderTypeChecker(__context).checkType(fieldDefinition.type, value, fieldContext)
         }
     }
 

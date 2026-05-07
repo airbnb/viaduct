@@ -148,7 +148,7 @@ private val objectSTGroup = stTemplate(
         }; separator="\n">
 
         fun toBuilder(): Builder =
-            Builder(getBuilderContext(), getBuilderEngineObject().type, toBuilderEOD())
+            Builder(__context, __engineObject.type, toBuilderEOD())
 
         object of {
             operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): <mdl.className> =
@@ -210,7 +210,7 @@ private val connectionObjectSTGroup = stTemplate(
         }; separator="\n">
 
         fun toBuilder(): Builder =
-            Builder(getBuilderContext(), getBuilderEngineObject().type, toBuilderEOD())
+            Builder(__context, __engineObject.type, toBuilderEOD())
 
         object of {
             operator fun invoke(context: ConnectionFieldExecutionContext\<*, *, out ConnectionArguments, <mdl.className>\>, block: Builder.() -> Unit): <mdl.className> =

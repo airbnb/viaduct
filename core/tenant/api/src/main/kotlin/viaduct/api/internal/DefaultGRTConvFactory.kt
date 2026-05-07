@@ -101,7 +101,7 @@ object DefaultGRTConvFactory : GRTConvFactory {
         Conv(
             forward = {
                 it as ObjectBase
-                val impl = requireNotNull(impls[it.engineObject.type.name])
+                val impl = requireNotNull(impls[it.__engineObject.type.name])
                 impl(it)
             },
             inverse = {
@@ -118,8 +118,8 @@ object DefaultGRTConvFactory : GRTConvFactory {
         Conv(
             forward = {
                 it as ObjectBase
-                val engineData = requireNotNull(it.engineObject as? EngineObjectData.Sync) {
-                    "Expecting engineObject data as EngineObjectData.Sync, but got ${it.engineObject.javaClass}"
+                val engineData = requireNotNull(it.__engineObject as? EngineObjectData.Sync) {
+                    "Expecting engineObject data as EngineObjectData.Sync, but got ${it.__engineObject.javaClass}"
                 }
                 engineObjectDataConv(engineData)
             },

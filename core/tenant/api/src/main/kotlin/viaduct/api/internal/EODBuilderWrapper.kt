@@ -120,7 +120,7 @@ internal class EODBuilderWrapper(
         value: Any
     ): EngineObject {
         val engineObject = when (value) {
-            is ObjectBase -> value.engineObject
+            is ObjectBase -> value.__engineObject
             is EngineObjectData -> value
             else -> throw TenantUsageException("Expected ObjectBase or EngineObjectData for builder value, got $value")
         }

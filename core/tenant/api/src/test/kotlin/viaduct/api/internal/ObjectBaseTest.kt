@@ -61,7 +61,7 @@ class ObjectBaseTest {
                     o1.getObjectField()!!.getObjectField()
                 }
             }
-            assertInstanceOf(EngineObjectData::class.java, (o1.engineObject as EngineObjectData).fetch("objectField"))
+            assertInstanceOf(EngineObjectData::class.java, (o1.__engineObject as EngineObjectData).fetch("objectField"))
         }
 
     @Test
@@ -304,7 +304,7 @@ class ObjectBaseTest {
             // The enum field should be readable and return "C" as a string
             // (Note: getEnumField() will try to convert to E1 enum, which will fail)
             // This test verifies the dynamic builder accepts the value
-            val engineData = o1.engineObject as EngineObjectData
+            val engineData = o1.__engineObject as EngineObjectData
             assertEquals("C", engineData.fetch("enumField"))
         }
 
@@ -676,7 +676,7 @@ class ObjectBaseTest {
             return this
         }
 
-        override fun build() = O2(context, buildEngineObjectData())
+        override fun build() = O2(__context, buildEngineObjectData())
     }
 
     inner class BuggyO1Builder : ObjectBase.Builder<O1>(internalContext, gqlSchema.schema.getObjectType("O1"), null) {
@@ -685,7 +685,7 @@ class ObjectBaseTest {
             return this
         }
 
-        override fun build() = O1(context, buildEngineObjectData())
+        override fun build() = O1(__context, buildEngineObjectData())
     }
 
     private class TestObject(
@@ -703,8 +703,8 @@ class ObjectBaseTest {
         // toBuilder implementation that would normally be provided by codegen
         fun toBuilder(): Builder =
             Builder(
-                context,
-                engineObject.type,
+                __context,
+                __engineObject.type,
                 toBuilderEOD()
             )
 
@@ -729,7 +729,7 @@ class ObjectBaseTest {
                 return this
             }
 
-            override fun build() = TestObject(context, buildEngineObjectData())
+            override fun build() = TestObject(__context, buildEngineObjectData())
         }
     }
 

@@ -93,7 +93,7 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
         }
 
     private fun extractCursor(edge: E): String {
-        val eod = (edge as ObjectBase).engineObject as EngineObjectData.Sync
+        val eod = (edge as ObjectBase).__engineObject as EngineObjectData.Sync
         return eod.getOrNull("cursor") as? String
             ?: throw IllegalArgumentException("Cursor not found in edge")
     }

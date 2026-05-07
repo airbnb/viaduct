@@ -160,13 +160,13 @@ class CreateValueTests {
             val fieldB = defForObjectB.codegenIncludedFields.first()
             val valueV2 = fieldB.createValueV2(classResolverForV2, graphqlSchemaForV2)
             assertTrue(valueV2 is ObjectA)
-            assertNotNull(((valueV2 as ObjectBase).engineObject as EngineObjectData).fetch("a"))
+            assertNotNull(((valueV2 as ObjectBase).__engineObject as EngineObjectData).fetch("a"))
 
             val fieldC = defForObjectC.codegenIncludedFields.first()
             val listValue = fieldC.createValueV2(classResolverForV2, graphqlSchemaForV2)
             assertEquals(1, (listValue as List<*>).size)
             assertEquals(1, (listValue[0] as List<*>).size)
-            assertNotNull((((listValue[0] as List<*>)[0] as ObjectBase).engineObject as EngineObjectData).fetch("a"))
+            assertNotNull((((listValue[0] as List<*>)[0] as ObjectBase).__engineObject as EngineObjectData).fetch("a"))
         }
 
     @Test

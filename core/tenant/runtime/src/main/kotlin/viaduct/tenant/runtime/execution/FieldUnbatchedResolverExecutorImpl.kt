@@ -82,7 +82,7 @@ class FieldUnbatchedResolverExecutorImpl(
             globalIDCodec: GlobalIDCodec
         ): Any? {
             return when (result) {
-                is ObjectBase -> result.engineObject
+                is ObjectBase -> result.__engineObject
                 is List<*> -> result.map { unwrapFieldResolverResult(it, globalIDCodec) }
                 is GlobalID<*> -> globalIDCodec.serialize(result.type.name, result.internalID)
                 is Enum<*> -> result.name

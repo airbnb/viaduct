@@ -36,7 +36,7 @@ class GRTDomain<T : GRT> private constructor(
                     )
                     is ObjectBase -> ctx.grtConvFactory.create(
                         internalCtx = ctx,
-                        type = it.engineObject.type,
+                        type = it.__engineObject.type,
                         selectionSet = selectionSet,
                         keyMapping = keyMapping,
                     )

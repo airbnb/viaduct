@@ -76,13 +76,13 @@ class NodeUnbatchedResolverExecutorImpl(
                 throw TenantUsageException("Unexpected result type that is not a GRT for a node object: $result")
             }
 
-            return when (val eo = result.engineObject) {
+            return when (val eo = result.__engineObject) {
                 is NodeReference -> throw TenantUsageException(
                     "NodeReference returned from node resolver. Use a GRT builder instead of Context.nodeRef to construct your node object."
                 )
 
                 is EngineObjectData -> eo
-                else -> throw FrameworkException("engineObject has unknown type ${eo.javaClass.name}")
+                else -> throw FrameworkException("__engineObject has unknown type ${eo.javaClass.name}")
             }
         }
     }

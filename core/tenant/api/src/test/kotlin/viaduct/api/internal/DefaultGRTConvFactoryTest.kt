@@ -802,8 +802,8 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
             assertEquals(from.javaClass, from2.javaClass)
             assertTrue(
                 engineObjectsAreEquivalent(
-                    from.engineObject as EngineObjectData.Sync,
-                    from2.engineObject as EngineObjectData.Sync
+                    from.__engineObject as EngineObjectData.Sync,
+                    from2.__engineObject as EngineObjectData.Sync
                 )
             )
         } else {

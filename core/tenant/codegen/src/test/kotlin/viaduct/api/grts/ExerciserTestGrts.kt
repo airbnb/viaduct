@@ -89,7 +89,7 @@ class ObjectV2(
             return this
         }
 
-        override fun build() = ObjectV2(context, buildEngineObjectData())
+        override fun build() = ObjectV2(__context, buildEngineObjectData())
     }
 
     object Reflection : Type<ObjectV2> {
@@ -134,7 +134,7 @@ class MissingGetterObjectV2(
             return this
         }
 
-        override fun build() = MissingGetterObjectV2(context, buildEngineObjectData())
+        override fun build() = MissingGetterObjectV2(__context, buildEngineObjectData())
     }
 }
 
@@ -157,7 +157,7 @@ class MissingDefaultGetterObjectV2(
             return this
         }
 
-        override fun build() = MissingDefaultGetterObjectV2(context, buildEngineObjectData())
+        override fun build() = MissingDefaultGetterObjectV2(__context, buildEngineObjectData())
     }
 }
 
@@ -180,7 +180,7 @@ class MissingNonDefaultGetterObjectV2(
             return this
         }
 
-        override fun build() = MissingNonDefaultGetterObjectV2(context, buildEngineObjectData())
+        override fun build() = MissingNonDefaultGetterObjectV2(__context, buildEngineObjectData())
     }
 }
 
@@ -202,7 +202,7 @@ class MissingSetterObjectV2(
             context.internal.schema.schema.getObjectType("MissingSetterObjectV2"),
             null
         ) {
-        override fun build() = MissingSetterObjectV2(context, buildEngineObjectData())
+        override fun build() = MissingSetterObjectV2(__context, buildEngineObjectData())
     }
 }
 
@@ -509,7 +509,7 @@ class TestArgObject(
             return this
         }
 
-        override fun build() = TestArgObject(context, buildEngineObjectData())
+        override fun build() = TestArgObject(__context, buildEngineObjectData())
     }
 }
 
@@ -575,7 +575,7 @@ class Under_Score_Object(
             return this
         }
 
-        override fun build() = Under_Score_Object(context, buildEngineObjectData())
+        override fun build() = Under_Score_Object(__context, buildEngineObjectData())
     }
 }
 

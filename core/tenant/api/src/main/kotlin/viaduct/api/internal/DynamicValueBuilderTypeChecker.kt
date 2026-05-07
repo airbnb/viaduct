@@ -150,7 +150,7 @@ value class DynamicValueBuilderTypeChecker(val ctx: InternalContext) {
         type: GraphQLType,
         value: Any?
     ): Boolean {
-        return value is ObjectBase && isValidObjectType(type, value.engineObject.type)
+        return value is ObjectBase && isValidObjectType(type, value.__engineObject.type)
     }
 
     fun isValidObjectType(

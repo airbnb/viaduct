@@ -41,7 +41,7 @@ class NodeReferenceFactoryImplTest {
 
             val reflectionLoader = ReflectionLoaderImpl { TODO("unused") }
             val result = factory.nodeRef(globalId, InternalContextImpl(schema, GlobalIDCodecDefault, reflectionLoader, DefaultGRTConvFactory))
-            expectThat(result.engineObject).isA<NodeReference>()
+            expectThat(result.__engineObject).isA<NodeReference>()
         }
 
     private fun createMockInternalContext(globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault): InternalContext =

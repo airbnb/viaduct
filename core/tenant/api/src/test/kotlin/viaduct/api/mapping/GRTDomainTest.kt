@@ -173,8 +173,8 @@ private fun grtsEqual(
         expected is ObjectBase && actual is ObjectBase ->
             expected.javaClass == actual.javaClass &&
                 engineObjectsAreEquivalent(
-                    expected.engineObject as EngineObjectData.Sync,
-                    actual.engineObject as EngineObjectData.Sync
+                    expected.__engineObject as EngineObjectData.Sync,
+                    actual.__engineObject as EngineObjectData.Sync
                 )
         else -> expected == actual
     }

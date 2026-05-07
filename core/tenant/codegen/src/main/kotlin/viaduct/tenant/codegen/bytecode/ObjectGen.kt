@@ -408,8 +408,8 @@ private class ObjectClassGenV2(
             body = buildString {
                 append("{\n")
                 append("return new ${builderName.asJavaName}(\n")
-                append("    this.getBuilderContext(),\n")
-                append("    this.getBuilderEngineObject().getType(),\n")
+                append("    this.get__context(),\n")
+                append("    this.get__engineObject().getType(),\n")
                 append("    this.toBuilderEOD()\n")
                 append(");\n")
                 append("}")
