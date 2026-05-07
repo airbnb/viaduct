@@ -12,6 +12,7 @@ import viaduct.service.api.SchemaId
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.service.runtime.StandardViaduct
 
 /**
  * Contract test base class for Java tenant resolvers.
@@ -57,7 +58,7 @@ abstract class JavaFeatureAppTestContractBase : AbstractFeatureAppTestContractBa
         fieldName: String
     ): FieldResolverExecutor? {
         tryBuildViaductService()
-        val schema = viaductService.engineRegistry.getSchema(SchemaId.Full)
+        val schema = (viaductService as StandardViaduct).engineRegistry.getSchema(SchemaId.Full)
         val executors = bootstrapper.fieldResolverExecutors(schema)
         return executors.find { (coordinate, _) ->
             coordinate.first == typeName && coordinate.second == fieldName

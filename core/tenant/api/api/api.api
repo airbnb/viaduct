@@ -138,11 +138,6 @@ public abstract interface class viaduct/api/globalid/GlobalIDCodec {
 	public abstract fun serialize (Lviaduct/api/globalid/GlobalID;)Ljava/lang/String;
 }
 
-public abstract interface class viaduct/api/internal/ReflectionLoader {
-	public abstract fun getGRTKClassFor (Ljava/lang/String;)Lkotlin/reflect/KClass;
-	public abstract fun reflectionFor (Ljava/lang/String;)Lviaduct/api/reflect/Type;
-}
-
 public abstract interface class viaduct/api/reflect/CompositeField : viaduct/api/reflect/Field {
 	public abstract fun getType ()Lviaduct/api/reflect/Type;
 }

@@ -10,10 +10,10 @@ import viaduct.service.ViaductBuilder
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
 import viaduct.service.api.SchemaId
+import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
-import viaduct.service.runtime.StandardViaduct
 
 /**
  * Shared abstract base class for testing GraphQL feature applications with Viaduct.
@@ -52,7 +52,7 @@ abstract class AbstractFeatureAppTestBase {
 
     protected lateinit var viaductBuilder: ViaductBuilder
     lateinit var viaductSchemaConfiguration: SchemaConfiguration
-    lateinit var viaductService: StandardViaduct
+    lateinit var viaductService: Viaduct
 
     /**
      * Safe to call from test methods and subclass `@BeforeEach` methods because JUnit runs
@@ -79,7 +79,7 @@ abstract class AbstractFeatureAppTestBase {
         if (!::viaductBuilder.isInitialized) {
             viaductBuilder = ViaductBuilder()
                 .withFlagManager(flagManager)
-                .also { it.builder.withTenantAPIBootstrapperBuilder(createBootstrapperBuilder()) }
+                .withTenantAPIBootstrapperBuilder(createBootstrapperBuilder())
         }
     }
 
@@ -116,7 +116,7 @@ abstract class AbstractFeatureAppTestBase {
     open fun getScopeConfig(): Set<SchemaConfiguration.ScopeConfig> = emptySet()
 
     /**
-     * Attempts to build the [StandardViaduct] instance if it has not been initialized yet.
+     * Attempts to build the [Viaduct] instance if it has not been initialized yet.
      */
     @Suppress("TooGenericExceptionCaught")
     fun tryBuildViaductService() {

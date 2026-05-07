@@ -38,7 +38,7 @@ interface CodeInjector {
  */
 @StableApi
 class NaiveCodeInjector : CodeInjector {
-    val constructorCache: ConcurrentHashMap<Class<*>, Constructor<*>> =
+    internal val constructorCache: ConcurrentHashMap<Class<*>, Constructor<*>> =
         ConcurrentHashMap()
 
     override fun <T> getProvider(clazz: Class<T>): Provider<T> {

@@ -17,6 +17,7 @@ import viaduct.service.api.SchemaId;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.CodeInjector;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
+import viaduct.service.runtime.StandardViaduct;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.FooResolvers;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.NestedFooResolvers;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.PersonResolvers;
@@ -216,7 +217,8 @@ public class JavaObjectContractTest extends ObjectContractTest {
 
   private FieldResolverExecutor getFieldResolverExecutor(String typeName, String fieldName) {
     tryBuildViaductService();
-    var schema = viaductService.getEngineRegistry().getSchema(SchemaId.Full.INSTANCE);
+    var schema =
+        ((StandardViaduct) viaductService).getEngineRegistry().getSchema(SchemaId.Full.INSTANCE);
     var executors = bootstrapper.fieldResolverExecutors(schema);
     for (var entry : executors) {
       var coordinate = entry.getFirst();

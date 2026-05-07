@@ -161,7 +161,7 @@ class PolicyCheckFeatureAppTest : PolicyCheckContractTest() {
         // Configure the viaduct builder with policy check support
         withViaductBuilder {
             withFlagManager(mockFlagManager)
-            builder.withCheckerExecutorFactoryCreator { schema: ViaductSchema -> PolicyCheckExecutorFactory(schema) }
+            withCheckerExecutorFactoryCreator { schema: ViaductSchema -> PolicyCheckExecutorFactory(schema) }
         }
     }
 

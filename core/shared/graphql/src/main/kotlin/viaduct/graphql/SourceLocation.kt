@@ -1,5 +1,7 @@
 package viaduct.graphql
 
+import viaduct.apiannotations.StableApi
+
 /**
  * Represents a location in a GraphQL query document.
  *
@@ -7,6 +9,7 @@ package viaduct.graphql
  * @property column The column number in the source document (1-indexed).
  * @property sourceName Optional name of the source document.
  */
+@StableApi
 data class SourceLocation(
     val line: Int,
     val column: Int,

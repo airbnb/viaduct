@@ -13,7 +13,7 @@ import kotlin.annotation.AnnotationTarget.TYPEALIAS
  * Marks an API as experimental, i.e., these classes can be changed or removed.
  *
  * This annotation can be applied to classes, functions, and properties to indicate
- * that they are part of the stable API surface.
+ * that they are part of the experimental API surface.
  *
  */
 @RequiresOptIn(

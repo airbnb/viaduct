@@ -1,5 +1,7 @@
 package viaduct.engine.api.spi
 
+import viaduct.apiannotations.ExperimentalApi
+
 /**
  * A factory for creating proxy resolvers that wrap tenant-written resolvers.
  *
@@ -34,6 +36,7 @@ package viaduct.engine.api.spi
  *     .build()
  * ```
  */
+@ExperimentalApi
 interface ProxyResolverFactory {
     /** Returns a proxy wrapping [executor], or null to leave it unchanged. */
     fun proxyField(executor: FieldResolverExecutor): FieldResolverExecutor?

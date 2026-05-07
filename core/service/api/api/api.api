@@ -193,7 +193,6 @@ public abstract interface class viaduct/service/api/spi/GlobalIDCodec {
 
 public final class viaduct/service/api/spi/NaiveCodeInjector : viaduct/service/api/spi/CodeInjector {
 	public fun <init> ()V
-	public final fun getConstructorCache ()Ljava/util/concurrent/ConcurrentHashMap;
 	public fun getProvider (Ljava/lang/Class;)Ljavax/inject/Provider;
 }
 

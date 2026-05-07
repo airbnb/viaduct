@@ -3,9 +3,8 @@ package viaduct.api.internal
 import kotlin.reflect.KClass
 import viaduct.api.reflect.Type
 import viaduct.apiannotations.InternalApi
-import viaduct.apiannotations.StableApi
 
-@StableApi
+@InternalApi
 interface ReflectionLoader {
     /**
      * Return a Type describing the reflected type information for the type with the provided name.

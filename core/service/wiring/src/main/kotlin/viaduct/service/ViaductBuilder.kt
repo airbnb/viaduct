@@ -2,12 +2,19 @@ package viaduct.service
 
 import graphql.execution.DataFetcherExceptionHandler
 import io.micrometer.core.instrument.MeterRegistry
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
+import viaduct.apiannotations.VisibleForTest
+import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.CheckerExecutorFactory
+import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
+import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.TenantModuleBootstrapper
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
@@ -33,7 +40,7 @@ import viaduct.service.runtime.StandardViaduct
  */
 @StableApi
 class ViaductBuilder {
-    val builder = StandardViaduct.Builder()
+    private val builder = StandardViaduct.Builder()
 
     /**
      * Configures the [TenantModuleBootstrapper] used to provide per-tenant bootstrapping.
@@ -121,7 +128,29 @@ class ViaductBuilder {
             builder.withGlobalIDCodec(globalIDCodec)
         }
 
+    /** @see StandardViaduct.Builder.withCheckerExecutorFactoryCreator */
+    @VisibleForTest
+    fun withCheckerExecutorFactoryCreator(factoryCreator: (ViaductSchema) -> CheckerExecutorFactory) =
+        apply {
+            builder.withCheckerExecutorFactoryCreator(factoryCreator)
+        }
+
+    /** @see StandardViaduct.Builder.withTenantAPIBootstrapperBuilder */
+    @VisibleForTest
+    fun withTenantAPIBootstrapperBuilder(bootstrapperBuilder: TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>) =
+        apply {
+            builder.withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
+        }
+
+    /** @see StandardViaduct.Builder.withNoTenantAPIBootstrapper */
+    @VisibleForTest
+    fun withNoTenantAPIBootstrapper() =
+        apply {
+            builder.withNoTenantAPIBootstrapper()
+        }
+
     /** @see StandardViaduct.Builder.withProxyResolverFactory */
+    @ExperimentalApi
     fun withProxyResolverFactory(proxyResolverFactory: ProxyResolverFactory) =
         apply {
             builder.withProxyResolverFactory(proxyResolverFactory)
@@ -138,5 +167,5 @@ class ViaductBuilder {
      *
      * @return a [Viaduct] instance configured with the supplied SPI implementations
      */
-    fun build(): StandardViaduct = builder.build()
+    fun build(): Viaduct = builder.build()
 }

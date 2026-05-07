@@ -13,10 +13,10 @@ import viaduct.service.ViaductBuilder
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
 import viaduct.service.api.SchemaId
+import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
-import viaduct.service.runtime.StandardViaduct
 
 /**
  * Abstract base class for contract-style feature-app tests.
@@ -67,7 +67,7 @@ abstract class AbstractFeatureAppTestContractBase {
 
     protected lateinit var viaductBuilder: ViaductBuilder
     lateinit var viaductSchemaConfiguration: SchemaConfiguration
-    lateinit var viaductService: StandardViaduct
+    lateinit var viaductService: Viaduct
 
     /**
      * Safe to call from test methods and subclass `@BeforeEach` methods because JUnit runs
@@ -95,7 +95,7 @@ abstract class AbstractFeatureAppTestContractBase {
             viaductBuilder = ViaductBuilder()
                 .withFlagManager(flagManager)
                 .withLenientResolverValidation()
-                .also { it.builder.withTenantAPIBootstrapperBuilder(createBootstrapperBuilder()) }
+                .withTenantAPIBootstrapperBuilder(createBootstrapperBuilder())
         }
     }
 
@@ -126,7 +126,7 @@ abstract class AbstractFeatureAppTestContractBase {
     open fun getScopeConfig(): Set<SchemaConfiguration.ScopeConfig> = emptySet()
 
     /**
-     * Attempts to build the [StandardViaduct] instance if it has not been initialized yet.
+     * Attempts to build the [Viaduct] instance if it has not been initialized yet.
      */
     @Suppress("TooGenericExceptionCaught")
     fun tryBuildViaductService() {

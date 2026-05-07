@@ -1,6 +1,7 @@
 package viaduct.service
 
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.BootstrapperFactory
@@ -47,11 +48,24 @@ object BasicViaductFactory {
      * @param proxyResolverFactory factory for wrapping resolvers with proxies (e.g., for remote execution).
      *    Defaults to [ProxyResolverFactory.NO_OP], which leaves all resolvers executing locally.
      */
+    /** Stable overload of [create] without proxy resolver support. */
     @JvmOverloads
     fun create(
         schemaRegistrationInfo: SchemaRegistrationInfo = SchemaRegistrationInfo(),
         tenantRegistrationInfo: TenantRegistrationInfo,
-        proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
+    ): Viaduct = createWithProxy(schemaRegistrationInfo, tenantRegistrationInfo, ProxyResolverFactory.NO_OP)
+
+    @ExperimentalApi
+    fun create(
+        schemaRegistrationInfo: SchemaRegistrationInfo = SchemaRegistrationInfo(),
+        tenantRegistrationInfo: TenantRegistrationInfo,
+        proxyResolverFactory: ProxyResolverFactory,
+    ): Viaduct = createWithProxy(schemaRegistrationInfo, tenantRegistrationInfo, proxyResolverFactory)
+
+    private fun createWithProxy(
+        schemaRegistrationInfo: SchemaRegistrationInfo,
+        tenantRegistrationInfo: TenantRegistrationInfo,
+        proxyResolverFactory: ProxyResolverFactory,
     ): Viaduct {
         val builder = builderWithTenantInfo(tenantRegistrationInfo)
         val schemaConfiguration = applySchemaRegistry(schemaRegistrationInfo)
