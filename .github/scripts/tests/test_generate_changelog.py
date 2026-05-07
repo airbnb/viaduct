@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -22,6 +23,8 @@ from generate_changelog import (
     render_section,
     render_breaking_changes,
     generate_changelog,
+    capitalize_first,
+    dedupe_entries,
     CommitInfo,
     ChangelogEntry,
     BOT_USERNAMES,
@@ -454,6 +457,135 @@ class TestRenderSection(unittest.TestCase):
         self.assertIn("- Fix bug 1 by @john", result)
         self.assertIn("- Fix bug 2 by @jane", result)
 
+    def test_render_section_capitalizes_lowercase_descriptions(self):
+        entries = [
+            ChangelogEntry("a", "m1", ["@john"], "fix", None, "fix bug in parser", False, None, LevelBump.PATCH),
+            ChangelogEntry("b", "m2", ["@jane"], "fix", None, "add validation", False, None, LevelBump.PATCH),
+        ]
+        result = render_section("fix", entries)
+        self.assertIn("- Fix bug in parser by @john", result)
+        self.assertIn("- Add validation by @jane", result)
+
+
+class TestDedupeEntries(unittest.TestCase):
+    def _entry(self, sha, description, authors=("@geo",), change_type="feat"):
+        return ChangelogEntry(
+            sha=sha,
+            message=description,
+            authors=list(authors),
+            change_type=change_type,
+            scope=None,
+            description=description,
+            is_breaking=False,
+            breaking_description=None,
+            bump=LevelBump.MINOR,
+        )
+
+    def test_drops_pr_duplicate_when_sha_twin_exists(self):
+        sha_entry = self._entry("3b4c18b7", "strict missing-resolver validation at startup (3b4c18b7)")
+        pr_entry = self._entry("0000000", "strict missing-resolver validation at startup (#333)")
+        result = dedupe_entries([sha_entry, pr_entry])
+        self.assertEqual(result, [sha_entry])
+
+    def test_drops_pr_duplicate_regardless_of_order(self):
+        sha_entry = self._entry("3b4c18b7", "strict missing-resolver validation at startup (3b4c18b7)")
+        pr_entry = self._entry("0000000", "strict missing-resolver validation at startup (#333)")
+        result = dedupe_entries([pr_entry, sha_entry])
+        self.assertEqual(result, [sha_entry])
+
+    def test_keeps_pr_entry_when_no_sha_twin(self):
+        # No internal commit pair — keep the PR entry as-is
+        pr_entry = self._entry("0000000", "external contribution (#400)", authors=("@external",))
+        result = dedupe_entries([pr_entry])
+        self.assertEqual(result, [pr_entry])
+
+    def test_does_not_dedupe_when_authors_differ(self):
+        # Same description but different authors — treat as distinct changes
+        sha_entry = self._entry("3b4c18b7", "rename SomeClass (3b4c18b7)", authors=("@alice",))
+        pr_entry = self._entry("0000000", "rename SomeClass (#333)", authors=("@bob",))
+        result = dedupe_entries([sha_entry, pr_entry])
+        self.assertEqual(result, [sha_entry, pr_entry])
+
+    def test_does_not_dedupe_when_descriptions_differ(self):
+        a = self._entry("aaaaaaaa", "fix parser bug (aaaaaaaa)")
+        b = self._entry("bbbbbbbb", "fix lexer bug (bbbbbbbb)")
+        result = dedupe_entries([a, b])
+        self.assertEqual(result, [a, b])
+
+    def test_keeps_two_sha_entries_with_same_description(self):
+        # Two distinct internal commits with identical descriptions —
+        # neither has a (#NNN) marker, so neither is the dedupe target.
+        a = self._entry("aaaaaaaa", "bump deps (aaaaaaaa)")
+        b = self._entry("bbbbbbbb", "bump deps (bbbbbbbb)")
+        result = dedupe_entries([a, b])
+        self.assertEqual(result, [a, b])
+
+    def test_preserves_relative_order_of_kept_entries(self):
+        e1 = self._entry("11111111", "first change (11111111)")
+        sha_entry = self._entry("3b4c18b7", "shared change (3b4c18b7)")
+        pr_entry = self._entry("0000000", "shared change (#333)")
+        e2 = self._entry("22222222", "later change (22222222)")
+        result = dedupe_entries([e1, pr_entry, sha_entry, e2])
+        self.assertEqual(result, [e1, sha_entry, e2])
+
+
+class TestCapitalizeFirst(unittest.TestCase):
+    def test_capitalizes_lowercase_first_char(self):
+        self.assertEqual(capitalize_first("fix bug"), "Fix bug")
+
+    def test_preserves_already_capitalized(self):
+        self.assertEqual(capitalize_first("Fix bug"), "Fix bug")
+
+    def test_preserves_rest_of_string(self):
+        # Don't lowercase subsequent capitals (acronyms, type names, etc.)
+        self.assertEqual(capitalize_first("rename GraphQL types"), "Rename GraphQL types")
+
+    def test_empty_string(self):
+        self.assertEqual(capitalize_first(""), "")
+
+    def test_single_char(self):
+        self.assertEqual(capitalize_first("a"), "A")
+
+    def test_non_letter_first_char_unchanged(self):
+        self.assertEqual(capitalize_first("(scope) fix"), "(scope) fix")
+
+
+class TestGenerateChangelog(unittest.TestCase):
+    def _commit(self, sha, message, author_email="john.doe@example.com", body="", co_authors_raw=""):
+        return CommitInfo(
+            sha=sha,
+            message=message,
+            body=body,
+            author_email=author_email,
+            co_authors_raw=co_authors_raw,
+        )
+
+    @patch.dict(os.environ, {"RELEASE_VER": "0.32.0"})
+    @patch("generate_changelog.get_commits_between_tags")
+    def test_uses_release_ver_for_header(self, mock_get_commits):
+        mock_get_commits.return_value = iter([
+            self._commit("abc1234", "feat: add a thing"),
+        ])
+        changelog = generate_changelog("v0.31.0", "HEAD")
+        self.assertIn("# Version 0.32.0", changelog)
+        self.assertNotIn("# Version HEAD", changelog)
+
+    @patch.dict(os.environ, {"RELEASE_VER": "1.2.3"})
+    @patch("generate_changelog.get_commits_between_tags")
+    def test_uses_release_ver_for_empty_changelog(self, mock_get_commits):
+        mock_get_commits.return_value = iter([])
+        changelog = generate_changelog("v1.2.2", "HEAD")
+        self.assertEqual(changelog, "# Version 1.2.3\n\nNo changes.\n")
+
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("generate_changelog.get_commits_between_tags")
+    def test_missing_release_ver_raises(self, mock_get_commits):
+        mock_get_commits.return_value = iter([
+            self._commit("abc1234", "feat: add a thing"),
+        ])
+        with self.assertRaises(KeyError):
+            generate_changelog("v0.31.0", "HEAD")
+
 
 class TestRenderBreakingChanges(unittest.TestCase):
     def test_render_breaking_changes(self):
@@ -462,7 +594,7 @@ class TestRenderBreakingChanges(unittest.TestCase):
         ]
         result = render_breaking_changes(entries)
         self.assertIn("## Breaking Changes", result)
-        self.assertIn("subject description", result)
+        self.assertIn("Subject description", result)
         self.assertNotIn("body trailer description", result)
         self.assertIn("@john", result)
 
@@ -472,7 +604,7 @@ class TestRenderBreakingChanges(unittest.TestCase):
             ChangelogEntry("abc1234", "m1", ["@alice"], "refactor", None, "rename SomeClass (abc1234)", True, "SomeClass renamed to OtherClass.", LevelBump.MAJOR),
         ]
         result = render_breaking_changes(entries)
-        self.assertIn("rename SomeClass (abc1234)", result)
+        self.assertIn("Rename SomeClass (abc1234)", result)
         self.assertNotIn("SomeClass renamed to OtherClass.", result)
 
 
