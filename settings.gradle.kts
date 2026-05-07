@@ -35,8 +35,9 @@ includeBuild("core")
 includeBuild("publications")
 includeBuild("gradle-plugins")
 
-// experimental - include remoteresolvers as an included build so demo apps can depend on it
+// experimental — remoteresolvers proxy library and rrp-server consumer.
 includeBuild("x/remoteresolvers")
+includeBuild("x/remoteresolvers/rrp-server")
 
 // demo apps
 includeBuild("demoapps/cli-starter")
@@ -44,6 +45,14 @@ includeBuild("demoapps/jetty-starter")
 includeBuild("demoapps/ktor-starter")
 includeBuild("demoapps/micronaut-starter")
 includeBuild("demoapps/spring-starter")
-includeBuild("demoapps/starwars")
+includeBuild("demoapps/starwars") {
+    dependencySubstitution {
+        // Expose StarWars module outputs via Maven coordinates so other included
+        // builds in the composite (e.g. rrp-server) can resolve them.
+        substitute(module("com.example.starwars:common")).using(project(":common"))
+        substitute(module("com.example.starwars:filmography")).using(project(":modules:filmography"))
+        substitute(module("com.example.starwars:universe")).using(project(":modules:universe"))
+    }
+}
 
 include(":docs")

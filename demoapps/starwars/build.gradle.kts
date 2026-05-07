@@ -28,7 +28,6 @@ configurations.all {
 dependencies {
     implementation(libs.viaduct.api)
     implementation(libs.viaduct.runtime)
-    implementation(libs.viaduct.x.remoteresolvers)
 
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlin.reflect)

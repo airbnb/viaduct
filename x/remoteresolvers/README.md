@@ -15,41 +15,37 @@ resolver needs to fan back out (`ctx.query(...)`) it does so through a callback
 service over the same channel — so resolvers behave identically whether they
 run locally or remotely.
 
-This module ships with the in-process transport (both ends in one JVM, over
-gRPC's in-memory channel). Everything below uses that.
+This module currently ships only the in-process transport (both ends in one JVM,
+over gRPC's in-memory channel).
 
 ## Configuration
 
 | Env var | Default | Description |
 | --- | --- | --- |
-| `VIADUCT_REMOTE_RESOLVER_ENABLED` | `false` | Set to `true` to install the proxy. Anything else (unset, blank, `"1"`, `"yes"`, …) keeps it off. |
 | `VIADUCT_REMOTE_RESOLVER_TYPES` | _empty_ | Comma-separated GraphQL type names to proxy. Empty means all node types. |
-
-The feature is **off by default** so dropping the dependency into an existing
-app is a no-op until you explicitly opt in.
 
 ## Wiring it in
 
 Build a `RemoteResolverInitializer` from a `RemoteResolverConfig`, call
 `initialize()` once at startup to get a `ProxyResolverFactory`, hand that
 factory to `BasicViaductFactory.create`, and call `close()` on the initializer
-at shutdown. That's the whole contract — your DI framework decides how to
-express it.
+at shutdown.
 
-For a worked example with Micronaut beans (`@Singleton`,
-`@Bean(preDestroy = "close")`, ordering), see
-[`demoapps/starwars/.../ViaductConfiguration.kt`](../../demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt).
+For a worked example with Micronaut beans, see
+[`rrp-server/.../ViaductConfiguration.kt`](rrp-server/src/main/kotlin/com/example/rrp/service/viaduct/ViaductConfiguration.kt).
 
 If you route config through your own layer instead of process env vars, pass
 an `EnvLookup` to `RemoteResolverConfig.fromEnvironment(env)` — the default is
 `EnvLookup.SYSTEM`.
 
-## Try it: StarWars demo
+## Running rrp-server
 
-From the repo root, start the StarWars demoapp with the proxy enabled:
+`rrp-server` is a Micronaut + Viaduct application with the proxy wired in. It
+serves the StarWars schema and routes node resolution through the in-process
+proxy by default — no env var needed:
 
 ```bash
-VIADUCT_REMOTE_RESOLVER_ENABLED=true ./gradlew :starwars:run
+./gradlew :rrp-server:run
 ```
 
 When the proxy comes up you'll see these lines in the log:
@@ -74,10 +70,6 @@ You'll get back:
 ```json
 {"data":{"node":{"id":"RmlsbTox","title":"A New Hope","director":"George Lucas"}}}
 ```
-
-Without `VIADUCT_REMOTE_RESOLVER_ENABLED=true`, the StarWars app behaves
-exactly as it does without the dependency — the same query returns the same
-JSON, just without going through the proxy.
 
 ## Limitations
 
