@@ -177,3 +177,21 @@ Typical configuration:
 
 - **Internal Viaduct modules** opt in to `InternalApi`, `ExperimentalApi`, and `VisibleForTest` to avoid scattering `@OptIn` in the implementation.
 - **Consumer-like code** (including demo apps and `testFixtures`) must use `@OptIn` explicitly for internal/experimental usage.
+
+## Adding BCV to a new module
+
+When applying `id("conventions.bcv-api")` to a new module, three steps are required:
+
+1. Add `id("conventions.bcv-api")` to the module's `build.gradle.kts`.
+2. Run `./gradlew runApiDump` to generate the initial `.api` dump file and commit it.
+3. Create a `STRICT_REVIEWERS` file in the same directory as the `.api` file, listing the API owners (one GitHub username per line). This file gates PR approval on those owners whenever the `.api` dump changes — without it, breaking API changes can be merged without review from the people responsible for the public surface.
+
+Example `STRICT_REVIEWERS` (placed next to the `.api` file):
+
+```
+aileen-chen
+raymie-stata
+skevy
+```
+
+> **Note:** `STRICT_REVIEWERS` files are Treehouse-internal and are excluded from OSS sync via `.copybara/copy.bara.sky`. They do not need to be ported to the public repository.
