@@ -20,7 +20,9 @@ import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
 import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlock
+import viaduct.engine.api.bootstrap.executionregistry.VariableProviderEntry
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -268,5 +270,114 @@ class ViaductModernExecutorFactoryTest {
                 schema,
             )
         }
+    }
+
+    // ── toSelectionSetVariable / buildVariables ───────────────────────────────
+
+    // Fragment: flagField provides variable $x; testBatchField conditionally included using it.
+    private val fragmentWithVariable = "fragment _ on Query { flagField, testBatchField @include(if: \$x) }"
+
+    private fun fieldEntryWithQuerySelections(selections: SelectionsBlock) =
+        fieldEntry(
+            typeName = "Query",
+            fieldName = "aField",
+            resolverSimpleName = "TestFieldResolver",
+            resolverBaseSimpleName = "TestFieldResolverBase",
+            querySelections = selections,
+        )
+
+    @Test
+    fun `createFieldResolverExecutor - fromArgument variable provider is wired correctly`() {
+        val executor = factory().createFieldResolverExecutor(
+            fieldEntryWithQuerySelections(
+                SelectionsBlock(
+                    selections = fragmentWithVariable,
+                    variablesProviders = listOf(
+                        VariableProviderEntry(
+                            providedVariables = mapOf("x" to "Boolean!"),
+                            providerVariablesAPIData = ProviderVariablesAPIData(type = "fromArgument", path = "flagField"),
+                        )
+                    ),
+                )
+            ),
+            schema,
+        )
+        assert(executor is FieldResolverExecutor)
+    }
+
+    @Test
+    fun `createFieldResolverExecutor - fromObjectField variable provider is wired correctly`() {
+        val executor = factory().createFieldResolverExecutor(
+            fieldEntry(
+                typeName = "Query",
+                fieldName = "aField",
+                resolverSimpleName = "TestFieldResolver",
+                resolverBaseSimpleName = "TestFieldResolverBase",
+                objectSelections = SelectionsBlock(
+                    selections = fragmentWithVariable,
+                    variablesProviders = listOf(
+                        VariableProviderEntry(
+                            providedVariables = mapOf("x" to "Boolean!"),
+                            providerVariablesAPIData = ProviderVariablesAPIData(type = "fromObjectField", path = "flagField"),
+                        )
+                    ),
+                ),
+            ),
+            schema,
+        )
+        assert(executor is FieldResolverExecutor)
+    }
+
+    @Test
+    fun `createFieldResolverExecutor - fromQueryField variable provider is wired correctly`() {
+        val executor = factory().createFieldResolverExecutor(
+            fieldEntryWithQuerySelections(
+                SelectionsBlock(
+                    selections = fragmentWithVariable,
+                    variablesProviders = listOf(
+                        VariableProviderEntry(
+                            providedVariables = mapOf("x" to "Boolean!"),
+                            providerVariablesAPIData = ProviderVariablesAPIData(type = "fromQueryField", path = "flagField"),
+                        )
+                    ),
+                )
+            ),
+            schema,
+        )
+        assert(executor is FieldResolverExecutor)
+    }
+
+    @Test
+    fun `createFieldResolverExecutor - unknown variable provider type throws`() {
+        assertThrows<IllegalStateException> {
+            factory().createFieldResolverExecutor(
+                fieldEntryWithQuerySelections(
+                    SelectionsBlock(
+                        selections = fragmentWithVariable,
+                        variablesProviders = listOf(
+                            VariableProviderEntry(
+                                providedVariables = mapOf("x" to "Boolean!"),
+                                providerVariablesAPIData = ProviderVariablesAPIData(type = "unknown", path = "flagField"),
+                            )
+                        ),
+                    )
+                ),
+                schema,
+            )
+        }
+    }
+
+    @Test
+    fun `createFieldResolverExecutor - empty providers yields executor without variables`() {
+        val executor = factory().createFieldResolverExecutor(
+            fieldEntry(
+                typeName = "Query",
+                fieldName = "aField",
+                resolverSimpleName = "TestFieldResolver",
+                resolverBaseSimpleName = "TestFieldResolverBase",
+            ),
+            schema,
+        )
+        assert(executor is FieldResolverExecutor)
     }
 }

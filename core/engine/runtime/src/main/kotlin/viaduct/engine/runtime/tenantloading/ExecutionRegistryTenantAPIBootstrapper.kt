@@ -6,12 +6,9 @@ import java.net.URL
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistry
 import viaduct.engine.api.spi.ExecutorFactory
-import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
-import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.TenantModuleBootstrapper
@@ -113,18 +110,3 @@ private data class ParsedRegistry(
     val tenantName: String,
     val bootstrapClass: Class<*>?,
 )
-
-private class ExecutionRegistryTenantModuleBootstrapper(
-    private val registry: ExecutionRegistry,
-    private val executorFactory: ExecutorFactory,
-) : LegacyTenantModuleBootstrapper {
-    override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Pair<String, String>, FieldResolverExecutor>> =
-        registry.fields.map { entry ->
-            (entry.typeName to entry.fieldName) to executorFactory.createFieldResolverExecutor(entry, schema)
-        }
-
-    override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> =
-        registry.nodes.map { entry ->
-            entry.typeName to executorFactory.createNodeResolverExecutor(entry, schema)
-        }
-}

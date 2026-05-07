@@ -22,10 +22,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.core.jvm)
     implementation(libs.viaduct.tenant.runtime)
-    implementation(libs.jackson.module)
 
     testImplementation(libs.guice)
     testImplementation(libs.viaduct.service.runtime)
+    testImplementation(testFixtures(libs.viaduct.engine.api))
     testFixturesImplementation(libs.viaduct.engine.api)
     testFixturesImplementation(testFixtures(libs.viaduct.tenant.api))
     testImplementation(testFixtures(libs.viaduct.tenant.api))

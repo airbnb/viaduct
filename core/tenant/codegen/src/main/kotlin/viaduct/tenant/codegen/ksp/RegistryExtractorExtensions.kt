@@ -230,15 +230,19 @@ private fun KSClassDeclaration.toFieldResolverParams(
         .orEmpty()
 
     // NoArguments is a unique sentinel — if absent among type args, the field has a generated Arguments class.
-    val hasArguments = contextTypeArgs.none {
-        it.declaration.qualifiedName?.asString() == "viaduct.api.types.Arguments.NoArguments"
+    var hasArguments = true
+    var queryTypeName = "Query"
+    for (typeArg in contextTypeArgs) {
+        if (typeArg.declaration.qualifiedName?.asString() == "viaduct.api.types.Arguments.NoArguments") {
+            hasArguments = false
+        }
+        if ((typeArg.declaration as? KSClassDeclaration)?.superTypes?.any {
+                it.resolve().declaration.qualifiedName?.asString() == "viaduct.api.types.Query"
+            } == true
+        ) {
+            queryTypeName = typeArg.declaration.simpleName.asString()
+        }
     }
-
-    val queryTypeName = contextTypeArgs.firstOrNull { typeArg ->
-        (typeArg.declaration as? KSClassDeclaration)?.superTypes?.any {
-            it.resolve().declaration.qualifiedName?.asString() == "viaduct.api.types.Query"
-        } ?: false
-    }?.declaration?.simpleName?.asString() ?: "Query"
 
     val returnTypeName = baseDeclaration.superTypes
         .firstOrNull {

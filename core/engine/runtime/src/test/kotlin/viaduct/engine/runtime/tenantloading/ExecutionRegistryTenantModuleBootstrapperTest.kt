@@ -1,0 +1,136 @@
+package viaduct.engine.runtime.tenantloading
+
+import io.mockk.mockk
+import org.junit.jupiter.api.Test
+import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistry
+import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
+import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.spi.ExecutorFactory
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
+
+class ExecutionRegistryTenantModuleBootstrapperTest {
+    private val schema = MockSchema.mk(
+        """
+        type TestType {
+            aField: String
+        }
+        type TestNode implements Node @resolver {
+            id: ID!
+        }
+        extend type Query {
+            testField: TestType
+        }
+        """.trimIndent()
+    )
+
+    private val mockFieldExecutor: FieldResolverExecutor = mockk()
+
+    private val mockNodeExecutor: NodeResolverExecutor = mockk()
+
+    private val factory: ExecutorFactory = object : ExecutorFactory {
+        override fun createFieldResolverExecutor(
+            configData: FieldEntry,
+            schema: ViaductSchema
+        ) = mockFieldExecutor
+
+        override fun createNodeResolverExecutor(
+            configData: NodeEntry,
+            schema: ViaductSchema
+        ) = mockNodeExecutor
+    }
+
+    private fun fieldEntry(
+        typeName: String,
+        fieldName: String,
+    ) = FieldEntry(
+        typeName = typeName,
+        fieldName = fieldName,
+        isBatching = false,
+        isSelective = false,
+        attribution = "$typeName.$fieldName",
+        tenantAPIData = FieldAPIData(
+            resolverClass = "com.example.Resolver",
+            resolverBaseClass = "com.example.ResolverBase",
+            queryTypeName = "Query",
+        ),
+    )
+
+    private fun nodeEntry(typeName: String) =
+        NodeEntry(
+            typeName = typeName,
+            isBatching = false,
+            isSelective = false,
+            attribution = typeName,
+            tenantAPIData = NodeAPIData(
+                resolverClass = "com.example.NodeResolver",
+                resolverBaseClass = "com.example.NodeResolverBase",
+            ),
+        )
+
+    private fun bootstrapper(registry: ExecutionRegistry) =
+        ExecutionRegistryTenantModuleBootstrapper(
+            registry = registry,
+            executorFactory = factory,
+        )
+
+    @Test
+    fun `fieldResolverExecutors - duplicate entries for schema-removed field are silently dropped`() {
+        val registry = ExecutionRegistry(
+            version = "1",
+            executorFactory = "",
+            grtPackagePrefix = "",
+            fields = listOf(
+                fieldEntry("RemovedType", "removedField"),
+                fieldEntry("RemovedType", "removedField"),
+            ),
+        )
+        val executors = bootstrapper(registry).fieldResolverExecutors(schema).toList()
+        assert(executors.isEmpty())
+    }
+
+    @Test
+    fun `nodeResolverExecutors - duplicate entries for schema-removed node are silently dropped`() {
+        val registry = ExecutionRegistry(
+            version = "1",
+            executorFactory = "",
+            grtPackagePrefix = "",
+            nodes = listOf(
+                nodeEntry("RemovedNode"),
+                nodeEntry("RemovedNode"),
+            ),
+        )
+        val executors = bootstrapper(registry).nodeResolverExecutors(schema).toList()
+        assert(executors.isEmpty())
+    }
+
+    @Test
+    fun `fieldResolverExecutors - valid entry is delegated to factory`() {
+        val registry = ExecutionRegistry(
+            version = "1",
+            executorFactory = "",
+            grtPackagePrefix = "",
+            fields = listOf(fieldEntry("TestType", "aField")),
+        )
+        val executors = bootstrapper(registry).fieldResolverExecutors(schema).toList()
+        assert(executors.size == 1)
+        assert(executors[0].second === mockFieldExecutor)
+    }
+
+    @Test
+    fun `nodeResolverExecutors - valid entry is delegated to factory`() {
+        val registry = ExecutionRegistry(
+            version = "1",
+            executorFactory = "",
+            grtPackagePrefix = "",
+            nodes = listOf(nodeEntry("TestNode")),
+        )
+        val executors = bootstrapper(registry).nodeResolverExecutors(schema).toList()
+        assert(executors.size == 1)
+        assert(executors[0].second === mockNodeExecutor)
+    }
+}
