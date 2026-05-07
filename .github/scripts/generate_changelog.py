@@ -11,6 +11,7 @@ while maintaining Viaduct's authorship semantics:
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from collections import defaultdict
@@ -149,6 +150,63 @@ def strip_conventional_prefix(message: str) -> str:
     """Strip 'type(scope)!: ' prefix from a conventional commit subject."""
     match = re.match(r'^[a-z]+(\([^)]+\))?!?:\s*', message)
     return message[match.end():] if match else message
+
+
+def capitalize_first(text: str) -> str:
+    """Uppercase the first character of text, preserving the rest as-is."""
+    if not text:
+        return text
+    return text[0].upper() + text[1:]
+
+
+# Trailing reference markers added by the OSS workflow:
+#   - (sha)  — short git SHA, substituted from the (AIRBNB) marker on internal commits
+#   - (#NNN) — PR number, appended by GitHub on squash-merges
+# After OSS sync, the same change can appear with both forms in the git log.
+_SHA_REF_RE = re.compile(r'\(([0-9a-f]{4,40})\)\s*$', re.IGNORECASE)
+_PR_REF_RE = re.compile(r'\(#\d+\)\s*$')
+_TRAILING_REF_RE = re.compile(r'\s*\((?:#\d+|[0-9a-f]{4,40})\)\s*$', re.IGNORECASE)
+
+
+def _normalize_for_dedup(description: str) -> str:
+    """Strip a trailing (sha) or (#NNN) reference token for duplicate matching."""
+    return _TRAILING_REF_RE.sub('', description).strip()
+
+
+def _has_sha_ref(description: str) -> bool:
+    return bool(_SHA_REF_RE.search(description))
+
+
+def _has_pr_ref(description: str) -> bool:
+    return bool(_PR_REF_RE.search(description))
+
+
+def dedupe_entries(entries: list[ChangelogEntry]) -> list[ChangelogEntry]:
+    """
+    Drop PR-merge entries that duplicate a SHA-tagged entry.
+
+    OSS sync can leave the git log with both an original internal commit
+    (`(AIRBNB)` → `(sha)`) and the PR-merge commit synced back from GitHub
+    (`(#NNN)`) for the same change. When both forms exist with the same
+    normalized description and authors, keep the SHA-tagged entry.
+    """
+    groups: dict[tuple[str, tuple[str, ...]], list[ChangelogEntry]] = defaultdict(list)
+    for entry in entries:
+        key = (_normalize_for_dedup(entry.description), tuple(sorted(entry.authors)))
+        groups[key].append(entry)
+
+    drop_ids: set[int] = set()
+    for group in groups.values():
+        if len(group) < 2:
+            continue
+        has_sha = any(_has_sha_ref(e.description) for e in group)
+        if not has_sha:
+            continue
+        for e in group:
+            if _has_pr_ref(e.description) and not _has_sha_ref(e.description):
+                drop_ids.add(id(e))
+
+    return [e for e in entries if id(e) not in drop_ids]
 
 
 def replace_airbnb_marker(message: str, sha: str) -> str:
@@ -366,7 +424,7 @@ def render_section(change_type: str, entries: list[ChangelogEntry]) -> str:
 
     lines = [f"## {title}", ""]
     for entry in entries:
-        lines.append(f"- {entry.formatted_entry}")
+        lines.append(f"- {capitalize_first(entry.formatted_entry)}")
     lines.append("")
 
     return '\n'.join(lines)
@@ -384,7 +442,7 @@ def render_breaking_changes(entries: list[ChangelogEntry]) -> str:
     """
     lines = ["## Breaking Changes", ""]
     for entry in entries:
-        desc = entry.description
+        desc = capitalize_first(entry.description)
         lines.append(f"- {desc} by {entry.formatted_authors}")
     lines.append("")
 
@@ -404,6 +462,8 @@ def generate_changelog(tag1: str, tag2: str) -> str:
     """
     parser = ConventionalCommitParser()
 
+    release_ver = os.environ['RELEASE_VER']
+
     # Get and parse all commits
     entries: list[ChangelogEntry] = []
     for commit in get_commits_between_tags(tag1, tag2):
@@ -412,7 +472,10 @@ def generate_changelog(tag1: str, tag2: str) -> str:
             entries.append(entry)
 
     if not entries:
-        return f"# Version {tag2}\n\nNo changes.\n"
+        return f"# Version {release_ver}\n\nNo changes.\n"
+
+    # Drop PR-merge duplicates of SHA-tagged entries (see dedupe_entries)
+    entries = dedupe_entries(entries)
 
     # Separate breaking changes
     breaking_entries = [e for e in entries if e.is_breaking]
@@ -428,7 +491,7 @@ def generate_changelog(tag1: str, tag2: str) -> str:
     )
 
     # Build changelog
-    sections = [f"# Version {tag2}", ""]
+    sections = [f"# Version {release_ver}", ""]
 
     # Add breaking changes first if any
     if breaking_entries:
