@@ -19,7 +19,6 @@ dependencies {
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.engine.runtime)
     implementation(libs.viaduct.engine.wiring)
-    implementation(libs.viaduct.x.remoteresolvers)
 
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.utils)

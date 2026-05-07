@@ -25,7 +25,6 @@ dependencies {
     implementation(libs.viaduct.engine.wiring)
     implementation(libs.viaduct.tenant.wiring)
     implementation(libs.viaduct.shared.apiannotations)
-    implementation(libs.viaduct.x.remoteresolvers)
 
     implementation(libs.viaduct.service.runtime)
     testImplementation(testFixtures(libs.viaduct.engine.api))

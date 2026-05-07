@@ -37,7 +37,6 @@ dependencies {
     testFixturesImplementation(libs.viaduct.engine.wiring)
     testFixturesImplementation(libs.kotlinx.coroutines.core)
     testFixturesImplementation(libs.viaduct.service.api)
-    testFixturesImplementation(libs.viaduct.x.remoteresolvers)
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
     testFixturesImplementation(testFixtures(libs.viaduct.shared.dataloader))
     testFixturesImplementation(testFixtures(libs.viaduct.shared.graphql))

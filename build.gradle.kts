@@ -12,8 +12,11 @@ orchestration {
 
 // remoteresolvers is a single-module included build (no subprojects), so it doesn't
 // expose the orchestration aggregate tasks the root orchestration depends on. Wire
-// its root-level publishToMavenLocal directly so standalone demoapp tests can find
-// the artifact in Maven Local.
+// its root-level publish tasks directly so standalone demoapp builds — both the
+// mavenLocal and Sonatype snapshot consumer paths — can find the artifact.
 tasks.named("publishToMavenLocal") {
     dependsOn(gradle.includedBuild("remoteresolvers").task(":publishToMavenLocal"))
+}
+tasks.named("publishToSnapshots") {
+    dependsOn(gradle.includedBuild("remoteresolvers").task(":publishAllPublicationsToSnapshotsRepository"))
 }

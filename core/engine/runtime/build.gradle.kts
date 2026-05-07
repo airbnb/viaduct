@@ -24,7 +24,6 @@ dependencies {
     implementation(libs.viaduct.service.api)
     implementation(libs.viaduct.shared.dataloader)
     implementation(libs.viaduct.shared.utils)
-    implementation(libs.viaduct.x.remoteresolvers)
 
     implementation(libs.caffeine)
     implementation(libs.checker.qual)
@@ -51,7 +50,6 @@ dependencies {
     testFixturesImplementation(libs.io.mockk.dsl)
     testFixturesImplementation(libs.io.mockk.jvm)
     testFixturesImplementation(libs.kotlinx.coroutines.jdk8)
-    testFixturesImplementation(libs.viaduct.x.remoteresolvers)
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
 
@@ -65,7 +63,6 @@ dependencies {
     testImplementation(libs.viaduct.engine.wiring)
     testImplementation(libs.viaduct.service.runtime)
     testImplementation(libs.viaduct.shared.arbitrary)
-    testImplementation(libs.viaduct.x.remoteresolvers)
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.shared.arbitrary))
     testImplementation(testFixtures(libs.viaduct.engine.runtime))

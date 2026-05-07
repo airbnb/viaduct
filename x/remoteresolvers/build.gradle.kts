@@ -10,6 +10,8 @@ plugins {
 
 // Uses plain maven-publish rather than conventions.viaduct-publishing to avoid
 // a Dokka version conflict when this module is consumed as an included build.
+// The POM metadata, snapshots repository, and root-level publishToSnapshots wiring
+// are mirrored by hand from conventions.viaduct-publishing.
 publishing {
     publications {
         create<MavenPublication>("maven") {
@@ -19,6 +21,39 @@ publishing {
             // standalone consumers fail to resolve 'com.airbnb.viaduct.engine:api:INCLUDED'.
             versionMapping {
                 allVariants { fromResolutionResult() }
+            }
+            pom {
+                name.set("Viaduct :: remoteresolvers")
+                description.set("Experimental Viaduct module for forwarding node-resolver execution to a separate process via gRPC.")
+                url.set("https://viaduct.airbnb.tech/")
+                licenses {
+                    license {
+                        name.set("Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("airbnb")
+                        name.set("Airbnb, Inc.")
+                        email.set("viaduct-maintainers@airbnb.com")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:git://github.com/airbnb/viaduct.git")
+                    developerConnection.set("scm:git:ssh://github.com/airbnb/viaduct.git")
+                    url.set("https://github.com/airbnb/viaduct")
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "snapshots"
+            url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+            credentials {
+                username = providers.gradleProperty("mavenCentralUsername").orNull
+                password = providers.gradleProperty("mavenCentralPassword").orNull
             }
         }
     }
