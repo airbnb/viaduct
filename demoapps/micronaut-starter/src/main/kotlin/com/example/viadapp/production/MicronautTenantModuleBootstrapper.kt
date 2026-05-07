@@ -15,12 +15,5 @@ class MicronautTenantModuleBootstrapper(
             Provider {
                 beanContext.getBean(clazz)
             }
-
-        override fun <T> getProvider(
-            clazz: Class<T>,
-            qualifier: Annotation
-        ): Provider<T> {
-            throw UnsupportedOperationException("MicronautCodeInjector does not support qualified bindings")
-        }
     }
 }

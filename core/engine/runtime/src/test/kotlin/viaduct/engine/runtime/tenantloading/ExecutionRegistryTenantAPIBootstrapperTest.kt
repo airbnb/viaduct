@@ -224,11 +224,6 @@ private class FinalizingCodeInjector : CodeInjector {
     var finalized: Boolean = false
 
     override fun <T> getProvider(clazz: Class<T>) = throw UnsupportedOperationException("not needed for bootstrapper tests")
-
-    override fun <T> getProvider(
-        clazz: Class<T>,
-        qualifier: Annotation,
-    ) = throw UnsupportedOperationException("not needed for bootstrapper tests")
 }
 
 private class FinalizingTenantModuleBootstrapper : TenantModuleBootstrapper {

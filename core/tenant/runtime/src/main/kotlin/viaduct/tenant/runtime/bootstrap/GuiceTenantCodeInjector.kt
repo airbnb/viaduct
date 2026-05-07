@@ -1,7 +1,6 @@
 package viaduct.tenant.runtime.bootstrap
 
 import com.google.inject.Injector
-import com.google.inject.Key
 import com.google.inject.Provider
 import viaduct.apiannotations.VisibleForTest
 import viaduct.service.api.spi.CodeInjector
@@ -9,9 +8,4 @@ import viaduct.service.api.spi.CodeInjector
 @VisibleForTest
 class GuiceTenantCodeInjector(val injector: Injector) : CodeInjector {
     override fun <T> getProvider(clazz: Class<T>): Provider<T> = injector.getProvider(clazz)
-
-    override fun <T> getProvider(
-        clazz: Class<T>,
-        qualifier: Annotation
-    ): Provider<T> = injector.getProvider(Key.get(clazz, qualifier))
 }

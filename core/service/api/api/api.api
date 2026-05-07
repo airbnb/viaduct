@@ -91,7 +91,6 @@ public final class viaduct/service/api/Viaduct$DefaultImpls {
 public abstract interface class viaduct/service/api/spi/CodeInjector {
 	public static final field Companion Lviaduct/service/api/spi/CodeInjector$Companion;
 	public abstract fun getProvider (Ljava/lang/Class;)Ljavax/inject/Provider;
-	public abstract fun getProvider (Ljava/lang/Class;Ljava/lang/annotation/Annotation;)Ljavax/inject/Provider;
 }
 
 public final class viaduct/service/api/spi/CodeInjector$Companion {
@@ -196,7 +195,6 @@ public final class viaduct/service/api/spi/NaiveCodeInjector : viaduct/service/a
 	public fun <init> ()V
 	public final fun getConstructorCache ()Ljava/util/concurrent/ConcurrentHashMap;
 	public fun getProvider (Ljava/lang/Class;)Ljavax/inject/Provider;
-	public fun getProvider (Ljava/lang/Class;Ljava/lang/annotation/Annotation;)Ljavax/inject/Provider;
 }
 
 public final class viaduct/service/api/spi/NaiveTenantModuleBootstrapper : viaduct/service/api/spi/SharedTenantModuleBootstrapper {

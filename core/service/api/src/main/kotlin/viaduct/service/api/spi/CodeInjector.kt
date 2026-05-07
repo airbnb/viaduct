@@ -17,12 +17,6 @@ interface CodeInjector {
     /** Returns a [Provider] that creates new instances of [clazz] on each call to [Provider.get]. */
     fun <T> getProvider(clazz: Class<T>): Provider<T>
 
-    /** Returns a [Provider] for the qualified binding of [clazz]. */
-    fun <T> getProvider(
-        clazz: Class<T>,
-        qualifier: Annotation
-    ): Provider<T>
-
     @StableApi
     companion object {
         /**
@@ -58,12 +52,5 @@ class NaiveCodeInjector : CodeInjector {
                 if (!clazz.isInstance(it)) throw IllegalStateException("$it is not an instance of $clazz")
             }
         }
-    }
-
-    override fun <T> getProvider(
-        clazz: Class<T>,
-        qualifier: Annotation
-    ): Provider<T> {
-        throw UnsupportedOperationException("NaiveCodeInjector does not support qualified bindings")
     }
 }

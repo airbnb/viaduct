@@ -27,11 +27,6 @@ class TenantModuleBootstrapperTest {
         runBlocking {
             val sharedInjector = object : CodeInjector {
                 override fun <T> getProvider(clazz: Class<T>) = throw UnsupportedOperationException("not needed for bootstrapper tests")
-
-                override fun <T> getProvider(
-                    clazz: Class<T>,
-                    qualifier: Annotation,
-                ) = throw UnsupportedOperationException("not needed for bootstrapper tests")
             }
 
             val bootstrapper = SharedTenantModuleBootstrapper(sharedInjector)

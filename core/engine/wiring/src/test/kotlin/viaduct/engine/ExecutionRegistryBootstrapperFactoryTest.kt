@@ -62,11 +62,6 @@ class ExecutionRegistryBootstrapperFactoryTest {
         runTest {
             val customInjector = object : CodeInjector {
                 override fun <T> getProvider(clazz: Class<T>) = throw UnsupportedOperationException("not needed for bootstrapper factory tests")
-
-                override fun <T> getProvider(
-                    clazz: Class<T>,
-                    qualifier: Annotation,
-                ) = throw UnsupportedOperationException("not needed for bootstrapper factory tests")
             }
 
             WiringTestExecutorFactory.lastInjector = null
