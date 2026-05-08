@@ -1,8 +1,8 @@
 package viaduct.api
 
-import viaduct.apiannotations.StableApi
+import viaduct.apiannotations.InternalApi
 
-@StableApi
+@InternalApi
 interface TenantModule {
     /** Metadata to be associated with this module. */
     val metadata: Map<String, String>

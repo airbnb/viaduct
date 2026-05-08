@@ -20,15 +20,6 @@ public abstract interface annotation class viaduct/api/Resolver : java/lang/anno
 	public abstract fun variables ()[Lviaduct/api/Variable;
 }
 
-public abstract interface class viaduct/api/TenantModule {
-	public abstract fun getMetadata ()Ljava/util/Map;
-	public abstract fun getPackageName ()Ljava/lang/String;
-}
-
-public final class viaduct/api/TenantModule$DefaultImpls {
-	public static fun getPackageName (Lviaduct/api/TenantModule;)Ljava/lang/String;
-}
-
 public abstract interface annotation class viaduct/api/Variable : java/lang/annotation/Annotation {
 	public static final field Companion Lviaduct/api/Variable$Companion;
 	public static final field UNSET_STRING_VALUE Ljava/lang/String;
