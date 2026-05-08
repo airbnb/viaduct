@@ -44,9 +44,9 @@ class AllFilmsConnectionQueryResolver
     ) : QueryResolvers.AllFilmsConnection() {
         override suspend fun resolve(ctx: Context): FilmsConnection? {
             val allFilms = filmsRepository.getAllFilms()
-            return FilmsConnection.Builder(ctx)
-                .totalCount(allFilms.size)
-                .fromList(allFilms) { FilmBuilder(ctx).build(it) }
-                .build()
+            return FilmsConnection.of(ctx) {
+                totalCount(allFilms.size)
+                fromList(allFilms) { FilmBuilder(ctx).build(it) }
+            }
         }
     }

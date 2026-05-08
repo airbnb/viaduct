@@ -67,7 +67,7 @@ class ResolverApiUnitTests : ResolverTestBase() {
         runBlocking {
             val resolver = CharacterFilmCountResolver(characterFilmsRepository)
             val characters = characterRepository.findAll().take(3).map { char ->
-                Character.Builder(context).id(globalIDFor(Character.Reflection, char.id)).build()
+                Character.of(context) { id(globalIDFor(Character.Reflection, char.id)) }
             }
 
             val results = runFieldBatchResolver(resolver) {
@@ -82,9 +82,9 @@ class ResolverApiUnitTests : ResolverTestBase() {
     fun `runFieldBatchResolver returns zero film count for unknown character`(): Unit =
         runBlocking {
             val resolver = CharacterFilmCountResolver(characterFilmsRepository)
-            val unknown = Character.Builder(context)
-                .id(globalIDFor(Character.Reflection, "999"))
-                .build()
+            val unknown = Character.of(context) {
+                id(globalIDFor(Character.Reflection, "999"))
+            }
 
             val results = runFieldBatchResolver(resolver) {
                 objectValues = listOf(unknown)
@@ -99,11 +99,11 @@ class ResolverApiUnitTests : ResolverTestBase() {
         runBlocking {
             val resolver = CharacterRichSummaryResolver(characterRepository, characterFilmsRepository)
             val characters = characterRepository.findAll().take(2).map { char ->
-                Character.Builder(context)
-                    .id(globalIDFor(Character.Reflection, char.id))
-                    .name(char.name)
-                    .birthYear(char.birthYear)
-                    .build()
+                Character.of(context) {
+                    id(globalIDFor(Character.Reflection, char.id))
+                    name(char.name)
+                    birthYear(char.birthYear)
+                }
             }
 
             val results = runFieldBatchResolver(resolver) {
@@ -123,7 +123,7 @@ class ResolverApiUnitTests : ResolverTestBase() {
         runBlocking {
             val resolver = FilmMainCharactersResolver(characterRepository, filmCharactersRepository)
             val films = filmsRepository.getAllFilms().take(2).map { film ->
-                Film.Builder(context).id(globalIDFor(Film.Reflection, film.id)).build()
+                Film.of(context) { id(globalIDFor(Film.Reflection, film.id)) }
             }
 
             val results = runFieldBatchResolver(resolver) {
@@ -145,11 +145,11 @@ class ResolverApiUnitTests : ResolverTestBase() {
     fun `runMutationFieldResolver CreateCharacter creates and returns new character`(): Unit =
         runBlocking {
             val resolver = CreateCharacterMutation(characterRepository, adminAccess)
-            val input = CreateCharacterInput.Builder(context)
-                .name("Ahsoka Tano")
-                .birthYear("36BBY")
-                .build()
-            val args = Mutation_CreateCharacter_Arguments.Builder(context).input(input).build()
+            val input = CreateCharacterInput.of(context) {
+                name("Ahsoka Tano")
+                birthYear("36BBY")
+            }
+            val args = Mutation_CreateCharacter_Arguments.of(context) { input(input) }
 
             val result = runMutationFieldResolver(resolver) {
                 arguments = args
@@ -165,8 +165,8 @@ class ResolverApiUnitTests : ResolverTestBase() {
         runBlocking {
             val noAccess = SecurityAccessContext() // default: no admin
             val resolver = CreateCharacterMutation(characterRepository, noAccess)
-            val input = CreateCharacterInput.Builder(context).name("Palpatine").build()
-            val args = Mutation_CreateCharacter_Arguments.Builder(context).input(input).build()
+            val input = CreateCharacterInput.of(context) { name("Palpatine") }
+            val args = Mutation_CreateCharacter_Arguments.of(context) { input(input) }
 
             assertThrows(SecurityException::class.java) {
                 runBlocking {
@@ -181,10 +181,10 @@ class ResolverApiUnitTests : ResolverTestBase() {
             val resolver = UpdateCharacterNameMutation(characterRepository, adminAccess)
             val character = characterRepository.findAll().first()
             val globalId = globalIDFor(Character.Reflection, character.id)
-            val args = Mutation_UpdateCharacterName_Arguments.Builder(context)
-                .id(globalId)
-                .name("Anakin Skywalker")
-                .build()
+            val args = Mutation_UpdateCharacterName_Arguments.of(context) {
+                id(globalId)
+                name("Anakin Skywalker")
+            }
 
             val result = runMutationFieldResolver(resolver) {
                 arguments = args
@@ -199,10 +199,10 @@ class ResolverApiUnitTests : ResolverTestBase() {
         runBlocking {
             val resolver = UpdateCharacterNameMutation(characterRepository, adminAccess)
             val unknownId = globalIDFor(Character.Reflection, "999")
-            val args = Mutation_UpdateCharacterName_Arguments.Builder(context)
-                .id(unknownId)
-                .name("Nobody")
-                .build()
+            val args = Mutation_UpdateCharacterName_Arguments.of(context) {
+                id(unknownId)
+                name("Nobody")
+            }
 
             assertThrows(IllegalArgumentException::class.java) {
                 runBlocking {
@@ -222,7 +222,7 @@ class ResolverApiUnitTests : ResolverTestBase() {
             )
             val character = characterRepository.findAll().first()
             val globalId = globalIDFor(Character.Reflection, character.id)
-            val args = Mutation_DeleteCharacter_Arguments.Builder(context).id(globalId).build()
+            val args = Mutation_DeleteCharacter_Arguments.of(context) { id(globalId) }
 
             val result = runMutationFieldResolver(resolver) {
                 arguments = args
@@ -260,11 +260,11 @@ class ResolverApiUnitTests : ResolverTestBase() {
                 characterRepository,
                 adminAccess
             )
-            val input = AddCharacterToFilmInput.Builder(context)
-                .filmId(filmGlobalId)
-                .characterId(characterGlobalId)
-                .build()
-            val args = Mutation_AddCharacterToFilm_Arguments.Builder(context).input(input).build()
+            val input = AddCharacterToFilmInput.of(context) {
+                filmId(filmGlobalId)
+                characterId(characterGlobalId)
+            }
+            val args = Mutation_AddCharacterToFilm_Arguments.of(context) { input(input) }
 
             val result = runMutationFieldResolver(resolver) {
                 arguments = args

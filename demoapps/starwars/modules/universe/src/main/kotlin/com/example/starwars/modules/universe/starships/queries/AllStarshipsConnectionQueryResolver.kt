@@ -65,8 +65,8 @@ class AllStarshipsConnectionQueryResolver
             val hasNextPage = slicePlusOne.size > limit
 
             // fromSlice takes at most `limit` items, encodes cursors, and sets PageInfo.
-            return StarshipsConnection.Builder(ctx)
-                .fromSlice(slicePlusOne, hasNextPage) { StarshipBuilder(ctx).build(it) }
-                .build()
+            return StarshipsConnection.of(ctx) {
+                fromSlice(slicePlusOne, hasNextPage) { StarshipBuilder(ctx).build(it) }
+            }
         }
     }

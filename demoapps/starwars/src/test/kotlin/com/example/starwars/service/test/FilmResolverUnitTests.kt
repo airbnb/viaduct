@@ -42,9 +42,7 @@ class FilmResolverUnitTests : ResolverTestBase() {
             val resolver = FilmDisplayTitleResolver()
 
             val result = runFieldResolver(resolver) {
-                objectValue = Film.Builder(context)
-                    .title("Star Wars: A New Hope")
-                    .build()
+                objectValue = Film.of(context) { title("Star Wars: A New Hope") }
             }
 
             assertEquals("Star Wars: A New Hope", result)
@@ -56,11 +54,11 @@ class FilmResolverUnitTests : ResolverTestBase() {
             val resolver = FilmSummaryResolver()
 
             val result = runFieldResolver(resolver) {
-                objectValue = Film.Builder(context)
-                    .title("The Empire Strikes Back")
-                    .episodeID(5)
-                    .director("Irvin Kershner")
-                    .build()
+                objectValue = Film.of(context) {
+                    title("The Empire Strikes Back")
+                    episodeID(5)
+                    director("Irvin Kershner")
+                }
             }
 
             assertEquals("Episode 5: The Empire Strikes Back (Directed by Irvin Kershner)", result)
@@ -72,12 +70,12 @@ class FilmResolverUnitTests : ResolverTestBase() {
             val resolver = FilmProductionDetailsResolver()
 
             val result = runFieldResolver(resolver) {
-                objectValue = Film.Builder(context)
-                    .title("Return of the Jedi")
-                    .director("Richard Marquand")
-                    .producers(listOf("Howard Kazanjian", "George Lucas", "Rick McCallum"))
-                    .releaseDate("1983-05-25")
-                    .build()
+                objectValue = Film.of(context) {
+                    title("Return of the Jedi")
+                    director("Richard Marquand")
+                    producers(listOf("Howard Kazanjian", "George Lucas", "Rick McCallum"))
+                    releaseDate("1983-05-25")
+                }
             }
 
             assertEquals(
@@ -92,12 +90,12 @@ class FilmResolverUnitTests : ResolverTestBase() {
             val resolver = FilmProductionDetailsResolver()
 
             val result = runFieldResolver(resolver) {
-                objectValue = Film.Builder(context)
-                    .title("Rogue One")
-                    .director("Gareth Edwards")
-                    .producers(null) // triggers "Unknown producers"
-                    .releaseDate("2016-12-16")
-                    .build()
+                objectValue = Film.of(context) {
+                    title("Rogue One")
+                    director("Gareth Edwards")
+                    producers(null) // triggers "Unknown producers"
+                    releaseDate("2016-12-16")
+                }
             }
 
             assertEquals(
@@ -112,10 +110,10 @@ class FilmResolverUnitTests : ResolverTestBase() {
             val resolver = FilmCastDataResolver(filmCharactersRepository)
 
             val result = runFieldResolver(resolver) {
-                objectValue = Film.Builder(context)
-                    .id(GlobalID(Film.Reflection, "1"))
-                    .title("A New Hope")
-                    .build()
+                objectValue = Film.of(context) {
+                    id(GlobalID(Film.Reflection, "1"))
+                    title("A New Hope")
+                }
             }
 
             assertEquals(FilmCastData(listOf("1", "2", "3", "4", "5")), result)

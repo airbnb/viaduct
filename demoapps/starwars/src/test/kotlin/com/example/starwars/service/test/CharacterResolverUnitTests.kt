@@ -39,7 +39,7 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterDisplayNameResolver()
 
             val result = runFieldResolver(resolver) {
-                objectValue = Character.Builder(context).name("Leia Organa").build()
+                objectValue = Character.of(context) { name("Leia Organa") }
             }
 
             assertEquals("Leia Organa", result)
@@ -51,7 +51,10 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterDisplaySummaryResolver()
 
             val result = runFieldResolver(resolver) {
-                objectValue = Character.Builder(context).name("Darth Vader").birthYear("41.9BBY").build()
+                objectValue = Character.of(context) {
+                    name("Darth Vader")
+                    birthYear("41.9BBY")
+                }
             }
 
             assertEquals("Darth Vader (41.9BBY)", result)
@@ -63,7 +66,11 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterAppearanceDescriptionResolver()
 
             val result = runFieldResolver(resolver) {
-                objectValue = Character.Builder(context).name("Obi-Wan Kenobi").eyeColor("blue").hairColor("gray").build()
+                objectValue = Character.of(context) {
+                    name("Obi-Wan Kenobi")
+                    eyeColor("blue")
+                    hairColor("gray")
+                }
             }
 
             assertEquals("Obi-Wan Kenobi has blue eyes and gray hair", result)
@@ -75,7 +82,7 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = ProfileFieldResolver()
 
             val result = runFieldResolver(resolver) {
-                objectValue = Character.Builder(context).name("C-3PO").build()
+                objectValue = Character.of(context) { name("C-3PO") }
             }
 
             assertEquals("Character Profile: C-3PO (basic info only)", result)
@@ -87,12 +94,12 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = ProfileFieldResolver()
 
             val result = runFieldResolver(resolver) {
-                objectValue = Character.Builder(context)
-                    .name("Luke Skywalker")
-                    .birthYear("19BBY")
-                    .height(172)
-                    .mass(77.0)
-                    .build()
+                objectValue = Character.of(context) {
+                    name("Luke Skywalker")
+                    birthYear("19BBY")
+                    height(172)
+                    mass(77.0)
+                }
             }
 
             assertEquals("Character Profile: Luke Skywalker, Born: 19BBY, Height: 172cm, Mass: 77.0kg", result)
@@ -104,13 +111,16 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterStatsResolver()
 
             val result = runFieldResolver(resolver) {
-                arguments = Character_CharacterStats_Arguments.Builder(context).minAge(10).maxAge(100).build()
-                objectValue = Character.Builder(context)
-                    .name("Ahsoka Tano")
-                    .birthYear("36BBY")
-                    .height(170)
-                    .species(Species.Builder(context).name("Togruta").build())
-                    .build()
+                arguments = Character_CharacterStats_Arguments.of(context) {
+                    minAge(10)
+                    maxAge(100)
+                }
+                objectValue = Character.of(context) {
+                    name("Ahsoka Tano")
+                    birthYear("36BBY")
+                    height(170)
+                    species(Species.of(context) { name("Togruta") })
+                }
             }
 
             assertEquals("Stats for Ahsoka Tano (Age range: 10-100), Born: 36BBY, Height: 170cm, Species: Togruta", result)
@@ -122,13 +132,16 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterStatsResolver()
 
             val result = runFieldResolver(resolver) {
-                arguments = Character_CharacterStats_Arguments.Builder(context).minAge(500).maxAge(1000).build()
-                objectValue = Character.Builder(context)
-                    .name("Yoda")
-                    .birthYear("896BBY")
-                    .height(66)
-                    .species(Species.Builder(context).name("Yoda's species").build())
-                    .build()
+                arguments = Character_CharacterStats_Arguments.of(context) {
+                    minAge(500)
+                    maxAge(1000)
+                }
+                objectValue = Character.of(context) {
+                    name("Yoda")
+                    birthYear("896BBY")
+                    height(66)
+                    species(Species.of(context) { name("Yoda's species") })
+                }
             }
 
             assertEquals("Stats for Yoda (Age range: 500-1000), Born: 896BBY, Height: 66cm, Species: Yoda's species", result)
@@ -140,13 +153,13 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterFormattedDescriptionResolver()
 
             val result = runFieldResolver(resolver) {
-                arguments = Character_FormattedDescription_Arguments.Builder(context).format("detailed").build()
-                objectValue = Character.Builder(context)
-                    .name("Padmé Amidala")
-                    .birthYear("46BBY")
-                    .eyeColor("brown")
-                    .hairColor("brown")
-                    .build()
+                arguments = Character_FormattedDescription_Arguments.of(context) { format("detailed") }
+                objectValue = Character.of(context) {
+                    name("Padmé Amidala")
+                    birthYear("46BBY")
+                    eyeColor("brown")
+                    hairColor("brown")
+                }
             }
 
             assertEquals("Padmé Amidala (born 46BBY) - brown eyes, brown hair", result)
@@ -158,11 +171,11 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterFormattedDescriptionResolver()
 
             val result = runFieldResolver(resolver) {
-                arguments = Character_FormattedDescription_Arguments.Builder(context).format("year-only").build()
-                objectValue = Character.Builder(context)
-                    .name("Qui-Gon Jinn")
-                    .birthYear("92BBY")
-                    .build()
+                arguments = Character_FormattedDescription_Arguments.of(context) { format("year-only") }
+                objectValue = Character.of(context) {
+                    name("Qui-Gon Jinn")
+                    birthYear("92BBY")
+                }
             }
 
             assertEquals("Qui-Gon Jinn (born 92BBY)", result)
@@ -174,12 +187,12 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterFormattedDescriptionResolver()
 
             val result = runFieldResolver(resolver) {
-                arguments = Character_FormattedDescription_Arguments.Builder(context).format("appearance-only").build()
-                objectValue = Character.Builder(context)
-                    .name("Rey")
-                    .eyeColor("hazel")
-                    .hairColor("brown")
-                    .build()
+                arguments = Character_FormattedDescription_Arguments.of(context) { format("appearance-only") }
+                objectValue = Character.of(context) {
+                    name("Rey")
+                    eyeColor("hazel")
+                    hairColor("brown")
+                }
             }
 
             assertEquals("Rey - hazel eyes, brown hair", result)
@@ -191,10 +204,8 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterFormattedDescriptionResolver()
 
             val result = runFieldResolver(resolver) {
-                arguments = Character_FormattedDescription_Arguments.Builder(context).build()
-                objectValue = Character.Builder(context)
-                    .name("BB-8")
-                    .build()
+                arguments = Character_FormattedDescription_Arguments.of(context) { }
+                objectValue = Character.of(context) { name("BB-8") }
             }
 
             assertEquals("BB-8", result)
@@ -207,17 +218,14 @@ class CharacterResolverUnitTests : ResolverTestBase() {
 
             val result = runFieldResolver(resolver) {
                 // Explicitly disable details via argument bound to the @Variable
-                arguments = Character_CharacterProfile_Arguments
-                    .Builder(context)
-                    .includeDetails(false)
-                    .build()
+                arguments = Character_CharacterProfile_Arguments.of(context) { includeDetails(false) }
                 // Even if the object has data, it shouldn't be selected/available
-                objectValue = Character.Builder(context)
-                    .name("Luke Skywalker")
-                    .birthYear("19BBY")
-                    .height(172)
-                    .mass(77.0)
-                    .build()
+                objectValue = Character.of(context) {
+                    name("Luke Skywalker")
+                    birthYear("19BBY")
+                    height(172)
+                    mass(77.0)
+                }
             }
 
             assertEquals("Character Profile: Luke Skywalker, Born: 19BBY, Height: 172cm, Mass: 77.0kg", result)
@@ -230,16 +238,13 @@ class CharacterResolverUnitTests : ResolverTestBase() {
 
             val result = runFieldResolver(resolver) {
                 // Enable details so the fragment includes conditional fields
-                arguments = Character_CharacterProfile_Arguments
-                    .Builder(context)
-                    .includeDetails(true)
-                    .build()
-                objectValue = Character.Builder(context)
-                    .name("Luke Skywalker")
-                    .birthYear("19BBY")
-                    .height(172)
-                    .mass(77.0)
-                    .build()
+                arguments = Character_CharacterProfile_Arguments.of(context) { includeDetails(true) }
+                objectValue = Character.of(context) {
+                    name("Luke Skywalker")
+                    birthYear("19BBY")
+                    height(172)
+                    mass(77.0)
+                }
             }
 
             assertEquals(

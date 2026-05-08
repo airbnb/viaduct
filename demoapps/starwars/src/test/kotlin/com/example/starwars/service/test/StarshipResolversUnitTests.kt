@@ -35,13 +35,13 @@ class StarshipResolversUnitTests : ResolverTestBase() {
         starshipsRepository = StarshipsRepository()
     }
 
-    private fun queryObj() = Query.Builder(context).build()
+    private fun queryObj() = Query.of(context) { }
 
     @Test
     fun `AllStarshipsResolver returns default page size when limit is not provided`(): Unit =
         runBlocking {
             val resolver = AllStarshipsQueryResolver(starshipsRepository)
-            val args = Query_AllStarships_Arguments.Builder(context).build()
+            val args = Query_AllStarships_Arguments.of(context) { }
 
             val result = runFieldResolver(resolver) {
                 objectValue = queryObj()
@@ -58,7 +58,7 @@ class StarshipResolversUnitTests : ResolverTestBase() {
         runBlocking {
             val resolver = AllStarshipsQueryResolver(starshipsRepository)
             val limit = 2
-            val args = Query_AllStarships_Arguments.Builder(context).limit(limit).build()
+            val args = Query_AllStarships_Arguments.of(context) { limit(limit) }
 
             val result = runFieldResolver(resolver) {
                 objectValue = queryObj()

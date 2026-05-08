@@ -28,38 +28,26 @@ class AddCharacterToFilmMutation
         private val characterRepository: CharacterRepository,
         private val securityAccessService: SecurityAccessContext
     ) : MutationResolvers.AddCharacterToFilm() {
-        override suspend fun resolve(ctx: Context): AddCharacterToFilmPayload? =
+        override suspend fun resolve(ctx: Context): AddCharacterToFilmPayload =
             securityAccessService.validateAccess {
-                // Extract input arguments
                 val input = ctx.arguments.input
                 val filmId = input.filmId.internalID
                 val characterId = input.characterId?.internalID ?: throw IllegalArgumentException("Character ID is required")
 
-                // Early validation to ensure both character and film exist
-                characterRepository.findById(characterId)
-                    ?: throw IllegalArgumentException("Character with ID $characterId not found")
-
-                filmsRepository.findFilmById(filmId)
-                    ?: throw IllegalArgumentException("Film with ID $filmId not found")
-
-                // Add character to film in both repositories to maintain consistency
-                characterFilmsRepository.addCharacterToFilm(characterId, filmId)
-                filmCharactersRepository.addCharacterToFilm(filmId, characterId)
-
-                // Fetch updated entities
                 val character = characterRepository.findById(characterId)
                     ?: throw IllegalArgumentException("Character with ID $characterId not found")
-
                 val film = filmsRepository.findFilmById(filmId)
                     ?: throw IllegalArgumentException("Film with ID $filmId not found")
 
-                // From updated entities, build GraphQL objects to build the payload
+                characterFilmsRepository.addCharacterToFilm(characterId, filmId)
+                filmCharactersRepository.addCharacterToFilm(filmId, characterId)
+
                 val filmGrt = FilmBuilder(ctx).build(film)
                 val characterGrt = CharacterBuilder(ctx).build(character)
 
-                AddCharacterToFilmPayload.Builder(ctx)
-                    .film(filmGrt)
-                    .character(characterGrt)
-                    .build()
+                AddCharacterToFilmPayload.of(ctx) {
+                    film(filmGrt)
+                    character(characterGrt)
+                }
             }
     }

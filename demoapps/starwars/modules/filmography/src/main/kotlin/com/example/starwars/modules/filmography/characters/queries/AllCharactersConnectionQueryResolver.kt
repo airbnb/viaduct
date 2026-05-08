@@ -42,8 +42,8 @@ class AllCharactersConnectionQueryResolver
     ) : QueryResolvers.AllCharactersConnection() {
         override suspend fun resolve(ctx: Context): CharactersConnection? {
             val allCharacters = characterRepository.findAll()
-            return CharactersConnection.Builder(ctx)
-                .fromList(allCharacters) { CharacterBuilder(ctx).build(it) }
-                .build()
+            return CharactersConnection.of(ctx) {
+                fromList(allCharacters) { CharacterBuilder(ctx).build(it) }
+            }
         }
     }

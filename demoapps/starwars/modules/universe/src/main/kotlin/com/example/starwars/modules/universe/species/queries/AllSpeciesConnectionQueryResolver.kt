@@ -83,14 +83,14 @@ class AllSpeciesConnectionQueryResolver
 
             val edges =
                 slicePlusOne.take(offsetLimit.limit).mapIndexed { idx, species ->
-                    SpeciesEdge.Builder(ctx)
-                        .node(SpeciesBuilder(ctx).build(species))
-                        .cursor(OffsetCursor.fromOffset(offsetLimit.offset + idx).value)
-                        .build()
+                    SpeciesEdge.of(ctx) {
+                        node(SpeciesBuilder(ctx).build(species))
+                        cursor(OffsetCursor.fromOffset(offsetLimit.offset + idx).value)
+                    }
                 }
 
-            return SpeciesConnection.Builder(ctx)
-                .fromEdges(edges, hasNextPage = hasNextPage, hasPreviousPage = hasPreviousPage)
-                .build()
+            return SpeciesConnection.of(ctx) {
+                fromEdges(edges, hasNextPage = hasNextPage, hasPreviousPage = hasPreviousPage)
+            }
         }
     }

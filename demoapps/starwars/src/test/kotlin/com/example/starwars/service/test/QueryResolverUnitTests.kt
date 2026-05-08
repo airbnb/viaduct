@@ -63,13 +63,9 @@ class QueryResolverUnitTests : ResolverTestBase() {
             val reference = characterRepository.findAll().first()
             val resolver = SearchCharacterQueryResolver(characterRepository)
 
-            val args = Query_SearchCharacter_Arguments.Builder(context)
-                .search(
-                    CharacterSearchInput.Builder(context)
-                        .byName(reference.name.substring(0, 2))
-                        .build()
-                )
-                .build()
+            val args = Query_SearchCharacter_Arguments.of(context) {
+                search(CharacterSearchInput.of(context) { byName(reference.name.substring(0, 2)) })
+            }
 
             val result = runFieldResolver(resolver) {
                 arguments = args
@@ -89,13 +85,9 @@ class QueryResolverUnitTests : ResolverTestBase() {
 
             val gid = globalIDFor(Character.Reflection, reference.id)
 
-            val args = Query_SearchCharacter_Arguments.Builder(context)
-                .search(
-                    CharacterSearchInput.Builder(context)
-                        .byId(gid)
-                        .build()
-                )
-                .build()
+            val args = Query_SearchCharacter_Arguments.of(context) {
+                search(CharacterSearchInput.of(context) { byId(gid) })
+            }
 
             val result = runFieldResolver(resolver) {
                 arguments = args
@@ -112,9 +104,7 @@ class QueryResolverUnitTests : ResolverTestBase() {
             val limit = 3
             val resolver = AllCharactersQueryResolver(characterRepository)
 
-            val args = Query_AllCharacters_Arguments.Builder(context)
-                .limit(limit)
-                .build()
+            val args = Query_AllCharacters_Arguments.of(context) { limit(limit) }
 
             val result = runFieldResolver(resolver) {
                 arguments = args
@@ -134,9 +124,7 @@ class QueryResolverUnitTests : ResolverTestBase() {
             val limit = 2
             val resolver = AllFilmsQueryResolver(filmsRepository)
 
-            val args = Query_AllFilms_Arguments.Builder(context)
-                .limit(limit)
-                .build()
+            val args = Query_AllFilms_Arguments.of(context) { limit(limit) }
 
             val result = runFieldResolver(resolver) {
                 arguments = args
@@ -156,9 +144,7 @@ class QueryResolverUnitTests : ResolverTestBase() {
             val limit = 4
             val resolver = AllPlanetsQueryResolver(planetsRepository)
 
-            val args = Query_AllPlanets_Arguments.Builder(context)
-                .limit(limit)
-                .build()
+            val args = Query_AllPlanets_Arguments.of(context) { limit(limit) }
 
             val result = runFieldResolver(resolver) {
                 arguments = args
@@ -176,9 +162,7 @@ class QueryResolverUnitTests : ResolverTestBase() {
             val limit = 1
             val resolver = AllSpeciesQueryResolver(speciesRepository)
 
-            val args = Query_AllSpecies_Arguments.Builder(context)
-                .limit(limit)
-                .build()
+            val args = Query_AllSpecies_Arguments.of(context) { limit(limit) }
 
             val result = runFieldResolver(resolver) {
                 arguments = args
@@ -197,9 +181,7 @@ class QueryResolverUnitTests : ResolverTestBase() {
             val limit = 1
             val resolver = AllVehiclesQueryResolver(vehiclesRepository)
 
-            val args = Query_AllVehicles_Arguments.Builder(context)
-                .limit(limit)
-                .build()
+            val args = Query_AllVehicles_Arguments.of(context) { limit(limit) }
 
             val result = runFieldResolver(resolver) {
                 arguments = args
@@ -277,14 +259,13 @@ class QueryResolverUnitTests : ResolverTestBase() {
             assertEquals(ref.name, result.first().get().getName())
         }
 
-    @OptIn(ExperimentalApi::class)
     @Test
     fun `allCharactersConnection paginates forward and reports correct page info`(): Unit =
         runBlocking {
             val resolver = AllCharactersConnectionQueryResolver(characterRepository)
 
             // Request first 3 of 5 characters
-            val firstPageArgs = Query_AllCharactersConnection_Arguments.Builder(context).first(3).build()
+            val firstPageArgs = Query_AllCharactersConnection_Arguments.of(context) { first(3) }
 
             val firstPage = runFieldResolver(resolver) { arguments = firstPageArgs }
 
@@ -295,7 +276,10 @@ class QueryResolverUnitTests : ResolverTestBase() {
             assertNotNull(endCursor)
 
             // Request next 3 from endCursor — only 2 characters remain
-            val secondPageArgs = Query_AllCharactersConnection_Arguments.Builder(context).first(3).after(endCursor).build()
+            val secondPageArgs = Query_AllCharactersConnection_Arguments.of(context) {
+                first(3)
+                after(endCursor)
+            }
 
             val secondPage = runFieldResolver(resolver) { arguments = secondPageArgs }
 

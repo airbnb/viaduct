@@ -41,10 +41,7 @@ class SpeciesExtrasResolverUnitTests : ResolverTestBase() {
     /**
      * Build Species GRT containing only the GlobalID
      */
-    private fun speciesGrtForId(internalId: String): Species =
-        Species.Builder(context)
-            .id(globalIDFor(Species.Reflection, internalId))
-            .build()
+    private fun speciesGrtForId(internalId: String): Species = Species.of(context) { id(globalIDFor(Species.Reflection, internalId)) }
 
     @Test
     fun `SpeciesCulturalNotesResolver returns cultural notes from extrasData`(): Unit =

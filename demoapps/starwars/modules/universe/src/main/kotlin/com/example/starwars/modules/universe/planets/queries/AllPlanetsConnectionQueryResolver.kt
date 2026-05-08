@@ -53,8 +53,10 @@ class AllPlanetsConnectionQueryResolver
             val allPlanets = planetsRepository.findAll()
             // fromList handles both "last N" (backwards=true, no cursor) and
             // "last N before cursor" cases transparently via BackwardConnectionArguments.
-            return PlanetsConnection.Builder(ctx)
-                .fromList(allPlanets) { PlanetBuilder(ctx).build(it) }
-                .build()
+            return PlanetsConnection.of(ctx) {
+                fromList(allPlanets) {
+                    PlanetBuilder(ctx).build(it)
+                }
+            }
         }
     }
