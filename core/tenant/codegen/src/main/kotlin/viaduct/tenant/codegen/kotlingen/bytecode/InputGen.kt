@@ -101,6 +101,7 @@ private val inputSTGroup =
     import viaduct.apiannotations.InternalApi
     import viaduct.api.context.ExecutionContext
     import viaduct.api.internal.InputTypeFactory
+    import viaduct.api.internal.InputValueBuilder
     import viaduct.api.internal.InternalContext
     import viaduct.api.internal.internal
     import viaduct.api.internal.InputLikeBase
@@ -122,11 +123,16 @@ private val inputSTGroup =
 
         fun toBuilder() = Builder(context, graphQLInputObjectType, this.inputData.toMutableMap())
 
+        object of {
+            operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): <mdl.className> =
+                Builder(context).apply(block).build()
+        }
+
         class Builder internal constructor(
             override val context: InternalContext,
             override val graphQLInputObjectType: GraphQLInputObjectType,
             override val inputData: MutableMap\<String, Any?> = TODO()
-        ) : InputLikeBase.Builder() {
+        ) : InputLikeBase.Builder(), InputValueBuilder\<<mdl.className>\> {
 
             constructor(context: ExecutionContext): this(
                 context.internal,
@@ -142,7 +148,7 @@ private val inputSTGroup =
                 fun <f.escapedName>(value: <f.kotlinType>): Builder = TODO()
             }; separator="\n">
 
-            fun build(): <mdl.className> = TODO()
+            final override fun build(): <mdl.className> = TODO()
         }
 
         <mdl.reflection>

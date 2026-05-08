@@ -297,6 +297,14 @@ abstract class ObjectBase(
             }
 
         /**
+         * Returns the InternalContext for use in generated builder-lambda setters that need to
+         * construct nested builders. Regular protected property access (get__context()) generates
+         * bytecode that fails JVM verification when emitted by Javassist, so this method provides
+         * an alternative access path.
+         */
+        protected fun getBuilderContext(): InternalContext = __context
+
+        /**
          * Called by strictly typed static builder-setters in generated GRT
          * to put a field value into the EngineObjectData.
          */

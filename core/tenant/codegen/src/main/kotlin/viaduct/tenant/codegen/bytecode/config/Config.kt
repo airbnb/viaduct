@@ -169,6 +169,8 @@ object cfg {
         JavaBinaryName("viaduct.api.internal.InputLikeBase")
     val INPUT_LIKE_BASE_BUILDER =
         JavaBinaryName("viaduct.api.internal.InputLikeBase\$Builder")
+    val INPUT_VALUE_BUILDER =
+        JavaBinaryName("viaduct.api.internal.InputValueBuilder")
 
     // Path to the tenant API module from the oss root
     val TENANT_API_MODULE_PATH = "tenant/api"

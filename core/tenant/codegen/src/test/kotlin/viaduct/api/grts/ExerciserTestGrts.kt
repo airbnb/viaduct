@@ -6,6 +6,7 @@ import viaduct.api.context.ExecutionContext
 import viaduct.api.internal.FieldImpl
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InputTypeFactory
+import viaduct.api.internal.InputValueBuilder
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.internal
@@ -220,11 +221,18 @@ class InputV2 internal constructor(
         return Builder(context, graphQLInputObjectType, inputData)
     }
 
+    object of {
+        operator fun invoke(
+            context: ExecutionContext,
+            block: Builder.() -> Unit
+        ): InputV2 = Builder(context).apply(block).build()
+    }
+
     class Builder internal constructor(
         override val context: InternalContext,
         override val graphQLInputObjectType: GraphQLInputObjectType,
         inputData: Map<String, Any?> = LinkedHashMap()
-    ) : InputLikeBase.Builder() {
+    ) : InputLikeBase.Builder(), InputValueBuilder<InputV2> {
         // public for tenants
         constructor(context: ExecutionContext) : this(
             context.internal,
@@ -253,7 +261,7 @@ class InputV2 internal constructor(
             return this
         }
 
-        fun build(): InputV2 {
+        override fun build(): InputV2 {
             validateInputDataAndThrowAsTenantError()
             return InputV2(context, inputData, graphQLInputObjectType)
         }

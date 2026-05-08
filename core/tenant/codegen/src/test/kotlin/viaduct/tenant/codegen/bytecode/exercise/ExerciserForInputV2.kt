@@ -51,6 +51,9 @@ internal fun Exerciser.exerciseInputV2(
     }
     check.isNotNull(publicBuilderCtor, "INPUT_BUILDER_PUBLIC_CONSTRUCTOR_EXISTS")
 
+    exerciseInputValueBuilderContract(builderClazz, inputClazz)
+    exerciseOfObject(inputClazz.kotlin)
+
     exerciseBuilderRoundtrip(
         inputClazz,
         builderClazz,
@@ -59,6 +62,25 @@ internal fun Exerciser.exerciseInputV2(
         schema
     )
     exerciseReflectionObject(inputClazz.kotlin, expected)
+}
+
+private fun Exerciser.exerciseInputValueBuilderContract(
+    builderClazz: Class<*>,
+    inputClazz: Class<*>
+) {
+    val inputValueBuilderInterface = builderClazz.interfaces.firstOrNull {
+        it.name == "viaduct.api.internal.InputValueBuilder"
+    }
+    check.isNotNull(inputValueBuilderInterface, "INPUT_BUILDER_IMPLEMENTS_INPUT_VALUE_BUILDER")
+}
+
+private fun Exerciser.exerciseOfObject(cls: kotlin.reflect.KClass<*>) {
+    check.withNestedClass(cls, "of", "INPUT_OF_CLASS_EXISTS") { ofClass ->
+        check.withObjectInstance(ofClass, "INPUT_OF_SINGLETON") { ofInstance ->
+            val invokeMethods = ofInstance::class.java.declaredMethods.filter { it.name == "invoke" }
+            check.isNotNull(invokeMethods.firstOrNull(), "INPUT_OF_INVOKE_EXISTS")
+        }
+    }
 }
 
 private fun Exerciser.exerciseBuilderRoundtrip(

@@ -90,4 +90,46 @@ class InputGenTest {
             "Expected inputObjectInputType call for Input type, got:\n$result"
         )
     }
+
+    @Test
+    fun `generates of factory object`() {
+        val result = genInput(
+            """
+                type Query { empty: Int }
+                input MyInput { x: Int }
+            """.trimIndent(),
+            "MyInput"
+        ).toString()
+        assertTrue(
+            result.contains("object of"),
+            "Expected 'object of' factory singleton, got:\n$result"
+        )
+        assertTrue(
+            result.contains("operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): MyInput"),
+            "Expected invoke operator with builder-lambda signature, got:\n$result"
+        )
+        assertTrue(
+            result.contains("Builder(context).apply(block).build()"),
+            "Expected of body to construct builder, apply block, and build, got:\n$result"
+        )
+    }
+
+    @Test
+    fun `Builder implements InputValueBuilder`() {
+        val result = genInput(
+            """
+                type Query { empty: Int }
+                input MyInput { x: Int }
+            """.trimIndent(),
+            "MyInput"
+        ).toString()
+        assertTrue(
+            result.contains("InputValueBuilder<MyInput>"),
+            "Expected Builder to implement InputValueBuilder<MyInput>, got:\n$result"
+        )
+        assertTrue(
+            result.contains("final override fun build()"),
+            "Expected build() to be marked as final override, got:\n$result"
+        )
+    }
 }

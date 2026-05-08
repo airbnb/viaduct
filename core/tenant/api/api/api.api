@@ -123,6 +123,10 @@ public abstract interface class viaduct/api/globalid/GlobalIDCodec {
 	public abstract fun serialize (Lviaduct/api/globalid/GlobalID;)Ljava/lang/String;
 }
 
+public abstract interface class viaduct/api/internal/InputValueBuilder {
+	public abstract fun build ()Ljava/lang/Object;
+}
+
 public abstract interface class viaduct/api/reflect/CompositeField : viaduct/api/reflect/Field {
 	public abstract fun getType ()Lviaduct/api/reflect/Type;
 }

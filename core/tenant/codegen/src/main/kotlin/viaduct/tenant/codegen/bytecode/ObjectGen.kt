@@ -1,7 +1,6 @@
 package viaduct.tenant.codegen.bytecode
 
 import kotlinx.metadata.ClassKind
-import kotlinx.metadata.KmAnnotation
 import kotlinx.metadata.KmConstructor
 import kotlinx.metadata.KmFunction
 import kotlinx.metadata.KmType
@@ -12,9 +11,7 @@ import kotlinx.metadata.Modality
 import kotlinx.metadata.Visibility
 import kotlinx.metadata.hasAnnotations
 import kotlinx.metadata.isNullable
-import kotlinx.metadata.isOperator
 import kotlinx.metadata.isSuspend
-import kotlinx.metadata.jvm.annotations
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
 import viaduct.codegen.ct.javaTypeName
@@ -23,7 +20,6 @@ import viaduct.codegen.km.boxedJavaName
 import viaduct.codegen.km.castObjectExpression
 import viaduct.codegen.km.checkNotNullParameterExpression
 import viaduct.codegen.km.getterName
-import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
@@ -328,19 +324,7 @@ private class ObjectClassGenV2(
         return supers.firstNotNullOfOrNull { it.findFieldWithDifferentTypeInHierarchy(fieldName, concreteType) }
     }
 
-    /**
-     * Generates the `of` factory object, enabling DSL-style construction:
-     * ```
-     *   MyType.of(ctx) {
-     *       someField("value")
-     *   }
-     * ```
-     * The `of` object exposes an `invoke` operator that creates a [Builder], applies the
-     * caller-supplied receiver lambda, and returns the built instance.
-     */
     private fun CustomClassBuilder.addOfObject(): CustomClassBuilder {
-        val ofObject = nestedClassBuilder(JavaIdName("of"), kind = ClassKind.OBJECT)
-
         // Connection types require a richer context carrying edge/node/argument type info;
         // plain object types use the standard ExecutionContext.
         val contextType = if (def.hasConnectionDirective) {
@@ -353,45 +337,7 @@ private class ObjectClassGenV2(
         } else {
             cfg.EXECUTION_CONTEXT.asKmName.asType()
         }
-
-        val builderKmType = this.kmName.append(".Builder").asType()
-        // Represents `Builder.() -> Unit`: Function1 annotated as an extension function type
-        // so Kotlin treats the block parameter as a receiver lambda on Builder.
-        val blockType = Km.FUNCTION1.asType().also {
-            it.annotations.add(KmAnnotation("kotlin/ExtensionFunctionType", emptyMap()))
-            it.arguments += KmTypeProjection(KmVariance.IN, builderKmType)
-            it.arguments += KmTypeProjection(KmVariance.INVARIANT, Km.UNIT.asType())
-        }
-
-        val invokeFunction = KmFunction("invoke").also {
-            it.visibility = Visibility.PUBLIC
-            it.modality = Modality.FINAL
-            it.isOperator = true
-            it.returnType = this.kmType
-            it.valueParameters.addAll(
-                listOf(
-                    KmValueParameter("context").also { p -> p.type = contextType },
-                    KmValueParameter("block").also { p -> p.type = blockType }
-                )
-            )
-        }
-
-        val builderJavaName = this.kmName.append(".Builder").asJavaName
-        val outerJavaName = this.kmName.asJavaName
-
-        ofObject.addFunction(
-            invokeFunction,
-            body = buildString {
-                append("{\n")
-                checkNotNullParameterExpression(contextType, 1, "context")?.let { append(it).append("\n") }
-                checkNotNullParameterExpression(blockType, 2, "block")?.let { append(it).append("\n") }
-                append("$builderJavaName builder = new $builderJavaName($1);\n")
-                append("$2.invoke(builder);\n")
-                append("return ($outerJavaName) builder.build();\n")
-                append("}")
-            }
-        )
-
+        addOfObject(contextType)
         return this
     }
 

@@ -70,6 +70,7 @@ private class InputBuilderGenV2(
         )
         builderClass
             .addSupertype(cfg.INPUT_LIKE_BASE_BUILDER.asKmName.asType())
+            .addInputValueBuilderSupertype()
             .addContextProperty()
             .addInputDataProperty()
             .addGraphQLInputObjectTypeProperty()
@@ -77,6 +78,13 @@ private class InputBuilderGenV2(
             .addPublicConstructorWithContext()
             .addFieldSetters()
             .addBuildFun()
+    }
+
+    private fun CustomClassBuilder.addInputValueBuilderSupertype(): CustomClassBuilder {
+        val inputValueBuilderType = cfg.INPUT_VALUE_BUILDER.asKmName.asType().also {
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, builderFor)
+        }
+        return addSupertype(inputValueBuilderType)
     }
 
     private fun CustomClassBuilder.addContextProperty(): CustomClassBuilder =
@@ -287,7 +295,8 @@ private class InputBuilderGenV2(
                 append("this.validateInputDataAndThrowAsTenantError();\n")
                 append("return new ${builderFor.name.asJavaBinaryName}(this.getContext(), this.getInputData(), this.getGraphQLInputObjectType());\n")
                 append("}")
-            }
+            },
+            bridgeParameters = setOf(-1)
         )
         return this
     }

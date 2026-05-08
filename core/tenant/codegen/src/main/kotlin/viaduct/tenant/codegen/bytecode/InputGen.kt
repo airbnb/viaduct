@@ -66,6 +66,7 @@ private fun GRTClassFilesBuilder.makeInputClass(
     InputClassGen(this, fields, builder, overrideFieldNames)
     builder.addSupertype(taggingInterface.asType())
     this.inputBuilderGen(fields, builder, taggingInterface, containingField)
+    builder.addInputOfObject()
 
     return builder
 }
@@ -258,4 +259,8 @@ private class InputClassGen(
         )
         return this
     }
+}
+
+private fun CustomClassBuilder.addInputOfObject() {
+    addOfObject(cfg.EXECUTION_CONTEXT.asKmName.asType())
 }
