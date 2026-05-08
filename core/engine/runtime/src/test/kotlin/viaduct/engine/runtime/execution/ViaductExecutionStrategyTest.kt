@@ -11,6 +11,7 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldComplete
 import graphql.schema.DataFetcher
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ObsoleteCoroutinesApi
@@ -83,7 +84,7 @@ class ViaductExecutionStrategyTest {
     // are I/O-bound (database queries, API calls), giving plenty of time for all loads to register
     // before any batch completes. The batching logic being tested here is identical regardless of
     // thread count - we're just eliminating timing variance in the test fixture.
-    @OptIn(ObsoleteCoroutinesApi::class)
+    @OptIn(ObsoleteCoroutinesApi::class, DelicateCoroutinesApi::class)
     val nextTickDispatcher = NextTickDispatcher(
         wrappedDispatcher = kotlinx.coroutines.newSingleThreadContext("test-dispatcher"),
         flagManager = FlagManager.disabled
@@ -1104,7 +1105,7 @@ class ViaductExecutionStrategyTest {
                 val strategy = createTestStrategy()
                 val childStarted = CompletableDeferred<Unit>()
                 val childCancellationCause = CompletableDeferred<Throwable?>()
-                var outerSupervisorJobId: Int? = null
+                var outerSupervisorJobId: Int?
                 var innerSupervisorJobId: Int? = null
 
                 strategy.withRequestSupervisor { outerFactory ->

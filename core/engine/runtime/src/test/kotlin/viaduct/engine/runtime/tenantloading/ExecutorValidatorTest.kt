@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
+
 package viaduct.engine.runtime.tenantloading
 
 import org.junit.jupiter.api.Test

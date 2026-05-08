@@ -16,6 +16,7 @@ import viaduct.engine.api.Engine
 import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.SchemaId
 
+@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
 class EngineRegistryTest {
     companion object {
         private const val SIMPLE_SDL = """

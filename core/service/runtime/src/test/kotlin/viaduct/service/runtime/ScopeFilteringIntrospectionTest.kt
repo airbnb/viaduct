@@ -20,6 +20,7 @@ import viaduct.service.api.spi.FlagManager.Flag
  * Verifies that fields belonging to scopes not registered in the SchemaId are excluded
  * from introspection queries, preventing information leakage across scope boundaries.
  */
+@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
 @ExperimentalCoroutinesApi
 class ScopeFilteringIntrospectionTest {
     private lateinit var subject: StandardViaduct

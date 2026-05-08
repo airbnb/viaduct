@@ -909,6 +909,7 @@ private fun MockLegacyTenantModuleBootstrapperDSL<Unit>.fieldWithFromFieldVariab
     }
 }
 
+@Suppress("NO_TAIL_CALLS_FOUND", "NON_TAIL_RECURSIVE_CALL") // recursive call is wrapped in takeIf/?.
 private tailrec fun Throwable.unwrap(): Throwable = cause?.takeIf { it !== this }?.unwrap() ?: this
 
 private inline fun <reified T : Throwable> Throwable.unwrapAs(): T =

@@ -48,6 +48,7 @@ class FactoryDiscoveryTest {
         assertNotNull(provider)
     }
 
+    @Suppress("USELESS_IS_CHECK") // intentional: verifies discovery returns the expected interface type
     @Test
     fun `discovered provider should be instantiable`() {
         // Given: Provider is discovered

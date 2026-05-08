@@ -36,6 +36,7 @@ import viaduct.service.api.spi.FlagManager.Flag
  * - Sync/async execution consistency
  * - Build-time scope validation
  */
+@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
 @ExperimentalCoroutinesApi
 class ViaductScopedSchemaIntegrationTest {
     private lateinit var subject: StandardViaduct

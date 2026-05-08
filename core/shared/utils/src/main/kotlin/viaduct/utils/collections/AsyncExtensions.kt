@@ -1,6 +1,7 @@
 package viaduct.utils.collections
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -25,6 +26,7 @@ import kotlinx.coroutines.sync.Semaphore
  *                     operations to complete
  * @param block the operation to execute on each value of the input
  */
+@OptIn(DelicateCoroutinesApi::class)
 @ExperimentalCoroutinesApi
 fun <T, R> Iterable<T>.parallelMap(
     parallelWorkers: Int = 10,

@@ -83,6 +83,7 @@ class JavaClassLoaderClassFinderTest {
         }
 
         @Test
+        @Suppress("DEPRECATION")
         fun `getClassAnnotations returns multiple annotations`() {
             val cls = MultiAnnotatedClass::class.java
             val annotations = classFinder.getClassAnnotations(cls)

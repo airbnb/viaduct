@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // for imports of legacy bootstrap shim
+
 package viaduct.service.runtime
 
 import com.google.inject.AbstractModule
@@ -104,6 +106,7 @@ internal class SchemaScopedModule(
 
     @Provides
     @Singleton
+    @Suppress("DEPRECATION")
     fun providesDispatcherRegistry(
         validator: ExecutorValidator,
         checkerExecutorFactory: CheckerExecutorFactory,

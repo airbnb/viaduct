@@ -208,6 +208,7 @@ class ViaductInstrumentationAdapterTest {
         assert(instrumentationBase.beginNodeFetchingCalled)
     }
 
+    @Suppress("USELESS_IS_CHECK") // intentional: verifies the adapter returns the expected type
     @Test
     fun `asStandardInstrumentation method returns adapter`() {
         val base = TestModernInstrumentation()

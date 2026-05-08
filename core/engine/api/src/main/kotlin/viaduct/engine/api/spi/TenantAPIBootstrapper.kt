@@ -9,9 +9,12 @@ import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrappe
  * This is a type alias for the generic TenantAPIBootstrapper from service/api/spi,
  * specialized for LegacyTenantModuleBootstrapper.
  */
+// LegacyTenantModuleBootstrapper is deprecated but retained as a shim until file-based bootstrap is fully rolled out
+@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
 typealias TenantAPIBootstrapper = BaseTenantAPIBootstrapper<LegacyTenantModuleBootstrapper>
 
 /** flatten an Iterable of TenantAPIBootstrapper into a single instance */
+@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
 fun Iterable<TenantAPIBootstrapper>.flatten(): TenantAPIBootstrapper =
     with(BaseTenantAPIBootstrapper) {
         this@flatten.flatten()

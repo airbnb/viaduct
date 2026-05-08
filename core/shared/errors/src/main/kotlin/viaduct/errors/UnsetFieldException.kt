@@ -10,6 +10,7 @@ import viaduct.apiannotations.StableApi
  * Note: the contents of the [details] parameter are not guaranteed to be stable.
  */
 @StableApi
+@OptIn(InternalApi::class)
 class UnsetFieldException
     @InternalApi
     constructor(

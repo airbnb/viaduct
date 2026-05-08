@@ -21,6 +21,7 @@ import viaduct.service.api.spi.ErrorBuilder
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.ResolverErrorBuilder
 
+@Suppress("UNCHECKED_CAST")
 @ExperimentalCoroutinesApi
 class AccessCheckExecutionTest {
     companion object {

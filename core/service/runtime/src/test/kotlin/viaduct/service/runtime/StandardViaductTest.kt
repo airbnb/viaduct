@@ -28,6 +28,7 @@ import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
 
+@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
 class StandardViaductTest {
     private lateinit var subject: StandardViaduct
     private lateinit var dataFetcherExceptionHandler: DataFetcherExceptionHandler

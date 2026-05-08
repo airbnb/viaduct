@@ -27,6 +27,7 @@ class DefaultViaductFactoryTest {
         assertNotNull(viaduct, "Viaduct instance should be created")
     }
 
+    @Suppress("USELESS_IS_CHECK") // intentional: verifies the factory returns the expected interface type
     @Test
     fun `created Viaduct should be usable for queries`() {
         // Given: Factory creates Viaduct with a package prefix

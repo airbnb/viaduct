@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
+@Suppress("UNCHECKED_CAST")
 class IntrospectionConformanceTest {
     private val sdl: String = """
         directive @dir1 on FIELD_DEFINITION

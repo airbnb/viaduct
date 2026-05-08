@@ -69,6 +69,7 @@ class ViaductServer(
      *
      * If port is set to 0, the server will bind to any available port.
      */
+    @Suppress("CAST_NEVER_SUCCEEDS") // Ktor 2.x/3.x compatibility: runtime type varies by version
     fun start() {
         logger.info("Starting Viaduct Development Server...")
 

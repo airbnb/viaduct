@@ -1,4 +1,4 @@
-@file:Suppress("DEPRECATION")
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
 
 package viaduct.service.runtime
 

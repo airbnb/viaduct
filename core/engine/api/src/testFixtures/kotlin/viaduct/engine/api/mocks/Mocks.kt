@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
 @file:OptIn(VisibleForTest::class)
 
 package viaduct.engine.api.mocks
@@ -201,7 +201,9 @@ open class MockFieldBatchResolverExecutor(
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> = batchResolveFn(selectors, context)
 }
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 private val testScheduler: TestCoroutineScheduler = TestCoroutineScheduler()
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 private val internalDispatcher: TestDispatcher = UnconfinedTestDispatcher(testScheduler)
 
 @OptIn(ExperimentalCoroutinesApi::class)

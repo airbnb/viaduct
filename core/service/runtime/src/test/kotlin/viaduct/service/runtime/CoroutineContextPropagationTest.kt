@@ -15,6 +15,7 @@ import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 
+@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
 class CoroutineContextPropagationTest {
     data class TestContext(val bar: Int?) : CoroutineContext.Element {
         companion object Key : CoroutineContext.Key<TestContext>

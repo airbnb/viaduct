@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test
  * 2. GraphQL introspection queries work correctly on /graphql
  * 3. The GraphiQL IDE can successfully fetch the schema
  */
+@Suppress("UNNECESSARY_NOT_NULL_ASSERTION") // !! used after assertNotNull for explicit test clarity
 class GraphiQLEndpointTest {
     private lateinit var helper: ViaductServerTestHelper
 

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
  * properly included in introspection responses, which is required for GraphiQL 5
  * compatibility.
  */
+@Suppress("UNNECESSARY_NOT_NULL_ASSERTION") // !! used after assertNotNull for explicit test clarity
 class IntrospectionTest {
     private lateinit var helper: ViaductServerTestHelper
 

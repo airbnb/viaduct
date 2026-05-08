@@ -300,7 +300,7 @@ private class MmAccessTimeCommand : CliktCommand(
                             /* Can't do:
                             def.unions.forEach { unions++ }
                              */
-                            gqlSchema.getImplementations(def).forEach { members++ }
+                            gqlSchema.getImplementations(def)?.forEach { _ -> members++ }
                         }
 
                         is GraphQLObjectType -> {

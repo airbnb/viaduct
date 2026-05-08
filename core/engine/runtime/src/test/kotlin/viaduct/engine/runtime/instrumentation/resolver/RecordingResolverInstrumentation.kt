@@ -72,6 +72,7 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
             }
         }
 
+    @Suppress("REDUNDANT_INLINE_SUSPEND_FUNCTION_TYPE")
     private suspend inline fun <T> recordExecution(
         executeFn: suspend () -> T,
         record: (result: Any?, error: Throwable?) -> Unit

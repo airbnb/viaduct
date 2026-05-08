@@ -89,6 +89,7 @@ val EngineConfiguration.Companion.featureTestDefault: EngineConfiguration
  *
  * and an [EngineConfiguration] constructed with MockFlagManager.Enabled.
  */
+@Suppress("OPT_IN_USAGE") // DispatcherRegistryFactory is experimental
 private fun MockLegacyTenantModuleBootstrapper.toEngineFactory(
     withoutDefaultQueryNodeResolvers: Boolean,
     engineConfig: EngineConfiguration?

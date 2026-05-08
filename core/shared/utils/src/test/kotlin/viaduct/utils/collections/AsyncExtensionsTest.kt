@@ -133,6 +133,7 @@ class AsyncExtensionsTest {
 
     @OptIn(ObsoleteCoroutinesApi::class)
     @Test
+    @Suppress("DEPRECATION")
     fun testParallelMapBuffered() {
         runBlocking {
             val testList = listOf(1, 2, 3, 4)
