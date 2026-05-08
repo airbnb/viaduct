@@ -11,7 +11,6 @@ while maintaining Viaduct's authorship semantics:
 """
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 from collections import defaultdict
@@ -462,8 +461,6 @@ def generate_changelog(tag1: str, tag2: str) -> str:
     """
     parser = ConventionalCommitParser()
 
-    release_ver = os.environ['RELEASE_VER']
-
     # Get and parse all commits
     entries: list[ChangelogEntry] = []
     for commit in get_commits_between_tags(tag1, tag2):
@@ -471,11 +468,10 @@ def generate_changelog(tag1: str, tag2: str) -> str:
         if entry:
             entries.append(entry)
 
-    if not entries:
-        return f"# Version {release_ver}\n\nNo changes.\n"
-
     # Drop PR-merge duplicates of SHA-tagged entries (see dedupe_entries)
     entries = dedupe_entries(entries)
+    if not entries:
+        return "No changes.\n"
 
     # Separate breaking changes
     breaking_entries = [e for e in entries if e.is_breaking]
@@ -491,7 +487,7 @@ def generate_changelog(tag1: str, tag2: str) -> str:
     )
 
     # Build changelog
-    sections = [f"# Version {release_ver}", ""]
+    sections: list[str] = []
 
     # Add breaking changes first if any
     if breaking_entries:

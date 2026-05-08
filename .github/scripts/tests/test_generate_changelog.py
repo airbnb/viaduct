@@ -1,4 +1,3 @@
-import os
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -560,31 +559,19 @@ class TestGenerateChangelog(unittest.TestCase):
             co_authors_raw=co_authors_raw,
         )
 
-    @patch.dict(os.environ, {"RELEASE_VER": "0.32.0"})
     @patch("generate_changelog.get_commits_between_tags")
-    def test_uses_release_ver_for_header(self, mock_get_commits):
+    def test_omits_version_header(self, mock_get_commits):
         mock_get_commits.return_value = iter([
             self._commit("abc1234", "feat: add a thing"),
         ])
         changelog = generate_changelog("v0.31.0", "HEAD")
-        self.assertIn("# Version 0.32.0", changelog)
-        self.assertNotIn("# Version HEAD", changelog)
+        self.assertNotIn("# Version", changelog)
 
-    @patch.dict(os.environ, {"RELEASE_VER": "1.2.3"})
     @patch("generate_changelog.get_commits_between_tags")
-    def test_uses_release_ver_for_empty_changelog(self, mock_get_commits):
+    def test_empty_changelog(self, mock_get_commits):
         mock_get_commits.return_value = iter([])
         changelog = generate_changelog("v1.2.2", "HEAD")
-        self.assertEqual(changelog, "# Version 1.2.3\n\nNo changes.\n")
-
-    @patch.dict(os.environ, {}, clear=True)
-    @patch("generate_changelog.get_commits_between_tags")
-    def test_missing_release_ver_raises(self, mock_get_commits):
-        mock_get_commits.return_value = iter([
-            self._commit("abc1234", "feat: add a thing"),
-        ])
-        with self.assertRaises(KeyError):
-            generate_changelog("v0.31.0", "HEAD")
+        self.assertEqual(changelog, "No changes.\n")
 
 
 class TestRenderBreakingChanges(unittest.TestCase):
