@@ -21,7 +21,7 @@ dependencies {
     // Viaduct engine API (Kotlin)
     api(libs.viaduct.engine.api)
 
-    // Viaduct service API (for TenantCodeInjector)
+    // Viaduct service API (for CodeInjector)
     api(libs.viaduct.service.api)
 
     // Kotlin coroutines for async bridging

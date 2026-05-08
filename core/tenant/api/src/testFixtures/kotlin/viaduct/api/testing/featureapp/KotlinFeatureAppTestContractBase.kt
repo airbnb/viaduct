@@ -20,7 +20,7 @@ import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.service.api.spi.SharedTenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
+import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
 import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
 import viaduct.tenant.runtime.bootstrap.ViaductTenantResolverClassFinderFactory
 
@@ -43,7 +43,7 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
     protected open val validateResolverCompleteness: Boolean = true
 
     private val injector: Injector by lazy { Guice.createInjector(guiceModules()) }
-    protected val guiceCodeInjector by lazy { GuiceTenantCodeInjector(injector) }
+    protected val guiceCodeInjector by lazy { GuiceCodeInjector(injector) }
 
     private val globalIdCodec = GlobalIDCodecDefault
 

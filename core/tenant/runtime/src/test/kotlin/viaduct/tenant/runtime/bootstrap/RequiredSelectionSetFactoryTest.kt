@@ -56,7 +56,7 @@ import viaduct.tenant.runtime.internal.VariablesProviderInfo
  * because they only validate structure and configuration, not runtime execution behavior.
  */
 class RequiredSelectionSetFactoryTest {
-    private val injector = GuiceTenantCodeInjector(Guice.createInjector())
+    private val injector = GuiceCodeInjector(Guice.createInjector())
     private val defaultSchema = MockSchema.mk(
         """
         extend type Query {

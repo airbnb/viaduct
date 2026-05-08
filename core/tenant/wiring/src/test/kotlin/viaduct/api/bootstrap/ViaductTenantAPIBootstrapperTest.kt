@@ -30,7 +30,7 @@ import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.service.api.spi.CodeInjector
-import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
+import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinder
 import viaduct.tenant.runtime.bootstrap.TestTenantPackageFinder
@@ -109,7 +109,7 @@ class ViaductTenantAPIBootstrapperTest {
                     override fun configure() {
                         bind(GraphQLSchema::class.java).toInstance(schema.schema)
                         bind(TenantPackageFinder::class.java).toInstance(TestTenantPackageFinder(listOf(TestTenantModule::class)))
-                        bind(CodeInjector::class.java).toInstance(GuiceTenantCodeInjector(codeInjector))
+                        bind(CodeInjector::class.java).toInstance(GuiceCodeInjector(codeInjector))
 
                         bind(AFieldResolver::class.java).`in`(Singleton::class.java)
                         bind(TestBatchNodeResolver::class.java).`in`(Singleton::class.java)
@@ -125,7 +125,7 @@ class ViaductTenantAPIBootstrapperTest {
         runBlocking {
             @Suppress("DEPRECATION")
             tenantAPIBootstrapper = ViaductTenantAPIBootstrapper.Builder()
-                .tenantCodeInjector(GuiceTenantCodeInjector(codeInjector))
+                .tenantCodeInjector(GuiceCodeInjector(codeInjector))
                 .tenantPackageFinder(injector.getInstance(TenantPackageFinder::class.java))
                 .tenantResolverClassFinderFactory { tenantResolverClassFinder }
                 .create()

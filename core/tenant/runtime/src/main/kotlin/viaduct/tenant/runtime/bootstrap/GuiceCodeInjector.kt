@@ -6,6 +6,6 @@ import viaduct.apiannotations.VisibleForTest
 import viaduct.service.api.spi.CodeInjector
 
 @VisibleForTest
-class GuiceTenantCodeInjector(val injector: Injector) : CodeInjector {
+class GuiceCodeInjector(val injector: Injector) : CodeInjector {
     override fun <T> getProvider(clazz: Class<T>): Provider<T> = injector.getProvider(clazz)
 }

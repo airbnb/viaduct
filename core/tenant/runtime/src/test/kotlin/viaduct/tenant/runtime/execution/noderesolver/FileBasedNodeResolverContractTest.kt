@@ -13,7 +13,7 @@ import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.tenant.runtime.bootstrap.GuiceTenantCodeInjector
+import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
 import viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory
 
 class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
@@ -103,7 +103,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
         )
 
         val factory = ViaductModernExecutorFactory(
-            codeInjector = GuiceTenantCodeInjector(injector),
+            codeInjector = GuiceCodeInjector(injector),
             grtPackagePrefix = "viaduct.tenant.runtime.execution.noderesolver",
             configUrl = URI("file:///dev/null").toURL(),
         )
