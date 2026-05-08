@@ -101,7 +101,6 @@ viaduct-errors = { module = "com.airbnb.viaduct.shared:errors", version.ref = "p
 
 viaduct-gradle-plugins-common = { module = "com.airbnb.viaduct.gradle:common", version.ref = "project" }
 
-viaduct-snipped-errors = { module = "com.airbnb.viaduct:errors", version.ref = "project" }
 viaduct-buildtime = { module = "com.airbnb.viaduct:buildtime", version.ref = "project" }
 viaduct-serve = { module = "com.airbnb.viaduct.service:serve", version.ref = "project" }
 

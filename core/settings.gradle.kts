@@ -50,7 +50,6 @@ include(":shared:invariants")
 include(":shared:codegen")
 include(":shared:mapping")
 include(":shared:errors")
-include(":snipped:errors")
 
 // Serve module (development server runtime)
 include(":service:serve")

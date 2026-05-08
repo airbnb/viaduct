@@ -28,7 +28,6 @@ dependencies {
     jacocoAggregation(libs.viaduct.shared.mapping)
     jacocoAggregation(libs.viaduct.shared.utils)
     jacocoAggregation(libs.viaduct.shared.viaductschema)
-    jacocoAggregation(libs.viaduct.snipped.errors)
     jacocoAggregation(libs.viaduct.tenant.api)
     jacocoAggregation(libs.viaduct.tenant.codegen)
     jacocoAggregation(libs.viaduct.tenant.runtime)
