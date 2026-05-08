@@ -17,13 +17,13 @@ class ViaductModulePluginFunctionalTest {
     lateinit var projectDir: File
 
     /**
-     * Returns the combined plugin classpath: the module plugin's auto-detected classpath plus
-     * the application plugin's location (needed for multi-project functional tests).
+     * Returns the full test runtime classpath as the plugin classpath, which includes the module
+     * plugin, application plugin, KSP, and all transitive dependencies.
      */
     private fun combinedPluginClasspath(): List<File> {
-        val moduleClasspath = GradleRunner.create().withPluginClasspath().pluginClasspath
-        val appPluginJar = File(ViaductApplicationPlugin::class.java.protectionDomain.codeSource.location.toURI())
-        return moduleClasspath + listOf(appPluginJar)
+        return System.getProperty("java.class.path")
+            .split(File.pathSeparator)
+            .map { File(it) }
     }
 
     @Test
@@ -62,8 +62,10 @@ class ViaductModulePluginFunctionalTest {
             """
             plugins {
                 `java-library`
+                kotlin("jvm")
                 id("com.airbnb.viaduct.application-gradle-plugin")
                 id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
             }
             viaductApplication {
                 modulePackagePrefix.set("com.example.test")
@@ -179,7 +181,9 @@ class ViaductModulePluginFunctionalTest {
         File(moduleDir, "build.gradle.kts").writeText(
             """
             plugins {
+                kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
             }
             viaductModule {
                 modulePackageSuffix.set("test")
@@ -222,7 +226,9 @@ class ViaductModulePluginFunctionalTest {
             """
             plugins {
                 `java-library`
+                kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
             }
             dependencies {
                 implementation(project(":moduleB"))
@@ -237,7 +243,9 @@ class ViaductModulePluginFunctionalTest {
             """
             plugins {
                 `java-library`
+                kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
             }
             """.trimIndent()
         )
@@ -280,7 +288,9 @@ class ViaductModulePluginFunctionalTest {
             """
             plugins {
                 `java-library`
+                kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
             }
             dependencies {
                 implementation(project(":libproject"))
@@ -333,7 +343,9 @@ class ViaductModulePluginFunctionalTest {
             """
             plugins {
                 `java-library`
+                kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
             }
             dependencies {
                 implementation(project(":lib:module"))
@@ -384,7 +396,9 @@ class ViaductModulePluginFunctionalTest {
         File(moduleDir, "build.gradle.kts").writeText(
             """
             plugins {
+                kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
             }
             viaductModule {
                 modulePackageSuffix.set("mymodule")
@@ -426,7 +440,9 @@ class ViaductModulePluginFunctionalTest {
         File(moduleDir, "build.gradle.kts").writeText(
             """
             plugins {
+                kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
             }
             viaductModule {
                 modulePackageSuffix.set("test")

@@ -221,16 +221,15 @@ class ViaductModulePlugin : Plugin<Project> {
             }
         }
 
-        // If KSP is not applied by afterEvaluate, log a warning. The module will
-        // still build but won't produce a module config file (runtime will fall back
-        // to ClassGraph scanning).
         afterEvaluate {
             if (!plugins.hasPlugin("com.google.devtools.ksp")) {
-                logger.warn(
-                    "Viaduct module '{}': KSP not applied. " +
-                        "Apply 'com.google.devtools.ksp' to enable file-based module registration " +
-                        "(eliminates ClassGraph scanning at startup).",
-                    project.path
+                throw GradleException(
+                    "Viaduct module '${project.displayName}' requires the KSP plugin but it is not applied.\n" +
+                        "Add 'com.google.devtools.ksp' to your plugins block:\n" +
+                        "  plugins {\n" +
+                        "    id(\"com.google.devtools.ksp\") version \"<kotlin-version>-<ksp-version>\"\n" +
+                        "  }\n" +
+                        "See the Viaduct documentation for supported Kotlin and KSP versions."
                 )
             }
         }

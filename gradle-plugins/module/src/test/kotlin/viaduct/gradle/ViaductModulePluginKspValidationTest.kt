@@ -4,7 +4,6 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.io.TempDir
 
@@ -14,7 +13,7 @@ import org.junit.jupiter.api.io.TempDir
  * Covers:
  * - Kotlin version range validation (unit tests on static function)
  * - KSP version mismatch detection (unit tests on static function)
- * - KSP-absent warning (TestKit)
+ * - KSP-absent error (TestKit)
  */
 class ViaductModulePluginKspValidationTest {
     // ── Kotlin version range validation ─────────────────────────────────────
@@ -65,7 +64,7 @@ class ViaductModulePluginKspValidationTest {
         assertNull(ViaductModulePlugin.validateKotlinVersion("not-a-version"))
     }
 
-    // ── KSP-absent warning (TestKit) ────────────────────────────────────────
+    // ── KSP-absent error (TestKit) ───────────────────────────────────────────
 
     @TempDir
     lateinit var projectDir: File
@@ -77,7 +76,7 @@ class ViaductModulePluginKspValidationTest {
     }
 
     @Test
-    fun `module without KSP logs warning about ClassGraph fallback`() {
+    fun `module without KSP fails with actionable error`() {
         File(projectDir, "settings.gradle.kts").writeText("""rootProject.name = "test"""")
         File(projectDir, "build.gradle.kts").writeText(
             """
@@ -100,11 +99,10 @@ class ViaductModulePluginKspValidationTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withPluginClasspath(combinedPluginClasspath())
-            .withArguments("help", "--warning-mode=all")
-            .build()
+            .withArguments("help")
+            .buildAndFail()
 
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertContains(result.output, "KSP not applied")
-        assertContains(result.output, "ClassGraph")
+        assertContains(result.output, "BUILD FAILED")
+        assertContains(result.output, "com.google.devtools.ksp")
     }
 }

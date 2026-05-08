@@ -27,6 +27,8 @@ dependencies {
     testImplementation(gradleTestKit())
     testImplementation(project(":application"))
     testImplementation(libs.assertj.core)
+    testImplementation(libs.ksp.gradle.plugin)
+    testImplementation(libs.kotlin.gradle.plugin)
 }
 
 // Include version in JAR manifest for JAR introspection and debugging
