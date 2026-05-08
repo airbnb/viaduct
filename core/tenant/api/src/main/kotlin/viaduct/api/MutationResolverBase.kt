@@ -3,7 +3,7 @@ package viaduct.api
 import viaduct.api.types.Arguments
 import viaduct.api.types.Mutation
 import viaduct.api.types.Query
-import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.TypeInferenceApi
 
 /**
  * Specialized resolver base for mutation field resolvers. Mutations have no parent object, so
@@ -14,5 +14,5 @@ import viaduct.apiannotations.InternalApi
  * This interface exists to support the testing framework only. Other framework code should depend
  * on [ResolverBase] instead. Generated base classes implement both directly.
  */
-@InternalApi
+@TypeInferenceApi
 interface MutationResolverBase<Q : Query, M : Mutation, A : Arguments, R> : ResolverBase<R>

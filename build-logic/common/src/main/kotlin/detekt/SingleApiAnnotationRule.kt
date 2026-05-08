@@ -10,7 +10,7 @@ import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 
-private val STABILITY_ANNOTATIONS = setOf("StableApi", "ExperimentalApi", "InternalApi", "VisibleForTest")
+private val STABILITY_ANNOTATIONS = setOf("StableApi", "ExperimentalApi", "InternalApi", "TypeInferenceApi", "VisibleForTest")
 
 class SingleApiAnnotationRule(config: Config) : Rule(config) {
     override val issue = Issue(

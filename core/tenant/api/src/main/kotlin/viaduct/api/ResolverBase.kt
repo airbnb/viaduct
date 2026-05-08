@@ -1,11 +1,11 @@
 package viaduct.api
 
-import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.TypeInferenceApi
 
 /**
  * Base interface for field resolver classes.
  *
  * @param T the return type of the resolve function
  */
-@InternalApi
+@TypeInferenceApi
 interface ResolverBase<T>

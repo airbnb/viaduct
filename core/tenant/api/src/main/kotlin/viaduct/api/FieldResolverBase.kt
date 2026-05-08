@@ -3,7 +3,7 @@ package viaduct.api
 import viaduct.api.types.Arguments
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.TypeInferenceApi
 
 /**
  * Specialized resolver base for field resolvers. Exposes type parameters that allow the testing
@@ -14,5 +14,5 @@ import viaduct.apiannotations.InternalApi
  * This interface exists to support the testing framework only. Other framework code should depend
  * on [ResolverBase] instead. Generated base classes implement both directly.
  */
-@InternalApi
+@TypeInferenceApi
 interface FieldResolverBase<O : Object, Q : Query, A : Arguments, R> : ResolverBase<R>

@@ -11,7 +11,7 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 
-private val NON_STABLE_ANNOTATIONS = setOf("ExperimentalApi", "InternalApi", "VisibleForTest")
+private val NON_STABLE_ANNOTATIONS = setOf("ExperimentalApi", "InternalApi", "TypeInferenceApi", "VisibleForTest")
 
 class ApiAnnotationConflictRule(config: Config) : Rule(config) {
     override val issue = Issue(

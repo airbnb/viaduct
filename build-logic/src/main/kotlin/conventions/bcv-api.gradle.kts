@@ -21,6 +21,7 @@ configure<ApiValidationExtension> {
     publicMarkers.add("viaduct.apiannotations.StableApi")
     nonPublicMarkers.add("viaduct.apiannotations.ExperimentalApi")
     nonPublicMarkers.add("viaduct.apiannotations.InternalApi")
+    nonPublicMarkers.add("viaduct.apiannotations.TypeInferenceApi")
     nonPublicMarkers.add("viaduct.apiannotations.VisibleForTest")
 }
 
