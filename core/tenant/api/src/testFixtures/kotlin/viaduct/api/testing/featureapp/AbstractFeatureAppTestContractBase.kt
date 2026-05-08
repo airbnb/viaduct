@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import viaduct.api.testing.TestSchema
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.service.ViaductBuilder
 import viaduct.service.api.ExecutionInput
@@ -90,6 +91,7 @@ abstract class AbstractFeatureAppTestContractBase {
     }
 
     @BeforeEach
+    @OptIn(VisibleForTest::class)
     open fun initViaductBuilder() {
         if (!::viaductBuilder.isInitialized) {
             viaductBuilder = ViaductBuilder()

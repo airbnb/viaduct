@@ -363,6 +363,7 @@ class ViaductServer(
     /**
      * Configures the Ktor application.
      */
+    @Suppress("UNNECESSARY_SAFE_CALL") // defensive: errors list is non-null but ?. used for safety
     private fun Application.configureApplication(
         loggerRef: org.slf4j.Logger,
         mapperRef: ObjectMapper
