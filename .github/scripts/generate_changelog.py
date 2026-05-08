@@ -471,11 +471,10 @@ def generate_changelog(tag1: str, tag2: str) -> str:
         if entry:
             entries.append(entry)
 
-    if not entries:
-        return f"# Version {release_ver}\n\nNo changes.\n"
-
     # Drop PR-merge duplicates of SHA-tagged entries (see dedupe_entries)
     entries = dedupe_entries(entries)
+    if not entries:
+        return "No changes.\n"
 
     # Separate breaking changes
     breaking_entries = [e for e in entries if e.is_breaking]
@@ -491,7 +490,11 @@ def generate_changelog(tag1: str, tag2: str) -> str:
     )
 
     # Build changelog
+<<<<<<< HEAD
     sections = [f"# Version {release_ver}", ""]
+=======
+    sections: list[str] = []
+>>>>>>> 0d38ad45 (build: drop version header from changelog)
 
     # Add breaking changes first if any
     if breaking_entries:
