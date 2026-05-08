@@ -14,12 +14,12 @@ import viaduct.service.api.spi.SharedTenantModuleBootstrapper
 
 internal class BasicViaductFactoryTest {
     @Test
-    fun `should create builder with tenant info`() {
+    fun `create should delegate to createFromResource path`() {
         val tenantInfo = TenantRegistrationInfo("com.test")
 
-        val builder = BasicViaductFactory.builderWithTenantInfo(tenantInfo)
-
-        assertNotNull(builder)
+        assertThrows<Exception> {
+            BasicViaductFactory.create(tenantRegistrationInfo = tenantInfo)
+        }
     }
 
     @Nested
@@ -229,30 +229,6 @@ internal class BasicViaductFactoryTest {
             val builder = BasicViaductFactory.applySchemaRegistry(schemaInfo)
 
             assertNotNull(builder)
-        }
-    }
-
-    @Nested
-    inner class CreateTests {
-        @Test
-        fun `create should attempt to build Viaduct with valid configuration`() {
-            val tenantInfo = TenantRegistrationInfo("com.test")
-            val schemaInfo = SchemaRegistrationInfo()
-
-            // This will throw because no GRT resources exist on classpath
-            // but it exercises the create() code path
-            assertThrows<Exception> {
-                BasicViaductFactory.create(schemaInfo, tenantInfo)
-            }
-        }
-
-        @Test
-        fun `create should use default schema registration info when not provided`() {
-            val tenantInfo = TenantRegistrationInfo("com.test")
-
-            assertThrows<Exception> {
-                BasicViaductFactory.create(tenantRegistrationInfo = tenantInfo)
-            }
         }
     }
 
