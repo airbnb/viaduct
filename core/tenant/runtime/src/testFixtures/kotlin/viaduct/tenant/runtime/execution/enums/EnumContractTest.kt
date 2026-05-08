@@ -25,6 +25,8 @@ import viaduct.graphql.test.assertEquals
     extend type Query {
       "Return the Status.ACTIVE enum value"
       currentStatus: Status @resolver
+      "Return the requestContext cast to Status, or null if none"
+      statusFromRequestContext: Status @resolver
     }
 """
 )
@@ -34,6 +36,15 @@ abstract class EnumContractTest : KotlinFeatureAppTestContractBase() {
         execute(query = "{ currentStatus }").assertEquals {
             "data" to {
                 "currentStatus" to "ACTIVE"
+            }
+        }
+    }
+
+    @Test
+    fun `requestContext is accessible in resolver`() {
+        execute(query = "{ statusFromRequestContext }", requestContext = "INACTIVE").assertEquals {
+            "data" to {
+                "statusFromRequestContext" to "INACTIVE"
             }
         }
     }

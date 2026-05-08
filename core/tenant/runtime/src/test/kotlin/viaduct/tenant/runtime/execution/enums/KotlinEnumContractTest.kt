@@ -8,4 +8,9 @@ class KotlinEnumContractTest : EnumContractTest() {
     class Query_CurrentStatusResolver : QueryResolvers.CurrentStatus() {
         override suspend fun resolve(ctx: Context): Status = Status.ACTIVE
     }
+
+    @Resolver
+    class Query_StatusFromRequestContextResolver : QueryResolvers.StatusFromRequestContext() {
+        override suspend fun resolve(ctx: Context): Status? = (ctx.requestContext as? String)?.let { Status.valueOf(it) }
+    }
 }

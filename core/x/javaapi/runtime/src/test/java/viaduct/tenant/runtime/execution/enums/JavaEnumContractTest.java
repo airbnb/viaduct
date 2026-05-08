@@ -40,6 +40,16 @@ public class JavaEnumContractTest extends EnumContractTest {
     }
   }
 
+  @Resolver
+  public static class StatusFromRequestContextResolver
+      extends QueryResolvers.StatusFromRequestContext {
+    @Override
+    public CompletableFuture<Status> resolve(Context ctx) {
+      Object rc = ctx.getRequestContext();
+      return CompletableFuture.completedFuture(rc instanceof String s ? Status.valueOf(s) : null);
+    }
+  }
+
   // --- Java-only test ---
 
   @Test
