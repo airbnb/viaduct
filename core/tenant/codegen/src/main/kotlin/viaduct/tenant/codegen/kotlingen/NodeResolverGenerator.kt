@@ -136,7 +136,7 @@ private val nodeSt = stTemplate(
     "node(mdl)",
     """
         @NodeResolverFor(typeName = "<mdl.typeName>", isSelective = <mdl.selectiveLiteral>, isBatching = <mdl.batchingLiteral>)
-        abstract class <mdl.typeName> : NodeResolverBase\<<mdl.grtPackage>.<mdl.typeName>\> {
+        abstract class <mdl.typeName> : viaduct.api.ResolverBase\<<mdl.grtPackage>.<mdl.typeName>\>, NodeResolverBase\<<mdl.grtPackage>.<mdl.typeName>\> {
             <if(!mdl.batching)>
             abstract suspend fun resolve(ctx: Context): <mdl.grtPackage>.<mdl.typeName>
             <endif>

@@ -206,6 +206,7 @@ interface ResolverTestBase {
      * @param selections The value of `ctx.selections()` for a selective node resolver context
      * @return The return value of resolver.resolve()
      */
+    @OptIn(InternalApi::class)
     @ExperimentalApi
     suspend fun <T : NodeObject> runNodeResolver(
         resolver: NodeResolverBase<T>,
@@ -233,6 +234,7 @@ interface ResolverTestBase {
      *        selections, use [createNodeResolverContext] instead to construct individual Context objects
      * @return The return value of resolver.batchResolve()
      */
+    @OptIn(InternalApi::class)
     @ExperimentalApi
     suspend fun <T : NodeObject> runNodeBatchResolver(
         resolver: NodeResolverBase<T>,

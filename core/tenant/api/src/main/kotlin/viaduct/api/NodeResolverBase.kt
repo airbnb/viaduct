@@ -1,12 +1,15 @@
 package viaduct.api
 
 import viaduct.api.types.NodeObject
-import viaduct.apiannotations.StableApi
+import viaduct.apiannotations.InternalApi
 
 /**
- * Base interface for node resolver classes
+ * Specialized resolver base for node resolvers.
  *
- * @param T the return type of the resolve function
+ * @param T the node object type returned by the resolver
+ *
+ * This interface exists to support the testing framework only. Other framework code should depend
+ * on [ResolverBase] instead. Generated base classes implement both directly.
  */
-@StableApi
-interface NodeResolverBase<T : NodeObject>
+@InternalApi
+interface NodeResolverBase<T : NodeObject> : ResolverBase<T>

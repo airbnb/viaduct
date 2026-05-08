@@ -3,13 +3,16 @@ package viaduct.api
 import viaduct.api.types.Arguments
 import viaduct.api.types.Mutation
 import viaduct.api.types.Query
-import viaduct.apiannotations.StableApi
+import viaduct.apiannotations.InternalApi
 
 /**
- * Typed base for mutation field resolvers.
+ * Specialized resolver base for mutation field resolvers. Mutations have no parent object, so
+ * this interface has no O parameter unlike [FieldResolverBase].
  *
- * Note: mutations have no parent object, so this interface has no O parameter.
- * The parameter order is: Q = query type, M = mutation type, A = arguments type, R = return type.
+ * Q = query type, M = mutation type, A = arguments type, R = return type.
+ *
+ * This interface exists to support the testing framework only. Other framework code should depend
+ * on [ResolverBase] instead. Generated base classes implement both directly.
  */
-@StableApi
+@InternalApi
 interface MutationResolverBase<Q : Query, M : Mutation, A : Arguments, R> : ResolverBase<R>

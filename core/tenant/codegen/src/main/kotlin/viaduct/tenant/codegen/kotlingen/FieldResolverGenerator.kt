@@ -101,6 +101,7 @@ private interface ResolverModel {
     val selectiveCtxInterface: String
     val ctxOutputType: String
     val resolverBase: String
+    val resolverBaseGeneric: String
 }
 
 private class ResolversModelImpl(
@@ -181,6 +182,7 @@ private class ResolverModelImpl(
             else ->
                 "viaduct.api.FieldResolverBase<$grtTypeName, $queryGrtTypeName, $grtArgsName, $typeSpecifier>"
         }
+    override val resolverBaseGeneric: String = "viaduct.api.ResolverBase<$typeSpecifier>"
 }
 
 private val resolversST = stTemplate(
@@ -208,7 +210,7 @@ private val resolverST = stTemplate(
     "resolver(mdl)",
     """
     @ResolverFor(typeName = "<mdl.gqlTypeName>", fieldName = "<mdl.gqlFieldName>", isSelective = <mdl.selectiveLiteral>, isBatching = <mdl.batchingLiteral>)
-    abstract class <mdl.resolverName> : <mdl.resolverBase> {
+    abstract class <mdl.resolverName> : <mdl.resolverBaseGeneric>, <mdl.resolverBase> {
         class Context(
             private val inner: <mdl.ctxInterface>
         ) : <mdl.ctxInterface> by inner<if(mdl.selective)>, <mdl.selectiveCtxInterface><endif>, InternalContext by (inner as InternalContext) {
