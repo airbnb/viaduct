@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION")
+@file:Suppress("ForbiddenImport")
 
 package com.example.starwars.service.test
 
@@ -37,16 +37,11 @@ import viaduct.api.grts.Query_AllVehicles_Arguments
 import viaduct.api.grts.Query_SearchCharacter_Arguments
 import viaduct.api.grts.Species
 import viaduct.api.grts.Vehicle
+import viaduct.api.testing.ResolverTestBase
 import viaduct.apiannotations.ExperimentalApi
-import viaduct.engine.SchemaFactory
-import viaduct.engine.api.ViaductSchema
-import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class)
-class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
-    override fun getSchema(): ViaductSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
-
+class QueryResolverUnitTests : ResolverTestBase() {
     lateinit var characterRepository: CharacterRepository
     lateinit var filmsRepository: FilmsRepository
     lateinit var speciesRepository: SpeciesRepository
@@ -76,10 +71,9 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
                 )
                 .build()
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 arguments = args
-            )
+            }
 
             assertNotNull(result)
             result!!
@@ -93,7 +87,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
             val reference = characterRepository.findAll().first()
             val resolver = SearchCharacterQueryResolver(characterRepository)
 
-            val gid = context.globalIDFor(Character.Reflection, reference.id)
+            val gid = globalIDFor(Character.Reflection, reference.id)
 
             val args = Query_SearchCharacter_Arguments.Builder(context)
                 .search(
@@ -103,10 +97,9 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
                 )
                 .build()
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 arguments = args
-            )
+            }
 
             assertNotNull(result)
             assertEquals(reference.name, result!!.getName())
@@ -123,10 +116,9 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
                 .limit(limit)
                 .build()
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 arguments = args
-            )
+            }
 
             assertNotNull(result)
             assertEquals(limit, result!!.size)
@@ -146,10 +138,9 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
                 .limit(limit)
                 .build()
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 arguments = args
-            )
+            }
 
             assertNotNull(result)
             assertEquals(limit, result!!.size)
@@ -169,10 +160,9 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
                 .limit(limit)
                 .build()
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 arguments = args
-            )
+            }
 
             assertNotNull(result)
             assertEquals(limit, result!!.size)
@@ -190,10 +180,9 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
                 .limit(limit)
                 .build()
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 arguments = args
-            )
+            }
 
             assertNotNull(result)
             assertEquals(limit, result!!.size)
@@ -212,10 +201,9 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
                 .limit(limit)
                 .build()
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 arguments = args
-            )
+            }
 
             assertNotNull(result)
             assertEquals(limit, result!!.size)
@@ -232,10 +220,10 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
             val resolver = VehicleNodeResolver(vehiclesRepository)
 
             // Create global ID for the vehicle
-            val vehicleGlobalId = context.globalIDFor(Vehicle.Reflection, ref.id)
+            val vehicleGlobalId = globalIDFor(Vehicle.Reflection, ref.id)
 
             // Use runNodeResolver to fetch vehicle
-            val result = runNodeResolver(resolver, vehicleGlobalId)
+            val result = runNodeResolver(resolver) { id = vehicleGlobalId }
 
             assertNotNull(result)
             assertEquals(ref.name, result.getName())
@@ -249,10 +237,10 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
             val resolver = FilmNodeResolver(filmsRepository)
 
             // Create global ID for the film
-            val filmGlobalId = context.globalIDFor(Film.Reflection, ref.id)
+            val filmGlobalId = globalIDFor(Film.Reflection, ref.id)
 
             // Use runNodeResolver to fetch film
-            val result = runNodeResolver(resolver, filmGlobalId)
+            val result = runNodeResolver(resolver) { id = filmGlobalId }
 
             assertNotNull(result)
             assertEquals(ref.title, result.getTitle())
@@ -264,10 +252,10 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
             val resolver = PlanetNodeResolver(planetsRepository)
 
             // Create global ID for the planet
-            val planetGlobalId = context.globalIDFor(Planet.Reflection, "1")
+            val planetGlobalId = globalIDFor(Planet.Reflection, "1")
 
             // Use runNodeResolver to fetch planet
-            val result = runNodeBatchResolver(resolver, listOf(planetGlobalId))
+            val result = runNodeBatchResolver(resolver) { ids = listOf(planetGlobalId) }
 
             assertNotNull(result)
             assertEquals("Tatooine", result.first().get().getName())
@@ -280,10 +268,10 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
             val resolver = SpeciesNodeQueryResolver(speciesRepository)
 
             // Create global ID for the species
-            val speciesGlobalId = context.globalIDFor(Species.Reflection, ref.id)
+            val speciesGlobalId = globalIDFor(Species.Reflection, ref.id)
 
             // Use runNodeResolver to fetch species
-            val result = runNodeBatchResolver(resolver, listOf(speciesGlobalId))
+            val result = runNodeBatchResolver(resolver) { ids = listOf(speciesGlobalId) }
 
             assertNotNull(result)
             assertEquals(ref.name, result.first().get().getName())
@@ -298,7 +286,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
             // Request first 3 of 5 characters
             val firstPageArgs = Query_AllCharactersConnection_Arguments.Builder(context).first(3).build()
 
-            val firstPage = runFieldResolver(resolver = resolver, arguments = firstPageArgs)
+            val firstPage = runFieldResolver(resolver) { arguments = firstPageArgs }
 
             assertNotNull(firstPage)
             firstPage!!
@@ -309,7 +297,7 @@ class QueryResolverUnitTests : DefaultAbstractResolverTestBase() {
             // Request next 3 from endCursor — only 2 characters remain
             val secondPageArgs = Query_AllCharactersConnection_Arguments.Builder(context).first(3).after(endCursor).build()
 
-            val secondPage = runFieldResolver(resolver = resolver, arguments = secondPageArgs)
+            val secondPage = runFieldResolver(resolver) { arguments = secondPageArgs }
 
             assertNotNull(secondPage)
             assertEquals(2, secondPage!!.getEdges()!!.size)

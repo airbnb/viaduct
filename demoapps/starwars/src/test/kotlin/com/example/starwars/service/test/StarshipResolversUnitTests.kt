@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION")
+@file:Suppress("ForbiddenImport")
 
 package com.example.starwars.service.test
 
@@ -14,11 +14,8 @@ import org.junit.jupiter.api.Test
 import viaduct.api.grts.Query
 import viaduct.api.grts.Query_AllStarships_Arguments
 import viaduct.api.grts.Starship
+import viaduct.api.testing.ResolverTestBase
 import viaduct.apiannotations.ExperimentalApi
-import viaduct.engine.SchemaFactory
-import viaduct.engine.api.ViaductSchema
-import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 /**
  * Integration tests for custom resolvers related to Starship type.
@@ -30,9 +27,7 @@ import viaduct.tenant.testing.DefaultAbstractResolverTestBase
  * are located in QueryResolverUnitTests.kt.
  */
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class)
-class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
-    override fun getSchema(): ViaductSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
-
+class StarshipResolversUnitTests : ResolverTestBase() {
     private lateinit var starshipsRepository: StarshipsRepository
 
     @BeforeEach
@@ -48,12 +43,11 @@ class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
             val resolver = AllStarshipsQueryResolver(starshipsRepository)
             val args = Query_AllStarships_Arguments.Builder(context).build()
 
-            val result = runFieldResolver(
-                resolver = resolver,
-                objectValue = queryObj(),
-                queryValue = queryObj(),
+            val result = runFieldResolver(resolver) {
+                objectValue = queryObj()
+                queryValue = queryObj()
                 arguments = args
-            )
+            }
 
             assertNotNull(result)
             assertEquals(2, result!!.size)
@@ -66,12 +60,11 @@ class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
             val limit = 2
             val args = Query_AllStarships_Arguments.Builder(context).limit(limit).build()
 
-            val result = runFieldResolver(
-                resolver = resolver,
-                objectValue = queryObj(),
-                queryValue = queryObj(),
+            val result = runFieldResolver(resolver) {
+                objectValue = queryObj()
+                queryValue = queryObj()
                 arguments = args
-            )
+            }
 
             assertNotNull(result)
             assertEquals(2, result!!.size)
@@ -86,8 +79,8 @@ class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
             val resolver = StarshipNodeResolver(starshipsRepository)
             val starshipId = "1" // Millennium Falcon ID
 
-            val starshipGlobalId = context.globalIDFor(Starship.Reflection, starshipId)
-            val result = runNodeResolver(resolver, starshipGlobalId)
+            val starshipGlobalId = globalIDFor(Starship.Reflection, starshipId)
+            val result = runNodeResolver(resolver) { id = starshipGlobalId }
 
             assertNotNull(result)
             assertEquals("Millennium Falcon", result.getName())
@@ -100,8 +93,8 @@ class StarshipResolversUnitTests : DefaultAbstractResolverTestBase() {
             val resolver = StarshipNodeResolver(starshipsRepository)
             val starshipId = "2" // X-wing ID
 
-            val starshipGlobalId = context.globalIDFor(Starship.Reflection, starshipId)
-            val result = runNodeResolver(resolver, starshipGlobalId)
+            val starshipGlobalId = globalIDFor(Starship.Reflection, starshipId)
+            val result = runNodeResolver(resolver) { id = starshipGlobalId }
 
             assertNotNull(result)
             assertEquals("X-wing", result.getName())

@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION")
+@file:Suppress("ForbiddenImport")
 
 package com.example.starwars.service.test
 
@@ -16,11 +16,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.Species
+import viaduct.api.testing.ResolverTestBase
 import viaduct.apiannotations.ExperimentalApi
-import viaduct.engine.SchemaFactory
-import viaduct.engine.api.ViaductSchema
-import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.tenant.testing.DefaultAbstractResolverTestBase
 
 /**
  * Integration tests for custom field resolvers on the Species type that
@@ -33,9 +30,7 @@ import viaduct.tenant.testing.DefaultAbstractResolverTestBase
  * are located in QueryResolverUnitTests.kt.
  */
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class)
-class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
-    override fun getSchema(): ViaductSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
-
+class SpeciesExtrasResolverUnitTests : ResolverTestBase() {
     private lateinit var speciesRepository: SpeciesRepository
 
     @BeforeEach
@@ -48,7 +43,7 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
      */
     private fun speciesGrtForId(internalId: String): Species =
         Species.Builder(context)
-            .id(context.globalIDFor(Species.Reflection, internalId))
+            .id(globalIDFor(Species.Reflection, internalId))
             .build()
 
     @Test
@@ -56,10 +51,9 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
         runBlocking {
             val resolver = SpeciesCulturalNotesResolver(speciesRepository)
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 objectValue = speciesGrtForId("1")
-            )
+            }
 
             assertEquals("Diverse species with strong adaptability and technological advancement", result)
         }
@@ -69,10 +63,9 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
         runBlocking {
             val resolver = SpeciesRarityLevelResolver(speciesRepository)
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 objectValue = speciesGrtForId("1")
-            )
+            }
 
             assertEquals("Common", result)
         }
@@ -82,10 +75,9 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
         runBlocking {
             val resolver = SpeciesSpecialAbilitiesResolver(speciesRepository)
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 objectValue = speciesGrtForId("1")
-            )
+            }
 
             // Compare size and content to be robust to nulls
             assertNotNull(result)
@@ -98,10 +90,9 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
         runBlocking {
             val resolver = SpeciesTechnologicalLevelResolver(speciesRepository)
 
-            val result = runFieldResolver(
-                resolver = resolver,
+            val result = runFieldResolver(resolver) {
                 objectValue = speciesGrtForId("1")
-            )
+            }
 
             assertEquals("Advanced", result)
         }
@@ -112,10 +103,10 @@ class SpeciesExtrasResolverUnitTests : DefaultAbstractResolverTestBase() {
             val fakeId = "non-existent-id-123"
             val grt = speciesGrtForId(fakeId)
 
-            val notes = runFieldResolver(SpeciesCulturalNotesResolver(speciesRepository), grt)
-            val rarity = runFieldResolver(SpeciesRarityLevelResolver(speciesRepository), grt)
-            val abilities = runFieldResolver(SpeciesSpecialAbilitiesResolver(speciesRepository), grt)
-            val tech = runFieldResolver(SpeciesTechnologicalLevelResolver(speciesRepository), grt)
+            val notes = runFieldResolver(SpeciesCulturalNotesResolver(speciesRepository)) { objectValue = grt }
+            val rarity = runFieldResolver(SpeciesRarityLevelResolver(speciesRepository)) { objectValue = grt }
+            val abilities = runFieldResolver(SpeciesSpecialAbilitiesResolver(speciesRepository)) { objectValue = grt }
+            val tech = runFieldResolver(SpeciesTechnologicalLevelResolver(speciesRepository)) { objectValue = grt }
 
             assertNull(notes)
             assertNull(rarity)
