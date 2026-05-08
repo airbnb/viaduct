@@ -487,11 +487,7 @@ def generate_changelog(tag1: str, tag2: str) -> str:
     )
 
     # Build changelog
-<<<<<<< HEAD
-    sections = [f"# Version {release_ver}", ""]
-=======
     sections: list[str] = []
->>>>>>> 0d38ad45 (build: drop version header from changelog)
 
     # Add breaking changes first if any
     if breaking_entries:
