@@ -119,6 +119,7 @@ class JavaModuleBootstrapperTest {
                 SelectiveResolver::class.java,
                 SelectiveResolverBase::class.java
             )
+        every { mockClassFinder.grtClassForName(any()) } throws ClassNotFoundException("test")
 
         val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithTestType()
@@ -150,6 +151,7 @@ class JavaModuleBootstrapperTest {
         every { mockClassFinder.resolverClassesInPackage() } returns setOf(PersonFullNameResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(FieldResolverBase::class.java) } returns
             setOf(PersonFullNameResolver::class.java, PersonFullNameResolverBase::class.java)
+        every { mockClassFinder.grtClassForName(any()) } throws ClassNotFoundException("test")
 
         val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithPerson()
@@ -171,6 +173,7 @@ class JavaModuleBootstrapperTest {
         every { mockClassFinder.resolverClassesInPackage() } returns setOf(PersonAgeResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(FieldResolverBase::class.java) } returns
             setOf(PersonAgeResolver::class.java, PersonAgeResolverBase::class.java)
+        every { mockClassFinder.grtClassForName(any()) } throws ClassNotFoundException("test")
 
         val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithPerson()

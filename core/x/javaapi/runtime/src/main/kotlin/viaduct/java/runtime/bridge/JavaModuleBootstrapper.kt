@@ -15,7 +15,6 @@ import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.resolvers.FieldResolverBase
-import viaduct.java.api.types.Arguments
 import viaduct.java.runtime.bootstrap.JavaResolverClassFinder
 import viaduct.service.api.spi.CodeInjector
 
@@ -76,15 +75,14 @@ class JavaModuleBootstrapper(
         // Get all classes annotated with @ResolverFor in tenant package
         val resolverForClasses = classFinder.resolverClassesInPackage()
 
-        // Validate and cast to FieldResolverBase
+        // Validate that each class implements FieldResolverBase
         val resolverBaseClasses = resolverForClasses.map { clazz ->
             if (!FieldResolverBase::class.java.isAssignableFrom(clazz)) {
                 throw TenantModuleException(
                     "Found @ResolverFor on class that doesn't implement FieldResolverBase: $clazz"
                 )
             }
-            @Suppress("UNCHECKED_CAST")
-            clazz as Class<out FieldResolverBase<*, *, *, *, *>>
+            clazz
         }
 
         // For each base class, find @Resolver implementations
@@ -154,10 +152,15 @@ class JavaModuleBootstrapper(
                 throw TenantModuleException("Resolver class $resolverClass could not be injected", e)
             }
 
-            // Extract the Arguments, object value, and query value classes from the resolver base's generic type parameters
-            val argumentsClass = extractArgumentsClass(baseClass)
-            val objectValueClass = extractObjectValueClass(baseClass)
-            val queryValueClass = extractQueryValueClass(baseClass)
+            // Derive type classes from schema and class finder (not from generic type positions)
+            val objectValueClass = tryOrNull { classFinder.grtClassForName(typeName) }
+            val queryValueClass = tryOrNull { classFinder.grtClassForName(schema.schema.queryType.name) }
+            val argumentsClass = if (fieldDef.arguments.isNotEmpty()) {
+                val capitalizedField = fieldName.replaceFirstChar { it.uppercase() }
+                tryOrNull { classFinder.argumentClassForName("${typeName}_${capitalizedField}_Arguments") }
+            } else {
+                null
+            }
 
             // Create the executor
             val resolverId = "$typeName.$fieldName"
@@ -239,70 +242,12 @@ class JavaModuleBootstrapper(
         return emptyList()
     }
 
-    /**
-     * Extracts the object value class from a resolver base class's generic type parameters.
-     *
-     * FieldResolverBase<T, O, Q, A, S> — O (index 1) is the object value type.
-     * Returns null if the type cannot be determined.
-     */
-    private fun extractObjectValueClass(baseClass: Class<*>): Class<*>? {
-        for (iface in baseClass.genericInterfaces) {
-            if (iface is ParameterizedType && iface.rawType == FieldResolverBase::class.java) {
-                val typeArgs = iface.actualTypeArguments
-                if (typeArgs.size >= 2) {
-                    val objType = typeArgs[1]
-                    if (objType is Class<*>) {
-                        return objType
-                    }
-                }
-            }
+    private inline fun <T> tryOrNull(block: () -> T): T? =
+        try {
+            block()
+        } catch (_: Exception) {
+            null
         }
-        return null
-    }
-
-    /**
-     * Extracts the query value class from a resolver base class's generic type parameters.
-     *
-     * FieldResolverBase<T, O, Q, A, S> — Q (index 2) is the query value type.
-     * Returns null if the type cannot be determined.
-     */
-    private fun extractQueryValueClass(baseClass: Class<*>): Class<*>? {
-        for (iface in baseClass.genericInterfaces) {
-            if (iface is ParameterizedType && iface.rawType == FieldResolverBase::class.java) {
-                val typeArgs = iface.actualTypeArguments
-                if (typeArgs.size >= 3) {
-                    val queryType = typeArgs[2]
-                    if (queryType is Class<*>) {
-                        return queryType
-                    }
-                }
-            }
-        }
-        return null
-    }
-
-    /**
-     * Extracts the Arguments class from a resolver base class's generic type parameters.
-     *
-     * FieldResolverBase<T, O, Q, A, S> — A (index 3) is the Arguments type.
-     * Returns null if the type cannot be determined or is Arguments.None.
-     */
-    @Suppress("UNCHECKED_CAST")
-    private fun extractArgumentsClass(baseClass: Class<*>): Class<out Arguments>? {
-        for (iface in baseClass.genericInterfaces) {
-            if (iface is ParameterizedType && iface.rawType == FieldResolverBase::class.java) {
-                val typeArgs = iface.actualTypeArguments
-                if (typeArgs.size >= 4) {
-                    val argType = typeArgs[3]
-                    if (argType is Class<*> && Arguments::class.java.isAssignableFrom(argType)) {
-                        val argClass = argType as Class<out Arguments>
-                        return if (argClass == Arguments.None::class.java) null else argClass
-                    }
-                }
-            }
-        }
-        return null
-    }
 
     /**
      * Finds a named method on [resolverClass] that takes one parameter and returns CompletableFuture.
