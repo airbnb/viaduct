@@ -133,12 +133,12 @@ class ChainedViaductModernInstrumentation private constructor(
     }
 
     override fun instrumentAccessCheck(
-        checkerDispatcher: CheckerExecutor,
+        checkerExecutor: CheckerExecutor,
         dataFetchingEnvironment: DataFetchingEnvironment,
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?
     ): CheckerExecutor {
-        return instrumentAccessCheckInstrumentations.fold(checkerDispatcher) { dispatcher, instr ->
+        return instrumentAccessCheckInstrumentations.fold(checkerExecutor) { dispatcher, instr ->
             instr.instrumentAccessCheck(dispatcher, dataFetchingEnvironment, parameters, getState(instr, state))
         }
     }

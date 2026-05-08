@@ -107,6 +107,7 @@ class FieldResolver(
      * @param parameters ExecutionParameters containing the execution context and selection set
      * @throws Exception Only if there's a fatal error in the supervisorScope itself
      */
+    @Suppress("UNUSED_EXPRESSION") // onCompleted calls are side-effects inside map/recover
     fun fetchObject(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters
@@ -175,6 +176,7 @@ class FieldResolver(
      * @param parameters ExecutionParameters containing the execution context and selection set
      * @throws Exception Only if there's a fatal error in the supervisorScope itself
      */
+    @Suppress("UNUSED_EXPRESSION") // onCompleted calls are side-effects inside map/recover
     fun fetchObjectSerially(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters

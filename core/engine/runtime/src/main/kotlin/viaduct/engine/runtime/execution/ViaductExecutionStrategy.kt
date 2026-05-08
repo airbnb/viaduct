@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION") // CoroutineInterop/TemporaryBypassAccessCheck retained for Airbnb
 @file:OptIn(ExperimentalTime::class)
 
 package viaduct.engine.runtime.execution

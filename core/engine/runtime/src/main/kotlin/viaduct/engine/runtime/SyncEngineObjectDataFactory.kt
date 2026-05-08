@@ -73,6 +73,7 @@ object SyncEngineObjectDataFactory {
      * After [Value.waitAll] completes, the cell slots are synchronously available and
      * [unwrap] does not suspend for the [Cell] case.
      */
+    @Suppress("USELESS_IS_CHECK") // defensive check for Cell type
     private suspend fun resolveImpl(
         objectEngineResult: ObjectEngineResultImpl,
         errorMessage: String,

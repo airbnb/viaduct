@@ -107,6 +107,7 @@ open class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, 
         )
     }
 
+    @Suppress("USELESS_ELVIS") // defensive: extensions could be null from Java callers
     private fun getErrors(
         exception: Throwable,
         env: DataFetchingEnvironment,

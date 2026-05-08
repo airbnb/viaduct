@@ -12,6 +12,7 @@ import viaduct.engine.runtime.validation.Validator
 class MissingResolverValidator(
     private val schema: ViaductSchema,
 ) : Validator<MissingResolverValidationCtx> {
+    @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE", "LABEL_NAME_CLASH")
     override fun validate(ctx: MissingResolverValidationCtx) {
         val missingFieldResolvers = mutableListOf<String>()
         val missingNodeResolvers = mutableListOf<String>()

@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // legacy bootstrap shim
+
 package viaduct.engine.runtime.tenantloading
 
 import viaduct.engine.api.Coordinate

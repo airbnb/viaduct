@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // CoroutineInterop retained for Airbnb
+
 package viaduct.engine.runtime.instrumentation
 
 import graphql.execution.instrumentation.InstrumentationState

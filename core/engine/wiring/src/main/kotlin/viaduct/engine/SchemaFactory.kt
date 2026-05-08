@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // CoroutineInterop retained for Airbnb
+
 package viaduct.engine
 
 import graphql.schema.GraphQLScalarType

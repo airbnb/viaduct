@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // legacy bootstrap shim
+
 package viaduct.engine.runtime.tenantloading
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
