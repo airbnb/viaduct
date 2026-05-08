@@ -1,6 +1,5 @@
 package viaduct.service.api.spi
 
-import graphql.schema.DataFetchingEnvironment
 import viaduct.apiannotations.StableApi
 import viaduct.graphql.SourceLocation
 
@@ -70,24 +69,17 @@ fun interface ErrorReporter {
          */
         val componentName: String? = null,
         /**
-         * The DataFetchingEnvironment from graphql-java.
-         *
-         * @deprecated Use the individual metadata fields instead (fieldName, parentType, requestContext, etc.).
-         *             This property exists only to ease migration and will be removed in a future version.
-         *             Access request context via `metadata.requestContext as? GraphQLContext` instead.
+         * Whether this error occurred inside a suboperation (e.g. a derived field provider
+         * execution). Suboperations have different fatality semantics for some exception types.
          */
-        @Deprecated(
-            message = "Use the individual metadata fields instead. " +
-                "This property exists only to ease migration and will be removed in a future version.",
-            level = DeprecationLevel.WARNING
-        )
-        val dataFetchingEnvironment: DataFetchingEnvironment? = null
+        val isSuboperation: Boolean = false,
     ) {
         /**
-         * Converts Metadata to a map for backward compatibility.
-         * Used by existing code that passes metadata.toMap().
+         * Returns the subset of Metadata fields that are appropriate as GraphQL error extensions
+         * (fieldName, parentType, operationName, isFrameworkError, resolvers). Not all fields are
+         * included — requestContext and executionPath are omitted intentionally.
          */
-        fun toMap(): Map<String, String> {
+        fun toExtensions(): Map<String, String> {
             val map = mutableMapOf<String, String>()
             fieldName?.let { map["fieldName"] = it }
             parentType?.let { map["parentType"] = it }

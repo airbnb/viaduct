@@ -65,6 +65,12 @@ class ViaductDataFetcherExceptionHandlerTest {
                         every { sourceLocation } returns SourceLocation(1, 1)
                     }
                 }
+                (
+                    @Suppress("DEPRECATION")
+                    every {
+                        getContext<Any>()
+                    }
+                ) returns null
             }
         val params =
             DataFetcherExceptionHandlerParameters
@@ -249,6 +255,71 @@ class ViaductDataFetcherExceptionHandlerTest {
         assertContains(result.errors.first().message, "deep error")
     }
 
+    @Test
+    fun `requestContext from getContext is passed through to metadata`() {
+        val requestContext = object : Any() {}
+        val params = mockParamsWithContext(RuntimeException("err"), requestContext)
+        exceptionHandler.handleException(params).join()
+
+        assertEquals(requestContext, capturedMetadata.first().requestContext)
+    }
+
+    @Test
+    fun `requestContext is null when getContext returns null`() {
+        val params = mockParamsWithDirectives(RuntimeException("err"))
+        exceptionHandler.handleException(params).join()
+
+        assertNull(capturedMetadata.first().requestContext)
+    }
+
+    @Test
+    fun `metadata contains all expected fields`() {
+        val requestContext = object : Any() {}
+        val params = mockParamsWithContext(RuntimeException("err"), requestContext)
+        exceptionHandler.handleException(params).join()
+
+        val metadata = capturedMetadata.first()
+        assertEquals("fieldName", metadata.fieldName)
+        assertEquals("String", metadata.parentType)
+        assertEquals("operationName", metadata.operationName)
+        assertEquals(requestContext, metadata.requestContext)
+        assertNull(metadata.isFrameworkError)
+        assertNull(metadata.resolvers)
+    }
+
+    private fun mockParamsWithContext(
+        exception: Throwable,
+        context: Any?
+    ): DataFetcherExceptionHandlerParameters {
+        val fieldDef =
+            mockk<GraphQLFieldDefinition> {
+                every { name } returns "fieldName"
+                every { definition } returns mockk {
+                    every { sourceLocation } returns SourceLocation(1, 1, "repo/schema/data/someFile")
+                }
+            }
+        val dfe =
+            mockk<DataFetchingEnvironment> {
+                every { fieldDefinition } returns fieldDef
+                every { executionStepInfo } returns mockStepInfo
+                every { field } returns mockField
+                every { parentType } returns Scalars.GraphQLString
+                every { fieldType } returns Scalars.GraphQLString
+                every { operationDefinition } returns mockk {
+                    every { name } returns "operationName"
+                }
+                (
+                    @Suppress("DEPRECATION")
+                    every { getContext<Any>() }
+                ) returns context
+            }
+        return DataFetcherExceptionHandlerParameters
+            .newExceptionParameters()
+            .exception(exception)
+            .dataFetchingEnvironment(dfe)
+            .build()
+    }
+
     private fun mockParamsWithDirectives(exception: Throwable): DataFetcherExceptionHandlerParameters {
         val tenantDirective =
             buildDirective(
@@ -274,6 +345,12 @@ class ViaductDataFetcherExceptionHandlerTest {
                 every { operationDefinition } returns mockk {
                     every { name } returns "operationName"
                 }
+                (
+                    @Suppress("DEPRECATION")
+                    every {
+                        getContext<Any>()
+                    }
+                ) returns null
             }
 
         return DataFetcherExceptionHandlerParameters

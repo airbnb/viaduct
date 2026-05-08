@@ -59,7 +59,7 @@ class ErrorReporterTest {
     }
 
     @Test
-    fun `test Metadata toMap with all fields`() {
+    fun `toExtensions includes graphql error fields`() {
         val metadata = ErrorReporter.Metadata(
             fieldName = "field1",
             parentType = "ParentType1",
@@ -68,36 +68,52 @@ class ErrorReporterTest {
             resolvers = listOf("Resolver1", "Resolver2")
         )
 
-        val map = metadata.toMap()
+        val extensions = metadata.toExtensions()
 
-        assertEquals("field1", map["fieldName"])
-        assertEquals("ParentType1", map["parentType"])
-        assertEquals("Operation1", map["operationName"])
-        assertEquals("true", map["isFrameworkError"])
-        assertEquals("Resolver1 > Resolver2", map["resolvers"])
+        assertEquals("field1", extensions["fieldName"])
+        assertEquals("ParentType1", extensions["parentType"])
+        assertEquals("Operation1", extensions["operationName"])
+        assertEquals("true", extensions["isFrameworkError"])
+        assertEquals("Resolver1 > Resolver2", extensions["resolvers"])
     }
 
     @Test
-    fun `test Metadata toMap with partial fields`() {
+    fun `toExtensions omits requestContext and executionPath`() {
+        val metadata = ErrorReporter.Metadata(
+            fieldName = "field1",
+            requestContext = "ctx",
+            executionPath = listOf("user", 0),
+            sourceLocation = SourceLocation(1, 1)
+        )
+
+        val extensions = metadata.toExtensions()
+
+        assertEquals("field1", extensions["fieldName"])
+        assertNull(extensions["requestContext"])
+        assertNull(extensions["executionPath"])
+        assertNull(extensions["sourceLocation"])
+    }
+
+    @Test
+    fun `toExtensions with partial fields`() {
         val metadata = ErrorReporter.Metadata(
             fieldName = "field1",
             parentType = "ParentType1"
         )
 
-        val map = metadata.toMap()
+        val extensions = metadata.toExtensions()
 
-        assertEquals("field1", map["fieldName"])
-        assertEquals("ParentType1", map["parentType"])
-        assertNull(map["operationName"])
-        assertNull(map["isFrameworkError"])
-        assertNull(map["resolvers"])
+        assertEquals("field1", extensions["fieldName"])
+        assertEquals("ParentType1", extensions["parentType"])
+        assertNull(extensions["operationName"])
+        assertNull(extensions["isFrameworkError"])
+        assertNull(extensions["resolvers"])
     }
 
     @Test
-    fun `test Metadata toMap with empty metadata`() {
+    fun `toExtensions with empty metadata`() {
         val metadata = ErrorReporter.Metadata()
-        val map = metadata.toMap()
-        assertTrue(map.isEmpty())
+        assertTrue(metadata.toExtensions().isEmpty())
     }
 
     @Test
@@ -138,18 +154,5 @@ class ErrorReporterTest {
         )
 
         assertEquals("captured message", capturedMessage)
-    }
-
-    @Test
-    fun `test Metadata with deprecated dataFetchingEnvironment`() {
-        @Suppress("DEPRECATION")
-        val metadata = ErrorReporter.Metadata(
-            fieldName = "testField",
-            dataFetchingEnvironment = null
-        )
-
-        assertEquals("testField", metadata.fieldName)
-        @Suppress("DEPRECATION")
-        assertNull(metadata.dataFetchingEnvironment)
     }
 }

@@ -17,7 +17,7 @@ import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.utils.slf4j.logger
 
-class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val errorBuilder: ResolverErrorBuilder) : DataFetcherExceptionHandler {
+open class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val errorBuilder: ResolverErrorBuilder) : DataFetcherExceptionHandler {
     companion object {
         // A map of error types to expose in the GraphQL error extensions
         // This is used to categorize the errors in the extensions for better error handling,
@@ -70,10 +70,10 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
     }
 
     /**
-     * Builds a map of additional metadata we want to attach to the exception. This is
-     * logged as part of the exception message.
+     * Builds the metadata attached to a resolver error. Subclasses may override this to enrich
+     * the metadata with embedder-specific context (e.g. suboperation detection).
      */
-    private fun getMetadata(
+    protected open fun getMetadata(
         params: DataFetcherExceptionHandlerParameters,
         operationName: String?,
         exception: Throwable,
@@ -91,17 +91,19 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
 
         val env = params.dataFetchingEnvironment
         val graphqlSourceLocation = env.fieldDefinition.definition?.sourceLocation
+        @Suppress("DEPRECATION")
+        val requestContext = env.getContext<Any>()
         return ErrorReporter.Metadata(
             fieldName = fieldName,
             parentType = parentType,
             operationName = operationName,
             isFrameworkError = isFrameworkError,
             resolvers = (exception as? TenantResolverException)?.let(::resolverCallChain),
-            dataFetchingEnvironment = params.dataFetchingEnvironment,
             executionPath = env.executionStepInfo.path.toList(),
             sourceLocation = graphqlSourceLocation?.let {
                 viaduct.graphql.SourceLocation(it.line, it.column, it.sourceName)
-            }
+            },
+            requestContext = requestContext,
         )
     }
 
@@ -131,7 +133,7 @@ class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, val e
                             .message(exception.javaClass.name + ": " + exception.message)
                             .path(env.executionStepInfo.path)
                             .extensions(
-                                metadata.toMap() + mapOf(
+                                metadata.toExtensions() + mapOf(
                                     "fullyQualifiedErrorClass" to exception.javaClass.name
                                 )
                             )

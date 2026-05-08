@@ -125,10 +125,10 @@ public final class viaduct/service/api/spi/ErrorReporter$Companion {
 public final class viaduct/service/api/spi/ErrorReporter$Metadata {
 	public static final field Companion Lviaduct/service/api/spi/ErrorReporter$Metadata$Companion;
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;Lgraphql/schema/DataFetchingEnvironment;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;Lgraphql/schema/DataFetchingEnvironment;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
-	public final fun component10 ()Lgraphql/schema/DataFetchingEnvironment;
+	public final fun component10 ()Z
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/Boolean;
@@ -137,11 +137,10 @@ public final class viaduct/service/api/spi/ErrorReporter$Metadata {
 	public final fun component7 ()Lviaduct/graphql/SourceLocation;
 	public final fun component8 ()Ljava/lang/Object;
 	public final fun component9 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;Lgraphql/schema/DataFetchingEnvironment;)Lviaduct/service/api/spi/ErrorReporter$Metadata;
-	public static synthetic fun copy$default (Lviaduct/service/api/spi/ErrorReporter$Metadata;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;Lgraphql/schema/DataFetchingEnvironment;ILjava/lang/Object;)Lviaduct/service/api/spi/ErrorReporter$Metadata;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;Z)Lviaduct/service/api/spi/ErrorReporter$Metadata;
+	public static synthetic fun copy$default (Lviaduct/service/api/spi/ErrorReporter$Metadata;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;ZILjava/lang/Object;)Lviaduct/service/api/spi/ErrorReporter$Metadata;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getComponentName ()Ljava/lang/String;
-	public final fun getDataFetchingEnvironment ()Lgraphql/schema/DataFetchingEnvironment;
 	public final fun getExecutionPath ()Ljava/util/List;
 	public final fun getFieldName ()Ljava/lang/String;
 	public final fun getOperationName ()Ljava/lang/String;
@@ -151,7 +150,8 @@ public final class viaduct/service/api/spi/ErrorReporter$Metadata {
 	public final fun getSourceLocation ()Lviaduct/graphql/SourceLocation;
 	public fun hashCode ()I
 	public final fun isFrameworkError ()Ljava/lang/Boolean;
-	public final fun toMap ()Ljava/util/Map;
+	public final fun isSuboperation ()Z
+	public final fun toExtensions ()Ljava/util/Map;
 	public fun toString ()Ljava/lang/String;
 }
 
