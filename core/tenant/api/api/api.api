@@ -204,10 +204,10 @@ public abstract interface class viaduct/api/types/GRT {
 public abstract interface class viaduct/api/types/Input : viaduct/api/types/InputLike {
 }
 
-public abstract interface class viaduct/api/types/InputLike : viaduct/api/types/Struct {
+public abstract interface class viaduct/api/types/InputLike : viaduct/api/types/GRT {
 }
 
-public abstract interface class viaduct/api/types/Interface : viaduct/api/types/RecordOutput {
+public abstract interface class viaduct/api/types/Interface : viaduct/api/types/CompositeOutput {
 }
 
 public abstract interface class viaduct/api/types/Mutation : viaduct/api/types/Object {
@@ -219,16 +219,10 @@ public abstract interface class viaduct/api/types/NodeCompositeOutput : viaduct/
 public abstract interface class viaduct/api/types/NodeObject : viaduct/api/types/NodeCompositeOutput, viaduct/api/types/Object {
 }
 
-public abstract interface class viaduct/api/types/Object : viaduct/api/types/RecordOutput, viaduct/api/types/Struct {
+public abstract interface class viaduct/api/types/Object : viaduct/api/types/CompositeOutput {
 }
 
 public abstract interface class viaduct/api/types/Query : viaduct/api/types/Object {
-}
-
-public abstract interface class viaduct/api/types/RecordOutput : viaduct/api/types/CompositeOutput {
-}
-
-public abstract interface class viaduct/api/types/Struct : viaduct/api/types/GRT {
 }
 
 public abstract interface class viaduct/api/types/Union : viaduct/api/types/CompositeOutput {
