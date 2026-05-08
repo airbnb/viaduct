@@ -127,6 +127,7 @@ class FieldUnbatchedResolverStub<Ctx : BaseFieldExecutionContext<*, *, *>>(
     variablesProvider: VariablesProviderInfo?,
     resolverName: String?
 ) : AbstractFieldUnbatchedResolverStub<Ctx>(objectSelections, querySelections, coord, variables, resolveFn, variablesProvider, resolverName) {
+    @Suppress("UNCHECKED_CAST")
     class Context(ctx: FieldExecutionContext<*, *, *, *>) :
         FieldExecutionContext<Object, Query, Arguments, CompositeOutput> by (ctx as FieldExecutionContext<Object, Query, Arguments, CompositeOutput>),
         InternalContext by (ctx as InternalContext)

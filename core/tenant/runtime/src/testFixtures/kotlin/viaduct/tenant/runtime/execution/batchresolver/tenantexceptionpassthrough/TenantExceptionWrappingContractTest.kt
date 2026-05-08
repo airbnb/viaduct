@@ -22,6 +22,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
     }
     """
 )
+@Suppress("USELESS_ELVIS", "UNNECESSARY_SAFE_CALL")
 abstract class TenantExceptionWrappingContractTest : KotlinFeatureAppTestContractBase() {
     protected abstract fun setNodeBatchShouldReturnTenantException(enabled: Boolean)
 

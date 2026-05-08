@@ -83,6 +83,7 @@ class SyncObjectValueAccessTest {
             )
 
     @Test
+    @Suppress("USELESS_ELVIS") // defensive: multiplier could be null at runtime
     fun `getObjectValue and getQueryValue together`() =
         FeatureTestBuilder(FeatureTestSchemaFixture.sdl + "\nextend type Query { multiplier: Int }")
             .resolver("Query" to "multiplier") { 10 }

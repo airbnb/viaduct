@@ -18,6 +18,7 @@ import viaduct.tenant.runtime.FakeQuery
 /**
  * Reflection loader that returns Fake GRT types instead of looking up real generated classes.
  */
+@Suppress("USELESS_ELVIS")
 internal class FakeReflectionLoader(private val schema: ViaductSchema) : viaduct.api.internal.ReflectionLoader {
     /** Coordinates of fields registered as connection resolvers, used to determine argument types. */
     val connectionCoordinates = mutableSetOf<Pair<String, String>>()

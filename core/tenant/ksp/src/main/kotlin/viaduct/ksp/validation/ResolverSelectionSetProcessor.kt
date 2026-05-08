@@ -55,6 +55,7 @@ class ResolverSelectionSetProcessor(
     // Track if we've already generated the file in this compilation session
     private var hasGeneratedFragments = false
 
+    @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun process(kspResolver: Resolver): List<KSAnnotated> {
         val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(
             SchemaParser().parse(

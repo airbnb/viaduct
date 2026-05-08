@@ -20,6 +20,7 @@ import viaduct.apiannotations.StableApi
  * ```
  */
 @StableApi
+@Suppress("REDUNDANT_INLINE_SUSPEND_FUNCTION_TYPE")
 suspend inline fun <T> fetchOrNull(block: suspend () -> T): T? = fetchOrDefault<T?>(null) { block() }
 
 /**
@@ -39,6 +40,7 @@ suspend inline fun <T> fetchOrNull(block: suspend () -> T): T? = fetchOrDefault<
  * ```
  */
 @StableApi
+@Suppress("REDUNDANT_INLINE_SUSPEND_FUNCTION_TYPE")
 suspend inline fun <T> fetchOrDefault(
     default: T,
     block: suspend () -> T

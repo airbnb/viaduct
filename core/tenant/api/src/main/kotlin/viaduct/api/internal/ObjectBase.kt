@@ -40,6 +40,7 @@ import viaduct.errors.handleFrameworkErrors
  * accessor, which the JVM verifier rejects. The `__` prefix ensures no such collision.
  */
 @InternalApi
+@Suppress("IMPLICIT_CAST_TO_ANY", "UNCHECKED_CAST")
 abstract class ObjectBase(
     @Suppress("ConstructorParameterNaming") protected val __context: InternalContext,
     @Suppress("ConstructorParameterNaming") val __engineObject: EngineObject,

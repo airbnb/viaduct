@@ -219,6 +219,7 @@ class ConnectionBuilderTest {
     // ==================== fromEdges tests ====================
 
     @Test
+    @Suppress("USELESS_IS_CHECK") // intentional: verifies the builder returns the expected type
     fun `fromEdges builds connection with provided edges`() {
         val builder = createBuilder()
         val edges = listOf(

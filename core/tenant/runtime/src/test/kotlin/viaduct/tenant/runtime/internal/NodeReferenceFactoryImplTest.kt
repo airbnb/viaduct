@@ -51,6 +51,7 @@ class NodeReferenceFactoryImplTest {
             MockReflectionLoader(User.Reflection)
         )
 
+    @Suppress("REDUNDANT_PROJECTION") // GlobalID<out NodeObject> matches the type parameter variance
     private fun createDefaultNodeReference(
         globalIDImpl: GlobalID<out NodeObject>,
         graphqlObjectType: GraphQLObjectType = GlobalIdTestSchema.schema.schema.getObjectType(globalIDImpl.type.name),

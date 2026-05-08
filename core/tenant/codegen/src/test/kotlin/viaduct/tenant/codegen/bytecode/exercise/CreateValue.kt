@@ -1,3 +1,5 @@
+@file:Suppress("UNCHECKED_CAST")
+
 package viaduct.tenant.codegen.bytecode.exercise
 
 import graphql.schema.GraphQLInputObjectType

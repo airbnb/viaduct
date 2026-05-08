@@ -23,6 +23,7 @@ import viaduct.invariants.FailureCollector
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("UNNECESSARY_NOT_NULL_ASSERTION")
 class ExerciserForObjectV2Test {
     private class Fixture(
         sdl: String = "",

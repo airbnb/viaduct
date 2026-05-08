@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
 
 package viaduct.java.runtime.fixtures
 

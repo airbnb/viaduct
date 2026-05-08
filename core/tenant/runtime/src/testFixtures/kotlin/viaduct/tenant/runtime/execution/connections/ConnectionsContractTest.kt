@@ -1,3 +1,5 @@
+@file:OptIn(viaduct.apiannotations.ExperimentalApi::class)
+
 package viaduct.tenant.runtime.execution.connections
 
 import org.junit.jupiter.api.Test

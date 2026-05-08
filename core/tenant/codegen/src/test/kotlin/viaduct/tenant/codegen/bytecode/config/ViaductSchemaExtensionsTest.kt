@@ -22,6 +22,7 @@ import viaduct.tenant.codegen.bytecode.util.assertKotlinTypeString
 import viaduct.tenant.codegen.bytecode.util.field
 import viaduct.tenant.codegen.bytecode.util.typedef
 
+@Suppress("USELESS_CAST")
 class ViaductSchemaExtensionsTest {
     private fun mkSchema(
         schemaText: String,

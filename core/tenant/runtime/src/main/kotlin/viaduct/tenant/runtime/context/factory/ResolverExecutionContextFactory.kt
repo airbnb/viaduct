@@ -149,7 +149,7 @@ class FieldExecutionContextFactory internal constructor(
         engineSelections: EngineSelectionSet?,
         requestContext: Any?,
         rawArguments: Map<String, Any?>,
-        rawObjectValue: EngineObjectData,
+        @Suppress("UNUSED_PARAMETER") rawObjectValue: EngineObjectData,
         rawQueryValue: EngineObjectData,
         syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)? = null,
         syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)? = null,

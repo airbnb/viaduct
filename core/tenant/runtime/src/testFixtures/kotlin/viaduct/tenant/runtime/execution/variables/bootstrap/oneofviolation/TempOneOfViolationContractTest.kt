@@ -18,6 +18,7 @@ import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
     }
 """
 )
+@Suppress("UNNECESSARY_SAFE_CALL")
 abstract class TempOneOfViolationContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `oneof violation fails at runtime`() {

@@ -30,6 +30,7 @@ import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
 import viaduct.tenant.runtime.globalid.User
 
 @ExperimentalCoroutinesApi
+@Suppress("USELESS_IS_CHECK")
 class ExecutionContextImplTest : ContextTestBase() {
     private fun mk(
         query: Query = Q,

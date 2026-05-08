@@ -115,6 +115,7 @@ internal class EODBuilderWrapper(
         }
     }
 
+    @Suppress("SENSELESS_COMPARISON") // defensive null check
     private fun unwrapObject(
         expectedType: GraphQLCompositeType,
         value: Any

@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
+
 package viaduct.tenant.runtime.bootstrap
 
 import kotlin.reflect.full.declaredMemberFunctions

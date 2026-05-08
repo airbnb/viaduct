@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // Jackson configure() deprecated in newer versions
+
 package viaduct.tenant.codegen.cli
 
 import com.fasterxml.jackson.annotation.JsonInclude

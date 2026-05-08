@@ -1,3 +1,5 @@
+@file:OptIn(viaduct.apiannotations.InternalApi::class)
+
 package viaduct.api.mocks
 
 import graphql.schema.GraphQLSchema

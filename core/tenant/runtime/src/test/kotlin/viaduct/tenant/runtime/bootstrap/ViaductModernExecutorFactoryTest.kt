@@ -28,6 +28,7 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
 
+@Suppress("USELESS_IS_CHECK", "UNCHECKED_CAST")
 class ViaductModernExecutorFactoryTest {
     abstract class TestFieldResolverBase : ResolverBase<String> {
         abstract suspend fun resolve(ctx: Context): String

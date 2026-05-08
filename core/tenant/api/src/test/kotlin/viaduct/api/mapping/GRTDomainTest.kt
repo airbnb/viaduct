@@ -26,6 +26,7 @@ import viaduct.errors.TenantUsageException
 import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.DomainValidator
 
+@Suppress("USELESS_CAST")
 class GRTDomainTest : KotestPropertyBase() {
     private val schema = ApiTestSchema.schema
     private val internalContext = MockInternalContext.create(schema, "viaduct.api.testschema")

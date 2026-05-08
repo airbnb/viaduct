@@ -1,3 +1,5 @@
+@file:OptIn(viaduct.apiannotations.ExperimentalApi::class)
+
 package viaduct.api.testing
 
 import java.lang.reflect.InvocationTargetException

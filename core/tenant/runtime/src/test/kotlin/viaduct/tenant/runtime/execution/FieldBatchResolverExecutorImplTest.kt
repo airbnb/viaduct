@@ -26,6 +26,7 @@ import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
+@Suppress("UNUSED_PARAMETER")
 class FieldBatchResolverExecutorImplTest {
     private val objectData = createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap())
     private val resolverContext = mockk<BaseFieldExecutionContext<*, *, *>>()

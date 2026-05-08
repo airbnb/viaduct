@@ -26,6 +26,7 @@ import viaduct.tenant.runtime.select.SelectionSetImpl
  * free of per-resolver context-construction logic.
  */
 @ExperimentalApi
+@Suppress("USELESS_CAST")
 abstract class BaseResolverSpec {
     var requestContext: Any? = null
     var contextQueryValues: List<Query> = emptyList()
@@ -134,7 +135,7 @@ internal fun <T : CompositeOutput> prebakedResultsOf(results: Map<String, T>) =
     object : PrebakedResults<T> {
         override fun get(selections: SelectionSet<T>): T {
             val key = createSelectionSetKey(selections)
-            @Suppress("UNCHECKED_CAST")
+            @Suppress("UNCHECKED_CAST", "USELESS_CAST")
             return (results[key] ?: results[BLANK_CONTEXT_QUERY_SELECTION_KEY])?.let { it as T }
                 ?: throw IllegalArgumentException(
                     "No mocked results provided for selections: '$key'. Available keys: ${results.keys}"

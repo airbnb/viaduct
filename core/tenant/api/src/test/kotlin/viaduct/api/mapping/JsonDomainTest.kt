@@ -23,6 +23,7 @@ import viaduct.errors.TenantUsageException
 import viaduct.mapping.graphql.IR
 import viaduct.mapping.test.DomainValidator
 
+@Suppress("UNCHECKED_CAST")
 class JsonDomainTest : KotestPropertyBase() {
     private val schema = ApiTestSchema.schema
     private val internal = MockInternalContext.create(schema, grtPackage = "viaduct.api.testschema")

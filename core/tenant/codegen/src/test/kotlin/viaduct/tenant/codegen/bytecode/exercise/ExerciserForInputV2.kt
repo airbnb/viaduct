@@ -64,9 +64,10 @@ internal fun Exerciser.exerciseInputV2(
     exerciseReflectionObject(inputClazz.kotlin, expected)
 }
 
+@Suppress("UNUSED_PARAMETER")
 private fun Exerciser.exerciseInputValueBuilderContract(
     builderClazz: Class<*>,
-    inputClazz: Class<*>
+    _inputClazz: Class<*>
 ) {
     val inputValueBuilderInterface = builderClazz.interfaces.firstOrNull {
         it.name == "viaduct.api.internal.InputValueBuilder"

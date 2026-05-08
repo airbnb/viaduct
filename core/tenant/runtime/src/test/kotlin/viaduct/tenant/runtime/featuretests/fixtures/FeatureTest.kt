@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "DEPRECATION") // Jackson ALLOW_TRAILING_COMMA deprecated in newer versions
 
 package viaduct.tenant.runtime.featuretests.fixtures
 

@@ -21,6 +21,7 @@ import viaduct.errors.FrameworkException
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
+@Suppress("UNUSED_PARAMETER")
 class BatchResolverExecutorTest {
     interface TestNodeObject : NodeObject
 

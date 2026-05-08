@@ -19,6 +19,7 @@ import viaduct.tenant.runtime.globalid.User
 import viaduct.tenant.runtime.select.SelectionSetImpl
 
 @ExperimentalCoroutinesApi
+@Suppress("USELESS_CAST")
 class NodeExecutionContextImplTest : ContextTestBase() {
     private val queryObject = mockk<Query>()
     @Suppress("UNCHECKED_CAST")

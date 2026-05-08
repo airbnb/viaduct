@@ -122,6 +122,7 @@ class TenantResolverExceptionTest {
         }
 
     @Test
+    @Suppress("UNNECESSARY_SAFE_CALL")
     fun testHandleTenantErrorsResultSuspendWrapsUnhandledException(): Unit =
         runBlocking {
             val result = handleTenantErrorsResultSuspend("ResolverA") {

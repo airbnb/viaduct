@@ -1,3 +1,5 @@
+@file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") // intentional java.lang.Enum usage for bytecode testing
+
 package viaduct.tenant.codegen.bytecode.exercise
 
 import java.lang.Enum
