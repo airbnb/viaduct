@@ -29,10 +29,22 @@ dependencies {
     api(libs.javax.inject)
 }
 
-// Create shaded jar for publishing (fat jar with all dependencies)
+// Create shaded jar for publishing (fat jar with all dependencies).
+// Excludes classes already provided by the `api` publication so the two jars are
+// complementary — consumers declare both without duplicate-class conflicts.
 tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")  // Replace the main jar
     mergeServiceFiles()
+
+    // Exclude classes already bundled in the `api` publication. The api jar packages
+    // tenant.api, service.api, shared.apiannotations, shared.errors, and graphql-java
+    // (plus relocated Guava pulled transitively by graphql-java). Keeping these out of
+    // the runtime jar prevents duplicate-class conflicts for consumers that declare both.
+    exclude("viaduct/api/**")
+    exclude("viaduct/service/api/**")
+    exclude("viaduct/apiannotations/**")
+    exclude("viaduct/errors/**")
+    exclude("graphql/**")
 
     // Exclude third-party classes with rapid API churn that would cause version conflicts
     // (e.g. NoSuchMethodError) when the consumer's versions differ from the bundled ones.
