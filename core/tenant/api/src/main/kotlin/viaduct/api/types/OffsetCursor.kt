@@ -1,4 +1,4 @@
-package viaduct.api.connection
+package viaduct.api.types
 
 import java.util.Base64
 import viaduct.apiannotations.ExperimentalApi

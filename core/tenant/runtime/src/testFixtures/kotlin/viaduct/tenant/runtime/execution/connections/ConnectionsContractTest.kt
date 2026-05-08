@@ -1,9 +1,9 @@
 package viaduct.tenant.runtime.execution.connections
 
 import org.junit.jupiter.api.Test
-import viaduct.api.connection.OffsetCursor
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
+import viaduct.api.types.OffsetCursor
 import viaduct.graphql.test.assertEquals
 
 /**

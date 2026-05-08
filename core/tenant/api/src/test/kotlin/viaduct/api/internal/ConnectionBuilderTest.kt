@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.api.connection.OffsetCursor
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.globalid.GlobalID
@@ -28,6 +27,7 @@ import viaduct.api.types.ForwardConnectionArguments
 import viaduct.api.types.MultidirectionalConnectionArguments
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
+import viaduct.api.types.OffsetCursor
 import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi

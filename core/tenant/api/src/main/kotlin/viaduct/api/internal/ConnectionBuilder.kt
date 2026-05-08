@@ -1,7 +1,6 @@
 package viaduct.api.internal
 
 import graphql.schema.GraphQLObjectType
-import viaduct.api.connection.OffsetCursor
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.reflect.Type
 import viaduct.api.types.BackwardConnectionArguments
@@ -9,6 +8,7 @@ import viaduct.api.types.Connection
 import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Edge
 import viaduct.api.types.ForwardConnectionArguments
+import viaduct.api.types.OffsetCursor
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData

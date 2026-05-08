@@ -1,6 +1,5 @@
 package viaduct.api.types
 
-import viaduct.api.connection.OffsetLimit
 import viaduct.apiannotations.ExperimentalApi
 
 /**

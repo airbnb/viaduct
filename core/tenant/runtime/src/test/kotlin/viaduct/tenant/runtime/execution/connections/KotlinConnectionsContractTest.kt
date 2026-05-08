@@ -3,7 +3,7 @@
 package viaduct.tenant.runtime.execution.connections
 
 import viaduct.api.Resolver
-import viaduct.api.connection.OffsetCursor
+import viaduct.api.types.OffsetCursor
 import viaduct.tenant.runtime.execution.connections.resolverbases.QueryResolvers
 
 class KotlinConnectionsContractTest : ConnectionsContractTest() {

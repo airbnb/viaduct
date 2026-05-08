@@ -7,7 +7,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
-import viaduct.api.connection.OffsetLimit
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.select.SelectionSet
@@ -15,6 +14,7 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Connection
 import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Object
+import viaduct.api.types.OffsetLimit
 import viaduct.api.types.Query as QueryType
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.service.api.spi.GlobalIDCodec

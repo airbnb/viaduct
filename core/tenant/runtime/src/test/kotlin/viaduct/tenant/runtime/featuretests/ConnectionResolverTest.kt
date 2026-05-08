@@ -4,11 +4,11 @@ package viaduct.tenant.runtime.featuretests
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
-import viaduct.api.connection.OffsetCursor
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.MultidirectionalConnectionArguments
 import viaduct.api.types.Object
+import viaduct.api.types.OffsetCursor
 import viaduct.api.types.Query
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestBuilder
 import viaduct.tenant.runtime.featuretests.fixtures.FeatureTestSchema

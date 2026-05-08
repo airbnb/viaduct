@@ -1,15 +1,12 @@
 @file:OptIn(ExperimentalApi::class)
 
-package viaduct.api.connection
+package viaduct.api.types
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.types.BackwardConnectionArguments
-import viaduct.api.types.ForwardConnectionArguments
-import viaduct.api.types.MultidirectionalConnectionArguments
 import viaduct.apiannotations.ExperimentalApi
 
 class ConnectionArgumentsTest {

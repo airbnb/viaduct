@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalApi::class)
 
-package viaduct.api.connection
+package viaduct.api.types
 
 import java.util.Base64
 import org.junit.jupiter.api.Assertions

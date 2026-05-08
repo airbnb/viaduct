@@ -1,4 +1,4 @@
-package viaduct.api.connection
+package viaduct.api.types
 
 import viaduct.apiannotations.ExperimentalApi
 
