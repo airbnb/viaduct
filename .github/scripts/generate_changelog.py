@@ -11,7 +11,6 @@ while maintaining Viaduct's authorship semantics:
 """
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 from collections import defaultdict
@@ -461,8 +460,6 @@ def generate_changelog(tag1: str, tag2: str) -> str:
         Formatted markdown changelog
     """
     parser = ConventionalCommitParser()
-
-    release_ver = os.environ['RELEASE_VER']
 
     # Get and parse all commits
     entries: list[ChangelogEntry] = []
