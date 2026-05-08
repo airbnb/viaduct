@@ -1,6 +1,5 @@
 package viaduct.service
 
-import graphql.execution.DataFetcherExceptionHandler
 import io.micrometer.core.instrument.MeterRegistry
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
@@ -101,18 +100,6 @@ class ViaductBuilder {
     fun withDataFetcherErrorBuilder(resolverErrorBuilder: ResolverErrorBuilder) =
         apply {
             builder.withDataFetcherErrorBuilder(resolverErrorBuilder)
-        }
-
-    /**
-     * Configures the DataFetcherExceptionHandler for handling data fetcher exceptions.
-     * This provides custom exception handling logic for errors that occur during data fetching.
-     *
-     * @param dataFetcherExceptionHandler The DataFetcherExceptionHandler instance to use
-     * @return This Builder instance for method chaining
-     */
-    fun withDataFetcherExceptionHandler(dataFetcherExceptionHandler: DataFetcherExceptionHandler) =
-        apply {
-            builder.withDataFetcherExceptionHandler(dataFetcherExceptionHandler)
         }
 
     /**

@@ -64,7 +64,6 @@ public final class viaduct/service/ViaductBuilder {
 	public fun <init> ()V
 	public final fun build ()Lviaduct/service/api/Viaduct;
 	public final fun withDataFetcherErrorBuilder (Lviaduct/service/api/spi/ResolverErrorBuilder;)Lviaduct/service/ViaductBuilder;
-	public final fun withDataFetcherExceptionHandler (Lgraphql/execution/DataFetcherExceptionHandler;)Lviaduct/service/ViaductBuilder;
 	public final fun withFlagManager (Lviaduct/service/api/spi/FlagManager;)Lviaduct/service/ViaductBuilder;
 	public final fun withGlobalIDCodec (Lviaduct/service/api/spi/GlobalIDCodec;)Lviaduct/service/ViaductBuilder;
 	public final fun withLenientResolverValidation (Z)Lviaduct/service/ViaductBuilder;

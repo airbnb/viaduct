@@ -1,13 +1,9 @@
 package viaduct.service
 
-import graphql.execution.DataFetcherExceptionHandler
-import graphql.execution.DataFetcherExceptionHandlerParameters
-import graphql.execution.DataFetcherExceptionHandlerResult
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import java.util.concurrent.CompletableFuture
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
@@ -131,41 +127,10 @@ class ViaductBuilderTest {
     }
 
     @Test
-    fun testWithDataFetcherExceptionHandler() {
-        val exceptionHandler = object : DataFetcherExceptionHandler {
-            override fun handleException(handlerParameters: DataFetcherExceptionHandlerParameters): CompletableFuture<DataFetcherExceptionHandlerResult> {
-                return CompletableFuture.completedFuture(
-                    DataFetcherExceptionHandlerResult.newResult().build()
-                )
-            }
-        }
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
-        val viaduct = ViaductBuilder()
-            .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
-            .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
-            .withDataFetcherExceptionHandler(exceptionHandler)
-            .build()
-
-        assertNotNull(viaduct)
-    }
-
-    @Test
     fun testMethodChaining() {
         val meterRegistry = SimpleMeterRegistry()
         val errorReporter = ErrorReporter.NOOP
         val errorBuilder = ResolverErrorBuilder.NOOP
-        val exceptionHandler = object : DataFetcherExceptionHandler {
-            override fun handleException(handlerParameters: DataFetcherExceptionHandlerParameters): CompletableFuture<DataFetcherExceptionHandlerResult> {
-                return CompletableFuture.completedFuture(
-                    DataFetcherExceptionHandlerResult.newResult().build()
-                )
-            }
-        }
         val schemaConfiguration = SchemaConfiguration.fromSchema(
             schema,
             scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
@@ -180,7 +145,6 @@ class ViaductBuilderTest {
             .withMeterRegistry(meterRegistry)
             .withResolverErrorReporter(errorReporter)
             .withDataFetcherErrorBuilder(errorBuilder)
-            .withDataFetcherExceptionHandler(exceptionHandler)
             .withProxyResolverFactory(ProxyResolverFactory.NO_OP)
 
         // Verify that method chaining returns the same builder instance
@@ -195,13 +159,6 @@ class ViaductBuilderTest {
         val meterRegistry = SimpleMeterRegistry()
         val errorReporter = ErrorReporter.NOOP
         val errorBuilder = ResolverErrorBuilder.NOOP
-        val exceptionHandler = object : DataFetcherExceptionHandler {
-            override fun handleException(handlerParameters: DataFetcherExceptionHandlerParameters): CompletableFuture<DataFetcherExceptionHandlerResult> {
-                return CompletableFuture.completedFuture(
-                    DataFetcherExceptionHandlerResult.newResult().build()
-                )
-            }
-        }
         val schemaConfiguration = SchemaConfiguration.fromSchema(
             schema,
             scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
@@ -216,7 +173,6 @@ class ViaductBuilderTest {
             .withMeterRegistry(meterRegistry)
             .withResolverErrorReporter(errorReporter)
             .withDataFetcherErrorBuilder(errorBuilder)
-            .withDataFetcherExceptionHandler(exceptionHandler)
             .build()
 
         assertNotNull(viaduct)
