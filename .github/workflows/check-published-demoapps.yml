@@ -7,11 +7,20 @@ on:
         description: "Branch in viaduct-dev/* repos to test (NOT an airbnb/viaduct ref)"
         required: true
         type: string
+      use_snapshot_repo:
+        description: "If true, include the Maven Central snapshots repository during resolution"
+        required: false
+        default: false
+        type: boolean
   workflow_call:
     inputs:
       ref:
         required: true
         type: string
+      use_snapshot_repo:
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -48,6 +57,6 @@ jobs:
       - name: Test ${{ matrix.demoapp }}
         working-directory: app
         env:
-          USE_VIADUCT_SNAPSHOT_REPO: ${{ inputs.ref != 'main' && 'true' || 'false' }}
+          USE_VIADUCT_SNAPSHOT_REPO: ${{ inputs.use_snapshot_repo && 'true' || 'false' }}
         run: ./gradlew test --no-daemon
         shell: bash
