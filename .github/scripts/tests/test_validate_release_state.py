@@ -44,6 +44,12 @@ class TestValidateReleaseState(unittest.TestCase):
         self.assertFalse(result["is_valid"])
         self.assertIn("exactly", result["validation_error"])
 
+    def test_release_branch_rc_mode_exact_rc_version_valid(self):
+        """release/v0.27.0 branch + 0.27.0-rc.1 + rc mode → valid"""
+        result = validate_release_state("rc", "release/v0.27.0", "0.27.0-rc.1", _TAG)
+        self.assertTrue(result["is_valid"])
+        self.assertTrue(result["is_release_branch"])
+
     def test_release_branch_rc_snapshot_mode_valid(self):
         """release/v0.27.0 branch + 0.27.0-rc.1-SNAPSHOT + snapshot mode → valid"""
         result = validate_release_state("snapshot", "release/v0.27.0", "0.27.0-rc.1-SNAPSHOT", _TAG)
@@ -131,6 +137,11 @@ class TestValidateReleaseState(unittest.TestCase):
         self.assertFalse(result["is_valid"])
         self.assertIn("release/vX.Y.Z", result["validation_error"])
 
+    def test_feature_branch_rc_mode_invalid(self):
+        result = validate_release_state("rc", "feature/foo", "0.27.0-rc.1", _TAG)
+        self.assertFalse(result["is_valid"])
+        self.assertIn("release/vX.Y.Z", result["validation_error"])
+
     def test_develop_branch_release_mode_invalid(self):
         result = validate_release_state("release", "develop", "0.27.0", _TAG)
         self.assertFalse(result["is_valid"])
@@ -145,6 +156,27 @@ class TestValidateReleaseState(unittest.TestCase):
     def test_rc_version_snapshot_mode_valid(self):
         result = validate_release_state("snapshot", "release/v0.27.0", "0.27.0-rc.2-SNAPSHOT", _TAG)
         self.assertTrue(result["is_valid"])
+
+    def test_rc_version_rc_mode_valid(self):
+        result = validate_release_state("rc", "release/v0.27.0", "0.27.0-rc.2", _TAG)
+        self.assertTrue(result["is_valid"])
+
+    def test_rc_version_rc_mode_missing_numeric_suffix_invalid(self):
+        result = validate_release_state("rc", "release/v0.27.0", "0.27.0-rc", _TAG)
+        self.assertFalse(result["is_valid"])
+        self.assertIn("rc.N", result["validation_error"])
+
+    def test_rc_version_rc_mode_zero_suffix_invalid(self):
+        result = validate_release_state("rc", "release/v0.27.0", "0.27.0-rc.0", _TAG)
+        self.assertFalse(result["is_valid"])
+
+    def test_release_version_rc_mode_invalid(self):
+        result = validate_release_state("rc", "release/v0.27.0", "0.27.0", _TAG)
+        self.assertFalse(result["is_valid"])
+
+    def test_snapshot_version_rc_mode_invalid(self):
+        result = validate_release_state("rc", "release/v0.27.0", "0.27.0-SNAPSHOT", _TAG)
+        self.assertFalse(result["is_valid"])
 
     def test_rc_version_without_snapshot_suffix_release_mode_invalid(self):
         """0.27.0-rc.1 is not a valid release version"""
