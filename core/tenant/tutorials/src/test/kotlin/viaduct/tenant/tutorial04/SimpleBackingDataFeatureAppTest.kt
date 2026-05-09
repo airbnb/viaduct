@@ -3,7 +3,7 @@
 package viaduct.tenant.tutorial04
 
 import org.junit.jupiter.api.Test
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.tutorial04.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial04.resolverbases.QueryResolvers

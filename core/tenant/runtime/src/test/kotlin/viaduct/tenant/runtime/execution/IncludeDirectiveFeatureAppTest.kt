@@ -5,7 +5,7 @@ package inludedirective.featurapps
 import inludedirective.featurapps.resolverbases.FooResolvers
 import inludedirective.featurapps.resolverbases.QueryResolvers
 import inludedirective.featurapps.resolverbases.ThrowerResolvers
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 class IncludeDirectiveFeatureAppTest : IncludeDirectiveContractTest() {
     // Tenant provided resolvers

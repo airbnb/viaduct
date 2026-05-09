@@ -163,7 +163,7 @@ There are three mutually-exclusive parameters to the `@Variable` class that can 
 
 #### VariablesProvider
 
-The `variables` parameter does not allow arbitrarily-computed values to be used as variables. To support dynamic use cases, a {{ kdoc("viaduct.api.VariablesProvider") }} can be used.
+The `variables` parameter does not allow arbitrarily-computed values to be used as variables. To support dynamic use cases, a {{ kdoc("viaduct.api.resolver.VariablesProvider") }} can be used.
 
 For example, consider a resolver for `MyType.foo` whose required selection set uses variables named `startDate` and `endDate`. To provide dynamically-computed values for these variables, the implementation for `MyTypeResolvers.Foo` may nest a class that implements the `VariablesProvider` interface:
 

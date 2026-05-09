@@ -2,8 +2,8 @@
 
 package viaduct.tenant.runtime.execution.queryselections
 
-import viaduct.api.Resolver
-import viaduct.api.Variable
+import viaduct.api.resolver.Resolver
+import viaduct.api.resolver.Variable
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.MutationResolvers
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.UserResolvers

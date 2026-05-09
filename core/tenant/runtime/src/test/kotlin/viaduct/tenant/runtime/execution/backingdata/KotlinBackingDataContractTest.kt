@@ -2,7 +2,7 @@
 
 package viaduct.tenant.runtime.execution.backingdata
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.backingdata.resolverbases.FooResolvers
 import viaduct.tenant.runtime.execution.backingdata.resolverbases.QueryResolvers
 

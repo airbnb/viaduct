@@ -2,7 +2,7 @@
 
 package viaduct.api.roottypes
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.api.roottypes.resolverbases.CustomMutationResolvers
 import viaduct.api.roottypes.resolverbases.CustomQueryResolvers
 

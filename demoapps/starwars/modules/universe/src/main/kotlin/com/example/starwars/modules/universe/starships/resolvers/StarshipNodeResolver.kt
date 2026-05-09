@@ -4,8 +4,8 @@ import com.example.starwars.modules.universe.starships.models.StarshipBuilder
 import com.example.starwars.modules.universe.starships.models.StarshipsRepository
 import com.example.starwars.universe.resolverbases.NodeResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.grts.Starship
+import viaduct.api.resolver.Resolver
 
 /**
  * Node resolver for the Starship type in the Star Wars GraphQL API.

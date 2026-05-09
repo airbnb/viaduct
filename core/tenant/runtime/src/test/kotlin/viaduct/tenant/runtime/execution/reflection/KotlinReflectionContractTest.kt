@@ -2,7 +2,7 @@
 
 package viaduct.tenant.runtime.execution.reflection
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.reflection.resolverbases.CategoryResolvers
 import viaduct.tenant.runtime.execution.reflection.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.reflection.resolverbases.ShelfResolvers

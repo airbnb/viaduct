@@ -4,7 +4,7 @@ import com.example.starwars.filmography.resolverbases.NodeResolvers
 import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
 import jakarta.inject.Inject
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * Node resolver for the Film type in the Star Wars GraphQL API.

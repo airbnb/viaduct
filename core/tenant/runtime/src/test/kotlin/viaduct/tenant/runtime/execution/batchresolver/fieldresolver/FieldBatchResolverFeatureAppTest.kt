@@ -3,7 +3,7 @@
 package viaduct.tenant.runtime.execution.batchresolver.fieldresolver
 
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.errors.TenantUsageException
 import viaduct.tenant.runtime.execution.batchresolver.fieldresolver.resolverbases.ItemResolvers
 import viaduct.tenant.runtime.execution.batchresolver.fieldresolver.resolverbases.QueryResolvers

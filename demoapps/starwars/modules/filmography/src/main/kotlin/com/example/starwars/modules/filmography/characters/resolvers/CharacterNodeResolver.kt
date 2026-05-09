@@ -5,8 +5,8 @@ import com.example.starwars.modules.filmography.characters.models.CharacterBuild
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
 import viaduct.api.grts.Character
+import viaduct.api.resolver.Resolver
 
 /**
  * Node resolver for the Character type in the Star Wars GraphQL API.

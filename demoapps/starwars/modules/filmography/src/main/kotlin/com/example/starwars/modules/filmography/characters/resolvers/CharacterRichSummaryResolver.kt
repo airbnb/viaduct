@@ -5,7 +5,7 @@ import com.example.starwars.modules.filmography.characters.models.CharacterFilms
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * **Multi-Source Batch Resolution** example for complex data combination.

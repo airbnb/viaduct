@@ -4,7 +4,7 @@
 package viaduct.tenant.tutorial12
 
 import org.junit.jupiter.api.Test
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.api.types.OffsetCursor
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.graphql.test.assertEquals

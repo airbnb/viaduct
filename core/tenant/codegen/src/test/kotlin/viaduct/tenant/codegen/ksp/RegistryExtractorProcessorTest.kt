@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.api.Resolver as ResolverAnnotation
+import viaduct.api.resolver.Resolver as ResolverAnnotation
 
 private val KOTLIN_VERSION_1_9 = KotlinVersion(1, 9)
 

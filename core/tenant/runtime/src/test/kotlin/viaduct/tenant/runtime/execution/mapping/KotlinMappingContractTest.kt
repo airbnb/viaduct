@@ -4,10 +4,10 @@ package viaduct.tenant.runtime.execution.mapping
 
 import java.time.LocalDate
 import java.time.Month
-import viaduct.api.Resolver
 import viaduct.api.context.nodeRef
 import viaduct.api.mapping.GRTDomain
 import viaduct.api.mapping.JsonDomain
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.mapping.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.mapping.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.mapping.resolverbases.UserResolvers

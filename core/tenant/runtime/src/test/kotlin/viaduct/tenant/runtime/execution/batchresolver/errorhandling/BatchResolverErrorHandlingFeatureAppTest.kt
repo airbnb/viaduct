@@ -6,7 +6,7 @@ import com.google.inject.AbstractModule
 import com.google.inject.Module
 import javax.inject.Inject
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.batchresolver.errorhandling.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.batchresolver.errorhandling.resolverbases.QueryResolvers
 

@@ -5,8 +5,8 @@ import com.example.starwars.modules.filmography.characters.models.CharacterBuild
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.films.models.FilmCastData
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.grts.Character
+import viaduct.api.resolver.Resolver
 
 /**
  * Example of a relationship field resolver in the Film type.

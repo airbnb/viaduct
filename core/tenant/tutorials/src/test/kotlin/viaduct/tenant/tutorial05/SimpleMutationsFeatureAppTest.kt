@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.tutorial05.resolverbases.MutationResolvers
 import viaduct.tenant.tutorial05.resolverbases.NodeResolvers

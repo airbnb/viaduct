@@ -4,8 +4,8 @@ import com.example.starwars.modules.universe.species.models.SpeciesBuilder
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.universe.resolverbases.QueryResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.grts.Species
+import viaduct.api.resolver.Resolver
 
 const val DEFAULT_PAGE_SIZE = 10
 

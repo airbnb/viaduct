@@ -5,14 +5,14 @@ package viaduct.tenant.runtime.bootstrap
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.full.memberFunctions
 import viaduct.api.NodeResolverBase
-import viaduct.api.Resolver
 import viaduct.api.ResolverBase
-import viaduct.api.Variables
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.GRTConvFactory
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
 import viaduct.api.reflect.Type
+import viaduct.api.resolver.Resolver
+import viaduct.api.resolver.Variables
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.ViaductSchema

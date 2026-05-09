@@ -1,10 +1,10 @@
 package viaduct.tenant.runtime.execution
 
-import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.internal
+import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext

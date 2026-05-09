@@ -1,6 +1,6 @@
 package viaduct.tenant.runtime.execution.enums
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.enums.resolverbases.QueryResolvers
 
 class KotlinEnumContractTest : EnumContractTest() {

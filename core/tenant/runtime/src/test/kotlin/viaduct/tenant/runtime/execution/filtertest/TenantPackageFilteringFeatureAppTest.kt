@@ -3,8 +3,8 @@ package viaduct.tenant.runtime.execution.filtertest
 import kotlin.reflect.KClass
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import viaduct.api.Resolver
 import viaduct.api.TenantModule
+import viaduct.api.resolver.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.service.api.SchemaId
 import viaduct.service.runtime.SchemaConfiguration

@@ -1,6 +1,6 @@
 package viaduct.tenant.runtime.execution.objectresolver
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.FooResolvers
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.NestedFooResolvers
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.PersonResolvers

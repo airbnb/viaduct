@@ -2,7 +2,7 @@
 
 package viaduct.tenant.runtime.execution.invalidfragment.objectfragment
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.invalidfragment.objectfragment.resolverbases.FooResolvers
 import viaduct.tenant.runtime.execution.invalidfragment.objectfragment.resolverbases.QueryResolvers
 

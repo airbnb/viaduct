@@ -9,7 +9,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl

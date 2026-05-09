@@ -2,7 +2,7 @@ package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * Demonstrates shorthand fragment syntax - specifies exactly which fields to fetch

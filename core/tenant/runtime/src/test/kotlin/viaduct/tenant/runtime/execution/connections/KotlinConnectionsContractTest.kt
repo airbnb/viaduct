@@ -2,7 +2,7 @@
 
 package viaduct.tenant.runtime.execution.connections
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.api.types.OffsetCursor
 import viaduct.tenant.runtime.execution.connections.resolverbases.QueryResolvers
 

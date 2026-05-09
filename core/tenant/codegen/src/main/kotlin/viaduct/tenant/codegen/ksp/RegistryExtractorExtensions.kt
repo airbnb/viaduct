@@ -4,10 +4,10 @@ import com.google.devtools.ksp.isLocal
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import viaduct.api.Resolver
-import viaduct.api.Variable
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
+import viaduct.api.resolver.Resolver
+import viaduct.api.resolver.Variable
 
 private val nodeResolverForAnnotationName = requireNotNull(NodeResolverFor::class.simpleName)
 private val resolverForAnnotationName = requireNotNull(ResolverFor::class.simpleName)

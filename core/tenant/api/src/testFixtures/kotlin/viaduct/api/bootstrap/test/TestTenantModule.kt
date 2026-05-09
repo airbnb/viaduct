@@ -1,12 +1,8 @@
 package viaduct.api.bootstrap.test
 
 import viaduct.api.NodeResolverBase
-import viaduct.api.Resolver
 import viaduct.api.ResolverBase
 import viaduct.api.TenantModule
-import viaduct.api.Variable
-import viaduct.api.Variables
-import viaduct.api.VariablesProvider
 import viaduct.api.bootstrap.test.grts.Query
 import viaduct.api.bootstrap.test.grts.TestBatchNode
 import viaduct.api.bootstrap.test.grts.TestNode
@@ -17,6 +13,10 @@ import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
+import viaduct.api.resolver.Resolver
+import viaduct.api.resolver.Variable
+import viaduct.api.resolver.Variables
+import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.apiannotations.InternalApi

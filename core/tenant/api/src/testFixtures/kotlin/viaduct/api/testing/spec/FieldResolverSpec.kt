@@ -1,12 +1,12 @@
 package viaduct.api.testing.spec
 
-import viaduct.api.Resolver
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.mocks.MockConnectionFieldExecutionContext
 import viaduct.api.mocks.MockFieldExecutionContext
+import viaduct.api.resolver.Resolver
 import viaduct.api.select.SelectionSet
 import viaduct.api.testing.spec.base.BaseFieldSpec
 import viaduct.api.testing.types.NullObject

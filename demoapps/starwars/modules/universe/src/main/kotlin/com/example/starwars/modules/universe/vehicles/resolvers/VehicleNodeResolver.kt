@@ -4,8 +4,8 @@ import com.example.starwars.modules.universe.vehicles.models.VehicleBuilder
 import com.example.starwars.modules.universe.vehicles.models.VehiclesRepository
 import com.example.starwars.universe.resolverbases.NodeResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.grts.Vehicle
+import viaduct.api.resolver.Resolver
 
 /**
  * Resolver for fetching a single vehicle node by its ID.

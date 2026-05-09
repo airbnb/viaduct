@@ -8,10 +8,10 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.mocks.mockReflectionLoader
+import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver

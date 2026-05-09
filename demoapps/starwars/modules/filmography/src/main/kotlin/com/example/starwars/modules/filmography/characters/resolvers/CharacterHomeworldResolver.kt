@@ -4,9 +4,9 @@ import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
 import viaduct.api.context.globalIDFor
 import viaduct.api.grts.Planet
+import viaduct.api.resolver.Resolver
 
 /**
  * This ia a basic **Batch Resolution** to solving the N+1 query problem.

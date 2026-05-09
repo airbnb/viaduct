@@ -8,7 +8,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.DefaultGRTConvFactory
@@ -18,6 +17,7 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.MockType
 import viaduct.api.mocks.testGlobalId
+import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver

@@ -14,33 +14,6 @@ public final class viaduct/api/FieldValue$Companion {
 	public final fun ofValue (Ljava/lang/Object;)Lviaduct/api/FieldValue;
 }
 
-public abstract interface annotation class viaduct/api/Resolver : java/lang/annotation/Annotation {
-	public abstract fun objectValueFragment ()Ljava/lang/String;
-	public abstract fun queryValueFragment ()Ljava/lang/String;
-	public abstract fun variables ()[Lviaduct/api/Variable;
-}
-
-public abstract interface annotation class viaduct/api/Variable : java/lang/annotation/Annotation {
-	public static final field Companion Lviaduct/api/Variable$Companion;
-	public static final field UNSET_STRING_VALUE Ljava/lang/String;
-	public abstract fun fromArgument ()Ljava/lang/String;
-	public abstract fun fromObjectField ()Ljava/lang/String;
-	public abstract fun fromQueryField ()Ljava/lang/String;
-	public abstract fun name ()Ljava/lang/String;
-}
-
-public final class viaduct/api/Variable$Companion {
-	public static final field UNSET_STRING_VALUE Ljava/lang/String;
-}
-
-public abstract interface annotation class viaduct/api/Variables : java/lang/annotation/Annotation {
-	public abstract fun types ()[Ljava/lang/String;
-}
-
-public abstract interface class viaduct/api/VariablesProvider {
-	public abstract fun provide (Lviaduct/api/context/VariablesProviderContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
 public abstract interface class viaduct/api/context/BaseFieldExecutionContext : viaduct/api/context/ResolverExecutionContext {
 	public abstract fun getArguments ()Lviaduct/api/types/Arguments;
 	public abstract fun getQueryValue (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -133,6 +106,33 @@ public final class viaduct/api/reflect/Type$Companion {
 }
 
 public abstract interface class viaduct/api/reflect/TypeFields {
+}
+
+public abstract interface annotation class viaduct/api/resolver/Resolver : java/lang/annotation/Annotation {
+	public abstract fun objectValueFragment ()Ljava/lang/String;
+	public abstract fun queryValueFragment ()Ljava/lang/String;
+	public abstract fun variables ()[Lviaduct/api/resolver/Variable;
+}
+
+public abstract interface annotation class viaduct/api/resolver/Variable : java/lang/annotation/Annotation {
+	public static final field Companion Lviaduct/api/resolver/Variable$Companion;
+	public static final field UNSET_STRING_VALUE Ljava/lang/String;
+	public abstract fun fromArgument ()Ljava/lang/String;
+	public abstract fun fromObjectField ()Ljava/lang/String;
+	public abstract fun fromQueryField ()Ljava/lang/String;
+	public abstract fun name ()Ljava/lang/String;
+}
+
+public final class viaduct/api/resolver/Variable$Companion {
+	public static final field UNSET_STRING_VALUE Ljava/lang/String;
+}
+
+public abstract interface annotation class viaduct/api/resolver/Variables : java/lang/annotation/Annotation {
+	public abstract fun types ()[Ljava/lang/String;
+}
+
+public abstract interface class viaduct/api/resolver/VariablesProvider {
+	public abstract fun provide (Lviaduct/api/context/VariablesProviderContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class viaduct/api/select/SelectionSet {

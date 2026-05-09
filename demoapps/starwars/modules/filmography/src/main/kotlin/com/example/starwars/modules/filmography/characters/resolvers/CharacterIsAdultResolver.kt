@@ -2,7 +2,7 @@ package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * Example of a computed field resolver in the Character type.

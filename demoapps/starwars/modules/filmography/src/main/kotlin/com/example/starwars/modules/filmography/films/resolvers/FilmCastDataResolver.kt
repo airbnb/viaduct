@@ -4,7 +4,7 @@ import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.films.models.FilmCastData
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
 import jakarta.inject.Inject
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * Backing-data resolver for a film's cast.

@@ -3,9 +3,9 @@ package com.example.starwars.modules.universe.planets.queries
 import com.example.starwars.modules.universe.planets.models.PlanetsFilmsRepository
 import com.example.starwars.universe.resolverbases.PlanetResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.context.nodeRef
 import viaduct.api.grts.Film
+import viaduct.api.resolver.Resolver
 
 /**
  * Resolver to fetch films associated with a specific planet.

@@ -14,7 +14,7 @@ import java.lang.reflect.Proxy
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.api.Resolver as ResolverAnnotation
+import viaduct.api.resolver.Resolver as ResolverAnnotation
 import viaduct.service.api.spi.TenantBootstrapper
 
 class ResolverParamsExtractorTest {

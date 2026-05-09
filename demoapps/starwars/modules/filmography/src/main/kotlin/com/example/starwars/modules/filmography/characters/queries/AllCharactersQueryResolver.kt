@@ -4,8 +4,8 @@ import com.example.starwars.filmography.resolverbases.QueryResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.grts.Character
+import viaduct.api.resolver.Resolver
 
 private const val DEFAULT_PAGE_SIZE = 10
 

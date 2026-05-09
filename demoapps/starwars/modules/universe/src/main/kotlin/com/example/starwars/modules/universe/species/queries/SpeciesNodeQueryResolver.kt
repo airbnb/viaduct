@@ -5,8 +5,8 @@ import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.universe.resolverbases.NodeResolvers
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
 import viaduct.api.grts.Species
+import viaduct.api.resolver.Resolver
 
 /**
  * Node resolver for the Species type in the Star Wars GraphQL API.

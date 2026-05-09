@@ -5,13 +5,13 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldValue
 import viaduct.api.NodeResolverBase
-import viaduct.api.Resolver
 import viaduct.api.ResolverBase
 import viaduct.api.bootstrap.test.grts.TestBatchNode
 import viaduct.api.bootstrap.test.grts.TestNode
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.internal.InternalContext
+import viaduct.api.resolver.Resolver
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object

@@ -2,7 +2,7 @@
 
 package viaduct.tenant.runtime.execution.buildertypeerror
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.buildertypeerror.resolverbases.QueryResolvers
 
 class KotlinBuilderTypeErrorContractTest : BuilderTypeErrorContractTest() {

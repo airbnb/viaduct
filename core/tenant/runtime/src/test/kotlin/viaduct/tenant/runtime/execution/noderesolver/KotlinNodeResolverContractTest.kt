@@ -5,7 +5,7 @@ package viaduct.tenant.runtime.execution.noderesolver
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.QueryResolvers
 

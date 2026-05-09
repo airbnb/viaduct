@@ -3,7 +3,7 @@ package com.example.starwars.modules.universe.species.resolvers
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.universe.resolverbases.SpeciesResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * Resolver for `technologicalLevel` field in Species.

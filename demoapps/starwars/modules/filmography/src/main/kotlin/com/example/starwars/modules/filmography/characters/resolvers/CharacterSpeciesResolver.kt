@@ -4,9 +4,9 @@ import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
 import viaduct.api.context.globalIDFor
 import viaduct.api.grts.Species
+import viaduct.api.resolver.Resolver
 
 /**
  * Demonstrates **Species Batch Resolution** with proper null handling.

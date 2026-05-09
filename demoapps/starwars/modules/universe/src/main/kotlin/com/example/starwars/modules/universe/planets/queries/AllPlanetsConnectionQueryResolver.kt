@@ -4,8 +4,8 @@ import com.example.starwars.modules.universe.planets.models.PlanetBuilder
 import com.example.starwars.modules.universe.planets.models.PlanetsRepository
 import com.example.starwars.universe.resolverbases.QueryResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.grts.PlanetsConnection
+import viaduct.api.resolver.Resolver
 import viaduct.apiannotations.ExperimentalApi
 
 /**

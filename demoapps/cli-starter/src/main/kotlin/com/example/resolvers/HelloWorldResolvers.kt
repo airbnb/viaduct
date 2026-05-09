@@ -2,7 +2,7 @@
 package com.example.viadapp.resolvers
 
 import com.example.viadapp.resolvers.resolverbases.QueryResolvers
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 // tag::greeting-resolver[6] How to create a resolver
 @Resolver

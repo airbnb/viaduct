@@ -2,8 +2,8 @@
 
 package viaduct.tenant.runtime.execution.defaults
 
-import viaduct.api.Resolver
-import viaduct.api.Variable
+import viaduct.api.resolver.Resolver
+import viaduct.api.resolver.Variable
 import viaduct.tenant.runtime.execution.defaults.resolverbases.QueryResolvers
 
 class KotlinDefaultsContractTest : DefaultsContractTest() {

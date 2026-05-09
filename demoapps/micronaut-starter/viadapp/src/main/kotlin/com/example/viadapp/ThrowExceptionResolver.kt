@@ -1,7 +1,7 @@
 package com.example.viadapp
 
 import com.example.viadapp.resolverbases.QueryResolvers
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 @Resolver
 class ThrowExceptionResolver : QueryResolvers.ThrowException() {

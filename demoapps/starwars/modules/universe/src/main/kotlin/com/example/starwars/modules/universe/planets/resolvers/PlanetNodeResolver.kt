@@ -5,8 +5,8 @@ import com.example.starwars.modules.universe.planets.models.PlanetsRepository
 import com.example.starwars.universe.resolverbases.NodeResolvers
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
 import viaduct.api.grts.Planet
+import viaduct.api.resolver.Resolver
 
 /**
  * Node resolver for fetching a single planet node by its ID.

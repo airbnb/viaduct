@@ -1,7 +1,7 @@
 package viaduct.tenant.runtime.internal
 
 import javax.inject.Provider
-import viaduct.api.VariablesProvider
+import viaduct.api.resolver.VariablesProvider
 
 /**
  * Wrap a [VariablesProvider] with additional metadata that allows adapting to a [VariablesResolver]

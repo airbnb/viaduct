@@ -2,7 +2,7 @@
 
 package viaduct.tenant.runtime.execution.includedirective
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.FooResolvers
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.ThrowerResolvers

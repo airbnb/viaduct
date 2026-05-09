@@ -4,8 +4,8 @@ import com.example.starwars.modules.universe.starships.models.StarshipBuilder
 import com.example.starwars.modules.universe.starships.models.StarshipsRepository
 import com.example.starwars.universe.resolverbases.QueryResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.grts.Starship
+import viaduct.api.resolver.Resolver
 
 const val DEFAULT_PAGE_SIZE = 10
 

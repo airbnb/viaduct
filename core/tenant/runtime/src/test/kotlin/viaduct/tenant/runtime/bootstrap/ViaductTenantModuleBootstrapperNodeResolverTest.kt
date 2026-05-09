@@ -6,13 +6,13 @@ import kotlin.reflect.KClass
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.NodeResolverBase
-import viaduct.api.Resolver
-import viaduct.api.Variable
 import viaduct.api.bootstrap.test.grts.TestNode
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ObjectBase
+import viaduct.api.resolver.Resolver
+import viaduct.api.resolver.Variable
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.TenantModuleException

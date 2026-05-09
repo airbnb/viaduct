@@ -6,7 +6,7 @@ import com.example.starwars.modules.filmography.characters.models.CharacterFilms
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
 import jakarta.inject.Inject
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * Mutation resolvers for the Star Wars GraphQL API.

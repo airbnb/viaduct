@@ -7,11 +7,11 @@ import com.google.inject.Guice
 import com.google.inject.Injector
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
-import viaduct.api.Resolver
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
 import viaduct.api.reflect.Type
+import viaduct.api.resolver.Resolver
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest

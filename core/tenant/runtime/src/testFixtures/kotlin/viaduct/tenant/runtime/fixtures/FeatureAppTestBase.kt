@@ -5,11 +5,11 @@ package viaduct.tenant.runtime.fixtures
 
 import com.google.inject.Guice
 import com.google.inject.Injector
-import viaduct.api.Resolver
 import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
 import viaduct.api.reflect.Type
+import viaduct.api.resolver.Resolver
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest

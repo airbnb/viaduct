@@ -4,9 +4,9 @@ import com.example.starwars.modules.universe.species.models.SpeciesBuilder
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.universe.resolverbases.QueryResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.grts.SpeciesConnection
 import viaduct.api.grts.SpeciesEdge
+import viaduct.api.resolver.Resolver
 import viaduct.api.types.OffsetCursor
 import viaduct.apiannotations.ExperimentalApi
 

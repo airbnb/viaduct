@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.api.Variable
+import viaduct.api.resolver.Variable
 
 class RegistryExtractorExtensionsTest {
     @Test

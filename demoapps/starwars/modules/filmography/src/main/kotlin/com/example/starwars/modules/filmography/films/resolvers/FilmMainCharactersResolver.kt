@@ -6,7 +6,7 @@ import com.example.starwars.modules.filmography.characters.models.CharacterRepos
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * Demonstrates **Reverse Relationship Batching** for one-to-many relationships.

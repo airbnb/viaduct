@@ -2,7 +2,7 @@
 
 package viaduct.tenant.runtime.execution.trivial
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.trivial.resolverbases.FooResolvers
 import viaduct.tenant.runtime.execution.trivial.resolverbases.NestedFooResolvers
 import viaduct.tenant.runtime.execution.trivial.resolverbases.QueryResolvers

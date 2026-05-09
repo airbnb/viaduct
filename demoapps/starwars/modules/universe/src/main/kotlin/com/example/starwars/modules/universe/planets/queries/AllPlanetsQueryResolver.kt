@@ -5,8 +5,8 @@ import com.example.starwars.modules.universe.planets.models.PlanetsRepository
 import com.example.starwars.modules.universe.species.queries.DEFAULT_PAGE_SIZE
 import com.example.starwars.universe.resolverbases.QueryResolvers
 import jakarta.inject.Inject
-import viaduct.api.Resolver
 import viaduct.api.grts.Planet
+import viaduct.api.resolver.Resolver
 
 /**
  * Resolver for fetching a list of planets.

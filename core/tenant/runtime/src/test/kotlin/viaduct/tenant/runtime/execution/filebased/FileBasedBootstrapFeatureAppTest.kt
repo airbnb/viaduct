@@ -5,11 +5,11 @@ package viaduct.tenant.runtime.execution.filebased
 import com.google.inject.AbstractModule
 import com.google.inject.Module
 import com.google.inject.Singleton
-import viaduct.api.Resolver
-import viaduct.api.Variable
-import viaduct.api.Variables
-import viaduct.api.VariablesProvider
 import viaduct.api.context.VariablesProviderContext
+import viaduct.api.resolver.Resolver
+import viaduct.api.resolver.Variable
+import viaduct.api.resolver.Variables
+import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.tenant.runtime.execution.filebased.resolverbases.ItemResolvers
 import viaduct.tenant.runtime.execution.filebased.resolverbases.NodeResolvers

@@ -1,6 +1,6 @@
 package viaduct.serve.fixtures.resolvers
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * Test fixture: A valid resolver with @Resolver annotation and no-arg constructor

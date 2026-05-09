@@ -1,4 +1,4 @@
-package viaduct.api
+package viaduct.api.resolver
 
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.types.Arguments

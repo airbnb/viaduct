@@ -3,7 +3,7 @@
 package viaduct.tenant.runtime.execution.subqueryexecution
 
 import org.junit.jupiter.api.BeforeEach
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.CalculatorResolvers
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.ContainerResolvers
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.Level1Resolvers

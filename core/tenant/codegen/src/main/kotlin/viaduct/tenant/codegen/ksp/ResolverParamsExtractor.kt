@@ -4,7 +4,7 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
-import viaduct.api.Resolver as ResolverAnnotation
+import viaduct.api.resolver.Resolver as ResolverAnnotation
 import viaduct.service.api.spi.TenantBootstrapper
 
 private val RESOLVER_ANNOTATION = requireNotNull(ResolverAnnotation::class.qualifiedName)

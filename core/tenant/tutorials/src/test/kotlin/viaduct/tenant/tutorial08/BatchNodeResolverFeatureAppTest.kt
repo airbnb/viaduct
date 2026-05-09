@@ -7,7 +7,7 @@ import kotlin.test.assertEquals as kotlinAssertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.tutorial08.resolverbases.NodeResolvers
 import viaduct.tenant.tutorial08.resolverbases.QueryResolvers

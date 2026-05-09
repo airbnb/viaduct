@@ -2,7 +2,7 @@
 
 package viaduct.tenant.runtime.execution.defaultnoderesolver
 
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.defaultnoderesolver.resolverbases.NodeResolvers
 
 class KotlinDefaultQueryNodeResolverContractTest : DefaultQueryNodeResolverContractTest() {

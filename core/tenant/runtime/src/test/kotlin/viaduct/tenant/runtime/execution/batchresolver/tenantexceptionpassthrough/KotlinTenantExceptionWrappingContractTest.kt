@@ -4,7 +4,7 @@ package viaduct.tenant.runtime.execution.batchresolver.tenantexceptionpassthroug
 
 import graphql.GraphqlErrorBuilder
 import viaduct.api.FieldValue
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.errors.ErroneousFieldException
 import viaduct.errors.TenantUsageException
 import viaduct.tenant.runtime.execution.batchresolver.tenantexceptionpassthrough.resolverbases.NodeResolvers
