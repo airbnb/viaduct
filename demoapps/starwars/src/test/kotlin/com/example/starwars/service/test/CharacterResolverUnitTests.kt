@@ -33,6 +33,7 @@ class CharacterResolverUnitTests : ResolverTestBase() {
         characterRepository = CharacterRepository()
     }
 
+    // tag::field_resolver_example[11] Simple field resolver test
     @Test
     fun `DisplayNameResolver returns name correctly`(): Unit =
         runBlocking {
@@ -111,10 +112,7 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             val resolver = CharacterStatsResolver()
 
             val result = runFieldResolver(resolver) {
-                arguments = Character_CharacterStats_Arguments.of(context) {
-                    minAge(10)
-                    maxAge(100)
-                }
+                arguments = Character_CharacterStats_Arguments.of(context) { minAge(10).maxAge(100) }
                 objectValue = Character.of(context) {
                     name("Ahsoka Tano")
                     birthYear("36BBY")
@@ -147,6 +145,7 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             assertEquals("Stats for Yoda (Age range: 500-1000), Born: 896BBY, Height: 66cm, Species: Yoda's species", result)
         }
 
+    // tag::field_resolver_with_arguments_example[17] Field resolver test with arguments
     @Test
     fun `FormattedDescriptionResolver returns full description for detailed format`(): Unit =
         runBlocking {
@@ -253,17 +252,13 @@ class CharacterResolverUnitTests : ResolverTestBase() {
             )
         }
 
-    // tag::character_node_resolver_multiple_ids[14] Example of runNodeBatchResolver
+    // tag::character_node_resolver_multiple_ids[9] Example of runNodeBatchResolver
     @Test
     fun `CharacterBatchNodeResolver resolves multiple ids`() =
         runBlocking {
-            val resolver = CharacterNodeResolver(characterRepository)
-
-            val ids = listOf("1", "2").map {
-                context.globalIDFor(Character.Reflection, it)
+            val results = runNodeBatchResolver(CharacterNodeResolver(characterRepository)) {
+                ids = listOf("1", "2").map { globalIDFor(Character.Reflection, it) }
             }
-
-            val results = runNodeBatchResolver(resolver) { this.ids = ids }
 
             assertEquals(2, results.size)
         }

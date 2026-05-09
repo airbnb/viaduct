@@ -62,16 +62,14 @@ class ResolverApiUnitTests : ResolverTestBase() {
     // runFieldBatchResolver
     // -------------------------------------------------------------------------
 
+    // tag::field_batch_resolver_example[12] Field batch resolver test
     @Test
     fun `runFieldBatchResolver returns film count for each character in batch`(): Unit =
         runBlocking {
-            val resolver = CharacterFilmCountResolver(characterFilmsRepository)
-            val characters = characterRepository.findAll().take(3).map { char ->
-                Character.of(context) { id(globalIDFor(Character.Reflection, char.id)) }
-            }
-
-            val results = runFieldBatchResolver(resolver) {
-                objectValues = characters
+            val results = runFieldBatchResolver(CharacterFilmCountResolver(characterFilmsRepository)) {
+                objectValues = characterRepository.findAll().take(3).map { char ->
+                    Character.of(context) { id(globalIDFor(Character.Reflection, char.id)) }
+                }
             }
 
             assertEquals(3, results.size)
@@ -141,6 +139,7 @@ class ResolverApiUnitTests : ResolverTestBase() {
     // runMutationFieldResolver
     // -------------------------------------------------------------------------
 
+    // tag::mutation_resolver_example[18] Mutation resolver test
     @Test
     fun `runMutationFieldResolver CreateCharacter creates and returns new character`(): Unit =
         runBlocking {

@@ -32,20 +32,21 @@ class AddCharacterToFilmMutation
             securityAccessService.validateAccess {
                 val input = ctx.arguments.input
                 val filmId = input.filmId.internalID
-                val characterId = input.characterId?.internalID ?: throw IllegalArgumentException("Character ID is required")
-
-                val character = characterRepository.findById(characterId)
-                    ?: throw IllegalArgumentException("Character with ID $characterId not found")
-                val film = filmsRepository.findFilmById(filmId)
-                    ?: throw IllegalArgumentException("Film with ID $filmId not found")
+                val characterId = input.characterId?.internalID
+                    ?: throw IllegalArgumentException("Character ID is required")
 
                 characterFilmsRepository.addCharacterToFilm(characterId, filmId)
                 filmCharactersRepository.addCharacterToFilm(filmId, characterId)
 
-                val filmGrt = FilmBuilder(ctx).build(film)
-                val characterGrt = CharacterBuilder(ctx).build(character)
-
                 AddCharacterToFilmPayload.of(ctx) {
+                    val film = filmsRepository.findFilmById(filmId)
+                        ?: throw IllegalArgumentException("Film with ID $filmId not found")
+                    val character = characterRepository.findById(characterId)
+                        ?: throw IllegalArgumentException("Character with ID $characterId not found")
+
+                    val filmGrt = FilmBuilder(ctx).build(film)
+                    val characterGrt = CharacterBuilder(ctx).build(character)
+
                     film(filmGrt)
                     character(characterGrt)
                 }

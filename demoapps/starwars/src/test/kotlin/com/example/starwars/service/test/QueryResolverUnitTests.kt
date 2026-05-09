@@ -97,7 +97,7 @@ class QueryResolverUnitTests : ResolverTestBase() {
             assertEquals(reference.name, result!!.getName())
         }
 
-    // tag::test_limit_example[23] Test limit example
+    // tag::test_limit_example[19] Test limit example
     @Test
     fun `allCharacters respects limit and maps fields`(): Unit =
         runBlocking {
@@ -211,18 +211,15 @@ class QueryResolverUnitTests : ResolverTestBase() {
             assertEquals(ref.name, result.getName())
         }
 
-    // tag::test_node_resolver_example[14] Test node resolver example
+    // tag::test_node_resolver_example[12] Test node resolver example
     @Test
     fun `film by id returns the correct Film using node resolver`(): Unit =
         runBlocking {
             val ref = filmsRepository.getAllFilms().first()
-            val resolver = FilmNodeResolver(filmsRepository)
 
-            // Create global ID for the film
-            val filmGlobalId = globalIDFor(Film.Reflection, ref.id)
-
-            // Use runNodeResolver to fetch film
-            val result = runNodeResolver(resolver) { id = filmGlobalId }
+            val result = runNodeResolver(FilmNodeResolver(filmsRepository)) {
+                id = globalIDFor(Film.Reflection, ref.id)
+            }
 
             assertNotNull(result)
             assertEquals(ref.title, result.getTitle())

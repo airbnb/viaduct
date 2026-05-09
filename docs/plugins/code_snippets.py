@@ -4,6 +4,7 @@ Provides codetag and codefile macros similar to Hugo shortcodes.
 """
 
 import re
+import textwrap
 from pathlib import Path
 
 
@@ -101,7 +102,7 @@ def define_env(env):
             tag_end = match.end()
             remaining_content = content[tag_end:]
             lines = remaining_content.split('\n')[:lines_to_extract]
-            snippet = '\n'.join(lines)
+            snippet = textwrap.dedent('\n'.join(lines))
 
             return f"""
 ```{lang}
