@@ -30,3 +30,4 @@ The `shared/` directory contains libraries used across the Viaduct engine and te
 - [`impldocs/modern-access-check.md`](impldocs/modern-access-check.md) — Access check architecture: `CheckerExecutorFactory` SPI, QueryPlan RSS embedding, the OER multi-slot pattern, and how checker results flow through completion.
 - [`impldocs/object-lifecycles.md`](impldocs/object-lifecycles.md) — Description of the "lifecycles" of major objects over the lifetime of a Viaduct runtime instance (related to injection scopes).
 - [`impldocs/subquery-execution.md`](impldocs/subquery-execution.md) — Cross-cutting documentation about the `ExecutionHandle` abstraction and how `ctx.query()`/`ctx.mutation()` drive subquery execution across the engine.
+- [`impldocs/exception-hierarchy.md`](impldocs/exception-hierarchy.md) — Exception hierarchy specification: `TenantException` and `PassthroughException` marker interfaces, error handler semantics.

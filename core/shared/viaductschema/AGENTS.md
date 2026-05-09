@@ -13,16 +13,16 @@ The ViaductSchema library provides a unified abstraction layer for working with 
 
 ## Documentation
 
-* [FOR-LIBRARY-USERS.md](FOR-LIBRARY-USERS.md) This file is for developers who use ViaductSchema to work with GraphQL schemas in their applications.
-* [FOR-CSV-USERS.md](FOR-CSV-USERS.md) This file is for developers who want to use the `schema2csv` command to explore GraphQL schemas.
-* [FOR-IMPLEMENTERS.md](FOR-IMPLEMENTERS.md) This file is for developers who want to create their own `ViaductSchema` implementation backed by a different underlying representation.
-* [FOR-MAINTAINERS.md](FOR-MAINTAINERS.md) This file is for developers who maintain or extend the ViaductSchema library itself.
-* [TESTING.md](TESTING.md) — Testing strategy for contributors: how to write and run tests for ViaductSchema implementations.
-* [TEST_FIXTURES.md](TEST_FIXTURES.md) — Test fixture utilities available to implementations and consumers for constructing test schemas.
+* [for-library-users.md](impldocs/for-library-users.md) This file is for developers who use ViaductSchema to work with GraphQL schemas in their applications.
+* [for-csv-users.md](impldocs/for-csv-users.md) This file is for developers who want to use the `schema2csv` command to explore GraphQL schemas.
+* [for-implementers.md](impldocs/for-implementers.md) This file is for developers who want to create their own `ViaductSchema` implementation backed by a different underlying representation.
+* [for-maintainers.md](impldocs/for-maintainers.md) This file is for developers who maintain or extend the ViaductSchema library itself.
+* [testing.md](impldocs/testing.md) — Testing strategy for contributors: how to write and run tests for ViaductSchema implementations.
+* [test-fixtures.md](impldocs/test-fixtures.md) — Test fixture utilities available to implementations and consumers for constructing test schemas.
 
 ## Implementation Documentation
 
-- [`src/main/kotlin/viaduct/graphql/schema/binary/encoding.md`](src/main/kotlin/viaduct/graphql/schema/binary/encoding.md) — Binary encoding format specification for compact schema serialization.
+- [`impldocs/binary-encoding.md`](impldocs/binary-encoding.md) — Binary encoding format specification for compact schema serialization.
 
 ## Goals and Non-Goals
 

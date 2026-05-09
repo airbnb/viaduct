@@ -1,6 +1,6 @@
 # ViaductSchema Testing Guide
 
-This document is for **contributors** to the ViaductSchema library. If you're looking for information about using ViaductSchema's test fixtures in your own tests, see [TEST_FIXTURES.md](TEST_FIXTURES.md).
+This document is for **contributors** to the ViaductSchema library. If you're looking for information about using ViaductSchema's test fixtures in your own tests, see [test-fixtures.md](test-fixtures.md).
 
 ## Overview
 

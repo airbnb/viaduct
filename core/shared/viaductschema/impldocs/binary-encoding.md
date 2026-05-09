@@ -1147,7 +1147,7 @@ The following bugs have been identified and corrected:
 - `constants.kt`: Bit field masks and constants
 - `RefPlus.kt`: RefPlus encoding utilities
 - `bschema-invariants.md`: Comprehensive invariant documentation
-- `encoding.md`: Original encoding specification
+- `binary-encoding.md`: Original encoding specification
 
 ---
 

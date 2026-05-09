@@ -52,5 +52,5 @@ This class uses Kotlin reflection to verify:
 
 In addition to the contracts, use the shared `TestSchemas` cases through your implementation for comprehensive coverage.
 
-See [TEST_FIXTURES.md](TEST_FIXTURES.md) for documentation on test utilities and sample schemas available.
+See [test-fixtures.md](test-fixtures.md) for documentation on test utilities and sample schemas available.
 

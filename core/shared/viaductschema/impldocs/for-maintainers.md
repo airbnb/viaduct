@@ -126,9 +126,9 @@ The library includes comprehensive testing infrastructure organized into black-b
 3. **Add glass-box tests**: Test implementation-specific behavior (encoding limits, caching, error handling)
 4. **Verify invariants**: Schemas must satisfy structural invariants
 
-See [TESTING.md](TESTING.md) for detailed testing guidelines for contributors.
+See [testing.md](testing.md) for detailed testing guidelines for contributors.
 
-See [TEST_FIXTURES.md](TEST_FIXTURES.md) for documentation on test utilities and sample schemas.
+See [test-fixtures.md](test-fixtures.md) for documentation on test utilities and sample schemas.
 
 ## Contribution Guidelines
 
