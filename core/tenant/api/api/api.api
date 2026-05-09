@@ -109,11 +109,6 @@ public final class viaduct/api/globalid/GlobalID {
 	public fun toString ()Ljava/lang/String;
 }
 
-public abstract interface class viaduct/api/globalid/GlobalIDCodec {
-	public abstract fun deserialize (Ljava/lang/String;)Lviaduct/api/globalid/GlobalID;
-	public abstract fun serialize (Lviaduct/api/globalid/GlobalID;)Ljava/lang/String;
-}
-
 public abstract interface class viaduct/api/internal/InputValueBuilder {
 	public abstract fun build ()Ljava/lang/Object;
 }
