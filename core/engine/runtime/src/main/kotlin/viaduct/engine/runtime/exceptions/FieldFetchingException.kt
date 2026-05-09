@@ -4,12 +4,14 @@ import graphql.ErrorClassification
 import graphql.GraphQLError
 import graphql.execution.ResultPath
 import graphql.language.SourceLocation
+import viaduct.apiannotations.InternalApi
 import viaduct.errors.PassthroughException
 
 /**
  * Wraps exceptions that originate from field fetchers
  * @see viaduct.engine.runtime.execution.InternalEngineException
  */
+@OptIn(InternalApi::class)
 class FieldFetchingException private constructor(
     val path: ResultPath,
     val location: SourceLocation,

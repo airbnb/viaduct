@@ -12,13 +12,13 @@ import viaduct.apiannotations.StableApi
  * Allows code to check `e is PassthroughException` instead of checking both
  * [FrameworkException] and [TenantException] separately.
  */
-@StableApi
+@InternalApi
 interface PassthroughException
 
 /**
  * Marker interface for exceptions that should be attributed to tenant code.
  */
-@StableApi
+@InternalApi
 interface TenantException
 
 /**
@@ -26,6 +26,7 @@ interface TenantException
  * and shouldn't be attributed to tenant code.
  */
 @InternalApi
+@OptIn(InternalApi::class)
 class FrameworkException(
     message: String,
     cause: Throwable? = null,
@@ -35,7 +36,8 @@ class FrameworkException(
  * Used in framework code to indicate that an error is due to invalid usage of the tenant API
  * by tenant code.
  */
-@InternalApi
+@StableApi
+@OptIn(InternalApi::class)
 open class TenantUsageException(
     message: String,
     cause: Throwable? = null,
@@ -46,6 +48,7 @@ open class TenantUsageException(
  * This is tied to a specific tenant-written resolver.
  */
 @InternalApi
+@OptIn(InternalApi::class)
 class TenantResolverException(
     override val cause: Throwable,
     val resolver: String,
@@ -67,6 +70,7 @@ class TenantResolverException(
  * exception that discards it.
  */
 @InternalApi
+@OptIn(InternalApi::class)
 class ErroneousFieldException(
     val graphQLErrors: List<GraphQLError>,
 ) : Exception(), TenantException
@@ -87,6 +91,7 @@ fun <T : Any> ensureNotNull(
  * and attribute it to the framework unless it's a [PassthroughException].
  */
 @InternalApi
+@OptIn(InternalApi::class)
 fun <T> handleFrameworkErrors(
     message: String,
     block: () -> T,
@@ -104,6 +109,7 @@ fun <T> handleFrameworkErrors(
  * Same as [handleFrameworkErrors] but for suspend functions.
  */
 @InternalApi
+@OptIn(InternalApi::class)
 suspend fun <T> handleFrameworkErrorsSuspend(
     message: String,
     block: suspend () -> T,
@@ -123,6 +129,7 @@ suspend fun <T> handleFrameworkErrorsSuspend(
  * attributes it to tenant code unless it is already a [PassthroughException].
  */
 @InternalApi
+@OptIn(InternalApi::class)
 fun <T> handleTenantErrors(
     opName: String,
     block: () -> T,
@@ -140,6 +147,7 @@ fun <T> handleTenantErrors(
  * Same as [handleTenantErrors] but for suspend functions.
  */
 @InternalApi
+@OptIn(InternalApi::class)
 suspend fun <T> handleTenantErrorsSuspend(
     opName: String,
     block: suspend () -> T,
@@ -182,6 +190,7 @@ suspend fun <T> resultOfSuspend(
  * Any other [Exception] is wrapped in [TenantResolverException].
  */
 @InternalApi
+@OptIn(InternalApi::class)
 suspend fun <T> handleTenantErrorsResultSuspend(
     opName: String,
     block: suspend () -> T,

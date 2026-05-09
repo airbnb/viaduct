@@ -1,7 +1,6 @@
-public abstract interface class viaduct/errors/PassthroughException {
-}
-
-public abstract interface class viaduct/errors/TenantException {
+public class viaduct/errors/TenantUsageException : java/lang/Exception, viaduct/errors/TenantException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class viaduct/errors/UnsetFieldException : viaduct/errors/TenantUsageException {
