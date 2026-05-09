@@ -1,6 +1,5 @@
 package viaduct.errors
 
-import graphql.GraphQLError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -63,16 +62,30 @@ class TenantResolverException(
 }
 
 /**
+ * A GraphQL field error carried by [ErroneousFieldException].
+ *
+ * @property message Human-readable error description.
+ * @property path Execution path segments leading to the erroneous field (may be null).
+ * @property extensions Arbitrary key-value metadata attached to the error.
+ */
+@StableApi
+data class FieldError(
+    val message: String,
+    val path: List<Any>? = null,
+    val extensions: Map<String, Any?> = emptyMap(),
+)
+
+/**
  * Thrown when a tenant resolver reads a field that was set to an error state — either because
  * the producing resolver threw an exception, returned an error FieldValue, or failed to set a
- * required field. The [graphQLErrors] list is assembled from the FieldErrorExceptions (or
+ * required field. The [fieldErrors] list is assembled from the FieldErrorExceptions (or
  * equivalent error FieldValues) produced upstream and must not be dropped or re-wrapped in any
  * exception that discards it.
  */
-@InternalApi
+@StableApi
 @OptIn(InternalApi::class)
 class ErroneousFieldException(
-    val graphQLErrors: List<GraphQLError>,
+    val fieldErrors: List<FieldError>,
 ) : Exception(), TenantException
 
 /**

@@ -54,7 +54,7 @@ abstract class TenantExceptionWrappingContractTest : KotlinFeatureAppTestContrac
     }
 
     @Test
-    fun `ErroneousFieldException from node batch resolver is not re-wrapped and preserves graphQLErrors`() {
+    fun `ErroneousFieldException from node batch resolver propagates field errors to the response`() {
         setNodeBatchShouldReturnErroneousFieldException(true)
         try {
             val itemId = GlobalIDCodecDefault.serialize("Item", "1")
@@ -70,13 +70,14 @@ abstract class TenantExceptionWrappingContractTest : KotlinFeatureAppTestContrac
 
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
-            // ErroneousFieldException must pass through without TenantResolverException wrapping —
-            // presence of "resolvers" in extensions indicates it was wrapped, which would drop the graphQLErrors payload
+            // The FieldError message must surface in the GraphQL response
+            assertEquals("upstream error", error.message)
+            // ErroneousFieldException must not be wrapped in TenantResolverException —
+            // presence of "resolvers" in extensions indicates wrapping occurred
             assertNull(
-                (error.extensions ?: emptyMap<String, Any>())["resolvers"],
+                error.extensions["resolvers"],
                 "ErroneousFieldException must not be wrapped in TenantResolverException"
             )
-            assertEquals("viaduct.errors.ErroneousFieldException", error.extensions?.get("fullyQualifiedErrorClass"))
         } finally {
             setNodeBatchShouldReturnErroneousFieldException(false)
         }

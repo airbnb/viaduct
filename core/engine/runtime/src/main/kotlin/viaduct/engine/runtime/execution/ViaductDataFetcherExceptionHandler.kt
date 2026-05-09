@@ -10,6 +10,7 @@ import graphql.schema.GraphQLNamedType
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.TimeoutCancellationException
 import viaduct.engine.runtime.exceptions.FieldFetchingException
+import viaduct.errors.ErroneousFieldException
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantException
 import viaduct.errors.TenantResolverException
@@ -128,6 +129,13 @@ open class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, 
         return errors
             ?: when (exception) {
                 is FieldFetchingException -> listOf(exception.toGraphQLError())
+                is ErroneousFieldException -> exception.fieldErrors.map { fieldError ->
+                    val builder = GraphqlErrorBuilder.newError()
+                        .message(fieldError.message)
+                        .extensions(fieldError.extensions)
+                    fieldError.path?.let { builder.path(it) } ?: builder.path(env.executionStepInfo.path)
+                    builder.build()
+                }
                 else ->
                     listOf(
                         GraphqlErrorBuilder.newError(env)

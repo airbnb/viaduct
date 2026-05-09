@@ -2,10 +2,10 @@
 
 package viaduct.tenant.runtime.execution.batchresolver.tenantexceptionpassthrough
 
-import graphql.GraphqlErrorBuilder
 import viaduct.api.FieldValue
 import viaduct.api.resolver.Resolver
 import viaduct.errors.ErroneousFieldException
+import viaduct.errors.FieldError
 import viaduct.errors.TenantUsageException
 import viaduct.tenant.runtime.execution.batchresolver.tenantexceptionpassthrough.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.batchresolver.tenantexceptionpassthrough.resolverbases.QueryResolvers
@@ -39,9 +39,7 @@ class KotlinTenantExceptionWrappingContractTest : TenantExceptionWrappingContrac
                     shouldReturnErroneousFieldException ->
                         FieldValue.ofError(
                             ErroneousFieldException(
-                                listOf(
-                                    GraphqlErrorBuilder.newError().message("upstream error").build()
-                                )
+                                listOf(FieldError(message = "upstream error"))
                             )
                         )
                     else ->
