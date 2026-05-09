@@ -83,14 +83,21 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          path: tooling
+
+      - uses: actions/checkout@v6
+        with:
           ref: ${{ inputs.ref }}
+          path: source
 
       - name: Validate branch and version state
         id: validate
+        working-directory: tooling
         run: |
           python3 .github/scripts/validate_release_state.py \
             --mode "${{ inputs.mode }}" \
-            --branch "${{ inputs.ref }}"
+            --branch "${{ inputs.ref }}" \
+            --version-file ../source/VERSION
         shell: bash
 
   confirm-versions:
