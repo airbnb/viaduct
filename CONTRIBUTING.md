@@ -127,7 +127,7 @@ Releases are listed [here](https://github.com/airbnb/viaduct/releases).
 
 ## Who is responsible for a release?
 
-Releases are performed by maintainers according to the [RELEASE-RUNBOOK.md](RELEASE-RUNBOOK.md).  The release process requires permissions only held by maintainers.  If you are an external contributor and would like to help with a release, please reach out to the core team via a GitHub discussion.
+Releases are performed by maintainers according to the [release runbook](.github/impldocs/release-runbook.md). The release process requires permissions only held by maintainers. If you are an external contributor and would like to help with a release, please reach out to the core team via a GitHub discussion.
 
 ## Versioning
 

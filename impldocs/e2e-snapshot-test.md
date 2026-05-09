@@ -14,7 +14,7 @@ The process has the following steps:
 ## Prerequisites
 
 - Permission to create branches in `https://github.com/airbnb/viaduct` (the `origin` remote)
-- Local clone of the Viaduct repo with two remotes: `origin` pointing to `airbnb/viaduct` and `fork` pointing to your personal fork (see RELEASE-RUNBOOK.md for setup)
+- Local clone of the Viaduct repo with two remotes: `origin` pointing to `airbnb/viaduct` and `fork` pointing to your personal fork (see [.github/impldocs/release-runbook.md](../.github/impldocs/release-runbook.md) for setup)
 - `gh` CLI installed and authenticated
 
 ## Detailed Steps
