@@ -2,7 +2,7 @@ site_name: Viaduct
 site_url: https://viaduct.airbnb.tech/
 site_description: A modern multi-tenant GraphQL server
 site_author: Airbnb, Inc.
-copyright: 'Copyright &copy; 2025 Airbnb, Inc. | <a href="https://creativecommons.org/licenses/by/4.0">CC BY 4.0</a>'
+copyright: 'Copyright &copy; {year} Airbnb, Inc. | <a href="https://creativecommons.org/licenses/by/4.0">CC BY 4.0</a>'
 
 repo_url: https://github.com/airbnb/viaduct
 repo_name: airbnb/viaduct
@@ -50,6 +50,7 @@ theme:
 
 hooks:
   - hooks/copy_markdown.py
+  - hooks/dynamic_copyright.py
 
 extra_css:
   - stylesheets/brand.css
