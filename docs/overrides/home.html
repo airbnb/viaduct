@@ -219,6 +219,30 @@
   margin-bottom: 0;
 }
 
+/* Community links row under the description banner */
+.mdx-description__community {
+  margin: 24px auto 0;
+  max-width: 800px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--md-typeset-color);
+  opacity: 0.85;
+}
+
+.mdx-description__community a {
+  color: var(--viaduct-secondary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.mdx-description__community a:hover {
+  text-decoration: underline;
+}
+
+[data-md-color-scheme="slate"] .mdx-description__community a {
+  color: var(--viaduct-primary);
+}
+
 /* Warning banner */
 .mdx-banner {
   max-width: 800px;
@@ -341,6 +365,39 @@
     <p>Viaduct provides you with one global schema and query system. Regardless of the engineering ownership or backing service, data access and mutations should follow a reliable and consistent pattern. The code which hydrates such queries should be maintained by the team which owns the data, to prevent the need to implement such logic by every team querying it.</p>
     <div class="mdx-banner">
       <p>The Viaduct engine is in production, at scale, at Airbnb where it has proven reliable. The developer API of Viaduct is under active development. In <a href="roadmap/">our roadmap</a> we indicate which parts of the API are more or less subject to future change. This is a good time to join the project and influence the direction that this API takes!</p>
+    </div>
+    <p class="mdx-description__community">
+      Get involved:
+      <a href="https://github.com/airbnb/viaduct/discussions">GitHub Discussions</a>
+      &middot;
+      <a href="https://discord.gg/v9gkcKMM">Contributor Discord</a>
+      &middot;
+      <a href="community/">Community page</a>
+    </p>
+  </div>
+</section>
+
+<section class="mdx-features mdx-features--why">
+  <div class="mdx-features__header">
+    <h2 class="mdx-features__title">Why Viaduct?</h2>
+    <p class="mdx-features__subtitle">What you get when many teams contribute to one GraphQL server</p>
+  </div>
+  <div class="mdx-features__grid">
+    <div class="mdx-feature">
+      <h3>One global schema</h3>
+      <p>Independent teams contribute schema and resolvers ("tenant modules") that compose into a single GraphQL surface clients can target — without forcing teams to share a codebase.</p>
+    </div>
+    <div class="mdx-feature">
+      <h3>Owners write the resolvers</h3>
+      <p>The team that owns the data writes the resolver that fetches it. Other teams query through the schema instead of reimplementing access logic, which keeps domain knowledge where it belongs.</p>
+    </div>
+    <div class="mdx-feature">
+      <h3>Performance by construction</h3>
+      <p>Batching, deduplication, and per-field dependency tracking are built into the engine, so the natural way to write a resolver is also the efficient way — N+1 patterns are hard to introduce.</p>
+    </div>
+    <div class="mdx-feature">
+      <h3>Type-safe identity</h3>
+      <p>Every cross-entity reference flows through a typed Global ID. References stay stable across storage changes, and resolvers consume them through generated, type-safe APIs instead of raw strings.</p>
     </div>
   </div>
 </section>

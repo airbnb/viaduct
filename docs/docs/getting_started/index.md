@@ -5,6 +5,24 @@ description: Set up your first Viaduct application
 
 This section will guide you through setting up your first Viaduct tenant and understanding the core concepts of Viaduct. You'll start by configuring your development environment—either by cloning an existing tenant or creating one from scratch—then take a tour of the codebase structure. The Star Wars tutorial walks you through building a complete GraphQL API, covering schemas, resolvers, directives, mutations, and testing. By the end of this section, you'll have a working Viaduct tenant and the foundational knowledge to build and extend your own GraphQL servers.
 
+## How a request flows through Viaduct
+
+```mermaid
+flowchart LR
+    Client(["GraphQL client"]) -->|HTTP| Service["Embedding service<br/>(your web server)"]
+    Service -->|ExecutionInput| Viaduct["viaduct.service.api.Viaduct"]
+    Viaduct --> Engine["Engine<br/>(plan + execute)"]
+    Engine -->|invokes| Resolvers["Tenant resolvers<br/>node / field / batch"]
+    Resolvers -->|loads from| Backends[("Data sources<br/>DBs, services, caches")]
+    Backends --> Resolvers
+    Resolvers --> Engine
+    Engine --> Viaduct
+    Viaduct -->|ExecutionResult| Service
+    Service -->|HTTP response| Client
+```
+
+Your code touches three layers: the **embedding service** (a Spring/Ktor/CLI app that holds the `Viaduct` instance and routes HTTP), the **schema** that lists fields and `@resolver` directives, and the **resolvers** that produce the values. The engine plans the query, calls your resolvers in the right order, and assembles the response.
+
 ## Start here if you are…
 
 - **A tenant developer** writing GraphQL schema and resolvers — work through this Getting Started section, then keep the [Developers](../docs/developers/index.md) reference at hand.
