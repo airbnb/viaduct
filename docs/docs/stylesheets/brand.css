@@ -34,6 +34,11 @@
   background-color: #337985;
 }
 
+/* Tables — Material's default 0.64rem is hard to read in long prose */
+.md-typeset table:not([class]) {
+  font-size: 0.8rem;
+}
+
 /* Links */
 .md-typeset a {
   color: #337985;
