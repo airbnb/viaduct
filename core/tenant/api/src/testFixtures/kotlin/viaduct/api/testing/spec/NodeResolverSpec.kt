@@ -1,12 +1,10 @@
 package viaduct.api.testing.spec
 
-import io.mockk.mockk
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.mocks.MockNodeExecutionContext
-import viaduct.api.select.SelectionSet
 import viaduct.api.testing.spec.base.BaseNodeSpec
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.ExperimentalApi
@@ -32,7 +30,7 @@ class NodeResolverSpec<T : NodeObject> : BaseNodeSpec<T>() {
         val innerCtx = MockNodeExecutionContext(
             id = resolvedId,
             requestContext = requestContext,
-            selectionsValue = selections ?: mockk<SelectionSet<T>>(),
+            selectionsValue = selections,
             internalContext = internalContext,
             queryResults = queryResultsMap,
             selectionSetFactory = selectionSetFactory,

@@ -1,6 +1,5 @@
 package viaduct.api.testing.spec
 
-import io.mockk.mockk
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.select.SelectionSetFactory
@@ -24,7 +23,7 @@ import viaduct.apiannotations.InternalApi
 class FieldBatchResolverSpec<O : Object, Q : Query> : BaseResolverSpec() {
     var objectValues: List<O> = emptyList()
     var queryValues: List<Q>? = null
-    var selections: SelectionSet<*>? = null
+    var selections: SelectionSet<*> = SelectionSet.NoSelections
 
     @OptIn(InternalApi::class)
     fun createContexts(
@@ -41,7 +40,6 @@ class FieldBatchResolverSpec<O : Object, Q : Query> : BaseResolverSpec() {
         }
 
         val queryResultsMap = buildQueryResultsMap(internalContext, selectionSetFactory)
-        val resolvedSelections = selections ?: mockk<SelectionSet<*>>()
 
         return objectValues.zip(resolvedQueryValues) { obj, query ->
             val innerCtx = MockFieldExecutionContext(
@@ -49,7 +47,7 @@ class FieldBatchResolverSpec<O : Object, Q : Query> : BaseResolverSpec() {
                 queryValue = query,
                 arguments = Arguments.NoArguments,
                 requestContext = requestContext,
-                selectionsValue = resolvedSelections,
+                selectionsValue = selections,
                 internalContext = internalContext,
                 queryResults = queryResultsMap,
                 selectionSetFactory = selectionSetFactory,
