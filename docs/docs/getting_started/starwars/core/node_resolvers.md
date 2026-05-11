@@ -6,17 +6,9 @@ description: Implementing node resolvers in Viaduct for type-safe, opaque Global
 
 
 Node resolvers provide **typed lookups by Global ID**. Any entity that must be fetched individually through the
-GraphQL `node(id:)` entry point should have a corresponding node resolver. Viaduct parses the incoming Global ID,
-hands your resolver the **internal ID** via `ctx.id.internalID`, and expects you to return the typed GraphQL object
-(or `null` if it does not exist).
-
-## Responsibilities and boundaries
-
-- **Do:** load a single entity by its internal ID.
-- **Do:** build the GraphQL object and attach a Global ID with `ctx.globalIDFor(<Type>.Reflection, internalId)`.
-- **Do:** return `null` when the entity does not exist.
-- **Don’t:** perform cross-entity joins or heavy business logic here — use field resolvers for that.
-- **Don’t:** throw for “not found”; prefer `null` and let GraphQL shape the result.
+GraphQL `node(id:)` entry point should have a corresponding node resolver. Viaduct decodes the incoming Global ID,
+hands your resolver the **internal ID** via `ctx.id.internalID`, and expects you to return the typed GraphQL object.
+Keep node resolvers tiny: _lookup → build → return_.
 
 ## Request lifecycle (node)
 
@@ -31,9 +23,15 @@ hands your resolver the **internal ID** via `ctx.id.internalID`, and expects you
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmNodeResolver.kt", "node_resolver_example", lang="kotlin") }}
 
 
-### Why return `null` instead of throwing?
-GraphQL treats `null` as an expected outcome for missing nodes, avoiding unnecessary query failures and allowing the
-client to branch on presence. Reserve exceptions for **unexpected** conditions (I/O errors, decoding failures, etc.).
+### Handling "not found"
+
+GraphQL's
+[error specification](https://spec.graphql.org/draft/#sec-Errors) gives you two reasonable choices when an entity
+isn't found: return `null` (and let `node` show the absence to the client) or surface a typed error. The Star Wars
+demo throws an `IllegalArgumentException` because, in this demo, an unknown ID is treated as a programming error.
+Most production node resolvers prefer `null` so that callers can branch on presence without a query failure.
+Whichever you pick, reserve exceptions for **unexpected** conditions (I/O errors, decoding failures, programming
+bugs).
 
 ## Common patterns that pair with node resolvers
 
@@ -60,21 +58,28 @@ query GetNode($id: ID!) {
 }
 ```
 
-## Testing checklist (in this repo)
+## Integration testing
 
-- **Happy path:** returns a fully built `Character` when the internal ID exists.
-- **Missing entity:** returns `null` without throwing.
-- **ID shape:** `id` field is the typed Global ID you emitted from `ctx.globalIDFor(...)`.
-- **Composability:** related fields (homeworld, species, film counts) resolve via field resolvers.
+Node resolvers are most usefully exercised by integration tests that issue real `node(id:)` queries against a
+configured Viaduct instance. Verify:
 
-> See the integration tests such as `ResolverIntegrationTest.kt` and `StarWarsNodeResolversTest.kt` for examples of
-> end-to-end node behavior in this demo.
+- **ID shape:** the `id` returned in the response is the typed Global ID you emitted from `ctx.globalIDFor(...)`.
+- **Composability:** related fields (homeworld, species, film counts) resolve via field resolvers, not by extra
+  work inside the node resolver.
+- **Not-found behavior:** the resolver behaves consistently with whatever convention you chose (`null` or a typed
+  error).
+
+> See `ResolverIntegrationTest.kt` and `StarWarsNodeResolversTest.kt` in the demo for examples of end-to-end
+> node behavior.
 
 ## Do and don’t
 
 - **Do** keep node resolvers tiny: _lookup → build → return_.
+- **Do** load a single entity by its internal ID and attach a Global ID with `ctx.globalIDFor(<Type>.Reflection, internalId)`.
 - **Do** lean on field resolvers for relationships and heavy logic.
-- **Don’t** perform per-request joins here; you’ll lose batching opportunities.
+- **Don’t** perform per-request joins here; you'll lose batching opportunities.
 - **Don’t** leak internal IDs — always emit typed Global IDs in the `id` field.
+
+> See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
 
 

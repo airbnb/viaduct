@@ -33,7 +33,7 @@ Typical use cases:
 
 In this example, `searchCharacter` is available to any request with the `default` scope. The `culturalNotes` is defined in `extras`.
 
-This demo apps will hide `extras` for queries that does not include the header `X-StarWars-Scopes: extras`.
+This demo app will hide `extras` for queries that do not include the header `X-Viaduct-Scopes: extras`.
 
 ## How scopes are evaluated
 
@@ -44,7 +44,7 @@ In the **Star Wars demo only**, scopes are provided via this header:
 
 ```json
 {
-  "X-StarWars-Scopes": "default,extras"
+  "X-Viaduct-Scopes": "default,extras"
 }
 ```
 
@@ -115,6 +115,8 @@ In the Star Wars demo:
 - Choose a single source of truth for scopes (JWT claims, session, config) and pass it to Viaduct consistently.
 - Log active scopes per request for auditability.
 - Define other scopes like `internal`, `admin`, or `beta` as needed, and limit the usage as described above.
+
+> See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
 
 ## Common mistakes
 

@@ -107,10 +107,10 @@ nav:
           - getting_started/starwars/index.md
           - Core Concepts:
               - getting_started/starwars/core/index.md
+              - Global IDs: getting_started/starwars/core/global_id.md
               - Node Resolvers: getting_started/starwars/core/node_resolvers.md
               - Field Resolvers: getting_started/starwars/core/field_resolvers.md
               - Batch Resolvers: getting_started/starwars/core/batch_resolvers.md
-              - Global IDs: getting_started/starwars/core/global_id.md
               - Resolver Integrations: getting_started/starwars/core/resolver_integrations.md
           - Directives:
               - getting_started/starwars/directives/index.md
@@ -133,6 +133,7 @@ nav:
       - Extending: getting_started/extending/index.md
   - Developers:
     - docs/developers/index.md
+    - Best Practices: docs/developers/best_practices/index.md
     - Resolvers:
       - docs/developers/resolvers/index.md
       - Resolver Annotation: docs/developers/resolvers/resolver_annotation.md
@@ -150,7 +151,7 @@ nav:
       - Contributors guide: docs/developers/api_stability/contributors_guide.md
     - Scopes: docs/developers/scopes/index.md
     - Schema Reference: docs/developers/schema_reference/index.md
-    - Viaduct Api: docs/developers/viaduct_api/index.md
+    - Viaduct API: docs/developers/viaduct_api/index.md
     - Testing: docs/developers/testing/index.md
   - Service Engineers:
     - docs/service_engineers/index.md

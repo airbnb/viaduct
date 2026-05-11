@@ -89,7 +89,7 @@ At the top of `build.gradle.kts` you'll see:
 
 You can see the two Viaduct plugins appearing here:
 
-- **`viaduct.application`**: This plugin must be applied to the root project. It coordinates certain build processes across the entire application, including code generation.
+- **`viaduct.application`**: This plugin must be applied to the root project. It coordinates build processes across the entire application, including code generation.
 
 - **`viaduct.module`**: This plugin indicates that the project contains application code (resolvers). One or more projects in your build can apply this plugin.
 

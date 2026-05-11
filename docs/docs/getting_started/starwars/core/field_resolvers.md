@@ -59,10 +59,10 @@ Use for **one-off** relationships where only a few objects are in play. If many 
 the same relationship in a single operation, move this to a batch resolver.
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterHomeworldResolver.kt", "resolver_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmPlanetsResolver.kt", "resolver_example", lang="kotlin") }}
 
 
-### 3) Argument-driven formatting
+### 3) Argument-driven behavior
 
 The `limit` argument controls the length of the returned summary.
 
@@ -70,18 +70,39 @@ The `limit` argument controls the length of the returned summary.
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/queries/AllCharactersQueryResolver.kt", "resolver_example", lang="kotlin") }}
 
 
+## What about heavy lookups?
+
+Field resolvers are intended to be cheap. When a single field genuinely needs an expensive load, push the work
+out of the resolver:
+
+- **Move it into the data layer** so the cost is bounded by your repository or service.
+- **Convert to a batch field resolver** when more than a handful of parents will request the field in one
+  operation — this is almost always the right answer for relationship loads.
+- **Delegate to a service** behind a small façade and keep the resolver thin. The resolver becomes a translator
+  between Viaduct's `Context` and your service contract.
+
+If you find yourself doing significant work inside `resolve`, that's a signal to revisit which layer should own
+the load.
+
 ## Error handling and nullability
 
-- Prefer returning **`null`** for missing/unknown values.
+GraphQL itself dictates most of the rules here, so the resolver-side guidance is short:
+
+- Prefer returning **`null`** for missing or unknown values when the schema field is nullable. See the
+  [GraphQL error spec](https://spec.graphql.org/draft/#sec-Errors) for how clients see partial results.
 - Throw exceptions only for **unexpected** conditions (I/O failure, decoding errors).
 - Match the field nullability in the schema: if the field is non-null, ensure you always produce a value.
 
-## Performance and design guidelines
+## Do and don’t
 
-- **Keep it light:** perform inexpensive logic and at most a single lookup.
-- **Defer relationships:** if many parents need the same relationship, implement a **batch field resolver** instead.
-- **Avoid hidden N+1:** do not loop lookups inside `resolve` when the query can select many parents.
-- **Respect fragments:** if you need parent fields, request them via the base resolver’s fragment, or rely on getters
-  that are already available on `ctx.objectValue`.
+- **Do** keep it light: perform inexpensive logic and at most a single lookup.
+- **Do** defer relationships: if many parents need the same relationship, implement a **batch field resolver** instead.
+- **Do** request only the parent fields you need via `objectValueFragment`, and rely on getters already
+  available on `ctx.objectValue`.
+- **Don’t** loop lookups inside `resolve` when the query can select many parents — that's a hidden N+1.
+- **Don’t** put heavy business logic or multi-step orchestration inside a field resolver; push it to a service
+  or batch resolver.
+
+> See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
 
 
