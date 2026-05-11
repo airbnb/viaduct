@@ -1,10 +1,10 @@
 @file:Suppress("unused", "ClassName")
 
-package viaduct.api.roottypes
+package viaduct.tenant.runtime.execution.roottypes
 
 import viaduct.api.resolver.Resolver
-import viaduct.api.roottypes.resolverbases.CustomMutationResolvers
-import viaduct.api.roottypes.resolverbases.CustomQueryResolvers
+import viaduct.tenant.runtime.execution.roottypes.resolverbases.CustomMutationResolvers
+import viaduct.tenant.runtime.execution.roottypes.resolverbases.CustomQueryResolvers
 
 class RootTypesSchemaClauseFeatureAppTest : RootTypesSchemaClauseContractTest() {
     @Resolver

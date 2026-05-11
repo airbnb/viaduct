@@ -1,4 +1,4 @@
-package viaduct.api.roottypes
+package viaduct.tenant.runtime.execution.roottypes
 
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema

@@ -31,7 +31,7 @@ tasks.named("check") {
 dependencies {
     viaductCodegenClasspath(libs.viaduct.tenant.codegen)
 
-    testFixturesImplementation(testFixtures(libs.viaduct.tenant.api))
+    testFixturesImplementation(testFixtures(libs.viaduct.tenant.runtime))
     testFixturesImplementation(libs.viaduct.tenant.runtime)
 
     testImplementation(libs.graphql.java)
