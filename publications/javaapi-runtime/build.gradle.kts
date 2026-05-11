@@ -65,13 +65,10 @@ configurations {
     }
 }
 
-// Suppress runtimeElements from Gradle module metadata so consumers don't resolve
-// transitive deps that are already bundled in the shadow jar.
-plugins.withId("org.jetbrains.kotlin.jvm") {
-    val javaComponent = components["java"] as AdhocComponentWithVariants
-    javaComponent.withVariantsFromConfiguration(configurations.runtimeElements.get()) {
-        skip()
-    }
+// Suppress Gradle module metadata — the fat jar is self-contained and the standard
+// variants would reference internal viaduct coordinates that aren't published individually.
+tasks.withType<GenerateModuleMetadata> {
+    enabled = false
 }
 
 // Strip transitive dependencies from POM for Maven consumers.
