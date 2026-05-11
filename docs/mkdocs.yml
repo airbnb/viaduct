@@ -150,7 +150,6 @@ nav:
       - Contributors guide: docs/developers/api_stability/contributors_guide.md
     - Scopes: docs/developers/scopes/index.md
     - Schema Reference: docs/developers/schema_reference/index.md
-    - Serve: docs/developers/serve/index.md
     - Viaduct Api: docs/developers/viaduct_api/index.md
     - Testing: docs/developers/testing/index.md
   - Service Engineers:
