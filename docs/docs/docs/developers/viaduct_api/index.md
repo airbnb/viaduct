@@ -26,20 +26,9 @@ This is the simplest way to build an instance of Viaduct.
 
 ```kotlin
 import viaduct.service.BasicViaductFactory
-import viaduct.service.TenantRegistrationInfo
 import viaduct.service.api.Viaduct
-import viaduct.service.api.spi.CodeInjector
 
-val tenantInfo = TenantRegistrationInfo(
-  tenantPackagePrefix = "com.example.myservice", // where tenant-generated code lives
-  codeInjector = CodeInjector.Naive  // or your DI-backed injector
-)
-
-val viaduct: Viaduct =
-  BasicViaductFactory.create(
-    tenantRegistrationInfo = tenantInfo,
-    // optional schemaRegistrationInfo override (defaults are usually correct)
-  )
+val viaduct: Viaduct = BasicViaductFactory.create()
 ```
 
 **When to use**

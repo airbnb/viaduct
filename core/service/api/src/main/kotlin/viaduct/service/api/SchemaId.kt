@@ -1,5 +1,6 @@
 package viaduct.service.api
 
+import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 
 /**
@@ -22,7 +23,7 @@ abstract class SchemaId(
      * @param id The schema ID.
      * @param scopeIds The set of scope IDs the schema is scoped to.
      */
-    @StableApi
+    @InternalApi
     data class Scoped(
         override val id: String,
         val scopeIds: Set<String>

@@ -8,9 +8,9 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import viaduct.api.testing.TestSchema
-import viaduct.apiannotations.VisibleForTest
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
-import viaduct.service.ViaductBuilder
+import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
 import viaduct.service.api.SchemaId
@@ -18,6 +18,7 @@ import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.StandardViaduct
 
 /**
  * Abstract base class for contract-style feature-app tests.
@@ -28,6 +29,7 @@ import viaduct.service.runtime.SchemaConfiguration
  * This class provides the common test lifecycle, builder wiring, and query execution
  * logic shared by both the Kotlin and Java contract test bases.
  */
+@OptIn(InternalApi::class)
 @Tag("feature-app-contract-test")
 abstract class AbstractFeatureAppTestContractBase {
     private val sdl: String = requireNotNull(
@@ -49,7 +51,7 @@ abstract class AbstractFeatureAppTestContractBase {
     protected abstract fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>
 
     /**
-     * Hook called just before [ViaductBuilder.build]. Override to add pre-build
+     * Hook called just before build. Override to add pre-build
      * validation (e.g., resolver completeness checks).
      */
     protected open fun onBeforeBuild() {}
@@ -66,8 +68,7 @@ abstract class AbstractFeatureAppTestContractBase {
 
     private val flagManager = MockFlagManager()
 
-    protected lateinit var viaductBuilder: ViaductBuilder
-    lateinit var viaductSchemaConfiguration: SchemaConfiguration
+    protected lateinit var viaductBuilder: StandardViaduct.Builder
     lateinit var viaductService: Viaduct
 
     /**
@@ -76,28 +77,31 @@ abstract class AbstractFeatureAppTestContractBase {
      * constructors, `init {}` blocks, or any custom setup path that bypasses JUnit lifecycle
      * callbacks, or [viaductBuilder] will not be initialized yet.
      */
-    fun withViaductBuilder(builderUpdate: ViaductBuilder.() -> Unit) {
+    fun withViaductBuilder(builderUpdate: StandardViaduct.Builder.() -> Unit) {
         viaductBuilder.apply(builderUpdate)
     }
 
     /**
-     * Safe to call from test methods and subclass `@BeforeEach` methods because JUnit runs
-     * [initViaductBuilder] first. Do not call this from property initializers, constructors,
-     * `init {}` blocks, or any setup path that runs before or instead of [initViaductBuilder].
+     * Configures scoped schemas for the test. Each [SchemaScopeInfo] binds a schema name
+     * to a set of scope IDs. Replaces the default (unscoped) schema configuration.
      */
-    fun withSchemaConfiguration(config: SchemaConfiguration) {
-        viaductBuilder = viaductBuilder.withSchemaConfiguration(config)
-        viaductSchemaConfiguration = config
+    fun withScopedSchemas(scopedSchemas: List<SchemaScopeInfo>) {
+        val scopeConfigs = scopedSchemas.map {
+            SchemaConfiguration.ScopeConfig(it.schemaId.id, it.scopesToApply)
+        }.toSet()
+        viaductBuilder = viaductBuilder.withSchemaConfiguration(
+            SchemaConfiguration.fromSdl(sdl(), scopes = scopeConfigs)
+        )
     }
 
     @BeforeEach
-    @OptIn(VisibleForTest::class)
     open fun initViaductBuilder() {
         if (!::viaductBuilder.isInitialized) {
-            viaductBuilder = ViaductBuilder()
+            viaductBuilder = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withLenientResolverValidation()
                 .withTenantAPIBootstrapperBuilder(createBootstrapperBuilder())
+                .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl()))
         }
     }
 
@@ -125,17 +129,11 @@ abstract class AbstractFeatureAppTestContractBase {
 
     open fun defaultSchemaId(): SchemaId = SchemaId.Full
 
-    open fun getScopeConfig(): Set<SchemaConfiguration.ScopeConfig> = emptySet()
-
     /**
      * Attempts to build the [Viaduct] instance if it has not been initialized yet.
      */
     @Suppress("TooGenericExceptionCaught")
     fun tryBuildViaductService() {
-        if (!::viaductSchemaConfiguration.isInitialized) {
-            viaductSchemaConfiguration = SchemaConfiguration.fromSdl(sdl(), scopes = getScopeConfig())
-            viaductBuilder.withSchemaConfiguration(viaductSchemaConfiguration)
-        }
         if (!::viaductService.isInitialized) {
             onBeforeBuild()
             try {

@@ -3,7 +3,6 @@ package com.example.viadapp.production
 import io.micronaut.context.annotation.Bean
 import io.micronaut.context.annotation.Factory
 import viaduct.service.BasicViaductFactory
-import viaduct.service.SchemaRegistrationInfo
 import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.Viaduct
 
@@ -21,11 +20,9 @@ class ViaductConfiguration(
 ) {
     @Bean
     fun providesViaduct(): Viaduct {
-        return BasicViaductFactory.createFromResource(
-            schemaRegistrationInfo = SchemaRegistrationInfo(
-                scopes = listOf(SchemaScopeInfo(SCHEMA_ID)),
-            ),
+        return BasicViaductFactory.create(
             tenantModuleBootstrapper = tenantModuleBootstrapper,
+            scopedSchemas = listOf(SchemaScopeInfo(SCHEMA_ID)),
         )
     }
 }

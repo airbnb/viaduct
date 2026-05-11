@@ -21,6 +21,7 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.apiannotations.InternalApi
 
+@OptIn(InternalApi::class)
 class TestTenantModule : TenantModule {
     override val metadata = mapOf(
         "name" to "TestModule",

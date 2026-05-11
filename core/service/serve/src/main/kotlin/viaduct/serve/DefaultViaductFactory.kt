@@ -2,7 +2,6 @@ package viaduct.serve
 
 import org.slf4j.LoggerFactory
 import viaduct.service.BasicViaductFactory
-import viaduct.service.TenantRegistrationInfo
 import viaduct.service.api.Viaduct
 
 /**
@@ -44,10 +43,6 @@ class DefaultViaductFactory(
         logger.info("Using package prefix: {}", packagePrefix)
 
         // Create Viaduct using BasicViaductFactory
-        return BasicViaductFactory.create(
-            tenantRegistrationInfo = TenantRegistrationInfo(
-                tenantPackagePrefix = packagePrefix
-            )
-        )
+        return BasicViaductFactory.create()
     }
 }

@@ -5,9 +5,8 @@ package viaduct.tenant.tutorial06
 import org.junit.jupiter.api.Test
 import viaduct.api.resolver.Resolver
 import viaduct.graphql.test.assertEquals
+import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.SchemaId
-import viaduct.service.runtime.SchemaConfiguration
-import viaduct.service.runtime.toScopeConfig
 import viaduct.tenant.tutorial06.resolverbases.QueryResolvers
 
 /**
@@ -94,17 +93,11 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
 
     @Test
     fun `Customer app can access user orders but not admin data`() {
-        // `withSchemaConfiguration` lets you pass in a schema config
-        // to configure the [Viaduct] object being tested.  In this example we're creating a
-        // scoped schema named "CUSTOMER_API".  See Viaduct user docs for more on
-        // schema scoping.
-        val schemaId = SchemaId.Scoped("CUSTOMER_API", setOf("USER"))
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(
-                sdl(),
-                scopes = setOf(schemaId.toScopeConfig()),
-            )
-        )
+        // `withScopedSchemas` configures the scoped schemas for the [Viaduct] object being
+        // tested.  In this example we're creating a scoped schema named "CUSTOMER_API".
+        // See Viaduct user docs for more on schema scoping.
+        val customerSchema = SchemaScopeInfo("CUSTOMER_API", setOf("USER"))
+        withScopedSchemas(listOf(customerSchema))
 
         // USER SCOPE ACCESS - Works
         execute(
@@ -113,7 +106,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
                     myOrders(userId: "user-123")
                 }
             """.trimIndent(),
-            schemaId = schemaId // Using customer deployment
+            schemaId = customerSchema.schemaId // Using customer deployment
         ).assertEquals {
             "data" to {
                 "myOrders" to listOf("Order #1001", "Order #1002")
@@ -127,7 +120,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
                     allUserData  # This field doesn't exist in customer API
                 }
             """.trimIndent(),
-            schemaId = schemaId
+            schemaId = customerSchema.schemaId
         ).assertEquals {
             "errors" to arrayOf(
                 {
@@ -152,13 +145,8 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
         // Register admin dashboard schema with ADMIN scope only
         // This simulates deploying the API for internal admin tools and dashboards
 
-        val schemaId = SchemaId.Scoped("ADMIN_API", setOf("ADMIN"))
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(
-                sdl(),
-                scopes = setOf(schemaId.toScopeConfig())
-            )
-        )
+        val adminSchema = SchemaScopeInfo("ADMIN_API", setOf("ADMIN"))
+        withScopedSchemas(listOf(adminSchema))
 
         // ADMIN SCOPE ACCESS - Works
         execute(
@@ -167,7 +155,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
                     allUserData
                 }
             """.trimIndent(),
-            schemaId = schemaId
+            schemaId = adminSchema.schemaId
         ).assertEquals {
             "data" to {
                 "allUserData" to listOf("User: john@example.com", "User: jane@example.com")
@@ -181,7 +169,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
                     myOrders(userId: "user-123")  # This field doesn't exist in admin API
                 }
             """.trimIndent(),
-            schemaId = schemaId
+            schemaId = adminSchema.schemaId
         ).assertEquals {
             "errors" to arrayOf(
                 {
@@ -205,13 +193,8 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
     fun `Internal tools with both scopes can access everything`() {
         // Register internal tools schema with both USER and ADMIN scopes
         // This simulates deploying the API for support tools that need access to everything
-        val schemaId = SchemaId.Scoped("INTERNAL_API", setOf("USER", "ADMIN"))
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(
-                sdl(),
-                scopes = setOf(schemaId.toScopeConfig())
-            )
-        )
+        val internalSchema = SchemaScopeInfo("INTERNAL_API", setOf("USER", "ADMIN"))
+        withScopedSchemas(listOf(internalSchema))
 
         // COMBINED ACCESS - Both scopes available
         execute(
@@ -221,7 +204,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
                     allUserData                     # From ADMIN scope
                 }
             """.trimIndent(),
-            schemaId = schemaId
+            schemaId = internalSchema.schemaId
         ).assertEquals {
             "data" to {
                 "myOrders" to listOf("Order #2001")
