@@ -47,8 +47,6 @@ dependencies {
     testFixturesImplementation(libs.caffeine)
     testFixturesImplementation(libs.checker.qual)
     testFixturesImplementation(libs.graphql.java.extension)
-    testFixturesImplementation(libs.io.mockk.dsl)
-    testFixturesImplementation(libs.io.mockk.jvm)
     testFixturesImplementation(libs.kotlinx.coroutines.jdk8)
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))

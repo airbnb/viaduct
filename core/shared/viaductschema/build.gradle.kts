@@ -33,7 +33,6 @@ dependencies {
 
     implementation(libs.guava)
     implementation(libs.kotlin.reflect)
-    implementation(libs.reflections)
     implementation(libs.jspecify)
 
     testFixturesApi(libs.graphql.java)
