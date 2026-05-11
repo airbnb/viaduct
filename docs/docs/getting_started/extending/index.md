@@ -31,7 +31,7 @@ This will regenerate the code needed to build your application. Viaduct generate
 
 Now you need to write a resolver for the new field. You could add it to `HelloWorldResolvers.kt`: resolvers for this application can be placed in any file as long as it's in the `com.example.viadapp.resolvers` package.
 
-To support copy-and-paste, create a file named `AttributedGreetingResolver.kt` in the same subdirectory as `HelloWorldResolvers.kt` and copy the following code into it:
+Create a file named `AttributedGreetingResolver.kt` in the same subdirectory as `HelloWorldResolvers.kt` and copy the following code into it:
 
 ```kotlin
 package com.example.viadapp.resolvers

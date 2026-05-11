@@ -37,12 +37,9 @@ type Character implements Node @scope(to: ["default"]) @resolver(isBatching: tru
 ## Choosing the fragment
 
 The `objectValueFragment` declares the parent fields your resolver needs. Keep it **minimal** — requesting only `id`
-is typical for lookup scenarios. If you require additional, cheap fields (for example, `name` for formatting), add them
-here so they are available on `ctx.objectValue` without extra work.
-
-
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt", "film_count_batch_resolver", lang="kotlin") }}
-
+is typical for lookup scenarios. In the example above, the `CharacterFilmCountResolver` only needs the character's
+internal ID, so its fragment is `fragment _ on Character { id }`. If you require additional, cheap fields (for
+example, `name` for formatting), add them here so they are available on `ctx.objectValue` without extra work.
 
 ## Implementing batch resolvers in node resolvers
 
@@ -97,5 +94,7 @@ query {
 - **Do** return results in the same order as the input contexts.
 - **Don’t** perform per-context DB calls inside `batchResolve`.
 - **Don’t** allocate large intermediate structures unnecessarily — map directly back to contexts.
+
+> See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
 
 

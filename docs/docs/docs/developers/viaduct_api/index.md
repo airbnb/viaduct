@@ -1,6 +1,6 @@
 ---
-title: Viadcut Api
-description: Viaduct Runtime Execution Api
+title: Viaduct API
+description: Viaduct Runtime Execution API
 ---
 
 
