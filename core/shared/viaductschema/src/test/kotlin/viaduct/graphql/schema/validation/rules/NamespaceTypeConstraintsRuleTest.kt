@@ -16,9 +16,11 @@ class NamespaceTypeConstraintsRuleTest {
         directive @namespaceType on OBJECT
     """.trimIndent()
 
-    private fun validate(sdl: String) =
-        SchemaValidator(listOf(listOf(NamespaceTypeConstraintsRule())))
-            .validate(ViaductSchema.fromTypeDefinitionRegistry("$preamble\n$sdl"))
+    private fun validate(
+        sdl: String,
+        rule: NamespaceTypeConstraintsRule = NamespaceTypeConstraintsRule()
+    ) = SchemaValidator(listOf(listOf(rule)))
+        .validate(ViaductSchema.fromTypeDefinitionRegistry("$preamble\n$sdl"))
 
     @Test
     fun `valid - no errors`() {
@@ -253,5 +255,88 @@ class NamespaceTypeConstraintsRuleTest {
             ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_ARGS,
             ValidationErrorCodes.NAMESPACE_TYPE_FIELD_IS_LIST
         )
+    }
+
+    @Test
+    fun `invalid - field returning namespace type carries resolver`() {
+        val resolverName = NamespaceTypeConstraintsRule().conflictingFieldDirectives.single()
+        val errors = validate(
+            """
+            directive @$resolverName on FIELD_DEFINITION
+
+            type Query {
+              ugcText: UGCTextFactory @$resolverName
+            }
+            type UGCTextFactory @namespaceType { fromSourceText: String }
+            """.trimIndent()
+        )
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_CONFLICTING_RESOLVER
+        errors[0].message shouldContain "@$resolverName"
+    }
+
+    @Test
+    fun `valid - directive not in default conflicting set is allowed`() {
+        // Default OSS set is only {resolver}. An unrecognized directive should pass.
+        val errors = validate(
+            """
+            directive @customResolver on FIELD_DEFINITION
+
+            type Query {
+              listings: Listings @customResolver
+            }
+            type Listings @namespaceType { availableRoomTypes: [RoomType] }
+            type RoomType { id: ID! }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `invalid - custom configured directive is properly rejected`() {
+        val errors = validate(
+            sdl = """
+            directive @customResolver on FIELD_DEFINITION
+
+            type Query {
+              listings: Listings @customResolver
+            }
+            type Listings @namespaceType { availableRoomTypes: [RoomType] }
+            type RoomType { id: ID! }
+            """.trimIndent(),
+            rule = NamespaceTypeConstraintsRule(
+                conflictingFieldDirectives = setOf("customResolver")
+            )
+        )
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_CONFLICTING_RESOLVER
+        errors[0].message shouldContain "@customResolver"
+    }
+
+    @Test
+    fun `invalid - field with multiple conflicting directives reports single error`() {
+        val errors = validate(
+            sdl = """
+            directive @fakeA on FIELD_DEFINITION
+            directive @fakeB on FIELD_DEFINITION
+
+            type Query {
+              listings: Listings @fakeA @fakeB
+            }
+            type Listings @namespaceType { availableRoomTypes: [RoomType] }
+            type RoomType { id: ID! }
+            """.trimIndent(),
+            rule = NamespaceTypeConstraintsRule(
+                conflictingFieldDirectives = setOf("fakeA", "fakeB")
+            )
+        )
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_CONFLICTING_RESOLVER
+        errors[0].message shouldContain "@fakeA"
+        errors[0].message shouldContain "@fakeB"
     }
 }
