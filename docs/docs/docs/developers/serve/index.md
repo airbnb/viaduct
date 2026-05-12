@@ -98,7 +98,7 @@ class MicronautViaductFactory : ViaductFactory {
 class MyViaductFactory : ViaductFactory {
     override fun mkViaduct(): Viaduct {
         return ViaductBuilder()
-            .withTenantModule(MyTenantModule())
+            .withTenantModuleBootstrapper(MyTenantModuleBootstrapper())
             .build()
     }
 }

@@ -46,7 +46,7 @@ You'll notice that both fields have `@resolver` applied to them, meaning that a 
 {{ codetag("demoapps/cli-starter/src/main/kotlin/com/example/viadapp/ViaductApplication.kt", "building-viaduct", lang="kotlin") }}
 
 
-This creates an instance of the Viaduct engine. The `SchemaRegistrationInfo` defines which schemas are available (in this case, our "helloworld" schema), and the `TenantRegistrationInfo` tells Viaduct where to find your resolver code.
+This creates an instance of the Viaduct engine using `BasicViaductFactory.create()`, which discovers tenant modules and schemas automatically from the classpath. For more advanced setups—such as registering multiple scoped schemas or wiring in a dependency injection framework—use `ViaductBuilder` directly.
 
 ### 2. Preparing the Query
 

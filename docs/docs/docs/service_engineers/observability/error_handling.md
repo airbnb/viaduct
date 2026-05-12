@@ -140,7 +140,7 @@ val viaduct = ViaductBuilder()
     .withMeterRegistry(meterRegistry)
     .withDataFetcherErrorBuilder(MyResolverErrorBuilder())
     .withResolverErrorReporter(MyErrorReporter())
-    .withTenantAPIBootstrapperBuilder(myBootstrapper)
+    .withTenantModuleBootstrapper(myBootstrapper)
     .build()
 ```
 

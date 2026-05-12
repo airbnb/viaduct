@@ -160,12 +160,15 @@ nav:
     - Testing: docs/developers/testing/index.md
   - Service Engineers:
     - docs/service_engineers/index.md
-    - Schema Extensions: docs/service_engineers/schema_extensions/index.md
+    - Dependency Injection: docs/service_engineers/dependency_injection/index.md
+    - Feature Flags: docs/service_engineers/feature_flags/index.md
     - Multi-tenancy: docs/service_engineers/multi_tenancy/index.md
+    - Server Integration: docs/service_engineers/server_integration/index.md
     - Observability:
       - docs/service_engineers/observability/index.md
       - Error Handling: docs/service_engineers/observability/error_handling.md
       - Setup: docs/service_engineers/observability/setup.md
+    - Schema Extensions: docs/service_engineers/schema_extensions/index.md
   - Contributors:
     - docs/contributors/index.md
     - Architecture: docs/contributors/architecture/index.md

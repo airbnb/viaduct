@@ -31,7 +31,7 @@ import viaduct.service.api.Viaduct
  * class MyViaductFactory : ViaductFactory {
  *     override fun mkViaduct(): Viaduct {
  *         return ViaductBuilder()
- *             .withTenantModule(MyTenantModule())
+ *             .withTenantModuleBootstrapper(MyTenantModuleBootstrapper())
  *             .build()
  *     }
  * }

@@ -32,7 +32,7 @@ val meterRegistry: MeterRegistry = SimpleMeterRegistry()
 
 val viaduct = ViaductBuilder()
     .withMeterRegistry(meterRegistry)
-    .withTenantAPIBootstrapperBuilder(myBootstrapper)
+    .withTenantModuleBootstrapper(myBootstrapper)
     .build()
 ```
 
@@ -41,6 +41,12 @@ Once configured, Viaduct automatically emits metrics for all GraphQL operations.
 ## Available Metrics
 
 Viaduct emits three primary metric types, all implemented as <a href="https://micrometer.io/docs/concepts#_timers" target="_blank" rel="noopener noreferrer">Micrometer Timers</a>:
+
+| Metric | Measurements | Description |
+|---|---|---|
+| `viaduct.execution` | duration, count | End-to-end execution time for the entire GraphQL request, from parsing through response serialization |
+| `viaduct.operation` | duration, count | Execution time for the GraphQL operation after parsing and validation |
+| `viaduct.field` | duration, count | Resolution time for individual GraphQL fields |
 
 ### 1. viaduct.execution
 
