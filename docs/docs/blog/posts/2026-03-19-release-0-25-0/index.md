@@ -50,7 +50,7 @@ See [GitHub Release](https://github.com/airbnb/viaduct/releases/tag/v0.25.0).
 
 ## Documentation
 
-- Surface implementation docs in OSS [AGENTS.md](http://agents.md/) files ([9e7748fd](https://github.com/airbnb/viaduct/commit/9e7748fd)) by @amity177
+- Surface implementation docs in OSS `AGENTS.md` files ([9e7748fd](https://github.com/airbnb/viaduct/commit/9e7748fd)) by @amity177
 - Update required java version in docs ([#302](https://github.com/airbnb/viaduct/pull/302)) by @jtuchscherer
 - Fix link to sonatype in release runbook ([#304](https://github.com/airbnb/viaduct/pull/304)) by @ryantanner
 - Updated documentation for Selective Node Resolvers. ([2ad7d926](https://github.com/airbnb/viaduct/commit/2ad7d926)) by @pclowes
