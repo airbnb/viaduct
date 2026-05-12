@@ -1,6 +1,7 @@
 package com.example.starwars.service.test
 
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.micronaut.context.annotation.Property
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpStatus
@@ -23,24 +24,28 @@ class GraphiQLTest {
     lateinit var client: HttpClient
 
     @Test
-    fun `test GraphiQL endpoint availability`() {
+    fun `GraphiQL endpoint uses Star Wars default query and storage key`() {
         val request = HttpRequest.GET<String>("/graphiql")
+        val response = client.toBlocking().exchange(request, String::class.java)
+        val body = response.body() ?: ""
 
-        try {
-            val response = client.toBlocking().exchange(request, String::class.java)
+        response.status shouldBe HttpStatus.OK
+        body shouldContain "GraphiQL - Star Wars"
+        body shouldContain "query StarWarsCharacters"
+        body shouldContain "allCharacters"
+        body shouldContain "homeworld"
+        body shouldContain "starwars"
+    }
 
-            println("GraphiQL endpoint response status: ${response.status}")
-            println("GraphiQL endpoint response body length: ${response.body()?.length ?: 0}")
-            println("Response headers: ${response.headers.asMap()}")
+    @Test
+    fun `GraphiQL JavaScript resources are served`() {
+        val jsxLoader = client.toBlocking().exchange(HttpRequest.GET<String>("/js/jsx-loader.js"), String::class.java)
+        val globalIdPlugin = client.toBlocking().exchange(HttpRequest.GET<String>("/js/global-id-plugin.jsx"), String::class.java)
 
-            if (response.status != HttpStatus.OK) {
-                println("GraphiQL endpoint failed with status: ${response.status}")
-                println("Response body: ${response.body()}")
-            }
-        } catch (e: Exception) {
-            println("Error accessing GraphiQL endpoint: ${e.message}")
-            e.printStackTrace()
-        }
+        jsxLoader.status shouldBe HttpStatus.OK
+        (jsxLoader.body() ?: "") shouldContain "loadJSX"
+        globalIdPlugin.status shouldBe HttpStatus.OK
+        (globalIdPlugin.body() ?: "") shouldContain "createGlobalIdPlugin"
     }
 
     @Test

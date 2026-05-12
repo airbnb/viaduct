@@ -1,32 +1,76 @@
 // tag::ktor-graphql-routing[55] Ktor GraphQL and GraphiQL routing setup
 package com.example.viadapp
 
-import com.example.viadapp.injector.ViaductConfiguration
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.future.await
+import viaduct.service.BasicViaductFactory
+import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
+import viaduct.service.wiring.graphiql.GraphiQLHtmlConfig
+import viaduct.service.wiring.graphiql.graphiQLHtml
+
+private val ktorStarterGraphiQLConfig = GraphiQLHtmlConfig(
+    title = "GraphiQL - ktor-starter",
+    defaultQuery = """
+        query HelloWorld {
+          greeting
+          author
+        }
+    """.trimIndent(),
+    storageKey = "ktor-starter",
+)
+
+private val viaduct by lazy {
+    BasicViaductFactory.create(
+        scopedSchemas = listOf(SchemaScopeInfo(SCHEMA_ID)),
+    )
+}
 
 fun Application.configureRouting() {
-    val viaduct = ViaductConfiguration.viaductService
-
     routing {
         get("/graphiql") {
-            val resource = this::class.java.classLoader.getResource("graphiql/index.html")
-            if (resource != null) {
-                call.respondText(resource.readText(), ContentType.Text.Html)
-            } else {
-                call.respond(HttpStatusCode.NotFound, "GraphiQL not found")
+            call.respondText(graphiQLHtml(ktorStarterGraphiQLConfig), ContentType.Text.Html)
+        }
+
+        for (faviconFile in listOf("favicon.svg" to ContentType.Image.SVG, "favicon.ico" to ContentType("image", "x-icon"))) {
+            val (name, contentType) = faviconFile
+            get("/$name") {
+                val resource = this::class.java.classLoader.getResource("graphiql/$name")
+                if (resource == null) {
+                    call.respond(HttpStatusCode.NotFound)
+                    return@get
+                }
+                call.respondBytes(resource.readBytes(), contentType)
+            }
+        }
+
+        route("/js") {
+            get("/{filename}") {
+                val filename = call.parameters["filename"]
+                if (filename == null || filename.contains('/') || filename.contains('\\')) {
+                    call.respond(HttpStatusCode.NotFound, "JavaScript resource not found")
+                    return@get
+                }
+
+                val resource = this::class.java.classLoader.getResource("graphiql/js/$filename")
+                if (resource == null) {
+                    call.respond(HttpStatusCode.NotFound, "JavaScript resource not found")
+                    return@get
+                }
+
+                call.respondText(resource.readText(), ContentType.Text.JavaScript)
             }
         }
 

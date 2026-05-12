@@ -17,6 +17,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -447,6 +448,20 @@ class ViaductServer(
             // GraphiQL IDE
             get("/graphiql") {
                 call.respondText(graphiQLHtml(), ContentType.Text.Html)
+            }
+
+            // Serve Viaduct favicon
+            for (faviconFile in listOf("favicon.svg" to ContentType.Image.SVG, "favicon.ico" to ContentType("image", "x-icon"))) {
+                val (name, contentType) = faviconFile
+                get("/$name") {
+                    val resourceStream = Thread.currentThread().contextClassLoader?.getResourceAsStream("graphiql/$name")
+                        ?: ViaductServer::class.java.getResourceAsStream("/graphiql/$name")
+                    if (resourceStream != null) {
+                        call.respondBytes(resourceStream.readBytes(), contentType)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
+                }
             }
 
             // Serve GraphiQL static resources (JS files for plugins)

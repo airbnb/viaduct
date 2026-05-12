@@ -23,6 +23,7 @@ class JettyViaductApp(private val port: Int = 8080) {
         // Create the servlets
         val viaductServlet = ViaductServlet(viaduct)
         val graphiqlServlet = GraphiQLServlet()
+        val graphiqlStaticResourceServlet = GraphiQLStaticResourceServlet()
 
         // Set up Jetty server
         server = Server(port)
@@ -30,6 +31,7 @@ class JettyViaductApp(private val port: Int = 8080) {
         context.contextPath = "/"
         context.addServlet(ServletHolder(viaductServlet), "/graphql")
         context.addServlet(ServletHolder(graphiqlServlet), "/graphiql")
+        context.addServlet(ServletHolder(graphiqlStaticResourceServlet), "/js/*")
 
         server.handler = context
     }

@@ -54,7 +54,8 @@ class GraphiQLHtmlCustomizer(
  *    (GraphQL Java omits empty arrays that GraphiQL 5 strictly requires)
  *  - Added global-id-plugin.jsx for encoding/decoding Viaduct Global IDs
  *  - Modified initialization to load plugins asynchronously
- *  - Added custom default query with usage instructions
+ *  - Added configurable title, storage key, and default query support
+ *  - Added Viaduct favicon (favicon.svg / favicon.ico)
 -->"""
         customized = customized.replaceFirst(
             Regex("""(-->)\s*(\n<!doctype)""", RegexOption.IGNORE_CASE),
@@ -65,6 +66,14 @@ class GraphiQLHtmlCustomizer(
         customized = customized.replace(
             Regex("<title>.*?</title>"),
             "<title>GraphiQL - Viaduct</title>"
+        )
+
+        // 2a. Add favicon links after the title
+        customized = customized.replace(
+            "<title>GraphiQL - Viaduct</title>",
+            """<title>GraphiQL - Viaduct</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">"""
         )
 
         // 3. Change demo endpoint to /graphql
@@ -95,7 +104,13 @@ class GraphiQLHtmlCustomizer(
                 """const baseFetcher = createGraphiQLFetcher({
         url: '/graphql',
       });
-      const fetcher = createPatchedFetcher(baseFetcher);"""
+      const fetcher = createPatchedFetcher(baseFetcher);
+      const graphiQLConfig = /* VIADUCT_GRAPHIQL_CONFIG_START */ {
+        title: "GraphiQL - Viaduct",
+        defaultQuery: "# Welcome to Viaduct GraphiQL!\n#\n# Start typing your GraphQL query here.\n# Press Ctrl+Space for autocomplete.\n# Click the Docs button to explore the schema.\n# Use the Global ID Utils plugin (key icon) to encode/decode Viaduct Global IDs.\n\nquery {\n  # Your query here\n}\n",
+        storageKey: window.location.origin,
+      } /* VIADUCT_GRAPHIQL_CONFIG_END */;
+      document.title = graphiQLConfig.title;"""
             )
 
             // Modify the plugin initialization to load our Global ID plugin
@@ -149,6 +164,16 @@ query {
       }
 
       initGraphiQL();"""
+            )
+
+            modifiedScript = modifiedScript.replace(
+                Regex("""\s*const defaultQuery = `[\s\S]*?`;\n"""),
+                "\n"
+            )
+
+            modifiedScript = modifiedScript.replace(
+                "defaultQuery,",
+                "defaultQuery: graphiQLConfig.defaultQuery,\n            storageKey: graphiQLConfig.storageKey,"
             )
 
             // Reconstruct the script with our imports

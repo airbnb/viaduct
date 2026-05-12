@@ -2,6 +2,8 @@ package com.example.viadapp
 
 import io.kotest.assertions.json.shouldEqualJson
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -14,6 +16,40 @@ import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
 
 class HelloWorldTest {
+    @Test
+    fun `GraphiQL uses Ktor starter default query and storage key`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.get("/graphiql")
+
+            response.status shouldBe HttpStatusCode.OK
+            val body = response.bodyAsText()
+            body shouldContain "GraphiQL - ktor-starter"
+            body shouldContain "query HelloWorld"
+            body shouldContain "greeting"
+            body shouldContain "author"
+            body shouldContain "ktor-starter"
+        }
+
+    @Test
+    fun `GraphiQL JavaScript resources are served`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val jsxLoader = client.get("/js/jsx-loader.js")
+            val globalIdPlugin = client.get("/js/global-id-plugin.jsx")
+
+            jsxLoader.status shouldBe HttpStatusCode.OK
+            jsxLoader.bodyAsText() shouldContain "loadJSX"
+            globalIdPlugin.status shouldBe HttpStatusCode.OK
+            globalIdPlugin.bodyAsText() shouldContain "createGlobalIdPlugin"
+        }
+
     @Test
     fun `Query Hello World`(): Unit =
         testApplication {
