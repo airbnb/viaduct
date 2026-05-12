@@ -18,27 +18,17 @@ import viaduct.engine.runtime.execution.ResolverDataFetcher
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher
 import viaduct.graphql.utils.asNamedElement
-import viaduct.service.api.spi.FlagManager
-
-private data class ResolverDataFetcherState(
-    val enableSyncValueComputation: Boolean,
-) : InstrumentationState
 
 /**
  * Instrumentation that executes @Resolver classes for Viaduct Modern
  */
 class ResolverDataFetcherInstrumentation(
     private val dispatcherRegistry: DispatcherRegistry, // Modern resolvers
-    private val flagManager: FlagManager,
     private val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
     private val tenantNameResolver: TenantNameResolver = TenantNameResolver(),
 ) : ViaductModernGJInstrumentation {
-    override fun createState(parameters: InstrumentationCreateStateParameters): InstrumentationState {
-        return ResolverDataFetcherState(
-            enableSyncValueComputation = flagManager.isEnabled(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION),
-        )
-    }
+    override fun createState(parameters: InstrumentationCreateStateParameters): InstrumentationState? = null
 
     override fun instrumentDataFetcher(
         dataFetcher: DataFetcher<*>,
@@ -57,8 +47,7 @@ class ResolverDataFetcherInstrumentation(
 
         val resolverDispatcher = resolverDispatcher(typeName, fieldName) ?: return dataFetcher
 
-        val enableSync = (state as? ResolverDataFetcherState)?.enableSyncValueComputation == true
-        val instrumentedDispatcher = InstrumentedFieldResolverDispatcher(resolverDispatcher, resolverInstrumentation, coordinate = typeName to fieldName, syncValueComputation = enableSync)
+        val instrumentedDispatcher = InstrumentedFieldResolverDispatcher(resolverDispatcher, resolverInstrumentation, coordinate = typeName to fieldName)
 
         return ResolverDataFetcher(
             typeName = typeName,
@@ -66,7 +55,6 @@ class ResolverDataFetcherInstrumentation(
             fieldResolverDispatcher = instrumentedDispatcher,
             coroutineInterop = coroutineInterop,
             tenantNameResolver = tenantNameResolver,
-            syncValueComputationEnabled = enableSync,
         )
     }
 

@@ -25,7 +25,6 @@ class InstrumentedFieldResolverDispatcher(
     val dispatcher: FieldResolverDispatcher,
     val instrumentation: ViaductResolverInstrumentation,
     val coordinate: Coordinate? = null,
-    val syncValueComputation: Boolean = false,
 ) : FieldResolverDispatcher {
     override val objectSelectionSet get() = dispatcher.objectSelectionSet
     override val querySelectionSet get() = dispatcher.querySelectionSet
@@ -48,7 +47,6 @@ class InstrumentedFieldResolverDispatcher(
         val resolverExecuteParam = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
             resolverMetadata = dispatcher.resolverMetadata,
             fieldCoordinate = coordinate,
-            syncValueComputation = syncValueComputation,
             executionPath = context.dataFetchingEnvironment?.executionStepInfo?.path,
         )
 
@@ -57,8 +55,8 @@ class InstrumentedFieldResolverDispatcher(
         // shouldInstrumentFetchSelections is true (debug / opt-in feature flag).
         // Sync getters are always wrapped with InstrumentedEngineObjectData.Sync so that
         // instrumentReadSelection fires for every field read — independent of the debug gate.
-        // The withContext(ResolverInstrumentationContext) around the getter is still scoped
-        // to shouldInstrumentFetchSelections so that SyncEngineObjectDataFactory fires
+        // The withContext(ResolverInstrumentationContext) around the getter is scoped to
+        // shouldInstrumentFetchSelections so that SyncEngineObjectDataFactory fires
         // instrumentFetchSelection during pre-resolution only when that path is enabled.
         val resolvedObjectValue = if (wrapFetchSelections) InstrumentedEngineObjectData(objectValue, instrumentation, state) else objectValue
         val resolvedQueryValue = if (wrapFetchSelections) InstrumentedEngineObjectData(queryValue, instrumentation, state) else queryValue
@@ -92,18 +90,15 @@ class InstrumentedFieldResolverDispatcher(
 
         return instrumentation.instrumentResolverExecution(
             ResolverFunction {
-                val resolve = suspend {
-                    dispatcher.resolve(
-                        arguments,
-                        resolvedObjectValue,
-                        resolvedQueryValue,
-                        resolvedSyncObjectGetter,
-                        resolvedSyncQueryGetter,
-                        selections,
-                        instrumentedContext
-                    )
-                }
-                if (syncValueComputation && wrapFetchSelections) withContext(instrumentationContext) { resolve() } else resolve()
+                dispatcher.resolve(
+                    arguments,
+                    resolvedObjectValue,
+                    resolvedQueryValue,
+                    resolvedSyncObjectGetter,
+                    resolvedSyncQueryGetter,
+                    selections,
+                    instrumentedContext
+                )
             },
             resolverExecuteParam,
             state

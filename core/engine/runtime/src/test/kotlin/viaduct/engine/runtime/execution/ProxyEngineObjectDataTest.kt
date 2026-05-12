@@ -11,7 +11,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -28,7 +27,6 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setRawValue
 import viaduct.engine.runtime.ObjectEngineResultTestHelper
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.Value
-import viaduct.engine.runtime.asLazySyncPassthrough
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.createEngineSelectionSet
 import viaduct.engine.runtime.createSchema
@@ -618,55 +616,6 @@ class ProxyEngineObjectDataTest {
             ).let { proxy ->
                 assertInstanceOf(ProxyEngineObjectData::class.java, proxy.fetch("__type"))
             }
-        }
-    }
-
-    @Test
-    fun `asLazySyncPassthrough -- get returns value for selected field`() {
-        Fixture("type Query { x: Int }") {
-            val sync = mkProxy("x", "Query", mapOf("x" to 42)).asLazySyncPassthrough()
-            assertEquals(42, sync.get("x"))
-        }
-    }
-
-    @Test
-    fun `asLazySyncPassthrough -- get throws for non-selected field`() {
-        Fixture("type Query { x: Int, y: Int }") {
-            val sync = mkProxy("x", "Query", mapOf("x" to 42)).asLazySyncPassthrough()
-            assertThrows<UnsetFieldException> { sync.get("y") }
-        }
-    }
-
-    @Test
-    fun `asLazySyncPassthrough -- getOrNull returns value for selected field`() {
-        Fixture("type Query { x: Int }") {
-            val sync = mkProxy("x", "Query", mapOf("x" to 42)).asLazySyncPassthrough()
-            assertEquals(42, sync.getOrNull("x"))
-        }
-    }
-
-    @Test
-    fun `asLazySyncPassthrough -- getOrNull returns null for non-selected field`() {
-        Fixture("type Query { x: Int, y: Int }") {
-            val sync = mkProxy("x", "Query", mapOf("x" to 42)).asLazySyncPassthrough()
-            assertNull(sync.getOrNull("y"))
-        }
-    }
-
-    @Test
-    fun `asLazySyncPassthrough -- getSelections and fetchSelections return underlying selections`() {
-        Fixture("type Query { x: Int, y: Int }") {
-            val sync = mkProxy("x y", "Query", mapOf("x" to 1, "y" to 2)).asLazySyncPassthrough()
-            assertEquals(setOf("x", "y"), sync.getSelections().toSet())
-            assertEquals(setOf("x", "y"), sync.fetchSelections().toSet())
-        }
-    }
-
-    @Test
-    fun `asLazySyncPassthrough -- fetch delegates to underlying data`() {
-        Fixture("type Query { x: Int }") {
-            val sync = mkProxy("x", "Query", mapOf("x" to 42)).asLazySyncPassthrough()
-            assertEquals(42, sync.fetch("x"))
         }
     }
 

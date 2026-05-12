@@ -75,7 +75,6 @@ class EngineImpl(
 
     private val resolverDataFetcherInstrumentation = ResolverDataFetcherInstrumentation(
         dispatcherRegistry,
-        flagManager,
         config.resolverInstrumentation,
         coroutineInterop,
         config.tenantNameResolver

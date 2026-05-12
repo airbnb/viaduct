@@ -17,7 +17,6 @@ import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
-import viaduct.engine.runtime.asLazySyncPassthrough
 import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
@@ -28,7 +27,6 @@ class ResolverDataFetcher(
     private val fieldResolverDispatcher: FieldResolverDispatcher,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
     private val tenantNameResolver: TenantNameResolver = TenantNameResolver(),
-    private val syncValueComputationEnabled: Boolean = false,
 ) : DataFetcher<CompletableFuture<*>> {
     companion object {
         /**
@@ -101,7 +99,7 @@ class ResolverDataFetcher(
             objectErrorMessage,
             objectSelectionSet
         )
-        val syncObjectValueGetter = makeSyncGetter(objectValue) {
+        val syncObjectValueGetter: suspend () -> EngineObjectDataApi.Sync = {
             SyncEngineObjectDataFactory.resolve(
                 engineResults.parentResult,
                 objectErrorMessage,
@@ -131,7 +129,7 @@ class ResolverDataFetcher(
             queryErrorMessage,
             querySelectionSet
         )
-        val syncQueryValueGetter = makeSyncGetter(queryValue) {
+        val syncQueryValueGetter: suspend () -> EngineObjectDataApi.Sync = {
             SyncEngineObjectDataFactory.resolve(
                 engineResults.queryResult,
                 queryErrorMessage,
@@ -141,17 +139,6 @@ class ResolverDataFetcher(
         }
 
         return EngineObjectData(objectValue, queryValue, syncObjectValueGetter, syncQueryValueGetter)
-    }
-
-    private fun makeSyncGetter(
-        proxy: ProxyEngineObjectData,
-        syncFactory: suspend () -> EngineObjectDataApi.Sync,
-    ): suspend () -> EngineObjectDataApi.Sync {
-        return if (syncValueComputationEnabled) {
-            syncFactory
-        } else {
-            { proxy.asLazySyncPassthrough() }
-        }
     }
 
     private suspend fun resolveField(
