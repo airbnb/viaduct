@@ -117,9 +117,7 @@ nav:
     - Generated Code: docs/developers/generated_code/index.md
     - Global IDs: docs/developers/globalids/index.md
     - Pagination: docs/developers/pagination/index.md
-    - Api Stability:
-      - docs/developers/api_stability/index.md
-      - Contributors guide: docs/developers/api_stability/contributors_guide.md
+    - API Stability: docs/developers/api_stability/index.md
     - Scopes: docs/developers/scopes/index.md
     - Schema Reference: docs/developers/schema_reference/index.md
     - Viaduct API: docs/developers/viaduct_api/index.md
@@ -163,6 +161,7 @@ nav:
   - Contributors:
     - docs/contributors/index.md
     - Architecture: docs/contributors/architecture/index.md
+    - API Stability: docs/contributors/api_stability/index.md
     - IDE Testing: docs/contributors/ide_testing/index.md
   - About: about/index.md
   - Roadmap: roadmap/index.md

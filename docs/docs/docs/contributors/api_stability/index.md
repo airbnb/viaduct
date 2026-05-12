@@ -1,5 +1,5 @@
 ---
-title: Contributors Guide
+title: API Stability
 description: API Stability Annotations in Viaduct
 ---
 
@@ -13,7 +13,7 @@ A declaration may be annotated with **exactly one** of the following stability a
 - `@InternalApi`
 - `@VisibleForTest`
 
-Having more than one stability annotation on the same declaration is invalid and enforced by a Detekt rule. 
+Having more than one stability annotation on the same declaration is invalid and enforced by a Detekt rule.
 
 > Terminology: in this document, “declaration” includes classes, functions, properties, constructors, nested types, and type aliases.
 
@@ -40,12 +40,12 @@ Project policy for public-facing APIs:
 ## Quick decision tree
 
 1. **Is this intended to be used by consumers (tenant services / external adopters)?**
-   - Yes → `@StableApi` or `@ExperimentalApi`.  
+   - Yes → `@StableApi` or `@ExperimentalApi`.
    - No → go to #2.
 
 2. **Is this only present to support Viaduct’s own tests/fixtures/diagnostics, but must ship in a production artifact?**
-   - Yes → `@VisibleForTest`. 
-   - No → `@InternalApi`. 
+   - Yes → `@VisibleForTest`.
+   - No → `@InternalApi`.
 
 3. **Is the API being retired?**
    - Yes → `@Deprecated(...)` (and remove the stability annotation).
@@ -69,7 +69,7 @@ Project policy for public-facing APIs:
 - A member is considered “covered” if it has a stability annotation itself **or** any enclosing declaration has one.
 
 **Enclosing non-public markers affect BCV `.api` output**:
-- A declaration appears in `.api` dumps only if it is public/protected **and** neither it nor any enclosing declaration has a `nonPublicMarker` (such as `@InternalApi` or `@VisibleForTest`). 
+- A declaration appears in `.api` dumps only if it is public/protected **and** neither it nor any enclosing declaration has a `nonPublicMarker` (such as `@InternalApi` or `@VisibleForTest`).
 
 ### Overrides and private declarations
 
@@ -97,7 +97,7 @@ The Detekt rule will not complain about the stable member coverage pattern shown
 
 **What happens:**
 - `PublicController` and `publicEndpoint()` are part of the tracked public surface (BCV will dump them).
-- `internalHelper()` is treated as non-public for BCV (because `@InternalApi` is a non-public marker). 
+- `internalHelper()` is treated as non-public for BCV (because `@InternalApi` is a non-public marker).
 
 ### Example B: Internal class filters out all its members from `.api`
 
@@ -110,7 +110,7 @@ class InternalOnlyService {
 ```
 
 BCV behavior:
-- the class and its members do not appear in `.api` dumps because the enclosing class is a `nonPublicMarker`. 
+- the class and its members do not appear in `.api` dumps because the enclosing class is a `nonPublicMarker`.
 
 ### Example C: Experimental API (opt-in warning for consumers)
 
@@ -120,7 +120,7 @@ fun newCapability(): String = "v2"
 ```
 
 Call-site behavior without opt-in:
-- `@ExperimentalApi` is typically `@RequiresOptIn(level = WARNING)`, so consumers see a compiler warning unless they opt in.
+- `@ExperimentalApi` uses `@RequiresOptIn(level = WARNING)`, so consumers see a compiler warning unless they opt in.
 
 Consumer-like usage:
 
@@ -131,20 +131,20 @@ fun useIt() {
 }
 ```
 
-### Example D: `@VisibleForTest` is stricter than experimental
+### Example D: `@VisibleForTest` is test-only
 
-`@VisibleForTest` uses `@RequiresOptIn(level = ERROR)` to express “tests only”.
+`@VisibleForTest` uses `@RequiresOptIn(level = WARNING)` to express “tests only”.
 
 ```kotlin
 @VisibleForTest
 fun internalTestHook() { /* ... */ }
 ```
 
-A consumer-like module calling it without opt-in gets a **compiler error**, not a warning.
+A consumer-like module calling it without opt-in gets a compiler warning.
 
 ### Example E: Deprecating a stable API
 
-When retiring a stable API, replace its stability annotation with `@Deprecated(...)`. 
+When retiring a stable API, replace its stability annotation with `@Deprecated(...)`.
 
 ```kotlin
 @Deprecated(
@@ -167,7 +167,7 @@ fun newFoo() { /* ... */ }
 fun dangerousExperimentalHelper() = Unit
 ```
 
-This is disallowed; even though Kotlin would effectively require both opt-ins and `Level.ERROR` would dominate, Viaduct enforces “pick one stability annotation per declaration.”
+This is disallowed. Even though Kotlin could combine the opt-ins, Viaduct enforces “pick one stability annotation per declaration.”
 
 ## How opt-in is configured across Viaduct modules
 

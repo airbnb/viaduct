@@ -13,7 +13,7 @@ The Developers section covers the core concepts and tools you'll need when build
 
 **Pagination** uses the Relay Connection specification for cursor-based pagination. Define connection and edge types with `@connection` and `@edge` directives, then use builder utilities like `fromEdges()`, `fromSlice()`, or `fromList()` to construct paginated responses. Viaduct handles cursor encoding, pagination arguments, and `PageInfo` automatically.
 
-**Api Stability** Viaduct exposes public APIs that application code compiles against. To help adopters understand what is safe to depend on (and what is not), Viaduct classifies APIs into explicit stability levels using annotations.
+**API Stability** Viaduct exposes public APIs that application code compiles against. To help adopters understand what is safe to depend on (and what is not), Viaduct classifies APIs into explicit stability levels using annotations.
 
 **Scopes** let you expose different schema variants from the same codebase—think public vs. internal APIs, or feature-flagged schemas. Use the `@scope` directive to control which fields and types are visible in each variant. Either everything has a scope or nothing does; there's no default scope, ensuring explicit visibility control.
 
