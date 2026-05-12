@@ -55,7 +55,7 @@ import viaduct.api.resolver.Variable
  * @see CharacterStatsResolver for VariableProvider example
  * @see CharacterFormattedDescriptionResolver for argument-based alternative
  */
-// tag::resolver_example[18] Example of using @Variable with fromArgument to control field selection
+// tag::resolver_example[36] Example of using @Variable with fromArgument to control field selection
 @Resolver(
     """
     fragment _ on Character {

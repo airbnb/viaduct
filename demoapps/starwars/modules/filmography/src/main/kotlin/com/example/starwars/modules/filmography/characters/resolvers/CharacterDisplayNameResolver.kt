@@ -9,7 +9,7 @@ import viaduct.api.resolver.Resolver
  * @resolver("name"): Shorthand fragment syntax that delegates resolution to another field.
  *                   This resolver will automatically fetch the "name" field and return its value.
  */
-// tag::resolver_example[8] Example of a simple resolver
+// tag::resolver_example[10] Example of a simple resolver
 @Resolver("name")
 class CharacterDisplayNameResolver : CharacterResolvers.DisplayName() {
     override suspend fun resolve(ctx: Context): String? {

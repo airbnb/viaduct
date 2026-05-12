@@ -107,5 +107,4 @@ Return `null` for missing relationships when the schema field is nullable, rathe
 - **Don’t** assume execution order between independent resolvers — rely on field dependencies, not sequencing.
 
 > See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
-
-
+> For a comprehensive overview of the resolver model and generated APIs, see the [Resolvers developer reference](../../../docs/developers/resolvers/index.md).

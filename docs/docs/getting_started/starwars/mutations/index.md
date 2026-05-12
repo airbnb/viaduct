@@ -144,4 +144,4 @@ Viaduct fully supports request context management through your framework's depen
 
 **Note:** when using mutations, make sure to use properly encoded GlobalIDs.
 
-
+> For the full mutation resolver API and generated base-class reference, see the [Mutations developer reference](../../../docs/developers/resolvers/mutations.md).

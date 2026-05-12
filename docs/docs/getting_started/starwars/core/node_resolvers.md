@@ -15,7 +15,7 @@ Keep node resolvers tiny: _lookup → build → return_.
 1. Client calls `node(id: ID!)`.
 2. Viaduct decodes the Global ID (base64 of `"<Type>:<InternalID>"`).
 3. The matching `NodeResolvers.<Type>` implementation receives a typed `Context` with `ctx.id.internalID`.
-4. Your resolver loads the record and returns a **typed builder** (for example, `Character.Builder(ctx)`).
+4. Your resolver loads the record and builds the response using `Character.of(ctx) { ... }` or a dedicated builder class (for example, `CharacterBuilder(ctx).build(entity)`).
 
 ## Implementation
 
@@ -81,5 +81,4 @@ configured Viaduct instance. Verify:
 - **Don’t** leak internal IDs — always emit typed Global IDs in the `id` field.
 
 > See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
-
-
+> For the complete node-resolver API and generated base-class reference, see the [Node Resolvers developer reference](../../../docs/developers/resolvers/node_resolvers.md).

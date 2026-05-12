@@ -48,7 +48,7 @@ class ViaductRestController(
     ): HttpResponse<Map<String, Any?>> {
         securityAccessService.setSecurityAccess(securityAccess)
         val executionInput = createExecutionInput(request)
-        // tag::run_query[7] Runs the query example
+        // tag::run_query[6] Runs the query example
         val scopes = parseScopes(scopesHeader)
         val schemaId = determineSchemaId(scopes)
         val result = viaduct.executeAsync(executionInput, schemaId).await()
@@ -77,7 +77,7 @@ class ViaductRestController(
             DEFAULT_SCHEMA.schemaId
         }
 
-    // tag::execution_input[16] Create ExecutionInput example
+    // tag::execution_input[17] Create ExecutionInput example
 
     /**
      * Create an [ExecutionInput] object from the incoming request map and the determined schema ID.
@@ -86,7 +86,7 @@ class ViaductRestController(
      * but includes the schema ID to specify which schema to use for execution.
      */
 
-    // # tag::create_execution_input[7] How to create ExecutionInput
+    // # tag::create_execution_input[8] How to create ExecutionInput
     private fun createExecutionInput(request: Map<String, Any>): ExecutionInput {
         @Suppress("UNCHECKED_CAST")
         return ExecutionInput.create(

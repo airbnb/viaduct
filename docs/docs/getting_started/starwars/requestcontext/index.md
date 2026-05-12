@@ -75,7 +75,7 @@ Inside your resolvers, access the request context through the resolver context:
 
 ```kotlin
 @Resolver
-class FooQuery : FooResolber.Character() {
+class FooQuery : FooResolver.Character() {
     override suspend fun resolve(ctx: Context): Foo? {
         val requestContext = ctx.requestContext as? Map<*, *>
         ...
@@ -100,4 +100,6 @@ class FooQuery : FooResolber.Character() {
 For production applications with complex authorization needs, authentication, or multi-tenancy, use framework-based request scoping. It provides automatic lifecycle management and type safety.
 
 For simpler installations or prototypes where you need to pass arbitrary context without framework configuration, use `ExecutionInput.requestContext`.
+
+> For the complete `ExecutionInput` API and runtime execution model, see the [Viaduct API developer reference](../../../docs/developers/viaduct_api/index.md).
 

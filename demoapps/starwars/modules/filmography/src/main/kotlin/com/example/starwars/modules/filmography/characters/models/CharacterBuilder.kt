@@ -9,6 +9,7 @@ import viaduct.api.grts.Character
  *
  * @property ctx The execution context used for building the GraphQL object.
  */
+// tag::character_builder_example[15] Builder using Reflection form of globalIDFor
 class CharacterBuilder(private val ctx: ExecutionContext) {
     fun build(character: com.example.starwars.modules.filmography.characters.models.Character): Character =
         Character.of(ctx) {

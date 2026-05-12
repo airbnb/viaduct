@@ -94,4 +94,4 @@ Ensure the type name in `@idOf(type: "X")` matches the GraphQL type exactly, inc
 - **Don’t** attempt to parse or decode IDs manually.
 - **Don’t** use `@idOf` on non-ID fields.
 
-
+> For the full Global ID format, encoding details, and the complete `@idOf` reference, see the [Global IDs developer reference](../../../docs/developers/globalids/index.md).

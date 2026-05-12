@@ -10,7 +10,7 @@ import viaduct.api.resolver.Resolver
  *
  * @resolver("birthYear"): Fragment syntax for accessing the birthYear field
  */
-// tag::resolver_example[15] Example of a computed field resolver
+// tag::resolver_example[21] Example of a computed field resolver
 @Resolver(
     """
     fragment _ on Character {

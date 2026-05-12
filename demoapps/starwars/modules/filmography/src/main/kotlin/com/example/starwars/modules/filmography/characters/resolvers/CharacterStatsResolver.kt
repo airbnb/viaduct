@@ -19,7 +19,7 @@ import viaduct.api.resolver.Resolver
  * @see ProfileFieldResolver for @Variable fromArgument example
  * @see CharacterFormattedDescriptionResolver for more argument-based patterns
  */
-// tag::resolver_example[22] Example of argument-based conditional logic for statistics
+// tag::resolver_example[47] Example of argument-based conditional logic for statistics
 @Resolver(
     """
     fragment _ on Character {
