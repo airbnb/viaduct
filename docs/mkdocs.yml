@@ -64,6 +64,7 @@ plugins:
   - search
   - blog:
       blog_dir: blog
+      draft_if_future_date: true
   - macros:
       module_name: plugins/code_snippets
       on_error_fail: true
