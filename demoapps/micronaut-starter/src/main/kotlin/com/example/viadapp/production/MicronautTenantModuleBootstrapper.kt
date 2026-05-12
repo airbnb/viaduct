@@ -13,7 +13,9 @@ class MicronautTenantModuleBootstrapper(
     private class MicronautCodeInjector(private val beanContext: BeanContext) : CodeInjector {
         override fun <T> getProvider(clazz: Class<T>): Provider<T> =
             Provider {
-                beanContext.getBean(clazz)
+                beanContext.findBean(clazz).orElseGet {
+                    clazz.getDeclaredConstructor().newInstance()
+                }
             }
     }
 }
