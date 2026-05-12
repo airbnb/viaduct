@@ -4,7 +4,7 @@ description: Understanding the structure of a Viaduct application
 ---
 
 
-Now that you have a running Viaduct application, let's explore its structure and understand how the pieces fit together.
+Now that you have a running Viaduct application, let's explore its structure and understand how the pieces fit together. The full source for the CLI starter lives at [github.com/viaduct-dev/cli-starter](https://github.com/viaduct-dev/cli-starter); we'll highlight the key files below.
 
 ## Project Structure
 
@@ -32,7 +32,7 @@ Here's what you'll see in the schema:
 {{ codetag("demoapps/cli-starter/src/main/viaduct/schema/schema.graphqls", "schema-config", lang="kotlin") }}
 
 
-Viaduct itself has built-in definitions for the root GraphQL types `Query` and `Mutation` (Viaduct doesn't yet support subscriptions). Since `Query` is built-in, application code should extend it as illustrated above.
+Viaduct itself has built-in definitions for the root GraphQL types `Query` and `Mutation`. Subscriptions are not yet supported; see the [roadmap](../../roadmap/index.md) for the current plan. Since `Query` is built-in, application code should extend it as illustrated above.
 
 You'll notice that both fields have `@resolver` applied to them, meaning that a developer-provided function is needed to compute their respective value. **All fields of `Query` must have `@resolver` applied to them.**
 
@@ -68,7 +68,7 @@ This sends the query to the Viaduct engine and waits for the result. Viaduct use
 
 ## Resolver Implementation
 
-**`HelloWorldResolvers.kt`** contains the "application logic" for our schema—the code that defines how to resolve the fields of the schema.
+**`HelloWorldResolvers.kt`** holds the resolver classes for this schema — each one provides the value-producing function for a field marked with `@resolver`.
 
 Each resolver is a class that extends a generated base class and overrides the `resolve` function:
 
@@ -89,11 +89,11 @@ At the top of `build.gradle.kts` you'll see:
 
 You can see the two Viaduct plugins appearing here:
 
-- **`viaduct.application`**: This plugin must be applied to the root project. It coordinates certain build processes across the entire application, including code generation.
+- **`viaduct.application`**: This plugin must be applied to the root project. It coordinates build processes across the entire application, including code generation.
 
 - **`viaduct.module`**: This plugin indicates that the project contains application code (resolvers). One or more projects in your build can apply this plugin.
 
-Viaduct applications are structured as multi-project Gradle builds. As this example shows, a Viaduct application can be as simple as a single project build, in which case both plugins are applied to that one project.
+Viaduct applications are structured as multi-project Gradle builds. The CLI starter is the simplest case — a single project where both plugins are applied to the same module. Real-world applications usually split things up: one project applies `viaduct.application` and wires the runtime, and one or more sibling projects apply `viaduct.module` to contribute schema and resolvers (one Gradle module per **tenant**). The Star Wars demo's [Architecture section](../starwars/architecture/index.md) walks through that layout end-to-end.
 
 ## What's Next
 

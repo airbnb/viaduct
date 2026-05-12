@@ -20,17 +20,14 @@ The Star Wars demo defines two schema IDs:
 
 ## Where schemas are registered
 
-Schemas are registered in configuration, providing **scope bindings** and **SDL discovery** settings (package prefix
-and resource regex). Example (excerpt adapted from `ViaductConfiguration.kt`):
+Schemas are registered when creating a Viaduct instance by passing a list of [SchemaScopeInfo] descriptors.
+Example (excerpt from `ViaductConfiguration.kt`):
 
 
 {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt", "schema_registration", lang="kotlin") }}
 
 
-- `grtPackagePrefix`: optional package prefix for GRT schema file discovery (test-only override, production uses defaults).
-- `grtResourcesIncluded`: optional regex pattern for which SDL files to include (test-only override, production uses defaults).
-- `tenantPackagePrefix`: where Viaduct scans for generated resolver classes.
-- `scopes`: which runtime scopes activate each schema ID.
+- `scopedSchemas`: a list of `SchemaScopeInfo` descriptors, each binding a schema name to a set of scope IDs.
 
 ## Organizing SDL files
 

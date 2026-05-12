@@ -19,7 +19,7 @@ dependencies {
     api(libs.viaduct.shared.viaductschema)
     api(libs.viaduct.shared.mapping)
     api(libs.viaduct.shared.apiannotations)
-    testFixturesImplementation(libs.junit) // for @Execution(CONCURRENT) on KotestPropertyBase
+    testFixturesCompileOnly(libs.junit) // for @Execution(CONCURRENT) on KotestPropertyBase
 
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.service.api)

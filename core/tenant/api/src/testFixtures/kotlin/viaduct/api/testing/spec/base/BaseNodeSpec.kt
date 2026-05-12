@@ -13,7 +13,8 @@ import viaduct.apiannotations.InternalApi
  */
 @ExperimentalApi
 abstract class BaseNodeSpec<T : NodeObject> : BaseResolverSpec() {
-    var selections: SelectionSet<T>? = null
+    @Suppress("UNCHECKED_CAST")
+    var selections: SelectionSet<T> = SelectionSet.NoSelections as SelectionSet<T>
 
     @OptIn(InternalApi::class)
     protected fun getNodeContextKClass(resolverClass: Class<*>) = getResolverContextKClass<NodeExecutionContext<T>>(resolverClass)

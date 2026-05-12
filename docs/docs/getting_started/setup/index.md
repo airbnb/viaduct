@@ -6,20 +6,22 @@ description: Set up your first Viaduct application
 
 ## Requirements
 
-- Java 17+ must be on the path or available via JAVA_HOME
+- Java 17+
+- `git`
 - Basic familiarity with GraphQL (see [GraphQL Foundation learning materials](https://graphql.org/learn/))
 
 ## Compatibility
 
 Viaduct is compatible with the following versions:
 
-- **Gradle**: 8.10+ (Gradle 9.1.0+ supported with Kotlin 2.0+)
-- **Kotlin**: Use a Kotlin version compatible with your Gradle version
-  - Gradle 8.x: Kotlin 1.9.x or 2.x
-  - Gradle 9.x: Kotlin 2.0+
+- **Language**: Kotlin (tenant code is written in Kotlin; Java tenants are not yet supported).
 - **Java**: 17+
+- **Gradle**: 8.10+ (Gradle 9.1.0+ supported with Kotlin 2.0+)
+- **Kotlin**: Use a Kotlin version compatible with your Gradle version.
+    - Gradle 8.x: Kotlin 1.9.x or 2.x
+    - Gradle 9.x: Kotlin 2.0+
 
-> **Note**: When setting up a new project, choose Gradle and Kotlin versions that are compatible with each other. Refer to the [Gradle-Kotlin compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html#kotlin) for guidance.
+> **Note**: Choose Gradle and Kotlin versions that are compatible with each other — the [Gradle-Kotlin compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html#kotlin) is the authoritative reference.
 
 ## Choose Your Approach
 

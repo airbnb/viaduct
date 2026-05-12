@@ -70,13 +70,12 @@ class ViaductRestController(
      * Based on the scopes received in the request, determine which schema ID to use.
      * If the "extras" scope is included, use the schema that includes extra fields.
      */
-    private fun determineSchemaId(scopes: Set<String>): SchemaId {
-        return if (scopes.contains(EXTRAS_SCOPE_ID)) {
-            EXTRAS_SCHEMA_ID
+    private fun determineSchemaId(scopes: Set<String>): SchemaId =
+        if (scopes.contains(EXTRAS_SCOPE_ID)) {
+            EXTRAS_SCHEMA.schemaId
         } else {
-            DEFAULT_SCHEMA_ID
+            DEFAULT_SCHEMA.schemaId
         }
-    }
 
     // tag::execution_input[16] Create ExecutionInput example
 

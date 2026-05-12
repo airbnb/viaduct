@@ -1,6 +1,6 @@
 ---
-title: Viadcut Api
-description: Viaduct Runtime Execution Api
+title: Viaduct API
+description: Viaduct Runtime Execution API
 ---
 
 
@@ -26,20 +26,9 @@ This is the simplest way to build an instance of Viaduct.
 
 ```kotlin
 import viaduct.service.BasicViaductFactory
-import viaduct.service.TenantRegistrationInfo
 import viaduct.service.api.Viaduct
-import viaduct.service.api.spi.CodeInjector
 
-val tenantInfo = TenantRegistrationInfo(
-  tenantPackagePrefix = "com.example.myservice", // where tenant-generated code lives
-  codeInjector = CodeInjector.Naive  // or your DI-backed injector
-)
-
-val viaduct: Viaduct =
-  BasicViaductFactory.create(
-    tenantRegistrationInfo = tenantInfo,
-    // optional schemaRegistrationInfo override (defaults are usually correct)
-  )
+val viaduct: Viaduct = BasicViaductFactory.create()
 ```
 
 **When to use**
@@ -177,7 +166,7 @@ Typical usage:
 import viaduct.service.api.SchemaId
 
 suspend fun handleRequest(viaduct: Viaduct, input: ExecutionInput): Map<String, Any?> {
-  val result = viaduct.executeAsync(input, SchemaId.Full).await() 
+  val result = viaduct.executeAsync(input, SchemaId.Full).await()
   return result.toSpecification()
 }
 
@@ -216,10 +205,12 @@ val response = result.toSpecification()
 #### Data vs Errors
 
 GraphQL supports **partial results**:
+
 - A nullable field can error and become `null` while siblings still resolve.
 - Errors in non-nullable fields may bubble up and null out parents.
 
 You should:
+
 - Always serialize both `"data"` (possibly `null`) and `"errors"` when errors exist.
 - Treat `errors.isNotEmpty()` as “something went wrong” even if data exists.
 
@@ -238,6 +229,7 @@ if (scopes == null) {
 }
 ```
 
-**Semantics**
+#### Semantics
+
 - Returns `null` when no scopes are configured for the schema.
 - Returns the set of scope IDs applied to the schema when it is scoped.

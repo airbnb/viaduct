@@ -20,9 +20,9 @@ These step-by-step guides will teach you how to build powerful GraphQL APIs with
 
 ### Tutorial Path
 
-Follow these tutorials in order to master Viaduct's resolver patterns:
+Follow these tutorials in order to master Viaduct's resolver patterns. The complete set of feature-app tutorials lives in [`core/tenant/tutorials/src/test/kotlin/viaduct/tenant`](https://github.com/airbnb/viaduct/tree/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant); the entries below are the curated path we recommend working through first.
 
-#### 1. [Field Resolver Tutorial](https://github.com/airbnb/viaduct/blob/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial01/SimpleFieldResolverFeatureAppTest.kt)
+#### [Field Resolver Tutorial](https://github.com/airbnb/viaduct/blob/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial01/SimpleFieldResolverFeatureAppTest.kt)
 
 **Start here!** Learn the most basic resolver type.
 
@@ -34,7 +34,7 @@ Follow these tutorials in order to master Viaduct's resolver patterns:
 
 - **Generated classes**: `QueryResolvers.*`
 
-#### 2. [Node Resolver Tutorial](https://github.com/airbnb/viaduct/blob/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial02/SimpleNodeResolverFeatureAppTest.kt)
+#### [Node Resolver Tutorial](https://github.com/airbnb/viaduct/blob/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial02/SimpleNodeResolverFeatureAppTest.kt)
 
 Learn the foundation of Viaduct's object system.
 
@@ -48,7 +48,7 @@ Learn the foundation of Viaduct's object system.
 
 - **Why it matters**: Foundation for all object resolution in Viaduct
 
-#### 3. [Simple Resolvers Tutorial](https://github.com/airbnb/viaduct/blob/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial03/SimpleResolversFeatureAppTest.kt)
+#### [Simple Resolvers Tutorial](https://github.com/airbnb/viaduct/blob/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial03/SimpleResolversFeatureAppTest.kt)
 
 See how Field and Node resolvers work together.
 
@@ -62,7 +62,7 @@ See how Field and Node resolvers work together.
 
 - **Advanced feature**: Field resolvers accessing parent object data
 
-#### 11. [Subqueries Tutorial](https://github.com/airbnb/viaduct/blob/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial11/SimpleSubqueriesFeatureAppTest.kt)
+#### [Subqueries Tutorial](https://github.com/airbnb/viaduct/blob/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial11/SimpleSubqueriesFeatureAppTest.kt)
 
 Execute subqueries against the Query and Mutation roots from inside a resolver.
 

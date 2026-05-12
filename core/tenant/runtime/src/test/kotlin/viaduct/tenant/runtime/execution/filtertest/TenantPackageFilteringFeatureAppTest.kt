@@ -30,15 +30,17 @@ class TenantPackageFilteringFeatureAppTest : TenantPackageFilteringContractTest(
 
     @BeforeEach
     fun registerSchemas() {
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(
-                sdl(),
-                scopes = setOf(
-                    schemaId1.toScopeConfig(),
-                    schemaId2.toScopeConfig(),
+        withViaductBuilder {
+            withSchemaConfiguration(
+                SchemaConfiguration.fromSdl(
+                    sdl(),
+                    scopes = setOf(
+                        schemaId1.toScopeConfig(),
+                        schemaId2.toScopeConfig(),
+                    )
                 )
             )
-        )
+        }
     }
 
     @Test
@@ -90,15 +92,17 @@ class TenantPackageFilteringFeatureAppTest : TenantPackageFilteringContractTest(
     fun `Validation errors vs missing resolvers due to tenant filtering`() {
         val scope1Only = SchemaId.Scoped("SCOPE1_ONLY", setOf("SCOPE1"))
         val scope2Only = SchemaId.Scoped("SCOPE2_ONLY", setOf("SCOPE2"))
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(
-                sdl(),
-                scopes = setOf(
-                    scope1Only.toScopeConfig(),
-                    scope2Only.toScopeConfig()
+        withViaductBuilder {
+            withSchemaConfiguration(
+                SchemaConfiguration.fromSdl(
+                    sdl(),
+                    scopes = setOf(
+                        scope1Only.toScopeConfig(),
+                        scope2Only.toScopeConfig()
+                    )
                 )
             )
-        )
+        }
 
         withViaductBuilder {
             withTenantAPIBootstrapperBuilder(

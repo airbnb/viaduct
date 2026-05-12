@@ -26,7 +26,6 @@ tasks.register<JavaExec>("runSchemaCli") {
 
 dependencies {
     api(libs.graphql.java)
-    api(libs.junit)
     api(libs.viaduct.shared.apiannotations)
     api(libs.viaduct.shared.invariants)
     api(libs.viaduct.shared.graphql)
@@ -34,11 +33,10 @@ dependencies {
 
     implementation(libs.guava)
     implementation(libs.kotlin.reflect)
-    implementation(libs.reflections)
     implementation(libs.jspecify)
 
     testFixturesApi(libs.graphql.java)
-    testFixturesApi(libs.junit)
+    testFixturesCompileOnly(libs.junit)
     testFixturesApi(libs.viaduct.shared.invariants)
 
     testFixturesImplementation(libs.clikt.jvm)

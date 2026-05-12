@@ -4,9 +4,8 @@ import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
+import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.SchemaId
-import viaduct.service.runtime.SchemaConfiguration
-import viaduct.service.runtime.toScopeConfig
 
 /**
  * Contract test for the @scope directive.
@@ -39,14 +38,14 @@ import viaduct.service.runtime.toScopeConfig
 """
 )
 abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
+    private val schema1 = SchemaScopeInfo("SCHEMA_ID_1", setOf("SCOPE1"))
+    private val schema2 = SchemaScopeInfo("SCHEMA_ID_2", setOf("SCOPE2"))
+
     // -- Single-scope tests (only SCOPE1 registered) --
 
     @Test
     fun `Resolve query with SCOPE1 fields against SCHEMA_ID_1 schema succeeds`() {
-        val schemaId = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(sdl(), scopes = setOf(schemaId.toScopeConfig()))
-        )
+        withScopedSchemas(listOf(schema1))
         execute(
             query = """
                 query {
@@ -55,7 +54,7 @@ abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
                     }
                 }
             """.trimIndent(),
-            schemaId = schemaId
+            schemaId = schema1.schemaId
         ).assertEquals {
             "data" to {
                 "scope1Value" to {
@@ -67,10 +66,7 @@ abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
 
     @Test
     fun `Resolve fails to run query with SCOPE2 fields against SCHEMA_ID_1 schema`() {
-        val schemaId = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(sdl(), scopes = setOf(schemaId.toScopeConfig()))
-        )
+        withScopedSchemas(listOf(schema1))
         execute(
             query = """
                 query {
@@ -79,7 +75,7 @@ abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
                     }
                 }
             """.trimIndent(),
-            schemaId = schemaId
+            schemaId = schema1.schemaId
         ).assertEquals {
             "errors" to arrayOf(
                 {
@@ -101,10 +97,7 @@ abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
 
     @Test
     fun `Resolve query with SCOPE2 fields fails as SCHEMA_ID_2 is not registered`() {
-        val schemaId = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(sdl(), scopes = setOf(schemaId.toScopeConfig()))
-        )
+        withScopedSchemas(listOf(schema1))
         execute(
             query = """
                 query {
@@ -131,14 +124,7 @@ abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
 
     @Test
     fun `Resolve SCOPE1 fields against SCHEMA_ID_1 schema succeeds`() {
-        val schemaId1 = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
-        val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(
-                sdl(),
-                scopes = setOf(schemaId1.toScopeConfig(), schemaId2.toScopeConfig())
-            )
-        )
+        withScopedSchemas(listOf(schema1, schema2))
         execute(
             query = """
                 query {
@@ -147,7 +133,7 @@ abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
                     }
                 },
             """.trimIndent(),
-            schemaId = schemaId1,
+            schemaId = schema1.schemaId,
         ).assertEquals {
             "data" to {
                 "scope1Value" to {
@@ -159,14 +145,7 @@ abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
 
     @Test
     fun `Resolve SCOPE2 fields against SCHEMA_ID_2 schema succeeds`() {
-        val schemaId1 = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
-        val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
-        withSchemaConfiguration(
-            SchemaConfiguration.fromSdl(
-                sdl(),
-                scopes = setOf(schemaId1.toScopeConfig(), schemaId2.toScopeConfig())
-            )
-        )
+        withScopedSchemas(listOf(schema1, schema2))
         execute(
             query = """
                 query {
@@ -175,7 +154,7 @@ abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
                     }
                 }
             """.trimIndent(),
-            schemaId = schemaId2,
+            schemaId = schema2.schemaId,
         ).assertEquals {
             "data" to {
                 "scope2Value" to {

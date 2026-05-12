@@ -6,10 +6,12 @@ import io.micrometer.core.instrument.MeterRegistry
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
+import viaduct.engine.BootstrapperFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
@@ -50,15 +52,35 @@ class ViaductBuilder {
      * After all bootstrap calls complete successfully, [TenantModuleBootstrapper.finalize]
      * is called before any returned [viaduct.service.api.spi.CodeInjector] is used.
      */
+    @Suppress("DEPRECATION")
     fun withTenantModuleBootstrapper(tenantModuleBootstrapper: TenantModuleBootstrapper) =
         apply {
-            builder.withTenantModuleBootstrapper(tenantModuleBootstrapper)
+            val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
+                override fun create() = BootstrapperFactory.fromResources(tenantModuleBootstrapper)
+            }
+            builder.withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
         }
 
     /** Configures the [FlagManager] for controlling framework feature flags. */
     fun withFlagManager(flagManager: FlagManager) =
         apply {
             builder.withFlagManager(flagManager)
+        }
+
+    /**
+     * Configures scoped schemas from a list of [SchemaScopeInfo] descriptors.
+     * Schema resources are discovered from the classpath.
+     *
+     * This is a convenience method equivalent to calling [withSchemaConfiguration] with
+     * [SchemaConfiguration.fromResources]. The last of [withSchemaConfiguration] or
+     * [withScopedSchemas] to be called wins.
+     */
+    fun withScopedSchemas(scopedSchemas: List<SchemaScopeInfo>) =
+        apply {
+            val schemaConfiguration = SchemaConfiguration.fromResources(
+                scopes = scopedSchemas.map { it.toScopeConfig() }.toSet()
+            )
+            builder.withSchemaConfiguration(schemaConfiguration)
         }
 
     /** Configures schema registration, including multi-tenant scoped schemas. */
@@ -117,35 +139,50 @@ class ViaductBuilder {
             builder.withGlobalIDCodec(globalIDCodec)
         }
 
-    /** @see StandardViaduct.Builder.withCheckerExecutorFactoryCreator */
+    /**
+     * Configures a factory that creates [CheckerExecutorFactory] instances from a fully-built
+     * [ViaductSchema]. This allows access checks to be wired after schema construction.
+     *
+     * @deprecated A replacement API using the public Viaduct API (rather than internal engine
+     *             types) will be provided in a future release.
+     */
+    @Deprecated("Will be replaced with a public-API-based checker configuration")
     @VisibleForTest
     fun withCheckerExecutorFactoryCreator(factoryCreator: (ViaductSchema) -> CheckerExecutorFactory) =
         apply {
             builder.withCheckerExecutorFactoryCreator(factoryCreator)
         }
 
-    /** @see StandardViaduct.Builder.withTenantAPIBootstrapperBuilder */
+    // internal for testing
     @VisibleForTest
-    fun withTenantAPIBootstrapperBuilder(bootstrapperBuilder: TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>) =
+    internal fun withTenantAPIBootstrapperBuilder(bootstrapperBuilder: TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>) =
         apply {
             builder.withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
         }
 
-    /** @see StandardViaduct.Builder.withNoTenantAPIBootstrapper */
+    // internal for testing
     @VisibleForTest
-    fun withNoTenantAPIBootstrapper() =
+    internal fun withNoTenantAPIBootstrapper() =
         apply {
             builder.withNoTenantAPIBootstrapper()
         }
 
-    /** @see StandardViaduct.Builder.withProxyResolverFactory */
+    /**
+     * Configures a [ProxyResolverFactory] for wrapping resolvers with proxies (e.g., for
+     * remote execution). The factory is called for every field and node executor. A non-null
+     * return value replaces the original executor.
+     */
     @ExperimentalApi
     fun withProxyResolverFactory(proxyResolverFactory: ProxyResolverFactory) =
         apply {
             builder.withProxyResolverFactory(proxyResolverFactory)
         }
 
-    /** @see StandardViaduct.Builder.withLenientResolverValidation */
+    /**
+     * When set to true, suppresses the startup error that occurs when a
+     * @resolver-annotated field or type has no registered resolver.
+     * Default is false (strict: missing resolver = startup error).
+     */
     fun withLenientResolverValidation(lenient: Boolean = true) =
         apply {
             builder.withLenientResolverValidation(lenient)
@@ -157,4 +194,32 @@ class ViaductBuilder {
      * @return a [Viaduct] instance configured with the supplied SPI implementations
      */
     fun build(): Viaduct = builder.build()
+}
+
+/**
+ * A descriptor for a scoped schema configuration.
+ *
+ * The [schemaId] property holds the [SchemaId] that identifies this schema at execution time.
+ * Use it when calling [Viaduct.executeAsync] or [Viaduct.execute] to select this schema.
+ *
+ * @param id the name for the scoped schema
+ * @param scopesToApply the set of scope-ids that define the scoped schema;
+ *        empty means the full (unscoped) schema is registered under this name.
+ */
+@StableApi
+class SchemaScopeInfo private constructor(
+    val schemaId: SchemaId,
+) {
+    constructor(id: String, scopesToApply: Set<String> = emptySet()) : this(
+        SchemaId.Scoped(id, scopesToApply)
+    )
+
+    init {
+        require(schemaId.id.isNotBlank()) { "schema id must not be blank" }
+    }
+
+    val scopesToApply: Set<String>
+        get() = (schemaId as SchemaId.Scoped).scopeIds
+
+    internal fun toScopeConfig(): SchemaConfiguration.ScopeConfig = SchemaConfiguration.ScopeConfig(schemaId.id, scopesToApply)
 }

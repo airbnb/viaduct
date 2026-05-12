@@ -1,0 +1,114 @@
+package viaduct.tenant.codegen.cli
+
+import java.io.File
+import java.util.jar.JarFile
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+
+class AssembleTenantModuleConfigJarTest {
+    @TempDir
+    private lateinit var tempDir: File
+
+    private fun descriptorJar(
+        name: String,
+        entries: Map<String, String>
+    ): File {
+        val jarFile = File(tempDir, name)
+        ZipOutputStream(jarFile.outputStream()).use { out ->
+            entries.toSortedMap().forEach { (path, content) ->
+                out.putNextEntry(ZipEntry(path))
+                out.write(content.toByteArray())
+                out.closeEntry()
+            }
+        }
+        return jarFile
+    }
+
+    private fun outputJar(): File = File(tempDir, "module-config.jar")
+
+    private fun jarsListFile(jars: List<File>): File {
+        val listFile = File(tempDir, "descriptor-jars.list")
+        listFile.writeText(jars.joinToString(separator = "\n") { it.absolutePath })
+        return listFile
+    }
+
+    private fun runCli(
+        jars: List<File>,
+        tenantPkg: String = "com.example.feature",
+        out: File = outputJar(),
+    ) {
+        AssembleTenantModuleConfigJar().main(
+            listOf(
+                "--descriptor-jars-list",
+                jarsListFile(jars).absolutePath,
+                "--tenant-package",
+                tenantPkg,
+                "--output-jar",
+                out.absolutePath,
+            ),
+        )
+    }
+
+    private fun readJarEntry(
+        jarFile: File,
+        path: String
+    ): String? {
+        return JarFile(jarFile).use { jar ->
+            jar.getJarEntry(path)?.let { entry ->
+                jar.getInputStream(entry).bufferedReader().use { it.readText() }
+            }
+        }
+    }
+
+    @Test
+    fun `merges matching descriptors from descriptor jars into output jar`() {
+        val firstJar = descriptorJar(
+            name = "leaf-a.jar",
+            entries = mapOf(
+                "viaduct-registry/com/example/feature/AResolvers.json" to
+                    """{"nodes":[{"attribution":"ANodeResolver","implFqn":"com.example.ANodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.A","typeName":"A"}],"fields":[],"grtPackagePrefix":"viaduct.api.grts"}""",
+            ),
+        )
+        val secondJar = descriptorJar(
+            name = "leaf-b.jar",
+            entries = mapOf(
+                "viaduct-registry/com/example/feature/BResolvers.json" to
+                    """{"nodes":[{"attribution":"BNodeResolver","implFqn":"com.example.BNodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.B","typeName":"B"}],"fields":[],"grtPackagePrefix":"viaduct.api.grts"}""",
+                "viaduct-registry/com/example/other/IgnoredResolvers.json" to
+                    """{"nodes":[{"attribution":"Ignored","implFqn":"com.example.IgnoredResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.Ignored","typeName":"Ignored"}],"fields":[],"grtPackagePrefix":"viaduct.api.grts"}""",
+            ),
+        )
+
+        val out = outputJar()
+        runCli(jars = listOf(firstJar, secondJar), out = out)
+
+        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        assertNotNull(json)
+        assertTrue(json!!.contains("ANodeResolver"), json)
+        assertTrue(json.contains("BNodeResolver"), json)
+        assertFalse(json.contains("IgnoredResolver"), json)
+    }
+
+    @Test
+    fun `writes empty jar when no descriptor entries match tenant package`() {
+        val descriptorJar = descriptorJar(
+            name = "leaf.jar",
+            entries = mapOf(
+                "viaduct-registry/com/example/other/Resolvers.json" to
+                    """{"nodes":[{"attribution":"Ignored","implFqn":"com.example.IgnoredResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.Ignored","typeName":"Ignored"}],"fields":[],"grtPackagePrefix":"viaduct.api.grts"}""",
+            ),
+        )
+
+        val out = outputJar()
+        runCli(jars = listOf(descriptorJar), out = out)
+
+        JarFile(out).use { jar ->
+            assertFalse(jar.entries().hasMoreElements(), "Expected no entries in output jar when tenant has no descriptors")
+        }
+    }
+}

@@ -20,7 +20,7 @@ These docs cover how to use Viaduct, including tutorials, how-to guides, and ref
 
     ---
 
-    Day-to-day tenant authoring: resolvers, generated code, global IDs, pagination, scopes, schema reference, serve, and testing.
+    Day-to-day tenant authoring: resolvers, generated code, global IDs, pagination, scopes, schema reference, and testing.
 
     [:octicons-arrow-right-24: Developers](developers/index.md)
 

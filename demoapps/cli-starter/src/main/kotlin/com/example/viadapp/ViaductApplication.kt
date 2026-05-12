@@ -17,7 +17,7 @@ fun main(argv: Array<String>) {
 
     // Create a Viaduct engine using the BasicViaductFactory
     // tag::building-viaduct[5] Building viaduct from BasicViaductFactory
-    val viaduct = BasicViaductFactory.createFromResource()
+    val viaduct = BasicViaductFactory.create()
 
     // Create an execution input
     // tag::create-execution-input[12] Creating an execution input

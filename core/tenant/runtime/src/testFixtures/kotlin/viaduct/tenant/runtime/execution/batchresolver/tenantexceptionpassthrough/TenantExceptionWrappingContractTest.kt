@@ -1,6 +1,7 @@
 package viaduct.tenant.runtime.execution.batchresolver.tenantexceptionpassthrough
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
@@ -72,6 +73,8 @@ abstract class TenantExceptionWrappingContractTest : KotlinFeatureAppTestContrac
             val error = result.errors[0]
             // The FieldError message must surface in the GraphQL response
             assertEquals("upstream error", error.message)
+            // Locations must be populated from the env (field source location in the query)
+            assertFalse(error.locations.isNullOrEmpty(), "ErroneousFieldException errors must include field locations")
             // ErroneousFieldException must not be wrapped in TenantResolverException —
             // presence of "resolvers" in extensions indicates wrapping occurred
             assertNull(

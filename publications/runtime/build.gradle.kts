@@ -36,15 +36,13 @@ tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")  // Replace the main jar
     mergeServiceFiles()
 
-    // Exclude classes already bundled in the `api` publication. The api jar packages
-    // tenant.api, service.api, shared.apiannotations, shared.errors, and graphql-java
-    // (plus relocated Guava pulled transitively by graphql-java). Keeping these out of
-    // the runtime jar prevents duplicate-class conflicts for consumers that declare both.
+    // Exclude Viaduct API classes already bundled in the `api` publication.
+    // graphql-java core is intentionally kept bundled (duplicated with the api jar) so
+    // that graphql-java-extended-scalars (graphql/scalars/**) remains available at runtime.
     exclude("viaduct/api/**")
     exclude("viaduct/service/api/**")
     exclude("viaduct/apiannotations/**")
     exclude("viaduct/errors/**")
-    exclude("graphql/**")
 
     // Exclude third-party classes with rapid API churn that would cause version conflicts
     // (e.g. NoSuchMethodError) when the consumer's versions differ from the bundled ones.
@@ -90,13 +88,10 @@ configurations {
     }
 }
 
-// Suppress runtimeElements from Gradle module metadata so consumers don't resolve
-// transitive deps that are already bundled in the shadow jar.
-plugins.withId("org.jetbrains.kotlin.jvm") {
-    val javaComponent = components["java"] as AdhocComponentWithVariants
-    javaComponent.withVariantsFromConfiguration(configurations.runtimeElements.get()) {
-        skip()
-    }
+// Suppress Gradle module metadata — the fat jar is self-contained and the standard
+// variants would reference internal viaduct coordinates that aren't published individually.
+tasks.withType<GenerateModuleMetadata> {
+    enabled = false
 }
 
 // Strip transitive dependencies from POM for Maven consumers.

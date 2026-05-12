@@ -5,6 +5,7 @@ import viaduct.graphql.schema.validation.SchemaLocation
 import viaduct.graphql.schema.validation.ValidationContext
 import viaduct.graphql.schema.validation.ValidationErrorCodes
 import viaduct.graphql.schema.validation.ValidationRule
+import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
 
 /**
  * Validates correct usage of the @namespaceType directive.
@@ -14,11 +15,20 @@ import viaduct.graphql.schema.validation.ValidationRule
  * 3. Namespace types must not appear as members of any union.
  * 4. There can not be more than 1 namespace field with the same type.
  * 5. Namespace fields can only appear in the root query/mutation type or other namespace types.
+ * 6. Fields returning a namespace type must not carry directives that bind, install, or override field resolution,
+ *    since the engine auto-registers a synthetic resolver for fields returning a namespace type.
+ *
+ * @param conflictingFieldDirectives
+ *   Raw directive names (no `@` prefix) that override field resolution and therefore
+ *   collide with the synthetic namespace resolver registered by the engine for any field returning a
+ *   `@namespaceType` type.
  */
-class NamespaceTypeConstraintsRule : ValidationRule(
-    id = "NamespaceTypeConstraints",
-    description = "@$DIRECTIVE_NAME types must have no-arg, non-list, nullable fields and a single namespace/root parent"
-) {
+class NamespaceTypeConstraintsRule(
+    internal val conflictingFieldDirectives: Set<String> = setOf(DefaultDirective.RESOLVER.directiveName),
+) : ValidationRule(
+        id = "NamespaceTypeConstraints",
+        description = "@$DIRECTIVE_NAME types must have no-arg, non-list, nullable fields, a single namespace/root parent, and no conflicting resolver directives"
+    ) {
     override fun visitField(
         ctx: ValidationContext,
         field: ViaductSchema.Field
@@ -65,6 +75,22 @@ class NamespaceTypeConstraintsRule : ValidationRule(
                 code = ValidationErrorCodes.NAMESPACE_TYPE_INVALID_PARENT,
                 message = "Field $parentTypeName.$fieldName has @$DIRECTIVE_NAME type '${baseTypeDef.name}', " +
                     "but '$parentTypeName' is not the root query/mutation type nor a @$DIRECTIVE_NAME type.",
+                location = SchemaLocation.ofField(parentTypeName, fieldName).withSourceLocation(field.sourceLocation)
+            )
+        }
+
+        val conflictingDirectives = field.appliedDirectives
+            .map { it.name }
+            .filter { it in conflictingFieldDirectives }
+            .distinct()
+        if (conflictingDirectives.isNotEmpty()) {
+            val names = conflictingDirectives.joinToString(", ") { "@$it" }
+            ctx.reportError(
+                code = ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_CONFLICTING_RESOLVER,
+                message = "Field $parentTypeName.$fieldName has @$DIRECTIVE_NAME type '${baseTypeDef.name}' " +
+                    "but also carries directive(s) that override field resolution: $names. " +
+                    "Remove the explicit resolver directive — fields returning a namespace type are resolved by an " +
+                    "engine-registered synthetic namespace resolver.",
                 location = SchemaLocation.ofField(parentTypeName, fieldName).withSourceLocation(field.sourceLocation)
             )
         }

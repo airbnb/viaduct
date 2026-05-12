@@ -119,13 +119,14 @@ private val nodesSt = stTemplate(
         package <mdl.tenantPackage>.resolverbases
 
         import viaduct.api.FieldValue
+        import viaduct.apiannotations.ExperimentalApi
         import viaduct.apiannotations.InternalApi
         import viaduct.api.internal.InternalContext
         import viaduct.api.NodeResolverBase
         import viaduct.api.internal.NodeResolverFor
         import viaduct.api.select.SelectionSet
 
-        @OptIn(InternalApi::class)
+        @OptIn(InternalApi::class, ExperimentalApi::class)
         object NodeResolvers {
             <mdl.nodes:node(); separator="\n">
         }

@@ -15,13 +15,11 @@ dependencies {
 
     testFixturesApi(libs.graphql.java)
 
-    testFixturesImplementation(libs.junit)
+    testFixturesCompileOnly(libs.junit)
     testFixturesImplementation(libs.viaduct.service.api)
-    testFixturesImplementation(libs.io.mockk.dsl)
     testFixturesImplementation(libs.jackson.core)
     testFixturesImplementation(libs.jackson.databind)
     testFixturesImplementation(libs.jackson.module)
-    testFixturesImplementation(libs.kotest.assertions.shared)
     testFixturesImplementation(libs.kotlin.test)
     testFixturesImplementation(libs.viaduct.shared.invariants)
 

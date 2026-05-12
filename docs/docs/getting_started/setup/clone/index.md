@@ -1,38 +1,34 @@
 ---
-title: Clone Approach
-description: Get by cloning a starter application
+title: Clone a Starter Application
+description: Get going by cloning the CLI starter, the simplest Viaduct starter application.
 ---
 
 
-This guide walks you through getting started with Viaduct by cloning one of our starter applications.
+This guide walks you through getting started with Viaduct by cloning the **CLI starter** — the smallest starter application. We use it because it's quick to clone, has no web framework to set up, and exercises the same core Viaduct APIs you'd use in a full server.
 
-## Getting Started
+## Run the CLI starter
 
-To get you started with Viaduct, we have created a number of small demonstration applications to illustrate what a Viaduct application is and how you write and build one. You can find these at [github.com/viaduct-dev](https://github.com/viaduct-dev). In particular, in order of complexity, we have a CLI starter, a Spring starter, and a more full-featured StarWars application.
-
-### Running the Application
-
-Start by making a local clone of the [CLI starter](https://github.com/viaduct-dev/cli-starter):
+Make a local clone of the [CLI starter](https://github.com/viaduct-dev/cli-starter):
 
 ```shell
 git clone https://github.com/viaduct-dev/cli-starter.git
 ```
 
-Next, `cd` into that clone and test that your environment is ready by typing:
+`cd` into the clone and verify your environment:
 
 ```shell
 ./gradlew test
 ```
 
-After building and testing the CLI demo, Gradle should report that the build was successful.
+Gradle should report that the build was successful.
 
-Although Viaduct is typically hosted in a web server, to keep things simple the CLI demo calls it directly from the application's main function. You can do this through Gradle:
+Although Viaduct is typically hosted in a web server, the CLI starter calls it directly from the application's `main` function so the example stays small. Run a query through Gradle:
 
 ```shell
 ./gradlew -q run --args="'{ greeting }'"
 ```
 
-Here is the full schema for this simple application:
+The starter ships with a tiny schema:
 
 ```graphql
 type Query {
@@ -41,7 +37,19 @@ type Query {
 }
 ```
 
-Through the command line you can issue any query against this schema.
+Any query that's valid against this schema can be passed via `--args`.
+
+## Other starter applications
+
+Besides the CLI starter, [github.com/viaduct-dev](https://github.com/viaduct-dev) hosts several framework-specific starters:
+
+- [`cli-starter`](https://github.com/viaduct-dev/cli-starter) — the smallest one; covered above.
+- [`ktor-starter`](https://github.com/viaduct-dev/ktor-starter) — a Ktor-based HTTP server.
+- [`jetty-starter`](https://github.com/viaduct-dev/jetty-starter) — a Jetty-based HTTP server.
+- [`micronaut-starter`](https://github.com/viaduct-dev/micronaut-starter) — a Micronaut-based HTTP server.
+- [`starwars`](https://github.com/viaduct-dev/starwars) — a fuller demonstration application built on Spring Boot, exercising most Viaduct features. The [Star Wars tutorial](../../starwars/index.md) walks through it.
+
+Pick the one that matches your target framework. Each repo's README has its own setup steps.
 
 ## What's Next
 

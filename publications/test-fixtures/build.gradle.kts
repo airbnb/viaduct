@@ -14,7 +14,6 @@ viaductPublishing {
 
 dependencies {
     api(testFixtures(libs.viaduct.tenant.api))
-    implementation(testFixtures(libs.viaduct.tenant.runtime))
 }
 
 // Create shaded jar for publishing (fat jar with all test fixtures)
@@ -31,6 +30,7 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude("kotlin/**")
     exclude("kotlinx/**")
     exclude("io/kotest/**")
+    exclude("org/opentest4j/**")
     exclude("org/jetbrains/**")
     exclude("org/reactivestreams/**")
     exclude("reactor/**")
@@ -68,26 +68,15 @@ configurations {
     }
 }
 
-// Strip all transitive dependencies from the published POM and Gradle module metadata.
-// The shadow jar bundles all Viaduct classes directly, so declaring transitive deps
-// would cause consumers to resolve old versions of bundled libs (e.g. coroutines 1.8.0
-// from tenant-runtime) alongside the shadow jar, producing NoSuchMethodErrors at runtime.
-// Third-party deps excluded from the jar are resolved by consumers at their own versions.
-plugins.withId("org.jetbrains.kotlin.jvm") {
-    val javaComponent = components["java"] as AdhocComponentWithVariants
-    // Suppress runtimeElements variant from Gradle module metadata so consumers don't
-    // resolve the transitive deps that are already bundled in the shadow jar.
-    javaComponent.withVariantsFromConfiguration(configurations.runtimeElements.get()) {
-        skip()
-    }
+// Suppress Gradle module metadata — the fat jar is self-contained and the standard
+// variants would reference internal viaduct coordinates that aren't published individually.
+tasks.withType<GenerateModuleMetadata> {
+    enabled = false
 }
+
+// Strip all transitive dependencies from the published POM.
 afterEvaluate {
     publishing.publications.withType<MavenPublication>().configureEach {
-        // The shadow jar bundles all Viaduct classes; transitive deps are intentionally
-        // stripped from the POM. The capability-based dep on tenant-api test fixtures
-        // cannot be represented in Maven POM but is irrelevant since the POM has no deps.
-        suppressPomMetadataWarningsFor("apiElements")
-        suppressPomMetadataWarningsFor("runtimeElements")
         pom.withXml {
             val deps = asNode().get("dependencies") as groovy.util.NodeList
             deps.forEach { (it as groovy.util.Node).parent().remove(it) }

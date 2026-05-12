@@ -19,6 +19,4 @@ The Developers section covers the core concepts and tools you'll need when build
 
 **Schema Reference** documents all the built-in directives (`@resolver`, `@backingData`, `@scope`, `@idOf`), types (like the `Node` interface), and scalars (`Date`, `DateTime`, `Long`, `BigDecimal`, `JSON`) that Viaduct provides out of the box. You'll use these constantly—especially `@resolver` for data fetching and `Node` for implementing globally identifiable entities.
 
-**Development Server** (`serve`) gives you a fast iteration loop with GraphiQL and auto-reloading. Run `./gradlew --continuous serve` to start developing, and changes to your schema or resolvers will automatically rebuild and restart the server. For dependency injection, create a `@ViaductServerConfiguration` class that provides your configured Viaduct instance; otherwise, the server runs in a default mode that only supports resolvers with zero-argument constructors.
-
 Start with the [Star Wars tutorial](../../getting_started/index.md) in Getting Started to see these concepts in action, then refer back to the Developers section as you build out your own tenant's schema and resolvers.

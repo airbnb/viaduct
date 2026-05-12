@@ -18,7 +18,7 @@ class JettyViaductApp(private val port: Int = 8080) {
         rootLogger.level = Level.INFO
 
         // Create a Viaduct engine using the BasicViaductFactory
-        val viaduct = BasicViaductFactory.createFromResource()
+        val viaduct = BasicViaductFactory.create()
 
         // Create the servlets
         val viaductServlet = ViaductServlet(viaduct)

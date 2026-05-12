@@ -1,63 +1,16 @@
 public final class viaduct/service/BasicViaductFactory {
 	public static final field INSTANCE Lviaduct/service/BasicViaductFactory;
-	public final fun create (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/TenantRegistrationInfo;)Lviaduct/service/api/Viaduct;
-	public final fun create (Lviaduct/service/TenantRegistrationInfo;)Lviaduct/service/api/Viaduct;
-	public static synthetic fun create$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/TenantRegistrationInfo;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
-	public final fun createFromResource ()Lviaduct/service/api/Viaduct;
-	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;)Lviaduct/service/api/Viaduct;
-	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/TenantModuleBootstrapper;)Lviaduct/service/api/Viaduct;
-	public final fun createFromResource (Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/TenantModuleBootstrapper;Lviaduct/engine/api/spi/ProxyResolverFactory;)Lviaduct/service/api/Viaduct;
-	public static synthetic fun createFromResource$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/SchemaRegistrationInfo;Lviaduct/service/api/spi/TenantModuleBootstrapper;Lviaduct/engine/api/spi/ProxyResolverFactory;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
-}
-
-public final class viaduct/service/BasicViaductFactoryKt {
-	public static final fun toSchemaScopeInfo (Lviaduct/service/api/SchemaId$Scoped;)Lviaduct/service/SchemaScopeInfo;
-}
-
-public final class viaduct/service/SchemaRegistrationInfo {
-	public fun <init> ()V
-	public fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/util/List;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun copy (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;)Lviaduct/service/SchemaRegistrationInfo;
-	public static synthetic fun copy$default (Lviaduct/service/SchemaRegistrationInfo;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lviaduct/service/SchemaRegistrationInfo;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getGrtPackagePrefix ()Ljava/lang/String;
-	public final fun getGrtResourcesIncluded ()Ljava/lang/String;
-	public final fun getScopes ()Ljava/util/List;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
+	public final fun create ()Lviaduct/service/api/Viaduct;
+	public final fun create (Lviaduct/service/api/spi/TenantModuleBootstrapper;)Lviaduct/service/api/Viaduct;
+	public final fun create (Lviaduct/service/api/spi/TenantModuleBootstrapper;Ljava/util/List;)Lviaduct/service/api/Viaduct;
+	public static synthetic fun create$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/api/spi/TenantModuleBootstrapper;Ljava/util/List;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
 }
 
 public final class viaduct/service/SchemaScopeInfo {
-	public fun <init> ()V
 	public fun <init> (Ljava/lang/String;Ljava/util/Set;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/util/Set;
-	public final fun copy (Ljava/lang/String;Ljava/util/Set;)Lviaduct/service/SchemaScopeInfo;
-	public static synthetic fun copy$default (Lviaduct/service/SchemaScopeInfo;Ljava/lang/String;Ljava/util/Set;ILjava/lang/Object;)Lviaduct/service/SchemaScopeInfo;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getSchemaId ()Ljava/lang/String;
+	public final fun getSchemaId ()Lviaduct/service/api/SchemaId;
 	public final fun getScopesToApply ()Ljava/util/Set;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class viaduct/service/TenantRegistrationInfo {
-	public fun <init> (Ljava/lang/String;Lviaduct/service/api/spi/CodeInjector;)V
-	public synthetic fun <init> (Ljava/lang/String;Lviaduct/service/api/spi/CodeInjector;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Lviaduct/service/api/spi/CodeInjector;
-	public final fun copy (Ljava/lang/String;Lviaduct/service/api/spi/CodeInjector;)Lviaduct/service/TenantRegistrationInfo;
-	public static synthetic fun copy$default (Lviaduct/service/TenantRegistrationInfo;Ljava/lang/String;Lviaduct/service/api/spi/CodeInjector;ILjava/lang/Object;)Lviaduct/service/TenantRegistrationInfo;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getTenantCodeInjector ()Lviaduct/service/api/spi/CodeInjector;
-	public final fun getTenantPackagePrefix ()Ljava/lang/String;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
 }
 
 public final class viaduct/service/ViaductBuilder {
@@ -71,6 +24,7 @@ public final class viaduct/service/ViaductBuilder {
 	public final fun withMeterRegistry (Lio/micrometer/core/instrument/MeterRegistry;)Lviaduct/service/ViaductBuilder;
 	public final fun withResolverErrorReporter (Lviaduct/service/api/spi/ErrorReporter;)Lviaduct/service/ViaductBuilder;
 	public final fun withSchemaConfiguration (Lviaduct/service/runtime/SchemaConfiguration;)Lviaduct/service/ViaductBuilder;
+	public final fun withScopedSchemas (Ljava/util/List;)Lviaduct/service/ViaductBuilder;
 	public final fun withTenantModuleBootstrapper (Lviaduct/service/api/spi/TenantModuleBootstrapper;)Lviaduct/service/ViaductBuilder;
 }
 

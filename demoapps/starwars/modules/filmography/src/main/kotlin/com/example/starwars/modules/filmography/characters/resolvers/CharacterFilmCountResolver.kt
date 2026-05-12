@@ -39,7 +39,7 @@ import viaduct.api.resolver.Resolver
  * ## Efficiency
  * Instead of N individual count operations, performs one batch lookup and maps results.
  */
-// tag::film_count_batch_resolver[20] FilmCountBatchResolver
+// tag::film_count_batch_resolver[25] FilmCountBatchResolver
 @Resolver(objectValueFragment = "fragment _ on Character { id }")
 class CharacterFilmCountResolver
     @Inject

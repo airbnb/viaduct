@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core.jvm)
     implementation(libs.viaduct.shared.apiannotations)
 
+    testFixturesCompileOnly(libs.junit)
     testFixturesImplementation(libs.viaduct.engine.api)
     testFixturesImplementation(testFixtures(libs.viaduct.shared.graphql))
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
@@ -66,7 +67,6 @@ dependencies {
     testFixturesImplementation(libs.viaduct.tenant.wiring)
     testFixturesApi(testFixtures(libs.viaduct.tenant.api))
     testFixturesImplementation(libs.graphql.java)
-    testFixturesImplementation(libs.io.mockk.jvm)
     testFixturesImplementation(libs.kotlin.reflect)
     testFixturesImplementation(libs.kotlinx.coroutines.core)
     testFixturesImplementation(libs.kotlinx.coroutines.jdk8)

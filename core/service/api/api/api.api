@@ -64,19 +64,6 @@ public final class viaduct/service/api/SchemaId$None : viaduct/service/api/Schem
 	public static final field INSTANCE Lviaduct/service/api/SchemaId$None;
 }
 
-public final class viaduct/service/api/SchemaId$Scoped : viaduct/service/api/SchemaId {
-	public fun <init> (Ljava/lang/String;Ljava/util/Set;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/util/Set;
-	public final fun copy (Ljava/lang/String;Ljava/util/Set;)Lviaduct/service/api/SchemaId$Scoped;
-	public static synthetic fun copy$default (Lviaduct/service/api/SchemaId$Scoped;Ljava/lang/String;Ljava/util/Set;ILjava/lang/Object;)Lviaduct/service/api/SchemaId$Scoped;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun getId ()Ljava/lang/String;
-	public final fun getScopeIds ()Ljava/util/Set;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
 public abstract interface class viaduct/service/api/Viaduct {
 	public abstract fun execute (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;)Lviaduct/service/api/ExecutionResult;
 	public abstract fun executeAsync (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

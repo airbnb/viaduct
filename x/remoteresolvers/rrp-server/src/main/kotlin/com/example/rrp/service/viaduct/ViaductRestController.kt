@@ -38,7 +38,7 @@ class ViaductRestController(
 
     private fun parseScopes(scopesHeader: String?): Set<String> = scopesHeader?.split(",")?.map { it.trim() }?.toSet() ?: setOf(DEFAULT_SCOPE_ID)
 
-    private fun determineSchemaId(scopes: Set<String>): SchemaId = if (scopes.contains(EXTRAS_SCOPE_ID)) EXTRAS_SCHEMA_ID else DEFAULT_SCHEMA_ID
+    private fun determineSchemaId(scopes: Set<String>): SchemaId = if (scopes.contains(EXTRAS_SCOPE_ID)) EXTRAS_SCHEMA.schemaId else DEFAULT_SCHEMA.schemaId
 
     private fun createExecutionInput(request: Map<String, Any>): ExecutionInput {
         @Suppress("UNCHECKED_CAST")

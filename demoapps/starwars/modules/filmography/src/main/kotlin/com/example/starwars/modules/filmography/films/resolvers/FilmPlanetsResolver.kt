@@ -15,6 +15,7 @@ import viaduct.api.resolver.Resolver
  *
  * @resolver("fragment _ on Film { id }"): Fragment syntax for accessing film ID
  */
+// tag::resolver_example[18] Single-related-lookup, non-batched
 @Resolver("id")
 class FilmPlanetsResolver
     @Inject

@@ -1,11 +1,13 @@
 package viaduct.service.runtime
 
 import java.util.concurrent.ConcurrentHashMap
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.service.api.SchemaId
 
+@InternalApi
 class SchemaConfiguration private constructor(
     initialFullSchemaConfig: FullSchemaConfig?,
     initialScopedSchemas: Map<SchemaId.Scoped, ScopedSchemaConfig>

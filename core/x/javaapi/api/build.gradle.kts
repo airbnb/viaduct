@@ -23,7 +23,7 @@ dependencies {
     testFixturesImplementation(testFixtures(libs.viaduct.engine.api))
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
     testFixturesImplementation(libs.viaduct.service.runtime)
-    testFixturesImplementation(testFixtures(libs.viaduct.tenant.api))
+    testFixturesImplementation(testFixtures(libs.viaduct.tenant.runtime))
     testFixturesImplementation(libs.viaduct.javaapi.runtime)
 
     testImplementation(libs.assertj.core)

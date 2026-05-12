@@ -130,7 +130,7 @@ open class ViaductDataFetcherExceptionHandler(val errorReporter: ErrorReporter, 
             ?: when (exception) {
                 is FieldFetchingException -> listOf(exception.toGraphQLError())
                 is ErroneousFieldException -> exception.fieldErrors.map { fieldError ->
-                    val builder = GraphqlErrorBuilder.newError()
+                    val builder = GraphqlErrorBuilder.newError(env)
                         .message(fieldError.message)
                         .extensions(fieldError.extensions)
                     fieldError.path?.let { builder.path(it) } ?: builder.path(env.executionStepInfo.path)

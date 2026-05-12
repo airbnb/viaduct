@@ -4,11 +4,11 @@ description: Learn how to add new functionality to your Viaduct application
 ---
 
 
-Let's explore our sample application more deeply by extending its functionality. Viaduct is a "schema first" GraphQL environment, meaning you write your schema first, and then generate classes to write your code against.
+Let's extend our sample application to tie its two existing fields together. Viaduct is a "schema first" GraphQL server, meaning you write your schema first, and then generate classes to write your code against.
 
 ## Extending the Schema
 
-Let's add a new field called `attributedGreeting`, which will attribute the greeting to its author. Open `schema.graphqls` and extend it as follows:
+The starter ships with two unrelated `Query` fields, `greeting` and `author`. We'll add a third field, `attributedGreeting`, that combines them — giving us a chance to see how a resolver reads sibling fields and how Viaduct generates code for object types. Open `schema.graphqls` and extend it as follows:
 
 ```graphql
 extend type Query {
@@ -22,16 +22,15 @@ type AttributedGreeting {
 }
 ```
 
-There's no practical reason to have the `AttributedGreeting` type here: `attributedGreeting` could've just been a `String`. We're using a GraphQL object-type here in order to demonstrate some features of our API.
+We're modeling `attributedGreeting` as an object type rather than a plain `String` so the example exercises Viaduct's generated builder and `getX()` helpers (the GraphQL Representational Types, or GRTs, covered later on this page).
 
-
-This will regenerate the code needed to build your application. Viaduct generates Kotlin classes and interfaces that correspond to your GraphQL types, making it type-safe to work with your schema.
+> **Codegen tip:** the next section references generated classes like `QueryResolvers.AttributedGreeting` and `AttributedGreeting.Builder` that don't exist yet. Run `./gradlew build` (or your IDE's Gradle task) so the codegen step produces them; otherwise your IDE will show red squiggles.
 
 ## Writing the Resolver
 
 Now you need to write a resolver for the new field. You could add it to `HelloWorldResolvers.kt`: resolvers for this application can be placed in any file as long as it's in the `com.example.viadapp.resolvers` package.
 
-To support copy-and-paste, create a file named `AttributedGreetingResolver.kt` in the same subdirectory as `HelloWorldResolvers.kt` and copy the following code into it:
+Create a file named `AttributedGreetingResolver.kt` in the same subdirectory as `HelloWorldResolvers.kt` and copy the following code into it:
 
 ```kotlin
 package com.example.viadapp.resolvers
@@ -79,7 +78,7 @@ val greeting = ctx.objectValue.getGreeting()
 val author = ctx.objectValue.getAuthor()
 ```
 
-The resolver can access the values of `greeting` and `author` through the `Context` object. These values are computed by their respective resolvers before this resolver runs.
+`ctx` is the per-resolver execution context — it gives you access to the parent object, arguments, and request-scoped utilities. Inside a `Query` field resolver, `ctx.objectValue` represents the `Query` root, so `getGreeting()` and `getAuthor()` return the values produced by the sibling `GreetingResolver` and `AuthorResolver`. Viaduct ensures those run before this resolver because the `@Resolver` annotation declared a dependency on them.
 
 ### Building the Result
 
@@ -135,4 +134,4 @@ You should see the appropriate response with the author attribution!
 
 **Documentation.** Explore our [full documentation site](../../index.md).
 
-**Building your own application.** Pick the structure that you like best—single project, two project (root plus one module), or multi-module. Make a copy of the respective demo app (CLI, Spring, or StarWars) and customize it for your needs.
+**Building your own application.** Pick the structure that fits your project — single project, two-project (root plus one module), or multi-module — and start from one of the [starter applications](../setup/clone/index.md) (CLI, Spring, or StarWars). Customize the schema, resolvers, and any wiring you need.

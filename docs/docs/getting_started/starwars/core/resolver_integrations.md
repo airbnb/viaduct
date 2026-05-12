@@ -7,6 +7,19 @@ description: How node and field resolvers work together in Viaduct.
 Resolvers in Viaduct form a **layered model** that separates entity retrieval from per-field computation. Node, field,
 and batch field resolvers each play a distinct role but integrate seamlessly during execution.
 
+```mermaid
+flowchart TD
+    Query["GraphQL query<br/>(planned by the engine)"] --> Node["Node resolver layer<br/>fetch entities by Global ID"]
+    Query --> Field["Field resolver layer<br/>compute / format derived values"]
+    Query --> Batch["Batch resolver layer<br/>aggregate / load relationships in bulk"]
+    Node --> Response["Assembled GraphQL response"]
+    Field --> Response
+    Batch --> Response
+```
+
+Each layer has a single responsibility: nodes fetch, fields compute, batch resolvers aggregate. Tenants compose them
+freely — a single query typically passes through all three.
+
 ## Standard entity pattern
 
 Each entity type can typically implement:
@@ -16,14 +29,14 @@ Each entity type can typically implement:
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_resolver_example", lang="kotlin") }}
 
 
-2. **Batch field resolvers** for expensive computed fields that benefit from batching.
-
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt", "film_count_batch_resolver", lang="kotlin") }}
-
-
-3. **Single field resolvers** for lightweight computed or derived values.
+2. **Single field resolvers** for lightweight computed or derived values.
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplayNameResolver.kt", "resolver_example", lang="kotlin") }}
+
+
+3. **Batch field resolvers** for expensive computed fields that benefit from batching.
+
+{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt", "film_count_batch_resolver", lang="kotlin") }}
 
 
 ## The entity resolution flow
@@ -92,5 +105,7 @@ Return `null` for missing relationships when the schema field is nullable, rathe
 - **Do** test integration flows end-to-end with actual queries.
 - **Don’t** mix loading logic inside field resolvers.
 - **Don’t** assume execution order between independent resolvers — rely on field dependencies, not sequencing.
+
+> See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
 
 

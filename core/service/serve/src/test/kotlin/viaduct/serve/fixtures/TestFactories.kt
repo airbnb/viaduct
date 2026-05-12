@@ -3,7 +3,6 @@ package viaduct.serve.fixtures
 import viaduct.serve.ViaductFactory
 import viaduct.serve.ViaductServerConfiguration
 import viaduct.service.BasicViaductFactory
-import viaduct.service.TenantRegistrationInfo
 import viaduct.service.api.Viaduct
 
 /**
@@ -16,11 +15,7 @@ class ValidTestProvider : ViaductFactory {
     override fun mkViaduct(): Viaduct {
         // Create a minimal Viaduct using BasicViaductFactory
         // This will discover any @Resolver annotated test resolvers
-        return BasicViaductFactory.create(
-            tenantRegistrationInfo = TenantRegistrationInfo(
-                tenantPackagePrefix = "viaduct.serve.fixtures"
-            )
-        )
+        return BasicViaductFactory.create()
     }
 }
 
