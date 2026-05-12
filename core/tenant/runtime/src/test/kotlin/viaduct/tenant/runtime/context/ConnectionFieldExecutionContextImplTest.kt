@@ -45,7 +45,6 @@ class ConnectionFieldExecutionContextImplTest : ContextTestBase() {
             selectionSet as SelectionSet<Connection<*, *>>,
             null,
             args,
-            Q,
             syncObjectValueGetter = null,
             syncQueryValueGetter = null,
             objectCls = Object::class,

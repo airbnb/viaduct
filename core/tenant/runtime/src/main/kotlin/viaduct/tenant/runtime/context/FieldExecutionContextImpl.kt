@@ -33,7 +33,6 @@ class FieldExecutionContextImpl<Q : Query>(
     selections: SelectionSet<CompositeOutput>,
     requestContext: Any?,
     arguments: Arguments,
-    queryValue: Q,
     private val syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)?,
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     private val objectCls: KClass<Object>,
@@ -46,7 +45,6 @@ class FieldExecutionContextImpl<Q : Query>(
         selections,
         requestContext,
         arguments,
-        queryValue,
         syncQueryValueGetter,
         queryCls,
     ) {

@@ -44,7 +44,6 @@ class ExecutionContextImplTest : ContextTestBase() {
             selectionSet,
             null, // requestContext
             args,
-            query,
             syncObjectValueGetter = null,
             syncQueryValueGetter = null,
             objectCls = Object::class,

@@ -35,7 +35,6 @@ class MutationFieldExecutionContextImplTest : ContextTestBase() {
             noSelections,
             null, // requestContext
             Args,
-            Q,
             syncQueryValueGetter = null,
             queryCls = QueryType::class,
         )

@@ -62,8 +62,6 @@ class FieldUnbatchedResolverExecutorImpl(
             requestContext = context.requestContext, // TODO - get rid of this argument
             engineSelections = selector.selections,
             rawArguments = selector.arguments,
-            rawObjectValue = selector.objectValue,
-            rawQueryValue = selector.queryValue,
             syncObjectValueGetter = selector.syncObjectValueGetter,
             syncQueryValueGetter = selector.syncQueryValueGetter,
         )

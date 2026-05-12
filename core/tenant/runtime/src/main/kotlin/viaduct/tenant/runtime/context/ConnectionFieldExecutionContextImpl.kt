@@ -28,7 +28,6 @@ class ConnectionFieldExecutionContextImpl<Q : Query>(
     selections: SelectionSet<Connection<*, *>>,
     requestContext: Any?,
     arguments: ConnectionArguments,
-    queryValue: Q,
     private val syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)?,
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     private val objectCls: KClass<Object>,
@@ -41,7 +40,6 @@ class ConnectionFieldExecutionContextImpl<Q : Query>(
         selections,
         requestContext,
         arguments,
-        queryValue,
         syncQueryValueGetter,
         queryCls,
     ) {
