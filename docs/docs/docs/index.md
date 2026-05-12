@@ -12,7 +12,7 @@ These docs cover how to use Viaduct, including tutorials, how-to guides, and ref
 
     ---
 
-    Set up your first tenant, take a guided tour of the codebase, and work through the Star Wars tutorial.
+    Launch a starter, run your first GraphQL query, write a resolver, and understand how a Viaduct service is wired.
 
     [:octicons-arrow-right-24: Getting Started](../getting_started/index.md)
 
@@ -20,7 +20,7 @@ These docs cover how to use Viaduct, including tutorials, how-to guides, and ref
 
     ---
 
-    Day-to-day tenant authoring: resolvers, generated code, global IDs, pagination, scopes, schema reference, and testing.
+    Day-to-day tenant authoring: resolvers, generated code, global IDs, pagination, scopes, schema reference, testing, and the Star Wars deep dive.
 
     [:octicons-arrow-right-24: Developers](developers/index.md)
 

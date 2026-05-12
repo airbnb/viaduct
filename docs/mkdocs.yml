@@ -102,40 +102,6 @@ nav:
   - Home: index.md
   - Getting Started:
       - getting_started/index.md
-      - Setup:
-          - getting_started/setup/index.md
-          - Clone Existing Tenant: getting_started/setup/clone/index.md
-          - From Scratch: getting_started/setup/from_scratch/index.md
-      - Tour: getting_started/tour/index.md
-      - Tutorial: tutorials/index.md
-      - Star Wars Tutorial:
-          - getting_started/starwars/index.md
-          - Core Concepts:
-              - getting_started/starwars/core/index.md
-              - Global IDs: getting_started/starwars/core/global_id.md
-              - Node Resolvers: getting_started/starwars/core/node_resolvers.md
-              - Field Resolvers: getting_started/starwars/core/field_resolvers.md
-              - Batch Resolvers: getting_started/starwars/core/batch_resolvers.md
-              - Resolver Integrations: getting_started/starwars/core/resolver_integrations.md
-          - Directives:
-              - getting_started/starwars/directives/index.md
-              - Backing Data: getting_started/starwars/directives/backing_data.md
-              - Scope: getting_started/starwars/directives/scope.md
-              - IDOf: getting_started/starwars/directives/idof.md
-              - OneOf: getting_started/starwars/directives/oneof.md
-              - Connection: getting_started/starwars/directives/connection.md
-              - Edge: getting_started/starwars/directives/edge.md
-          - Pagination: getting_started/starwars/pagination/index.md
-          - Mutations: getting_started/starwars/mutations/index.md
-          - Variables: getting_started/starwars/variables/index.md
-          - Request Context: getting_started/starwars/requestcontext/index.md
-          - Testing: getting_started/starwars/testing/index.md
-          - Architecture:
-              - getting_started/starwars/architecture/index.md
-              - Schemas: getting_started/starwars/architecture/schemas.md
-              - Tenants: getting_started/starwars/architecture/tenants.md
-              - Viaduct Builder: getting_started/starwars/architecture/viaduct_builder.md
-      - Extending: getting_started/extending/index.md
   - Developers:
     - docs/developers/index.md
     - Best Practices: docs/developers/best_practices/index.md
@@ -158,6 +124,34 @@ nav:
     - Schema Reference: docs/developers/schema_reference/index.md
     - Viaduct API: docs/developers/viaduct_api/index.md
     - Testing: docs/developers/testing/index.md
+    - Worked Examples: tutorials/index.md
+    - Star Wars Tutorial:
+        - getting_started/starwars/index.md
+        - Core Concepts:
+            - getting_started/starwars/core/index.md
+            - Global IDs: getting_started/starwars/core/global_id.md
+            - Node Resolvers: getting_started/starwars/core/node_resolvers.md
+            - Field Resolvers: getting_started/starwars/core/field_resolvers.md
+            - Batch Resolvers: getting_started/starwars/core/batch_resolvers.md
+            - Resolver Integrations: getting_started/starwars/core/resolver_integrations.md
+        - Directives:
+            - getting_started/starwars/directives/index.md
+            - Backing Data: getting_started/starwars/directives/backing_data.md
+            - Scope: getting_started/starwars/directives/scope.md
+            - IDOf: getting_started/starwars/directives/idof.md
+            - OneOf: getting_started/starwars/directives/oneof.md
+            - Connection: getting_started/starwars/directives/connection.md
+            - Edge: getting_started/starwars/directives/edge.md
+        - Pagination: getting_started/starwars/pagination/index.md
+        - Mutations: getting_started/starwars/mutations/index.md
+        - Variables: getting_started/starwars/variables/index.md
+        - Request Context: getting_started/starwars/requestcontext/index.md
+        - Testing: getting_started/starwars/testing/index.md
+        - Architecture:
+            - getting_started/starwars/architecture/index.md
+            - Schemas: getting_started/starwars/architecture/schemas.md
+            - Tenants: getting_started/starwars/architecture/tenants.md
+            - Viaduct Builder: getting_started/starwars/architecture/viaduct_builder.md
   - Service Engineers:
     - docs/service_engineers/index.md
     - Schema Extensions: docs/service_engineers/schema_extensions/index.md

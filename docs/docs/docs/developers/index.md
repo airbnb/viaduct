@@ -19,4 +19,4 @@ The Developers section covers the core concepts and tools you'll need when build
 
 **Schema Reference** documents all the built-in directives (`@resolver`, `@backingData`, `@scope`, `@idOf`), types (like the `Node` interface), and scalars (`Date`, `DateTime`, `Long`, `BigDecimal`, `JSON`) that Viaduct provides out of the box. You'll use these constantly—especially `@resolver` for data fetching and `Node` for implementing globally identifiable entities.
 
-Start with the [Star Wars tutorial](../../getting_started/index.md) in Getting Started to see these concepts in action, then refer back to the Developers section as you build out your own tenant's schema and resolvers.
+Start with the [Star Wars tutorial](../../getting_started/starwars/index.md) for a deeper worked example, then refer back to the Developers section as you build out your own tenant's schema and resolvers.

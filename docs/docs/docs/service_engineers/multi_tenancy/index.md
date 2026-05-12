@@ -559,5 +559,5 @@ query CustomerOrders {
 
 - [Developers: Scopes](../../developers/scopes/index.md) — Detailed scope usage and validation rules
 - [Developers: Resolvers](../../developers/resolvers/index.md) — Writing resolver implementations
-- [Getting Started: Tour](../../../getting_started/tour/index.md) — Understanding Viaduct project structure
+- [Getting Started](../../../getting_started/index.md) — Understanding the starter application's structure
 - [Schema Extensions](../schema_extensions/index.md) — Application-wide custom directives and types
