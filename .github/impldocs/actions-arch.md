@@ -77,19 +77,14 @@ An orchestrator helper is a reusable workflow that orchestrators delegate to for
 |---|---|---|
 | `post-alerts.yml` | Post pre-formatted alert text to Slack and Discord | called by orchestrators on failure, manual (test mode) |
 
-### Release Workflow
+### Release Workflows
 
-`release.yml` is separate from the CI infrastructure described above. It is a manually-triggered workflow used by release managers to publish Viaduct artifacts. See [RELEASE-RUNBOOK.md](../../RELEASE-RUNBOOK.md) for the full release process.
+`release.yml` is separate from the CI infrastructure described above. It is a manually-triggered workflow used by release managers to publish either a release candidate or a final Viaduct release. See [.github/impldocs/release-runbook.md](release-runbook.md) for the full release process.
 
-The workflow is triggered via `workflow_dispatch` with inputs for the release version, previous version (for changelog), and optional flags to skip checks or publishing. It:
+- RC mode publishes `X.Y.Z-rc.N` artifacts to Maven Central and the Gradle Plugin Portal, pushes demo apps to `rc/vX.Y.Z-rc.N`, and verifies the published RC.
+- Final mode publishes the final `X.Y.Z` release, pushes demo apps to `main`, verifies them, creates the `vX.Y.Z` tag, and publishes the GitHub release.
 
-- Checks out the `release/vX.Y.Z` branch (or `main` for snapshots)
-- Optionally runs `./gradlew check`
-- Publishes artifacts to Maven Central and the Gradle Plugin Portal
-- Creates a `vX.Y.Z` git tag
-- Generates a changelog and creates a draft GitHub release
-
-This workflow does not follow the atomic/orchestrator conventions — it predates them and is slated for replacement by a future `publish-branch.yml` atomic (see [Appendix: Future Work](#appendix-future-work)).
+`release.yml` delegates the actual artifact publication work to `publish-branch.yml`.
 
 ## run_id Output Convention
 
@@ -329,7 +324,7 @@ Notifications are suppressed on manual dispatch — the person who triggered the
 | `periodic-green-check.yml` | Run scheduled checks without waiting for cron | `branch`, `mode` (ci-check / staleness-check / all) |
 | `post-alerts.yml` | Verify Slack and Discord connectivity | `mode: test-posts` |
 | `conventional-commit.yml` | Test the PR title validator itself | — |
-| `release.yml` | Publish artifacts and create a GitHub release (see [RELEASE-RUNBOOK.md](../../RELEASE-RUNBOOK.md)) | `release_version`, `previous_release_version`, `publish_snapshot`, `skip_check`, `skip_publish` |
+| `release.yml` | Publish either a public release candidate or the final release (see [.github/impldocs/release-runbook.md](release-runbook.md)) | `release_version`, `rc_ver`, `final`, `release_notes` |
 
 ## Appendix: Future Work
 

@@ -8,6 +8,7 @@ JSON consumable by GitHub Actions workflows via fromJSON().
 
 Usage:
     python3 validate_release_state.py --mode snapshot
+    python3 validate_release_state.py --mode rc --branch release/v0.27.0
     python3 validate_release_state.py --mode release --branch release/v0.27.0
     python3 validate_release_state.py --mode snapshot --branch main --version-file VERSION
 
@@ -27,6 +28,11 @@ from pathlib import Path
 from typing import Optional
 
 _RELEASE_BRANCH_PATTERN = re.compile(r"^release/v(\d+\.\d+\.\d+)$")
+
+
+def _is_rc_version_for_base(version: str, base: str) -> bool:
+    """True if version is exactly base-rc.N where N is a positive integer."""
+    return re.fullmatch(rf"{re.escape(base)}-rc\.[1-9]\d*", version) is not None
 
 
 def _find_version_file(start_dir: Path) -> Path:
@@ -75,7 +81,7 @@ def validate_release_state(mode: str, branch: str, version_content: str, snapsho
     Pure validation function — no I/O, no subprocess, no side effects.
 
     Args:
-        mode: "snapshot" or "release"
+        mode: "snapshot", "rc", or "release"
         branch: git branch name (e.g. "main", "release/v0.27.0", "feature/foo")
         version_content: raw content of the VERSION file (trailing whitespace is stripped)
         snapshot_tag: pre-generated snapshot tag (e.g. from _make_snapshot_tag())
@@ -113,6 +119,15 @@ def validate_release_state(mode: str, branch: str, version_content: str, snapsho
                     f"Release mode requires VERSION to be exactly '{base_release_version}', "
                     f"but got '{effective_version}'"
                 )
+        elif mode == "rc":
+            # RC mode: VERSION must be exactly X.Y.Z-rc.N
+            if not _is_rc_version_for_base(effective_version, base_release_version):
+                is_valid = False
+                validation_error = (
+                    f"RC mode requires VERSION to be exactly "
+                    f"'{base_release_version}-rc.N' (for example '{base_release_version}-rc.1'), "
+                    f"but got '{effective_version}'"
+                )
         elif mode == "snapshot":
             # Snapshot mode on release branch: VERSION must end with -SNAPSHOT
             if not effective_version.endswith("-SNAPSHOT"):
@@ -127,6 +142,12 @@ def validate_release_state(mode: str, branch: str, version_content: str, snapsho
             is_valid = False
             validation_error = (
                 f"Release mode requires a 'release/vX.Y.Z' branch, "
+                f"but current branch is '{branch}'"
+            )
+        elif mode == "rc":
+            is_valid = False
+            validation_error = (
+                f"RC mode requires a 'release/vX.Y.Z' branch, "
                 f"but current branch is '{branch}'"
             )
         elif mode == "snapshot":
@@ -155,8 +176,8 @@ def main() -> int:
     parser.add_argument(
         "--mode",
         required=True,
-        choices=["snapshot", "release"],
-        help="Publication mode: 'snapshot' or 'release'",
+        choices=["snapshot", "rc", "release"],
+        help="Publication mode: 'snapshot', 'rc', or 'release'",
     )
     parser.add_argument(
         "--branch",

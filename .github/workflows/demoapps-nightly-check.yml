@@ -106,6 +106,7 @@ jobs:
     uses: ./.github/workflows/check-published-demoapps.yml
     with:
       ref: ${{ needs.push-demoapps.outputs.destination_branch }}
+      use_snapshot_repo: true
 
   # ---------------------------------------------------------------------------
   # Alert on failure — post to Slack and Discord

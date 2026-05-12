@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Publication mode: snapshot or release"
+        description: "Publication mode: snapshot, rc, or release"
         required: true
         type: choice
         options:
           - snapshot
+          - rc
           - release
       ref:
         description: "Git ref to checkout and publish"
@@ -82,14 +83,21 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          path: tooling
+
+      - uses: actions/checkout@v6
+        with:
           ref: ${{ inputs.ref }}
+          path: source
 
       - name: Validate branch and version state
         id: validate
+        working-directory: tooling
         run: |
           python3 .github/scripts/validate_release_state.py \
             --mode "${{ inputs.mode }}" \
-            --branch "${{ inputs.ref }}"
+            --branch "${{ inputs.ref }}" \
+            --version-file ../source/VERSION
         shell: bash
 
   confirm-versions:
@@ -134,7 +142,7 @@ jobs:
       && (needs.confirm-versions.result == 'success' || needs.confirm-versions.result == 'skipped')
       && (needs.check.result == 'success' || needs.check.result == 'skipped')
     runs-on: ubuntu-latest
-    environment: ${{ inputs.mode == 'release' && 'release' || '' }}
+    environment: ${{ (inputs.mode == 'release' || inputs.mode == 'rc') && 'release' || '' }}
     outputs:
       source_sha: ${{ steps.sha.outputs.source_sha }}
     steps:
@@ -163,12 +171,11 @@ jobs:
           set -euo pipefail
           MODE="${{ inputs.mode }}"
 
-          if [ "$MODE" = "release" ]; then
-            echo "Publishing RELEASE artifacts..."
+          if [ "$MODE" = "release" ] || [ "$MODE" = "rc" ]; then
+            echo "Publishing ${MODE^^} artifacts..."
             export RELEASE=true
-            # Publish to Gradle Plugin Portal (release only)
+            # Publish to Gradle Plugin Portal and Maven Central for non-SNAPSHOT versions.
             ./gradlew gradle-plugins:publishPlugins --no-daemon --stacktrace
-            # Publish to Maven Central
             ./gradlew publishToMavenCentral --no-daemon --stacktrace
           else
             echo "Publishing SNAPSHOT artifacts..."
