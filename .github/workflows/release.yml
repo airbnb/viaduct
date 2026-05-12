@@ -94,7 +94,7 @@ jobs:
         if: steps.validate.outputs.is_valid == 'true' && steps.validate.outputs.is_final == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: v${{ inputs.release_version }}
+          TAG: v${{ steps.validate.outputs.published_version }}
         run: |
           set -euo pipefail
           if gh api "repos/${{ github.repository }}/git/ref/tags/${TAG}" --silent 2>/dev/null; then
@@ -198,10 +198,10 @@ jobs:
             await github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: 'refs/tags/v${{ inputs.release_version }}',
+              ref: 'refs/tags/v${{ needs.preflight.outputs.published_version }}',
               sha: '${{ needs.publish.outputs.source_sha }}'
             })
-            console.log('✅ Created tag v${{ inputs.release_version }}')
+            console.log('✅ Created tag v${{ needs.preflight.outputs.published_version }}')
 
       - name: Publish GitHub release
         env:
@@ -209,10 +209,10 @@ jobs:
           RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
           set -euo pipefail
-          gh release create "v${{ inputs.release_version }}" \
+          gh release create "v${{ needs.preflight.outputs.published_version }}" \
             --repo "${{ github.repository }}" \
-            --title "Release ${{ inputs.release_version }}" \
+            --title "Release ${{ needs.preflight.outputs.published_version }}" \
             --notes "$RELEASE_NOTES" \
             --latest
-          echo "✅ Published release v${{ inputs.release_version }}"
+          echo "✅ Published release v${{ needs.preflight.outputs.published_version }}"
         shell: bash

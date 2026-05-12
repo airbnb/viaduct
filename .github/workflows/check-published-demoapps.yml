@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       use_snapshot_repo:
-        description: "If true, include the Maven Central snapshots repository during resolution"
+        description: "Include the Maven Central snapshots repository during resolution (required for non-release branches that publish SNAPSHOT artifacts)"
         required: false
         default: false
         type: boolean
