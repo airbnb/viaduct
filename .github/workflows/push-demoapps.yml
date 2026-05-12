@@ -12,6 +12,10 @@ on:
         required: false
         default: false
         type: boolean
+      destination_branch:
+        description: "Optional explicit destination branch in viaduct-dev repos"
+        required: false
+        type: string
   workflow_call:
     inputs:
       ref:
@@ -21,6 +25,9 @@ on:
         required: false
         default: false
         type: boolean
+      destination_branch:
+        required: false
+        type: string
     outputs:
       destination_branch:
         description: "Branch pushed to in viaduct-dev repos"
@@ -48,10 +55,13 @@ jobs:
         env:
           REF: ${{ inputs.ref }}
           RELEASE_MODE: ${{ inputs.release_mode }}
+          DESTINATION_BRANCH_OVERRIDE: ${{ inputs.destination_branch }}
         run: |
           set -euo pipefail
 
-          if [ "$REF" = "main" ]; then
+          if [ -n "$DESTINATION_BRANCH_OVERRIDE" ]; then
+            DEST_BRANCH="$DESTINATION_BRANCH_OVERRIDE"
+          elif [ "$REF" = "main" ]; then
             DEST_BRANCH="snapshot"
           elif [[ "$REF" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ "$RELEASE_MODE" = "true" ]; then
             DEST_BRANCH="main"

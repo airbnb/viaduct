@@ -1,56 +1,108 @@
 name: Release
-# Orchestrates a full Viaduct release: validate → publish → push demoapps → verify → tag → release.
-# This is THE release workflow. It delegates publication to publish-branch.yml and demoapp
-# distribution to push-demoapps.yml / check-published-demoapps.yml.
+# Orchestrates either a release candidate or a final Viaduct release.
+# RC flow: validate -> publish -> push RC demoapps -> verify.
+# Final flow: validate -> publish -> push demoapps -> verify -> tag -> GitHub release.
 
 on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Release version (e.g., 1.0.0)'
+        description: 'Base release version (e.g., 1.0.0)'
         required: true
+        type: string
+      rc_ver:
+        description: "Optional RC suffix only (e.g., 'rc.1'). Leave empty for final releases."
+        required: false
+        type: string
+      final:
+        description: "Must be true for a final release. Leave false when publishing an RC."
+        required: false
+        default: false
+        type: boolean
       release_notes:
-        description: 'Release notes body (use gh -F release_notes=file.md to upload from file)'
-        required: true
+        description: 'Release notes body for final releases (use gh -F release_notes=@file.md to upload from file)'
+        required: false
         type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.release_version }}-${{ inputs.rc_ver || 'final' }}
   cancel-in-progress: false  # never cancel a release mid-flight
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Pre-flight: verify release branch exists and tag does not
+  # Pre-flight: validate mode inputs, verify branch exists, and derive outputs
   # ---------------------------------------------------------------------------
   preflight:
     runs-on: ubuntu-latest
+    outputs:
+      publish_mode: ${{ steps.validate.outputs.publish_mode }}
+      published_version: ${{ steps.validate.outputs.published_version }}
+      source_ref: ${{ steps.validate.outputs.source_ref }}
+      destination_branch: ${{ steps.validate.outputs.destination_branch }}
+      is_final: ${{ steps.validate.outputs.is_final }}
     steps:
-      - name: Verify release branch exists
+      - uses: actions/checkout@v6
+
+      - name: Validate inputs and derive release metadata
+        id: validate
         env:
-          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          RC_VER: ${{ inputs.rc_ver }}
+          FINAL: ${{ inputs.final }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
           set -euo pipefail
-          BRANCH="release/v${{ inputs.release_version }}"
+          args=(--release-version "$RELEASE_VERSION")
+          args+=(--final "$FINAL")
+          if [ -n "$RC_VER" ]; then
+            args+=(--rc-ver "$RC_VER")
+          fi
+          if [ -n "$RELEASE_NOTES" ]; then
+            args+=(--release-notes "$RELEASE_NOTES")
+          fi
+          python3 .github/scripts/validate_release_inputs.py "${args[@]}"
+        shell: bash
+
+      - name: Fail if release inputs are invalid
+        if: steps.validate.outputs.is_valid != 'true'
+        env:
+          VALIDATION_ERROR: ${{ steps.validate.outputs.validation_error }}
+        run: |
+          set -euo pipefail
+          echo "::error::${VALIDATION_ERROR}"
+          exit 1
+        shell: bash
+
+      - name: Verify release branch exists
+        if: steps.validate.outputs.is_valid == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.validate.outputs.source_ref }}
+        run: |
+          set -euo pipefail
           if ! gh api "repos/${{ github.repository }}/branches/${BRANCH}" --silent 2>/dev/null; then
             echo "::error::Release branch '${BRANCH}' does not exist. Create it first."
             exit 1
           fi
           echo "✅ Release branch '${BRANCH}' exists."
+        shell: bash
 
       - name: Verify release tag does not exist
+        if: steps.validate.outputs.is_valid == 'true' && steps.validate.outputs.is_final == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.validate.outputs.published_version }}
         run: |
           set -euo pipefail
-          TAG="v${{ inputs.release_version }}"
           if gh api "repos/${{ github.repository }}/git/ref/tags/${TAG}" --silent 2>/dev/null; then
             echo "::error::Tag '${TAG}' already exists. This version has already been released."
             exit 1
           fi
           echo "✅ Tag '${TAG}' does not exist. Safe to proceed."
+        shell: bash
 
   # ---------------------------------------------------------------------------
   # Publish artifacts via publish-branch.yml (checks + Plugin Portal + Maven Central)
@@ -59,8 +111,8 @@ jobs:
     needs: [preflight]
     uses: ./.github/workflows/publish-branch.yml
     with:
-      mode: release
-      ref: release/v${{ inputs.release_version }}
+      mode: ${{ needs.preflight.outputs.publish_mode }}
+      ref: ${{ needs.preflight.outputs.source_ref }}
       run_checks: true
       confirm_versions: true
     secrets: inherit
@@ -69,11 +121,12 @@ jobs:
   # Push demoapps to viaduct-dev/* standalone repos
   # ---------------------------------------------------------------------------
   push-demoapps:
-    needs: [publish]
+    needs: [preflight, publish]
     uses: ./.github/workflows/push-demoapps.yml
     with:
-      ref: release/v${{ inputs.release_version }}
-      release_mode: true
+      ref: ${{ needs.preflight.outputs.source_ref }}
+      release_mode: ${{ needs.preflight.outputs.is_final == 'true' }}
+      destination_branch: ${{ needs.preflight.outputs.destination_branch }}
     secrets: inherit
 
   # ---------------------------------------------------------------------------
@@ -82,12 +135,12 @@ jobs:
   # newly-published version even though publish succeeded.
   # ---------------------------------------------------------------------------
   wait-for-new-artifacts:
-    needs: [push-demoapps]
+    needs: [preflight, push-demoapps]
     runs-on: ubuntu-latest
     steps:
-      - name: Probe Maven Central and Plugin Portal for ${{ inputs.release_version }}
+      - name: Probe Maven Central and Plugin Portal for ${{ needs.preflight.outputs.published_version }}
         env:
-          VERSION: ${{ inputs.release_version }}
+          VERSION: ${{ needs.preflight.outputs.published_version }}
         run: |
           set -euo pipefail
           URLS=(
@@ -126,13 +179,15 @@ jobs:
     needs: [push-demoapps, wait-for-new-artifacts]
     uses: ./.github/workflows/check-published-demoapps.yml
     with:
-      ref: main
+      ref: ${{ needs.push-demoapps.outputs.destination_branch }}
+      use_snapshot_repo: false
 
   # ---------------------------------------------------------------------------
   # Create tag and publish GitHub release
   # ---------------------------------------------------------------------------
   create-release:
-    needs: [publish, verify-demoapps]
+    needs: [preflight, publish, verify-demoapps]
+    if: needs.preflight.outputs.is_final == 'true'
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -143,10 +198,10 @@ jobs:
             await github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: 'refs/tags/v${{ inputs.release_version }}',
+              ref: 'refs/tags/v${{ needs.preflight.outputs.published_version }}',
               sha: '${{ needs.publish.outputs.source_sha }}'
             })
-            console.log('✅ Created tag v${{ inputs.release_version }}')
+            console.log('✅ Created tag v${{ needs.preflight.outputs.published_version }}')
 
       - name: Publish GitHub release
         env:
@@ -154,10 +209,10 @@ jobs:
           RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
           set -euo pipefail
-          gh release create "v${{ inputs.release_version }}" \
+          gh release create "v${{ needs.preflight.outputs.published_version }}" \
             --repo "${{ github.repository }}" \
-            --title "Release ${{ inputs.release_version }}" \
+            --title "Release ${{ needs.preflight.outputs.published_version }}" \
             --notes "$RELEASE_NOTES" \
             --latest
-          echo "✅ Published release v${{ inputs.release_version }}"
+          echo "✅ Published release v${{ needs.preflight.outputs.published_version }}"
         shell: bash

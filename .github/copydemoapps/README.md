@@ -10,7 +10,7 @@ applications to their standalone GitHub repositories in the
 - `demoapps/micronaut-starter` → `viaduct-dev/micronaut-starter`
 - `demoapps/starwars` → `viaduct-dev/starwars`
 
-Publishing is step 10 of the release process described in `RELEASE-RUNBOOK.md`.
+Publishing is part of the release process described in [.github/impldocs/release-runbook.md](../impldocs/release-runbook.md).
 
 ## Theory of Operation
 
@@ -44,7 +44,7 @@ ssh -T git@github.com
 
 Expected: `Hi <username>! You've successfully authenticated...`
 
-If this fails, see the setup instructions in `RELEASE-RUNBOOK.md`.
+If this fails, see the setup instructions in [.github/impldocs/release-runbook.md](../impldocs/release-runbook.md).
 
 **For CI/GitHub Actions:** set the `VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN`
 environment variable. The `copy` script will use HTTPS with that token.

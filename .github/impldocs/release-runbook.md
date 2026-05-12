@@ -5,20 +5,22 @@
 The release process follows these steps:
 
 1. **Bump version** on main to the next SNAPSHOT (e.g., `0.8.0-SNAPSHOT`)
-2. **Create release branch** from the commit before the bump (e.g., `release/v0.7.0` with VERSION `0.7.0`)
+2. **Create release branch** from the commit before the bump (e.g., `release/v0.7.0` with initial VERSION `0.7.0`)
 3. **Validate** — run CI across all Java/OS combinations
-4. **Generate changelog** and review with the team
-5. **Confirm release** at the team meeting
-6. **Publish** — one command that publishes artifacts, pushes demo apps, verifies them, creates the tag, and publishes the GitHub release
-7. **Verify** — pull latest version of Star Wars demo app and verify it passes its tests
+4. **(Optional) Publish release candidate** — publish `X.Y.Z-rc.N` artifacts, push RC demo apps, and verify them
+5. **Generate changelog** and review with the team
+6. **Confirm release** at the team meeting
+7. **Publish final release** — one command that publishes `X.Y.Z`, pushes demo apps to `main`, verifies them, creates the tag, and publishes the GitHub release
+8. **Verify** — pull latest version of Star Wars demo app and verify it passes its tests
 
 ## Quick Command Reference
 
-Set these shell variables before starting. `RELEASE_VER` is the version you are releasing this week. `NEXT_VER` is the version that will replace it on main.
+Set these shell variables before starting. `RELEASE_VER` is the base version you are preparing this week. `RC_VER` is optional and only used when you cut a release candidate; it is just the suffix portion (for example `rc.1`). `NEXT_VER` is the version that will replace `RELEASE_VER` on main.
 
 ```bash
 export PREV_VER="0.28.0" \
 export RELEASE_VER="0.29.0" \
+export RC_VER="rc.1" \
 export NEXT_VER="0.30.0" \
 export GH_USER="your-github.com-username"
 ```
@@ -28,9 +30,10 @@ export GH_USER="your-github.com-username"
 | [2. Version bump](#2-bump-version-on-main) | `./gradlew setVersion -PsetVersion=${NEXT_VER}-SNAPSHOT`, PR |
 | [3. Release branch](#3-create-release-branch) | `git checkout -b release/v${RELEASE_VER}`, `./gradlew setVersion -PsetVersion=${RELEASE_VER}`, push |
 | [4. Validate build](#4-validate-build) | `gh workflow run ci-trigger.yml --ref release/v${RELEASE_VER}` |
-| [5. Changelog](#5-generate-changelog) | `generate_changelog.py origin/release/v${PREV_VER} HEAD` |
-| [7. Publish release](#7-publish-release) | `gh workflow run release.yml -f release_version=${RELEASE_VER} -F release_notes=@changelog.md` |
-| [8. Verify](#8-verify) | `cd ~/repos/starwars && git pull && ./gradlew test` |
+| [5. Publish RC](#5-publish-release-candidate-optional) | `./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}`, commit, push, `gh workflow run release.yml -f release_version=${RELEASE_VER} -f rc_ver=${RC_VER}` |
+| [6. Changelog](#6-generate-changelog) | `generate_changelog.py origin/release/v${PREV_VER} HEAD` |
+| [8. Publish final release](#8-publish-final-release) | `gh workflow run release.yml -f release_version=${RELEASE_VER} -f final=true -F release_notes=@changelog.md` |
+| [9. Verify](#9-verify) | `cd ~/repos/starwars && git pull && ./gradlew test` |
 
 ## Prerequisites
 
@@ -114,7 +117,16 @@ git remote -v
 The root `VERSION` file is the source of truth:
 
 - **On main:** Always `X.Y.Z-SNAPSHOT` (e.g., `0.8.0-SNAPSHOT`)
-- **On release branches:** Exactly `X.Y.Z` (e.g., `0.7.0`)
+- **On release branches before final publication:** Either `X.Y.Z` or `X.Y.Z-rc.N`
+- **For a final release:** Exactly `X.Y.Z`
+
+Release candidate numbering is sequential and never reused:
+
+- **First RC:** `X.Y.Z-rc.1`
+- **Second RC:** `X.Y.Z-rc.2`
+- **Final release:** `X.Y.Z`
+
+Do not publish the same RC version twice. If an RC needs fixes, increment `N`.
 
 Demo apps have `gradle.properties` files with a `viaductVersion` property that **must match** the root VERSION. Use Gradle tasks to keep them in sync:
 
@@ -151,7 +163,7 @@ git checkout -b candidate/v${NEXT_VER}
 
 ```bash
 git diff .
-# Should show VERSION + 5 demoapps/*/gradle.properties changed
+# Should show VERSION + 6 demoapps/*/gradle.properties changed
 ```
 
 **Commit, push to your fork, and create PR:**
@@ -225,7 +237,62 @@ This runs three sub-workflows:
 
 Wait for all jobs to pass (15-30 minutes).
 
-### 5) Generate changelog
+### 5) Publish release candidate (optional)
+
+Use this when you want a public release candidate before the final release.
+
+**Set the RC version on the release branch:**
+
+```bash
+cd ~/repos/viaduct
+git checkout release/v${RELEASE_VER}
+./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}
+```
+
+**Commit and push the RC version change:**
+
+```bash
+git add VERSION demoapps/*/gradle.properties
+git commit -m "chore: Set version to ${RELEASE_VER}-${RC_VER}"
+git push origin release/v${RELEASE_VER}
+```
+
+**Publish the RC:**
+
+```bash
+gh workflow run release.yml \
+  --repo airbnb/viaduct \
+  -f release_version=${RELEASE_VER} \
+  -f rc_ver=${RC_VER}
+```
+
+Monitor:
+
+```bash
+gh run list --workflow=release.yml --repo airbnb/viaduct --limit 3
+```
+
+The workflow runs these steps in sequence:
+1. **Preflight** — validates the `release_version` / `rc_ver` / `final` inputs and verifies the `release/v${RELEASE_VER}` branch exists
+2. **Publish** — validates versions, runs checks, and publishes `${RELEASE_VER}-${RC_VER}` to Plugin Portal + Maven Central
+3. **Push demo apps** — updates standalone `viaduct-dev/*` repos on `rc/v${RELEASE_VER}-${RC_VER}`
+4. **Verify demo apps** — confirms standalone repos build against the published RC artifacts
+
+It does **not** create a Git tag, publish a GitHub release, or push demo apps to `main`.
+
+If you need another RC after fixes, cherry-pick the fixes onto `release/v${RELEASE_VER}`, bump to the next RC number, push, and rerun the RC workflow:
+
+```bash
+cd ~/repos/viaduct
+git checkout release/v${RELEASE_VER}
+git cherry-pick <commit-sha>
+./gradlew setVersion -PsetVersion=${RELEASE_VER}-rc.2
+git add VERSION demoapps/*/gradle.properties
+git commit -m "chore: Set version to ${RELEASE_VER}-rc.2"
+git push origin release/v${RELEASE_VER}
+```
+
+### 6) Generate changelog
 
 ```bash
 cd ~/repos/viaduct
@@ -241,7 +308,7 @@ Edit the output: remove bookkeeping commits (version bumps), clarify cryptic mes
 
 Share in the team Slack channel for review before the release meeting.
 
-### 6) Confirm release
+### 7) Confirm release
 
 At the team meeting, present the changelog and get approval.
 
@@ -254,9 +321,20 @@ git cherry-pick <commit-sha>
 git push origin release/v${RELEASE_VER}
 ```
 
-If you cherry-picked, re-run Step 4 to validate.
+If you cherry-picked, re-run Step 4 to validate. If you already published an RC and still want a fresh RC after those changes, re-run Step 5 with the next RC number.
 
-### 7) Publish release
+### 8) Publish final release
+
+If the release branch is currently at an RC version, reset it back to the exact final version first:
+
+```bash
+cd ~/repos/viaduct
+git checkout release/v${RELEASE_VER}
+./gradlew setVersion -PsetVersion=${RELEASE_VER}
+git add VERSION demoapps/*/gradle.properties
+git commit -m "chore: Set version to ${RELEASE_VER}"
+git push origin release/v${RELEASE_VER}
+```
 
 > **Warning:** This publishes to Maven Central and Gradle Plugin Portal. Once published, a version cannot be unpublished from Maven Central.
 
@@ -266,6 +344,7 @@ This single command publishes artifacts, pushes demo apps to standalone repos, v
 gh workflow run release.yml \
   --repo airbnb/viaduct \
   -f release_version=${RELEASE_VER} \
+  -f final=true \
   -F release_notes=@/tmp/release-v${RELEASE_VER}-changelog.md
 ```
 
@@ -284,7 +363,7 @@ The workflow runs these steps in sequence:
 4. **Verify demo apps** — confirms standalone repos build against published artifacts
 5. **Create release** — creates the `v${RELEASE_VER}` tag and publishes the GitHub release with your changelog
 
-### 8) Verify
+### 9) Verify
 
 After the workflow completes:
 
@@ -321,6 +400,8 @@ A passing build confirms the published artifacts are resolvable and the demo app
 | `bumpSnapshotVersion` | Inserts/replaces `-rc.XXXX` in a SNAPSHOT version, syncs demo apps |
 | `unbumpSnapshotVersion` | Removes the `-rc.XXXX` marker from a SNAPSHOT version, syncs demo apps |
 
+`bumpSnapshotVersion` / `unbumpSnapshotVersion` are only for ephemeral SNAPSHOT publication testing. Public release candidates use explicit versions like `X.Y.Z-rc.N`.
+
 ## Troubleshooting
 
 ### `validate_release_state.py` not found
@@ -350,9 +431,20 @@ The release branch must exist before triggering `release.yml`. Create it in Step
 
 The version has already been released. If this was a mistake, contact the team before proceeding.
 
+### `release.yml` preflight fails — invalid RC/final inputs
+
+Exactly one mode must be selected:
+
+- **RC publication:** pass `release_version=X.Y.Z` and `rc_ver=rc.N`
+- **Final release:** pass `release_version=X.Y.Z` and `final=true`
+
 ### Publication fails partway through
 
 If `release.yml` fails after some artifacts are published (e.g., Plugin Portal succeeded but Maven Central failed), you can re-run the workflow. The Plugin Portal steps check for existing versions and skip them automatically. Maven Central and tagging are idempotent on retry.
+
+### RC publication fails partway through
+
+If `release.yml` fails during an RC publication after publishing `${RELEASE_VER}-${RC_VER}`, do not reuse that RC version. Fix the issue, increment to the next RC version, and rerun the workflow.
 
 ### Demo app tests fail after push
 
