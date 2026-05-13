@@ -9,8 +9,21 @@ import graphql.language.VariableReference
 import graphql.util.TraversalControl
 import graphql.util.TraverserContext
 
+/**
+ * Collects all [VariableReference] nodes reachable from this AST node, keyed by variable name.
+ *
+ * Delegates to the [List] overload with a single-element list.
+ */
 fun AbstractNode<*>.allVariableReferencesByName() = listOf(this).allVariableReferencesByName()
 
+/**
+ * Traverses the AST rooted at each node in this list and returns a map from variable name to
+ * the corresponding [VariableReference] node for every `$variable` reference found inside
+ * field argument values.
+ *
+ * Only argument-level variable references are collected; variable references in other positions
+ * (e.g. directive arguments) are not included.
+ */
 @Suppress("UNCHECKED_CAST")
 fun List<AbstractNode<*>>.allVariableReferencesByName(): Map<String, VariableReference> =
     NodeTraverser().postOrder(

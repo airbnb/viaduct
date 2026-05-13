@@ -6,6 +6,15 @@ import graphql.execution.instrumentation.parameters.InstrumentationExecutionStra
 import graphql.schema.DataFetchingEnvironment
 import viaduct.engine.api.spi.CheckerExecutor
 
+/**
+ * Composite [ViaductModernGJInstrumentation] that delegates each lifecycle hook to every
+ * instrumentation in [gjInstrumentations] in order.
+ *
+ * For hooks that return a single value (e.g. [instrumentAccessCheck]) the result of each
+ * delegate is threaded as the input to the next, producing a composed result. For hooks that
+ * return an [graphql.execution.instrumentation.InstrumentationContext], each delegate's context
+ * is collected into a [ChainedInstrumentationContext] that dispatches to all of them.
+ */
 open class ChainedModernGJInstrumentation(
     val gjInstrumentations: List<ViaductModernGJInstrumentation>
 ) : ChainedInstrumentation(gjInstrumentations), ViaductModernGJInstrumentation {

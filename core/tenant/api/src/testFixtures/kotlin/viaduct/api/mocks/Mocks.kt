@@ -16,11 +16,23 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
+/**
+ * Parses [sdl] and builds an executable [GraphQLSchema] backed by mocked wiring.
+ *
+ * Intended for tests that need a real schema object but do not care about runtime resolvers.
+ */
 fun createSchema(sdl: String): GraphQLSchema {
     val tdr = SchemaParser().parse(sdl)
     return SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING)
 }
 
+/**
+ * Creates a [ReflectionLoader] that resolves GRT types by loading `$packageName.$name${'$'}Reflection`
+ * companion objects at runtime via [Class.forName].
+ *
+ * Requires that generated GRT classes are on the classpath under [packageName]. The optional
+ * [classLoader] defaults to the system class loader.
+ */
 @Suppress("NO_REFLECTION_IN_CLASS_PATH")
 fun mockReflectionLoader(
     packageName: String,
@@ -35,16 +47,27 @@ fun mockReflectionLoader(
     }
 }
 
+/** Converts this [GraphQLSchema] to a [ViaductSchema] using the default factory. */
 val GraphQLSchema.viaduct: ViaductSchema
     get() =
         ViaductSchema.fromGraphQLSchema(this)
 
+/**
+ * Test-only [Type] that associates an arbitrary [name] with a [kcls] without requiring a
+ * generated `Reflection` companion object.
+ */
 class MockType<T : GRT>(override val name: String, override val kcls: KClass<T>) : Type<T> {
     companion object {
         fun mkNodeObject(name: String): Type<NodeObject> = MockType(name, NodeObject::class)
     }
 }
 
+/**
+ * Test-only [ReflectionLoader] backed by a pre-supplied list of [Type] objects.
+ *
+ * Looks up types by name from the provided vararg list. Throws [UnsupportedOperationException]
+ * if the requested name is not found.
+ */
 class MockReflectionLoaderImpl(vararg types: Type<*>) : ReflectionLoader {
     private val map: Map<String, Type<*>> = types.associateBy { it.name }
 
@@ -68,6 +91,12 @@ class MockReflectionLoaderImpl(vararg types: Type<*>) : ReflectionLoader {
  */
 fun <T : NodeCompositeOutput> Type<T>.testGlobalId(internalId: String): String = GlobalIDCodecDefault.serialize(this.name, internalId)
 
+/**
+ * Simpler test-only [ReflectionLoader] that exposes the provided [types] as a public property.
+ *
+ * Throws [NoSuchElementException] when a type name is not found, listing the available names in
+ * the error message.
+ */
 class MockReflectionLoader(vararg val types: Type<*>) : ReflectionLoader {
     override fun reflectionFor(name: String): Type<*> = types.firstOrNull { it.name == name } ?: throw NoSuchElementException("$name not in { ${types.joinToString(",")} }")
 

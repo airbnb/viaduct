@@ -2,6 +2,13 @@ package viaduct.engine.api
 
 import viaduct.apiannotations.VisibleForTest
 
+/**
+ * Classifies a resolver by its structural role in the GraphQL schema.
+ *
+ * - [NODE] — resolves a Relay-style node by global ID.
+ * - [FIELD] — resolves a regular field on a GraphQL object type.
+ * - [MOCK] — a synthetic, test-only resolver that always returns a fixed value.
+ */
 enum class ResolverType {
     NODE,
     FIELD,

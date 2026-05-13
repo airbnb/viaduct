@@ -5,12 +5,21 @@ import kotlin.reflect.KClass
 import viaduct.apiannotations.StableApi
 
 /**
- * Tagging interface for enum types
+ * Tagging interface for GraphQL enum types.
+ *
+ * Codegen-produced Kotlin enums implement this interface so the framework can identify and
+ * handle them uniformly. Use [Companion.enumFrom] to look up an enum constant by its
+ * GraphQL string value when deserializing resolver arguments.
  */
 @StableApi
 interface Enum : GRT {
     @StableApi
     companion object {
+        /**
+         * Looks up the enum constant of [clazz] whose name equals [value].
+         *
+         * @throws NoSuchElementException if no constant with that name exists.
+         */
         fun <T> enumFrom(
             clazz: KClass<T>,
             value: String
