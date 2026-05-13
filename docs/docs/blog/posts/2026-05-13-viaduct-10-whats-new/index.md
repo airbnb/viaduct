@@ -23,7 +23,7 @@ With the 1.0 release, [Viaduct](https://viaduct.airbnb.tech/about/), the open-so
 
 ## Operations
 
-- **\~10× throughput improvement** on large queries, achieved through execution engine refactoring and a synchronous-field fast path.
+- **~10× throughput improvement** on large queries, achieved through execution engine refactoring and a synchronous-field fast path.
 - **Enhanced observability**: `TaggedMetricInstrumentation` emits field-level latency and error-rate metrics automatically. A `ResolverInstrumentation` framework gives operators hooks to observe resolver execution—timing, errors, and object-data access—without modifying tenant code.
 - **Bring-your-own injection framework**: The `TenantCodeInjector` SPI lets you wire Spring, Guice, Micronaut, or any other container into Viaduct's resolver instantiation.
 
