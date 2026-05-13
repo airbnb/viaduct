@@ -56,6 +56,7 @@ internal class SchemaWithData : ViaductSchema {
 
     sealed class Def protected constructor() : ViaductSchema.Def {
         abstract val data: Any?
+        abstract override val description: String?
 
         override fun hasAppliedDirective(name: String) = appliedDirectives.any { it.name == name }
 
@@ -104,6 +105,7 @@ internal class SchemaWithData : ViaductSchema {
         override val hasDefault: Boolean,
         override val mDefaultValue: ViaductSchema.Literal?,
         override val data: Any? = null,
+        override val description: String? = null,
     ) : Arg(), ViaductSchema.DirectiveArg
 
     class FieldArg internal constructor(
@@ -114,6 +116,7 @@ internal class SchemaWithData : ViaductSchema {
         override val hasDefault: Boolean,
         override val mDefaultValue: ViaductSchema.Literal?,
         override val data: Any? = null,
+        override val description: String? = null,
     ) : Arg(), ViaductSchema.FieldArg
 
     class EnumValue internal constructor(
@@ -121,6 +124,7 @@ internal class SchemaWithData : ViaductSchema {
         override val name: String,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>>,
         override val data: Any? = null,
+        override val description: String? = null,
     ) : Def(), ViaductSchema.EnumValue {
         override val containingDef: Enum get() = containingExtension.def
     }
@@ -133,6 +137,7 @@ internal class SchemaWithData : ViaductSchema {
         override val hasDefault: Boolean,
         override val mDefaultValue: ViaductSchema.Literal?,
         override val data: Any? = null,
+        override val description: String? = null,
         argsFactory: (Field) -> List<FieldArg> = { emptyList() },
     ) : HasDefaultValue(), ViaductSchema.Field {
         /** Secondary constructor for fields without arguments (e.g., input fields). */
@@ -144,7 +149,8 @@ internal class SchemaWithData : ViaductSchema {
             hasDefault: Boolean,
             defaultValue: ViaductSchema.Literal?,
             data: Any? = null,
-        ) : this(containingExtension, name, type, appliedDirectives, hasDefault, defaultValue, data, { emptyList() })
+            description: String? = null,
+        ) : this(containingExtension, name, type, appliedDirectives, hasDefault, defaultValue, data, description, { emptyList() })
 
         override val args: List<FieldArg> = argsFactory(this)
 
@@ -166,24 +172,28 @@ internal class SchemaWithData : ViaductSchema {
         private var mIsRepeatable: Boolean? = null
         private var mAllowedLocations: Set<ViaductSchema.Directive.Location>? = null
         private var mArgs: List<DirectiveArg>? = null
+        private var mDescription: String? = null
 
         override val sourceLocation: ViaductSchema.SourceLocation? get() = guardedGetNullable(mSourceLocation, mArgs)
         override val isRepeatable: Boolean get() = guardedGet(mIsRepeatable)
         override val allowedLocations: Set<ViaductSchema.Directive.Location> get() = guardedGet(mAllowedLocations)
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>> get() = emptyList()
         override val args: List<DirectiveArg> get() = guardedGet(mArgs)
+        override val description: String? get() = mDescription
 
         internal fun populate(
             isRepeatable: Boolean,
             allowedLocations: Set<ViaductSchema.Directive.Location>,
             sourceLocation: ViaductSchema.SourceLocation?,
-            args: List<DirectiveArg>
+            args: List<DirectiveArg>,
+            description: String? = null,
         ) {
             check(mArgs == null) { "Directive $name has already been populated; populate() can only be called once" }
             mIsRepeatable = isRepeatable
             mAllowedLocations = allowedLocations
             mSourceLocation = sourceLocation
             mArgs = args
+            mDescription = description
         }
     }
 
@@ -209,15 +219,21 @@ internal class SchemaWithData : ViaductSchema {
         override val data: Any? = null,
     ) : TypeDef(), ViaductSchema.Scalar {
         private var mExtensions: List<ViaductSchema.Extension<Scalar, Nothing>>? = null
+        private var mDescription: String? = null
 
         override val extensions: List<ViaductSchema.Extension<Scalar, Nothing>> get() = guardedGet(mExtensions)
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>> get() = extensions.flatMap { it.appliedDirectives }
         override val sourceLocation: ViaductSchema.SourceLocation? get() = extensions.first().sourceLocation
+        override val description: String? get() = mDescription
 
-        internal fun populate(extensions: List<ViaductSchema.Extension<Scalar, Nothing>>) {
+        internal fun populate(
+            extensions: List<ViaductSchema.Extension<Scalar, Nothing>>,
+            description: String? = null
+        ) {
             check(mExtensions == null) { "Type $name has already been populated; populate() can only be called once" }
             require(extensions.isNotEmpty()) { "Types must have at least one extension ($this)." }
             mExtensions = extensions
+            mDescription = description
         }
     }
 
@@ -229,18 +245,24 @@ internal class SchemaWithData : ViaductSchema {
         private var mAppliedDirectives: List<ViaductSchema.AppliedDirective<*>>? = null
         private var mExtensions: List<ViaductSchema.Extension<Enum, EnumValue>>? = null
         private var mValues: List<EnumValue>? = null
+        private var mDescription: String? = null
 
         override val sourceLocation: ViaductSchema.SourceLocation? get() = extensions.first().sourceLocation
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>> get() = guardedGet(mAppliedDirectives)
         override val extensions: List<ViaductSchema.Extension<Enum, EnumValue>> get() = guardedGet(mExtensions)
         override val values: List<EnumValue> get() = guardedGet(mValues)
+        override val description: String? get() = mDescription
 
-        internal fun populate(extensions: List<ViaductSchema.Extension<Enum, EnumValue>>) {
+        internal fun populate(
+            extensions: List<ViaductSchema.Extension<Enum, EnumValue>>,
+            description: String? = null
+        ) {
             check(mExtensions == null) { "Type $name has already been populated; populate() can only be called once" }
             require(extensions.isNotEmpty()) { "Types must have at least one extension ($this)." }
             mExtensions = extensions
             mAppliedDirectives = extensions.flatMap { it.appliedDirectives }
             mValues = extensions.flatMap { it.members }
+            mDescription = description
         }
 
         override fun value(name: String) = values.find { name == it.name }
@@ -254,13 +276,18 @@ internal class SchemaWithData : ViaductSchema {
         private var mAppliedDirectives: List<ViaductSchema.AppliedDirective<*>>? = null
         private var mExtensions: List<ViaductSchema.Extension<Union, Object>>? = null
         private var mPossibleObjectTypes: Set<Object>? = null
+        private var mDescription: String? = null
 
         override val sourceLocation: ViaductSchema.SourceLocation? get() = extensions.first().sourceLocation
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>> get() = guardedGet(mAppliedDirectives)
         override val extensions: List<ViaductSchema.Extension<Union, Object>> get() = guardedGet(mExtensions)
         override val possibleObjectTypes: Set<Object> get() = guardedGet(mPossibleObjectTypes)
+        override val description: String? get() = mDescription
 
-        internal fun populate(extensions: List<ViaductSchema.Extension<Union, Object>>) {
+        internal fun populate(
+            extensions: List<ViaductSchema.Extension<Union, Object>>,
+            description: String? = null
+        ) {
             check(mExtensions == null) { "Type $name has already been populated; populate() can only be called once" }
             require(extensions.isNotEmpty()) { "Types must have at least one extension ($this)." }
             // Validate that all members are actually Object instances
@@ -280,6 +307,7 @@ internal class SchemaWithData : ViaductSchema {
             mExtensions = extensions
             mAppliedDirectives = extensions.flatMap { it.appliedDirectives }
             mPossibleObjectTypes = extensions.flatMap { it.members }.toSet()
+            mDescription = description
         }
     }
 
@@ -310,6 +338,7 @@ internal class SchemaWithData : ViaductSchema {
         private var mFields: List<Field>? = null
         private var mSupers: List<Interface>? = null
         private var mPossibleObjectTypes: Set<Object>? = null
+        private var mDescription: String? = null
 
         override val sourceLocation: ViaductSchema.SourceLocation? get() = extensions.first().sourceLocation
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>> get() = guardedGet(mAppliedDirectives)
@@ -317,10 +346,12 @@ internal class SchemaWithData : ViaductSchema {
         override val fields: List<Field> get() = guardedGet(mFields)
         override val supers: List<Interface> get() = guardedGet(mSupers)
         override val possibleObjectTypes: Set<Object> get() = guardedGet(mPossibleObjectTypes)
+        override val description: String? get() = mDescription
 
         internal fun populate(
             extensions: List<ViaductSchema.ExtensionWithSupers<Interface, Field>>,
-            possibleObjectTypes: Set<Object>
+            possibleObjectTypes: Set<Object>,
+            description: String? = null,
         ) {
             check(mExtensions == null) { "Type $name has already been populated; populate() can only be called once" }
             require(extensions.isNotEmpty()) { "Types must have at least one extension ($this)." }
@@ -342,6 +373,7 @@ internal class SchemaWithData : ViaductSchema {
             @Suppress("UNCHECKED_CAST")
             mSupers = extensions.flatMap { it.supers as Collection<Interface> }
             mPossibleObjectTypes = possibleObjectTypes
+            mDescription = description
         }
     }
 
@@ -353,18 +385,24 @@ internal class SchemaWithData : ViaductSchema {
         private var mAppliedDirectives: List<ViaductSchema.AppliedDirective<*>>? = null
         private var mExtensions: List<ViaductSchema.Extension<Input, Field>>? = null
         private var mFields: List<Field>? = null
+        private var mDescription: String? = null
 
         override val sourceLocation: ViaductSchema.SourceLocation? get() = extensions.first().sourceLocation
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>> get() = guardedGet(mAppliedDirectives)
         override val extensions: List<ViaductSchema.Extension<Input, Field>> get() = guardedGet(mExtensions)
         override val fields: List<Field> get() = guardedGet(mFields)
+        override val description: String? get() = mDescription
 
-        internal fun populate(extensions: List<ViaductSchema.Extension<Input, Field>>) {
+        internal fun populate(
+            extensions: List<ViaductSchema.Extension<Input, Field>>,
+            description: String? = null
+        ) {
             check(mExtensions == null) { "Type $name has already been populated; populate() can only be called once" }
             require(extensions.isNotEmpty()) { "Types must have at least one extension ($this)." }
             mExtensions = extensions
             mAppliedDirectives = extensions.flatMap { it.appliedDirectives }
             mFields = extensions.flatMap { it.members }
+            mDescription = description
         }
     }
 
@@ -380,6 +418,7 @@ internal class SchemaWithData : ViaductSchema {
         private var mFields: List<Field>? = null
         private var mSupers: List<Interface>? = null
         private var mUnions: List<Union>? = null
+        private var mDescription: String? = null
 
         override val sourceLocation: ViaductSchema.SourceLocation? get() = extensions.first().sourceLocation
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>> get() = guardedGet(mAppliedDirectives)
@@ -387,10 +426,12 @@ internal class SchemaWithData : ViaductSchema {
         override val fields: List<Field> get() = guardedGet(mFields)
         override val supers: List<Interface> get() = guardedGet(mSupers)
         override val unions: List<Union> get() = guardedGet(mUnions)
+        override val description: String? get() = mDescription
 
         internal fun populate(
             extensions: List<ViaductSchema.ExtensionWithSupers<Object, Field>>,
-            unions: List<Union>
+            unions: List<Union>,
+            description: String? = null,
         ) {
             check(mExtensions == null) { "Type $name has already been populated; populate() can only be called once" }
             require(extensions.isNotEmpty()) { "Types must have at least one extension ($this)." }
@@ -414,6 +455,7 @@ internal class SchemaWithData : ViaductSchema {
             @Suppress("UNCHECKED_CAST")
             mSupers = extensions.flatMap { it.supers as Collection<Interface> }
             mUnions = unions
+            mDescription = description
         }
     }
 }

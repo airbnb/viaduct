@@ -14,13 +14,13 @@ internal const val MAX_STRING_LEN = 65536
 internal const val WORD_ALIGN_MASK = WORD_SIZE - 1
 
 /** Number of 32-bit words that make up the header section. */
-internal const val HEADER_SIZE_IN_WORDS = 16
+internal const val HEADER_SIZE_IN_WORDS = 18
 
 /** Magic number identifying binary schema files. */
 internal const val MAGIC_NUMBER: Int = 0xA75F2B1C.toInt()
 
 /** File format version using semantic versioning (major.minor in bytes 1.0). */
-internal const val FILE_VERSION: Int = 0x00000003
+internal const val FILE_VERSION: Int = 0x00000004
 
 /**
  * File version unused bits mask (bits 16-31 unused).
@@ -54,6 +54,9 @@ internal const val MAGIC_DEFINITIONS: Int = 0x44454653
 
 /** Magic number for Definition Stubs section ("STUB" in ASCII). */
 internal const val MAGIC_DEFINITION_STUBS: Int = 0x53545542
+
+/** Magic number for Descriptions section ("DESC" in ASCII). */
+internal const val MAGIC_DESCRIPTIONS: Int = 0x44455343
 
 //
 // Definition stub kind codes (used in Definition Stubs section)

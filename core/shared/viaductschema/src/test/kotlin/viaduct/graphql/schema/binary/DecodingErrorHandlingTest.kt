@@ -393,6 +393,8 @@ class DecodingErrorHandlingTest {
         out.writeInt(0) // simpleConstantBytes
         out.writeInt(0) // compoundConstantCount
         out.writeInt(0) // compoundConstantBytes
+        out.writeInt(0) // descriptionCount
+        out.writeInt(0) // descriptionBytes
 
         // Write identifiers section
         out.writeInt(MAGIC_IDENTIFIERS)
@@ -439,6 +441,8 @@ class DecodingErrorHandlingTest {
         out.writeInt(0) // simpleConstantBytes
         out.writeInt(0) // compoundConstantCount
         out.writeInt(0) // compoundConstantBytes
+        out.writeInt(0) // descriptionCount
+        out.writeInt(0) // descriptionBytes
 
         // Write identifiers section (empty)
         out.writeInt(MAGIC_IDENTIFIERS)
@@ -478,6 +482,8 @@ class DecodingErrorHandlingTest {
         out.writeInt(0) // simpleConstantBytes
         out.writeInt(0) // compoundConstantCount
         out.writeInt(0) // compoundConstantBytes
+        out.writeInt(0) // descriptionCount
+        out.writeInt(0) // descriptionBytes
 
         // Write identifiers section (empty)
         out.writeInt(MAGIC_IDENTIFIERS)
@@ -520,6 +526,8 @@ class DecodingErrorHandlingTest {
         out.writeInt(4) // simpleConstantBytes
         out.writeInt(0) // compoundConstantCount
         out.writeInt(4) // compoundConstantBytes
+        out.writeInt(0) // descriptionCount
+        out.writeInt(0) // descriptionBytes
 
         // Write identifiers section (empty)
         out.writeInt(MAGIC_IDENTIFIERS)
@@ -708,7 +716,82 @@ class DecodingErrorHandlingTest {
             override val allowedLocations: Set<ViaductSchema.Directive.Location> = emptySet()
             override val appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>> = emptyList()
             override val sourceLocation: ViaductSchema.SourceLocation? = null
+            override val description: String? = null
 
             override fun describe() = "MockDirective<$name>"
         }
+
+    // =========================================================================
+    // Regression tests for debate-identified issues
+    // =========================================================================
+
+    @Test
+    fun `Skip path validates descriptions section magic number`() {
+        val baos = ByteArrayOutputStream()
+        val out = BOutputStream(baos)
+
+        // Write valid header with descriptions present
+        out.writeInt(MAGIC_NUMBER)
+        out.writeInt(FILE_VERSION)
+        out.writeInt(100) // maxStringLen
+        out.writeInt(0) // identifierCount
+        out.writeInt(4) // identifierBytes (magic only)
+        out.writeInt(0) // definitionStubCount
+        out.writeInt(1) // sourceLocationCount
+        out.writeInt(6) // sourceLocationBytes (magic + null placeholder + padding byte)
+        out.writeInt(0) // typeExprSectionBytes
+        out.writeInt(0) // typeExprCount
+        out.writeInt(0) // directiveCount
+        out.writeInt(0) // typeDefCount
+        out.writeInt(0) // simpleConstantCount
+        out.writeInt(0) // simpleConstantBytes
+        out.writeInt(0) // compoundConstantCount
+        out.writeInt(0) // compoundConstantBytes
+        out.writeInt(2) // descriptionCount (null placeholder + 1 description)
+        out.writeInt(12) // descriptionBytes (magic 4 + null 1 + "hello\0" 6 = 11... round to include content)
+
+        // Write identifiers section (empty)
+        out.writeInt(MAGIC_IDENTIFIERS)
+
+        // Write definition stubs section (empty)
+        out.writeInt(MAGIC_DEFINITION_STUBS)
+
+        // Write source locations section (minimal)
+        out.writeInt(MAGIC_SOURCE_LOCATIONS)
+        out.write(0) // Null placeholder
+        out.pad()
+
+        // Write CORRUPT magic for descriptions section (should be MAGIC_DESCRIPTIONS)
+        out.writeInt(0xDEADBEEF.toInt())
+        out.write(0) // null placeholder
+        for (c in "hello") out.write(c.code)
+        out.write(0) // null terminator
+        out.pad()
+
+        out.close()
+
+        val input = ByteArrayInputStream(baos.toByteArray())
+
+        // Even with readDescriptions=false (skip path), corrupt magic should be caught
+        val exception = assertThrows<InvalidFileFormatException> {
+            ViaductSchema.fromBinaryFile(input, readDescriptions = false)
+        }
+        assertMessageContains("descriptions", exception)
+    }
+
+    @Test
+    fun `Out-of-range description index throws instead of returning null`() {
+        // DescriptionsDecoder.get() should throw for nonzero out-of-range indices
+        // We test this by constructing a decoder with a known table size
+        val decoder = DescriptionsDecoder.forTesting(arrayOf(null, "only one"))
+
+        // Index 0 should return null (valid - means no description)
+        assert(decoder.get(0) == null)
+        // Index 1 should return the description
+        assert(decoder.get(1) == "only one")
+        // Index 2 is out of range — should throw, not silently return null
+        assertThrows<InvalidFileFormatException> {
+            decoder.get(2)
+        }
+    }
 }

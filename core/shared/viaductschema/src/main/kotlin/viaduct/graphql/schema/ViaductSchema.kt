@@ -327,6 +327,7 @@ interface ViaductSchema {
      */
     interface Def {
         val name: String
+        val description: String?
         val appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>>
         val sourceLocation: SourceLocation?
 

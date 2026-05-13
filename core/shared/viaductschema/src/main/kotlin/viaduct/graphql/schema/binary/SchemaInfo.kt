@@ -25,6 +25,11 @@ internal class SchemaInfo(
     /** Count of source names including null placeholder */
     val sourceNameCount: Int get() = sourceNames.size + 1
 
+    val descriptions: Collection<String> get() = descriptionMap.keys
+
+    /** Count of descriptions including null placeholder */
+    val descriptionCount: Int get() = descriptionMap.size + 1
+
     val typeExprs: Map<ViaductSchema.TypeExpr<*>, Int> by lazy {
         mutableMapOf<ViaductSchema.TypeExpr<*>, Int>().apply {
             var idx = 0
@@ -72,6 +77,9 @@ internal class SchemaInfo(
     var sourceNameBytes = 0
         private set
 
+    var descriptionBytes = 0
+        private set
+
     fun identifierIndex(name: String) =
         identifiers.binarySearch(name).also {
             if (it < 0) throw NoSuchElementException(name)
@@ -84,11 +92,18 @@ internal class SchemaInfo(
         return idx + 1 // Add 1 because index 0 is reserved for null
     }
 
+    fun descriptionIndex(description: String?): Int {
+        if (description == null) return 0
+        return descriptionMap[description]
+            ?: throw NoSuchElementException("Description not found: $description")
+    }
+
     //
     // Internal stuff (including initialization!!)
 
     private val identifierSet = sortedSetOf<String>()
     private val sourceNameSet = sortedSetOf<String>()
+    private val descriptionMap = linkedMapOf<String, Int>()
     private val typeExprMap = mutableMapOf<ViaductSchema.TypeExpr<*>, Int>()
 
     init {
@@ -97,6 +112,9 @@ internal class SchemaInfo(
 
         // Account for section magic number (4 bytes) and null placeholder (1 byte) in source locations
         sourceNameBytes = WORD_SIZE + 1
+
+        // Account for section magic number (4 bytes) and null placeholder (1 byte) in descriptions
+        descriptionBytes = WORD_SIZE + 1
 
         // Visit all types and directives to collect identifiers, source names, and type expressions
         for (def in inputSchema.types.values) {
@@ -121,6 +139,7 @@ internal class SchemaInfo(
     private fun visitDirective(d: ViaductSchema.Directive) {
         addIdentifier(d.name)
         addSourceName(d.sourceLocation?.sourceName)
+        addDescription(d.description)
         for (a in d.args) visitArg(a)
     }
 
@@ -133,6 +152,7 @@ internal class SchemaInfo(
         }
         for (v in e.values) {
             addIdentifier(v.name)
+            addDescription(v.description)
             visitAppliedDirectives(v.appliedDirectives)
         }
     }
@@ -195,12 +215,14 @@ internal class SchemaInfo(
         addIdentifier(a.name)
         addTypeExpr(a.type)
         addConstant(a)
+        addDescription(a.description)
         visitAppliedDirectives(a.appliedDirectives)
     }
 
     private fun visitField(f: ViaductSchema.Field) {
         addIdentifier(f.name)
         addTypeExpr(f.type)
+        addDescription(f.description)
         // For input type fields, collect default values
         if (f.containingDef is ViaductSchema.Input && f.hasDefault) {
             addConstantValue(f.defaultValue)
@@ -223,6 +245,15 @@ internal class SchemaInfo(
             val byteLen = Utf8.encodedLength(sourceName)
             if (maxIdentifierOrSourceNameLen < byteLen) maxIdentifierOrSourceNameLen = byteLen
             sourceNameBytes += (byteLen + 1)
+        }
+    }
+
+    private fun addDescription(description: String?) {
+        if (description != null && description !in descriptionMap) {
+            descriptionMap[description] = descriptionMap.size + 1 // +1 because index 0 is reserved for null
+            val byteLen = Utf8.encodedLength(description)
+            if (maxIdentifierOrSourceNameLen < byteLen) maxIdentifierOrSourceNameLen = byteLen
+            descriptionBytes += (byteLen + 1)
         }
     }
 
@@ -267,6 +298,7 @@ internal class SchemaInfo(
     private fun addTypeDef(td: ViaductSchema.TypeDef) {
         addIdentifier(td.name)
         addSourceName(td.sourceLocation?.sourceName)
+        addDescription(td.description)
         visitAppliedDirectives(td.appliedDirectives)
     }
 }

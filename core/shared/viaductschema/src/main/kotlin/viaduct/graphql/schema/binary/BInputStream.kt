@@ -136,6 +136,21 @@ internal class BInputStream(
         repeat(toRead) { read() }
     }
 
+    fun skipBytes(count: Int) {
+        var remaining = count
+        while (remaining > 0) {
+            val available = lim - pos
+            if (available <= 0) {
+                refill()
+                continue
+            }
+            val toSkip = minOf(remaining, available)
+            pos += toSkip
+            mOffset += toSkip
+            remaining -= toSkip
+        }
+    }
+
     fun validateMagicNumber(
         expected: Int,
         sectionName: String

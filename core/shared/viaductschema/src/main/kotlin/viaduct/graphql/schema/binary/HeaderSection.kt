@@ -16,6 +16,8 @@ internal class HeaderSection(
     val simpleConstantBytes: Int,
     val compoundConstantCount: Int,
     val compoundConstantBytes: Int,
+    val descriptionCount: Int = 0,
+    val descriptionBytes: Int = 0,
     val magicNumber: Int = MAGIC_NUMBER,
     val version: Int = FILE_VERSION,
 ) {
@@ -36,6 +38,8 @@ internal class HeaderSection(
         out.writeInt(simpleConstantBytes)
         out.writeInt(compoundConstantCount)
         out.writeInt(compoundConstantBytes)
+        out.writeInt(descriptionCount)
+        out.writeInt(descriptionBytes)
     }
 
     companion object {
@@ -60,6 +64,8 @@ internal class HeaderSection(
                 simpleConstantBytes = constantsEncoder.simpleConstantsBytes,
                 compoundConstantCount = constantsEncoder.compoundConstantsCount,
                 compoundConstantBytes = constantsEncoder.compoundConstantsBytes,
+                descriptionCount = schemaInfo.descriptionCount,
+                descriptionBytes = schemaInfo.descriptionBytes,
             )
         }
 
@@ -81,6 +87,8 @@ internal class HeaderSection(
                 simpleConstantBytes = data.readInt(),
                 compoundConstantCount = data.readInt(),
                 compoundConstantBytes = data.readInt(),
+                descriptionCount = data.readInt(),
+                descriptionBytes = data.readInt(),
             ).apply {
                 if (magicNumber != MAGIC_NUMBER) {
                     throw InvalidFileFormatException(

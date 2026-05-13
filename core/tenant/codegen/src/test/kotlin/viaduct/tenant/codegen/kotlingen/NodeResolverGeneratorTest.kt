@@ -97,6 +97,7 @@ class NodeResolverGeneratorTest {
 
             override val extensions: Collection<ViaductSchema.Extension<ViaductSchema.TypeDef, ViaductSchema.Def>>
                 get() = TODO("Not yet implemented")
+            override val description: String? = null
         }
     }
 
@@ -113,6 +114,7 @@ class NodeResolverGeneratorTest {
                 get() = TODO("Not yet implemented")
             override val sourceLocation: ViaductSchema.SourceLocation?
                 get() = TODO("Not yet implemented")
+            override val description: String? = null
             override val args = emptyList<ViaductSchema.DirectiveArg>()
             override val allowedLocations = emptySet<ViaductSchema.Directive.Location>()
             override val isRepeatable: Boolean

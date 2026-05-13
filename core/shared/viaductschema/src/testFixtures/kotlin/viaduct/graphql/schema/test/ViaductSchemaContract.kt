@@ -701,6 +701,93 @@ interface ViaductSchemaContract {
     }
 
     @Test
+    fun `type with description returns description content`() {
+        val schema = createSchema(
+            """
+                ${"\"\"\""}A documented type${"\"\"\""}
+                type Query {
+                    foo: String
+                }
+            """.trimIndent()
+        )
+        assertEquals("A documented type", schema.types["Query"]!!.description)
+    }
+
+    @Test
+    fun `type without description returns null`() {
+        val schema = createSchema(
+            """
+                type Query {
+                    foo: String
+                }
+            """.trimIndent()
+        )
+        assertNull(schema.types["Query"]!!.description)
+    }
+
+    @Test
+    fun `field with description returns description content`() {
+        val schema = createSchema(
+            """
+                type Query {
+                    ${"\"\"\""}A documented field${"\"\"\""}
+                    foo: String
+                }
+            """.trimIndent()
+        )
+        val field = (schema.types["Query"] as ViaductSchema.Record).field("foo")
+        assertEquals("A documented field", field!!.description)
+    }
+
+    @Test
+    fun `field without description returns null`() {
+        val schema = createSchema(
+            """
+                type Query {
+                    foo: String
+                }
+            """.trimIndent()
+        )
+        val field = (schema.types["Query"] as ViaductSchema.Record).field("foo")
+        assertNull(field!!.description)
+    }
+
+    @Test
+    fun `enum value with description returns description content`() {
+        val schema = createSchema(
+            """
+                type Query { foo: Status }
+                enum Status {
+                    ${"\"\"\""}Active status${"\"\"\""}
+                    ACTIVE
+                    INACTIVE
+                }
+            """.trimIndent()
+        )
+        val enumDef = schema.types["Status"] as ViaductSchema.Enum
+        assertEquals("Active status", enumDef.value("ACTIVE")!!.description)
+        assertNull(enumDef.value("INACTIVE")!!.description)
+    }
+
+    @Test
+    fun `multi-line description is preserved`() {
+        val schema = createSchema(
+            "\"\"\"" + """
+First line
+Second line
+            """.trimIndent() + "\"\"\"\n" + """
+                type Query {
+                    foo: String
+                }
+            """.trimIndent()
+        )
+        val desc = schema.types["Query"]!!.description
+        assertNotNull(desc)
+        assertTrue(desc!!.contains("First line"))
+        assertTrue(desc.contains("Second line"))
+    }
+
+    @Test
     fun `test containingSchema referential integrity`() {
         this@ViaductSchemaContract.createSchema(
             """

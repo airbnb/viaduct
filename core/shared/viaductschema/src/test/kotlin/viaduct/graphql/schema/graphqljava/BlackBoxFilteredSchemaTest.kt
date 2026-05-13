@@ -2,6 +2,8 @@ package viaduct.graphql.schema.graphqljava
 
 import graphql.schema.idl.SchemaParser
 import org.junit.jupiter.api.Assertions.assertAll
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.function.Executable
@@ -126,5 +128,43 @@ class BlackBoxFilteredSchemaTest {
                 Executable { assertFilteredSchemaPreservesContent(schema.fullSdl) }
             }
         )
+    }
+
+    @Test
+    @DisplayName("FilteredSchema preserves descriptions on types and fields")
+    fun `FilteredSchema preserves descriptions`() {
+        val sdl = """
+            "A documented type"
+            type Query {
+                "A documented field"
+                foo: String
+                bar: String
+            }
+            type Undocumented {
+                baz: Int
+            }
+            enum Status {
+                "Active status"
+                ACTIVE
+                INACTIVE
+            }
+        """.trimIndent()
+        val registry = SchemaParser().parse(sdl)
+        val original = ViaductSchema.fromTypeDefinitionRegistry(registry)
+        val filtered = original.filter(NoopSchemaFilter())
+
+        // Type descriptions preserved
+        assertEquals("A documented type", filtered.types["Query"]!!.description)
+        assertNull(filtered.types["Undocumented"]!!.description)
+
+        // Field descriptions preserved
+        val queryType = filtered.types["Query"]!! as ViaductSchema.Record
+        assertEquals("A documented field", queryType.field("foo")!!.description)
+        assertNull(queryType.field("bar")!!.description)
+
+        // Enum value descriptions preserved
+        val statusType = filtered.types["Status"]!! as ViaductSchema.Enum
+        assertEquals("Active status", statusType.value("ACTIVE")!!.description)
+        assertNull(statusType.value("INACTIVE")!!.description)
     }
 }

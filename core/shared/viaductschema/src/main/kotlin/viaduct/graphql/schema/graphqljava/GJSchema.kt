@@ -92,18 +92,20 @@ internal fun gjSchemaFromSchema(schema: GraphQLSchema): SchemaWithData {
 
     types.values.forEach { typeDef ->
         when (typeDef) {
-            is SchemaWithData.Scalar -> typeDef.populate(decoder.createScalarExtensions(typeDef))
-            is SchemaWithData.Enum -> typeDef.populate(decoder.createEnumExtensions(typeDef))
-            is SchemaWithData.Union -> typeDef.populate(decoder.createUnionExtensions(typeDef))
+            is SchemaWithData.Scalar -> typeDef.populate(decoder.createScalarExtensions(typeDef), typeDef.gjDef.description)
+            is SchemaWithData.Enum -> typeDef.populate(decoder.createEnumExtensions(typeDef), typeDef.gjDef.description)
+            is SchemaWithData.Union -> typeDef.populate(decoder.createUnionExtensions(typeDef), typeDef.gjDef.description)
             is SchemaWithData.Interface -> typeDef.populate(
                 decoder.createInterfaceExtensions(typeDef),
-                decoder.computePossibleObjectTypes(typeDef)
+                decoder.computePossibleObjectTypes(typeDef),
+                typeDef.gjDef.description
             )
             is SchemaWithData.Object -> typeDef.populate(
                 decoder.createObjectExtensions(typeDef),
-                decoder.computeUnions(typeDef)
+                decoder.computeUnions(typeDef),
+                typeDef.gjDef.description
             )
-            is SchemaWithData.Input -> typeDef.populate(decoder.createInputExtensions(typeDef))
+            is SchemaWithData.Input -> typeDef.populate(decoder.createInputExtensions(typeDef), typeDef.gjDef.description)
         }
     }
 

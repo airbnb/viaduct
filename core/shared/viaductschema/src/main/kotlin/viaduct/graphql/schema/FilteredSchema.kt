@@ -61,23 +61,28 @@ internal fun <T : ViaductSchema.TypeDef> filteredSchema(
     for (typeDef in defs.values) {
         when (typeDef) {
             is SchemaWithData.Scalar -> typeDef.populate(
-                decoder.createScalarExtensions(typeDef)
+                decoder.createScalarExtensions(typeDef),
+                description = typeDef.unfilteredDef.description
             )
             is SchemaWithData.Enum -> typeDef.populate(
-                decoder.createEnumExtensions(typeDef)
+                decoder.createEnumExtensions(typeDef),
+                description = typeDef.unfilteredDef.description
             )
             is SchemaWithData.Input -> typeDef.populate(
-                decoder.createInputExtensions(typeDef)
+                decoder.createInputExtensions(typeDef),
+                description = typeDef.unfilteredDef.description
             )
             is SchemaWithData.Union -> typeDef.populate(
-                decoder.createUnionExtensions(typeDef)
+                decoder.createUnionExtensions(typeDef),
+                description = typeDef.unfilteredDef.description
             )
             is SchemaWithData.Interface -> {
                 val unfilteredDef = typeDef.unfilteredDef
                 val filteredSupers = decoder.computeFilteredSupers(unfilteredDef)
                 typeDef.populate(
                     decoder.createInterfaceExtensions(typeDef, filteredSupers),
-                    decoder.computePossibleObjectTypes(typeDef)
+                    decoder.computePossibleObjectTypes(typeDef),
+                    description = unfilteredDef.description
                 )
             }
             is SchemaWithData.Object -> {
@@ -85,7 +90,8 @@ internal fun <T : ViaductSchema.TypeDef> filteredSchema(
                 val filteredSupers = decoder.computeFilteredSupers(unfilteredDef)
                 typeDef.populate(
                     decoder.createObjectExtensions(typeDef, filteredSupers),
-                    decoder.computeFilteredUnions(typeDef)
+                    decoder.computeFilteredUnions(typeDef),
+                    description = unfilteredDef.description
                 )
             }
         }
@@ -168,7 +174,7 @@ internal class FilteredSchemaDecoder(
                 memberFactory = { ext ->
                     unfilteredExt.members
                         .filter(filter::includeEnumValue)
-                        .map { SchemaWithData.EnumValue(ext, it.name, remapAppliedDirectives(it.appliedDirectives), it) }
+                        .map { SchemaWithData.EnumValue(ext, it.name, remapAppliedDirectives(it.appliedDirectives), it, it.description) }
                 },
                 isBase = unfilteredExt == unfilteredDef.extensions.first(),
                 appliedDirectives = remapAppliedDirectives(unfilteredExt.appliedDirectives),
@@ -310,7 +316,8 @@ internal class FilteredSchemaDecoder(
             unfilteredDef.isRepeatable,
             unfilteredDef.allowedLocations,
             unfilteredDef.sourceLocation,
-            args
+            args,
+            unfilteredDef.description
         )
     }
 
@@ -329,6 +336,7 @@ internal class FilteredSchemaDecoder(
             unfilteredField.hasDefault,
             if (unfilteredField.hasDefault) unfilteredField.defaultValue else null,
             unfilteredField,
+            description = unfilteredField.description,
             argsFactory = { field -> createFieldArgs(field, unfilteredField) }
         )
     }
@@ -348,7 +356,8 @@ internal class FilteredSchemaDecoder(
                     remapAppliedDirectives(arg.appliedDirectives),
                     arg.hasDefault,
                     if (arg.hasDefault) arg.defaultValue else null,
-                    arg
+                    arg,
+                    arg.description
                 )
             }
 
@@ -364,7 +373,8 @@ internal class FilteredSchemaDecoder(
             remapAppliedDirectives(unfilteredArg.appliedDirectives),
             unfilteredArg.hasDefault,
             if (unfilteredArg.hasDefault) unfilteredArg.defaultValue else null,
-            unfilteredArg
+            unfilteredArg,
+            unfilteredArg.description
         )
     }
 

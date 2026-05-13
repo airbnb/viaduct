@@ -16,6 +16,7 @@ internal class DefinitionsDecoder(
     private val identifiers: IdentifiersDecoder,
     private val types: TypeExpressionsDecoder,
     private val sourceLocations: SourceLocationsDecoder,
+    private val descriptions: DescriptionsDecoder,
     private val constants: ConstantsDecoder,
 ) {
     val queryTypeDef: SchemaWithData.Object?
@@ -40,6 +41,9 @@ internal class DefinitionsDecoder(
 
             when (def) {
                 is SchemaWithData.Directive -> {
+                    // Read description index
+                    val description = descriptions.get(data.readInt())
+
                     // Read RefPlus and source location
                     val refPlus = DefinitionRefPlus(data.readInt())
                     val sourceLocation = sourceLocations.get(refPlus.getIndex())
@@ -58,60 +62,80 @@ internal class DefinitionsDecoder(
                         directiveInfo.isRepeatable(),
                         directiveInfo.allowedLocations(),
                         sourceLocation,
-                        args
+                        args,
+                        description
                     )
                 }
 
                 is SchemaWithData.Enum -> {
+                    // Read description index
+                    val description = descriptions.get(data.readInt())
                     def.populate(
                         decodeExtensionList<SchemaWithData.Enum, SchemaWithData.EnumValue>(def) { ext, v ->
                             val valueRefPlus = EnumValueRefPlus(v)
+                            val enumValueDescription = descriptions.get(data.readInt())
                             SchemaWithData.EnumValue(
                                 ext,
                                 identifiers.get(valueRefPlus.getIndex()), // name
-                                decodeAppliedDirectives(valueRefPlus.hasAppliedDirectives())
+                                decodeAppliedDirectives(valueRefPlus.hasAppliedDirectives()),
+                                description = enumValueDescription
                             )
-                        }
+                        },
+                        description
                     )
                 }
 
                 is SchemaWithData.Input -> {
+                    // Read description index
+                    val description = descriptions.get(data.readInt())
                     def.populate(
                         decodeExtensionList(def) { ext, v ->
                             decodeFieldOrArg(ext, FieldRefPlus(v), SchemaWithData::Field)
-                        }
+                        },
+                        description
                     )
                 }
 
                 is SchemaWithData.Interface -> {
+                    // Read description index
+                    val description = descriptions.get(data.readInt())
                     @Suppress("UNCHECKED_CAST")
                     def.populate(
                         decodeExtensionListWithSupers(def) { ext, v ->
                             decodeOutputField(ext, FieldRefPlus(v))
                         },
-                        (decodeTypeDefList() as List<SchemaWithData.Object>).toSet()
+                        (decodeTypeDefList() as List<SchemaWithData.Object>).toSet(),
+                        description
                     )
                 }
 
                 is SchemaWithData.Object -> {
+                    // Read description index
+                    val description = descriptions.get(data.readInt())
                     @Suppress("UNCHECKED_CAST")
                     def.populate(
                         decodeExtensionListWithSupers(def) { ext, v ->
                             decodeOutputField(ext, FieldRefPlus(v))
                         },
-                        decodeTypeDefList() as List<SchemaWithData.Union>
+                        decodeTypeDefList() as List<SchemaWithData.Union>,
+                        description
                     )
                 }
 
                 is SchemaWithData.Scalar -> {
-                    def.populate(decodeScalarExtensionList(def))
+                    // Read description index
+                    val description = descriptions.get(data.readInt())
+                    def.populate(decodeScalarExtensionList(def), description)
                 }
 
                 is SchemaWithData.Union -> {
+                    // Read description index
+                    val description = descriptions.get(data.readInt())
                     def.populate(
                         decodeExtensionList<SchemaWithData.Union, SchemaWithData.Object>(def) { _, v ->
                             typeDef<SchemaWithData.Object>(v)
-                        }
+                        },
+                        description
                     )
                 }
             }
@@ -194,16 +218,17 @@ internal class DefinitionsDecoder(
     fun <D, T> decodeFieldOrArg(
         container: D,
         refPlus: FieldRefPlus,
-        create: (D, String, ViaductSchema.TypeExpr<SchemaWithData.TypeDef>, List<ViaductSchema.AppliedDirective<*>>, Boolean, ViaductSchema.Literal?) -> T,
+        create: (D, String, ViaductSchema.TypeExpr<SchemaWithData.TypeDef>, List<ViaductSchema.AppliedDirective<*>>, Boolean, ViaductSchema.Literal?, Any?, String?) -> T,
     ): T {
-        // Read in binary format order: name, appliedDirectives, type, hasDefault, defaultValue
+        // Read in binary format order: name, description, appliedDirectives, type, hasDefault, defaultValue
         val name = identifiers.get(refPlus.getIndex())
+        val description = descriptions.get(data.readInt())
         val appliedDirectives = decodeAppliedDirectives(refPlus.hasAppliedDirectives())
         val type = types.get(data.readInt())
         val hasDefault = refPlus.hasDefaultValue()
         val defaultValue = decodeDefaultValue(hasDefault)
-        // Pass to constructor in standardized order: container, name, type, appliedDirectives, hasDefault, defaultValue
-        return create(container, name, type, appliedDirectives, hasDefault, defaultValue)
+        // Pass to constructor in standardized order: container, name, type, appliedDirectives, hasDefault, defaultValue, data, description
+        return create(container, name, type, appliedDirectives, hasDefault, defaultValue, null, description)
     }
 
     /**
@@ -213,8 +238,9 @@ internal class DefinitionsDecoder(
         container: ViaductSchema.Extension<SchemaWithData.Record, SchemaWithData.Field>,
         refPlus: FieldRefPlus,
     ): SchemaWithData.Field {
-        // Read in binary format order: name, appliedDirectives, type, hasDefault, defaultValue
+        // Read in binary format order: name, description, appliedDirectives, type, hasDefault, defaultValue
         val name = identifiers.get(refPlus.getIndex())
+        val description = descriptions.get(data.readInt())
         val appliedDirectives = decodeAppliedDirectives(refPlus.hasAppliedDirectives())
         val type = types.get(data.readInt())
         val hasDefault = refPlus.hasDefaultValue()
@@ -229,6 +255,7 @@ internal class DefinitionsDecoder(
             appliedDirectives,
             hasDefault,
             defaultValue,
+            description = description,
             argsFactory = { field ->
                 if (hasArgs) {
                     decodeInputLikeFieldList(field, SchemaWithData::FieldArg)
@@ -248,7 +275,7 @@ internal class DefinitionsDecoder(
      */
     fun <D, T> decodeInputLikeFieldList(
         container: D,
-        create: (D, String, ViaductSchema.TypeExpr<SchemaWithData.TypeDef>, List<ViaductSchema.AppliedDirective<*>>, Boolean, ViaductSchema.Literal?) -> T,
+        create: (D, String, ViaductSchema.TypeExpr<SchemaWithData.TypeDef>, List<ViaductSchema.AppliedDirective<*>>, Boolean, ViaductSchema.Literal?, Any?, String?) -> T,
     ): List<T> {
         var v = data.readInt()
         if (v == EMPTY_LIST_MARKER) return emptyList()

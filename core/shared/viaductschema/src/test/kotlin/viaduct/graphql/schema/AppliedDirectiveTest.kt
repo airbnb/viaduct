@@ -25,6 +25,7 @@ class AppliedDirectiveTest {
         override val allowedLocations: Set<ViaductSchema.Directive.Location> = emptySet()
         override val appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>> = emptyList()
         override val sourceLocation: ViaductSchema.SourceLocation? = null
+        override val description: String? = null
 
         override fun describe() = "MockDirective<$name>"
     }

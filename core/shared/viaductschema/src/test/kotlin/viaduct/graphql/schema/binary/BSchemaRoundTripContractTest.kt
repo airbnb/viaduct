@@ -24,9 +24,9 @@ class BSchemaRoundTripContractTest : ViaductSchemaContract {
         val registry = SchemaParser().parse(schema)
         val original = ViaductSchema.fromTypeDefinitionRegistry(registry)
 
-        // Round-trip through binary format
+        // Round-trip through binary format with descriptions enabled for full fidelity
         val tmp = ByteArrayOutputStream()
         original.toBinaryFile(tmp)
-        return ViaductSchema.fromBinaryFile(ByteArrayInputStream(tmp.toByteArray()))
+        return ViaductSchema.fromBinaryFile(ByteArrayInputStream(tmp.toByteArray()), readDescriptions = true)
     }
 }

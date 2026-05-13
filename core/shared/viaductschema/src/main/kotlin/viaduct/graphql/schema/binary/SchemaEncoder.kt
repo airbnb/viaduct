@@ -34,6 +34,14 @@ internal class SchemaEncoder(
         }
         out.pad()
 
+        // Write Descriptions section
+        out.writeInt(MAGIC_DESCRIPTIONS)
+        out.writeUTF8String("") // Write null placeholder (single 0 byte)
+        for (s in schemaInfo.descriptions) {
+            out.writeUTF8String(s)
+        }
+        out.pad()
+
         // Write Simple Constants section
         constantsEncoder.encodeSimpleValues(out)
 

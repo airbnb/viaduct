@@ -78,7 +78,8 @@ internal class TypeDefinitionRegistryDecoder(
                             containingExtension,
                             evd.name,
                             decodeAppliedDirectives(evd.directives),
-                            evd
+                            evd,
+                            evd.description?.content
                         )
                     }
                 },
@@ -104,7 +105,8 @@ internal class TypeDefinitionRegistryDecoder(
                             decodeAppliedDirectives(ivd.directives),
                             decodeHasDefault(ivd),
                             decodeDefaultValue(ivd),
-                            ivd
+                            ivd,
+                            ivd.description?.content
                         )
                     }
                 },
@@ -199,9 +201,9 @@ internal class TypeDefinitionRegistryDecoder(
             } else {
                 null
             }
-            SchemaWithData.DirectiveArg(directive, it.name, decodeTypeExpr(it.type), decodeAppliedDirectives(it.directives), hasDefault, default, it)
+            SchemaWithData.DirectiveArg(directive, it.name, decodeTypeExpr(it.type), decodeAppliedDirectives(it.directives), hasDefault, default, it, it.description?.content)
         }
-        directive.populate(isRepeatable, allowedLocations, sourceLocation, args)
+        directive.populate(isRepeatable, allowedLocations, sourceLocation, args, def.description?.content)
     }
 
     // ========== Helper: OutputField ==========
@@ -218,6 +220,7 @@ internal class TypeDefinitionRegistryDecoder(
             hasDefault = false,
             mDefaultValue = null,
             data = fieldDef,
+            description = fieldDef.description?.content,
             argsFactory = { field -> createFieldArgs(field, fieldDef) }
         )
     }
@@ -240,7 +243,8 @@ internal class TypeDefinitionRegistryDecoder(
                 decodeAppliedDirectives(ivd.directives),
                 hasDefault,
                 default,
-                ivd
+                ivd,
+                ivd.description?.content
             )
         }
 }

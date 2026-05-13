@@ -62,11 +62,12 @@ The file is organized into sequential sections, each aligned to 4-byte boundarie
 2. Identifiers (sorted ASCII strings)
 3. Definition Stubs (identifier index + kind code for each definition)
 4. Source Locations (sorted UTF-8 strings)
-5. Simple Constants (kind-code-prefixed UTF-8 strings)
-6. Compound Constants (lists and input objects)
-7. Type Expressions (deduplicated type references)
-8. Root Types (query, mutation, subscription)
-9. Definitions (directives and type definitions, interleaved by name)
+5. Descriptions (UTF-8 strings)
+6. Simple Constants (kind-code-prefixed UTF-8 strings)
+7. Compound Constants (lists and input objects)
+8. Type Expressions (deduplicated type references)
+9. Root Types (query, mutation, subscription)
+10. Definitions (directives and type definitions, interleaved by name)
 
 Each section (except the header) begins with a 4-byte magic number for validation. These magic numbers are included in the byte size counts reported in the header but are NOT included in any item counts.
 
@@ -78,6 +79,7 @@ For validation and error detection, each section begins with a unique 32-bit mag
 | Identifiers         | `0x49444E54` | "IDNT"         |
 | Definition Stubs    | `0x53545542` | "STUB"         |
 | Source Locations    | `0x534C4F43` | "SLOC"         |
+| Descriptions        | `0x44455343` | "DESC"         |
 | Simple Constants    | `0x53434F4E` | "SCON"         |
 | Compound Constants  | `0x43434F4E` | "CCON"         |
 | Type Expressions    | `0x54455850` | "TEXP"         |
@@ -127,10 +129,10 @@ The extension list pattern is encoded generically—only the "members" portion v
 Fields and arguments use a unified encoding pattern with a consolidated RefPlus that supports both default values and arguments:
 
 **Input-like fields** (used for directive arguments, field arguments, and input type fields):
-- RefPlus (with `hasDefaultValue` flag) → optional applied directives → type expression → optional default value
+- RefPlus (with `hasDefaultValue` flag) → description index → optional applied directives → type expression → optional default value
 
 **Output fields** (used for interface and object fields):
-- RefPlus (with `hasArguments` flag) → optional applied directives → type expression → optional arguments list
+- RefPlus (with `hasArguments` flag) → description index → optional applied directives → type expression → optional arguments list
 
 The consolidated FieldRefPlus supports both flags simultaneously using separate bits (bit 29 for `hasDefaultValue`, bit 28 for `hasArguments`), allowing a single RefPlus type to handle all field encoding contexts. RefPlus encodes the name and flags, followed by common metadata (directives, type), then context-specific "extras" (default value and/or arguments). The arguments themselves are input-like fields, creating a natural compositional structure.
 
@@ -163,7 +165,7 @@ This compositional structure means the format is built from ~5 primitives rather
   - Bits 8-15: Major version
   - Bits 16-31: Unused (must be zero)
 
-**Current Version** - `0x00000003` (major=0, minor=3)
+**Current Version** - `0x00000004` (major=0, minor=4)
 
 ---
 
@@ -179,8 +181,8 @@ All values are signed 32-bit little-endian integers:
 Offset  Field                           Description
 ------  -----                           -----------
 0x00    Magic Number                    Always 0xA75F2B1C
-0x04    File Version                    Current: 0x00000002
-0x08    Max String Length               Maximum length in bytes of any identifier, source location, or simple constant string
+0x04    File Version                    Current: 0x00000004
+0x08    Max String Length               Maximum length in bytes of any identifier, source location, description, or simple constant string
 0x0C    Identifier Count                Number of identifiers
 0x10    Identifier Section Bytes        Size of identifiers section in bytes (including 4-byte magic number)
 0x14    Definition Stub Count           Number of definition stubs (directive count + type def count)
@@ -194,9 +196,11 @@ Offset  Field                           Description
 0x34    Simple Constants Section Bytes  Size of simple constants section in bytes (including 4-byte magic number)
 0x38    Compound Constants Count        Number of compound constants + 1 (includes EMPTY_LIST_MARKER)
 0x3C    Compound Constants Section Bytes Size of compound constants section in bytes (including 4-byte magic number)
+0x40    Description Count               Number of descriptions + 1 (includes null placeholder)
+0x44    Description Section Bytes       Size of descriptions section in bytes (including 4-byte magic number)
 ```
 
-**Total Header Size**: 64 bytes (16 words)
+**Total Header Size**: 72 bytes (18 words)
 
 ---
 
@@ -320,7 +324,50 @@ Note: The encoder writes source locations in lexicographic order for determinist
 
 ---
 
-## Section 5: Simple Constants
+## Section 5: Descriptions
+
+Descriptions store the GraphQL description strings (doc comments) for schema elements: type definitions, directives, fields, arguments, and enum values.
+
+### Structure
+
+- **Entry 0**: Special null placeholder (single `0x00` byte) — represents "no description"
+- **Entry 1+**: Sorted UTF-8 strings, each null-terminated
+
+### Encoding
+
+The section begins with the magic number `0x44455343` ("DESC"), followed by a null placeholder and description strings:
+
+Each description string:
+1. UTF-8 encoded characters
+2. Null terminator (`0x00`)
+
+### Properties
+
+- **UTF-8**: Full Unicode support
+- **Deduplicated**: Each unique description string appears once
+- **Indexed**: Referenced by zero-based index (0 = null/no description)
+- **Padded**: Section padded with `0x00` bytes to 4-byte boundary
+
+### Optional Section
+
+If the schema contains no descriptions, the section may be omitted entirely (indicated by `descriptionCount = 0` in the header). When omitted, all description index lookups return null.
+
+### Lazy Reading
+
+The reader supports skipping the descriptions section entirely via `readDescriptions = false` (the default). When skipped, the section bytes are advanced past using the byte count from the header, and all description index lookups return null. This avoids allocating description strings for callers that only need schema structure, improving decode speed and memory usage.
+
+### Usage in Definitions
+
+Description indices appear as a 32-bit word immediately after the name reference word in:
+- Directive definitions
+- Type definitions (all kinds)
+- Output fields (after the RefPlus word)
+- Input-like fields (after the RefPlus word)
+- Enum values (after the RefPlus word)
+
+---
+
+## Section 6: Simple Constants
 
 Simple constants represent scalar and enum constant values as kind-code-prefixed UTF-8 strings. These appear in default values and directive arguments.
 
@@ -378,7 +425,7 @@ Note: The encoder writes simple constants in lexicographic order (by kind-code-p
 
 ---
 
-## Section 6: Compound Constants
+## Section 7: Compound Constants
 
 Compound constants represent list and input object constant values. This section shares an index space with simple constants.
 
@@ -447,7 +494,7 @@ Note: The encoder writes compound constants in a manner that ensures determinist
 
 ---
 
-## Section 7: Type Expressions
+## Section 8: Type Expressions
 
 Type expressions describe the types of fields and arguments (e.g., `String`, `[Int]!`, `[[User!]]`). The section deduplicates type expressions - each unique type expression appears once.
 
@@ -527,7 +574,7 @@ Note: The encoder may order type expressions by usage frequency for determinstic
 ---
 
 
-## Section 8: Root Types
+## Section 9: Root Types
 
 The root types section identifies the query, mutation, and subscription root types. This is a fixed-size section of exactly 4 words (16 bytes).
 
@@ -559,7 +606,7 @@ Each word contains either:
 
 ---
 
-## Section 9: Definitions
+## Section 10: Definitions
 
 The definitions section encodes both directive definitions and type definitions. Each definition begins with a name reference word that identifies which definition is being encoded, allowing the decoder to match definition content with the corresponding stub regardless of ordering.
 
@@ -586,13 +633,16 @@ Each directive definition consists of (in order):
 - **Bits 0-19**: Identifier index for the directive name
 - **Bits 20-31**: Unused (must be zero)
 
-#### 2. RefPlus Word
+#### 2. Description Index Word
+- 32-bit integer: index into descriptions section (0 = no description)
+
+#### 3. RefPlus Word
 - **Bits 0-19**: Source location index
 - **Bit 29**: Always 0 (directives don't have `hasImplementedTypes`)
 - **Bit 30**: `hasAppliedDirectives` (false - directives can **not** be annotated with other directives according to graphql)
 - **Bit 31**: Always 1 (`END_OF_LIST_BIT` - directives aren't in lists)
 
-#### 3. Directive Info Word
+#### 4. Directive Info Word
 
 ```
 Bits    Field                 Description
@@ -605,15 +655,15 @@ Bits    Field                 Description
 
 **Location Bits**: For each `Directive.Location` enum value at ordinal `i`, bit `1 + i` indicates whether the directive is allowed at that location.
 
-#### 4. Arguments List (Optional)
+#### 5. Arguments List (Optional)
 Present only if `hasArguments` flag is set. Each argument uses input-like field encoding (see below).
 
 ### Type Definitions
 
-Each type definition begins with a **Name Reference Word**:
+Each type definition begins with a **Name Reference Word** followed by a **Description Index Word**:
 
-- **Bits 0-19**: Identifier index for the type name
-- **Bits 20-31**: Unused (must be zero)
+- **Name Reference Word**: Bits 0-19 = identifier index for the type name, bits 20-31 = unused (zero)
+- **Description Index Word**: 32-bit integer index into descriptions section (0 = no description)
 
 Type definitions are then structured around GraphQL's extension mechanism. Each type consists of:
 
@@ -660,7 +710,7 @@ This three-level structure is encoded using the same patterns throughout: RefPlu
 
 - Per-extension:
   - **Enum Values List**: Either `EMPTY_LIST_MARKER` or a list of enum values
-    - Each value: RefPlus (name, `hasAppliedDirectives`, continuation) + optional applied directives
+    - Each value: RefPlus (name, `hasAppliedDirectives`, continuation) + description index word + optional applied directives
 - No global lists
 
 **Input:**
@@ -707,9 +757,10 @@ Fields and arguments use a unified encoding pattern with a consolidated RefPlus 
 All field and argument encodings follow this structure:
 
 1. **RefPlus Word**: Encodes name (identifier index) + metadata flags
-2. **Applied Directives List** (optional): Present if `hasAppliedDirectives` flag set
-3. **Type Expression Index**: 32-bit word indexing the TypeExpr section
-4. **Context-Specific Extras**: Default value (input-like) and/or arguments list (output)
+2. **Description Index Word**: 32-bit index into descriptions section (0 = no description)
+3. **Applied Directives List** (optional): Present if `hasAppliedDirectives` flag set
+4. **Type Expression Index**: 32-bit word indexing the TypeExpr section
+5. **Context-Specific Extras**: Default value (input-like) and/or arguments list (output)
 
 The consolidated FieldRefPlus uses separate bits for different flags:
 - **FLAG_1_BIT** (bit 29) = `hasDefaultValue` - present on input-like fields (directive args, field args, input type fields)
@@ -736,13 +787,16 @@ Each input-like field:
 - **Bit 30**: `hasAppliedDirectives` (does this field/arg have directives?)
 - **Bit 31**: `END_OF_LIST_BIT` (list continuation)
 
-**2. Applied Directives List** (optional):
+**2. Description Index Word**:
+- 32-bit integer: index into descriptions section (0 = no description)
+
+**3. Applied Directives List** (optional):
 - Present if `hasAppliedDirectives` is set
 
-**3. Type Expression Index**:
+**4. Type Expression Index**:
 - 32-bit word: index into TypeExpr section
 
-**4. Constant Reference** (optional):
+**5. Constant Reference** (optional):
 - Present if `hasDefaultValue` is set
 - 32-bit word: index into combined constants space
 
@@ -763,15 +817,19 @@ Each output field:
 - **Bit 30**: `hasAppliedDirectives` (does this field have directives?)
 - **Bit 31**: `END_OF_LIST_BIT` (list continuation)
 
-**2. Applied Directives List** (optional):
+**2. Description Index Word**:
+
+- 32-bit integer: index into descriptions section (0 = no description)
+
+**3. Applied Directives List** (optional):
 
 - Present if `hasAppliedDirectives` is set
 
-**3. Type Expression Index**:
+**4. Type Expression Index**:
 
 - 32-bit word: index into TypeExpr section
 
-**4. Arguments List** (optional):
+**5. Arguments List** (optional):
 
 - Present if `hasArguments` is set
 - Each argument uses input-like field encoding
@@ -829,7 +887,7 @@ The decoder reconstructs omitted arguments using the directive definition:
 | Argument not explicitly specified, has no default, but is nullable | Null                       |
 | Other (required, no default)                                       | Nothing, key not defined   |
 
-**Note**: Since directives are encoded in topological order (see Section 9), the decoder is guaranteed to have access to any referenced directive definition when decoding applied directives. This allows argument omission optimization to work uniformly for all applied directives.
+**Note**: Since directives are encoded in topological order (see Section 10), the decoder is guaranteed to have access to any referenced directive definition when decoding applied directives. This allows argument omission optimization to work uniformly for all applied directives.
 
 ---
 
@@ -922,9 +980,11 @@ The format is designed for efficient three-phase decoding:
 3. Create empty "shell" objects for each definition
 
 ### Phase 2: Structure Building
-1. Read type expressions section (can reference shells by name)
-2. Read root types section
-3. Read definitions section:
+1. Read source locations section
+2. Read descriptions section
+3. Read type expressions section (can reference shells by name)
+4. Read root types section
+5. Read definitions section:
    - Populate directive definitions
    - Populate type definitions with their extensions, fields, etc.
    - Store constant references (indices) without resolving them yet
@@ -962,6 +1022,7 @@ Several sections require 4-byte alignment:
 
 - Identifiers section
 - Source Locations section
+- Descriptions section
 - Simple Constants section
 
 **Naturally Aligned** (no padding needed):
@@ -993,7 +1054,7 @@ The format imposes several limits:
 
 ## Validation and Invariants
 
-The file format maintains numerous invariants documented in `bschema-invariants.md`. Key categories:
+The file format maintains numerous invariants. Key categories:
 
 1. **Structural Invariants**: Correct counts, sizes, alignment
 2. **Reference Invariants**: All indices in bounds, point to correct types
@@ -1131,23 +1192,21 @@ The following bugs have been identified and corrected:
 
 ### Potential Future Enhancements
 
-1. **Documentation Metadata**: Additional sections for descriptions, deprecation reasons, etc., keyed by type/field coordinates
-2. **Identifier Trie**: Replace flat identifier array with a trie structure for more efficient lookups
-3. **Compression**: Add optional compression (the current format is already compact but not compressed)
-4. **Incremental Updates**: Support for schema deltas/patches
-5. **Schema Validation Metadata**: Pre-computed validation results for faster runtime checks
+1. **Identifier Trie**: Replace flat identifier array with a trie structure for more efficient lookups
+2. **Compression**: Add optional compression (the current format is already compact but not compressed)
+3. **Incremental Updates**: Support for schema deltas/patches
+4. **Schema Validation Metadata**: Pre-computed validation results for faster runtime checks
 
 ---
 
 ## References
 
 - `ViaductSchema.kt`: AST interface definition
-- `BSchemaWriter.kt`: Encoder implementation
-- `BSchemaReader.kt`: Decoder implementation
-- `constants.kt`: Bit field masks and constants
+- `BSchemaWriter.kt`: Encoder entry point (delegates to `SchemaEncoder.kt`, `DefinitionsEncoder.kt`, `ConstantsEncoder.kt`)
+- `BSchemaReader.kt`: Decoder entry point (delegates to `DefinitionsDecoder.kt`, etc.)
+- `const.kt`: Bit field masks and constants
 - `RefPlus.kt`: RefPlus encoding utilities
-- `bschema-invariants.md`: Comprehensive invariant documentation
-- `binary-encoding.md`: Original encoding specification
+- `binary-encoding.md`: This document (encoding specification)
 
 ---
 

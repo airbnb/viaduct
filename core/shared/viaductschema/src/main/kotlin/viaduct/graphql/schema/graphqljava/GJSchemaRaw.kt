@@ -216,11 +216,11 @@ internal fun gjSchemaRawFromRegistry(
             when (def) {
                 is EnumTypeDefinition -> {
                     val enumDef = types[def.name] as SchemaWithData.Enum
-                    enumDef.populate(decoder.createEnumExtensions(enumDef))
+                    enumDef.populate(decoder.createEnumExtensions(enumDef), def.description?.content)
                 }
                 is InputObjectTypeDefinition -> {
                     val inputDef = types[def.name] as SchemaWithData.Input
-                    inputDef.populate(decoder.createInputExtensions(inputDef))
+                    inputDef.populate(decoder.createInputExtensions(inputDef), def.description?.content)
                 }
                 is InterfaceTypeDefinition -> {
                     val interfaceDef = types[def.name] as SchemaWithData.Interface
@@ -228,24 +228,25 @@ internal fun gjSchemaRawFromRegistry(
                         .filterIsInstance<ObjectTypeDefinition>()
                         .map { types[it.name] as SchemaWithData.Object }
                         .toSet()
-                    interfaceDef.populate(decoder.createInterfaceExtensions(interfaceDef), possibleObjectTypes)
+                    interfaceDef.populate(decoder.createInterfaceExtensions(interfaceDef), possibleObjectTypes, def.description?.content)
                 }
                 is ObjectTypeDefinition -> {
                     if (def.name != ViaductSchema.VIADUCT_IGNORE_SYMBOL) {
                         val objectDef = types[def.name] as SchemaWithData.Object
                         val unions = (unionsMap[def.name] ?: emptySet()).map { types[it] as SchemaWithData.Union }
-                        objectDef.populate(decoder.createObjectExtensions(objectDef), unions)
+                        objectDef.populate(decoder.createObjectExtensions(objectDef), unions, def.description?.content)
                     }
                 }
                 is UnionTypeDefinition -> {
                     val unionDef = types[def.name] as SchemaWithData.Union
-                    unionDef.populate(decoder.createUnionExtensions(unionDef))
+                    unionDef.populate(decoder.createUnionExtensions(unionDef), def.description?.content)
                 }
             }
         }
         registry.scalars().values.forEach { def ->
             val scalarDef = types[def.name] as SchemaWithData.Scalar
-            scalarDef.populate(decoder.createScalarExtensions(scalarDef))
+            val scalarTypeDef = def as ScalarTypeDefinition
+            scalarDef.populate(decoder.createScalarExtensions(scalarDef), scalarTypeDef.description?.content)
         }
 
         directives.values.forEach { directive ->

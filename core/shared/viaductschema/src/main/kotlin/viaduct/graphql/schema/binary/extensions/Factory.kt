@@ -13,17 +13,27 @@ import viaduct.graphql.schema.binary.writeBSchema
  * Reads a binary-encoded schema from the file.
  *
  * @param file The file containing the binary schema data
+ * @param readDescriptions Whether to read description strings. When false (the default),
+ *   descriptions are skipped for faster decoding and lower memory usage.
  * @return A ViaductSchema representation of the binary schema
  */
-fun ViaductSchema.Companion.fromBinaryFile(file: File): ViaductSchema = FileInputStream(file).use { readBSchema(it) }
+fun ViaductSchema.Companion.fromBinaryFile(
+    file: File,
+    readDescriptions: Boolean = false
+): ViaductSchema = FileInputStream(file).use { readBSchema(it, readDescriptions) }
 
 /**
  * Reads a binary-encoded schema from the input stream.
  *
  * @param input The input stream containing the binary schema data
+ * @param readDescriptions Whether to read description strings. When false (the default),
+ *   descriptions are skipped for faster decoding and lower memory usage.
  * @return A ViaductSchema representation of the binary schema
  */
-fun ViaductSchema.Companion.fromBinaryFile(input: InputStream): ViaductSchema = readBSchema(input)
+fun ViaductSchema.Companion.fromBinaryFile(
+    input: InputStream,
+    readDescriptions: Boolean = false
+): ViaductSchema = readBSchema(input, readDescriptions)
 
 /**
  * Writes this schema to a binary file.

@@ -379,4 +379,42 @@ class SchemaApiTest {
         assertNull(bschema.mutationTypeDef)
         assertNull(bschema.subscriptionTypeDef)
     }
+
+    @Test
+    fun `readDescriptions=false skips descriptions and returns null`() {
+        val sdl = """
+            ${"\"\"\""}A documented type${"\"\"\""}
+            type Query {
+                ${"\"\"\""}A documented field${"\"\"\""}
+                foo: String
+            }
+            enum Status {
+                ${"\"\"\""}Active status${"\"\"\""}
+                ACTIVE
+                INACTIVE
+            }
+        """.trimIndent()
+
+        val schema = run {
+            val tdr = SchemaParser().parse("$builtins\n$sdl")
+            ViaductSchema.fromTypeDefinitionRegistry(tdr)
+        }
+
+        val tmp = ByteArrayOutputStream()
+        schema.toBinaryFile(tmp)
+        val bytes = tmp.toByteArray()
+
+        // With readDescriptions=false (the default), descriptions are null
+        val noDesc = ViaductSchema.fromBinaryFile(ByteArrayInputStream(bytes))
+        assertNull(noDesc.types["Query"]!!.description)
+        assertNull((noDesc.types["Query"] as ViaductSchema.Record).field("foo")!!.description)
+        assertNull((noDesc.types["Status"] as ViaductSchema.Enum).value("ACTIVE")!!.description)
+
+        // With readDescriptions=true, descriptions are preserved
+        val withDesc = ViaductSchema.fromBinaryFile(ByteArrayInputStream(bytes), readDescriptions = true)
+        assertEquals("A documented type", withDesc.types["Query"]!!.description)
+        assertEquals("A documented field", (withDesc.types["Query"] as ViaductSchema.Record).field("foo")!!.description)
+        assertEquals("Active status", (withDesc.types["Status"] as ViaductSchema.Enum).value("ACTIVE")!!.description)
+        assertNull((withDesc.types["Status"] as ViaductSchema.Enum).value("INACTIVE")!!.description)
+    }
 }

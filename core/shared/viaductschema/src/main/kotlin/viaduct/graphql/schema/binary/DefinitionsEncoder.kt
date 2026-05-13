@@ -23,6 +23,9 @@ private fun SchemaEncoder.encodeDirective(directive: ViaductSchema.Directive) {
     // Write name reference (identifier index with high bits unused)
     out.writeInt(schemaInfo.identifierIndex(directive.name))
 
+    // Write description index
+    out.writeInt(schemaInfo.descriptionIndex(directive.description))
+
     // Write RefPlus (source location index, no hasImplementedTypes for directives)
     val sourceName = directive.sourceLocation?.sourceName
     val refPlus = DefinitionRefPlus(schemaInfo.sourceNameIndex(sourceName))
@@ -43,6 +46,9 @@ private fun SchemaEncoder.encodeDirective(directive: ViaductSchema.Directive) {
 private fun SchemaEncoder.encodeTypeDef(td: ViaductSchema.TypeDef) {
     // Write name reference (identifier index with high bits unused)
     out.writeInt(schemaInfo.identifierIndex(td.name))
+
+    // Write description index
+    out.writeInt(schemaInfo.descriptionIndex(td.description))
 
     when (td) {
         is ViaductSchema.Enum -> {
@@ -275,7 +281,8 @@ private fun SchemaEncoder.encodeInputLikeField(
     hasDefault: Boolean,
     defaultValue: Any?,
     hasNext: Boolean,
-    appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>> = emptyList()
+    appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>> = emptyList(),
+    description: String? = null
 ) {
     val hasAppliedDirs = appliedDirectives.isNotEmpty()
     val refPlus = InputLikeFieldRefPlus(
@@ -285,6 +292,7 @@ private fun SchemaEncoder.encodeInputLikeField(
         hasNext = hasNext
     )
     out.writeInt(refPlus.word)
+    out.writeInt(schemaInfo.descriptionIndex(description))
     if (hasAppliedDirs) {
         encodeAppliedDirectives(appliedDirectives)
     }
@@ -305,7 +313,8 @@ private fun SchemaEncoder.encodeArgs(args: Iterable<ViaductSchema.Arg>) {
             arg.hasDefault,
             arg.defaultValueRepr(),
             hasNext,
-            arg.appliedDirectives
+            arg.appliedDirectives,
+            arg.description
         )
     }
 }
@@ -316,7 +325,7 @@ private fun SchemaEncoder.encodeArgs(args: Iterable<ViaductSchema.Arg>) {
  */
 private fun SchemaEncoder.encodeInputFields(fields: Iterable<ViaductSchema.Field>) {
     fields.encode { field, hasNext ->
-        encodeInputLikeField(field.name, field.type, field.hasDefault, field.defaultValueRepr(), hasNext, field.appliedDirectives)
+        encodeInputLikeField(field.name, field.type, field.hasDefault, field.defaultValueRepr(), hasNext, field.appliedDirectives, field.description)
     }
 }
 
@@ -334,6 +343,7 @@ private fun SchemaEncoder.encodeEnumValuesOrMarker(values: Iterable<ViaductSchem
                 hasNext
             )
             out.writeInt(refPlus.word)
+            out.writeInt(schemaInfo.descriptionIndex(v.description))
             if (hasAppliedDirs) {
                 encodeAppliedDirectives(v.appliedDirectives)
             }
@@ -356,6 +366,7 @@ private fun SchemaEncoder.encodeFields(fields: Iterable<ViaductSchema.Field>) {
             hasNext = hasNext
         )
         out.writeInt(refPlus.word)
+        out.writeInt(schemaInfo.descriptionIndex(field.description))
         if (hasAppliedDirs) {
             encodeAppliedDirectives(field.appliedDirectives)
         }

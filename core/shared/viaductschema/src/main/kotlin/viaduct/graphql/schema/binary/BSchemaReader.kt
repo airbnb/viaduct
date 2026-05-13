@@ -8,9 +8,15 @@ import viaduct.graphql.schema.ViaductSchema
  * Reads a binary-encoded schema from the input stream.
  *
  * @param input The input stream containing the binary schema data
+ * @param readDescriptions Whether to read description strings. When false (the default),
+ *   the descriptions section is skipped and all description properties will be null.
+ *   This saves memory and decode time for callers that don't need descriptions.
  * @return A ViaductSchema representation of the binary schema
  */
-internal fun readBSchema(input: InputStream): SchemaWithData {
+internal fun readBSchema(
+    input: InputStream,
+    readDescriptions: Boolean = false
+): SchemaWithData {
     return BInputStream(input, MAX_STRING_LEN).use { data ->
         val schema = SchemaWithData()
 
@@ -20,11 +26,16 @@ internal fun readBSchema(input: InputStream): SchemaWithData {
         // Decode sections
         val identifiers = IdentifiersDecoder.fromFile(data, header, schema)
         val sourceLocations = SourceLocationsDecoder(data, header)
+        val descriptions = if (readDescriptions) {
+            DescriptionsDecoder(data, header)
+        } else {
+            DescriptionsDecoder.skip(data, header)
+        }
         val constants = ConstantsDecoder.fromFile(data, header, identifiers)
         val types = TypeExpressionsDecoder(data, header, identifiers)
 
         // Decode definitions
-        val definitions = DefinitionsDecoder(data, identifiers, types, sourceLocations, constants)
+        val definitions = DefinitionsDecoder(data, identifiers, types, sourceLocations, descriptions, constants)
 
         schema.populate(
             identifiers.directives,
@@ -106,6 +117,60 @@ internal class IdentifiersDecoder(
      * in which case return `null`.
      */
     fun getRootName(idx: Int): String? = if (idx == UNDEFINED_ROOT_MARKER) null else get(idx)
+}
+
+/**
+ * Reads the descriptions section.
+ *
+ * This class reads all description strings and provides indexed access.
+ * Index 0 always returns null (representing no description).
+ */
+internal class DescriptionsDecoder private constructor(private val descriptions: Array<String?>?) {
+    constructor(data: BInputStream, header: HeaderSection) : this(readDescriptions(data, header))
+
+    /** Get description by index. Index 0 always returns null. Returns null when descriptions were skipped. */
+    fun get(index: Int): String? {
+        if (descriptions == null) return null
+        if (index >= descriptions.size) {
+            throw InvalidFileFormatException(
+                "Description index $index out of range (table size: ${descriptions.size})"
+            )
+        }
+        return descriptions[index]
+    }
+
+    companion object {
+        private fun readDescriptions(
+            data: BInputStream,
+            header: HeaderSection
+        ): Array<String?> {
+            if (header.descriptionCount == 0) {
+                return arrayOf(null)
+            }
+            data.validateMagicNumber(MAGIC_DESCRIPTIONS, "descriptions")
+            data.read() // Skip null placeholder (single 0 byte)
+            val result = Array<String?>(header.descriptionCount) { idx ->
+                if (idx == 0) null else data.readUTF8String()
+            }
+            data.skipPadding()
+            return result
+        }
+
+        fun skip(
+            data: BInputStream,
+            header: HeaderSection
+        ): DescriptionsDecoder {
+            if (header.descriptionCount > 0) {
+                data.validateMagicNumber(MAGIC_DESCRIPTIONS, "descriptions")
+                // descriptionBytes includes the magic number, so skip the remainder
+                data.skipBytes(header.descriptionBytes - WORD_SIZE)
+                data.skipPadding()
+            }
+            return DescriptionsDecoder(null)
+        }
+
+        fun forTesting(descriptions: Array<String?>): DescriptionsDecoder = DescriptionsDecoder(descriptions)
+    }
 }
 
 /**

@@ -37,7 +37,7 @@ internal fun checkRoundTrip(
     expectedSchema.toBinaryFile(tmp)
 
     val bfile = ByteArrayInputStream(tmp.toByteArray())
-    val actual = ViaductSchema.fromBinaryFile(bfile)
+    val actual = ViaductSchema.fromBinaryFile(bfile, readDescriptions = true)
 
     // Check invariants on decoded schema
     checkViaductSchemaInvariants(actual, checker)
