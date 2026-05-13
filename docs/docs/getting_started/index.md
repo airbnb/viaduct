@@ -11,8 +11,9 @@ The fastest way to try Viaduct is the standalone [`ktor-starter`](https://github
 
 Before you start, make sure you have:
 
-- Java JDK 21 or newer
+- Java JDK 17 or newer
 - Git
+- Linux or Mac (Windows support coming soon)
 
 Then clone the starter:
 

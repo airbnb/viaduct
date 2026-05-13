@@ -9,6 +9,7 @@ description: Set up your first Viaduct application
 - Java 17+
 - `git`
 - Basic familiarity with GraphQL (see [GraphQL Foundation learning materials](https://graphql.org/learn/))
+- Linux or Mac (Windows support coming soon)
 
 ## Compatibility
 

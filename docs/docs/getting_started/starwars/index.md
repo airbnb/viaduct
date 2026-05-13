@@ -11,6 +11,7 @@ complex data relationships, advanced resolver patterns, and sophisticated schema
 
 - Java 17+ and `git` (see [Project Setup](../setup/index.md) for the full compatibility matrix).
 - A clone of [github.com/viaduct-dev/starwars](https://github.com/viaduct-dev/starwars). Read the repo's README for any framework-specific setup steps.
+- Linux or Mac (Windows support coming soon)
 
 ## What you'll find
 
