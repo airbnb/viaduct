@@ -4,7 +4,7 @@ import com.example.viadapp.resolvers.resolverbases.QueryResolvers
 import viaduct.api.resolver.Resolver
 
 @Resolver
-class HelloWorldResolver : QueryResolvers.Greeting() {
+class GreetingResolver : QueryResolvers.Greeting() {
     override suspend fun resolve(ctx: Context) = "Hello, World!"
 }
 

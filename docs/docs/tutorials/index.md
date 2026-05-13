@@ -1,12 +1,12 @@
 ---
-title: Tutorials
-description: Step-by-step guides to using Viaduct
+title: Worked Examples
+description: Step-by-step examples for learning Viaduct patterns
 ---
 
 
-## Tutorials
+## Worked Examples
 
-These step-by-step guides will teach you how to build powerful GraphQL APIs with minimal code.
+These step-by-step examples will teach you how to build powerful GraphQL APIs with minimal code.
 
 ### How It Works:
 
@@ -18,9 +18,9 @@ These step-by-step guides will teach you how to build powerful GraphQL APIs with
 
 4. **Get a working API** - Type-safe, performant GraphQL server
 
-### Tutorial Path
+### Example Path
 
-Follow these tutorials in order to master Viaduct's resolver patterns. The complete set of feature-app tutorials lives in [`core/tenant/tutorials/src/test/kotlin/viaduct/tenant`](https://github.com/airbnb/viaduct/tree/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant); the entries below are the curated path we recommend working through first.
+Follow these examples in order to master Viaduct's resolver patterns. The complete set of feature-app tutorials lives in [`core/tenant/tutorials/src/test/kotlin/viaduct/tenant`](https://github.com/airbnb/viaduct/tree/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant); the entries below are the curated path we recommend working through first.
 
 #### [Field Resolver Tutorial](https://github.com/airbnb/viaduct/blob/main/core/tenant/tutorials/src/test/kotlin/viaduct/tenant/tutorial01/SimpleFieldResolverFeatureAppTest.kt)
 
@@ -74,7 +74,7 @@ Execute subqueries against the Query and Mutation roots from inside a resolver.
 
 - **Why it matters**: Enables resolvers to fetch related data that isn't known at query planning time
 
-### Key Concepts Across All Tutorials
+### Key Concepts Across These Examples
 
 #### The `@resolver` Directive
 

@@ -40,6 +40,31 @@ private val viaduct by lazy {
 
 fun Application.configureRouting() {
     routing {
+        route("/graphql") {
+            post { // Extract GraphQL operation from HTTP request and pass to Viaduct for execution
+                @Suppress("UNCHECKED_CAST")
+                val request = call.receive<Map<String, Any?>>() as Map<String, Any>
+
+                val query = request["query"] as? String
+                if (query == null) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf("errors" to listOf(mapOf("message" to "Query parameter is required and must be a string")))
+                    )
+                    return@post
+                }
+
+                @Suppress("UNCHECKED_CAST")
+                val executionInput = ExecutionInput.create(
+                    operationText = query,
+                    variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
+                )
+
+                val result: ExecutionResult = viaduct.executeAsync(executionInput).await()
+                call.respond(result.toSpecification())
+            }
+        }
+
         get("/graphiql") {
             call.respondText(graphiQLHtml(ktorStarterGraphiQLConfig), ContentType.Text.Html)
         }
@@ -71,48 +96,6 @@ fun Application.configureRouting() {
                 }
 
                 call.respondText(resource.readText(), ContentType.Text.JavaScript)
-            }
-        }
-
-        route("/graphql") {
-            post {
-                @Suppress("UNCHECKED_CAST")
-                val request = call.receive<Map<String, Any?>>() as Map<String, Any>
-
-                // Validate query parameter
-                val query = request["query"] as? String
-                if (query == null) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        mapOf("errors" to listOf(mapOf("message" to "Query parameter is required and must be a string")))
-                    )
-                    return@post
-                }
-
-                @Suppress("UNCHECKED_CAST")
-                val executionInput = ExecutionInput.create(
-                    operationText = query,
-                    variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
-                )
-
-                val result: ExecutionResult = viaduct.executeAsync(executionInput).await()
-
-                when {
-                    // This handles the introspection query returning the GraphQL Schema
-                    request["operationName"] == "IntrospectionQuery" -> {
-                        @Suppress("UNCHECKED_CAST")
-                        val data = result.getData() as Map<String, Any>
-                        call.respond(HttpStatusCode.OK, mapOf("data" to data))
-                    }
-
-                    else -> {
-                        val statusCode = when {
-                            result.errors.isNotEmpty() -> HttpStatusCode.BadRequest
-                            else -> HttpStatusCode.OK
-                        }
-                        call.respond(statusCode, result.toSpecification())
-                    }
-                }
             }
         }
     }
