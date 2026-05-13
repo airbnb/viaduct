@@ -29,6 +29,13 @@ class RequiredSelectionSet(
     }
 }
 
+/**
+ * Thrown when a [RequiredSelectionSet] contains variable references that are not covered by any
+ * of its [VariablesResolver]s.
+ *
+ * The [message] property lists the unbound variable names and prints the selection set text to
+ * help the developer identify which fragment declaration is missing a variable binding.
+ */
 class UnboundVariablesException(selections: ParsedSelections, missing: Set<String>) : Exception() {
     override val message: String by lazy {
         val selectionsStr = AstPrinter.printAst(selections.selections)

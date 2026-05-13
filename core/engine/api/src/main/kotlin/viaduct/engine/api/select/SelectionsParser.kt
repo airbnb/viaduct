@@ -9,6 +9,16 @@ import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.SelectionsParserUtils
 
+/**
+ * Parses GraphQL selection-set representations into [viaduct.graphql.utils.ParsedSelections].
+ *
+ * Provides three entry points:
+ * - [parse] from a [Fragment] — extracts the fragment definition's selection set directly.
+ * - [parse] from a type name and a `@[Selections]` string — handles both shorthand and full
+ *   fragment forms, caching the underlying parse via [CachedDocumentParser].
+ * - [fromDataFetchingEnvironment] — reconstructs the active selection set for a field from the
+ *   GraphQL-Java [graphql.schema.DataFetchingEnvironment] during execution.
+ */
 object SelectionsParser {
     /** Return a [ParsedSelections] from the provided [Fragment] */
     fun parse(fragment: Fragment): ParsedSelections =

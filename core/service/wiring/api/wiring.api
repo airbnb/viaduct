@@ -28,7 +28,17 @@ public final class viaduct/service/ViaductBuilder {
 	public final fun withTenantModuleBootstrapper (Lviaduct/service/api/spi/TenantModuleBootstrapper;)Lviaduct/service/ViaductBuilder;
 }
 
+public final class viaduct/service/wiring/graphiql/GraphiQLHtmlConfig {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getDefaultQuery ()Ljava/lang/String;
+	public final fun getStorageKey ()Ljava/lang/String;
+	public final fun getTitle ()Ljava/lang/String;
+}
+
 public final class viaduct/service/wiring/graphiql/GraphiQLHtmlKt {
 	public static final fun graphiQLHtml ()Ljava/lang/String;
+	public static final fun graphiQLHtml (Lviaduct/service/wiring/graphiql/GraphiQLHtmlConfig;)Ljava/lang/String;
 }
 

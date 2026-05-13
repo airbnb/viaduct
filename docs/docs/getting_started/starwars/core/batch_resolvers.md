@@ -44,7 +44,7 @@ example, `name` for formatting), add them here so they are available on `ctx.obj
 ## Implementing batch resolvers in node resolvers
 
 Node resolvers can also be batched by declaring `@resolver(isBatching: true)` on the type. The pattern is similar,
-but you receive a list of `GlobalID`s instead of `Context`s. You can use `GlobalID.toInternalID()` to extract your
+but you receive a list of `GlobalID`s instead of `Context`s. You can use `GlobalID.internalID` to extract your
 internal ID
 
 
@@ -96,5 +96,4 @@ query {
 - **Don’t** allocate large intermediate structures unnecessarily — map directly back to contexts.
 
 > See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
-
-
+> For the complete batch-resolution API and advanced strategies, see the [Batch Resolution developer reference](../../../docs/developers/resolvers/batch_resolution.md).

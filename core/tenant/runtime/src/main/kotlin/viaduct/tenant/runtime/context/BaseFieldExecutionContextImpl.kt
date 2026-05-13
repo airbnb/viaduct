@@ -35,7 +35,6 @@ sealed class BaseFieldExecutionContextImpl<Q : Query, A : Arguments, R : Composi
     private val selectionSet: SelectionSet<R>,
     override val requestContext: Any?,
     override val arguments: A,
-    private val queryValue: Q,
     private val syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     private val queryCls: KClass<Q>,
 ) : BaseFieldExecutionContext<Q, A, R>,

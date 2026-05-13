@@ -40,7 +40,7 @@ class BatchResolverExecutorTest {
         val resolver = NonListFieldBatchResolver()
         val resolverContextFactory = mockk<FieldExecutionContextFactory>()
         every {
-            resolverContextFactory.invoke(any(), any(), any(), any(), any(), any(), any(), any())
+            resolverContextFactory.invoke(any(), any(), any(), any(), any(), any())
         } returns mockk(relaxed = true)
 
         val executor = FieldBatchResolverExecutorImpl(

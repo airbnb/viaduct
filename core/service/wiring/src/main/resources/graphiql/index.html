@@ -15,7 +15,8 @@
  *  - Changed endpoint from demo URL to "/graphql"
  *  - Added global-id-plugin.jsx for encoding/decoding Viaduct Global IDs
  *  - Modified initialization to load plugins asynchronously
- *  - Added custom default query with usage instructions
+ *  - Added configurable title, storage key, and default query support
+ *  - Added Viaduct favicon (favicon.svg / favicon.ico)
 -->
 <!doctype html>
 <html lang="en">
@@ -23,6 +24,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GraphiQL - Viaduct</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <style>
       body {
         margin: 0;
@@ -85,6 +88,13 @@
       const fetcher = createGraphiQLFetcher({
         url: '/graphql',
       });
+      const graphiQLConfig = /* VIADUCT_GRAPHIQL_CONFIG_START */ {
+        title: "GraphiQL - Viaduct",
+        defaultQuery: "# Welcome to Viaduct GraphiQL!\n#\n# Start typing your GraphQL query here.\n# Press Ctrl+Space for autocomplete.\n# Click the Docs button to explore the schema.\n# Use the Global ID Utils plugin (key icon) to encode/decode Viaduct Global IDs.\n\nquery {\n  # Your query here\n}\n",
+        storageKey: window.location.origin,
+      } /* VIADUCT_GRAPHIQL_CONFIG_END */;
+      document.title = graphiQLConfig.title;
+
       // Load Viaduct plugins asynchronously
       async function loadPlugins() {
         try {
@@ -101,24 +111,14 @@
       async function initGraphiQL() {
         const plugins = await loadPlugins();
         const explorer = plugins.find(p => p.title === 'Explorer');
-        const defaultQuery = `# Welcome to Viaduct GraphiQL!
-#
-# Start typing your GraphQL query here.
-# Press Ctrl+Space for autocomplete.
-# Click the Docs button to explore the schema.
-# Use the Global ID Utils plugin (key icon) to encode/decode Viaduct Global IDs.
-
-query {
-  # Your query here
-}
-`;
 
         function App() {
           return React.createElement(GraphiQL, {
             fetcher,
             plugins,
             visiblePlugin: explorer,
-            defaultQuery,
+            defaultQuery: graphiQLConfig.defaultQuery,
+            storageKey: graphiQLConfig.storageKey,
             defaultEditorToolsVisibility: true,
           });
         }

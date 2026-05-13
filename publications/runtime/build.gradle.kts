@@ -27,6 +27,7 @@ dependencies {
     api(libs.graphql.java)
     api(libs.guice)
     api(libs.javax.inject)
+    compileOnly(libs.slf4j.api)
 }
 
 // Create shaded jar for publishing (fat jar with all dependencies).

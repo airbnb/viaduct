@@ -4,9 +4,11 @@ import com.example.viadapp.JettyViaductApp
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.assertions.json.shouldEqualJson
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import java.net.ServerSocket
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.LockSupport
+import org.apache.hc.client5.http.classic.methods.HttpGet
 import org.apache.hc.client5.http.classic.methods.HttpPost
 import org.apache.hc.client5.http.impl.classic.HttpClients
 import org.apache.hc.core5.http.ContentType
@@ -86,6 +88,40 @@ class HelloWorldTest {
             val responseBody = response.entity.content.bufferedReader().readText()
             Pair(statusCode, responseBody)
         }
+    }
+
+    private fun sendGetRequest(path: String): Pair<Int, String> {
+        val httpClient = HttpClients.createDefault()
+        val request = HttpGet("http://localhost:$port$path")
+
+        return httpClient.execute(request) { response ->
+            val statusCode = response.code
+            val responseBody = response.entity.content.bufferedReader().readText()
+            Pair(statusCode, responseBody)
+        }
+    }
+
+    @Test
+    fun `GraphiQL uses Jetty starter default query and storage key`() {
+        val (statusCode, responseBody) = sendGetRequest("/graphiql")
+
+        statusCode shouldBe 200
+        responseBody shouldContain "GraphiQL - Viaduct Jetty Starter"
+        responseBody shouldContain "query HelloWorld"
+        responseBody shouldContain "greeting"
+        responseBody shouldContain "author"
+        responseBody shouldContain "jetty-starter"
+    }
+
+    @Test
+    fun `GraphiQL JavaScript resources are served`() {
+        val (jsxLoaderStatus, jsxLoaderBody) = sendGetRequest("/js/jsx-loader.js")
+        val (globalIdStatus, globalIdBody) = sendGetRequest("/js/global-id-plugin.jsx")
+
+        jsxLoaderStatus shouldBe 200
+        jsxLoaderBody shouldContain "loadJSX"
+        globalIdStatus shouldBe 200
+        globalIdBody shouldContain "createGlobalIdPlugin"
     }
 
     @Test

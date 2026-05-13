@@ -2,7 +2,6 @@ package com.example.starwars.modules.filmography.films.resolvers
 
 import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.films.models.FilmCastData
-import jakarta.inject.Inject
 import viaduct.api.resolver.Resolver
 
 /**
@@ -22,12 +21,10 @@ import viaduct.api.resolver.Resolver
     }
     """
 )
-class FilmCharacterCountSummaryResolver
-    @Inject
-    constructor() : FilmResolvers.CharacterCountSummary() {
-        override suspend fun resolve(ctx: Context): String? {
-            val film = ctx.getObjectValue()
-            val castData = film.get<FilmCastData>("castData", FilmCastData::class)
-            return "${film.getTitle()} features ${castData.characterIds.size} main characters"
-        }
+class FilmCharacterCountSummaryResolver : FilmResolvers.CharacterCountSummary() {
+    override suspend fun resolve(ctx: Context): String? {
+        val film = ctx.getObjectValue()
+        val castData = film.get<FilmCastData>("castData", FilmCastData::class)
+        return "${film.getTitle()} features ${castData.characterIds.size} main characters"
     }
+}

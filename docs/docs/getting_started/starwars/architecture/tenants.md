@@ -94,4 +94,4 @@ See the **Schemas** and **Scope** pages for runtime selection and visibility rul
 - **Resolvers** implementing the domain’s behavior (`queryresolvers`, `fieldresolvers`, `batchresolvers`, `mutations`).
 - **Tests** providing integration coverage for the module’s surface.
 
-
+> For the full multi-tenancy model — how tenant modules register schemas and resolvers in a shared Viaduct instance — see the [Multi-tenancy service engineer docs](../../../docs/service_engineers/multi_tenancy/index.md).

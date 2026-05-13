@@ -74,4 +74,6 @@ already validated and decoded by Viaduct.
 - Use `@idOf` on the ID branch so the resolver receives a **typed** and **decoded** internal ID.
 - Return `null` for “not found” results; keep exceptions for unexpected failures.
 
+> For the full built-in directive reference including `@oneOf`, `@resolver`, `@scope`, and `@idOf`, see the [Schema Reference developer docs](../../../docs/developers/schema_reference/index.md).
+
 

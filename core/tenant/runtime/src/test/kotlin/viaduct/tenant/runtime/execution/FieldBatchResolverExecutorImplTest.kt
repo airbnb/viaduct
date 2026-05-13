@@ -32,7 +32,7 @@ class FieldBatchResolverExecutorImplTest {
     private val resolverContext = mockk<BaseFieldExecutionContext<*, *, *>>()
     private val resolverContextFactory = mockk<FieldExecutionContextFactory> {
         every {
-            this@mockk.invoke(any(), any(), any(), any(), any(), any(), any(), any())
+            this@mockk.invoke(any(), any(), any(), any(), any(), any())
         } returns resolverContext
     }
     private val engineExecutionContext = mockk<EngineExecutionContext> {

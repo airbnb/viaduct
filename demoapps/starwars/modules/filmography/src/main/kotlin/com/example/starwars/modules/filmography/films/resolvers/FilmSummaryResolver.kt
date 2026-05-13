@@ -1,7 +1,6 @@
 package com.example.starwars.modules.filmography.films.resolvers
 
 import com.example.starwars.filmography.resolverbases.FilmResolvers
-import jakarta.inject.Inject
 import viaduct.api.resolver.Resolver
 
 /**
@@ -11,14 +10,12 @@ import viaduct.api.resolver.Resolver
  *
  * @resolver("title episodeID director"): Fragment syntax for accessing multiple fields
  */
-// tag::resolver_example[9] Example of a computed field resolver
+// tag::resolver_example[10] Example of a computed field resolver
 @Resolver("title episodeID director")
-class FilmSummaryResolver
-    @Inject
-    constructor() : FilmResolvers.Summary() {
-        override suspend fun resolve(ctx: Context): String? {
-            // Access the source Film from the context
-            val film = ctx.getObjectValue()
-            return "Episode ${film.getEpisodeID()}: ${film.getTitle()} (Directed by ${film.getDirector()})"
-        }
+class FilmSummaryResolver : FilmResolvers.Summary() {
+    override suspend fun resolve(ctx: Context): String? {
+        // Access the source Film from the context
+        val film = ctx.getObjectValue()
+        return "Episode ${film.getEpisodeID()}: ${film.getTitle()} (Directed by ${film.getDirector()})"
     }
+}

@@ -48,6 +48,13 @@ private class EmptyPrebakedResults<T : CompositeOutput> : PrebakedResults<T> {
     }
 }
 
+/**
+ * Minimal [NodeEngineObjectData] for use in tests.
+ *
+ * Only the `"id"` field is supported; any other field selection throws
+ * [UnsupportedOperationException]. Useful as a lightweight stand-in when a resolved node
+ * object needs to be represented without a full engine pipeline.
+ */
 class MockNodeEngineObjectData(
     override val id: String,
     override val type: GraphQLObjectType,
@@ -91,6 +98,13 @@ val InternalContext.resolverExecutionContext: ResolverExecutionContext<Query>
     get() =
         this as? ResolverExecutionContext<Query> ?: MockResolverExecutionContext<Query>(this)
 
+/**
+ * Test-only [InternalContext] backed by explicit dependencies.
+ *
+ * Allows tests to supply a [ViaductSchema], an optional [GlobalIDCodec], an optional
+ * [ReflectionLoader], and an optional [GRTConvFactory] without requiring a full Viaduct
+ * service stack. Use [Companion.create] to construct one from a schema and a GRT package name.
+ */
 @OptIn(InternalApi::class)
 class MockInternalContext(
     override val schema: ViaductSchema,
@@ -114,6 +128,13 @@ class MockInternalContext(
     }
 }
 
+/**
+ * Test-only [ExecutionContext] that wraps a [MockInternalContext].
+ *
+ * Provides a concrete [ExecutionContext] for tests that need to call resolver code without a
+ * running engine. [globalIDFor] returns a plain [GlobalID] with no encoding. Use
+ * [Companion.create] to build an instance from an optional [ViaductSchema].
+ */
 @OptIn(InternalApi::class)
 open class MockExecutionContext(
     internalContext: InternalContext,
@@ -134,6 +155,14 @@ open class MockExecutionContext(
     }
 }
 
+/**
+ * Test-only [ResolverExecutionContext] that extends [MockExecutionContext] with query and node
+ * resolution support.
+ *
+ * Optionally accepts [queryResults] (a [PrebakedResults] provider) and a [selectionSetFactory]
+ * so that tests can control what [query] returns without invoking the engine. If [queryResults]
+ * is omitted, calls to [query] throw. Use [Companion.create] for the common minimal case.
+ */
 @OptIn(InternalApi::class)
 open class MockResolverExecutionContext<Q : Query>(
     internalContext: InternalContext,
@@ -199,6 +228,14 @@ open class MockResolverExecutionContext<Q : Query>(
     }
 }
 
+/**
+ * Test-only [FieldExecutionContext] carrying pre-built object, query, argument, and selection-set
+ * values.
+ *
+ * Allows unit tests to drive field-resolver logic directly by supplying all context values
+ * explicitly. [getObjectValue] and [getQueryValue] return the provided values synchronously;
+ * [selections] returns the provided [SelectionSet].
+ */
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 @OptIn(InternalApi::class)
 class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : CompositeOutput>(
@@ -221,6 +258,13 @@ class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
     override suspend fun getQueryValue(): Q = queryValue
 }
 
+/**
+ * Test-only [ConnectionFieldExecutionContext] carrying pre-built object, query, connection
+ * arguments, and selection-set values.
+ *
+ * The connection-field variant of [MockFieldExecutionContext], used when the field under test
+ * returns a Relay connection type.
+ */
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 @OptIn(InternalApi::class)
 class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionArguments, R : Connection<*, *>>(
@@ -243,6 +287,13 @@ class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionA
     override suspend fun getQueryValue(): Q = queryValue
 }
 
+/**
+ * Test-only [MutationFieldExecutionContext] carrying pre-built query, mutation, argument, and
+ * selection-set values.
+ *
+ * Allows unit tests for mutation resolvers to supply all context values directly. Optionally
+ * accepts [mutationResults] to control what [mutation] returns without invoking the engine.
+ */
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 @OptIn(InternalApi::class)
 class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, R : CompositeOutput>(
@@ -277,6 +328,12 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
     }
 }
 
+/**
+ * Test-only [SelectiveNodeExecutionContext] carrying a pre-built [GlobalID] and [SelectionSet].
+ *
+ * Allows unit tests for node resolvers to supply the node ID and pre-computed selections
+ * without running a real engine. [selections] returns the provided [SelectionSet] directly.
+ */
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 @OptIn(InternalApi::class)
 class MockNodeExecutionContext<R : NodeObject>(

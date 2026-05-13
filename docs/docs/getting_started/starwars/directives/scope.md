@@ -163,4 +163,4 @@ In GraphiQL, add this to the **Headers** tab below the query pane:
 - Verify that restricted fields disappear from both introspection and responses.
 - Add integration tests per scope slice (see `ExtrasScopeTest.kt` in the demo).
 
-
+> For the full `@scope` API, scope configuration at the service layer, and multi-tenancy patterns, see the [Scopes developer reference](../../../docs/developers/scopes/index.md).

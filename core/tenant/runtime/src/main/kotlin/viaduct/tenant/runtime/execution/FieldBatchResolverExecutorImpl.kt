@@ -57,8 +57,6 @@ class FieldBatchResolverExecutorImpl(
                 requestContext = context.requestContext, // TODO - get rid of this argument
                 engineSelections = key.selections,
                 rawArguments = key.arguments,
-                rawObjectValue = key.objectValue,
-                rawQueryValue = key.queryValue,
                 syncObjectValueGetter = key.syncObjectValueGetter,
                 syncQueryValueGetter = key.syncQueryValueGetter,
             )

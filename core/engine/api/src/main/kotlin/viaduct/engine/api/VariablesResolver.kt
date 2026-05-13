@@ -194,6 +194,14 @@ interface VariablesResolver {
     }
 }
 
+/**
+ * A [VariablesResolver] decorator that asserts the delegate's [resolve] return map contains
+ * exactly the keys declared in [variableNames].
+ *
+ * Any extra or missing keys cause an [IllegalStateException], surfacing bugs where a
+ * [VariablesResolver] implementation returns a map inconsistent with its declared contract.
+ * Obtain an instance via [VariablesResolver.validated].
+ */
 data class Validated(val delegate: VariablesResolver) : VariablesResolver by delegate {
     override suspend fun resolve(
         ctx: ResolveCtx,
@@ -220,6 +228,15 @@ data class Validated(val delegate: VariablesResolver) : VariablesResolver by del
         }
 }
 
+/**
+ * A [VariablesResolver] that reads a single variable's value from a field argument.
+ *
+ * [path] is a dot-separated list of keys used to traverse the argument map (supporting nested
+ * input objects). The resolved value is returned under [name].
+ *
+ * @property name The GraphQL variable name this resolver produces.
+ * @property path Non-empty list of argument key segments to traverse to reach the value.
+ */
 data class FromArgument(val name: String, val path: List<String>) : VariablesResolver {
     init {
         require(path.isNotEmpty()) {
@@ -236,6 +253,19 @@ data class FromArgument(val name: String, val path: List<String>) : VariablesRes
     ): Map<String, Any?> = mapOf(name to reader.read(ctx.arguments))
 }
 
+/**
+ * A [VariablesResolver] that reads a single variable's value from a resolved field in the
+ * parent object's [EngineObjectData].
+ *
+ * The engine pre-fetches the fields described by [requiredSelectionSet] so that [resolve] can
+ * simply traverse [path] through the already-resolved [EngineObjectData] via [EngineDataReader].
+ *
+ * @property name The GraphQL variable name this resolver produces.
+ * @property path Non-empty list of field-key segments that form the traversal path through the
+ *   object data.
+ * @property requiredSelectionSet The selection set the engine must resolve before this resolver
+ *   is invoked.
+ */
 data class FromFieldVariablesResolver(val name: String, val path: List<String>, override val requiredSelectionSet: RequiredSelectionSet) : VariablesResolver {
     init {
         require(path.isNotEmpty()) {
@@ -275,6 +305,14 @@ fun List<VariablesResolver>.checkDisjoint() {
     }
 }
 
+/**
+ * Thrown when a circular dependency is detected among [SelectionSetVariable] declarations.
+ *
+ * A cycle occurs when the selection for variable `$A` itself references `$A` — either directly
+ * or through a chain of intermediate variables — making it impossible to resolve the variable
+ * without infinite recursion. The [message] property identifies the offending variable name and
+ * prints the selection set text to help locate the cycle.
+ */
 class VariableCycleException(val varName: String, val selections: ParsedSelections) : Exception() {
     override val message: String get() {
         val selectionsStr = AstPrinter.printAst(selections.selections)

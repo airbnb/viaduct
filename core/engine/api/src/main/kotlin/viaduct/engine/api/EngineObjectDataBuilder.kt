@@ -2,6 +2,16 @@ package viaduct.engine.api
 
 import graphql.schema.GraphQLObjectType
 
+/**
+ * Mutable builder for constructing an [EngineObjectData] value.
+ *
+ * Callers call [put] once per resolved field selection (using the GraphQL response key —
+ * either the field name or its alias) and then call [build] to produce the immutable
+ * [EngineObjectData]. The [type] property records the concrete [graphql.schema.GraphQLObjectType]
+ * that the resulting data represents, which the engine uses for type-dispatch.
+ *
+ * Use [Companion.from] to create an instance for a given object type.
+ */
 interface EngineObjectDataBuilder {
     val type: GraphQLObjectType
 

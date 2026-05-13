@@ -1,7 +1,6 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
-import jakarta.inject.Inject
 import viaduct.api.resolver.Resolver
 import viaduct.api.resolver.Variable
 
@@ -56,7 +55,7 @@ import viaduct.api.resolver.Variable
  * @see CharacterStatsResolver for VariableProvider example
  * @see CharacterFormattedDescriptionResolver for argument-based alternative
  */
-// tag::resolver_example[18] Example of using @Variable with fromArgument to control field selection
+// tag::resolver_example[36] Example of using @Variable with fromArgument to control field selection
 @Resolver(
     """
     fragment _ on Character {
@@ -68,28 +67,26 @@ import viaduct.api.resolver.Variable
     """,
     variables = [Variable("includeDetails", fromArgument = "includeDetails")]
 )
-class ProfileFieldResolver
-    @Inject
-    constructor() : CharacterResolvers.CharacterProfile() {
-        override suspend fun resolve(ctx: Context): String? {
-            val character = ctx.getObjectValue()
-            val name = character.getName() ?: "Unknown"
+class ProfileFieldResolver : CharacterResolvers.CharacterProfile() {
+    override suspend fun resolve(ctx: Context): String? {
+        val character = ctx.getObjectValue()
+        val name = character.getName() ?: "Unknown"
 
-            return try {
-                // If includeDetails is true, these fields will be available
-                val birthYear = character.getBirthYear()
-                val height = character.getHeight()
-                val mass = character.getMass()
+        return try {
+            // If includeDetails is true, these fields will be available
+            val birthYear = character.getBirthYear()
+            val height = character.getHeight()
+            val mass = character.getMass()
 
-                buildString {
-                    append("Character Profile: $name")
-                    birthYear?.let { append(", Born: $it") }
-                    height?.let { append(", Height: ${it}cm") }
-                    mass?.let { append(", Mass: ${it}kg") }
-                }
-            } catch (e: Exception) {
-                // If includeDetails is false, detailed fields won't be available
-                "Character Profile: $name (basic info only)"
+            buildString {
+                append("Character Profile: $name")
+                birthYear?.let { append(", Born: $it") }
+                height?.let { append(", Height: ${it}cm") }
+                mass?.let { append(", Mass: ${it}kg") }
             }
+        } catch (e: Exception) {
+            // If includeDetails is false, detailed fields won't be available
+            "Character Profile: $name (basic info only)"
         }
     }
+}

@@ -25,7 +25,6 @@ import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.tenant.runtime.FakeMutation
 import viaduct.tenant.runtime.FakeObject
@@ -164,8 +163,6 @@ class ResolverExecutionContextFactoryTest {
             engineSelections = null,
             requestContext = null,
             rawArguments = emptyMap(),
-            rawObjectValue = createEngineObjectData(queryType, emptyMap()),
-            rawQueryValue = createEngineObjectData(queryType, emptyMap()),
         )
         assertInstanceOf(FieldExecutionContext::class.java, result)
     }
@@ -192,8 +189,6 @@ class ResolverExecutionContextFactoryTest {
             engineSelections = null,
             requestContext = null,
             rawArguments = emptyMap(),
-            rawObjectValue = createEngineObjectData(queryType, emptyMap()),
-            rawQueryValue = createEngineObjectData(queryType, emptyMap()),
         )
         assertInstanceOf(MutationFieldExecutionContext::class.java, result)
     }
@@ -271,8 +266,6 @@ class ResolverExecutionContextFactoryTest {
             engineSelections = null,
             requestContext = null,
             rawArguments = emptyMap(),
-            rawObjectValue = createEngineObjectData(queryType, emptyMap()),
-            rawQueryValue = createEngineObjectData(queryType, emptyMap()),
         )
         assertInstanceOf(FieldExecutionContext::class.java, result)
     }
@@ -300,8 +293,6 @@ class ResolverExecutionContextFactoryTest {
             engineSelections = null,
             requestContext = null,
             rawArguments = emptyMap(),
-            rawObjectValue = createEngineObjectData(queryType, emptyMap()),
-            rawQueryValue = createEngineObjectData(queryType, emptyMap()),
         )
         assertInstanceOf(MutationFieldExecutionContext::class.java, result)
     }

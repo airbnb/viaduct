@@ -64,10 +64,10 @@ the same relationship in a single operation, move this to a batch resolver.
 
 ### 3) Argument-driven behavior
 
-The `limit` argument controls the length of the returned summary.
+The `format` argument controls the presentation of the returned string.
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/queries/AllCharactersQueryResolver.kt", "resolver_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.kt", "resolver_example", lang="kotlin") }}
 
 
 ## What about heavy lookups?
@@ -105,4 +105,4 @@ GraphQL itself dictates most of the rules here, so the resolver-side guidance is
 
 > See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
 
-
+> For the full field-resolver API, generated base-class reference, and advanced patterns, see the [Field Resolvers developer reference](../../../docs/developers/resolvers/field_resolvers.md).

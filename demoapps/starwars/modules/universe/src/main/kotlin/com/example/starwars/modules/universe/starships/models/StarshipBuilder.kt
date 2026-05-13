@@ -12,7 +12,7 @@ import viaduct.api.grts.Starship as GRTStarship
  */
 class StarshipBuilder(private val ctx: ExecutionContext) {
     fun build(starship: Starship): GRTStarship =
-        // tag::global_id_example[3] Example using global IDs
+        // tag::global_id_example[18] Example using global IDs
         GRTStarship.of(ctx) {
             id(ctx.globalIDFor<GRTStarship>(starship.id))
             name(starship.name)

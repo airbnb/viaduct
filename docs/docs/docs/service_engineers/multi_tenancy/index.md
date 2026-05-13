@@ -220,23 +220,12 @@ extend type User @scope(to: ["internal"]) {
 Configure your Viaduct application to expose multiple schemas:
 
 ```kotlin title="src/main/kotlin/.../ViaductConfiguration.kt"
-@Factory
-class ViaductConfiguration {
-    @Bean
-    fun providesViaduct(): Viaduct {
-        return BasicViaductFactory.create(
-            schemaRegistrationInfo = SchemaRegistrationInfo(
-                scopes = listOf(
-                    SchemaId.Scoped("public", setOf("public")).toSchemaScopeInfo(),
-                    SchemaId.Scoped("internal", setOf("public", "internal")).toSchemaScopeInfo(),
-                )
-            ),
-            tenantRegistrationInfo = TenantRegistrationInfo(
-                tenantPackagePrefix = "com.yourcompany.viaduct"
-            )
-        )
-    }
-}
+val PUBLIC_SCHEMA_ID = SchemaScopeInfo("public", setOf("public"))
+val INTERNAL_SCHEMA_ID = SchemaScopeInfo("internal", setOf("public", "internal"))
+
+val viaduct: Viaduct = BasicViaductFactory.create(
+    scopedSchemas = listOf(PUBLIC_SCHEMA_ID, INTERNAL_SCHEMA_ID)
+)
 ```
 
 ### Runtime Schema Selection
@@ -559,5 +548,5 @@ query CustomerOrders {
 
 - [Developers: Scopes](../../developers/scopes/index.md) — Detailed scope usage and validation rules
 - [Developers: Resolvers](../../developers/resolvers/index.md) — Writing resolver implementations
-- [Getting Started: Tour](../../../getting_started/tour/index.md) — Understanding Viaduct project structure
+- [Getting Started](../../../getting_started/index.md) — Understanding the starter application's structure
 - [Schema Extensions](../schema_extensions/index.md) — Application-wide custom directives and types

@@ -50,4 +50,4 @@ The controller **resolves scopes → chooses a schema → builds `ExecutionInput
 - Configure **directives** and **modules** in the builder when applicable.
 - Avoid conditional logic in the builder; route by scope in the controller instead.
 
-
+> For the complete `ViaductBuilder` and `ExecutionInput` API reference, see the [Viaduct API developer reference](../../../docs/developers/viaduct_api/index.md).

@@ -18,7 +18,7 @@ class ViaductConfiguration(
 ) {
     @Bean
     fun providesViaduct(): Viaduct =
-        // tag::schema_registration[5]
+        // tag::schema_registration[4]
         BasicViaductFactory.create(
             tenantModuleBootstrapper = tenantModuleBootstrapper,
             scopedSchemas = listOf(DEFAULT_SCHEMA, EXTRAS_SCHEMA),

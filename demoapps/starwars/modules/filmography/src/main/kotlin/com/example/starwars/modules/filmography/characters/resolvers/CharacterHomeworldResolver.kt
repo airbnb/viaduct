@@ -45,7 +45,7 @@ import viaduct.api.resolver.Resolver
  *
  * For 100 characters: 101 queries → 2 queries (50x improvement)
  */
-// tag::resolver_example[35] Resolver example
+// tag::resolver_example[39] Resolver example
 @Resolver(
     objectValueFragment = "fragment _ on Character { id }"
 )

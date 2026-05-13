@@ -128,7 +128,6 @@ class ResolverDataFetcherTest {
             fieldName = testField,
             fieldResolverDispatcher = FieldResolverDispatcherImpl(executor),
             tenantNameResolver = tenantNameResolver,
-            syncValueComputationEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION),
         )
 
         val dataFetchingEnvironment: ViaductDataFetchingEnvironment = mockk()
@@ -246,7 +245,7 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test sync value computation enabled passes ProxyEngineObjectData as objectValue to resolver`(): Unit =
+    fun `test sync value getter passes ProxyEngineObjectData as objectValue to resolver`(): Unit =
         runBlocking(Dispatchers.Default) {
             withThreadLocalCoroutineContext {
                 Fixture(
@@ -256,7 +255,7 @@ class ResolverDataFetcherTest {
                         emptyList(),
                         forChecker = false
                     ),
-                    flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_SYNC_VALUE_COMPUTATION),
+                    flagManager = allDisabledFlags,
                 ).apply {
                     // Populate the parent engine result so sync resolution can complete
                     engineResultLocalContext.parentEngineResult.computeIfAbsent(
@@ -277,27 +276,6 @@ class ResolverDataFetcherTest {
                         setter.set(ObjectEngineResultImpl.ACCESS_CHECK_SLOT, Value.fromValue(null))
                     }
 
-                    val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
-                    assertEquals(expectedResult, receivedResult)
-                    assertTrue(resolverRan)
-                    assertTrue(lastReceivedObjectValue is ProxyEngineObjectData)
-                }
-            }
-        }
-
-    @Test
-    fun `test sync value computation disabled passes ProxyEngineObjectData to resolver`(): Unit =
-        runBlocking(Dispatchers.Default) {
-            withThreadLocalCoroutineContext {
-                Fixture(
-                    expectedResult = "test fetched result",
-                    requiredSelectionSet = RequiredSelectionSet(
-                        SelectionsParser.parse("TestType", "testField"),
-                        emptyList(),
-                        forChecker = false
-                    ),
-                    flagManager = allDisabledFlags,
-                ).apply {
                     val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
                     assertEquals(expectedResult, receivedResult)
                     assertTrue(resolverRan)

@@ -141,6 +141,8 @@ query CombinedVariablesDemo {
 }
 ```
 
+> For the full `@Variable`, `VariableProvider`, and built-in directive reference, see the [Schema Reference developer docs](../../../docs/developers/schema_reference/index.md).
+
 ### Film Fragment Examples
 
 ```graphql

@@ -1,8 +1,15 @@
 package viaduct.engine.api
 
 /**
- * @property path a path into an EngineObjectData. The path may *end* on a value
- * of any type (including lists and [EngineObjectData]s), though it may not *traverse through* a list.
+ * Traverses a dot-separated path through nested [EngineObjectData] values to read a resolved field.
+ *
+ * Each element in [path] names a field key (or alias) to dereference from the current
+ * [EngineObjectData]. The path may *end* on a value of any type (including lists and
+ * [EngineObjectData]s), though it may not *traverse through* a list — attempting to do so throws.
+ * If any intermediate node is `null` the read short-circuits and returns `null`.
+ *
+ * @property path A non-empty list of field-key segments that form the traversal path.
+ *   Each segment must be non-empty.
  */
 class EngineDataReader(private val path: List<String>) {
     private val pathString = path.joinToString(".")

@@ -11,7 +11,7 @@ import viaduct.api.resolver.Resolver
  *
  * This resolver handles fetching a Film by its global ID.
  */
-// tag::node_resolver_example[10] Example of a node resolver
+// tag::node_resolver_example[15] Example of a node resolver
 @Resolver
 class FilmNodeResolver
     @Inject

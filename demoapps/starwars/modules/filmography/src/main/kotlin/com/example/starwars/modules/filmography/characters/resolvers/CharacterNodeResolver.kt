@@ -13,7 +13,7 @@ import viaduct.api.resolver.Resolver
  *
  * This resolver handles fetching a Character by its global ID.
  */
-// tag::node_resolver_example[17] Example of a node resolver
+// tag::node_resolver_example[29] Example of a node resolver
 @Resolver
 class CharacterNodeResolver
     @Inject

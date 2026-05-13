@@ -27,7 +27,7 @@ With the server running, you can use the following `curl` command to send GraphQ
 curl 'http://localhost:8080/graphql' -H 'content-type: application/json' --data-raw '{"query":"{ greeting }"}'
 ```
 
-You should see the following output:
+You should see output like:
 ```json
 {"data":{"greeting":"Hello, World!"}}
 ```
@@ -36,7 +36,7 @@ You should see the following output:
 
 With the server running, navigate to the following URL in your browser to bring up the [GraphiQL](https://github.com/graphql/graphiql) interface:
 
-[http://localhost:8080/graphiql?path=/graphql](http://localhost:8080/graphiql?path=/graphql)
+[http://localhost:8080/graphiql](http://localhost:8080/graphiql)
 
 Then, run the following query:
 

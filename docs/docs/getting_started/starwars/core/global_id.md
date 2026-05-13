@@ -73,5 +73,5 @@ resolvers and tooling:
 - **Don’t** embed business logic or access control information in IDs.
 
 > See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
-
+> For the encoding format, how to generate and consume `GlobalID` values in resolvers, and schema hints with `@idOf`, see the [Global IDs developer reference](../../../docs/developers/globalids/index.md).
 

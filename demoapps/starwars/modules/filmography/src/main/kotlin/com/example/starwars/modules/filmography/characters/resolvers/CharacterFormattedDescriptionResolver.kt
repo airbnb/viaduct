@@ -1,7 +1,6 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
-import jakarta.inject.Inject
 import viaduct.api.resolver.Resolver
 
 /**
@@ -47,7 +46,7 @@ import viaduct.api.resolver.Resolver
  * @see ProfileResolver for @Variable fromArgument example
  * @see StatsResolver for VariableProvider example
  */
-// tag::resolver_example[19] Example of argument-based conditional logic for formatted description
+// tag::resolver_example[60] Example of argument-based conditional logic for formatted description
 @Resolver(
     """
     fragment _ on Character {
@@ -58,53 +57,51 @@ import viaduct.api.resolver.Resolver
     }
     """
 )
-class CharacterFormattedDescriptionResolver
-    @Inject
-    constructor() : CharacterResolvers.FormattedDescription() {
-        override suspend fun resolve(ctx: Context): String? {
-            val character = ctx.getObjectValue()
-            val name = character.getName() ?: "Unknown"
-            val format = ctx.arguments.format
+class CharacterFormattedDescriptionResolver : CharacterResolvers.FormattedDescription() {
+    override suspend fun resolve(ctx: Context): String? {
+        val character = ctx.getObjectValue()
+        val name = character.getName() ?: "Unknown"
+        val format = ctx.arguments.format
 
-            return when (format) {
-                "detailed" -> {
-                    val birthYear = character.getBirthYear()
-                    val eyeColor = character.getEyeColor()
-                    val hairColor = character.getHairColor()
+        return when (format) {
+            "detailed" -> {
+                val birthYear = character.getBirthYear()
+                val eyeColor = character.getEyeColor()
+                val hairColor = character.getHairColor()
 
-                    buildString {
-                        append(name)
-                        birthYear?.let { append(" (born $it)") }
-                        if (eyeColor != null || hairColor != null) {
-                            append(" - ")
-                            eyeColor?.let { append("$it eyes") }
-                            if (eyeColor != null && hairColor != null) append(", ")
-                            hairColor?.let { append("$it hair") }
-                        }
+                buildString {
+                    append(name)
+                    birthYear?.let { append(" (born $it)") }
+                    if (eyeColor != null || hairColor != null) {
+                        append(" - ")
+                        eyeColor?.let { append("$it eyes") }
+                        if (eyeColor != null && hairColor != null) append(", ")
+                        hairColor?.let { append("$it hair") }
                     }
                 }
-
-                "year-only" -> {
-                    val birthYear = character.getBirthYear()
-                    birthYear?.let { "$name (born $it)" } ?: "$name (birth year unknown)"
-                }
-
-                "appearance-only" -> {
-                    val eyeColor = character.getEyeColor()
-                    val hairColor = character.getHairColor()
-
-                    buildString {
-                        append(name)
-                        if (eyeColor != null || hairColor != null) {
-                            append(" - ")
-                            eyeColor?.let { append("$it eyes") }
-                            if (eyeColor != null && hairColor != null) append(", ")
-                            hairColor?.let { append("$it hair") }
-                        }
-                    }
-                }
-
-                else -> name // default format - just name
             }
+
+            "year-only" -> {
+                val birthYear = character.getBirthYear()
+                birthYear?.let { "$name (born $it)" } ?: "$name (birth year unknown)"
+            }
+
+            "appearance-only" -> {
+                val eyeColor = character.getEyeColor()
+                val hairColor = character.getHairColor()
+
+                buildString {
+                    append(name)
+                    if (eyeColor != null || hairColor != null) {
+                        append(" - ")
+                        eyeColor?.let { append("$it eyes") }
+                        if (eyeColor != null && hairColor != null) append(", ")
+                        hairColor?.let { append("$it hair") }
+                    }
+                }
+            }
+
+            else -> name // default format - just name
         }
     }
+}

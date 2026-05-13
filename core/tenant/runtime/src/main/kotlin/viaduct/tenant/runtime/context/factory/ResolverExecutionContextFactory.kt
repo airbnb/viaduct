@@ -43,7 +43,6 @@ import viaduct.tenant.runtime.context.VariablesProviderContextImpl
 import viaduct.tenant.runtime.internal.InternalContextImpl
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.toInputLikeGRT
-import viaduct.tenant.runtime.toObjectGRT
 
 sealed class ResolverExecutionContextFactoryBase<R : CompositeOutput>(
     resolverBaseClass: Class<*>,
@@ -149,8 +148,6 @@ class FieldExecutionContextFactory internal constructor(
         engineSelections: EngineSelectionSet?,
         requestContext: Any?,
         rawArguments: Map<String, Any?>,
-        @Suppress("UNUSED_PARAMETER") rawObjectValue: EngineObjectData,
-        rawQueryValue: EngineObjectData,
         syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)? = null,
         syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)? = null,
     ): BaseFieldExecutionContext<*, *, *> {
@@ -164,7 +161,6 @@ class FieldExecutionContextFactory internal constructor(
                 this.toSelectionSet(engineSelections) as SelectionSet<Connection<*, *>>,
                 requestContext,
                 rawArguments.toInputLikeGRT(internalContext, argumentsCls, graphqlTypeName, graphqlFieldName) as ConnectionArguments,
-                rawQueryValue.toObjectGRT(internalContext, queryCls),
                 syncObjectValueGetter,
                 syncQueryValueGetter,
                 objectCls,
@@ -177,7 +173,6 @@ class FieldExecutionContextFactory internal constructor(
                 this.toSelectionSet(engineSelections),
                 requestContext,
                 rawArguments.toInputLikeGRT(internalContext, argumentsCls, graphqlTypeName, graphqlFieldName),
-                rawQueryValue.toObjectGRT(internalContext, queryCls),
                 syncObjectValueGetter,
                 syncQueryValueGetter,
                 objectCls,
@@ -190,7 +185,6 @@ class FieldExecutionContextFactory internal constructor(
                 this.toSelectionSet(engineSelections),
                 requestContext,
                 rawArguments.toInputLikeGRT(internalContext, argumentsCls, graphqlTypeName, graphqlFieldName),
-                rawQueryValue.toObjectGRT(internalContext, queryCls),
                 syncQueryValueGetter,
                 queryCls,
             )

@@ -12,6 +12,22 @@ import org.intellij.lang.annotations.Language
 import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.graphql.utils.addTypeName
 
+/**
+ * A parsed GraphQL fragment used to declare a Required Selection Set (RSS).
+ *
+ * A [Fragment] wraps a single named fragment definition string and optional [FragmentVariables],
+ * lazily parsing the document and enriching the selection with a synthetic `__typename` field.
+ * Iterating over a [Fragment] yields the [graphql.execution.MergedField] values that correspond
+ * to the top-level field selections inside the fragment definition.
+ *
+ * Named fragment spreads inside the body are not supported — only field selections and inline
+ * fragments may appear.
+ *
+ * Use the [fragment] top-level factory function as a concise alternative to calling this
+ * constructor directly.
+ *
+ * @property variables Variable bindings to substitute into the fragment at evaluation time.
+ */
 data class Fragment(
     private val fragmentSource: FragmentSource,
     val variables: FragmentVariables = FragmentVariables.EMPTY

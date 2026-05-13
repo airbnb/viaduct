@@ -43,4 +43,4 @@ deliberately thin so you can swap it with a persistence layer (SQL/NoSQL) withou
 This is a demo application. It uses in-memory data, no authentication/authorization, and simplified pagination.
 These choices keep the architecture easy to understand while highlighting Viaduct’s core patterns.
 
-
+> For a guided tour of the Viaduct architecture and how the runtime, build system, and tenant layers fit together, see the [Contributors Architecture overview](../../../docs/contributors/architecture/index.md).

@@ -11,4 +11,8 @@ authors:
     name: Raymie Stata
     description: Viaduct Maintainer
     avatar: assets/images/authors/raymiestata.png
+  ryantanner:
+    name: Ryan Tanner
+    description: Viaduct Open Source Lead
+    avatar: assets/images/authors/ryantanner.png
 
