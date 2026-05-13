@@ -151,6 +151,7 @@ nav:
     - Generated Code: docs/developers/generated_code/index.md
     - Global IDs: docs/developers/globalids/index.md
     - Pagination: docs/developers/pagination/index.md
+    - Request Context: docs/developers/request_context/index.md
     - Api Stability:
       - docs/developers/api_stability/index.md
       - Contributors guide: docs/developers/api_stability/contributors_guide.md

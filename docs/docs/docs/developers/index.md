@@ -15,6 +15,8 @@ The Developers section covers the core concepts and tools you'll need when build
 
 **Api Stability** Viaduct exposes public APIs that application code compiles against. To help adopters understand what is safe to depend on (and what is not), Viaduct classifies APIs into explicit stability levels using annotations.
 
+**Request Context** is how per-request data — caller identity, auth tokens, locale — flows into resolvers. Viaduct supports two patterns: framework-scoped DI beans (recommended, fully type-safe) and `ExecutionInput.requestContext` (simpler, no DI required).
+
 **Scopes** let you expose different schema variants from the same codebase—think public vs. internal APIs, or feature-flagged schemas. Use the `@scope` directive to control which fields and types are visible in each variant. Either everything has a scope or nothing does; there's no default scope, ensuring explicit visibility control.
 
 **Schema Reference** documents all the built-in directives (`@resolver`, `@backingData`, `@scope`, `@idOf`), types (like the `Node` interface), and scalars (`Date`, `DateTime`, `Long`, `BigDecimal`, `JSON`) that Viaduct provides out of the box. You'll use these constantly—especially `@resolver` for data fetching and `Node` for implementing globally identifiable entities.
