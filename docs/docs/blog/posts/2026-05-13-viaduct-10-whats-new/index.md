@@ -36,5 +36,5 @@ With the 1.0 release, [Viaduct](https://viaduct.airbnb.tech/about/), the open-so
 - **Java support**: A complete Java API, with annotations, resolver base classes, and a Java code generator, gives JVM teams that don't use Kotlin a first-class development path.
 - **Agentic coding**: Viaduct's strongly typed, introspectable schema makes it well-suited for AI-driven coding workflows. Generated project skeletons embed `AGENTS.md` files describing Viaduct's resolver model, and we are building coding-agent support as a standalone capability, separate from our batteries-included work.
 
-The full changelog is in the [1.0.0 release notes](../2026-05-13-release-1-0-0/index.md). For the broader context on what 1.0 means and why we built Viaduct, see the [Airbnb Engineering Blog announcement](https://medium.com/airbnb-engineering).
+The full changelog is in the [1.0.0 release notes](../2026-05-13-release-1-0-0/index.md). For the broader context on what 1.0 means and why we built Viaduct, see the [Airbnb Engineering Blog announcement](https://medium.com/airbnb-engineering/viaduct-1-0-and-the-future-of-airbnbs-data-mesh-6bab4ec98b89).
 
