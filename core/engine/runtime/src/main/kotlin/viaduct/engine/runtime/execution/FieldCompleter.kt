@@ -145,15 +145,15 @@ class FieldCompleter(
             val bypassChecker = temporaryBypassAccessCheck.shouldBypassCheck(field.mergedField.singleField, parameters.bypassChecksDuringCompletion)
 
             // Obtain a result for this field
-            val handledFieldValue = combineValues(
+            val unhandledFieldValue = combineValues(
                 parentOER.getValue(fieldKey, RAW_VALUE_SLOT),
                 parentOER.getValue(fieldKey, ACCESS_CHECK_SLOT),
                 bypassChecker,
                 field.fieldName,
                 newParams.path
-            ).handleException(newParams, field)
+            )
 
-            field.responseKey to completeField(field, newParams, handledFieldValue).map { it.value }
+            field.responseKey to completeField(field, newParams, unhandledFieldValue).map { it.value }
         }
 
         return Value.waitAll(fieldValues.map { it.second })
@@ -210,21 +210,32 @@ class FieldCompleter(
     }
 
     /**
-     * If the this value is exceptional, converts it into a non-exceptional [FieldResolutionResult] value with
-     * handled errors.
+     * If this value is exceptional, converts it into a non-exceptional [FieldResolutionResult] and also surfaces
+     * the original throwable as the second element of the pair so callers can forward it to instrumentation hooks.
+     * When the value is non-exceptional the second element is null.
      */
+    private fun Value<FieldResolutionResult>.handleExceptionWithCapture(
+        params: ExecutionParameters,
+        field: QueryPlan.CollectedField,
+    ): Value<Pair<FieldResolutionResult, Throwable?>> {
+        return this.thenCompose { result, throwable ->
+            if (throwable == null) {
+                return@thenCompose Value.fromValue(checkNotNull(result) to null)
+            }
+            val dataFetchingEnvironmentProvider = { buildDataFetchingEnvironment(params, field, params.parentEngineResult) }
+            // Unwrap both concurrency wrappers (CompletionException from async paths) and Viaduct
+            // wrappers (FieldFetchingException added in dataFetcherResultToValue) so instrumentation
+            // hooks (e.g. beginFieldCompletion.onCompleted) see the original underlying exception.
+            val unwrappedThrowable = UnwrapExceptionUtil.unwrapExceptionForError(throwable)
+            handleFetchingException(dataFetchingEnvironmentProvider, throwable)
+                .map { FieldResolutionResult.fromErrors(it.errors) to unwrappedThrowable }
+        }
+    }
+
     private fun Value<FieldResolutionResult>.handleException(
         params: ExecutionParameters,
         field: QueryPlan.CollectedField,
-    ): Value<FieldResolutionResult> {
-        return this.recover { throwable ->
-            val dataFetchingEnvironmentProvider = { buildDataFetchingEnvironment(params, field, params.parentEngineResult) }
-            handleFetchingException(dataFetchingEnvironmentProvider, throwable)
-                .map {
-                    FieldResolutionResult.fromErrors(it.errors)
-                }
-        }
-    }
+    ): Value<FieldResolutionResult> = handleExceptionWithCapture(params, field).map { (frr, _) -> frr }
 
     /**
      * Handles exceptions from data fetchers and access checks by delegating to the configured handler.
@@ -291,21 +302,25 @@ class FieldCompleter(
             return getFieldCompletionResultForException(e)
         }
 
-        return completeValue(field, newParams, fieldResolutionResult, fieldCompleteInstCtx)
-            .thenCompose { completeResult, err ->
-                try {
-                    fieldCompleteInstCtx.onCompleted(completeResult?.value, err)
-                    if (completeResult != null) {
-                        Value.fromValue(completeResult)
-                    } else {
-                        Value.fromThrowable(checkNotNull(err))
+        val handledFieldValue = fieldResolutionResult.handleExceptionWithCapture(newParams, field)
+        return handledFieldValue.thenCompose { handledPair, _ ->
+            val (handled, fetchThrowable) = checkNotNull(handledPair)
+            completeValue(field, newParams, Value.fromValue(handled), fieldCompleteInstCtx)
+                .thenCompose { completeResult, err ->
+                    try {
+                        fieldCompleteInstCtx.onCompleted(completeResult?.value, fetchThrowable ?: err)
+                        if (completeResult != null) {
+                            Value.fromValue(completeResult)
+                        } else {
+                            Value.fromThrowable(checkNotNull(err))
+                        }
+                    } catch (e: Exception) {
+                        val exceptionError = FieldCompletionException(e, parameters)
+                        parameters.errorAccumulator.addAll(exceptionError.graphQLErrors)
+                        getFieldCompletionResultForException(exceptionError)
                     }
-                } catch (e: Exception) {
-                    val exceptionError = FieldCompletionException(e, parameters)
-                    parameters.errorAccumulator.addAll(exceptionError.graphQLErrors)
-                    getFieldCompletionResultForException(exceptionError)
                 }
-            }
+        }
     }
 
     /**

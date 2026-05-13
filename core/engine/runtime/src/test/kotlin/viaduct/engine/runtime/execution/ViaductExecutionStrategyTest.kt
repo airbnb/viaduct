@@ -1278,4 +1278,109 @@ class ViaductExecutionStrategyTest {
                 Unit
             }
     }
+
+    @Nested
+    inner class FieldCompletionInstrumentationTest {
+        private val sdl = "type Query { field: String }"
+
+        private fun completionInstrumentation(onCompleted: (Any?, Throwable?) -> Unit): ViaductModernInstrumentation =
+            object : ViaductModernInstrumentation.WithBeginFieldCompletion {
+                override fun beginFieldCompletion(
+                    parameters: InstrumentationFieldCompleteParameters,
+                    state: InstrumentationState?
+                ): InstrumentationContext<Any>? {
+                    if (parameters.executionStepInfo.path.toString() != "/field") return null
+                    return object : InstrumentationContext<Any> {
+                        override fun onDispatched() {}
+
+                        override fun onCompleted(
+                            result: Any?,
+                            t: Throwable?
+                        ) = onCompleted(result, t)
+                    }
+                }
+            }
+
+        @Test
+        fun `beginFieldCompletion onCompleted receives null throwable when field resolves successfully`() =
+            runExecutionTest {
+                var onCompletedCalled = false
+                var capturedThrowable: Throwable? = null
+                executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = mapOf("Query" to mapOf("field" to DataFetcher { "hello" })),
+                    query = "{ field }",
+                    instrumentations = listOf(
+                        completionInstrumentation { _, t ->
+                            onCompletedCalled = true
+                            capturedThrowable = t
+                        }
+                    )
+                )
+                assertTrue(onCompletedCalled, "beginFieldCompletion.onCompleted should have been called")
+                assertNull(capturedThrowable, "Expected no throwable for a successful field")
+            }
+
+        @Test
+        fun `beginFieldCompletion onCompleted receives throwable when resolver throws`() =
+            runExecutionTest {
+                val resolverException = RuntimeException("resolver blew up")
+                var capturedThrowable: Throwable? = null
+                executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = mapOf("Query" to mapOf("field" to DataFetcher<String> { throw resolverException })),
+                    query = "{ field }",
+                    instrumentations = listOf(completionInstrumentation { _, t -> capturedThrowable = t })
+                )
+                // FieldFetchingException and concurrency wrappers are stripped — the original exception surfaces directly.
+                assertSame(resolverException, capturedThrowable, "beginFieldCompletion should receive the original resolver exception")
+            }
+
+        @Test
+        fun `beginFieldCompletion onCompleted receives checker throwable when access check fails`() =
+            runExecutionTest {
+                val checkError = IllegalAccessException("permission denied")
+                var capturedThrowable: Throwable? = null
+
+                val failingChecker = object : viaduct.engine.runtime.CheckerDispatcher {
+                    override val requiredSelectionSets: Map<String, viaduct.engine.api.RequiredSelectionSet?> = emptyMap()
+                    override lateinit var executor: viaduct.engine.api.spi.CheckerExecutor
+
+                    override suspend fun execute(
+                        arguments: Map<String, Any?>,
+                        objectDataMap: Map<String, viaduct.engine.api.EngineObjectData>,
+                        context: viaduct.engine.api.EngineExecutionContext,
+                        checkerType: viaduct.engine.api.spi.CheckerExecutor.CheckerType,
+                    ): viaduct.engine.api.CheckerResult =
+                        object : viaduct.engine.api.CheckerResult.Error {
+                            override val error = checkError
+
+                            override fun isErrorForResolver(ctx: viaduct.engine.api.CheckerResultContext) = true
+
+                            override fun combine(fieldResult: viaduct.engine.api.CheckerResult.Error) = this
+                        }
+                }.also { dispatcher ->
+                    dispatcher.executor = object : viaduct.engine.api.spi.CheckerExecutor {
+                        override suspend fun execute(
+                            arguments: Map<String, Any?>,
+                            objectDataMap: Map<String, viaduct.engine.api.EngineObjectData>,
+                            context: viaduct.engine.api.EngineExecutionContext,
+                            checkerType: viaduct.engine.api.spi.CheckerExecutor.CheckerType,
+                        ) = dispatcher.execute(arguments, objectDataMap, context, checkerType)
+
+                        override val checkerMetadata = null
+                        override val requiredSelectionSets = emptyMap<String, viaduct.engine.api.RequiredSelectionSet?>()
+                    }
+                }
+
+                executeViaductModernGraphQL(
+                    sdl = sdl,
+                    resolvers = mapOf("Query" to mapOf("field" to DataFetcher { "hello" })),
+                    query = "{ field }",
+                    fieldCheckerDispatchers = mapOf(("Query" to "field") to failingChecker),
+                    instrumentations = listOf(completionInstrumentation { _, t -> capturedThrowable = t })
+                )
+                assertSame(checkError, capturedThrowable, "beginFieldCompletion should receive the original access-check exception")
+            }
+    }
 }
