@@ -107,8 +107,22 @@ class AssembleTenantModuleConfigJarTest {
         val out = outputJar()
         runCli(jars = listOf(descriptorJar), out = out)
 
-        JarFile(out).use { jar ->
-            assertFalse(jar.entries().hasMoreElements(), "Expected no entries in output jar when tenant has no descriptors")
-        }
+        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        assertNotNull(json)
+        assertTrue(json!!.contains("\"version\""), json)
+        assertTrue(json.contains("\"executorFactory\""), json)
+        assertTrue(json.contains("\"nodes\""), json)
+        assertTrue(json.contains("\"fields\""), json)
+    }
+
+    @Test
+    fun `writes empty registry resource when descriptor jar list is empty`() {
+        val out = outputJar()
+        runCli(jars = emptyList(), out = out)
+
+        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        assertNotNull(json)
+        assertTrue(json!!.contains("\"nodes\""), json)
+        assertTrue(json.contains("\"fields\""), json)
     }
 }

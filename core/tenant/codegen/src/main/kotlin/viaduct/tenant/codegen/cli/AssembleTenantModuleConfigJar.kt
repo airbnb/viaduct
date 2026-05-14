@@ -32,14 +32,12 @@ class AssembleTenantModuleConfigJar : CliktCommand(
         val outputDir = Files.createTempDirectory("tenant-module-config").toFile()
 
         try {
-            if (descriptorJsons.isNotEmpty()) {
-                TenantModuleConfigAssembler.writeRegistry(
-                    descriptorJsons = descriptorJsons,
-                    executorFactory = MODERN_KOTLIN_EXECUTOR_FACTORY,
-                    tenantPackage = tenantPackage,
-                    outputDir = outputDir,
-                )
-            }
+            TenantModuleConfigAssembler.writeRegistry(
+                descriptorJsons = descriptorJsons,
+                executorFactory = MODERN_KOTLIN_EXECUTOR_FACTORY,
+                tenantPackage = tenantPackage,
+                outputDir = outputDir,
+            )
 
             requireNotNull(outputJar.parentFile) {
                 "--output-jar must include a parent directory"
