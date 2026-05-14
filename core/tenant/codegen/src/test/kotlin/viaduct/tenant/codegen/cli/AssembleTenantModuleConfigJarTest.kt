@@ -125,4 +125,25 @@ class AssembleTenantModuleConfigJarTest {
         assertTrue(json!!.contains("\"nodes\""), json)
         assertTrue(json.contains("\"fields\""), json)
     }
+
+    @Test
+    fun `includes bootstrapClass when descriptor jar contains only tenant bootstrap metadata`() {
+        val descriptorJar = descriptorJar(
+            name = "leaf.jar",
+            entries = mapOf(
+                "viaduct-registry/com/example/feature/FeatureTenantBootstrapper.json" to
+                    """{"nodes":[],"fields":[],"bootstrapClass":"com.example.feature.FeatureTenantBootstrapper"}""",
+            ),
+        )
+
+        val out = outputJar()
+        runCli(jars = listOf(descriptorJar), out = out)
+
+        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        assertNotNull(json)
+        assertTrue(json!!.contains("\"bootstrapClass\""), json)
+        assertTrue(json.contains("FeatureTenantBootstrapper"), json)
+        assertTrue(json.contains("\"nodes\""), json)
+        assertTrue(json.contains("\"fields\""), json)
+    }
 }
