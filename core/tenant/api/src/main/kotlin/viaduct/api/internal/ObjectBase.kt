@@ -13,6 +13,7 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 import viaduct.api.globalid.GlobalID
@@ -27,6 +28,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RootFieldReference
 import viaduct.errors.FrameworkException
+import viaduct.errors.TenantException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.UnsetFieldException
 import viaduct.errors.handleFrameworkErrors
@@ -48,10 +50,11 @@ abstract class ObjectBase(
     private val fieldCache = ConcurrentHashMap<String, Any>()
 
     /**
-     * Fetches a field value, throwing on failure. Called by generated GRT getters.
-     * For internal framework use only.
+     * Codegen entry point for the strict `getXxx()` accessor. Same as [get], but any error that
+     * escapes is re-thrown as a [FrameworkException]: only generated code calls this, so a failure
+     * here is by definition a framework bug, not tenant misuse.
      */
-    protected fun <T> fetch(
+    protected fun <T> getInternal(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
@@ -61,62 +64,51 @@ abstract class ObjectBase(
         }
 
     /**
-     * Fetches a field value, returning `null` on failure instead of throwing. Called by generated
-     * GRT `getXxxOrNull` getters. For internal framework use only.
+     * Codegen entry point for the soft-failing `getXxxOrNull()` accessor. Same as [getInternal],
+     * but data-side failures become `null`; tenant and framework bugs still propagate.
      */
-    protected fun <T> fetchOrNull(
+    protected fun <T> getOrNullInternal(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
-    ): T? =
-        handleFrameworkErrors("${__engineObject.type.name}.$fieldName") {
-            getOrNull(fieldName, baseFieldTypeClass, alias)
+    ): T? = nullOnDataFailure { getInternal(fieldName, baseFieldTypeClass, alias) }
+
+    /**
+     * Soft-failing variant of [get]: data-side failures become `null`; tenant and framework bugs
+     * still propagate.
+     */
+    fun <T> getOrNull(
+        fieldName: String,
+        baseFieldTypeClass: KClass<*>,
+        alias: String? = null
+    ): T? = nullOnDataFailure { get(fieldName, baseFieldTypeClass, alias) }
+
+    /**
+     * Runs [block] and turns data-side failures (upstream resolver errors, stored field errors)
+     * into `null`. Tenant bugs, framework bugs, and coroutine cancellation propagate.
+     */
+    private inline fun <T> nullOnDataFailure(block: () -> T): T? =
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: TenantUsageException) {
+            throw e
+        } catch (e: FrameworkException) {
+            throw e
+        } catch (e: Exception) {
+            if (e is TenantException) null else throw e
         }
 
     /**
-     * Fetches the given selection from the EngineObjectData and wraps it into a typed GRT or scalar value.
-     * Called by generated GRT field getters and also directly by tenant code for backing data fields,
-     * for which no getter is generated.
-     *
-     * @param fieldName the name of the field being fetched
-     * @param baseFieldTypeClass the KClass that represents the generated base type of the provided selection
-     * @param alias the GraphQL response key of the selection, if aliased (see https://spec.graphql.org/draft/#sec-Field-Alias)
+     * Fetches the given selection from the EngineObjectData and wraps it into a typed GRT or
+     * scalar value, throwing on failure. Errors keep their tenant/framework attribution.
      */
     @Suppress("UNCHECKED_CAST")
     fun <T> get(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
-    ): T {
-        return getInternal(alias, fieldName, baseFieldTypeClass) { eod, selection ->
-            eod.get(selection) as T
-        }
-    }
-
-    /**
-     * Fetches the given selection from the EngineObjectData and wraps it into a typed GRT or scalar value,
-     * returning `null` if the field value is absent. Public function called by generated GRT `getXxxOrNull` getters.
-     *
-     * @param fieldName the name of the field being fetched
-     * @param baseFieldTypeClass the KClass that represents the generated base type of the provided selection
-     * @param alias the GraphQL response key of the selection, if aliased (see https://spec.graphql.org/draft/#sec-Field-Alias)
-     */
-    @Suppress("UNCHECKED_CAST")
-    fun <T> getOrNull(
-        fieldName: String,
-        baseFieldTypeClass: KClass<*>,
-        alias: String? = null
-    ): T? {
-        return getInternal(alias, fieldName, baseFieldTypeClass) { eod, selection ->
-            eod.getOrNull(selection) as T?
-        }
-    }
-
-    private fun <T> getInternal(
-        alias: String?,
-        fieldName: String,
-        baseFieldTypeClass: KClass<*>,
-        extractingFunction: (eod: EngineObjectData.Sync, selection: String) -> T
     ): T {
         val selection = alias ?: fieldName
         val result = fieldCache.getOrPut(selection) {
@@ -145,7 +137,7 @@ abstract class ObjectBase(
                             "fields cannot be accessed on an unresolved root field reference created using Context.rootFieldRef"
                         )
                     }
-                    is EngineObjectData.Sync -> extractingFunction(__engineObject, selection)
+                    is EngineObjectData.Sync -> __engineObject.get(selection)
                     is EngineObjectData -> throw FrameworkException(
                         "Expected EngineObjectData.Sync but got ${__engineObject.javaClass.name} for ${objectType.name}.$fieldName"
                     )

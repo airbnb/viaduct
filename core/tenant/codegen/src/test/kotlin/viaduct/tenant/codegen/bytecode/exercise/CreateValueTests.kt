@@ -25,7 +25,7 @@ class ObjectA(
     engineObjectData: EngineObjectData
 ) : ObjectBase(context, engineObjectData) {
     final suspend fun a(): Int {
-        return fetch("a", Int::class, "a")
+        return getInternal("a", Int::class, "a")
     }
 }
 
@@ -34,7 +34,7 @@ class ObjectB(
     engineObjectData: EngineObjectData
 ) : ObjectBase(context, engineObjectData) {
     final suspend fun b(): ObjectA {
-        return fetch("b", ObjectA::class, "b")
+        return getInternal("b", ObjectA::class, "b")
     }
 }
 
@@ -43,7 +43,7 @@ class ObjectC(
     engineObjectData: EngineObjectData
 ) : ObjectBase(context, engineObjectData) {
     final suspend fun c(): List<List<ObjectA?>?> {
-        return fetch("c", ObjectA::class, "c")
+        return getInternal("c", ObjectA::class, "c")
     }
 }
 

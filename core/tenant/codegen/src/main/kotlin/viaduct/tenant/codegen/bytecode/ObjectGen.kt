@@ -186,7 +186,7 @@ private class ObjectClassGenV2(
     ) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
-        val fetchMethod = if (orNull) "fetchOrNull" else "fetch"
+        val fetchMethod = if (orNull) "getOrNullInternal" else "getInternal"
         val getterSuffix = if (orNull) "OrNull" else ""
         val methodName = getterName(field.name) + getterSuffix
 
@@ -233,7 +233,7 @@ private class ObjectClassGenV2(
             }
         }
 
-        val fetchMethod = if (orNull) "fetchOrNull" else "fetch"
+        val fetchMethod = if (orNull) "getOrNullInternal" else "getInternal"
         val bridge = field.covariantReturnTypeBridge(kmFun.returnType, field.fetchExpression("(String)null", fetchMethod))
         this.addFunctionWithReturnTypeBridge(
             kmFun,
@@ -274,7 +274,7 @@ private class ObjectClassGenV2(
 
     private fun ViaductSchema.Field.fetchExpression(
         aliasExpression: String,
-        fetchMethod: String = "fetch"
+        fetchMethod: String = "getInternal"
     ): String =
         buildString {
             append("this.$fetchMethod(\n")

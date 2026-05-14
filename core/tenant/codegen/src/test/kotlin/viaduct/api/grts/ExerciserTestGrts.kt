@@ -26,7 +26,7 @@ class ObjectV2(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getStringField(alias: String?): String {
-        return fetch("stringField", String::class, alias)
+        return getInternal("stringField", String::class, alias)
     }
 
     final suspend fun getStringField(): String {
@@ -34,7 +34,7 @@ class ObjectV2(
     }
 
     final suspend fun getIntField(alias: String?): Int {
-        return fetch("intField", Int::class, alias)
+        return getInternal("intField", Int::class, alias)
     }
 
     final suspend fun getIntField(): Int {
@@ -42,7 +42,7 @@ class ObjectV2(
     }
 
     final suspend fun getListField(alias: String?): List<String?>? {
-        return fetch("listField", String::class, alias)
+        return getInternal("listField", String::class, alias)
     }
 
     final suspend fun getListField(): List<String?>? {
@@ -50,7 +50,7 @@ class ObjectV2(
     }
 
     final suspend fun getNestedListField(alias: String?): List<List<String?>?>? {
-        return fetch("nestedListField", String::class, alias)
+        return getInternal("nestedListField", String::class, alias)
     }
 
     final suspend fun getNestedListField(): List<List<String?>?>? {
@@ -112,7 +112,7 @@ class MissingBuilderObjectV2(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getStringField(alias: String?): String {
-        return fetch("stringField", String::class, alias)
+        return getInternal("stringField", String::class, alias)
     }
 
     final suspend fun getStringField(): String {
@@ -144,7 +144,7 @@ class MissingDefaultGetterObjectV2(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getStringField(alias: String?): String {
-        return fetch("stringField", String::class, alias)
+        return getInternal("stringField", String::class, alias)
     }
 
     class Builder(context: ExecutionContext) :
@@ -190,7 +190,7 @@ class MissingSetterObjectV2(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getStringField(alias: String? = null): String {
-        return fetch("stringField", String::class, alias)
+        return getInternal("stringField", String::class, alias)
     }
 
     final suspend fun getStringField(): String {
@@ -499,7 +499,7 @@ class TestArgObject(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getTest(alias: String? = null): String {
-        return fetch("test", String::class, alias)
+        return getInternal("test", String::class, alias)
     }
 
     final suspend fun getTest(): String {
@@ -569,7 +569,7 @@ class Under_Score_Object(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getSomeField(alias: String? = null): String {
-        return fetch("someField", String::class, alias)
+        return getInternal("someField", String::class, alias)
     }
 
     class Builder(context: ExecutionContext) :

@@ -30,6 +30,13 @@ class User private constructor(...): NodeObject {
   suspend fun getLastName(alias: String? = null): String?
   suspend fun getDisplayName(alias: String? = null): String?
 
+  // For each getter, Viaduct also generates an `OrNull` variant — see
+  // "Soft-failing accessors with getXOrNull()" below.
+  suspend fun getIdOrNull(alias: String? = null): GlobalID<User>?
+  suspend fun getFirstNameOrNull(alias: String? = null): String?
+  suspend fun getLastNameOrNull(alias: String? = null): String?
+  suspend fun getDisplayNameOrNull(alias: String? = null): String?
+
   class Builder(ctx: ExecutionContext): DynamicValueOutputBuilder<User> {
     fun id(id: GlobalID<User>): Builder
     fun firstName(firstName: String?): Builder
@@ -43,6 +50,20 @@ class User private constructor(...): NodeObject {
 {{ kdoc("viaduct.api.types.NodeObject") }} is a tagging interface (i.e., an interface with no methods) for GRTs representing GraphQL object types.  `DynamicValueOutputBuilder` is an interface for builders of such types (it is parameterized on `T` and defines a `build` function that returns a `T`).
 
 The values from a fragment on `User` (for example) are accessed through the GRT for `User`.  As a result, the Viaduct GRTs for object types distinguish fields that are "not set," because they haven’t been requested for in the fragment, from fields that are in the fragment and thus are "set."  If you attempt to access a field that has not been set, a `UnsetFieldException` exception will be thrown, even if that field is nullable.  Also, when you build an object-type value, you do *not* have to set all fields, even if those fields are non-nullable.
+
+### Soft-failing accessors with `getXOrNull()`
+
+For every generated `getX()` accessor, Viaduct also generates a matching `getXOrNull()` variant. The distinction is **not** about whether the field is nullable in the schema — both forms already return `T?` when the schema field is nullable. It is about how *errors* are surfaced: `getX()` throws on any failure, while `getXOrNull()` returns `null` for data-side failures (upstream resolver errors, field values stored as errors) so callers can degrade gracefully when a dependency fails. Tenant misuse (e.g. accessing a field that wasn't selected, throwing `UnsetFieldException`), framework bugs (`FrameworkException`), and `CancellationException` still propagate, so real bugs and coroutine cancellation remain visible.
+
+```kotlin
+// Strict: throws on any failure.
+val name: String? = user.getDisplayName()
+
+// Soft: returns null on data-side failures; tenant/framework bugs still throw.
+val nameOrNull: String? = user.getDisplayNameOrNull()
+```
+
+Because `getXOrNull()` discards the underlying data-side error, a caller that needs to distinguish "field is genuinely null" from "field errored and was swallowed" should use `getX()` and handle the exception explicitly.
 
 The GRTs for interface types are Kotlin interfaces with suspending getters (but no builders), while the GRTs for union types are simply Kotlin "tagging" interfaces (i.e., Kotlin interfaces with no members).
 
