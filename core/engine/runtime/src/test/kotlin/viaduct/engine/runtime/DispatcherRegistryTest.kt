@@ -334,7 +334,7 @@ class DispatcherRegistryTest {
 
     @Test
     fun `should log warning when registry is empty with non-contributing modern bootstrappers`() {
-        class ViaductTenantModuleBootstrapper : LegacyTenantModuleBootstrapper {
+        class ViaductLegacyTenantModuleBootstrapper : LegacyTenantModuleBootstrapper {
             override fun fieldResolverExecutors(schema: ViaductSchema) = emptyList<Pair<Coordinate, FieldResolverExecutor>>()
 
             override fun nodeResolverExecutors(schema: ViaductSchema) = emptyList<Pair<String, NodeResolverExecutor>>()
@@ -348,7 +348,7 @@ class DispatcherRegistryTest {
 
         assertDoesNotThrow {
             val dispatcherRegistry = DispatcherRegistryFactory(
-                MockTenantAPIBootstrapper(listOf(ViaductTenantModuleBootstrapper())),
+                MockTenantAPIBootstrapper(listOf(ViaductLegacyTenantModuleBootstrapper())),
                 Validator.Unvalidated,
                 MockCheckerExecutorFactory()
             ).create(Samples.testSchema) as DispatcherRegistry.Impl

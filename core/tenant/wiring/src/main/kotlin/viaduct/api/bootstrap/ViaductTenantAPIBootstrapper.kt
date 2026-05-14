@@ -14,7 +14,7 @@ import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinder
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinderFactory
-import viaduct.tenant.runtime.bootstrap.ViaductTenantModuleBootstrapper
+import viaduct.tenant.runtime.bootstrap.ViaductLegacyTenantModuleBootstrapper
 import viaduct.tenant.runtime.bootstrap.ViaductTenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.ViaductTenantResolverClassFinderFactory
 import viaduct.tenant.runtime.internal.CachingGRTConvFactory
@@ -35,7 +35,7 @@ open class ViaductTenantAPIBootstrapper
         private val grtConvFactory: GRTConvFactory,
     ) : TenantAPIBootstrapper {
         /**
-         * Discovers all Viaduct TenantModule(s) and creates ViaductTenantModuleBootstrapper for each tenant.
+         * Discovers all Viaduct TenantModule(s) and creates ViaductLegacyTenantModuleBootstrapper for each tenant.
          *
          * @return List of all LegacyTenantModuleBootstrapper(s), one for each Viaduct TenantModule.
          */
@@ -48,7 +48,7 @@ open class ViaductTenantAPIBootstrapper
                 tenantPackageInfos.map { packageInfo ->
                     async {
                         log.info("Creating bootstrapper for tenant module: {}", packageInfo.packageName)
-                        ViaductTenantModuleBootstrapper(
+                        ViaductLegacyTenantModuleBootstrapper(
                             codeInjector,
                             createResolverClassFinder(packageInfo),
                             grtConvFactory,

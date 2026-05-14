@@ -24,7 +24,7 @@ import viaduct.service.api.spi.CodeInjector
  * Bootstrapper for Java resolvers that implements the Viaduct [LegacyTenantModuleBootstrapper] interface.
  *
  * This class automatically discovers and registers Java resolvers using classpath scanning.
- * It mirrors the functionality of Kotlin's `ViaductTenantModuleBootstrapper` but for Java resolvers.
+ * It mirrors the functionality of Kotlin's `ViaductLegacyTenantModuleBootstrapper` but for Java resolvers.
  *
  * ## Discovery Process
  *

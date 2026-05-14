@@ -88,7 +88,7 @@ class DispatcherRegistryFactory(
             }
             if (!tenantContributesExecutors) {
                 log().warn("Bootstrapping $tenant (a ${tenant.javaClass.name}) did not contribute any executors")
-                if (tenant.javaClass.simpleName == "ViaductTenantModuleBootstrapper") {
+                if (tenant.javaClass.simpleName == "ViaductLegacyTenantModuleBootstrapper") {
                     nonContributingModernBootstrappersPresent = true
                 }
             }

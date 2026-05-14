@@ -31,15 +31,15 @@ import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.utils.slf4j.logger
 
 /**
- * ViaductTenantModuleBootstrapper is responsible for bootstrapping the Viaduct tenant module.
- * It is responsible for discovering all the resolvers in the tenant module and creating the resolver executors.
- * We use the package name of the tenant module as a prefix to find all resolvers (including the codegen
- * base resolvers).
+ * ViaductLegacyTenantModuleBootstrapper is responsible for bootstrapping the Viaduct tenant module
+ * using classpath scanning. It discovers all the resolvers in the tenant module and creates the
+ * resolver executors. We use the package name of the tenant module as a prefix to find all resolvers
+ * (including the codegen base resolvers).
  *
- * @param injector Injector to be used in all resolvers for [tenantModule]].
- * @param tenantModulePackage Viaduct tenant module package name.
+ * @param codeInjector Injector to be used in all resolvers for [tenantModule].
+ * @param tenantResolverClassFinder Finder for resolver classes in this tenant's package.
  */
-class ViaductTenantModuleBootstrapper(
+class ViaductLegacyTenantModuleBootstrapper(
     private val codeInjector: CodeInjector,
     private val tenantResolverClassFinder: TenantResolverClassFinder,
     private val grtConvFactory: GRTConvFactory = DefaultGRTConvFactory,
