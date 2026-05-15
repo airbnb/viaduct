@@ -22,4 +22,5 @@ dependencies {
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.kotest.assertions.shared)
     testImplementation(libs.kotlin.reflect)
+    testImplementation(testFixtures(libs.viaduct.shared.utils))
 }

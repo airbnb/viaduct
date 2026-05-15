@@ -3,6 +3,7 @@ package viaduct.codegen.st
 import java.io.File
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.utils.test.assertEqualsLf
 
 class STUtilsTest {
     @Test
@@ -30,7 +31,7 @@ class STUtilsTest {
               c
             }
         """.trimIndent()
-        assertEquals(exp, contents.toString())
+        assertEqualsLf(exp, contents.toString())
     }
 
     @Test

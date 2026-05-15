@@ -9,7 +9,6 @@ import graphql.parser.MultiSourceReader
 import graphql.schema.idl.SchemaParser
 import java.io.File
 import java.io.FileOutputStream
-import java.io.PrintStream
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
@@ -250,14 +249,14 @@ data class CsvTable(
      * Creates two files: {baseName}s.csv and {baseName}dirs.csv
      */
     fun writeTo(outputDir: File) {
-        val out = PrintStream(FileOutputStream(File(outputDir, "${baseName}s.csv")))
+        val out = LfPrintStream(FileOutputStream(File(outputDir, "${baseName}s.csv")))
         out.println(baseHeaders)
         for (row in rows) {
             out.println(row.baseData)
         }
         out.close()
 
-        val outDir = PrintStream(FileOutputStream(File(outputDir, "${baseName}dirs.csv")))
+        val outDir = LfPrintStream(FileOutputStream(File(outputDir, "${baseName}dirs.csv")))
         outDir.println("$baseHeaders,$extendedHeaders")
         for (row in rows) {
             for (extData in row.extendedData) {
@@ -274,9 +273,9 @@ data class CsvTable(
     fun toSortedBaseContent(): String {
         val sortedRows = rows.sortedBy { it.baseData }
         return buildString {
-            appendLine(baseHeaders)
+            appendLineLf(baseHeaders)
             for (row in sortedRows) {
-                appendLine(row.baseData)
+                appendLineLf(row.baseData)
             }
         }
     }
@@ -290,9 +289,9 @@ data class CsvTable(
             row.extendedData.map { ext -> "${row.baseData},$ext" }
         }.sorted()
         return buildString {
-            appendLine("$baseHeaders,$extendedHeaders")
+            appendLineLf("$baseHeaders,$extendedHeaders")
             for (entry in sortedEntries) {
-                appendLine(entry)
+                appendLineLf(entry)
             }
         }
     }

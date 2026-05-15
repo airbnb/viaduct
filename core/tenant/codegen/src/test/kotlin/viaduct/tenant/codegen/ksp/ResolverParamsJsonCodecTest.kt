@@ -4,6 +4,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.utils.test.assertEqualsLf
 
 class ResolverParamsJsonCodecTest {
     @Test
@@ -26,7 +27,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertEquals(
+        assertEqualsLf(
             """
                 {
                   "fields" : [ ],
@@ -123,7 +124,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertEquals(
+        assertEqualsLf(
             """
                 {
                   "fields" : [ {
@@ -178,7 +179,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertEquals(
+        assertEqualsLf(
             """
                 {
                   "fields" : [ {
@@ -237,7 +238,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertEquals(
+        assertEqualsLf(
             """
                 {
                   "fields" : [ {
