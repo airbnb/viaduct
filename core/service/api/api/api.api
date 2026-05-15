@@ -50,18 +50,15 @@ public final class viaduct/service/api/GraphQLError {
 	public fun toString ()Ljava/lang/String;
 }
 
-public abstract class viaduct/service/api/SchemaId {
+public final class viaduct/service/api/SchemaId {
+	public static final field Companion Lviaduct/service/api/SchemaId$Companion;
+	public static final field Full Lviaduct/service/api/SchemaId;
+	public static final field None Lviaduct/service/api/SchemaId;
 	public fun <init> (Ljava/lang/String;)V
-	public fun getId ()Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-}
-
-public final class viaduct/service/api/SchemaId$Full : viaduct/service/api/SchemaId {
-	public static final field INSTANCE Lviaduct/service/api/SchemaId$Full;
-}
-
-public final class viaduct/service/api/SchemaId$None : viaduct/service/api/SchemaId {
-	public static final field INSTANCE Lviaduct/service/api/SchemaId$None;
 }
 
 public abstract interface class viaduct/service/api/Viaduct {

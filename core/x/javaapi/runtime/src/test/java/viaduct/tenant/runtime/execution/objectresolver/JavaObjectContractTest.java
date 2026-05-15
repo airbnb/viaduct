@@ -218,7 +218,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   private FieldResolverExecutor getFieldResolverExecutor(String typeName, String fieldName) {
     tryBuildViaductService();
     var schema =
-        ((StandardViaduct) viaductService).getEngineRegistry().getSchema(SchemaId.Full.INSTANCE);
+        ((StandardViaduct) viaductService).getEngineRegistry().getSchema(SchemaId.Full);
     var executors = bootstrapper.fieldResolverExecutors(schema);
     for (var entry : executors) {
       var coordinate = entry.getFirst();

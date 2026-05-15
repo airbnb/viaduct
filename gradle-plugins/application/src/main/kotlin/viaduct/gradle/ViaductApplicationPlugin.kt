@@ -35,7 +35,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
             val appExt = extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
 
-            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
+            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask(appExt)
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
 
             val kotlinGRTJar = setupKotlinGenerateGRTsTask(assembleCentralSchemaTask)
@@ -62,7 +62,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             setupServeTask(appExt, kotlinGRTJar, javaGRTJar)
         }
 
-    private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
+    private fun Project.setupAssembleCentralSchemaTask(appExt: ViaductApplicationExtension): TaskProvider<AssembleCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {
             description = "Resolvable configuration where all viaduct-module plugins send their schema partitions."
             isCanBeConsumed = false
@@ -88,6 +88,10 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             )
 
             outputDirectory.set(centralSchemaDirectory())
+
+            // Wire scope configuration from extension for UP-TO-DATE and config-cache compatibility
+            scopeUniverse.set(appExt.scopeUniverse)
+            scopedSchemaEntries.set(appExt.scopedSchemaEntries)
         }
 
         return assembleCentralSchemaTask

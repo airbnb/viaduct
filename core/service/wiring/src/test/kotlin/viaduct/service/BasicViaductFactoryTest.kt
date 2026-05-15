@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // Tests verify deprecated SchemaScopeInfo and withScopedSchemas still behave correctly
+
 package viaduct.service
 
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -5,7 +7,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.NaiveTenantModuleBootstrapper
 
 internal class BasicViaductFactoryTest {
@@ -22,18 +23,15 @@ internal class BasicViaductFactoryTest {
         fun `should expose SchemaId with id and scope ids`() {
             val scopeInfo = SchemaScopeInfo("test-schema", setOf("admin", "user"))
 
-            val scoped = scopeInfo.schemaId as SchemaId.Scoped
-            assertEquals("test-schema", scoped.id)
-            assertEquals(setOf("admin", "user"), scoped.scopeIds)
+            assertEquals("test-schema", scopeInfo.schemaId.id)
+            assertEquals(setOf("admin", "user"), scopeInfo.scopesToApply)
         }
 
         @Test
         fun `default scopesToApply should produce empty scope set`() {
             val scopeInfo = SchemaScopeInfo("full-schema")
 
-            val scoped = scopeInfo.schemaId as SchemaId.Scoped
-            assertEquals("full-schema", scoped.id)
-            assertTrue(scoped.scopeIds.isEmpty())
+            assertEquals("full-schema", scopeInfo.schemaId.id)
             assertTrue(scopeInfo.scopesToApply.isEmpty())
         }
 

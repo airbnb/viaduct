@@ -8,7 +8,6 @@ import viaduct.api.resolver.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.service.api.SchemaId
 import viaduct.service.runtime.SchemaConfiguration
-import viaduct.service.runtime.toScopeConfig
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
 import viaduct.tenant.runtime.execution.filtertest.resolverbases.QueryResolvers
@@ -25,21 +24,23 @@ class TenantPackageFilteringFeatureAppTest : TenantPackageFilteringContractTest(
         }
     }
 
-    private val schemaId1 = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
-    private val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
+    private lateinit var schemaId1: SchemaId
+    private lateinit var schemaId2: SchemaId
 
     @BeforeEach
+    @Suppress("DEPRECATION")
     fun registerSchemas() {
-        withViaductBuilder {
-            withSchemaConfiguration(
-                SchemaConfiguration.fromSdl(
-                    sdl(),
-                    scopes = setOf(
-                        schemaId1.toScopeConfig(),
-                        schemaId2.toScopeConfig(),
-                    )
-                )
+        val config = SchemaConfiguration.fromSdl(
+            sdl(),
+            scopes = setOf(
+                SchemaConfiguration.ScopeConfig("SCHEMA_ID_1", setOf("SCOPE1")),
+                SchemaConfiguration.ScopeConfig("SCHEMA_ID_2", setOf("SCOPE2")),
             )
+        )
+        schemaId1 = SchemaId("SCHEMA_ID_1")
+        schemaId2 = SchemaId("SCHEMA_ID_2")
+        withViaductBuilder {
+            withSchemaConfiguration(config)
         }
     }
 
@@ -90,18 +91,17 @@ class TenantPackageFilteringFeatureAppTest : TenantPackageFilteringContractTest(
     @Test
     @Suppress("DEPRECATION")
     fun `Validation errors vs missing resolvers due to tenant filtering`() {
-        val scope1Only = SchemaId.Scoped("SCOPE1_ONLY", setOf("SCOPE1"))
-        val scope2Only = SchemaId.Scoped("SCOPE2_ONLY", setOf("SCOPE2"))
-        withViaductBuilder {
-            withSchemaConfiguration(
-                SchemaConfiguration.fromSdl(
-                    sdl(),
-                    scopes = setOf(
-                        scope1Only.toScopeConfig(),
-                        scope2Only.toScopeConfig()
-                    )
-                )
+        val config2 = SchemaConfiguration.fromSdl(
+            sdl(),
+            scopes = setOf(
+                SchemaConfiguration.ScopeConfig("SCOPE1_ONLY", setOf("SCOPE1")),
+                SchemaConfiguration.ScopeConfig("SCOPE2_ONLY", setOf("SCOPE2"))
             )
+        )
+        val scope1Only = SchemaId("SCOPE1_ONLY")
+        val scope2Only = SchemaId("SCOPE2_ONLY")
+        withViaductBuilder {
+            withSchemaConfiguration(config2)
         }
 
         withViaductBuilder {

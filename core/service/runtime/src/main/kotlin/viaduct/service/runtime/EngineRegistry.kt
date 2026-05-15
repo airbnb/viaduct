@@ -83,6 +83,8 @@ class EngineRegistry private constructor(
             private suspend fun createAsync(config: SchemaConfiguration): EngineRegistry =
                 measureTimedValue {
                     log.info("Initializing EngineRegistry...")
+                    val registeredSchemaIds = listOf(SchemaId.Full.id) + config.scopedSchemas.keys
+                    log.info("Registering {} schema(s): {}", registeredSchemaIds.size, registeredSchemaIds)
                     val fullSchemaConfig = config.fullSchemaConfig
                         ?: throw IllegalStateException("Full schema not registered. This is fatal and should never happen.")
                     // Build full schema eagerly (it's always accessed immediately during injection)
@@ -130,10 +132,11 @@ class EngineRegistry private constructor(
 
             @OptIn(ExperimentalCoroutinesApi::class)
             private suspend fun buildScopedSchemas(
-                scopedSchemas: Map<SchemaId, SchemaConfiguration.ScopedSchemaConfig>,
+                scopedSchemas: Map<String, SchemaConfiguration.ScopedSchemaConfig>,
                 fullSchema: ViaductSchema
             ): List<Pair<SchemaId, Lazy<ViaductSchema>>> =
-                scopedSchemas.entries.parallelMap(parallelWorkers = 4) { (schemaId, scopeConfig) ->
+                scopedSchemas.entries.parallelMap(parallelWorkers = 4) { (_, scopeConfig) ->
+                    val schemaId = scopeConfig.schemaId
                     schemaId to
                         if (scopeConfig.lazy) {
                             lazy { scopeConfig.build(fullSchema) }.also {
@@ -141,7 +144,22 @@ class EngineRegistry private constructor(
                             }
                         } else {
                             log.info("Eagerly building scoped schema for schema ID {}...", schemaId)
-                            lazyOf(scopeConfig.build(fullSchema)).also {
+                            val startNanos = System.nanoTime()
+                            val builtSchema = try {
+                                scopeConfig.build(fullSchema)
+                            } catch (e: Exception) {
+                                throw ViaductSchemaLoadException(
+                                    "Failed to eagerly materialize scoped schema for schema ID '$schemaId': ${e.message}",
+                                    e
+                                )
+                            }
+                            val materializationTimeMs = (System.nanoTime() - startNanos) / 1_000_000L
+                            log.debug(
+                                "Scoped schema for schema ID {} materialized. materialization_time_ms={}.",
+                                schemaId,
+                                materializationTimeMs
+                            )
+                            lazyOf(builtSchema).also {
                                 log.info("Scoped schema for schema ID {} built successfully.", schemaId)
                             }
                         }

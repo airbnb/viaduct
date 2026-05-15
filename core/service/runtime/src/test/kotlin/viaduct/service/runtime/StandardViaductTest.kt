@@ -128,11 +128,12 @@ class StandardViaductTest {
             """.trimIndent()
         )
 
-        val schemaId = SchemaId.Scoped(SCHEMA_ID, setOf("scope1"))
+        @Suppress("DEPRECATION")
         val config = SchemaConfiguration.fromSchema(
             fullSchema,
-            scopes = setOf(schemaId.toScopeConfig())
+            scopes = setOf(SchemaConfiguration.ScopeConfig(SCHEMA_ID, setOf("scope1")))
         )
+        val schemaId = SchemaId(SCHEMA_ID)
         val viaductBuilder = StandardViaduct.Builder().withSchemaConfiguration(config)
 
         val stdViaduct = viaductBuilder.build()

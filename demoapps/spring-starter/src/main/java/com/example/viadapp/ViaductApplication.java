@@ -46,7 +46,7 @@ public class ViaductApplication {
     ExecutionInput executionInput =
         ExecutionInput.Companion.create(operationText, null, Collections.emptyMap(), null);
 
-    ExecutionResult result = viaduct.execute(executionInput, SchemaId.Full.INSTANCE);
+    ExecutionResult result = viaduct.execute(executionInput, SchemaId.Full);
 
     System.out.println(
         new ObjectMapper()

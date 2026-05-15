@@ -10,6 +10,7 @@ dependencies {
     api(gradleApi())
 
     implementation(libs.idea.gradle.plugin)
+    implementation(libs.viaduct.shared.viaductschema)
 }
 
 viaductPublishing {

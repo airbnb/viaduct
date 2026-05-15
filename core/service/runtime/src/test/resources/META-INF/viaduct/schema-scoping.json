@@ -1,0 +1,9 @@
+{
+  "declaredSchemaScopes" : [ "admin", "internal", "public" ],
+  "declaredScopedSchemas" : {
+    "FULL" : [ ],
+    "adminApi" : [ "admin" ],
+    "api" : [ "internal", "public" ]
+  },
+  "version" : "1"
+}

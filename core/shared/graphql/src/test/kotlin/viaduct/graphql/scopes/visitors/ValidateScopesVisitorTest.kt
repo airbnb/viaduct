@@ -1,6 +1,7 @@
 package viaduct.graphql.scopes.visitors
 
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.scopes.errors.DirectiveRetainedTypeScopeError
@@ -88,6 +89,70 @@ class ValidateScopesVisitorTest {
         )
     }
 
+    @Test
+    fun `A8 - wildcard scope on directive-retained input type is accepted`() {
+        assertPasses(
+            """
+            $BOILERPLATE
+
+            input MyInput @scope(to: ["*"]) {
+              foo: Int
+            }
+
+            directive @dirWithInput(x: MyInput) on OBJECT
+
+            type Query @dirWithInput(x: {foo: 42}) {
+                placeholder: Int
+            }
+            """
+        )
+    }
+
+    @Test
+    fun `A8 - full-universe enumeration on directive-retained type is rejected`() {
+        assertThrowsWithScopes(
+            """
+            $BOILERPLATE
+
+            input MyInput @scope(to: ["public", "internal", "admin"]) {
+              foo: Int
+            }
+
+            directive @dirWithInput(x: MyInput) on OBJECT
+
+            type Query @dirWithInput(x: {foo: 42}) {
+                placeholder: Int
+            }
+            """,
+            validScopes = setOf("public", "internal", "admin")
+        )
+    }
+
+    @Test
+    fun `A8 - error message recommends wildcard bracket notation`() {
+        val thrown = org.junit.jupiter.api.assertThrows<DirectiveRetainedTypeScopeError> {
+            runWithScopes(
+                """
+                $BOILERPLATE
+
+                input MyInput @scope(to: ["myscope"]) {
+                  foo: Int
+                }
+
+                directive @dirWithInput(x: MyInput) on OBJECT
+
+                type Query @dirWithInput(x: {foo: 42}) {
+                    placeholder: Int
+                }
+                """,
+                validScopes = setOf("myscope", "otherscope")
+            )
+        }
+        val msg = thrown.message ?: ""
+        assertTrue(msg.contains("[\"*\"]") || msg.contains("""["*"]"""),
+            "Expected error message to mention [\"*\"] but was: $msg")
+    }
+
     private fun run(sdl: String) {
         try {
             val schema = toSchema(sdl)
@@ -100,6 +165,13 @@ class ValidateScopesVisitorTest {
         }
     }
 
+    private fun runWithScopes(sdl: String, validScopes: Set<String>) {
+        val schema = toSchema(sdl)
+        val visitor = ValidateScopesVisitor(validScopes, ScopeDirectiveParser(validScopes))
+        val traverser = buildSchemaTraverser(schema)
+        traverser.traverse(StubRoot(schema), visitor)
+    }
+
     private fun assertPasses(sdl: String) {
         run(sdl)
     }
@@ -107,6 +179,12 @@ class ValidateScopesVisitorTest {
     private fun assertThrows(sdl: String) {
         assertThrows<DirectiveRetainedTypeScopeError> {
             run(sdl)
+        }
+    }
+
+    private fun assertThrowsWithScopes(sdl: String, validScopes: Set<String>) {
+        assertThrows<DirectiveRetainedTypeScopeError> {
+            runWithScopes(sdl, validScopes)
         }
     }
 }

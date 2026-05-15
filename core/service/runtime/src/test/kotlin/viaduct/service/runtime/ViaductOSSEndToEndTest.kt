@@ -33,7 +33,7 @@ import viaduct.service.api.spi.FlagManager.Flag
 class ViaductOSSEndToEndTest {
     private lateinit var subject: StandardViaduct
     private lateinit var schemaConfiguration: SchemaConfiguration
-    private lateinit var schemaId: SchemaId.Scoped
+    private lateinit var schemaId: SchemaId
 
     private val flagManager = object : FlagManager {
         override fun isEnabled(flag: Flag) = true
@@ -45,12 +45,13 @@ class ViaductOSSEndToEndTest {
         """.trimIndent()
 
     @BeforeEach
+    @Suppress("DEPRECATION")
     fun setUp() {
-        schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
         schemaConfiguration = SchemaConfiguration.fromSdl(
             sdl,
-            scopes = setOf(schemaId.toScopeConfig())
+            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("viaduct-public")))
         )
+        schemaId = SchemaId("public")
         subject = StandardViaduct.Builder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
@@ -144,11 +145,11 @@ class ViaductOSSEndToEndTest {
                 exceptionWiring
             )
 
-            val schemaId = SchemaId.Scoped("exception-test", setOf("viaduct-public"))
             val exceptionSchemaConfig = SchemaConfiguration.fromSchema(
                 exceptionSchema,
-                scopes = setOf(schemaId.toScopeConfig())
+                scopes = setOf(SchemaConfiguration.ScopeConfig("exception-test", setOf("viaduct-public")))
             )
+            val schemaId = SchemaId("exception-test")
 
             val exceptionSubject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
@@ -189,11 +190,11 @@ class ViaductOSSEndToEndTest {
                 variableWiring
             )
 
-            val schemaId = SchemaId.Scoped("variable-test", setOf("viaduct-public"))
             val variableSchemaConfig = SchemaConfiguration.fromSchema(
                 variableSchema,
-                scopes = setOf(schemaId.toScopeConfig())
+                scopes = setOf(SchemaConfiguration.ScopeConfig("variable-test", setOf("viaduct-public")))
             )
+            val schemaId = SchemaId("variable-test")
 
             val variableSubject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)

@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // SchemaScopeInfo and withScopedSchemas are deprecated; BasicViaductFactory is a transitional API
+
 package viaduct.service
 
 import viaduct.apiannotations.StableApi

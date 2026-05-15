@@ -19,6 +19,8 @@ dependencies {
     // build time via viaductCodegenClasspath / viaductServeClasspath Configurations.
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.viaductschema)
+    // Jackson is needed for ResourceFileSchema.objectMapper() serialization at build time
+    implementation(libs.jackson.module)
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)
 

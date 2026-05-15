@@ -60,11 +60,11 @@ class ViaductScopedSchemaIntegrationTest {
                 }
             """.trimIndent()
 
-            val schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
             val config = SchemaConfiguration.fromSdl(
                 sdl,
-                scopes = setOf(schemaId.toScopeConfig())
+                scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("viaduct-public")))
             )
+            val schemaId = SchemaId("public")
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
@@ -100,15 +100,15 @@ class ViaductScopedSchemaIntegrationTest {
                 }
             """.trimIndent()
 
-            val schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
+            val scopeConfig = SchemaConfiguration.ScopeConfig("public", setOf("viaduct-public"))
 
             val config = when (method) {
                 SchemaConfigMethod.FROM_SDL -> SchemaConfiguration.fromSdl(
                     sdl,
-                    scopes = setOf(schemaId.toScopeConfig())
+                    scopes = setOf(scopeConfig)
                 )
                 SchemaConfigMethod.FROM_RESOURCES -> SchemaConfiguration.fromResources(
-                    scopes = setOf(schemaId.toScopeConfig())
+                    scopes = setOf(scopeConfig)
                 )
                 SchemaConfigMethod.FROM_SCHEMA -> {
                     val schema = ViaductSchema(
@@ -121,10 +121,11 @@ class ViaductScopedSchemaIntegrationTest {
                     )
                     SchemaConfiguration.fromSchema(
                         schema,
-                        scopes = setOf(schemaId.toScopeConfig())
+                        scopes = setOf(scopeConfig)
                     )
                 }
             }
+            val schemaId = SchemaId("public")
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
@@ -185,11 +186,11 @@ class ViaductScopedSchemaIntegrationTest {
                 }
             """.trimIndent()
 
-            val schemaId = SchemaId.Scoped("SCHEMA_ID", setOf("SCOPE1"))
             val config = SchemaConfiguration.fromSdl(
                 sdl,
-                scopes = setOf(schemaId.toScopeConfig())
+                scopes = setOf(SchemaConfiguration.ScopeConfig("SCHEMA_ID", setOf("SCOPE1")))
             )
+            val schemaId = SchemaId("SCHEMA_ID")
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
@@ -256,21 +257,20 @@ class ViaductScopedSchemaIntegrationTest {
                 }
             """.trimIndent()
 
-            val schemaId1 = SchemaId.Scoped("SCOPE1_ONLY", setOf("SCOPE1"))
-            val schemaId2 = SchemaId.Scoped("SCOPE2_ONLY", setOf("SCOPE2"))
+            val config1 = SchemaConfiguration.fromSdl(
+                sdl,
+                scopes = setOf(
+                    SchemaConfiguration.ScopeConfig("SCOPE1_ONLY", setOf("SCOPE1")),
+                    SchemaConfiguration.ScopeConfig("SCOPE2_ONLY", setOf("SCOPE2"))
+                )
+            )
+            val schemaId1 = SchemaId("SCOPE1_ONLY")
+            val schemaId2 = SchemaId("SCOPE2_ONLY")
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaConfiguration(
-                    SchemaConfiguration.fromSdl(
-                        sdl,
-                        scopes = setOf(
-                            schemaId1.toScopeConfig(),
-                            schemaId2.toScopeConfig()
-                        )
-                    )
-                )
+                .withSchemaConfiguration(config1)
                 .build()
 
             val query1 = """
@@ -401,21 +401,20 @@ class ViaductScopedSchemaIntegrationTest {
                 }
             """.trimIndent()
 
-            val schemaId1 = SchemaId.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
-            val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
+            val config2 = SchemaConfiguration.fromSdl(
+                sdl,
+                scopes = setOf(
+                    SchemaConfiguration.ScopeConfig("SCHEMA_ID_1", setOf("SCOPE1")),
+                    SchemaConfiguration.ScopeConfig("SCHEMA_ID_2", setOf("SCOPE2"))
+                )
+            )
+            val schemaId1 = SchemaId("SCHEMA_ID_1")
+            val schemaId2 = SchemaId("SCHEMA_ID_2")
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaConfiguration(
-                    SchemaConfiguration.fromSdl(
-                        sdl,
-                        scopes = setOf(
-                            schemaId1.toScopeConfig(),
-                            schemaId2.toScopeConfig()
-                        )
-                    )
-                )
+                .withSchemaConfiguration(config2)
                 .build()
 
             val query1 = """

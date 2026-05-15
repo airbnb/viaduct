@@ -1,4 +1,5 @@
 @file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
+@file:OptIn(viaduct.apiannotations.VisibleForTest::class)
 
 package viaduct.tenant.runtime.fixtures
 
@@ -65,6 +66,14 @@ abstract class AbstractFeatureAppTestBase {
     fun withViaductBuilder(builderUpdate: StandardViaduct.Builder.() -> Unit) {
         viaductBuilder.apply(builderUpdate)
     }
+
+    /**
+     * Creates a [SchemaConfiguration] from a JSON string in the same format as the
+     * META-INF/viaduct/schema-scoping.json resource file. All non-FULL declared schemas
+     * are eagerly registered. Intended for tests that want to avoid classpath resource setup.
+     */
+    protected fun configFromScopeJson(json: String): SchemaConfiguration =
+        SchemaConfiguration.forTesting(json)
 
     /**
      * Configures scoped schemas for the test. Each [SchemaScopeInfo] binds a schema name

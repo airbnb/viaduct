@@ -19,8 +19,8 @@ class DirectiveRetainedTypeScopeError
         node: Node<*>?
     ) : SchemaScopeValidationError(message, node) {
         constructor(element: GraphQLNamedSchemaElement) : this(
-            "Type ${element.name} is used by a GraphQL directive and should " +
-                "not have restricted scopes. Please use scope `*` for this type",
+            "Type '${element.name}' is used by a GraphQL directive and must be available in all scopes. " +
+                "Use @scope(to: [\"*\"]) instead of enumerating individual scopes.",
             element.definition
         )
     }

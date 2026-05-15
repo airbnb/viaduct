@@ -74,7 +74,15 @@ class ViaductBuilder {
      * This is a convenience method equivalent to calling [withSchemaConfiguration] with
      * [SchemaConfiguration.fromResources]. The last of [withSchemaConfiguration] or
      * [withScopedSchemas] to be called wins.
+     *
+     * @deprecated Use [withSchemaConfiguration] with [SchemaConfiguration.fromResources]`(schemaIds)` instead.
      */
+    @Deprecated(
+        message = "Use withSchemaConfiguration(SchemaConfiguration.fromResources(schemaIds)) instead.",
+        replaceWith = ReplaceWith("withSchemaConfiguration(SchemaConfiguration.fromResources(schemaIds))"),
+        level = DeprecationLevel.WARNING
+    )
+    @Suppress("DEPRECATION")
     fun withScopedSchemas(scopedSchemas: List<SchemaScopeInfo>) =
         apply {
             val schemaConfiguration = SchemaConfiguration.fromResources(
@@ -205,21 +213,28 @@ class ViaductBuilder {
  * @param id the name for the scoped schema
  * @param scopesToApply the set of scope-ids that define the scoped schema;
  *        empty means the full (unscoped) schema is registered under this name.
+ *
+ * @deprecated Use [SchemaConfiguration.fromResources]`(schemaIds)` to configure scoped schemas,
+ *             passing the schema IDs directly. [SchemaScopeInfo] will be removed in a future version.
  */
+@Deprecated(
+    message = "Use SchemaConfiguration.fromResources(schemaIds) to configure scoped schemas directly. " +
+        "SchemaScopeInfo will be removed in a future version.",
+    level = DeprecationLevel.WARNING
+)
 @StableApi
 class SchemaScopeInfo private constructor(
     val schemaId: SchemaId,
+    val scopesToApply: Set<String>,
 ) {
     constructor(id: String, scopesToApply: Set<String> = emptySet()) : this(
-        SchemaId.Scoped(id, scopesToApply)
+        SchemaId(id),
+        scopesToApply
     )
 
     init {
         require(schemaId.id.isNotBlank()) { "schema id must not be blank" }
     }
-
-    val scopesToApply: Set<String>
-        get() = (schemaId as SchemaId.Scoped).scopeIds
 
     internal fun toScopeConfig(): SchemaConfiguration.ScopeConfig = SchemaConfiguration.ScopeConfig(schemaId.id, scopesToApply)
 }

@@ -32,6 +32,10 @@ dependencies {
     api(libs.viaduct.shared.utils)
 
     implementation(libs.guava)
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.module)
+    implementation(libs.jackson.annotations)
+    implementation(libs.jackson.core)
     implementation(libs.kotlin.reflect)
     implementation(libs.jspecify)
 

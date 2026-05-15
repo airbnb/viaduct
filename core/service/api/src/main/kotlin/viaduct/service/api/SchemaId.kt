@@ -1,6 +1,5 @@
 package viaduct.service.api
 
-import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 
 /**
@@ -8,38 +7,34 @@ import viaduct.apiannotations.StableApi
  *
  * Viaduct supports multiple schema variants for a single service:
  * - [Full] — the default, complete schema containing all types and fields.
- * - [Scoped] — a subset of the full schema restricted by a set of scope IDs,
- *   useful for multi-tenancy or permission-based field visibility.
+ * - A named scoped variant — a subset of the full schema restricted by scope IDs declared via
+ *   [viaduct.service.runtime.SchemaConfiguration]. Construct with `SchemaId("myScope")`.
  * - [None] — represents a non-existent schema, used as a sentinel value.
+ *
+ * Equality and hash code are based on [id] alone, so `SchemaId("FULL") == SchemaId.Full`
+ * and either is a valid lookup key for the same schema.
  *
  * @see viaduct.service.ViaductBuilder.withSchemaConfiguration
  */
 @StableApi
-abstract class SchemaId(
-    open val id: String
-) {
-    /**
-     * A schema ID that is scoped to a set of scope IDs.
-     * @param id The schema ID.
-     * @param scopeIds The set of scope IDs the schema is scoped to.
-     */
-    @InternalApi
-    data class Scoped(
-        override val id: String,
-        val scopeIds: Set<String>
-    ) : SchemaId(id)
+class SchemaId(val id: String) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is SchemaId) return false
+        return id == other.id
+    }
 
-    /**
-     * A schema ID that represents a full schema without any scoping.
-     */
-    @StableApi
-    object Full : SchemaId("FULL")
-
-    /**
-     * Represents a non-existent schema.
-     */
-    @StableApi
-    object None : SchemaId("NONE")
+    override fun hashCode(): Int = id.hashCode()
 
     override fun toString(): String = "SchemaId(id='$id')"
+
+    companion object {
+        /** A schema ID that represents the full schema without any scoping. */
+        @JvmField
+        val Full = SchemaId("FULL")
+
+        /** A schema ID representing a non-existent schema (sentinel). */
+        @JvmField
+        val None = SchemaId("NONE")
+    }
 }

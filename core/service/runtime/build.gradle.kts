@@ -22,6 +22,8 @@ dependencies {
 
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.utils)
+    implementation(libs.viaduct.shared.viaductschema)
+    implementation(libs.jackson.databind)
     implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.caffeine)
     implementation(libs.classgraph)
@@ -29,6 +31,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core.jvm)
     implementation(libs.kotlinx.coroutines.jdk8)
 
+    testImplementation(libs.logback.classic)
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.service.api))
     testImplementation(testFixtures(libs.viaduct.shared.graphql))

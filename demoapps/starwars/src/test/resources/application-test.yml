@@ -1,0 +1,12 @@
+# Increase HTTP client read timeout for the embedded test server.
+#
+# Root cause (viaduct-8705): under full-suite JVM conditions, the batch resolver's
+# coroutine execution on a freshly-started Micronaut embedded test server can exceed
+# the default 10-second read timeout. Isolated runs pass consistently because the
+# coroutine dispatcher and resolver caches are already warm. Raising the timeout to
+# 60 seconds masks the timing gap without addressing latency in the batch resolver
+# itself — a production-level fix is deferred (see viaduct-8705).
+micronaut:
+  http:
+    client:
+      read-timeout: PT60S
