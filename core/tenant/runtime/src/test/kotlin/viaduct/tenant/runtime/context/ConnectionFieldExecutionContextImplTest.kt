@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class)
+@file:OptIn(ExperimentalCoroutinesApi::class)
 
 package viaduct.tenant.runtime.context
 
@@ -16,7 +16,6 @@ import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Object
 import viaduct.api.types.OffsetLimit
 import viaduct.api.types.Query as QueryType
-import viaduct.apiannotations.ExperimentalApi
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.executioncontext.ExecutionContextTestSchema

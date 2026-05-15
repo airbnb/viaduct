@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalApi::class)
-
 package viaduct.tenant.runtime.context
 
 import viaduct.api.globalid.GlobalID
@@ -13,7 +11,6 @@ import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.ResolveSelectionSetOptions

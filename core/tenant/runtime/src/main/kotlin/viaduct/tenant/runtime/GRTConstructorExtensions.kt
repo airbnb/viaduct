@@ -13,7 +13,6 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.Input
 import viaduct.api.types.InputLike
 import viaduct.api.types.Object
-import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.EngineObject
 
 /**
@@ -27,7 +26,6 @@ import viaduct.engine.api.EngineObject
  *
  * @param strict when false skips validation (defaults to true)
  */
-@VisibleForTest
 fun <T : Any> KClass<out T>.getGRTConstructor(): KFunction<T> =
     requireNotNull(this.primaryConstructor) {
         "Primary constructor for type $this is not found."

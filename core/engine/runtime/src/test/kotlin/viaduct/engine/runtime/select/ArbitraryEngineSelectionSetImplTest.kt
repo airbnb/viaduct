@@ -1,5 +1,4 @@
 @file:Suppress("ForbiddenImport")
-@file:OptIn(VisibleForTest::class)
 
 package viaduct.engine.runtime.select
 
@@ -8,7 +7,6 @@ import graphql.language.OperationDefinition
 import io.kotest.property.Arb
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
-import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.arbitrary.graphql.graphQLDocument

@@ -1,5 +1,3 @@
-@file:OptIn(InternalApi::class)
-
 package viaduct.tenant.runtime.internal
 
 import com.github.benmanes.caffeine.cache.Caffeine
@@ -10,7 +8,6 @@ import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.GRTConvFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.KeyMapping
-import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.IR

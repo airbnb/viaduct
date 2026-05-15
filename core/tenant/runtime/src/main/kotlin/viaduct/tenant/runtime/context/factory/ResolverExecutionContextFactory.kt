@@ -29,7 +29,6 @@ import viaduct.api.types.Mutation
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
@@ -110,7 +109,6 @@ class NodeExecutionContextFactory(
         return wrap(wrappedContext)
     }
 
-    @VisibleForTest
     class FakeResolverBase<R : NodeObject> : NodeResolverBase<R> {
         class Context<R : NodeObject>(ctx: NodeExecutionContext<R>) : NodeExecutionContext<R> by ctx, InternalContext by (ctx as InternalContext)
     }
@@ -124,7 +122,6 @@ interface VariablesProviderContextFactory {
     ): VariablesProviderContext<Arguments>
 }
 
-// Visible for testing
 class FieldExecutionContextFactory internal constructor(
     resolverBaseClass: Class<out ResolverBase<*>>,
     private val expectedContextInterface: Class<out BaseFieldExecutionContext<*, *, *>>,
@@ -205,7 +202,6 @@ class FieldExecutionContextFactory internal constructor(
         return VariablesProviderContextImpl(ic, requestContext, rawArguments.toInputLikeGRT(ic, argumentsCls, graphqlTypeName, graphqlFieldName))
     }
 
-    @VisibleForTest
     class FakeResolverBase<R : CompositeOutput> : ResolverBase<R> {
         class Context<O : Object, Q : Query, A : Arguments, R : CompositeOutput>(ctx: FieldExecutionContext<O, Q, A, R>) :
             FieldExecutionContext<O, Q, A, R> by ctx, InternalContext by (ctx as InternalContext)

@@ -13,13 +13,10 @@ import viaduct.api.types.MultidirectionalConnectionArguments
 import viaduct.api.types.Mutation
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.ExperimentalApi
-import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.EngineObjectData
 
 @Retention(AnnotationRetention.RUNTIME)
 @Target(AnnotationTarget.CLASS)
-@VisibleForTest
 annotation class FakeGRT
 
 /**
@@ -89,7 +86,6 @@ class FakeArguments(
  */
 @FakeGRT
 @Suppress("UNUSED_PARAMETER")
-@OptIn(ExperimentalApi::class)
 class FakeConnectionArguments(
     context: InternalContext? = null,
     val inputData: Map<String, Any?> = emptyMap(),
@@ -105,7 +101,6 @@ class FakeConnectionArguments(
  */
 @FakeGRT
 @Suppress("UNUSED_PARAMETER")
-@OptIn(ExperimentalApi::class)
 class FakeBackwardConnectionArguments(
     context: InternalContext? = null,
     val inputData: Map<String, Any?> = emptyMap(),
@@ -121,7 +116,6 @@ class FakeBackwardConnectionArguments(
  */
 @FakeGRT
 @Suppress("UNUSED_PARAMETER")
-@OptIn(ExperimentalApi::class)
 class FakeMultidirectionalConnectionArguments(
     context: InternalContext? = null,
     val inputData: Map<String, Any?> = emptyMap(),

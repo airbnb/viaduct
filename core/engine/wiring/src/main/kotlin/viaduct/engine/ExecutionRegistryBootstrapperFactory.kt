@@ -4,7 +4,6 @@ package viaduct.engine
 
 import io.github.classgraph.ClassGraph
 import java.net.URL
-import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantAPIBootstrapper
 import viaduct.service.api.spi.TenantModuleBootstrapper
@@ -30,7 +29,6 @@ object BootstrapperFactory {
      * Use this in tests where multiple unrelated module JSONs share the same classpath — loading
      * all of them would fail because their resolvers reference types not present in the test schema.
      */
-    @VisibleForTest
     fun fromResources(
         tenantModuleBootstrapper: TenantModuleBootstrapper,
         packagePrefix: String,

@@ -5,10 +5,8 @@ import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.select.Selections
 import viaduct.api.types.CompositeOutput
-import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.EngineSelectionSet
 
-@VisibleForTest
 class SelectionSetFactoryImpl(
     private val engineSelectionSetFactory: EngineSelectionSet.Factory
 ) : SelectionSetFactory {

@@ -5,7 +5,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
-import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
@@ -15,7 +14,6 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.SharedTenantModuleBootstrapper
 
-@OptIn(VisibleForTest::class)
 class ExecutionRegistryBootstrapperFactoryTest {
     private val injector = CodeInjector.Naive
 

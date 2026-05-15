@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalApi::class)
-
 package viaduct.tenant.runtime.context
 
 import viaduct.api.context.ResolverExecutionContext
@@ -13,7 +11,6 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.ExperimentalApi
 import viaduct.errors.handleFrameworkErrors
 
 sealed class ResolverExecutionContextImpl<Q : Query>(

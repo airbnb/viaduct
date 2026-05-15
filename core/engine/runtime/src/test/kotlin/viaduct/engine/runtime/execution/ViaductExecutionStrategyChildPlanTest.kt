@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.apiannotations.InternalApi
 import viaduct.dataloader.NextTickDispatcher
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
@@ -48,7 +47,6 @@ import viaduct.service.api.spi.FlagManager
  */
 @ExperimentalCoroutinesApi
 class ViaductExecutionStrategyChildPlanTest {
-    @OptIn(InternalApi::class)
     private val nextTickDispatcher = NextTickDispatcher(flagManager = FlagManager.disabled)
 
     @Test

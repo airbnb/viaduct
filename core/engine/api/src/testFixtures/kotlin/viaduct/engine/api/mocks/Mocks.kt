@@ -1,5 +1,4 @@
 @file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
-@file:OptIn(VisibleForTest::class)
 
 package viaduct.engine.api.mocks
 
@@ -22,7 +21,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import viaduct.apiannotations.VisibleForTest
 import viaduct.dataloader.mocks.MockNextTickDispatcher
 import viaduct.engine.ViaductSchemaLoadException
 import viaduct.engine.ViaductWiringFactory

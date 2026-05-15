@@ -7,7 +7,6 @@ import viaduct.api.NodeResolverBase
 import viaduct.api.internal.ReflectionLoader
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
-import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
@@ -61,7 +60,6 @@ class NodeBatchResolverExecutorImpl(
         return selectors.zip(results.map { unwrap(it) }).toMap()
     }
 
-    @OptIn(InternalApi::class)
     private suspend fun unwrap(fieldValue: Any?): Result<EngineObjectData> {
         if (fieldValue !is FieldValue<*>) {
             return Result.failure(

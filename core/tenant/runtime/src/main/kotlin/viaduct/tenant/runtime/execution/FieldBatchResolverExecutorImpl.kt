@@ -7,7 +7,6 @@ import viaduct.api.ResolverBase
 import viaduct.api.internal.ReflectionLoader
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
-import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
@@ -80,7 +79,6 @@ class FieldBatchResolverExecutorImpl(
         return selectors.zip(results.map { unwrap(it, context.globalIDCodec) }).toMap()
     }
 
-    @OptIn(InternalApi::class)
     private suspend fun unwrap(
         fieldValue: Any?,
         globalIDCodec: GlobalIDCodec

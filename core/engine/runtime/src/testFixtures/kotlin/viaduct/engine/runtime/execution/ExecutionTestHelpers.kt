@@ -34,7 +34,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
-import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.graphQLExecutionInput
 import viaduct.engine.api.CheckerResult
@@ -57,7 +56,7 @@ import viaduct.engine.runtime.instrumentation.ChainedViaductModernInstrumentatio
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.FlagManager
 
-@OptIn(ExperimentalCoroutinesApi::class, VisibleForTest::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 object ExecutionTestHelpers {
     suspend fun executeViaductModernGraphQL(
         sdl: String,
@@ -384,7 +383,6 @@ class DocumentCache : PreparsedDocumentProvider {
         )
 }
 
-@OptIn(VisibleForTest::class)
 object CheckerDispatchers {
     fun success(requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()): CheckerDispatcher {
         val dispatcher = object : CheckerDispatcher {
