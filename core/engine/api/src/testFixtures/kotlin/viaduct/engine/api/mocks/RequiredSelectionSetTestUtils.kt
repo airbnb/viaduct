@@ -2,6 +2,7 @@ package viaduct.engine.api.mocks
 
 import graphql.language.AstPrinter
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.graphql.utils.ParsedSelections
 
 /**
  * Test utility for comparing RequiredSelectionSet instances for value equality.
@@ -10,7 +11,7 @@ fun RequiredSelectionSet.isEqualTo(other: RequiredSelectionSet?): Boolean {
     if (other == null) return false
     if (this === other) return true
 
-    return this.selections == other.selections &&
+    return ParsedSelections.equals(this.selections, other.selections) &&
         this.variablesResolvers == other.variablesResolvers &&
         this.forChecker == other.forChecker &&
         this.attribution == other.attribution &&

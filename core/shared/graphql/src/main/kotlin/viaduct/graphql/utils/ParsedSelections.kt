@@ -13,7 +13,7 @@ import graphql.language.TypeName
 import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
 
 /** A parsed representation of a GraphQL selections string */
-data class ParsedSelections(
+class ParsedSelections(
     /** the type described by [selections] */
     val typeName: String,
     /** a SelectionSet that selects over [typeName] */
@@ -58,27 +58,28 @@ data class ParsedSelections(
      */
     fun filterToPath(path: List<String>): ParsedSelections? = PathFilter(this).filter(path)
 
-    override fun equals(other: Any?): Boolean {
-        if (other !is ParsedSelections) return false
-
-        // do cheap checks first
-        if (typeName != other.typeName) return false
-        if (fragmentMap.size != other.fragmentMap.size) return false
-        if (fragmentMap.keys != other.fragmentMap.keys) return false
-
-        // do more expensive checks
-        if (!nodesEqual(selections, other.selections)) return false
-        return fragmentMap.all { (name, def) -> nodesEqual(def, other.fragmentMap[name]!!) }
-    }
-
-    private fun nodesEqual(
-        a: Node<*>,
-        b: Node<*>
-    ): Boolean = AstPrinter.printAstCompact(a) == AstPrinter.printAstCompact(b)
-
     override fun toString(): String = AstPrinter.printAst(toDocument())
 
     companion object {
+        fun equals(
+            parsedSelections: ParsedSelections?,
+            other: Any?
+        ): Boolean {
+            if (parsedSelections === other) return true
+            if (parsedSelections == null || other !is ParsedSelections) return false
+
+            // do cheap checks first
+            if (parsedSelections.typeName != other.typeName) return false
+            if (parsedSelections.fragmentMap.size != other.fragmentMap.size) return false
+            if (parsedSelections.fragmentMap.keys != other.fragmentMap.keys) return false
+
+            // do more expensive checks
+            if (!nodesEqual(parsedSelections.selections, other.selections)) return false
+            return parsedSelections.fragmentMap.all { (name, def) ->
+                nodesEqual(def, other.fragmentMap[name]!!)
+            }
+        }
+
         fun empty(typeName: String): ParsedSelections =
             ParsedSelections(
                 typeName,
@@ -109,6 +110,11 @@ data class ParsedSelections(
 
             return ParsedSelections(typeName, entryFragment.selectionSet, fragmentMap)
         }
+
+        private fun nodesEqual(
+            a: Node<*>,
+            b: Node<*>
+        ): Boolean = AstPrinter.printAstCompact(a) == AstPrinter.printAstCompact(b)
     }
 }
 
@@ -121,7 +127,11 @@ private class PathFilter(val parsedSelections: ParsedSelections) {
                     .typeCondition(TypeName(parsedSelections.typeName))
                     .selectionSet(filtered)
                     .build()
-                parsedSelections.copy(selections = filtered, fragmentMap = mapOf(entrypointFragment.name to entrypointFragment))
+                ParsedSelections(
+                    parsedSelections.typeName,
+                    filtered,
+                    mapOf(entrypointFragment.name to entrypointFragment)
+                )
             }
 
     private fun filterToPath(

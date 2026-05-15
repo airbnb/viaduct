@@ -3,9 +3,10 @@ package viaduct.graphql.utils
 import graphql.language.AstPrinter
 import graphql.parser.Parser
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -246,79 +247,113 @@ class ParsedSelectionsTest {
     @Test
     fun equals() {
         // not a ParsedSelections
-        assertNotEquals(this, parse("Query", "fragment Main on Query { x }"))
+        assertFalse(ParsedSelections.equals(parse("Query", "fragment Main on Query { x }"), this))
 
         // different typename
-        assertNotEquals(
-            parse("A", "fragment Main on A { x }"),
-            parse("B", "fragment Main on B { x }")
+        assertFalse(
+            ParsedSelections.equals(
+                parse("A", "fragment Main on A { x }"),
+                parse("B", "fragment Main on B { x }")
+            )
         )
 
         // different selections
-        assertNotEquals(
-            parse("A", "fragment Main on A { a }"),
-            parse("A", "fragment Main on A { b }")
+        assertFalse(
+            ParsedSelections.equals(
+                parse("A", "fragment Main on A { a }"),
+                parse("A", "fragment Main on A { b }")
+            )
         )
 
         // different fragment names
-        assertNotEquals(
-            parse(
-                "A",
-                """
+        assertFalse(
+            ParsedSelections.equals(
+                parse(
+                    "A",
+                    """
                     fragment Main on A { a }
                     fragment B on B { b }
-                """.trimIndent()
-            ),
-            parse(
-                "A",
-                """
+                    """.trimIndent()
+                ),
+                parse(
+                    "A",
+                    """
                     fragment Main on A { a }
                     fragment C on C { c }
-                """.trimIndent()
-            ),
+                    """.trimIndent()
+                ),
+            )
         )
 
         // different fragment selections
-        assertNotEquals(
-            parse(
-                "A",
-                """
+        assertFalse(
+            ParsedSelections.equals(
+                parse(
+                    "A",
+                    """
                     fragment Main on A { a }
                     fragment B on B { b1 }
-                """.trimIndent()
-            ),
-            parse(
-                "A",
-                """
+                    """.trimIndent()
+                ),
+                parse(
+                    "A",
+                    """
                     fragment Main on A { a }
                     fragment B on B { b2 }
-                """.trimIndent()
-            ),
+                    """.trimIndent()
+                ),
+            )
         )
 
         // equals -- simple
-        assertEquals(
-            parse("A", "fragment Main on A { a }"),
-            parse("A", "fragment Main on A { a }"),
+        assertTrue(
+            ParsedSelections.equals(
+                parse("A", "fragment Main on A { a }"),
+                parse("A", "fragment Main on A { a }"),
+            )
         )
 
         // equals -- fragmented
-        assertEquals(
-            parse(
-                "A",
-                """
+        assertTrue(
+            ParsedSelections.equals(
+                parse(
+                    "A",
+                    """
                     fragment Main on A { a }
                     fragment B on B { b1 }
-                """.trimIndent()
-            ),
-            parse(
-                "A",
-                """
+                    """.trimIndent()
+                ),
+                parse(
+                    "A",
+                    """
                     fragment Main on A { a }
                     fragment B on B { b1 }
-                """.trimIndent()
+                    """.trimIndent()
+                )
             )
         )
+    }
+
+    @Test
+    fun `companion equality handles equivalent selections regardless of fragment order`() {
+        val selections = parse(
+            "A",
+            """
+                fragment Main on A { a ...B ...C }
+                fragment B on B { b1 }
+                fragment C on C { c1 }
+            """.trimIndent()
+        )
+        val equivalentSelections = parse(
+            "A",
+            """
+                fragment C on C { c1 }
+                fragment Main on A { a ...B ...C }
+                fragment B on B { b1 }
+            """.trimIndent()
+        )
+
+        assertTrue(ParsedSelections.equals(selections, equivalentSelections))
     }
 }
 
@@ -328,5 +363,5 @@ private fun assertParsedSelectionsEqual(
     expected: ParsedSelections,
     actual: ParsedSelections?
 ) {
-    assertEquals(expected, actual, "Expected:\n$expected\nActual:\n$actual")
+    assertTrue(ParsedSelections.equals(expected, actual), "Expected:\n$expected\nActual:\n$actual")
 }
