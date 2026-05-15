@@ -18,20 +18,17 @@ class ObjectRootFieldReference(
     private val resolveOnce = ResolveOnce<EngineObjectData?>()
 
     override suspend fun fetch(selection: String): Any? {
-        val resolved = resolveOnce.await()
-            ?: throw IllegalStateException("Cannot fetch fields from a root field reference that resolved to null")
+        val resolved = resolveOnce.await() ?: return null
         return resolved.fetch(selection)
     }
 
     override suspend fun fetchOrNull(selection: String): Any? {
-        val resolved = resolveOnce.await()
-            ?: throw IllegalStateException("Cannot fetch fields from a root field reference that resolved to null")
+        val resolved = resolveOnce.await() ?: return null
         return resolved.fetchOrNull(selection)
     }
 
     override suspend fun fetchSelections(): Iterable<String> {
-        val resolved = resolveOnce.await()
-            ?: throw IllegalStateException("Cannot fetch fields from a root field reference that resolved to null")
+        val resolved = resolveOnce.await() ?: return emptyList()
         return resolved.fetchSelections()
     }
 

@@ -848,7 +848,8 @@ class RootFieldReferenceResolutionTest {
     fun `root field reference resolves to null`() {
         MockLegacyTenantModuleBootstrapper(
             """
-            type Widget {
+            type Widget implements Node {
+                id: ID!
                 name: String
             }
             type WidgetFactory @namespaceType {
@@ -878,7 +879,13 @@ class RootFieldReferenceResolutionTest {
             }
             type("Widget") {
                 checker {
-                    fn { _, _ -> CheckerResult.Success }
+                    objectSelections("default", "id")
+                    fn { _, objectDataMap ->
+                        val objectData = objectDataMap["default"]!!
+                        val id = objectData.fetch("id") as? String
+                            ?: throw IllegalArgumentException("No ID present for access check")
+                        CheckerResult.Success
+                    }
                 }
             }
         }.runFeatureTest {

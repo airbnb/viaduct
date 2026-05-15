@@ -170,7 +170,7 @@ class FieldCompleter(
     /**
      * Combines the raw and access check values, bypassing the access check value if needed.
      * If the fetched raw value is exceptional, then discard the access check result and don't wait for it to complete.
-     * If the raw value was successfully fetched, look for an access check error.
+     * If the raw value was successfully fetched and non-null, look for an access check error.
      */
     @Suppress("UNCHECKED_CAST")
     private fun combineValues(
@@ -189,7 +189,7 @@ class FieldCompleter(
                 debug("[AccessCheck] Bypassing access check during completion for field '$fieldName' at path '$path'")
             }
         }
-        // Return raw value immediatley if bypassing check or checkerSlot value is null
+        // Return raw value immediately if bypassing check or checkerSlot value is null
         if (bypassChecker || checkerSlotValue == Value.nullValue) {
             return fieldResolutionResultValue
         }
@@ -198,12 +198,26 @@ class FieldCompleter(
             "Expected checker slot to contain Value<out CheckerResult>, was ${checkerSlotValue.javaClass}"
         }
         return fieldResolutionResultValue.flatMap { frr ->
-            if (frr.errors.isNotEmpty()) {
-                fieldResolutionResultValue
-            } else {
-                // At this point the raw value resolved without errors, surface the checker error if it exists
-                checkerResultValue.flatMap { checkerResult ->
-                    checkerResult?.asError?.error?.let { Value.fromThrowable(it) } ?: fieldResolutionResultValue
+            if (frr.errors.isNotEmpty()) return@flatMap fieldResolutionResultValue
+
+            checkerResultValue.flatMap { checkerResult ->
+                if (checkerResult?.asError == null) return@flatMap fieldResolutionResultValue
+
+                // Null-resolved OERs (e.g. null root field refs) may have checkers that failed to
+                // run and produced errors. Suppress these since they're irrelevant for a null value.
+                val oer = frr.engineResult as? ObjectEngineResultImpl
+
+                fun surfaceOrSuppress(): Value<FieldResolutionResult> =
+                    if (oer?.isResolvedToNull() == true) {
+                        fieldResolutionResultValue
+                    } else {
+                        Value.fromThrowable(checkerResult.asError!!.error)
+                    }
+
+                if (oer?.lazyResolutionState?.isCompleted == false) {
+                    Value.fromDeferred(oer.lazyResolutionState).thenCompose { _, _ -> surfaceOrSuppress() }
+                } else {
+                    surfaceOrSuppress()
                 }
             }
         }
