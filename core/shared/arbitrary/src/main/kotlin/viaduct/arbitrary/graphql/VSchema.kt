@@ -7,16 +7,16 @@ import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
 import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.Config
-import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.ViaductSchema as VSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 
-/** Generate an Arb of [ViaductSchema] from Config */
-fun Arb.Companion.viaductExtendedSchema(config: Config = Config.default): Arb<ViaductSchema> = Arb.graphQLSchema(config).map { schema -> ViaductSchema.fromGraphQLSchema(schema) }
+/** Generate arbitrary instances of [viaduct.graphql.schema.ViaductSchema] from a static [Config]. */
+fun Arb.Companion.vSchema(config: Config = Config.default): Arb<VSchema> = Arb.graphQLSchema(config).map { schema -> VSchema.fromGraphQLSchema(schema) }
 
-/** Generate an arbitrary [ViaductSchema.TypeExpr] */
+/** Generate an arbitrary [viaduct.graphql.schema.ViaductSchema.TypeExpr]. */
 @VisibleForTest
-fun Arb.Companion.typeExpr(config: Config = Config.default): Arb<ViaductSchema.TypeExpr<*>> =
-    viaductExtendedSchema(config)
+fun Arb.Companion.vSchemaTypeExpr(config: Config = Config.default): Arb<VSchema.TypeExpr<*>> =
+    vSchema(config)
         .filter { it.types.values.isNotEmpty() }
         .flatMap { schema ->
             Arb
@@ -24,7 +24,7 @@ fun Arb.Companion.typeExpr(config: Config = Config.default): Arb<ViaductSchema.T
                 .flatMap {
                     val exprs =
                         when (val type = it) {
-                            is ViaductSchema.Record ->
+                            is VSchema.Record ->
                                 type.fields.map { f -> f.type } + type.asTypeExpr()
                             else -> listOf(type.asTypeExpr())
                         }

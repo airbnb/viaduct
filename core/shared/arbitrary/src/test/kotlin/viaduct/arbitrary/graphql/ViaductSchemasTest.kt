@@ -11,9 +11,9 @@ import viaduct.graphql.schema.checkViaductSchemaInvariants
 
 class ViaductSchemasTest : KotestPropertyBase(iterations = 100) {
     @Test
-    fun `generates valid ViaductSchemas`(): Unit =
+    fun `generates valid VSchemas`(): Unit =
         runBlocking {
-            Arb.viaductExtendedSchema().checkInvariants { schema, check ->
+            Arb.vSchema().checkInvariants { schema, check ->
                 checkViaductSchemaInvariants(schema, check)
             }
         }
@@ -22,7 +22,7 @@ class ViaductSchemasTest : KotestPropertyBase(iterations = 100) {
     fun `TypeExpr methods do not throw for non-list types`(): Unit =
         runBlocking {
             Arb
-                .typeExpr()
+                .vSchemaTypeExpr()
                 .filter { !it.isList }
                 .checkInvariants { type, check ->
                     check.doesNotThrow("unexpected err") {

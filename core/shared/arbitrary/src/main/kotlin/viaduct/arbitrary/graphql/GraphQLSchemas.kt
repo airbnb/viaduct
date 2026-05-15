@@ -54,7 +54,7 @@ fun Arb.Companion.graphQLSchema(cfg: Config = Config.default): Arb<GraphQLSchema
         graphQLSchema(types, cfg)
     }
 
-/** Generate arbitrary [ViaductSchema]s from a static [Config] */
+/** Generate arbitrary instances of [viaduct.engine.api.ViaductSchema] from a static [Config]. */
 fun Arb.Companion.viaductSchema(cfg: Config = Config.default): Arb<ViaductSchema> = graphQLSchema(cfg).map(::ViaductSchema)
 
 /** Generate arbitrary [GraphQLSchema]s from a [GraphQLTypes] */

@@ -1,67 +1,81 @@
 # Arbitrary
-This module generates streams of arbitrary viaduct objects that can be used in
-[property-based testing](https://en.wikipedia.org/wiki/Software_testing#Property_testing):
+This module generates streams of arbitrary GraphQL objects that are suitable for
+use in fuzzing and property-based testing. 
 
-> Property testing is a testing technique where, instead of asserting that specific inputs produce specific expected
-> outputs, the practitioner randomly generates many inputs, runs the program on all of them, and asserts the truth of
-> some "property" that should be true for every pair of input and output.
+Most of the generators are Viaduct-agnostic and produce GraphQL objects that can be used to test any GraphQL system.
 
-This is a useful approach for testing systems for which it is difficult to enumerate all
-test cases.
-
-The arbitrary object streams are exposed as a kotest-property [Arb](https://kotest.io/docs/proptest/property-test-generators.html#arbitrary).
-Properties of an Arb can be tested using JUnit, kotest, or other unit testing frameworks.
+The arbitrary object streams are exposed as a kotest-property [Arb](https://kotest.io/docs/proptest/property-test-generators.html#arbitrary); 
+properties of an Arb can be tested using JUnit, Kotest, or other unit testing frameworks.
 
 
-## QuickStart
+## Quick Start
 ```kotlin
+import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.SchemaPrinter
-import io.kotest.property.forAll
+import io.kotest.property.Arb
+import io.kotest.property.checkAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.graphQLSchema
 
 class QuickStartTest {
     @Test
-    fun `arbitrary graphql-java schemas can be serialized`() {
-        Arb.graphQLSchema().forAll { schema ->
-            runCatching { SchemaPrinter().print(schema) }.isSuccess()
+    fun `arbitrary schemas can be roundtripped through SDL`(): Unit = runBlocking {
+        Arb.graphQLSchema().checkAll { schema ->
+            val sdl = SchemaPrinter().print(schema)
+            SchemaParser().parse(sdl)
         }
     }
 }
 ```
 
 # Configuration
-Generator functions in this module can be configured using a `Config`. This can be used to
-shape the distribution of generated objects and include options that control the length of names,
-the maximum list depth, the probability that a field has arguments, and more.
+All generator functions in this module accept an optional `Config` parameter. 
 
-See configs.kt for a list of configurable options.
+This is used to customize the shape of objects that are produced, and is
+primarily oriented around "weights" that control how often a GraphQL feature
+will be explored by a generator.
+
+Omitting a `Config` will use a default configuration that approximates a
+real-world probability distribution. The generators in this module are tuned to
+have acceptable performance for ~1000 generations when using the default
+`Config`.
+
+A `Config` may be modified to steer the distribution of generated objects
+towards an area of interest. This library includes configuration knobs for
+controlling the probabilities of a field definition taking arguments, the
+probability that a resolver will throw an exception, the probability that an
+inline fragment will omit a type condition, etc.
+
+See `configs.kt` for a full list of configuration knobs.
 
 ## Example
 ```kotlin
+import io.kotest.property.Arb
 import viaduct.arbitrary.common.Config
-import viaduct.arbitrary.graphql.ObjectSize
+import viaduct.arbitrary.graphql.ObjectTypeSize
 import viaduct.arbitrary.graphql.SchemaSize
 import viaduct.arbitrary.graphql.graphQLSchema
 
+// create a custom Config that generates wide object types
 val extraLargeObjectConfig = Config.default +
     (SchemaSize to 10) +
-    (ObjectSize to 200..1000)
+    (ObjectTypeSize to 200..1000)
 
 val arbSchema = Arb.graphQLSchema(extraLargeObjectConfig)
 ```
 
 # Library
-Useful Arbs included in this library.
+Useful generators and methods provided by this library.
 
 ## GraphQL
-| Generator                 | Description                                                      |
-|---------------------------|------------------------------------------------------------------|
-| Arb.graphQLSchema         | generate arbitrary graphql-java schemas                          |
-| Arb.viaductExtendedSchema | generate arbitrary ViaductExtendedSchemas                        |
-| Arb.graphQLDocument       | generate arbitrary graphql-java query documents                  |
-| Arb.graphQLExecutionInput | generate arbitrary graphql-java ExecutionInputs                  |
-| Arb.graphQLValueFor       | generate arbitrary graphql-java values for a provided type       |
-| Arb.graphQLName           | generate names suitable for use in GraphQL                       |
-| arbRuntimeWiring          | create a deterministic RuntimeWiring that returns arbitrary data |
+| Generator                 | Description                                                             |
+|---------------------------|-------------------------------------------------------------------------|
+| Arb.graphQLSchema         | generate arbitrary `graphql.schema.GraphQLSchema` objects               |
+| Arb.graphQLDocument       | generate arbitrary `graphql.language.Document` objects                  |
+| Arb.graphQLExecutionInput | generate arbitrary `graphql.ExecutionInput` objects                     |
+| Arb.vSchema               | generate arbitrary `viaduct.graphql.schema.ViaductSchema` objects       |
+| Arb.viaductSchema         | generate arbitrary `viaduct.engine.api.ViaductSchema` objects           |
+| Arb.graphQLName           | generate names suitable for use in GraphQL                              |
+| Arb.ir                    | generate arbitrary IR values for a provided schema and type or document |
+| arbRuntimeWiring          | create a deterministic RuntimeWiring that returns arbitrary data        |
