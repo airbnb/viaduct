@@ -7,8 +7,12 @@ group = "com.airbnb.viaduct"
 
 dependencies {
     compileOnly(libs.detekt.api)
+    compileOnly(libs.ktlint.rule.engine.core)
+    compileOnly(libs.ktlint.cli.ruleset.core)
     testImplementation(libs.detekt.api)
     testImplementation(libs.detekt.test)
+    testImplementation(libs.ktlint.rule.engine.core)
+    testImplementation(libs.ktlint.cli.ruleset.core)
     testImplementation(libs.assertj.core)
     testImplementation(libs.junit)
     testRuntimeOnly(libs.junit.engine)

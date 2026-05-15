@@ -77,3 +77,7 @@ tasks.withType<BaseKtLintCheckTask>().configureEach {
     handWrittenKotlinSourceDirs.entries.firstOrNull { (suffix, _) -> name.endsWith(suffix) }
         ?.let { (_, sourceDir) -> setSource(sourceDir) }
 }
+
+dependencies {
+    add("ktlintRuleset", "com.airbnb.viaduct:build-common")
+}
