@@ -6,6 +6,7 @@ micronautCore = "4.7.4"
 kotest = "6.1.4"
 junit5 = "5.11.3"
 junitPlatform = "1.11.3"
+graphql-java-extension = "24.0"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -25,6 +26,9 @@ viaduct-serve = { group = "com.airbnb.viaduct.service", name = "serve", version.
 micronaut-inject = { module = "io.micronaut:micronaut-inject", version.ref = "micronautCore" }
 micronaut-inject-kotlin = { module = "io.micronaut:micronaut-inject-kotlin", version.ref = "micronautCore" }
 micronaut-context = { module = "io.micronaut:micronaut-context", version.ref = "micronautCore" }
+
+# GraphQL
+graphql-java-extended-scalars = { module = "com.graphql-java:graphql-java-extended-scalars", version.ref = "graphql-java-extension" }
 
 # Testing
 junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit5" }

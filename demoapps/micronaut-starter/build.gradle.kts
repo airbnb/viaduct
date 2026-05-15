@@ -46,6 +46,9 @@ dependencies {
     testImplementation(libs.junit.jupiter)
 
     testRuntimeOnly(libs.junit.platform.launcher)
+    // Viaduct's scalar definitions (ExtendedScalars) depend on this at runtime, but it isn't
+    // pulled transitively into testRuntimeClasspath, so it must be declared explicitly here.
+    testRuntimeOnly(libs.graphql.java.extended.scalars)
 
     testImplementation(libs.kotest.runner.junit)
     testImplementation(libs.kotest.assertions.core)
