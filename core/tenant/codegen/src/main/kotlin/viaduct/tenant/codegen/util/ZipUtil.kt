@@ -21,7 +21,9 @@ object ZipUtil {
             for (item in source.listFiles().orEmpty().sortedBy(File::getAbsolutePath)) {
                 if (item.isDirectory) {
                     item.listTopDownFiles().sortedBy(File::getAbsolutePath).forEach { sourceFile ->
-                        val zipPath = if (sourceFile == item) item.name else item.name + "/" + sourceFile.relativeTo(item)
+                        // ZIP entries must use '/' per spec; invariantSeparatorsPath ensures this on Windows.
+                        val zipPath = if (sourceFile == item) item.name
+                        else item.name + "/" + sourceFile.relativeTo(item).invariantSeparatorsPath
                         out.addZipEntry(zipPath, sourceFile)
                     }
                 } else {
@@ -47,8 +49,9 @@ object ZipUtil {
                     continue
                 } else if (item.isDirectory) {
                     item.listTopDownFiles().sortedBy(File::getAbsolutePath).forEach { sourceFile ->
-                        // Because we are zipping multiple directories prefix each file by the source directory name
-                        val zipPath = item.name + "/" + sourceFile.relativeTo(item)
+                        // Because we are zipping multiple directories prefix each file by the source directory name.
+                        // ZIP entries must use '/' per spec; invariantSeparatorsPath ensures this on Windows.
+                        val zipPath = item.name + "/" + sourceFile.relativeTo(item).invariantSeparatorsPath
                         out.addZipEntry(zipPath.removePrefix(stripPrefix).trimStart('/'), sourceFile)
                     }
                 } else {

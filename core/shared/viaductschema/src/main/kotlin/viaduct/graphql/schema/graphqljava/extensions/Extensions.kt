@@ -75,7 +75,8 @@ internal val SchemaWithData.TypeDef.tenant: String
  */
 private fun extractTenant(name: String?): String {
     if (name != null) {
-        val m = tenantFinder.find(name)
+        // Normalize Windows backslashes so the slash-only regex matches on every OS.
+        val m = tenantFinder.find(name.replace('\\', '/'))
         if (m != null) return m.groupValues[1]
     }
     return "NO_TENANT"
