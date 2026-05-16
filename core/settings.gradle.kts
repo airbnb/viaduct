@@ -9,6 +9,15 @@ plugins {
     id("settings.common")
 }
 
+@Suppress("UnstableApiUsage")
+dependencyResolutionManagement {
+    versionCatalogs {
+        create("libs") {
+            from(files("../gradle/libs.versions.toml"))
+        }
+    }
+}
+
 // Standalone `./gradlew -p core ...` needs core's own subprojects to participate in composite
 // auto-substitution. Without self-inclusion, `version = INCLUDED` module deps resolve externally.
 includeBuild(".")

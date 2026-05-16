@@ -9,6 +9,15 @@ plugins {
     id("settings.common")
 }
 
+@Suppress("UnstableApiUsage")
+dependencyResolutionManagement {
+    versionCatalogs {
+        create("libs") {
+            from(files("../gradle/libs.versions.toml"))
+        }
+    }
+}
+
 // Standalone builds need composite substitution for core module dependencies.
 includeBuild("../core")
 includeBuild("../build-logic")
