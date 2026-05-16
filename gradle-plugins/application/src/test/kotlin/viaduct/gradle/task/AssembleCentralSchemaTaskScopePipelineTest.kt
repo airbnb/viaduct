@@ -77,7 +77,7 @@ class AssembleCentralSchemaTaskScopePipelineTest {
         val resourceFile = outDir.resolve("META-INF/viaduct/schema-scoping.json")
         assertTrue(resourceFile.exists(), "Resource file must be written")
 
-        val schema = ResourceFileSchema.objectMapper().readValue(resourceFile, ResourceFileSchema::class.java)
+        val schema = resourceFile.inputStream().use { ResourceFileSchema.parse(it) }
         assertNotNull(schema.version)
         assertTrue(schema.declaredScopedSchemas.containsKey("FULL"), "FULL key must be present")
         assertTrue(schema.declaredScopedSchemas.containsKey("api"), "api key must be present")

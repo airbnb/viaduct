@@ -56,7 +56,7 @@ internal fun writeScopeResourceFile(outputDirectory: File, scopedMode: ScopedMod
         declaredSchemaScopes = scopedMode.scopeUniverse,
         declaredScopedSchemas = scopedMode.scopedSchemas,
     )
-    val json = ResourceFileSchema.objectMapper().writeValueAsString(resourceFileSchema)
+    val json = ResourceFileSchema.toJsonString(resourceFileSchema)
     val resourceFile = outputDirectory.resolve("META-INF/viaduct/schema-scoping.json")
     resourceFile.parentFile.mkdirs()
     resourceFile.writeText(json)

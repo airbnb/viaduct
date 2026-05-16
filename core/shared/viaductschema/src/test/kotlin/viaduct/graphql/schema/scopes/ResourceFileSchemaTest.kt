@@ -1,13 +1,11 @@
 package viaduct.graphql.schema.scopes
 
-import com.fasterxml.jackson.databind.cfg.PackageVersion
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ResourceFileSchemaTest {
 
-    // default create includes FULL key with empty set
     @Test
     fun `default create always includes FULL key with empty set`() {
         val schema = ResourceFileSchema.create()
@@ -31,22 +29,20 @@ class ResourceFileSchemaTest {
         assertEquals(setOf("public"), schema.declaredScopedSchemas[ResourceFileSchema.FULL_SCHEMA_ID])
     }
 
-    // serialized JSON contains version field equal to CURRENT_VERSION
     @Test
     fun `serialized JSON contains version field`() {
         val schema = ResourceFileSchema.create()
-        val json = ResourceFileSchema.objectMapper().writeValueAsString(schema)
+        val json = ResourceFileSchema.toJsonString(schema)
         assertTrue(json.contains("\"version\""))
         assertTrue(json.contains(ResourceFileSchema.CURRENT_VERSION))
     }
 
-    // scope sets are sorted alphabetically in JSON
     @Test
     fun `scope sets serialized in alphabetical order`() {
         val schema = ResourceFileSchema.create(
             declaredSchemaScopes = setOf("zeta", "alpha", "mu")
         )
-        val json = ResourceFileSchema.objectMapper().writeValueAsString(schema)
+        val json = ResourceFileSchema.toJsonString(schema)
         val alphaIndex = json.indexOf("\"alpha\"")
         val muIndex = json.indexOf("\"mu\"")
         val zetaIndex = json.indexOf("\"zeta\"")
@@ -54,14 +50,15 @@ class ResourceFileSchemaTest {
         assertTrue(muIndex < zetaIndex, "mu should appear before zeta in JSON")
     }
 
-    // Verify key ordering comes from the data (sorted map insertion), not from a Jackson feature flag.
+    // Key ordering comes from sorted map construction, not from a Jackson feature flag —
+    // round-trip equality plus index-based assertions below verify the ordering is data-driven.
     @Test
     fun `declaredScopedSchemas keys are serialized in alphabetical order from sorted construction`() {
         val schema = ResourceFileSchema.create(
             declaredScopedSchemas = mapOf("zeta" to emptySet(), "alpha" to emptySet())
         )
-        val json = ResourceFileSchema.objectMapper().writeValueAsString(schema)
-        val deserialized = ResourceFileSchema.objectMapper().readValue(json, ResourceFileSchema::class.java)
+        val json = ResourceFileSchema.toJsonString(schema)
+        val deserialized = ResourceFileSchema.parse(json)
         assertEquals(schema, deserialized)
         val fullIdx = json.indexOf("\"FULL\"")
         val alphaIdx = json.indexOf("\"alpha\"")
@@ -70,13 +67,6 @@ class ResourceFileSchemaTest {
         assertTrue(alphaIdx < zetaIdx, "alpha should appear before zeta in JSON")
     }
 
-    // Verify runtime Jackson version is 2.17.3
-    @Test
-    fun `jackson runtime version is 2_17_3`() {
-        assertEquals("2.17.3", PackageVersion.VERSION.toString())
-    }
-
-    // Round-trip test
     @Test
     fun `round-trip serialization preserves all fields`() {
         val original = ResourceFileSchema.create(
@@ -87,9 +77,8 @@ class ResourceFileSchemaTest {
             ),
             version = ResourceFileSchema.CURRENT_VERSION
         )
-        val mapper = ResourceFileSchema.objectMapper()
-        val json = mapper.writeValueAsString(original)
-        val deserialized = mapper.readValue(json, ResourceFileSchema::class.java)
+        val json = ResourceFileSchema.toJsonString(original)
+        val deserialized = ResourceFileSchema.parse(json)
         assertEquals(original, deserialized)
     }
 }

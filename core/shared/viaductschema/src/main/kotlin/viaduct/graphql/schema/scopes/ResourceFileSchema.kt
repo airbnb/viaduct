@@ -2,6 +2,7 @@ package viaduct.graphql.schema.scopes
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import java.io.InputStream
 
 data class ResourceFileSchema(
     val declaredSchemaScopes: Set<String>,
@@ -11,6 +12,8 @@ data class ResourceFileSchema(
     companion object {
         const val FULL_SCHEMA_ID = "FULL"
         const val CURRENT_VERSION = "1"
+
+        private val MAPPER: ObjectMapper = jacksonObjectMapper()
 
         fun create(
             declaredSchemaScopes: Set<String> = emptySet(),
@@ -29,6 +32,13 @@ data class ResourceFileSchema(
             return ResourceFileSchema(sortedScopes, sortedScopedSchemas, version)
         }
 
-        fun objectMapper(): ObjectMapper = jacksonObjectMapper()
+        fun parse(stream: InputStream): ResourceFileSchema =
+            MAPPER.readValue(stream, ResourceFileSchema::class.java)
+
+        fun parse(json: String): ResourceFileSchema =
+            MAPPER.readValue(json, ResourceFileSchema::class.java)
+
+        fun toJsonString(schema: ResourceFileSchema): String =
+            MAPPER.writeValueAsString(schema)
     }
 }

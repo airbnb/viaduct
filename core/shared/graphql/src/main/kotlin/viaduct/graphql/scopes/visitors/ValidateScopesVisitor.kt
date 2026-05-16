@@ -39,7 +39,8 @@ internal class ValidateScopesVisitor(
      * If a given type is a transitive dependency of a directive, then that type must also exist in all scopes.
      *
      * This method checks that any type that is transitively used by a directive uses the literal wildcard ["*"],
-     * which is the only acceptable scope annotation for directive-retained types (A.8).
+     * which is the only acceptable scope annotation for directive-retained types. Enumerating the full scope
+     * universe explicitly is rejected because adding a new scope would silently invalidate the annotation.
      */
     private fun validateDirectiveRetention(context: TraverserContext<GraphQLSchemaElement>) {
         val element = context.thisNode()
@@ -54,8 +55,6 @@ internal class ValidateScopesVisitor(
             // null means the type is not scope-able (e.g. scalar) — skip
             metadata?.scopesForType() ?: return
 
-            // A.8: only the literal ["*"] wildcard is acceptable for directive-retained types;
-            // enumerating the full scope universe explicitly is rejected.
             if (!hasLiteralWildcardScope(element)) {
                 throw DirectiveRetainedTypeScopeError(element)
             }

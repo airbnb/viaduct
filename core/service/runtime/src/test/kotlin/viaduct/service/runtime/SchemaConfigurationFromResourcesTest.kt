@@ -68,7 +68,7 @@ class SchemaConfigurationFromResourcesTest {
         )
         Files.writeString(
             metaInfDir.resolve("schema-scoping.json"),
-            ResourceFileSchema.objectMapper().writeValueAsString(fixture)
+            ResourceFileSchema.toJsonString(fixture)
         )
         val classLoader = URLClassLoader(arrayOf(tempDir.toUri().toURL()), ClassLoader.getPlatformClassLoader())
         val config = SchemaConfiguration.fromResources(setOf("emptyScoped"), classLoader)
@@ -179,7 +179,7 @@ class SchemaConfigurationFromResourcesTest {
 
         val metaInfDir = tempDir.resolve("META-INF/viaduct")
         Files.createDirectories(metaInfDir)
-        val json = ResourceFileSchema.objectMapper().writeValueAsString(original)
+        val json = ResourceFileSchema.toJsonString(original)
         Files.writeString(metaInfDir.resolve("schema-scoping.json"), json)
 
         val classLoader = URLClassLoader(arrayOf(tempDir.toUri().toURL()), ClassLoader.getPlatformClassLoader())

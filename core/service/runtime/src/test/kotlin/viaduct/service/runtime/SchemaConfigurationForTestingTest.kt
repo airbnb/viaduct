@@ -30,7 +30,7 @@ class SchemaConfigurationForTestingTest {
                 "api" to setOf("internal", "public")
             )
         )
-        val json = ResourceFileSchema.objectMapper().writeValueAsString(fixture)
+        val json = ResourceFileSchema.toJsonString(fixture)
 
         val config = SchemaConfiguration.forTesting(json)
 
@@ -69,7 +69,7 @@ class SchemaConfigurationForTestingTest {
                 "api" to setOf("internal", "public")
             )
         )
-        val json = ResourceFileSchema.objectMapper().writeValueAsString(fixture)
+        val json = ResourceFileSchema.toJsonString(fixture)
 
         val metaInfDir = tempDir.resolve("META-INF/viaduct")
         Files.createDirectories(metaInfDir)
@@ -95,7 +95,7 @@ class SchemaConfigurationForTestingTest {
             declaredSchemaScopes = setOf("public"),
             declaredScopedSchemas = mapOf("api" to setOf("public"))
         )
-        val json = ResourceFileSchema.objectMapper().writeValueAsString(fixture)
+        val json = ResourceFileSchema.toJsonString(fixture)
 
         val config = SchemaConfiguration.forTesting(json)
 
@@ -133,7 +133,7 @@ class SchemaConfigurationForTestingTest {
             declaredSchemaScopes = emptySet(),
             declaredScopedSchemas = emptyMap()
         )
-        val json = ResourceFileSchema.objectMapper().writeValueAsString(fixture)
+        val json = ResourceFileSchema.toJsonString(fixture)
 
         val config = SchemaConfiguration.forTesting(json)
 

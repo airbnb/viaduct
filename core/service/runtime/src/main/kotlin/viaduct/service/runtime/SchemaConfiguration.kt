@@ -183,9 +183,7 @@ class SchemaConfiguration private constructor(
             }
 
             val resourceFileSchema = try {
-                resourceStream.use { stream ->
-                    ResourceFileSchema.objectMapper().readValue(stream, ResourceFileSchema::class.java)
-                }
+                resourceStream.use { ResourceFileSchema.parse(it) }
             } catch (e: Exception) {
                 throw ViaductSchemaLoadException(
                     "Failed to parse $SCOPE_CONFIG_RESOURCE_PATH: ${e.message}",
@@ -229,7 +227,7 @@ class SchemaConfiguration private constructor(
         @Suppress("DEPRECATION")
         fun forTesting(resourceJson: String): SchemaConfiguration {
             val resourceFileSchema = try {
-                ResourceFileSchema.objectMapper().readValue(resourceJson, ResourceFileSchema::class.java)
+                ResourceFileSchema.parse(resourceJson)
             } catch (e: Exception) {
                 throw ViaductSchemaLoadException(
                     "Failed to parse schema-scoping JSON for testing: ${e.message}",

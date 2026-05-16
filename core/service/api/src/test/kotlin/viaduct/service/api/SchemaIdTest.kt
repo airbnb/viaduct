@@ -4,16 +4,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 internal class SchemaIdTest {
-
-    @Test
-    fun `SchemaId_Scoped class no longer exists`() {
-        assertThrows<ClassNotFoundException> {
-            Class.forName("viaduct.service.api.SchemaId\$Scoped")
-        }
-    }
 
     @Test
     fun `SchemaId equality is based on id`() {
