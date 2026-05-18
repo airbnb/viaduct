@@ -264,7 +264,10 @@ jobs:
         id: run_detekt
         run: |
           echo "🧹 Running Detekt static analysis..."
-          if ./gradlew detekt --scan --no-daemon; then
+          EXIT=0
+          ./gradlew detekt --scan --no-daemon || EXIT=1
+          ./gradlew -p build-logic detekt --no-daemon || EXIT=1
+          if [ $EXIT -eq 0 ]; then
             echo "✅ Detekt analysis passed"
           else
             echo "❌ Detekt found code style violations"

@@ -2,9 +2,20 @@ plugins {
     `kotlin-dsl`
     `java-test-fixtures`
     jacoco
+    alias(libs.plugins.detekt)
+}
+
+detekt {
+    source.setFrom("src/main/kotlin", "src/test/kotlin")
+    config.setFrom(
+        layout.projectDirectory.dir("../..").file("detekt.yml"),
+        layout.projectDirectory.dir("../..").file("detekt-viaduct.yml"),
+    )
+    ignoreFailures = true
 }
 
 dependencies {
+    detektPlugins(project(":build-common"))
     implementation(project(":build-common"))
     implementation(libs.asm)
     implementation(libs.ksp.gradle.plugin)

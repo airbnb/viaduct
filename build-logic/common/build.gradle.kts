@@ -1,9 +1,16 @@
 plugins {
     kotlin("jvm")
     jacoco
+    alias(libs.plugins.detekt)
 }
 
 group = "com.airbnb.viaduct"
+
+detekt {
+    source.setFrom("src/main/kotlin", "src/test/kotlin")
+    config.setFrom(layout.projectDirectory.dir("../..").file("detekt.yml"))
+    ignoreFailures = true
+}
 
 dependencies {
     compileOnly(libs.detekt.api)

@@ -1,10 +1,21 @@
 plugins {
     `kotlin-dsl`
+    alias(libs.plugins.detekt)
 }
 
 description = "Provides PROJECT level convention plugins for the build"
 
+detekt {
+    source.setFrom("src/main/kotlin")
+    config.setFrom(
+        layout.projectDirectory.dir("..").file("detekt.yml"),
+        layout.projectDirectory.dir("..").file("detekt-viaduct.yml"),
+    )
+    ignoreFailures = true
+}
+
 dependencies {
+    detektPlugins(project(":build-common"))
     // conventions dependencies
     implementation(libs.kotlinx.binary.compatibility.validator)
     implementation(plugin(libs.plugins.kotlin.jvm))
