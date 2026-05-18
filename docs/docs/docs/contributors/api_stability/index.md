@@ -178,6 +178,28 @@ Typical configuration:
 - **Internal Viaduct modules** opt in to `InternalApi`, `ExperimentalApi`, and `VisibleForTest` to avoid scattering `@OptIn` in the implementation.
 - **Consumer-like code** (including demo apps and `testFixtures`) must use `@OptIn` explicitly for internal/experimental usage.
 
+## What counts as the public API surface for semver?
+
+The short answer: **if the binary compatibility validation (BCV) passes, the public API surface has not changed.**
+
+BCV tracks every declaration that appears in a module's `.api` dump. A declaration only appears there if it is public/protected **and** neither it nor any enclosing declaration carries a non-public marker (`@InternalApi`, `@VisibleForTest`). That means:
+
+- **`@StableApi` code** — fully tracked by BCV. Renames, removals, or signature changes here are breaking and will fail BCV.
+- **`@ExperimentalApi` code** — also tracked by BCV, but consumers have opted in to potential churn. Prefer to use deprecation cycles where practical, but a change is not a semver violation in the strong sense.
+- **`@InternalApi` code** — excluded from BCV dumps. Changes are never considered breaking, regardless of package name.
+- **`.internal` packages (e.g. `runtime.internal`)** — package placement alone does not grant "internal" status for BCV purposes. Only the `@InternalApi` annotation (or an enclosing declaration that carries it) removes a declaration from the tracked surface. A rename inside a package named `.internal` is still safe if the class is annotated `@InternalApi`; without the annotation, it would still appear in the dump.
+- **`@VisibleForTest`** — should never be used in the public API surface. Intended only for internal code, e.g., code in `runtime` packages.
+
+### Practical guidance for new APIs
+
+If you are introducing an API whose final shape is not yet clear, prefer `@ExperimentalApi` over `@StableApi`. This signals to consumers that breakage is possible, keeps the design flexible, and still gives the API real-world exposure. Avoid the temptation to use `@InternalApi` as a holding area for APIs you intend to eventually make public — only use it for code that is genuinely not intended for external consumption.
+
+### The litmus test
+
+> **Is BCV green?** → the public API surface is unchanged and the change is safe from a semver perspective.
+
+If BCV fails, you have two options: revert the incompatible change, or follow the deprecation cycle (mark old API `@Deprecated`, introduce the replacement, and remove the old form in a future major/minor release per the project's deprecation policy).
+
 ## Adding BCV to a new module
 
 When applying `id("conventions.bcv-api")` to a new module, three steps are required:
