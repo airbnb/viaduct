@@ -106,10 +106,7 @@ class ViaductServlet(
             sendError(resp, 500, e.message ?: "Execution error")
             return
         }
-        // Convert to GraphQL spec format and send response
-        val specResult = result.toSpecification()
-        val statusCode = if (result.errors.isNotEmpty()) 400 else 200
-        sendJson(resp, statusCode, specResult)
+        sendJson(resp, 200, result.toSpecification())
     }
 
     private fun sendJson(

@@ -2,14 +2,12 @@ package com.example.starwars.service.viaduct
 
 import com.example.starwars.common.SecurityAccessContext
 import io.micronaut.http.HttpResponse
-import io.micronaut.http.HttpStatus
 import io.micronaut.http.annotation.Body
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Header
 import io.micronaut.http.annotation.Post
 import kotlinx.coroutines.future.await
 import viaduct.service.api.ExecutionInput
-import viaduct.service.api.ExecutionResult
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 
@@ -46,13 +44,17 @@ class ViaductRestController(
         @Header(SCOPES_HEADER) scopesHeader: String?,
         @Header("security-access") securityAccess: String?
     ): HttpResponse<Map<String, Any?>> {
+        val query = request[QUERY_FIELD] as? String
+            ?: return HttpResponse.badRequest(
+                mapOf("errors" to listOf(mapOf("message" to "Missing 'query' field")))
+            )
         securityAccessService.setSecurityAccess(securityAccess)
-        val executionInput = createExecutionInput(request)
+        val executionInput = createExecutionInput(query, request)
         // tag::run_query[6] Runs the query example
         val scopes = parseScopes(scopesHeader)
         val schemaId = determineSchemaId(scopes)
         val result = viaduct.executeAsync(executionInput, schemaId).await()
-        return HttpResponse.status<Map<String, Any?>>(statusCode(result)).body(result.toSpecification())
+        return HttpResponse.ok(result.toSpecification())
     }
 
     // tag::parse_scopes[7] Parse scopes example
@@ -87,22 +89,15 @@ class ViaductRestController(
      */
 
     // # tag::create_execution_input[8] How to create ExecutionInput
-    private fun createExecutionInput(request: Map<String, Any>): ExecutionInput {
+    private fun createExecutionInput(
+        query: String,
+        request: Map<String, Any>
+    ): ExecutionInput {
         @Suppress("UNCHECKED_CAST")
         return ExecutionInput.create(
-            operationText = request[QUERY_FIELD] as String,
+            operationText = query,
             variables = (request[VARIABLES_FIELD] as? Map<String, Any>) ?: emptyMap(),
             requestContext = emptyMap<String, Any>(),
         )
     }
-
-    /**
-     * GraphQL usually responds with status code 200, here
-     * an example of response post process handling, we are sending BAD_REQUEST status code.
-     */
-    private fun statusCode(result: ExecutionResult) =
-        when {
-            result.errors.isNotEmpty() -> HttpStatus.BAD_REQUEST
-            else -> HttpStatus.OK
-        }
 }

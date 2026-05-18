@@ -17,7 +17,6 @@ import kotlinx.coroutines.future.await
 import viaduct.service.BasicViaductFactory
 import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.ExecutionInput
-import viaduct.service.api.ExecutionResult
 import viaduct.service.wiring.graphiql.GraphiQLHtmlConfig
 import viaduct.service.wiring.graphiql.graphiQLHtml
 
@@ -60,7 +59,7 @@ fun Application.configureRouting() {
                     variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
                 )
 
-                val result: ExecutionResult = viaduct.executeAsync(executionInput).await()
+                val result = viaduct.executeAsync(executionInput).await()
                 call.respond(result.toSpecification())
             }
         }

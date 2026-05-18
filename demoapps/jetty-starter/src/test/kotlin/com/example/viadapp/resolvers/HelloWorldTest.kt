@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.LockSupport
 import org.apache.hc.client5.http.classic.methods.HttpGet
 import org.apache.hc.client5.http.classic.methods.HttpPost
+import org.apache.hc.client5.http.classic.methods.HttpPut
 import org.apache.hc.client5.http.impl.classic.HttpClients
 import org.apache.hc.core5.http.ContentType
 import org.apache.hc.core5.http.io.entity.StringEntity
@@ -101,6 +102,48 @@ class HelloWorldTest {
         }
     }
 
+    private fun sendRawPost(
+        body: String,
+        contentType: ContentType = ContentType.APPLICATION_JSON
+    ): Pair<Int, String> {
+        val httpClient = HttpClients.createDefault()
+        val request = HttpPost("http://localhost:$port/graphql")
+        request.entity = StringEntity(body, contentType)
+
+        return httpClient.execute(request) { response ->
+            val statusCode = response.code
+            val responseBody = response.entity.content.bufferedReader().readText()
+            Pair(statusCode, responseBody)
+        }
+    }
+
+    @Test
+    fun `Malformed HTTP Request Unparseable JSON returns 400`() {
+        val (statusCode, _) = sendRawPost("this is not json")
+
+        statusCode shouldBe 400
+    }
+
+    @Test
+    fun `Malformed HTTP Request Missing Query Field returns 400`() {
+        val (statusCode, _) = sendRawPost("""{"operationName": "Hello"}""")
+
+        statusCode shouldBe 400
+    }
+
+    @Test
+    fun `Malformed HTTP Request Wrong HTTP Method returns 405`() {
+        val httpClient = HttpClients.createDefault()
+        val request = HttpPut("http://localhost:$port/graphql")
+        request.entity = StringEntity("""{"query": "{ greeting }"}""", ContentType.APPLICATION_JSON)
+
+        val (statusCode, _) = httpClient.execute(request) { response ->
+            Pair(response.code, response.entity.content.bufferedReader().readText())
+        }
+
+        statusCode shouldBe 405
+    }
+
     @Test
     fun `GraphiQL uses Jetty starter default query and storage key`() {
         val (statusCode, responseBody) = sendGetRequest("/graphiql")
@@ -172,7 +215,7 @@ class HelloWorldTest {
 
         val (statusCode, responseBody) = sendGraphQLRequest(query)
 
-        statusCode shouldBe 400
+        statusCode shouldBe 200
         responseBody shouldEqualJson """
             {
               "errors": [
@@ -200,7 +243,7 @@ class HelloWorldTest {
 
         val (statusCode, responseBody) = sendGraphQLRequest(query)
 
-        statusCode shouldBe 400
+        statusCode shouldBe 200
         responseBody shouldEqualJson """
             {
               "errors": [
@@ -228,7 +271,7 @@ class HelloWorldTest {
 
         val (statusCode, responseBody) = sendGraphQLRequest(query)
 
-        statusCode shouldBe 400
+        statusCode shouldBe 200
         responseBody shouldEqualJson """
             {
               "errors": [
@@ -260,7 +303,7 @@ class HelloWorldTest {
 
         val (statusCode, responseBody) = sendGraphQLRequest(query)
 
-        statusCode shouldBe 400
+        statusCode shouldBe 200
         responseBody shouldEqualJson """
             {
               "errors": [

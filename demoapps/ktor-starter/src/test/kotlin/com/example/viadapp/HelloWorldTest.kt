@@ -6,6 +6,7 @@ import io.kotest.matchers.string.shouldContain
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -51,6 +52,51 @@ class HelloWorldTest {
         }
 
     @Test
+    fun `Malformed HTTP Request Unparseable JSON returns 400`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                setBody("this is not json")
+            }
+
+            response.status shouldBe HttpStatusCode.BadRequest
+        }
+
+    @Test
+    fun `Malformed HTTP Request Missing Query Field returns 400`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"operationName": "Hello"}""")
+            }
+
+            response.status shouldBe HttpStatusCode.BadRequest
+        }
+
+    @Test
+    fun `Malformed HTTP Request Wrong HTTP Method returns 405`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.put("/graphql") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"query": "{ greeting }"}""")
+            }
+
+            response.status shouldBe HttpStatusCode.MethodNotAllowed
+        }
+
+    @Test
     fun `Query Hello World`(): Unit =
         testApplication {
             application {
@@ -76,6 +122,129 @@ class HelloWorldTest {
                 "greeting": "Hello, World!",
                 "author": "Brian Kernighan"
               }
+            }
+            """.trimIndent()
+        }
+
+    @Test
+    fun `Error in Query Empty Body`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                setBody(
+                    """
+                {
+                    "query":"query HelloWorld { }"
+                }
+                    """.trimIndent()
+                )
+            }
+
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldEqualJson """
+            {
+              "errors": [
+                {
+                  "message": "Invalid syntax with offending token '}' at line 1 column 20",
+                  "locations": [
+                    {
+                      "line": 1,
+                      "column": 20
+                    }
+                  ],
+                  "extensions": {
+                    "classification": "InvalidSyntax"
+                  }
+                }
+              ],
+              "data": null
+            }
+            """.trimIndent()
+        }
+
+    @Test
+    fun `Error in Query With Non Existing Field`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                setBody(
+                    """
+                {
+                    "query":" "
+                }
+                    """.trimIndent()
+                )
+            }
+
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldEqualJson """
+            {
+              "errors": [
+                {
+                  "message": "Invalid syntax with offending token '<EOF>' at line 1 column 2",
+                  "locations": [
+                    {
+                      "line": 1,
+                      "column": 2
+                    }
+                  ],
+                  "extensions": {
+                    "classification": "InvalidSyntax"
+                  }
+                }
+              ],
+              "data": null
+            }
+            """.trimIndent()
+        }
+
+    @Test
+    fun `Error Missing Query`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                setBody(
+                    """
+                {
+                    "query":"query HelloWorld { thisIsNotAQuery }"
+                }
+                    """.trimIndent()
+                )
+            }
+
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldEqualJson """
+            {
+              "errors": [
+                {
+                  "message": "Validation error (FieldUndefined@[thisIsNotAQuery]) : Field 'thisIsNotAQuery' in type 'Query' is undefined",
+                  "locations": [
+                    {
+                      "line": 1,
+                      "column": 20
+                    }
+                  ],
+                  "extensions": {
+                    "classification": "ValidationError"
+                  }
+                }
+              ],
+              "data": null
             }
             """.trimIndent()
         }
