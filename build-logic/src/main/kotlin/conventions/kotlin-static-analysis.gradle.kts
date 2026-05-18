@@ -38,7 +38,6 @@ ktlint {
         exclude("**/build/**")
         exclude("**/generated-sources/**")
         exclude("**/generated-resources/**")
-        exclude("**/*SchemaObjects*")
     }
 }
 
