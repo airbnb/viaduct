@@ -19,6 +19,16 @@ micronaut {
     }
 }
 
+allprojects {
+    plugins.withId("org.jetbrains.kotlin.kapt") {
+        extensions.configure<org.jetbrains.kotlin.gradle.plugin.KaptExtension> {
+            arguments {
+                arg("micronaut.processing.incremental", "true")
+            }
+        }
+    }
+}
+
 configurations.all {
     resolutionStrategy {
         force(libs.guice)
