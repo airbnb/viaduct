@@ -7,21 +7,37 @@ hide:
 
 # Join the Viaduct community
 
-Viaduct is an open source project that anyone in the community can use, improve, and enjoy. We'd love you to join us! Here's a few ways to find out what's happening and get involved.
+Viaduct is an open source project that anyone can use, improve, and enjoy. Whether you're just exploring or ready to ship a patch, there's a place for you here.
 
-## Learn and Connect
+<div class="grid cards" markdown>
 
-Using or want to use Viaduct? Find out more here:
+-   :material-star-outline:{ .lg .middle } **Star us on GitHub**
 
-* [Discussions](https://github.com/airbnb/viaduct/discussions): Discussion and help from your fellow users
+    ---
 
-## Develop and Contribute
+    Show your support and help others discover the project.
 
-If you want to get more involved by contributing to Viaduct, join us here:
+    [:octicons-arrow-right-24: Star airbnb/viaduct](https://github.com/airbnb/viaduct)
 
-* [GitHub](https://github.com/airbnb/viaduct): Development takes place here!
-* [Contributor Discord](https://discord.gg/v9gkcKMM): Join our Discord for Viaduct contributors
-* [Code of Conduct](https://airbnb.tech/open-source/code-of-conduct/): Our code of conduct
-* [Contribution Guidelines](https://github.com/airbnb/viaduct/blob/main/CONTRIBUTING.md)
+-   :fontawesome-brands-discord:{ .lg .middle } **Join the Discord**
 
+    ---
 
+    Chat with users and maintainers, ask questions, and follow along with what's happening.
+
+    [:octicons-arrow-right-24: Join the server](https://discord.gg/v9gkcKMM)
+
+-   :material-hand-heart-outline:{ .lg .middle } **Contribute**
+
+    ---
+
+    Found a bug or want to add a feature? Start with our contribution guide.
+
+    [:octicons-arrow-right-24: How to contribute](https://github.com/airbnb/viaduct/blob/main/CONTRIBUTING.md)
+
+</div>
+
+## Other ways to connect
+
+* [GitHub Discussions](https://github.com/airbnb/viaduct/discussions) — questions, ideas, and help from fellow users
+* [Code of Conduct](https://airbnb.tech/open-source/code-of-conduct/) — how we work together
