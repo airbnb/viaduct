@@ -4,90 +4,72 @@ import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
-import viaduct.java.api.context.FieldExecutionContext
-import viaduct.java.api.context.SelectiveFieldExecutionContext
-import viaduct.java.api.resolvers.FieldResolverBase
-import viaduct.java.api.types.Arguments
-import viaduct.java.api.types.CompositeOutput
-import viaduct.java.api.types.GraphQLObject
-import viaduct.java.api.types.Query
-
-// Internal marker type for the selections type parameter
-object AnySelections : CompositeOutput
+import viaduct.java.api.context.NodeExecutionContext
+import viaduct.java.api.context.SelectiveNodeExecutionContext
+import viaduct.java.api.globalid.GlobalID
+import viaduct.java.api.reflect.Type
+import viaduct.java.api.resolvers.NodeResolverBase
+import viaduct.java.api.types.NodeCompositeOutput
+import viaduct.java.api.types.NodeObject
 
 /**
- * Minimal implementation of FieldExecutionContext for Java resolvers.
+ * Concrete [NodeExecutionContext] for Java node resolvers.
  *
- * Bridges the engine's untyped data (argument maps) to the Java API's typed interfaces.
- * Arguments are populated from the engine's argument map using reflection on the Arguments class.
+ * Bridges the engine's serialized GlobalID string to the typed Java [GlobalID] interface and
+ * provides full implementations of [query], [mutation], and [nodeRef] (mirroring
+ * [SimpleFieldExecutionContext] for the field resolver side).
  *
- * Uses [Arguments] directly as the generic argument type so that any concrete Arguments
- * subtype (e.g., Query_person_Arguments) can be returned without a ClassCastException.
- * Callers access getArguments() through the erased interface and cast to their specific type.
+ * Also implements [SelectiveNodeExecutionContext] so the same instance can serve both
+ * non-selective and selective generated Context wrappers.
  *
- * @param requestContext The request context from the engine
- * @param arguments The typed Arguments instance (populated from the engine's argument map), or null
- * @param objectValue The parent object value (e.g., a Person instance for a Person.fullAddress resolver), or null
- * @param queryValue The query root value (populated from the queryValueFragment result), or null
- * @param engineExecutionContext The engine execution context, required for ctx.query() and ctx.mutation()
- * @param coroutineScope The coroutine scope for launching subquery coroutines, required for ctx.query() and ctx.mutation()
+ * @param serializedId the serialized GlobalID string (e.g. "NodeObj:tenant1")
+ * @param typeName the GraphQL type name this resolver handles (e.g. "NodeObj")
+ * @param requestContext the per-request context object
+ * @param engineExecutionContext the engine execution context, required for ctx.query, ctx.mutation
+ *     and ctx.nodeRef
+ * @param coroutineScope the coroutine scope for launching subquery coroutines
  */
-@Suppress("UNCHECKED_CAST", "TooManyFunctions")
-class SimpleFieldExecutionContext(
+@Suppress("UNCHECKED_CAST")
+class SimpleNodeExecutionContext(
+    private val serializedId: String,
+    private val typeName: String,
     private val requestContext: Any?,
-    private val arguments: Arguments? = null,
-    private val objectValue: Any? = null,
-    private val queryValue: Any? = null,
     private val engineExecutionContext: EngineExecutionContext? = null,
     private val coroutineScope: CoroutineScope? = null,
-) : FieldExecutionContext<GraphQLObject, Query, Arguments, AnySelections>,
-    SelectiveFieldExecutionContext<AnySelections>,
-    FieldResolverBase.Context<GraphQLObject, Query, Arguments, AnySelections> {
-    override fun getObjectValue(): GraphQLObject =
-        handleFrameworkErrors("getObjectValue") {
-            objectValue as? GraphQLObject
-                ?: throw FrameworkException(
-                    "Object value not available. Ensure the resolver declares an objectValueFragment."
-                )
-        }
-
-    override fun getQueryValue(): Query =
-        handleFrameworkErrors("getQueryValue") {
-            queryValue as? Query
-                ?: throw FrameworkException("Query value not available.")
-        }
-
-    override fun getArguments(): Arguments {
-        return arguments ?: Arguments.NoArguments
-    }
-
-    override fun getSelections(): Any {
-        throw FrameworkException("Selections access not yet implemented for Java resolvers")
+) : NodeExecutionContext<NodeObject>,
+    SelectiveNodeExecutionContext<NodeObject>,
+    NodeResolverBase.Context<NodeObject> {
+    override fun getId(): GlobalID<NodeObject> {
+        val codec = engineExecutionContext?.globalIDCodec
+            ?: throw FrameworkException("getId requires engineExecutionContext.")
+        val (_, internalId) = codec.deserialize(serializedId)
+        return JavaGlobalID(type = typeFromName(typeName), internalId = internalId)
     }
 
     override fun getRequestContext(): Any? = requestContext
 
-    override fun <T : viaduct.java.api.types.NodeCompositeOutput> globalIDFor(
-        type: viaduct.java.api.reflect.Type<T>,
+    override fun <T : NodeCompositeOutput> globalIDFor(
+        type: Type<T>,
         internalID: String
-    ): viaduct.java.api.globalid.GlobalID<T> {
+    ): GlobalID<T> {
         val codec = engineExecutionContext?.globalIDCodec
             ?: throw FrameworkException("globalIDFor requires engineExecutionContext.")
         return codec.createGlobalID(type, internalID)
     }
 
-    override fun <T : viaduct.java.api.types.NodeCompositeOutput> serialize(globalID: viaduct.java.api.globalid.GlobalID<T>): String {
+    override fun <T : NodeCompositeOutput> serialize(globalID: GlobalID<T>): String {
         val codec = engineExecutionContext?.globalIDCodec
             ?: throw FrameworkException("serialize requires engineExecutionContext.")
         return codec.serializeGlobalID(globalID)
     }
 
-    override fun <T : viaduct.java.api.types.NodeObject> globalIDStringFor(
-        type: viaduct.java.api.reflect.Type<T>,
+    override fun <T : NodeObject> globalIDStringFor(
+        type: Type<T>,
         internalID: String
     ): String {
         val codec = engineExecutionContext?.globalIDCodec
@@ -96,23 +78,22 @@ class SimpleFieldExecutionContext(
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T : viaduct.java.api.types.NodeCompositeOutput> nodeRef(id: viaduct.java.api.globalid.GlobalID<T>): T {
+    override fun <T : NodeCompositeOutput> nodeRef(id: GlobalID<T>): T {
         val engineCtx = engineExecutionContext
             ?: throw FrameworkException("nodeRef requires engineExecutionContext.")
-        val typeName = id.getType().name
+        val refTypeName = id.getType().name
         val serializedId = engineCtx.globalIDCodec.serializeGlobalID(id)
-        val graphqlType = engineCtx.activeSchema.schema.getObjectType(typeName)
-            ?: throw FrameworkException("GraphQL type '$typeName' not found in schema for nodeRef.")
+        val graphqlType = engineCtx.activeSchema.schema.getObjectType(refTypeName)
+            ?: throw FrameworkException("GraphQL type '$refTypeName' not found in schema for nodeRef.")
         val nodeReference = engineCtx.createNodeReference(serializedId, graphqlType)
         val grtClass = id.getType().getJavaClass() as Class<T>
-        return grtClass.getDeclaredConstructor(viaduct.engine.api.NodeReference::class.java)
-            .newInstance(nodeReference) as T
+        return grtClass.getDeclaredConstructor(NodeReference::class.java).newInstance(nodeReference) as T
     }
 
     override fun <T : Any> query(
         selections: String,
         variables: Map<String, Any?>,
-        targetClass: Class<T>
+        targetClass: Class<T>,
     ): CompletableFuture<T> {
         val engineCtx = engineExecutionContext
             ?: throw FrameworkException(
@@ -138,7 +119,7 @@ class SimpleFieldExecutionContext(
     override fun <T : Any> mutation(
         selections: String,
         variables: Map<String, Any?>,
-        targetClass: Class<T>
+        targetClass: Class<T>,
     ): CompletableFuture<T> {
         val engineCtx = engineExecutionContext
             ?: throw FrameworkException(
@@ -161,4 +142,9 @@ class SimpleFieldExecutionContext(
             }
         }
     }
+
+    override fun selections(): Any =
+        handleFrameworkErrors("selections") {
+            throw FrameworkException("selections() not yet implemented for selective Java node resolvers")
+        }
 }

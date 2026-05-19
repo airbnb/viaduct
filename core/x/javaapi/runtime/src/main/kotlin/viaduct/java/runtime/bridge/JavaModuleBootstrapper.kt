@@ -13,10 +13,13 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantModuleException
+import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
 import viaduct.java.api.context.FieldExecutionContext
+import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.resolvers.FieldResolverBase
+import viaduct.java.api.resolvers.NodeResolverBase
 import viaduct.java.runtime.bootstrap.JavaResolverClassFinder
 import viaduct.service.api.spi.CodeInjector
 
@@ -240,8 +243,131 @@ class JavaModuleBootstrapper(
     }
 
     override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> {
-        // Node resolver support is deferred - requires JavaNodeResolverExecutor bridge
-        return emptyList()
+        val result = mutableMapOf<String, NodeResolverExecutor>()
+
+        val nodeResolverForClasses = classFinder.nodeResolverForClassesInPackage()
+
+        val nodeResolverBaseClasses = nodeResolverForClasses.map { clazz ->
+            if (!NodeResolverBase::class.java.isAssignableFrom(clazz)) {
+                throw TenantModuleException(
+                    "Found @NodeResolverFor on class that doesn't implement NodeResolverBase: $clazz"
+                )
+            }
+            @Suppress("UNCHECKED_CAST")
+            clazz as Class<out NodeResolverBase<*>>
+        }
+
+        for (baseClass in nodeResolverBaseClasses) {
+            val nodeResolverForAnnotation = baseClass.getAnnotation(NodeResolverFor::class.java)
+                ?: throw TenantModuleException(
+                    "NodeResolverBase class $baseClass does not have a @NodeResolverFor annotation"
+                )
+
+            val typeName = nodeResolverForAnnotation.typeName
+
+            val nodeType = schema.schema.getObjectType(typeName)
+            if (nodeType == null) {
+                if (schema.schema.getType(typeName) == null) {
+                    log.warn("Found node resolver code for {} which is unknown in the schema.", typeName)
+                } else {
+                    log.warn("Found resolver code for type {} which is not a GraphQL Object type.", typeName)
+                }
+                continue
+            } else if (nodeType.interfaces.none { it.name == "Node" }) {
+                log.warn("Found node resolver for {} which does not implement Node.", typeName)
+                continue
+            }
+
+            val subTypes = classFinder.getSubTypesOf(NodeResolverBase::class.java)
+            val allSubclasses = subTypes.filter { subType ->
+                baseClass.isAssignableFrom(subType) && subType != baseClass
+            }
+            val resolverClasses = allSubclasses.filter { it.isAnnotationPresent(Resolver::class.java) }
+
+            if (resolverClasses.isEmpty()) {
+                if (allSubclasses.isNotEmpty()) {
+                    throw TenantModuleException(
+                        "Found ${allSubclasses.size} subclass(es) of node resolver base for $typeName " +
+                            "(${allSubclasses.map { it.name }}), but none are annotated with @Resolver. " +
+                            "Add @Resolver to the active implementation."
+                    )
+                }
+                continue
+            }
+            if (resolverClasses.size > 1) {
+                throw TenantModuleException(
+                    "Expected at most one @Resolver-annotated implementation for node resolver $typeName, " +
+                        "found ${resolverClasses.size}: ${resolverClasses.map { it.name }}"
+                )
+            }
+
+            val resolverClass = resolverClasses.first()
+            val resolverAnnotation = resolverClass.getAnnotation(Resolver::class.java)
+            if (resolverAnnotation != null) {
+                if (resolverAnnotation.objectValueFragment.isNotBlank()) {
+                    throw TenantModuleException(
+                        "Node resolver $resolverClass cannot specify @Resolver(objectValueFragment=...): " +
+                            "node resolvers do not have an object value."
+                    )
+                }
+                if (resolverAnnotation.queryValueFragment.isNotBlank()) {
+                    throw TenantModuleException(
+                        "Node resolver $resolverClass cannot specify @Resolver(queryValueFragment=...): " +
+                            "node resolvers do not support query value fragments."
+                    )
+                }
+                if (resolverAnnotation.variables.isNotEmpty()) {
+                    throw TenantModuleException(
+                        "Node resolver $resolverClass cannot specify @Resolver(variables=...): " +
+                            "node resolvers do not support variables."
+                    )
+                }
+            }
+            val resolverProvider = try {
+                injector.getProvider(resolverClass)
+            } catch (e: NoClassDefFoundError) {
+                throw TenantModuleException("Node resolver class $resolverClass could not be injected", e)
+            }
+
+            val resolverName = resolverClass.name
+            val graphqlSchema = schema.schema
+
+            val executor = if (nodeResolverForAnnotation.isBatching) {
+                val batchResolveMethod = findResolveMethod(resolverClass, "batchResolve")
+                    ?: throw TenantModuleException(
+                        "Node resolver class $resolverClass is annotated with isBatching=true but does not have a 'batchResolve' method"
+                    )
+                log.info("- Adding node batch resolver entry for '{}' to '{}'.", typeName, resolverName)
+                JavaNodeBatchResolverExecutor(
+                    batchResolveFunction = { ctxList -> invokeNodeBatchResolver(resolverProvider, batchResolveMethod, ctxList) },
+                    typeName = typeName,
+                    resolverName = resolverName,
+                    isSelective = nodeResolverForAnnotation.isSelective,
+                    graphqlSchema = graphqlSchema,
+                )
+            } else {
+                val resolveMethod = findResolveMethod(resolverClass)
+                    ?: throw TenantModuleException(
+                        "Node resolver class $resolverClass does not have a 'resolve' method"
+                    )
+                log.info("- Adding node resolver entry for '{}' to '{}'.", typeName, resolverName)
+                JavaNodeResolverExecutor(
+                    resolveFunction = { ctx -> invokeNodeResolver(resolverProvider, resolveMethod, ctx) },
+                    typeName = typeName,
+                    resolverName = resolverName,
+                    isSelective = nodeResolverForAnnotation.isSelective,
+                    graphqlSchema = graphqlSchema,
+                )
+            }
+
+            result.put(typeName, executor)?.let { existing ->
+                throw RuntimeException(
+                    "Duplicate node resolver for type $typeName. Found $existing in class '$resolverName'."
+                )
+            }
+        }
+
+        return result.entries.map { it.key to it.value }
     }
 
     private inline fun <T> tryOrNull(block: () -> T): T? =
@@ -369,5 +495,77 @@ class JavaModuleBootstrapper(
         )
 
         return constructor.newInstance(context)
+    }
+
+    /**
+     * Invokes the resolve method on a node resolver instance.
+     *
+     * The resolve method takes a Context wrapping NodeExecutionContext. If codegen wraps the
+     * context (via a generated inner Context class), the constructor is used to wrap it; otherwise
+     * the context is passed directly.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun invokeNodeResolver(
+        provider: javax.inject.Provider<*>,
+        resolveMethod: Method,
+        context: NodeExecutionContext<*>,
+    ): CompletableFuture<Any?> {
+        return try {
+            val resolver = provider.get()
+            val contextType = resolveMethod.parameterTypes[0]
+            val arg = wrapNodeContext(contextType, context)
+            resolveMethod.invoke(resolver, arg) as CompletableFuture<Any?>
+        } catch (e: Exception) {
+            CompletableFuture<Any?>().apply { completeExceptionally(e) }
+        }
+    }
+
+    /**
+     * Invokes the batchResolve method on a node resolver instance.
+     *
+     * Wraps each NodeExecutionContext in the resolver's inner Context class if applicable, then
+     * calls batchResolve(List<Context>).
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun invokeNodeBatchResolver(
+        provider: javax.inject.Provider<*>,
+        batchResolveMethod: Method,
+        contexts: List<NodeExecutionContext<*>>,
+    ): CompletableFuture<Any?> {
+        return try {
+            val resolver = provider.get()
+            val listParamElementType =
+                (batchResolveMethod.genericParameterTypes[0] as? java.lang.reflect.ParameterizedType)
+                    ?.actualTypeArguments?.firstOrNull() as? Class<*>
+            val wrappedContexts = if (listParamElementType != null) {
+                contexts.map { wrapNodeContext(listParamElementType, it) }
+            } else {
+                contexts
+            }
+            batchResolveMethod.invoke(resolver, wrappedContexts) as CompletableFuture<Any?>
+        } catch (e: Exception) {
+            CompletableFuture<Any?>().apply { completeExceptionally(e) }
+        }
+    }
+
+    /**
+     * Wraps a NodeExecutionContext in the resolver's Context class (if one exists).
+     *
+     * If the contextType has a constructor taking NodeExecutionContext, creates an instance of it.
+     * Otherwise returns the context directly (for resolvers that use NodeExecutionContext directly).
+     */
+    private fun wrapNodeContext(
+        contextType: Class<*>,
+        context: NodeExecutionContext<*>,
+    ): Any {
+        val constructor = contextType.constructors.firstOrNull { ctor ->
+            ctor.parameterCount == 1 &&
+                NodeExecutionContext::class.java.isAssignableFrom(ctor.parameterTypes[0])
+        }
+        if (constructor != null) {
+            return constructor.newInstance(context)
+        }
+        // No wrapping constructor — pass the context directly
+        return context
     }
 }

@@ -127,7 +127,7 @@ class JavaGRTsGenerator : CliktCommand(
             echo("  - ${grtsResult.interfaceCount()} interface(s)")
             echo("  - ${grtsResult.unionCount()} union(s)")
             echo("  - ${grtsResult.argumentCount()} argument type(s)")
-            echo("  - ${resolversResult.resolverFileCount()} resolver file(s) containing ${resolversResult.resolverCount()} resolver(s)")
+            echo("  - ${resolversResult.resolverFileCount()} resolver file(s) containing ${resolversResult.resolverCount()} resolver(s), ${resolversResult.nodeResolverCount()} node resolver(s)")
         }
     }
 

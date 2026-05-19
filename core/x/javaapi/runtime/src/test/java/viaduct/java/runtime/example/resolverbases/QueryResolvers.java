@@ -10,6 +10,7 @@ import viaduct.java.api.resolvers.FieldResolverBase;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.CompositeOutput;
 import viaduct.java.api.types.NodeCompositeOutput;
+import viaduct.java.api.types.NodeObject;
 import viaduct.java.runtime.example.grts.Query;
 
 /**
@@ -75,6 +76,11 @@ public final class QueryResolvers {
       @Override
       public Object getRequestContext() {
         return inner.getRequestContext();
+      }
+
+      @Override
+      public <T extends NodeObject> String globalIDStringFor(Type<T> type, String internalID) {
+        return inner.globalIDStringFor(type, internalID);
       }
 
       @Override

@@ -36,6 +36,7 @@ public final class JavaResolverGenerator {
           import viaduct.java.api.types.Arguments;
           import viaduct.java.api.types.CompositeOutput;
           import viaduct.java.api.types.NodeCompositeOutput;
+          import viaduct.java.api.types.NodeObject;
           import <mdl.grtPackage>.*;
 
           /**
@@ -100,6 +101,11 @@ public final class JavaResolverGenerator {
                       @Override
                       public Object getRequestContext() {
                           return inner.getRequestContext();
+                      \\}
+
+                      @Override
+                      public \\<T extends NodeObject> String globalIDStringFor(Type\\<T> type, String internalID) {
+                          return inner.globalIDStringFor(type, internalID);
                       \\}
 
                       @Override

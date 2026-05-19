@@ -19,6 +19,7 @@ class ObjectGeneratorTest {
                 FieldModel.simple("name", "String", false),
                 FieldModel.simple("email", "String", true)),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -44,6 +45,7 @@ class ObjectGeneratorTest {
             List.of(),
             List.of(FieldModel.simple("id", "String", false)),
             "A booking for a listing.",
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -66,6 +68,7 @@ class ObjectGeneratorTest {
                 FieldModel.simple("id", "String", false),
                 FieldModel.simple("name", "String", false)),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -86,6 +89,7 @@ class ObjectGeneratorTest {
                 FieldModel.simple("amenities", "List<String>", false),
                 FieldModel.simple("pricePerNight", "double", false)),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -107,6 +111,7 @@ class ObjectGeneratorTest {
             List.of(),
             List.of(new FieldModel("tags", "List<String>", true, false, true, false, false, null)),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -127,6 +132,7 @@ class ObjectGeneratorTest {
                 new FieldModel("books", "List<Book>", true, true, true, false, false, "Book"),
                 new FieldModel("tags", "List<Tag>", true, false, true, true, false, "Tag")),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -159,6 +165,7 @@ class ObjectGeneratorTest {
                     true,
                     "SearchResult")),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -183,6 +190,7 @@ class ObjectGeneratorTest {
                 FieldModel.simple("name", "String", false),
                 FieldModel.simple("age", "Integer", true)),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -206,6 +214,7 @@ class ObjectGeneratorTest {
                 FieldModel.simple("startTime", "OffsetTime", true),
                 FieldModel.simple("label", "String", true)),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -233,6 +242,7 @@ class ObjectGeneratorTest {
                     "timestamps", "List<Instant>", true, false, true, false, false, null),
                 new FieldModel("dates", "List<LocalDate>", true, false, true, false, false, null)),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
@@ -253,6 +263,7 @@ class ObjectGeneratorTest {
             List.of(),
             List.of(FieldModel.simple("id", "String", false)),
             null,
+            false,
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);

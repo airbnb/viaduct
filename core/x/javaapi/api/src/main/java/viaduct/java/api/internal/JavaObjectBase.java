@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import viaduct.engine.api.EngineObjectData;
+import viaduct.engine.api.NodeReference;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
 import viaduct.java.api.types.GraphQLObject;
@@ -23,11 +24,12 @@ import viaduct.java.api.types.GraphQLObject;
  * <p>Mirrors Kotlin's {@code ObjectBase} pattern — wraps {@link EngineObjectData.Sync} directly
  * rather than copying data into POJOs via reflection.
  *
- * <p>Two construction paths (matching Kotlin ObjectBase):
+ * <p>Three construction paths (matching Kotlin ObjectBase):
  *
  * <ul>
  *   <li>Engine path: wraps pre-resolved {@link EngineObjectData.Sync} provided by the engine
  *   <li>Builder path: wraps a {@link Map} populated by the generated Builder
+ *   <li>Node reference path: wraps a {@link NodeReference} for deferred node resolution
  * </ul>
  *
  * <p>Field access is cached using a {@link ConcurrentHashMap} with a {@code NULL_VALUE} sentinel to
@@ -41,6 +43,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
 
   private final EngineObjectData.@Nullable Sync engineData;
   @Nullable private final Map<String, Object> mapData;
+  @Nullable private final NodeReference nodeReference;
   private final ConcurrentHashMap<String, Object> fieldCache = new ConcurrentHashMap<>();
 
   /**
@@ -51,6 +54,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
   protected JavaObjectBase(EngineObjectData.Sync engineData) {
     this.engineData = engineData;
     this.mapData = null;
+    this.nodeReference = null;
   }
 
   /**
@@ -61,14 +65,34 @@ public abstract class JavaObjectBase implements GraphQLObject {
   protected JavaObjectBase(Map<String, Object> mapData) {
     this.engineData = null;
     this.mapData = mapData;
+    this.nodeReference = null;
+  }
+
+  /**
+   * Node reference path constructor: wraps a NodeReference for deferred node resolution.
+   *
+   * <p>Used by {@code ctx.nodeRef()} to create a lazy reference that the engine resolves later.
+   */
+  protected JavaObjectBase(NodeReference nodeReference) {
+    this.engineData = null;
+    this.mapData = null;
+    this.nodeReference = nodeReference;
   }
 
   /**
    * Returns the backing EngineObjectData.Sync if this GRT was created via the engine path. Used by
    * the bridge layer to extract data without reflection.
    */
-  public EngineObjectData.@Nullable Sync getEngineObjectData() {
+  public EngineObjectData.@Nullable Sync getJavaEngineObjectData() {
     return engineData;
+  }
+
+  /**
+   * Returns the backing NodeReference if this GRT was created via the node reference path. Used by
+   * the bridge layer to pass the NodeReference to the engine.
+   */
+  public @Nullable NodeReference getJavaNodeReference() {
+    return nodeReference;
   }
 
   /**
@@ -76,15 +100,30 @@ public abstract class JavaObjectBase implements GraphQLObject {
    * to extract data without reflection.
    */
   @Nullable
-  public Map<String, Object> getMapData() {
+  public Map<String, Object> getJavaMapData() {
     return mapData != null ? Collections.unmodifiableMap(mapData) : null;
   }
 
-  private @Nullable Object getRawValue(String fieldName) {
+  private @Nullable Object getRawValue(String fieldName) throws FrameworkException {
     if (engineData != null) {
       return engineData.getOrNull(fieldName);
-    } else {
+    } else if (mapData != null) {
       return mapData.get(fieldName);
+    } else if (nodeReference != null) {
+      // Mirrors Kotlin ObjectBase: only `id` is accessible on an unresolved NodeReference;
+      // any other field is rejected as an unset field.
+      if ("id".equals(fieldName)) {
+        return nodeReference.getId();
+      }
+      throw new FrameworkException(
+          "Field '"
+              + fieldName
+              + "' cannot be accessed on an unresolved Node reference created using ctx.nodeRef —"
+              + " only `id` is accessible.",
+          null);
+    } else {
+      throw new FrameworkException(
+          "Cannot access field '" + fieldName + "': JavaObjectBase has no backing data.", null);
     }
   }
 

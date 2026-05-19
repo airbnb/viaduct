@@ -8,6 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import viaduct.graphql.schema.ViaductSchema;
 import viaduct.graphql.schema.graphqljava.extensions.ViaductSchemaFactory;
@@ -137,6 +140,9 @@ public class GraphQLSchemaParser {
           fields.add(createFieldModel(field, typeMapper));
         }
 
+        boolean isNodeType =
+            objectDef.getSupers().stream().anyMatch(iface -> iface.getName().equals("Node"));
+
         objects.add(
             new ObjectModel(
                 packageName,
@@ -144,7 +150,8 @@ public class GraphQLSchemaParser {
                 interfaces,
                 fields,
                 getDescription(objectDef),
-                rootTypes.contains(name)));
+                rootTypes.contains(name),
+                isNodeType));
       }
     }
 
@@ -461,6 +468,69 @@ public class GraphQLSchemaParser {
                       + def.describe());
             })
         .orElse(false);
+  }
+
+  /**
+   * Regex used to extract a tenant module path from a schema source name (e.g.
+   * "modules/foo/schema/...").
+   */
+  private static final Pattern BUILD_TIME_MODULE_EXTRACTOR =
+      Pattern.compile("modules/(.*?)/schema/");
+
+  /**
+   * Extracts node resolver models from a ViaductSchema by finding Object types that implement the
+   * Node interface and have the {@code @resolver} directive applied directly to the type.
+   *
+   * <p>When {@code tenantModule} is non-null, only types whose source location belongs to that
+   * tenant module are included — mirroring Kotlin's {@code NodeResolverGenerator.isTenantOwnedNode}
+   * filter. When null, all matching types are returned (used in feature-app tests).
+   *
+   * @param schema the ViaductSchema
+   * @param tenantPackage the tenant package for generated resolver bases
+   * @param grtPackage the package name for the generated GRT types
+   * @param tenantModule optional tenant module path (e.g., "tenant/runtime/execution/foo"); when
+   *     provided, only nodes from that module are included
+   * @return the list of node resolver models
+   */
+  public List<NodeResolverModel> extractNodeResolvers(
+      ViaductSchema schema, String tenantPackage, String grtPackage, String tenantModule) {
+    List<NodeResolverModel> nodeResolvers = new ArrayList<>();
+    Predicate<ViaductSchema.TypeDef> ownershipFilter = ownershipFilter(tenantModule);
+
+    for (ViaductSchema.TypeDef typeDef : schema.getTypes().values()) {
+      if (!(typeDef instanceof ViaductSchema.Object objectDef)) continue;
+      if (!objectDef.hasAppliedDirective("resolver")) continue;
+
+      boolean implementsNode =
+          objectDef.getSupers().stream().anyMatch(iface -> iface.getName().equals("Node"));
+      if (!implementsNode) continue;
+
+      if (!ownershipFilter.test(objectDef)) continue;
+
+      boolean isBatching = isBatchingResolver(objectDef, objectDef.getName(), null);
+      boolean isSelective = isSelectiveResolver(objectDef);
+
+      nodeResolvers.add(
+          new NodeResolverModel(
+              tenantPackage, grtPackage, objectDef.getName(), isBatching, isSelective));
+    }
+
+    return nodeResolvers;
+  }
+
+  private static Predicate<ViaductSchema.TypeDef> ownershipFilter(String tenantModule) {
+    if (tenantModule == null) return def -> true;
+    return def -> {
+      var loc = def.getSourceLocation();
+      if (loc == null) return false;
+      String sourceName = loc.getSourceName();
+      Matcher m = BUILD_TIME_MODULE_EXTRACTOR.matcher(sourceName);
+      if (!m.find()) return false;
+      String module = m.group(1);
+      int idx = module.indexOf("/src/");
+      if (idx >= 0) module = module.substring(0, idx);
+      return tenantModule.equals(module);
+    };
   }
 
   // ===== Helper methods =====

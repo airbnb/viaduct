@@ -52,11 +52,11 @@ class DefaultJavaResolverClassFinderTest {
     }
 
     @Test
-    fun `nodeResolverForClassesInPackage returns empty set`() {
-        // Node resolvers are not yet implemented
+    fun `nodeResolverForClassesInPackage finds NodeResolverFor annotated classes`() {
         val nodeResolverClasses = classFinder.nodeResolverForClassesInPackage()
 
-        assertThat(nodeResolverClasses).isEmpty()
+        // Should not include field resolver bases (which have @ResolverFor, not @NodeResolverFor)
+        assertThat(nodeResolverClasses).noneMatch { it.name.contains("TestResolverBase") }
     }
 
     @Test

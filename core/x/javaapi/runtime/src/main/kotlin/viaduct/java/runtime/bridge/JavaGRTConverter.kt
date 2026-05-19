@@ -29,7 +29,11 @@ internal fun convertResult(
 ): Any? {
     return when (result) {
         null -> null
-        is JavaObjectBase -> convertJavaGRTToEngineObjectData(result, graphqlSchema)
+        is JavaObjectBase -> {
+            // Node reference path: pass NodeReference directly to the engine
+            result.javaNodeReference?.let { return it }
+            convertJavaGRTToEngineObjectData(result, graphqlSchema)
+        }
         is GraphQLObject -> throw FrameworkException(
             "Resolver returned a GraphQLObject that does not extend JavaObjectBase: ${result.javaClass.name}. " +
                 "All Java GRT object types must extend JavaObjectBase."
@@ -50,10 +54,10 @@ internal fun convertJavaGRTToEngineObjectData(
     graphqlSchema: GraphQLSchema?
 ): EngineObjectData.Sync? {
     // Engine-provided data: pass through directly (no copying needed)
-    grt.engineObjectData?.let { return it }
+    grt.javaEngineObjectData?.let { return it }
 
     // Builder-created data: wrap map with proper GraphQL type from schema
-    val map = grt.mapData ?: return null
+    val map = grt.javaMapData ?: return null
     val schema = graphqlSchema ?: return null
     val typeName = grt.javaClass.simpleName
     val graphqlType = schema.getObjectType(typeName)
@@ -76,7 +80,10 @@ private fun convertValue(
 ): Any? =
     when (value) {
         null -> null
-        is JavaObjectBase -> convertJavaGRTToEngineObjectData(value, schema)
+        is JavaObjectBase -> {
+            // Node reference path: pass NodeReference directly to the engine
+            value.javaNodeReference ?: convertJavaGRTToEngineObjectData(value, schema)
+        }
         is GraphQLObject -> throw FrameworkException(
             "Nested value is a GraphQLObject that does not extend JavaObjectBase: ${value.javaClass.name}. " +
                 "All Java GRT object types must extend JavaObjectBase."
@@ -98,3 +105,38 @@ internal fun convertSyncEngineDataToJavaObject(
     val constructor = clazz.getDeclaredConstructor(EngineObjectData.Sync::class.java)
     return constructor.newInstance(data)
 }
+
+/**
+ * Materializes all top-level selections from an async [EngineObjectData] into a
+ * [ResolvedEngineObjectData] ([EngineObjectData.Sync]).
+ *
+ * [viaduct.engine.api.EngineExecutionContext.resolveSelectionSet] returns [EngineObjectData]
+ * rather than [EngineObjectData.Sync], even though all fields are already resolved by the time it
+ * returns. Java GRT constructors require [EngineObjectData.Sync] because Java cannot call Kotlin
+ * suspend functions. This helper bridges the gap until the engine is updated to return
+ * [EngineObjectData.Sync] directly from [viaduct.engine.api.EngineExecutionContext.resolveSelectionSet].
+ */
+internal suspend fun materializeToSync(data: EngineObjectData): EngineObjectData.Sync {
+    val selections = data.fetchSelections()
+    val map = mutableMapOf<String, Any?>()
+    for (selection in selections) {
+        map[selection] = materializeValue(data.fetchOrNull(selection))
+    }
+    return ResolvedEngineObjectData(data.type, map)
+}
+
+/**
+ * Recursively materializes nested [EngineObjectData] values to [EngineObjectData.Sync].
+ *
+ * The engine contract states that nested composite-typed fields are represented as
+ * [EngineObjectData] instances. This helper ensures they are all materialized to
+ * [EngineObjectData.Sync] so that Java GRT constructors can wrap them via the
+ * `EngineObjectData.Sync` constructor path.
+ */
+private suspend fun materializeValue(value: Any?): Any? =
+    when (value) {
+        is EngineObjectData.Sync -> value
+        is EngineObjectData -> materializeToSync(value)
+        is List<*> -> value.map { materializeValue(it) }
+        else -> value
+    }

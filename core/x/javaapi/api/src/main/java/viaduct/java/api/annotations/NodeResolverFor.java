@@ -54,4 +54,11 @@ public @interface NodeResolverFor {
    * @return true when the resolver implements batchResolve instead of resolve
    */
   boolean isBatching() default false;
+
+  /**
+   * Whether this resolver is selective (varies its response based on the selection set).
+   *
+   * @return true when the resolver may return different data based on requested fields
+   */
+  boolean isSelective() default false;
 }

@@ -104,6 +104,8 @@ public final class JavaGRTGenerator {
             package <mdl.packageName>;
 
             import viaduct.engine.api.EngineObjectData;
+            import viaduct.engine.api.NodeReference;
+            import viaduct.java.api.internal.JavaNodeObjectBase;
             import viaduct.java.api.internal.JavaObjectBase;
             import java.time.Instant;
             import java.time.LocalDate;
@@ -117,7 +119,7 @@ public final class JavaGRTGenerator {
              * <mdl.description>
              */
             <endif>
-            public class <mdl.className> extends JavaObjectBase<if(mdl.hasImplementsClause)> implements <mdl.implementsClause><endif> {
+            public class <mdl.className> extends <if(mdl.isNodeType)>JavaNodeObjectBase<else>JavaObjectBase<endif><if(mdl.hasImplementsClause)> implements <mdl.implementsClause><endif> {
 
                 public <mdl.className>(EngineObjectData.Sync data) {
                     super(data);
@@ -126,6 +128,12 @@ public final class JavaGRTGenerator {
                 private <mdl.className>(Map\\<String, Object> data) {
                     super(data);
                 }
+                <if(mdl.isNodeType)>
+
+                public <mdl.className>(NodeReference nodeReference) {
+                    super(nodeReference);
+                \\}
+                <endif>
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {

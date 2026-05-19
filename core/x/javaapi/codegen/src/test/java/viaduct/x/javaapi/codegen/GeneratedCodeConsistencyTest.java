@@ -26,13 +26,25 @@ class GeneratedCodeConsistencyTest {
   @Test
   void objectGenerator_usesJavaObjectBase() {
     ObjectModel model =
-        new ObjectModel("com.example", "TestObject", List.of(), List.of(), null, false);
+        new ObjectModel("com.example", "TestObject", List.of(), List.of(), null, false, false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertThat(generated)
         .contains("import viaduct.java.api.internal.JavaObjectBase;")
         .contains("extends JavaObjectBase");
+  }
+
+  @Test
+  void objectGenerator_usesJavaNodeObjectBase_forNodeTypes() {
+    ObjectModel model =
+        new ObjectModel("com.example", "TestNode", List.of("Node"), List.of(), null, false, true);
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertThat(generated)
+        .contains("import viaduct.java.api.internal.JavaNodeObjectBase;")
+        .contains("extends JavaNodeObjectBase");
   }
 
   @Test

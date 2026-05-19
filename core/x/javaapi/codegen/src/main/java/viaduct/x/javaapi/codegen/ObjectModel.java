@@ -9,7 +9,8 @@ public record ObjectModel(
     List<String> implementedInterfaces,
     List<FieldModel> fields,
     String description,
-    boolean isRootType) {
+    boolean isRootType,
+    boolean isNodeType) {
 
   // ST (StringTemplate) requires JavaBean-style getters
   public String getPackageName() {
@@ -30,6 +31,10 @@ public record ObjectModel(
 
   public String getDescription() {
     return description;
+  }
+
+  public boolean getIsNodeType() {
+    return isNodeType;
   }
 
   public boolean getHasDescription() {

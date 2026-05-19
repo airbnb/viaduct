@@ -3,13 +3,28 @@ package viaduct.java.api.context;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import viaduct.java.api.globalid.GlobalID;
+import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.NodeCompositeOutput;
+import viaduct.java.api.types.NodeObject;
 
 /** A generic context for resolving fields or types. */
 public interface ResolverExecutionContext extends ExecutionContext {
   <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id);
 
-  // TODO: Add globalIDStringFor() method for creating global ID strings
+  /**
+   * Creates a serialized GlobalID string for the given Node type and internal ID.
+   *
+   * <p>Use this instead of {@link #globalIDFor} when you need a serialized GlobalID string (e.g.,
+   * to set the {@code id} field on a Node type builder).
+   *
+   * <p>Example: {@code ctx.globalIDStringFor(Type.ofClass(NodeObj.class), internalId)}
+   *
+   * @param type the GraphQL Node type
+   * @param internalID the internal ID string
+   * @param <T> the Node GRT type
+   * @return the serialized GlobalID string
+   */
+  <T extends NodeObject> String globalIDStringFor(Type<T> type, String internalID);
 
   /**
    * Executes a subquery against the Query root type and returns the result as an instance of {@code

@@ -1,5 +1,6 @@
 package viaduct.java.runtime.bridge
 
+import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.ResolverFor
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GRT
@@ -38,11 +39,7 @@ class DefaultJavaResolverClassFinder(
 
     override fun resolverClassesInPackage(): Set<Class<*>> = scanner.getTypesAnnotatedWith(ResolverFor::class.java, listOf(tenantPackage))
 
-    override fun nodeResolverForClassesInPackage(): Set<Class<*>> {
-        // NodeResolverFor is not yet implemented in the Java API
-        // This will be implemented when node resolver support is added
-        return emptySet()
-    }
+    override fun nodeResolverForClassesInPackage(): Set<Class<*>> = scanner.getTypesAnnotatedWith(NodeResolverFor::class.java, listOf(tenantPackage))
 
     override fun <T : Any?> getSubTypesOf(type: Class<T>): Set<Class<out T>> = scanner.getSubTypesOf(type, listOf(tenantPackage))
 

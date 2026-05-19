@@ -1,23 +1,35 @@
 package viaduct.java.runtime.bridge
 
 import graphql.Scalars
+import graphql.schema.GraphQLCodeRegistry
 import graphql.schema.GraphQLFieldDefinition
+import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
+import graphql.schema.TypeResolver
 import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleException
+import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
 import viaduct.java.api.resolvers.FieldResolverBase
+import viaduct.java.api.resolvers.NodeResolverBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
+import viaduct.java.api.types.NodeObject
 import viaduct.java.api.types.Query
 import viaduct.java.runtime.bootstrap.JavaResolverClassFinder
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 class JavaModuleBootstrapperTest {
     // Test fixtures
@@ -134,15 +146,237 @@ class JavaModuleBootstrapperTest {
         assertThat(executorsByCoordinate.getValue("TestType" to "selectiveField").isSelective).isTrue()
     }
 
-    @Test
-    fun `nodeResolverExecutors returns empty list`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
-        val schema = createMockSchema()
+    // Node resolver test fixtures
+    class TestNodeObj : NodeObject
 
-        val executors = bootstrapper.nodeResolverExecutors(schema).toList()
+    @NodeResolverFor(typeName = "TestNodeType")
+    abstract class TestNodeResolverBase : NodeResolverBase<TestNodeObj> {
+        abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>
+    }
+
+    @Resolver
+    class TestNodeResolver : TestNodeResolverBase() {
+        override fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj> = CompletableFuture.completedFuture(TestNodeObj())
+    }
+
+    // Fixtures for strict bootstrap validation tests (mirrors Kotlin
+    // ViaductTenantModuleBootstrapper behavior).
+    @NodeResolverFor(typeName = "OrphanNodeType")
+    abstract class OrphanNodeResolverBase : NodeResolverBase<TestNodeObj> {
+        abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>
+    }
+
+    // A subclass that is NOT annotated with @Resolver — should cause the bootstrap to throw.
+    class OrphanNodeSubclassWithoutResolverAnnotation : OrphanNodeResolverBase() {
+        override fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj> = CompletableFuture.completedFuture(TestNodeObj())
+    }
+
+    @NodeResolverFor(typeName = "DuplicateNodeType")
+    abstract class DuplicateNodeResolverBase : NodeResolverBase<TestNodeObj> {
+        abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>
+    }
+
+    @Resolver
+    class DuplicateNodeResolverA : DuplicateNodeResolverBase() {
+        override fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj> = CompletableFuture.completedFuture(TestNodeObj())
+    }
+
+    @Resolver
+    class DuplicateNodeResolverB : DuplicateNodeResolverBase() {
+        override fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj> = CompletableFuture.completedFuture(TestNodeObj())
+    }
+
+    @NodeResolverFor(typeName = "ForbiddenAnnotationNodeType")
+    abstract class ForbiddenAnnotationNodeResolverBase : NodeResolverBase<TestNodeObj> {
+        abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>
+    }
+
+    @Resolver(objectValueFragment = "fragment _ on Foo { id }")
+    class NodeResolverWithObjectValueFragment : ForbiddenAnnotationNodeResolverBase() {
+        override fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj> = CompletableFuture.completedFuture(TestNodeObj())
+    }
+
+    @NodeResolverFor(typeName = "TestBatchNodeType", isBatching = true)
+    abstract class TestBatchNodeResolverBase : NodeResolverBase<TestNodeObj> {
+        abstract fun batchResolve(contexts: List<NodeResolverBase.Context<TestNodeObj>>): CompletableFuture<List<viaduct.java.api.resolvers.FieldValue<TestNodeObj>>>
+    }
+
+    @Resolver
+    class TestBatchNodeResolver : TestBatchNodeResolverBase() {
+        override fun batchResolve(contexts: List<NodeResolverBase.Context<TestNodeObj>>): CompletableFuture<List<viaduct.java.api.resolvers.FieldValue<TestNodeObj>>> {
+            val list = contexts.map { viaduct.java.api.resolvers.FieldValue.ofValue(TestNodeObj()) }
+            return CompletableFuture.completedFuture(list)
+        }
+    }
+
+    @Test
+    fun `nodeResolverExecutors returns empty when no node resolver classes found`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.nodeResolverForClassesInPackage() } returns emptySet()
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+
+        val executors = bootstrapper.nodeResolverExecutors(createMockSchema()).toList()
 
         assertThat(executors).isEmpty()
+    }
+
+    @Test
+    fun `nodeResolverExecutors registers resolver for valid Node type`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(TestNodeResolverBase::class.java)
+        every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
+            setOf(TestNodeResolver::class.java, TestNodeResolverBase::class.java)
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+
+        val executors = bootstrapper.nodeResolverExecutors(createMockSchemaWithNodeType()).toList()
+
+        assertThat(executors).hasSize(1)
+        assertThat(executors.first().first).isEqualTo("TestNodeType")
+    }
+
+    @Test
+    fun `nodeResolverExecutors skips resolver for type not in schema`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(TestNodeResolverBase::class.java)
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+
+        val executors = bootstrapper.nodeResolverExecutors(createMockSchema()).toList()
+
+        assertThat(executors).isEmpty()
+    }
+
+    @Test
+    fun `nodeResolverExecutors wires executor that invokes the tenant resolve method`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(TestNodeResolverBase::class.java)
+        every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
+            setOf(TestNodeResolver::class.java, TestNodeResolverBase::class.java)
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val schema = createMockSchemaWithNodeType()
+        val executors = bootstrapper.nodeResolverExecutors(schema).toList()
+
+        assertThat(executors).hasSize(1)
+        val (typeName, executor) = executors.first()
+        assertThat(typeName).isEqualTo("TestNodeType")
+        assertThat(executor.isBatching).isFalse()
+
+        // Exercise the wired executor lambda by calling resolve(). The lambda invokes the
+        // tenant's resolve method via reflection, so a successful round-trip confirms the lambda
+        // is wired correctly.
+        val engineCtx: EngineExecutionContext = mockk {
+            every { requestContext } returns null
+            every { globalIDCodec } returns GlobalIDCodecDefault
+        }
+        val selector = NodeResolverExecutor.Selector(
+            id = GlobalIDCodecDefault.serialize("TestNodeType", "abc"),
+            selections = mockk<EngineSelectionSet>(),
+        )
+
+        val result = kotlinx.coroutines.runBlocking {
+            executor.resolve(listOf(selector), engineCtx)
+        }
+        // The lambda was invoked (a Result is produced regardless of conversion outcome). The
+        // tenant resolver returns a TestNodeObj that doesn't extend JavaObjectBase, so the engine
+        // bridge will surface a conversion failure — what we're verifying here is that the
+        // executor lambda chain (resolveFunction -> invokeNodeResolver -> reflective invoke) is
+        // wired correctly.
+        assertThat(result).hasSize(1)
+        assertThat(result[selector]).isNotNull
+    }
+
+    @Test
+    fun `nodeResolverExecutors wires batch executor when isBatching is true`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(TestBatchNodeResolverBase::class.java)
+        every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
+            setOf(TestBatchNodeResolver::class.java, TestBatchNodeResolverBase::class.java)
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val schema = createMockSchemaWithNodeTypes("TestBatchNodeType")
+        val executors = bootstrapper.nodeResolverExecutors(schema).toList()
+
+        assertThat(executors).hasSize(1)
+        val (typeName, executor) = executors.first()
+        assertThat(typeName).isEqualTo("TestBatchNodeType")
+        assertThat(executor.isBatching).isTrue()
+
+        // Exercise the batch executor lambda end-to-end.
+        val engineCtx: EngineExecutionContext = mockk {
+            every { requestContext } returns null
+            every { globalIDCodec } returns GlobalIDCodecDefault
+        }
+        val selectors = listOf(
+            NodeResolverExecutor.Selector(
+                id = GlobalIDCodecDefault.serialize("TestBatchNodeType", "1"),
+                selections = mockk<EngineSelectionSet>(),
+            ),
+            NodeResolverExecutor.Selector(
+                id = GlobalIDCodecDefault.serialize("TestBatchNodeType", "2"),
+                selections = mockk<EngineSelectionSet>(),
+            ),
+        )
+
+        val result = kotlinx.coroutines.runBlocking {
+            executor.resolve(selectors, engineCtx)
+        }
+        // Lambda invocation succeeded; conversion may produce a failed Result for TestNodeObj
+        // (not a JavaObjectBase), but each selector gets a Result entry.
+        assertThat(result).hasSize(2)
+        assertThat(result[selectors[0]]).isNotNull
+        assertThat(result[selectors[1]]).isNotNull
+    }
+
+    @Test
+    fun `nodeResolverExecutors throws when subclass exists without Resolver annotation`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(OrphanNodeResolverBase::class.java)
+        every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
+            setOf(OrphanNodeSubclassWithoutResolverAnnotation::class.java, OrphanNodeResolverBase::class.java)
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+
+        val schema = createMockSchemaWithNodeTypes("OrphanNodeType")
+        assertThrows<TenantModuleException> {
+            bootstrapper.nodeResolverExecutors(schema).toList()
+        }
+    }
+
+    @Test
+    fun `nodeResolverExecutors throws when multiple Resolver implementations exist`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(DuplicateNodeResolverBase::class.java)
+        every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
+            setOf(
+                DuplicateNodeResolverA::class.java,
+                DuplicateNodeResolverB::class.java,
+                DuplicateNodeResolverBase::class.java,
+            )
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+
+        val schema = createMockSchemaWithNodeTypes("DuplicateNodeType")
+        assertThrows<TenantModuleException> {
+            bootstrapper.nodeResolverExecutors(schema).toList()
+        }
+    }
+
+    @Test
+    fun `nodeResolverExecutors throws when node Resolver declares objectValueFragment`() {
+        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(ForbiddenAnnotationNodeResolverBase::class.java)
+        every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
+            setOf(NodeResolverWithObjectValueFragment::class.java, ForbiddenAnnotationNodeResolverBase::class.java)
+
+        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+
+        val schema = createMockSchemaWithNodeTypes("ForbiddenAnnotationNodeType")
+        assertThrows<TenantModuleException> {
+            bootstrapper.nodeResolverExecutors(schema).toList()
+        }
     }
 
     @Test
@@ -281,6 +515,60 @@ class JavaModuleBootstrapperTest {
             )
             .additionalType(personType)
             .build()
+
+        return mockk {
+            every { schema } returns graphqlSchema
+        }
+    }
+
+    private fun createMockSchemaWithNodeType(): ViaductSchema = createMockSchemaWithNodeTypes("TestNodeType")
+
+    private fun createMockSchemaWithNodeTypes(vararg typeNames: String): ViaductSchema {
+        val nodeInterface = GraphQLInterfaceType.newInterface()
+            .name("Node")
+            .field(
+                GraphQLFieldDefinition.newFieldDefinition()
+                    .name("id")
+                    .type(Scalars.GraphQLID)
+            )
+            .build()
+
+        val nodeTypes = typeNames.map { typeName ->
+            GraphQLObjectType.newObject()
+                .name(typeName)
+                .withInterface(nodeInterface)
+                .field(
+                    GraphQLFieldDefinition.newFieldDefinition()
+                        .name("id")
+                        .type(Scalars.GraphQLID)
+                )
+                .build()
+        }
+
+        val codeRegistry = GraphQLCodeRegistry.newCodeRegistry()
+            .typeResolver(
+                "Node",
+                TypeResolver { env ->
+                    env.schema.getObjectType(env.getObject<Any>().javaClass.simpleName)
+                }
+            )
+            .build()
+
+        val schemaBuilder = GraphQLSchema.newSchema()
+            .query(
+                GraphQLObjectType.newObject()
+                    .name("Query")
+                    .field(
+                        GraphQLFieldDefinition.newFieldDefinition()
+                            .name("placeholder")
+                            .type(Scalars.GraphQLString)
+                    )
+                    .build()
+            )
+            .additionalType(nodeInterface)
+            .codeRegistry(codeRegistry)
+        nodeTypes.forEach { schemaBuilder.additionalType(it) }
+        val graphqlSchema = schemaBuilder.build()
 
         return mockk {
             every { schema } returns graphqlSchema
