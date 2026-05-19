@@ -177,7 +177,9 @@ class JavaModuleBootstrapper(
                 schema = schema,
                 annotation = resolverAnnotation,
                 resolverForType = typeName,
-                resolverClassName = resolverName
+                resolverClass = resolverClass,
+                injector = injector,
+                argumentsClass = argumentsClass,
             )
 
             val executor = if (resolverForAnnotation.isBatching) {
