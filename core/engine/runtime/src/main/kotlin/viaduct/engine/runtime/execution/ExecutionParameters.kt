@@ -182,11 +182,12 @@ data class ExecutionParameters(
     }
 
     /**
-     * Determines how a child plan selects its OER, source, and step info
-     * when the plan's parent type is a non-Query object type.
+     * Describes the result/source boundary a child plan should execute against.
      *
-     * For Query-typed plans, these are always ignored — the engine uses
-     * queryEngineResult, the execution root, and a fresh ExecutionStepInfo.
+     * Most child plans inherit the current request's root/query results and only
+     * adjust the immediate parent result/source. Selection execution is the exception:
+     * [IsolatedRootResult] replaces both the root result and the active query result
+     * so a resolver-driven subquery cannot reuse parent or sibling root memoization.
      */
     sealed interface ChildPlanTarget {
         /**
@@ -197,18 +198,29 @@ data class ExecutionParameters(
         object FromContext : ChildPlanTarget
 
         /**
-         * Override the OER only, inheriting source and step info from context.
+         * Override the immediate parent result only, inheriting source, step info, and
+         * execution-wide root/query results from context.
          * Used by completeSelectionSet when an explicit targetResult is provided.
          */
-        data class WithOER(val parentOER: ObjectEngineResultImpl) : ChildPlanTarget
+        data class ExplicitParentResult(val parentResult: ObjectEngineResultImpl) : ChildPlanTarget
 
         /**
-         * Provide explicit OER and source for field-type child plans. Uses the current
+         * Execute a root selection set in an isolated result context. The root result
+         * stores fields for the selected operation root, while the query result stores
+         * Query-root fields reached from querySelections inside that selection execution.
+         */
+        data class IsolatedRootResult(
+            val rootResult: ObjectEngineResultImpl,
+            val queryResult: ObjectEngineResultImpl,
+        ) : ChildPlanTarget
+
+        /**
+         * Provide explicit parent result and source for field-type child plans. Uses the current
          * ExecutionStepInfo (not the parent's) since the plan operates at the field's type level.
          * Used by checker execution for type-level RSS.
          */
         data class FieldType(
-            val parentOER: ObjectEngineResultImpl,
+            val parentResult: ObjectEngineResultImpl,
             val source: Any?,
         ) : ChildPlanTarget
     }
@@ -216,13 +228,15 @@ data class ExecutionParameters(
     /**
      * Creates ExecutionParameters for executing a child plan.
      *
-     * The [target] controls how the child plan's OER, source, and ExecutionStepInfo
-     * are selected for non-Query object types. For Query-typed plans, the engine always
-     * uses the active queryEngineResult, the execution root, and a fresh ExecutionStepInfo.
+     * The [target] controls how the child plan's object results, source, and ExecutionStepInfo
+     * are selected. Query-typed plans normally use the active queryEngineResult,
+     * the execution root, and a fresh ExecutionStepInfo; [ChildPlanTarget.ExplicitParentResult]
+     * intentionally overrides only the immediate parent result for completion, while
+     * [ChildPlanTarget.IsolatedRootResult] replaces the root/query results for selection execution.
      *
      * @param childPlan The child QueryPlan to execute
      * @param variables Resolved variables for the child plan
-     * @param target Controls OER/source/stepInfo selection for non-Query plans
+     * @param target Controls result/source/stepInfo selection for the child plan
      * @return New ExecutionParameters configured for child plan execution
      */
     fun forChildPlan(
@@ -234,15 +248,29 @@ data class ExecutionParameters(
             ?: throw IllegalArgumentException("Child plan must have a parent type of GraphQLObjectType")
         val isRootQueryQueryPlan = objectType == executionContext.graphQLSchema.queryType
 
-        val newQueryEngineResult = when {
-            isRootQueryQueryPlan && target is ChildPlanTarget.WithOER -> target.parentOER
+        val newConstants = when (target) {
+            is ChildPlanTarget.IsolatedRootResult ->
+                constants.copy(
+                    rootEngineResult = target.rootResult,
+                )
+            else -> constants
+        }
+
+        val newQueryEngineResult = when (target) {
+            is ChildPlanTarget.IsolatedRootResult -> target.queryResult
             else -> queryEngineResult
         }
 
+        // ExplicitParentResult always honors the explicit parent result. IsolatedRootResult
+        // starts a new root/query result boundary. FromContext and FieldType fall back to
+        // queryEngineResult for Query plans.
         val newParentOER = when {
+            target is ChildPlanTarget.ExplicitParentResult -> target.parentResult
+            target is ChildPlanTarget.IsolatedRootResult -> {
+                if (isRootQueryQueryPlan) target.queryResult else target.rootResult
+            }
             isRootQueryQueryPlan -> newQueryEngineResult
-            target is ChildPlanTarget.WithOER -> target.parentOER
-            target is ChildPlanTarget.FieldType -> target.parentOER
+            target is ChildPlanTarget.FieldType -> target.parentResult
             else -> parentEngineResult
         }
 
@@ -269,6 +297,7 @@ data class ExecutionParameters(
             newQueryEngineResult,
             childSource,
             parentStepInfo,
+            newConstants,
         )
     }
 
@@ -281,6 +310,7 @@ data class ExecutionParameters(
         newQueryEngineResult: ObjectEngineResultImpl,
         source: Any?,
         parentFieldStepInfo: ExecutionStepInfo?,
+        newConstants: Constants,
     ): ExecutionParameters {
         // Build execution step info based on plan type
         val childExecutionStepInfo = if (isRootQueryQueryPlan) {
@@ -342,6 +372,7 @@ data class ExecutionParameters(
         }
 
         return copy(
+            constants = newConstants,
             coercedVariables = variables,
             queryPlan = childPlan,
             selectionSet = childPlan.selectionSet,

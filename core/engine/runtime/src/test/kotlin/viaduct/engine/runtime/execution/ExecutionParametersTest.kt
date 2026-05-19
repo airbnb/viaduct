@@ -272,59 +272,100 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forChildPlan with WithOER target overrides active query engine result for root query plans`() {
+    fun `forChildPlan with IsolatedRootResult replaces root and query constants for object plans`() {
         val childPlan = queryPlanFor(
-            type = queryType,
-            astSelectionSet = emptyAstSelectionSet,
-            attribution = ExecutionAttribution.fromOperation("RootChild")
+            type = fooType,
+            astSelectionSet = selectionSet("name"),
         )
-        val outerQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
-        val subqueryQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val isolatedRootResult = ObjectEngineResultImpl.newForType(fooType)
+        val isolatedQueryResult = ObjectEngineResultImpl.newForType(queryType)
         val parameters = createExecutionParameters(
-            source = mapOf("viewer" to "parent"),
-            executionStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id"))),
+            source = defaultRootValue,
+            executionStepInfo = run {
+                val fooStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id")))
+                executionStepInfoForField(mergedField("id"), fooType, fooStepInfo)
+            },
             queryPlan = childPlan,
-            queryEngineResult = outerQueryEngineResult,
+            rootEngineResult = ObjectEngineResultImpl.newForType(queryType),
+            queryEngineResult = ObjectEngineResultImpl.newForType(queryType),
         )
 
         val result = parameters.forChildPlan(
             childPlan,
             emptyVariables,
-            ExecutionParameters.ChildPlanTarget.WithOER(subqueryQueryEngineResult),
+            ExecutionParameters.ChildPlanTarget.IsolatedRootResult(
+                rootResult = isolatedRootResult,
+                queryResult = isolatedQueryResult,
+            ),
         )
 
-        assertSame(subqueryQueryEngineResult, result.parentEngineResult)
-        assertSame(subqueryQueryEngineResult, result.queryEngineResult)
+        assertSame(isolatedRootResult, result.parentEngineResult)
+        assertSame(isolatedRootResult, result.rootEngineResult)
+        assertSame(isolatedQueryResult, result.queryEngineResult)
         assertEquals(defaultRootValue, result.source)
-        assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
-        assertEquals(queryType, result.executionStepInfo.type)
     }
 
     @Test
-    fun `forChildPlan reuses overridden query engine result for later root query plans`() {
+    fun `forChildPlan with IsolatedRootResult uses isolated query result for root query plans`() {
+        val childPlan = queryPlanFor(
+            type = queryType,
+            astSelectionSet = emptyAstSelectionSet,
+        )
+        val isolatedRootResult = ObjectEngineResultImpl.newForType(queryType)
+        val isolatedQueryResult = ObjectEngineResultImpl.newForType(queryType)
+        val parameters = createExecutionParameters(
+            source = mapOf("viewer" to "parent"),
+            executionStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id"))),
+            queryPlan = childPlan,
+            rootEngineResult = ObjectEngineResultImpl.newForType(queryType),
+            queryEngineResult = ObjectEngineResultImpl.newForType(queryType),
+        )
+
+        val result = parameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            ExecutionParameters.ChildPlanTarget.IsolatedRootResult(
+                rootResult = isolatedRootResult,
+                queryResult = isolatedQueryResult,
+            ),
+        )
+
+        assertSame(isolatedQueryResult, result.parentEngineResult)
+        assertSame(isolatedRootResult, result.rootEngineResult)
+        assertSame(isolatedQueryResult, result.queryEngineResult)
+        assertEquals(defaultRootValue, result.source)
+        assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
+    }
+
+    @Test
+    fun `forChildPlan reuses isolated query engine result for later root query plans`() {
         val childPlan = queryPlanFor(
             type = queryType,
             astSelectionSet = emptyAstSelectionSet,
             attribution = ExecutionAttribution.fromOperation("RootChild")
         )
-        val outerQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
-        val subqueryQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val isolatedRootResult = ObjectEngineResultImpl.newForType(queryType)
+        val isolatedQueryResult = ObjectEngineResultImpl.newForType(queryType)
         val parameters = createExecutionParameters(
             source = mapOf("viewer" to "parent"),
             executionStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id"))),
             queryPlan = childPlan,
-            queryEngineResult = outerQueryEngineResult,
+            queryEngineResult = ObjectEngineResultImpl.newForType(queryType),
         )
 
         val subqueryParameters = parameters.forChildPlan(
             childPlan,
             emptyVariables,
-            ExecutionParameters.ChildPlanTarget.WithOER(subqueryQueryEngineResult),
+            ExecutionParameters.ChildPlanTarget.IsolatedRootResult(
+                rootResult = isolatedRootResult,
+                queryResult = isolatedQueryResult,
+            ),
         )
         val nestedQueryParameters = subqueryParameters.forChildPlan(childPlan, emptyVariables)
 
-        assertSame(subqueryQueryEngineResult, nestedQueryParameters.parentEngineResult)
-        assertSame(subqueryQueryEngineResult, nestedQueryParameters.queryEngineResult)
+        assertSame(isolatedQueryResult, nestedQueryParameters.parentEngineResult)
+        assertSame(isolatedRootResult, nestedQueryParameters.rootEngineResult)
+        assertSame(isolatedQueryResult, nestedQueryParameters.queryEngineResult)
         assertEquals(defaultRootValue, nestedQueryParameters.source)
         assertEquals(ResultPath.rootPath(), nestedQueryParameters.executionStepInfo.path)
         assertEquals(queryType, nestedQueryParameters.executionStepInfo.type)

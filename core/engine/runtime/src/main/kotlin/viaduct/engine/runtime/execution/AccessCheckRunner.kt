@@ -92,7 +92,7 @@ class AccessCheckRunner(
                     childPlan,
                     env,
                     ExecutionParameters.ChildPlanTarget.FieldType(
-                        parentOER = fieldResolutionResult.engineResult as ObjectEngineResultImpl,
+                        parentResult = fieldResolutionResult.engineResult as ObjectEngineResultImpl,
                         source = fieldResolutionResult.originalSource,
                     ),
                 )

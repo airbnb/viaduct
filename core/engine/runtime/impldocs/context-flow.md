@@ -110,6 +110,8 @@ When tenant code calls `ctx.query(selections)` to execute a subquery, the engine
 2. Access the current execution's coroutine scope, error accumulator, instrumentation, etc.
 3. Maintain proper parent-child relationships for error attribution
 
+The handle gives selection execution access to request-level state, but it does not mean the subquery reuses the parent request's root object results. `EngineImpl.resolveSelectionSet()` rebuilds child parameters with an isolated root/query result boundary so `ctx.query()` and `ctx.mutation()` calls do not share root memoization with the parent query or with sibling subqueries.
+
 Without the handle, tenants would need to pass around `ExecutionParameters` directly—exposing internal execution machinery and creating a fragile API.
 
 ### Opaqueness by Design

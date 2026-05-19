@@ -240,10 +240,20 @@ class EngineImpl(
                 rss = selectionSet,
                 attribution = options.attribution,
             )
+            // Mutation selection executions have a Mutation root result, but
+            // querySelections inside them still execute against Query. Keep that
+            // Query result isolated from the parent request and sibling subqueries.
+            val queryOER = when (options.operationType) {
+                Engine.OperationType.QUERY -> targetOER
+                Engine.OperationType.MUTATION -> ObjectEngineResultImpl.newForType(fullSchema.schema.queryType)
+            }
             parentParams.forChildPlan(
                 queryPlan,
                 rssImpl.ctx.coercedVariables,
-                ExecutionParameters.ChildPlanTarget.WithOER(targetOER),
+                ExecutionParameters.ChildPlanTarget.IsolatedRootResult(
+                    rootResult = targetOER,
+                    queryResult = queryOER,
+                ),
             )
         } catch (e: Exception) {
             throw SubqueryExecutionException.queryPlanBuildFailed(e)
@@ -323,7 +333,7 @@ class EngineImpl(
                 checkNotNull(targetOER) { "targetResult is required when isFieldTypePlan is true" }
                 ExecutionParameters.ChildPlanTarget.FieldType(targetOER, parentParams.source)
             } else if (targetOER != null) {
-                ExecutionParameters.ChildPlanTarget.WithOER(targetOER)
+                ExecutionParameters.ChildPlanTarget.ExplicitParentResult(targetOER)
             } else {
                 ExecutionParameters.ChildPlanTarget.FromContext
             }

@@ -4,7 +4,7 @@ Resolvers sometimes need to ask follow-up questions of the graph.
 
 A tenant resolver might load an object, then need to run an ad-hoc query against that object or the root schema. The naive approach would be to build a new GraphQL-Java execution for each of these "subqueries," but that throws away all of the state the engine already has for the current request.
 
-The selection execution path (`ctx.query()` / `ctx.mutation()`) is the engine's way of doing this without rebuilding everything. It reuses the existing execution context through an opaque `ExecutionHandle`, and runs the selection through the same execution pipeline as the parent query.
+The selection execution path (`ctx.query()` / `ctx.mutation()`) is the engine's way of doing this without rebuilding everything. It reuses the existing request context through an opaque `ExecutionHandle`, but runs the selection with an isolated root/query result boundary so resolver-driven subqueries do not accidentally share root memoization with the parent query or sibling subqueries.
 
 This document follows a selection execution from the resolver's `ctx.query()` call all the way through execution and back.
 
@@ -75,8 +75,8 @@ For declarative, static sibling/root fields known at registration time, prefer `
                   ▼
 ┌─────────────────────────────────────┐
 │ Step 5: Build Child Parameters      │
-│ ExecutionParameters.forResolution()   │
 │ QueryPlanFactory.buildFromSelections()│
+│ ExecutionParameters.forChildPlan()  │
 └─────────────────┬───────────────────┘
                   │
                   ▼
@@ -151,8 +151,9 @@ This method:
 
 1. Recovers the parent `ExecutionParameters` from the handle via `asExecutionParameters()`
 2. Looks up the root type (`queryType` or `mutationType`) from `fullSchema`
-3. Calls `parentParams.forResolution(selectionSet, targetOER)` to build child execution parameters
-4. Runs the field-resolution pipeline and wraps the result
+3. Builds a `QueryPlan` from the provided `EngineSelectionSet`
+4. Calls `parentParams.forChildPlan(..., ChildPlanTarget.IsolatedRootResult(...))` to build child execution parameters
+5. Runs the field-resolution pipeline and wraps the result
 
 The `ExecutionHandle` is deliberately opaque -- tenant code sees `EngineExecutionContext.ExecutionHandle`, not `ExecutionParameters`. A handle is tied to the engine instance and request that created it; it cannot be reused across requests or engine instances.
 
@@ -165,7 +166,7 @@ Inside the runtime module, `asExecutionParameters()` bridges that gap. If someon
 
 ## Step 5: Building Child Execution Parameters
 
-The core of subquery execution is `ExecutionParameters.forResolution()`. This method builds `QueryPlan.Parameters` using `fullSchema`, calls `QueryPlanFactory.buildFromSelections()` to create the plan, then delegates to `forChildPlan()`.
+The core of subquery execution is the `QueryPlanFactory.buildFromSelections()` plus `ExecutionParameters.forChildPlan()` handoff. The wiring layer builds `QueryPlan.Parameters` using `fullSchema`, creates the plan from the provided `EngineSelectionSet`, then asks `forChildPlan()` to derive the execution state for the child plan.
 
 ### Schema Choice
 
@@ -184,10 +185,17 @@ This means:
 
 The `targetResult` option controls memoization. `ObjectEngineResultImpl` holds resolved field results. By choosing which instance to pass:
 
-- Fresh `ObjectEngineResultImpl` → isolated execution, no shared memoization
-- Existing `ObjectEngineResultImpl` → selections share already-resolved fields
+- Fresh `ObjectEngineResultImpl` → fresh root result for this selection execution
+- Existing `ObjectEngineResultImpl` → reuse that root result for this selection execution
 
-The tenant-facing `ctx.query()` and `ctx.mutation()` always create fresh instances, so selections issued through those APIs are isolated by default. The lower-level `EEC.resolveSelectionSet()` with custom `targetResult` enables shared memoization for advanced use cases.
+Selection executions also get an isolated root/query result boundary via `ChildPlanTarget.IsolatedRootResult`. This is separate from the root `targetResult` itself:
+
+- `ctx.query()` uses the target Query result as both the root result and query result.
+- `ctx.mutation()` uses the target Mutation result as the root result and creates a fresh Query result for any `querySelections` or Query-typed child plans launched inside the sub-mutation.
+
+This matters for parallel subqueries. Without an isolated query result, two parallel `ctx.mutation()` calls can share the parent request's Query-root memoization, so a `querySelections` child plan such as `Query.node(id:)` can accidentally reuse a lazy node source resolved for a sibling sub-mutation. The lower-level `EEC.resolveSelectionSet()` with custom `targetResult` can still reuse a root result for advanced use cases, but it does not reuse the parent request's root/query results implicitly.
+
+`completeSelectionSet()` has different semantics: when it receives an explicit `targetResult`, it uses `ChildPlanTarget.ExplicitParentResult`, which changes only the immediate parent result and preserves the surrounding root/query execution constants.
 
 ### Building the QueryPlan
 
@@ -196,19 +204,19 @@ Subqueries don't start from a full GraphQL document—they start from an `Engine
 Plan caching keys on selection text, document key, schema hash, and `executeAccessChecksInModstrat`. Variables are not part of the cache key—the plan only depends on field/argument structure, not specific values.
 
 **Key files:**
-- `engine/runtime/.../execution/ExecutionParameters.kt` — `forResolution()` method
+- `engine/runtime/.../execution/ExecutionParameters.kt` — `forChildPlan()` and `ChildPlanTarget`
 - `engine/runtime/.../execution/QueryPlanFactory.kt` — `buildFromSelections()`
 
 ## Step 6: Field Resolution
 
-Once `forResolution()` produces child `ExecutionParameters` and a `QueryPlan`, the wiring layer runs the standard field-resolution pipeline:
+Once `forChildPlan()` produces child `ExecutionParameters`, the wiring layer runs the standard field-resolution pipeline:
 
 - `fieldResolver.fetchObject()` for queries
 - `fieldResolver.fetchObjectSerially()` for mutations
 
-Selections always execute "as root"—`isRootQueryQueryPlan = true`, source is the execution root, and `parentFieldStepInfo` is `null`. This means the selection sees the same root object and request-level context as the original query, but it is not nested under the parent field in the query plan. This affects logging/tracing (it appears as a separate root execution) but not authorization or data loader scoping.
+Selections execute from the selected operation root (`Query` or `Mutation`), not as nested fields under the resolver that issued them. Query-typed child plans get the execution root, a fresh root `ExecutionStepInfo`, and the isolated query result chosen for this selection execution. Mutation-typed root plans use the isolated mutation result as their parent result and execute serially.
 
-Results are stored in the provided `targetOER`, and a `ProxyEngineObjectData` wraps the result.
+Results are stored in the selected root result, and a `ProxyEngineObjectData` wraps that result.
 
 ## Step 7: Result Conversion
 
