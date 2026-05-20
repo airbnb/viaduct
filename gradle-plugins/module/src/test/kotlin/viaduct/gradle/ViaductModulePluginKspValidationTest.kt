@@ -3,9 +3,7 @@ package viaduct.gradle
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertContains
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.io.TempDir
 
@@ -64,18 +62,6 @@ class ViaductModulePluginKspValidationTest {
     @Test
     fun `unparseable version returns null (no error)`() {
         assertNull(ViaductModulePlugin.validateKotlinVersion("not-a-version"))
-    }
-
-    // ── Kotlin compiler flags ───────────────────────────────────────────────
-
-    @Test
-    fun `Kotlin before 2_2 receives context receivers flag`() {
-        assertTrue(ViaductModulePlugin.supportsContextReceiversFlag("2.1.20"))
-    }
-
-    @Test
-    fun `Kotlin 2_2 skips deprecated context receivers flag`() {
-        assertFalse(ViaductModulePlugin.supportsContextReceiversFlag("2.2.21"))
     }
 
     // ── KSP-absent error (TestKit) ───────────────────────────────────────────

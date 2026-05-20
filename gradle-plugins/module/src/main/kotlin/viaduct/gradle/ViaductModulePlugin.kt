@@ -115,12 +115,6 @@ class ViaductModulePlugin : Plugin<Project> {
                 kotlinExt.sourceSets.named("main") {
                     kotlin.srcDir(generateResolverBasesTask.flatMap { it.outputDirectory })
                 }
-
-                if (supportsContextReceiversFlag(kotlinExt.coreLibrariesVersion)) {
-                    kotlinExt.compilerOptions {
-                        freeCompilerArgs.add("-Xcontext-receivers")
-                    }
-                }
             }
 
             configureIdeaIntegration(generateResolverBasesTask)
@@ -271,13 +265,6 @@ class ViaductModulePlugin : Plugin<Project> {
             } else {
                 null
             }
-        }
-
-        fun supportsContextReceiversFlag(kotlinVersion: String): Boolean {
-            val major = kotlinVersion.substringBefore('.').toIntOrNull() ?: return true
-            val minor = kotlinVersion.substringAfter('.').substringBefore('.').toIntOrNull() ?: return true
-
-            return major < 2 || (major == 2 && minor < 2)
         }
     }
 

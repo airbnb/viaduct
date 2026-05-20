@@ -17,12 +17,9 @@ tasks.withType<KotlinCompile>().configureEach {
     compilerOptions {
         apiVersion = KotlinVersion.KOTLIN_1_8
         languageVersion = KotlinVersion.KOTLIN_1_8
-        freeCompilerArgs.addAll(
-            "-Xcontext-receivers",
-            // graphql-java 26 added @NullMarked (jspecify) annotations, causing hundreds of
-            // nullability warnings in Kotlin 1.9. Ignore them until we upgrade to Kotlin 2.x
-            // which handles jspecify annotations natively.
-            "-Xjspecify-annotations=ignore"
-        )
+        // graphql-java 26 added @NullMarked (jspecify) annotations, causing hundreds of
+        // nullability warnings in Kotlin 1.9. Ignore them until we upgrade to Kotlin 2.x
+        // which handles jspecify annotations natively.
+        freeCompilerArgs.add("-Xjspecify-annotations=ignore")
     }
 }

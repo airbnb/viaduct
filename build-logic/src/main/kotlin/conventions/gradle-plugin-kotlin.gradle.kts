@@ -4,7 +4,6 @@
  * This replaces `conventions.kotlin` for plugin-authoring projects. It deliberately omits
  * the Treehouse-constrained settings that `conventions.kotlin` applies:
  *   - No apiVersion / languageVersion pinning to 1.8
- *   - No `-Xcontext-receivers`
  *   - No `idea` plugin
  *   - No Viaduct internal opt-in annotations
  *
