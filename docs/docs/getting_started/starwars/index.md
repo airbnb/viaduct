@@ -4,8 +4,7 @@ description: Explore an advanced Viaduct application.
 ---
 
 ## Overview
-This application implements a comprehensive GraphQL API for the Star Wars universe, demonstrating how Viaduct handles
-complex data relationships, advanced resolver patterns, and sophisticated schema design.
+This application implements a comprehensive GraphQL API for the Star Wars universe, demonstrating how Viaduct handles complex data relationships, advanced resolver patterns, and sophisticated schema design.
 
 ## Requirements
 
@@ -42,8 +41,7 @@ Follow the instructions in the repository's README to build and run the applicat
 ./gradlew run
 ```
 
-After exploring the Star Wars application, you'll have a solid understanding of how to build production-ready GraphQL
-applications with Viaduct.
+After exploring the Star Wars application, you'll have a solid understanding of how to build production-ready GraphQL applications with Viaduct.
 
 ## What's Next
 

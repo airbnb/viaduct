@@ -168,16 +168,14 @@ To test the behavior of generated functions, we need to construct test values to
 There are times you may need to examine generated outputs for testing and debugging purposes. This section describes how.
 
 ## Bazel Outputs
-When you run a bazel command, you can use the flags `--remote_download_toplevel` and `--remote_download_outputs=all` to
-download the outputs of just the top-level target or also of all intermediate actions that ran. These outputs will then appear in
-`treehouse/dist/bin/<path-to-target>`, which is symlinked to the actual directory that the outputs are downloaded to.
+When you run a bazel command, you can use the flags `--remote_download_toplevel` and `--remote_download_outputs=all` to download the outputs of just the top-level target or also of all intermediate actions that ran. These outputs will then appear in `treehouse/dist/bin/<path-to-target>`, which is symlinked to the actual directory that the outputs are downloaded to.
 
 For example, after running the following bazel command:
 ```
 bazel build //projects/viaduct/modules/data:generated_schema_objects --config=engflow --remote_download_outputs=all
 ```
-The outputs will appear in `dist/bin/projects/viaduct/modules/data`. The outputs you're likely
-most interested in are the jar files. Here are some helpful commands:
+The outputs will appear in `dist/bin/projects/viaduct/modules/data`. The outputs you're likely most interested in are the jar files. Here are some helpful commands:
+
 * `jar -tf`: Lists the contents of a jar file
 * `jar -xf`: Extracts the contents of a jar file into the current directory
 
@@ -187,23 +185,19 @@ You can see all available targets using `bazel query`, e.g. `bazel query "//proj
 Here are some Bazel targets that you might find useful.
 
 ### Test source targets
-These targets are used for our central schema tests, so they don't go through the exact same Bazel code path as when we
-build the Viaduct service. However, they should still produce the same classfiles, and their outputs are more convenient
-to inspect.
+These targets are used for our central schema tests, so they don't go through the exact same Bazel code path as when we build the Viaduct service. However, they should still produce the same classfiles, and their outputs are more convenient to inspect.
 
 All central schema GRTs, in `central_schema_bytecode_for_exercisers_generated_schema_objects.jar`:
 ```
 //projects/viaduct/build-src/src/test/kotlin/com/airbnb/viaduct/server/generators/types/bytecode/centralschema:central_schema_bytecode_for_exercisers
 ```
 
-All GRTs for a specific schema module, `central_schema_bytecode_for_diff_<module name>_generated_schema_objects.jar`,
-where `<module name>` is `data`, `presentation`, etc:
+All GRTs for a specific schema module, `central_schema_bytecode_for_diff_<module name>_generated_schema_objects.jar`, where `<module name>` is `data`, `presentation`, etc:
 ```
 //projects/viaduct/build-src/src/test/kotlin/com/airbnb/viaduct/server/generators/types/bytecode/centralschema:central_schema_bytecode_for_diff_<module name>`
 ```
 
-All GRTs for a scoped block schema, in `<block name>_scoped_schema_bytecode_generated_schema_objects.jar`, where `<block name>`
-is `listingblock`, `userblock`, etc:
+All GRTs for a scoped block schema, in `<block name>_scoped_schema_bytecode_generated_schema_objects.jar`, where `<block name>` is `listingblock`, `userblock`, etc:
 ```
 //projects/viaduct/build-src/src/test/kotlin/com/airbnb/viaduct/server/generators/types/bytecode/centralschema:<block name>_scoped_schema_bytecode
 ```
@@ -217,8 +211,7 @@ Generated Kotlin source exercisers for testing, in 50 separate source jars e.g. 
 
 These targets are used for building the Viaduct service.
 
-All GRTs for a specific module (`remote_download_outputs=all` is necessary). Direct-to-bytecode GRTs will be in one or more
-jars depending on the number of workers used for that module, e.g. `viaduct_generated_schema_objects_jar_0_generated_schema_objects.jar`:
+All GRTs for a specific module (`remote_download_outputs=all` is necessary). Direct-to-bytecode GRTs will be in one or more jars depending on the number of workers used for that module, e.g. `viaduct_generated_schema_objects_jar_0_generated_schema_objects.jar`:
 ```
 //projects/viaduct/modules/data:generated_schema_objects
 ```

@@ -74,6 +74,7 @@ ssh -T git@github.com
 Expected output: `Hi <username>! You've successfully authenticated, but GitHub does not provide shell access.`
 
 If this fails:
+
 - Ensure you have SSH keys set up: https://docs.github.com/en/authentication/connecting-to-github-with-ssh
 - Add your key to ssh-agent: `ssh-add ~/.ssh/id_rsa`
 
@@ -231,6 +232,7 @@ gh run list --workflow=ci-trigger.yml --repo airbnb/viaduct --limit 5
 ```
 
 This runs three sub-workflows:
+
 1. **build-and-test** — compiles and runs all unit tests
 2. **demoapps-ci-check** — tests all demo apps against locally-published artifacts (Java 17 + 21)
 3. **bcv-api-check** — binary API compatibility check
@@ -273,6 +275,7 @@ gh run list --workflow=release.yml --repo airbnb/viaduct --limit 3
 ```
 
 The workflow runs these steps in sequence:
+
 1. **Preflight** — validates the `release_version` / `rc_ver` / `final` inputs and verifies the `release/v${RELEASE_VER}` branch exists
 2. **Publish** — validates versions, runs checks, and publishes `${RELEASE_VER}-${RC_VER}` to Plugin Portal + Maven Central
 3. **Push demo apps** — updates standalone `viaduct-dev/*` repos on `rc/v${RELEASE_VER}-${RC_VER}`
@@ -357,6 +360,7 @@ gh run list --workflow=release.yml --repo airbnb/viaduct --limit 3
 ```
 
 The workflow runs these steps in sequence:
+
 1. **Preflight** — verifies release branch exists and tag does not
 2. **Publish** — validates versions, runs checks, publishes to Plugin Portal + Maven Central (via `publish-branch.yml`)
 3. **Push demo apps** — updates standalone `viaduct-dev/*` repos (via `push-demoapps.yml`)
@@ -449,6 +453,7 @@ If `release.yml` fails during an RC publication after publishing `${RELEASE_VER}
 ### Demo app tests fail after push
 
 Possible causes:
+
 1. **Maven Central propagation delay** — artifacts not yet visible. Wait 10-15 minutes and the `verify-demoapps` step will retry.
 2. **Stale Copybara content** — check the workflow output for warnings.
 

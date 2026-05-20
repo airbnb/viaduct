@@ -71,6 +71,7 @@ The list that `batchResolve` returns must have the same number of elements as th
 Notice that the output list elements are wrapped in {{ kdoc("viaduct.api.FieldValue") }} (e.g., `List<FieldValue<Listing>>` in the example above). This represents either a successfully resolved value or an error value.
 
 **Usage:**
+
 * `FieldValue.ofValue(v)`: constructs a successfully resolved value, as shown in the example above
 * `FieldValue.ofError(e)`: constructs an error value, where `e` is an exception. The corresponding value in the GraphQL response will be null, and there will be an error in the errors array.
 

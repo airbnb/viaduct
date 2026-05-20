@@ -95,6 +95,7 @@ Since `NodeExecutionContext` implements `ResolverExecutionContext`, it also incl
 
 ### Non-Selective and Selective Node Resolvers
 There are two primary categories of Node Resolver:
+
 1. Non-Selective Node Resolvers: Serve most use cases and are the default option. These resolvers always return the same data for a given node ID and benefit from higher cache hit rates.
 2. Selective Node Resolvers: Can vary the response data returned for a given node ID based on the fields requested by the caller. These resolvers are declared directly in SDL with `@resolver(isSelective: true)`.
 
@@ -130,8 +131,7 @@ class SelectiveUserNodeResolver @Inject constructor(
 }
 ```
 
-Non-selective node resolvers should not use `ctx.selections()`, and their generated `Context` does not expose that API.
-Field-level `@resolver(isSelective: true)` directives inside a node type do not change node resolver generation or make the node resolver selective.
+Non-selective node resolvers should not use `ctx.selections()`, and their generated `Context` does not expose that API. Field-level `@resolver(isSelective: true)` directives inside a node type do not change node resolver generation or make the node resolver selective.
 
 ## Responsibility set
 

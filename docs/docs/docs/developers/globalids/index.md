@@ -7,6 +7,7 @@ description: Global identifiers for nodes
 Viaduct uses two different Kotlin types to represent GraphQL `ID` types: `GlobalID<T>` and String. `GlobalID<T>` is an object that consists of a type and an internal ID. They are used to uniquely identify node objects in the graph. `GlobalID` values support structural equality, as opposed to referential equality.
 
 There are two conditions under which `GlobalID<T>` will be used:
+
 1. The `id` field of a `Node` object type
 2. A field of type `ID` with the `@idOf(type:"T")` directive, where `T` must be a GraphQL object or interface type that implements `Node`
 

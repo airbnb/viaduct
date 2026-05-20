@@ -3,13 +3,9 @@ title: Server Integration
 description: Embedding Viaduct into a web framework, message consumer, or any other entry point.
 ---
 
-Viaduct is a pure GraphQL execution engine. It does not include an HTTP server, a message
-broker client, or any other transport layer. This is deliberate — it keeps the core lean and
-lets you embed it into whatever infrastructure your organisation already uses.
+Viaduct is a pure GraphQL execution engine. It does not include an HTTP server, a message broker client, or any other transport layer. This is deliberate — it keeps the core lean and lets you embed it into whatever infrastructure your organisation already uses.
 
-The contract is simple: build an `ExecutionInput`, call `viaduct.executeAsync()`, and send
-the result wherever it needs to go. The entry point that calls `executeAsync` can be an HTTP
-controller, a Kafka consumer, a RabbitMQ listener, a gRPC handler, a CLI command — anything.
+The contract is simple: build an `ExecutionInput`, call `viaduct.executeAsync()`, and send the result wherever it needs to go. The entry point that calls `executeAsync` can be an HTTP controller, a Kafka consumer, a RabbitMQ listener, a gRPC handler, a CLI command — anything.
 
 ## The execution contract
 
@@ -28,14 +24,11 @@ val result = viaduct.executeAsync(input).await()
 val responseBody = result.toSpecification()
 ```
 
-`executeAsync` is a suspend function — it runs in a coroutine and does not block a thread
-while resolvers are executing. Use `execute` only if you are in a non-coroutine context and
-cannot avoid blocking.
+`executeAsync` is a suspend function — it runs in a coroutine and does not block a thread while resolvers are executing. Use `execute` only if you are in a non-coroutine context and cannot avoid blocking.
 
 ## HTTP — StarWars demo (Micronaut)
 
-The StarWars demo wires Viaduct to a Micronaut `@Controller`. The controller reads the
-incoming request body, constructs an `ExecutionInput`, and returns the GraphQL result as JSON:
+The StarWars demo wires Viaduct to a Micronaut `@Controller`. The controller reads the incoming request body, constructs an `ExecutionInput`, and returns the GraphQL result as JSON:
 
 ```kotlin title="demoapps/starwars/src/main/kotlin/.../ViaductRestController.kt"
 @Controller
@@ -57,13 +50,11 @@ class ViaductRestController(
 }
 ```
 
-Any HTTP framework works the same way — Spring, Ktor, Jetty, etc. The demos directory
-contains examples for each.
+Any HTTP framework works the same way — Spring, Ktor, Jetty, etc. The demos directory contains examples for each.
 
 ## Message consumer example
 
-For a queue-based entry point the shape is identical. The only difference is where the
-operation text comes from and where the result goes:
+For a queue-based entry point the shape is identical. The only difference is where the operation text comes from and where the result goes:
 
 ```kotlin
 class GraphQLMessageConsumer(

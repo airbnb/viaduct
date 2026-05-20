@@ -153,6 +153,7 @@ Field-level metrics help you understand relationships between fields:
 * **Critical path analysis** - Identify which fields contribute most to request latency
 
 For example, as a tenant developer you can:
+
 * Understand why your field is slow by examining dependent field metrics
 * See which operations most frequently trigger your field resolution
 * Monitor error rates for fields your resolvers depend on

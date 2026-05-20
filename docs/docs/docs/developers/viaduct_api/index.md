@@ -4,14 +4,12 @@ description: Viaduct Runtime Execution API
 ---
 
 
-This document describes how to use the **runtime entry point** `viaduct.service.api.Viaduct` interface to
-execute GraphQL operations, select schema variants, and interpret execution results.
+This document describes how to use the **runtime entry point** `viaduct.service.api.Viaduct` interface to execute GraphQL operations, select schema variants, and interpret execution results.
 
 
 ## What `Viaduct` Is
 
-A `Viaduct` instance is the **main entry point** for executing GraphQL operations against the Viaduct runtime. It is
-intended to be created **once at service startup** and reused for all requests.
+A `Viaduct` instance is the **main entry point** for executing GraphQL operations against the Viaduct runtime. It is intended to be created **once at service startup** and reused for all requests.
 
 You typically create an instance via:
 
@@ -32,6 +30,7 @@ val viaduct: Viaduct = BasicViaductFactory.create()
 ```
 
 **When to use**
+
 - Your service is “off-the-shelf” or you’re getting started.
 - You don’t need custom metrics, flags, custom exception handlers, custom error shaping, etc.
 
@@ -61,6 +60,7 @@ val viaduct =
 ```
 
 **When to use**
+
 - You need to control observability, error reporting/shaping, feature flags, schema configuration, or global-id behavior.
 - You want a single consistent “production-like” configuration used by both prod and test harnesses.
 
@@ -86,8 +86,7 @@ val internalOnly = SchemaId.Scoped(
 
 ### How Scoped Schemas Relate To Access Control
 
-A scoped schema is a structural way to **hide types/fields** from a client by removing them from the executable schema.
-This is complementary to runtime checks inside resolvers.
+A scoped schema is a structural way to **hide types/fields** from a client by removing them from the executable schema. This is complementary to runtime checks inside resolvers.
 
 To implement or audit access-control, you can ask `Viaduct` what scopes were applied for a schema.
 
@@ -137,6 +136,7 @@ val input =
 ```
 
 **Notes**
+
 - If you don’t provide `operationId`, Viaduct generates one from the operation text and name (a hash-like value).
 - If you don’t provide `executionId`, Viaduct generates a random UUID string.
 
@@ -176,6 +176,7 @@ suspend fun <T> java.util.concurrent.CompletableFuture<T>.await(): T =
 ```
 
 **When to use**
+
 - You’re already in a coroutine (`suspend`) context.
 - You want to avoid blocking request threads while the engine executes.
 
@@ -191,6 +192,7 @@ val response = result.toSpecification()
 ```
 
 **Caution**
+
 - In a server, avoid calling `execute` on event-loop threads or limited thread pools.
 
 #### Interpreting `ExecutionResult`

@@ -37,6 +37,7 @@ type User @resolver {
 ```
 
 **Use cases:**
+
 - Fields that fetch data from external services or databases
 - Fields that require custom business logic beyond simple property access
 - Object types that need node resolution for Global ID support
@@ -51,6 +52,7 @@ Specifies the backing data class for a field, enabling type-safe data access in 
 **Locations:** `FIELD_DEFINITION`
 
 **Arguments:**
+
 - `class: String!` — fully qualified name of the backing data class
 
 **Example:**
@@ -67,6 +69,7 @@ type UserProfile {
 ```
 
 **Use cases:**
+
 - Mapping GraphQL types to internal data models
 - Providing type information for fields derived from backing data
 - Enabling Viaduct to automatically resolve fields from backing data without custom resolvers
@@ -78,6 +81,7 @@ Controls field and type visibility across different schema scopes. This is a rep
 **Locations:** `OBJECT`, `INTERFACE`, `UNION`, `ENUM`, `INPUT_OBJECT`, `FIELD_DEFINITION`, `ENUM_VALUE`
 
 **Arguments:**
+
 - `to: [String!]!` — list of scope names where this element is visible
 
 **Example:**
@@ -97,6 +101,7 @@ type InternalMetrics @scope(to: ["internal"]) {
 ```
 
 **Use cases:**
+
 - Creating public vs. internal API variants from the same codebase
 - Feature flagging schema elements
 - Multi-tenant schema visibility
@@ -111,6 +116,7 @@ Declares that a field represents a Global ID for a specific GraphQL type. This e
 **Locations:** `FIELD_DEFINITION`, `INPUT_FIELD_DEFINITION`, `ARGUMENT_DEFINITION`
 
 **Arguments:**
+
 - `type: String!` — name of the GraphQL type this ID references (must implement `Node`)
 
 **Example:**
@@ -128,6 +134,7 @@ input UpdateUserInput {
 ```
 
 **Use cases:**
+
 - Type-safe Global ID handling in resolvers
 - Node interface implementations
 - Cross-type references with compile-time validation
@@ -149,6 +156,7 @@ interface Node @scope(to: ["*"]) {
 ```
 
 **When it's included:**
+
 - Your schema implements types that extend `Node`
 - You use the `@idOf` directive anywhere in your schema
 

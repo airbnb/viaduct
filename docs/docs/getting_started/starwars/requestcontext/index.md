@@ -35,6 +35,7 @@ Use the context in your resolvers via dependency injection:
 
 
 **Benefits:**
+
 - Automatic lifecycle management
 - Type-safe access to context data
 - Prevents data leakage between requests
@@ -54,7 +55,6 @@ When creating your `ExecutionInput`, include the request context:
 
 
 {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "create_execution_input", lang="kotlin") }}
-
 
 
 ```kotlin
@@ -84,12 +84,14 @@ class FooQuery : FooResolver.Character() {
 ```
 
 **Benefits:**
+
 - Simple to set up
 - No additional framework configuration needed
 - Direct access to context data
 - Flexible for passing arbitrary data
 
 **Considerations:**
+
 - Requires manual type casting
 - Less type-safe than framework approach
 - No automatic lifecycle management

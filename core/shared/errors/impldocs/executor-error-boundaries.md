@@ -60,6 +60,7 @@ throw TenantResolverException(e, opName)
 ```
 
 This means:
+
 - `FrameworkException` passes through tenant boundaries — a framework bug inside a resolver does not get mislabeled as a tenant error.
 - `TenantUsageException` (and subclasses) passes through framework boundaries — framework-detected API misuse does not get wrapped as a `FrameworkException`.
 - `TenantUsageException` thrown while crossing a tenant boundary is wrapped as `TenantResolverException` so the executor exits with a normalized tenant-attributed wrapper.

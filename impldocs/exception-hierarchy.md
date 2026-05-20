@@ -47,5 +47,6 @@ throw TenantResolverException(e, opName)
 ```
 
 This means:
+
 - `TenantUsageException` (and subclasses) pass through framework boundaries without being wrapped in `FrameworkException`
 - `TenantUsageException` thrown inside tenant code is wrapped by `handleTenantErrors` into `TenantResolverException`, attributing it to the tenant

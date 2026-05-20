@@ -4,19 +4,16 @@ description: How the Viaduct runtime is constructed in the Star Wars demo using 
 ---
 
 
-This page explains **how the Viaduct runtime is built** in the Star Wars demo, referencing the configuration code
-(for example, `ViaductConfiguration.kt`) and the controller that executes requests (`ViaductGraphQLController.kt`).
+This page explains **how the Viaduct runtime is built** in the Star Wars demo, referencing the configuration code (for example, `ViaductConfiguration.kt`) and the controller that executes requests (`ViaductGraphQLController.kt`).
 
-> Goal: make it clear **what the builder registers**, **how schemas are defined**, and **what the runtime looks like**
-> when it receives an `ExecutionInput` to resolve queries and mutations.
+> Goal: make it clear **what the builder registers**, **how schemas are defined**, and **what the runtime looks like** when it receives an `ExecutionInput` to resolve queries and mutations.
 
 ## High-level flow
 
 1. **Schema registration** (IDs, SDL discovery, and scope sets).
 2. **Module registration** (generated types, resolvers, and package conventions).
 3. **Runtime construction** via `ViaductBuilder`.
-4. **Execution**: the controller creates an `ExecutionInput` (with `schemaId`, `query`, `variables`, etc.) and calls
-   `viaduct.executeAsync(...)`.
+4. **Execution**: the controller creates an `ExecutionInput` (with `schemaId`, `query`, `variables`, etc.) and calls `viaduct.executeAsync(...)`.
 
 ## Builder configuration
 
@@ -39,8 +36,7 @@ The controller **resolves scopes → chooses a schema → builds `ExecutionInput
 {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "viaduct_graphql_controller", lang="kotlin") }}
 
 
-> For details on `determineSchemaId(scopes)` and `createExecutionInput(...)`, see the **Scope** and **Schemas**
-> documentation in this set.
+> For details on `determineSchemaId(scopes)` and `createExecutionInput(...)`, see the **Scope** and **Schemas** documentation in this set.
 
 ## Builder best practices
 

@@ -6,20 +6,13 @@ description: Customizing error reporting and handling in Viaduct.
 
 ## Data Fetcher Error Handling
 
-Viaduct provides two extension points for customizing error handling in
-resolvers. Both are optional for service architects.
+Viaduct provides two extension points for customizing error handling in resolvers. Both are optional for service architects.
 
 ### ResolverErrorBuilder
 
-When a resolver throws an exception, Viaduct will catch it and return it
-as a GraphQL error. As a service architect, you can customize
-resolver exception handling by implementing your own {{ kdoc("viaduct.service.api.spi.ResolverErrorBuilder") }}.
+When a resolver throws an exception, Viaduct will catch it and return it as a GraphQL error. As a service architect, you can customize resolver exception handling by implementing your own {{ kdoc("viaduct.service.api.spi.ResolverErrorBuilder") }}.
 
-`ResolverErrorBuilder` is a functional interface with a single method,
-`exceptionToGraphQLError`. This method takes the thrown exception and
-error metadata, and produces a list of {{ kdoc("viaduct.service.api.GraphQLError") }}
-objects. Return `null` to indicate that your builder does not handle this
-exception type, allowing the framework to use default handling.
+`ResolverErrorBuilder` is a functional interface with a single method, `exceptionToGraphQLError`. This method takes the thrown exception and error metadata, and produces a list of {{ kdoc("viaduct.service.api.GraphQLError") }} objects. Return `null` to indicate that your builder does not handle this exception type, allowing the framework to use default handling.
 
 ```kotlin
 import viaduct.service.api.GraphQLError
@@ -64,20 +57,13 @@ val myErrorBuilder = ResolverErrorBuilder { throwable, metadata ->
 }
 ```
 
-The {{ kdoc("viaduct.service.api.spi.ErrorBuilder") }} helper class automatically
-populates the error's `path` and `locations` from the metadata, so you only
-need to set the message and any custom extensions.
+The {{ kdoc("viaduct.service.api.spi.ErrorBuilder") }} helper class automatically populates the error's `path` and `locations` from the metadata, so you only need to set the message and any custom extensions.
 
 ### ErrorReporter
 
-In addition to returning errors in `ExecutionResult`, Viaduct also
-allows you to configure an error reporter called from within the engine.
+In addition to returning errors in `ExecutionResult`, Viaduct also allows you to configure an error reporter called from within the engine.
 
-{{ kdoc("viaduct.service.api.spi.ErrorReporter") }} is a functional interface
-with a single method, `reportResolverError`. This method is called whenever
-a resolver throws an exception and allows you to log the error or send it
-to an external monitoring system. This interface does not affect error
-reporting to clients or handling within the Viaduct engine.
+{{ kdoc("viaduct.service.api.spi.ErrorReporter") }} is a functional interface with a single method, `reportResolverError`. This method is called whenever a resolver throws an exception and allows you to log the error or send it to an external monitoring system. This interface does not affect error reporting to clients or handling within the Viaduct engine.
 
 For instance, if you wanted to emit exceptions to <a href="https://sentry.io/welcome/" target="_blank" rel="noopener noreferrer">Sentry</a>, you could implement the interface like this:
 
@@ -103,8 +89,7 @@ class MyErrorReporter : ErrorReporter {
 }
 ```
 
-The {{ kdoc("viaduct.service.api.spi.ErrorReporter.Metadata") }} class provides
-rich context about the error:
+The {{ kdoc("viaduct.service.api.spi.ErrorReporter.Metadata") }} class provides rich context about the error:
 
 | Field | Description |
 |-------|-------------|

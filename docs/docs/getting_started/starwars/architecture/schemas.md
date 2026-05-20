@@ -4,8 +4,7 @@ description: How schemas are defined, registered, and selected at runtime in the
 ---
 
 
-In Viaduct, a **schema** describes the GraphQL surface that a request can access. In the Star Wars demo, we register
-two schema IDs — one public and one with extra fields — and select between them at runtime based on **scopes**.
+In Viaduct, a **schema** describes the GraphQL surface that a request can access. In the Star Wars demo, we register two schema IDs — one public and one with extra fields — and select between them at runtime based on **scopes**.
 
 ## What a schema is
 
@@ -20,8 +19,7 @@ The Star Wars demo defines two schema IDs:
 
 ## Where schemas are registered
 
-Schemas are registered when creating a Viaduct instance by passing a list of [SchemaScopeInfo] descriptors.
-Example (excerpt from `ViaductConfiguration.kt`):
+Schemas are registered when creating a Viaduct instance by passing a list of [SchemaScopeInfo] descriptors. Example (excerpt from `ViaductConfiguration.kt`):
 
 
 {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt", "schema_registration", lang="kotlin") }}
@@ -31,9 +29,7 @@ Example (excerpt from `ViaductConfiguration.kt`):
 
 ## Organizing SDL files
 
-Place your GraphQL SDL files under the configured resources path so they are included by `resourcesIncluded`. Keep
-entities modular (for example, `character.graphqls`, `film.graphqls`, `species.graphqls`) and use **directives** like
-`@scope`, `@idOf`, and `@oneOf` where appropriate.
+Place your GraphQL SDL files under the configured resources path so they are included by `resourcesIncluded`. Keep entities modular (for example, `character.graphqls`, `film.graphqls`, `species.graphqls`) and use **directives** like `@scope`, `@idOf`, and `@oneOf` where appropriate.
 
 ### Example (fragment)
 

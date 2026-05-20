@@ -4,14 +4,11 @@ description: Bind ID fields to GraphQL types for type-safe Global ID handling in
 ---
 
 
-The `@idOf` directive binds an `ID` field or argument to a **specific GraphQL type**, allowing Viaduct to perform
-automatic type validation and Global ID decoding. It ensures that the ID belongs to the expected type before invoking
-your resolver, preventing mismatched or malformed identifiers at runtime.
+The `@idOf` directive binds an `ID` field or argument to a **specific GraphQL type**, allowing Viaduct to perform automatic type validation and Global ID decoding. It ensures that the ID belongs to the expected type before invoking your resolver, preventing mismatched or malformed identifiers at runtime.
 
 ## Why it matters
 
-In GraphQL, all `ID` values are strings. Without additional metadata, there’s no way to know which entity type an ID
-represents. `@idOf` introduces **type awareness** by declaring that a given `ID` corresponds to a specific GraphQL type.
+In GraphQL, all `ID` values are strings. Without additional metadata, there’s no way to know which entity type an ID represents. `@idOf` introduces **type awareness** by declaring that a given `ID` corresponds to a specific GraphQL type.
 
 This allows Viaduct to:
 
@@ -26,7 +23,6 @@ Apply `@idOf` to any `ID` argument or field that represents a Global ID.
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "id_example", lang="kotlin") }}
-
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "character_type", lang="kotlin") }}
@@ -69,23 +65,19 @@ This pattern ensures that only valid, correctly-typed IDs reach your business lo
 
 ### 1. Using `@idOf` on non-ID fields
 
-The directive should only decorate `ID` fields or arguments. Applying it to `String` or `Int` fields has no effect and
-may produce schema validation warnings.
+The directive should only decorate `ID` fields or arguments. Applying it to `String` or `Int` fields has no effect and may produce schema validation warnings.
 
 ### 2. Forgetting `@idOf` on inputs that expect Global IDs
 
-If an argument or input field represents a Global ID but lacks `@idOf`, Viaduct treats it as a plain string, skipping
-type validation and decoding. Always add `@idOf` when your resolvers depend on typed IDs.
+If an argument or input field represents a Global ID but lacks `@idOf`, Viaduct treats it as a plain string, skipping type validation and decoding. Always add `@idOf` when your resolvers depend on typed IDs.
 
 ### 3. Mixing raw IDs with Global IDs
 
-All `ID` arguments using `@idOf` are expected to be **encoded Global IDs**, not raw database identifiers. Passing
-unencoded values will fail decoding or validation.
+All `ID` arguments using `@idOf` are expected to be **encoded Global IDs**, not raw database identifiers. Passing unencoded values will fail decoding or validation.
 
 ### 4. Misdeclaring the target type
 
-Ensure the type name in `@idOf(type: "X")` matches the GraphQL type exactly, including case. `"character"` and
-`"Character"` are not equivalent.
+Ensure the type name in `@idOf(type: "X")` matches the GraphQL type exactly, including case. `"character"` and `"Character"` are not equivalent.
 
 ## Do and don’t
 

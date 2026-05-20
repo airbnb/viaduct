@@ -3,10 +3,7 @@ title: Dependency Injection
 description: Wiring a DI framework into Viaduct so resolver classes can declare constructor dependencies.
 ---
 
-Viaduct instantiates a new resolver class instance for each field invocation. The component
-responsible for creating those instances is [`CodeInjector`][CodeInjector]. The default
-implementation, `CodeInjector.Naive`, uses zero-argument constructors. To enable constructor
-injection, provide a `CodeInjector` backed by your DI container.
+Viaduct instantiates a new resolver class instance for each field invocation. The component responsible for creating those instances is [`CodeInjector`][CodeInjector]. The default implementation, `CodeInjector.Naive`, uses zero-argument constructors. To enable constructor injection, provide a `CodeInjector` backed by your DI container.
 
 ## Key interfaces
 
@@ -18,8 +15,7 @@ interface CodeInjector {
 }
 ```
 
-Viaduct calls `getProvider(resolverClass).get()` before each resolver invocation.
-Implementations must be thread-safe.
+Viaduct calls `getProvider(resolverClass).get()` before each resolver invocation. Implementations must be thread-safe.
 
 ### `TenantModuleBootstrapper`
 
@@ -30,12 +26,9 @@ interface TenantModuleBootstrapper {
 }
 ```
 
-Called once per tenant module at startup. The returned `CodeInjector` is used for all
-resolver classes in that tenant. `finalize` is called once after all `bootstrap` calls
-complete, before the service starts handling requests.
+Called once per tenant module at startup. The returned `CodeInjector` is used for all resolver classes in that tenant. `finalize` is called once after all `bootstrap` calls complete, before the service starts handling requests.
 
-`tenantBootstrapClass` is the class annotated with `@TenantBootstrapper` in that tenant's
-config file, or `null` if the tenant has none.
+`tenantBootstrapClass` is the class annotated with `@TenantBootstrapper` in that tenant's config file, or `null` if the tenant has none.
 
 ## Shared injector (most applications)
 
@@ -133,9 +126,7 @@ class CharacterResolver(
 
 ## Per-tenant injectors
 
-To give each tenant its own injector configuration, implement `TenantModuleBootstrapper`
-directly. Tenant developers annotate a class with `@TenantBootstrapper`; that class is
-passed to `bootstrap` so you can use it to configure the injector:
+To give each tenant its own injector configuration, implement `TenantModuleBootstrapper` directly. Tenant developers annotate a class with `@TenantBootstrapper`; that class is passed to `bootstrap` so you can use it to configure the injector:
 
 ```kotlin
 class GuiceTenantModuleBootstrapper : TenantModuleBootstrapper {
@@ -168,8 +159,7 @@ class MyTenantModule : AbstractModule() {
 
 ## Development server
 
-The `serve` task requires a `@ViaductServerConfiguration` class to enable injection during
-development. Start a lightweight instance of your DI container there:
+The `serve` task requires a `@ViaductServerConfiguration` class to enable injection during development. Start a lightweight instance of your DI container there:
 
 ```kotlin title="dev/MicronautViaductFactory.kt"
 import io.micronaut.context.ApplicationContext

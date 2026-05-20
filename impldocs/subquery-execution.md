@@ -30,6 +30,7 @@ Selection execution uses a three-tier API architecture:
 | **Wiring** | `Engine.completeSelectionSet(handle, selectionSet, ...)` | Implementation detail | Only called by EEC |
 
 This layering provides:
+
 - Simple APIs for common cases (tenant layer)
 - Flexibility for advanced use cases (via `ResolveSelectionSetOptions`)
 - Clear separation of concerns (EEC handles validation and delegates to Engine)
@@ -113,10 +114,12 @@ When a resolver calls `ctx.query(selections)`, the call flows through the bridge
 3. It calls `EngineExecutionContext.resolveSelectionSet(engineSelectionSet, options)`
 
 This bridge is the only place the tenant runtime touches the engine. It converts:
+
 - **To engine**: `SelectionSet<Query>` → `EngineSelectionSet` (the `ExecutionHandle` is accessed internally)
 - **Back to tenant**: `EngineObjectData` → typed GRT objects (via `toObjectGRT()`)
 
 **Key files:**
+
 - `tenant/runtime/.../context/ResolverExecutionContextImpl.kt` — tenant-facing `query()` method
 - `tenant/runtime/.../context/EngineExecutionContextWrapper.kt` — bridge implementation
 
@@ -134,12 +137,14 @@ The tenant wrapper calls `resolveSelectionSet()` with `ResolveSelectionSetOption
 `ResolveSelectionSetOptions` provides flexibility for advanced use cases. See `engine/api/.../ResolveSelectionSetOptions.kt` for the full definition.
 
 Options:
+
 - `operationType` — Query or Mutation (default: Query)
 - `targetResult` — Memoization control (default: fresh instance)
 
 All options require a valid `executionHandle`. If the handle is not available (e.g., execution hasn't started yet), `resolveSelectionSet()` throws immediately rather than silently degrading.
 
 **Key files:**
+
 - `engine/api/.../ResolveSelectionSetOptions.kt` — options definition
 - `engine/runtime/.../EngineExecutionContextImpl.kt` — `resolveSelectionSet()` implementation
 
@@ -160,6 +165,7 @@ The `ExecutionHandle` is deliberately opaque -- tenant code sees `EngineExecutio
 Inside the runtime module, `asExecutionParameters()` bridges that gap. If someone fabricates a handle that isn't an `ExecutionParameters`, the cast fails with `SubqueryExecutionException.invalidExecutionHandle()`.
 
 **Key files:**
+
 - `engine/api/.../Engine.kt` — `resolveSelectionSet()` interface
 - `engine/wiring/.../EngineImpl.kt` — implementation
 - `engine/runtime/.../execution/ExecutionHandleExtensions.kt` — handle extraction
@@ -177,6 +183,7 @@ Subqueries always use `fullSchema`, not `activeSchema`. The active schema can be
 Subqueries do not inherit variables from the parent request. Variables come only from the subquery's own `EngineSelectionSet`, which is derived from the tenant's `SelectionSet<T>`.
 
 This means:
+
 - Two subqueries with identical selection strings but different `variables` maps remain independent
 - Subquery variables don't leak back to the parent
 - Changes to parent request variables cannot affect subquery behavior
@@ -204,6 +211,7 @@ Subqueries don't start from a full GraphQL document—they start from an `Engine
 Plan caching keys on selection text, document key, schema hash, and `executeAccessChecksInModstrat`. Variables are not part of the cache key—the plan only depends on field/argument structure, not specific values.
 
 **Key files:**
+
 - `engine/runtime/.../execution/ExecutionParameters.kt` — `forChildPlan()` and `ChildPlanTarget`
 - `engine/runtime/.../execution/QueryPlanFactory.kt` — `buildFromSelections()`
 
@@ -264,6 +272,7 @@ The engine provides two methods for selection set execution with different purpo
 ### When to Use Each API
 
 **Use `resolveSelectionSet` when:**
+
 - You need to fetch new data that hasn't been resolved yet
 - You're implementing a resolver that needs to issue subqueries
 - You want the full field resolution pipeline (access checks, data loaders, etc.)
@@ -274,6 +283,7 @@ val data = eec.resolveSelectionSet(selectionSet, options)
 ```
 
 **Use `completeSelectionSet` when:**
+
 - Fields have already been resolved and stored in an ObjectEngineResult
 - You need to complete the data into a final ExecutionResult with proper error handling
 - You're working in the Classic-on-Modern shims path where RSS data has been resolved elsewhere

@@ -53,6 +53,7 @@ If the answer to either of those two questions are "yes", then you're probably d
 ## Filing an issue
 
 When filing an issue, you will be asked to answer the following questions:
+
 * Who is the bug affecting?
 * What is affected by this bug?
 * When does this occur?
@@ -92,12 +93,9 @@ This will publish all Viaduct libraries and Gradle plugins to your local Maven r
 
 ## Binary compatibility validation (BCV)
 
-Viaduct uses the Kotlin Binary Compatibility Validator Gradle plugin
-(`org.jetbrains.kotlinx.binary-compatibility-validator`) to track and enforce
-the public binary API of selected modules.
+Viaduct uses the Kotlin Binary Compatibility Validator Gradle plugin (`org.jetbrains.kotlinx.binary-compatibility-validator`) to track and enforce the public binary API of selected modules.
 
-BCV works by generating and checking `.api` signature files for modules that
-apply the BCV convention plugin `id("conventions.bcv-api")`, like `:tenant:api` and `:service:api`.
+BCV works by generating and checking `.api` signature files for modules that apply the BCV convention plugin `id("conventions.bcv-api")`, like `:tenant:api` and `:service:api`.
 
 Developers should amend those `.api` files when making intentional executing :
 
@@ -164,18 +162,12 @@ We use Github Actions to run Viaduct's public [CI jobs](https://github.com/airbn
 
 ## Gradle Plugin Portal
 
-Plugins are published via the `viaduct-maintainers` account owned by
-Airbnb. https://plugins.gradle.org/u/viaduct-maintainers
+Plugins are published via the `viaduct-maintainers` account owned by Airbnb. https://plugins.gradle.org/u/viaduct-maintainers
 
 ## Maven Central/Sonatype
 
-Access to Airbnb's Sonatype namespace is controlled via Airbnb's Github
-organization. Only members of the Airbnb Github organization can access
-the namespace.
+Access to Airbnb's Sonatype namespace is controlled via Airbnb's Github organization. Only members of the Airbnb Github organization can access the namespace.
 
 ## Copybara
 
-Viaduct has dual homes: Github and Airbnb's internal monorepo. We use
-[Copybara](https://github.com/google/copybara) to sync changes between
-the two source trees. Copybara runs on internal Airbnb infrastructure
-and is not accessible to outside contributors.
+Viaduct has dual homes: Github and Airbnb's internal monorepo. We use [Copybara](https://github.com/google/copybara) to sync changes between the two source trees. Copybara runs on internal Airbnb infrastructure and is not accessible to outside contributors.

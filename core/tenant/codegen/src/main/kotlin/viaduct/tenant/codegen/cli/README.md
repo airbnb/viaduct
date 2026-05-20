@@ -1,7 +1,6 @@
 # GraphQL Code Generation CLI Commands
 
-This package contains standalone CLI commands for generating GraphQL-related code from schema files. These commands can
-be used independently or integrated into custom build systems.
+This package contains standalone CLI commands for generating GraphQL-related code from schema files. These commands can be used independently or integrated into custom build systems.
 
 ## Commands Overview
 
@@ -72,8 +71,7 @@ java -cp $CLASSPATH viaduct.tenant.codegen.cli.SchemaObjectsBytecode \
 
 ### ViaductGenerator
 
-Generates **tenant-specific resolver code** including field resolvers, node resolvers, and module metadata for
-multi-tenant GraphQL architectures.
+Generates **tenant-specific resolver code** including field resolvers, node resolvers, and module metadata for multi-tenant GraphQL architectures.
 
 **Key Benefits:**
 

@@ -4,8 +4,7 @@ description: Ensure exactly one non-null field in input objects; works well with
 ---
 
 
-The `@oneOf` directive enforces that **exactly one** field of an input object is non-null. This is useful for
-union-like inputs where callers choose one of several ways to identify or filter an entity.
+The `@oneOf` directive enforces that **exactly one** field of an input object is non-null. This is useful for union-like inputs where callers choose one of several ways to identify or filter an entity.
 
 ## Basic usage
 
@@ -55,8 +54,7 @@ With `@idOf`, Viaduct will validate that the ID is a `Character` Global ID and d
 
 ## Resolver pattern
 
-Inside the resolver, inspect which field was set and branch accordingly. When the ID path is used, the internal ID is
-already validated and decoded by Viaduct.
+Inside the resolver, inspect which field was set and branch accordingly. When the ID path is used, the internal ID is already validated and decoded by Viaduct.
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/queries/SearchCharacterQueryResolver.kt", "id_of_example", lang="kotlin") }}

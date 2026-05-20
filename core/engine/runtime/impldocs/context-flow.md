@@ -68,6 +68,7 @@ private fun mkGJExecutionInput(executionInput: ExecutionInput): GJExecutionInput
 ### Why EEC Must Be Created Before Execution Starts
 
 `ScopeInstrumentation` runs in `instrumentExecutionContext()` - a graphql-java hook that fires **before any field execution**. At this point:
+
 - ✅ `ExecutionContext` exists (with localContext containing EEC)
 - ❌ No `DataFetchingEnvironment` exists yet
 
@@ -78,11 +79,13 @@ This is why ScopeInstrumentation must use `findLocalContextForType<EngineExecuti
 ### When to Use Local Context Lookup
 
 Use `findLocalContextForType<EngineExecutionContextImpl>()` when:
+
 - In instrumentation hooks (`instrumentExecutionContext`, `instrumentSchema`)
 - In execution strategies before DFE is created
 - In code that runs at the operation level, not field level
 
 Examples:
+
 - `ScopeInstrumentation` - swaps schema for introspection
 - `ViaductExecutionStrategy` - creates initial ExecutionParameters
 - `ResolverRewriterStrategy` - legacy execution path
@@ -90,6 +93,7 @@ Examples:
 ### When to Use DFE Extension
 
 Use `dfe.engineExecutionContext` when:
+
 - Inside data fetchers
 - In resolver implementations
 - Anywhere a `DataFetchingEnvironment` is available
@@ -106,6 +110,7 @@ The `EngineExecutionContext.ExecutionHandle` is an **opaque handle** representin
 ### Why It Exists
 
 When tenant code calls `ctx.query(selections)` to execute a subquery, the engine needs to:
+
 1. Know which `ExecutionParameters` the request came from
 2. Access the current execution's coroutine scope, error accumulator, instrumentation, etc.
 3. Maintain proper parent-child relationships for error attribution
@@ -134,6 +139,7 @@ data class ExecutionParameters(...) : EngineExecutionContext.ExecutionHandle
 ```
 
 This separation allows:
+
 - **API stability** - Tenants depend on the stable `EngineExecutionContext` interface
 - **Implementation freedom** - Runtime can change `ExecutionParameters` internals without breaking tenants
 - **Encapsulation** - Tenants can't accidentally misuse execution state
@@ -208,6 +214,7 @@ interface ViaductDataFetchingEnvironment : DataFetchingEnvironment {
 ```
 
 Created in `FieldExecutionHelpers.mkViaductDataFetchingEnvironment()`:
+
 1. Derives EEC with field-specific scope
 2. Creates `ViaductDataFetchingEnvironmentImpl` wrapping both DFE and EEC
 3. Sets bidirectional link: EEC.dataFetchingEnvironment = vdfe

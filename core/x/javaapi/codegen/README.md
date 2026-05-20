@@ -76,8 +76,7 @@ grt_output_dir/
 
 ### Resolver Base Classes
 
-Resolver files are written to package subdirectories under the resolver output directory.
-The package is `{tenant_package}.resolverbases`:
+Resolver files are written to package subdirectories under the resolver output directory. The package is `{tenant_package}.resolverbases`:
 
 ```
 resolver_generated_dir/

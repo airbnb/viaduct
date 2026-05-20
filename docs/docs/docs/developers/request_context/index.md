@@ -3,19 +3,13 @@ title: Request Context
 description: Passing per-request data — authentication tokens, caller identity, feature flags — into resolvers.
 ---
 
-Resolvers often need access to data that is scoped to the incoming request: the caller's
-identity, an auth token, a tenant ID, a locale. Viaduct provides two mechanisms for this.
-They are complementary — choose based on how much type safety and framework integration you
-want.
+Resolvers often need access to data that is scoped to the incoming request: the caller's identity, an auth token, a tenant ID, a locale. Viaduct provides two mechanisms for this. They are complementary — choose based on how much type safety and framework integration you want.
 
 ## Approach 1: Framework-scoped beans (recommended)
 
-The cleanest approach is to store request-scoped data in a bean managed by your DI
-framework. Viaduct instantiates a new resolver instance per field invocation via
-`CodeInjector`, so your DI container's request scope applies naturally.
+The cleanest approach is to store request-scoped data in a bean managed by your DI framework. Viaduct instantiates a new resolver instance per field invocation via `CodeInjector`, so your DI container's request scope applies naturally.
 
-The StarWars demo uses this pattern. A `@RequestScope` bean holds the security context for
-each request:
+The StarWars demo uses this pattern. A `@RequestScope` bean holds the security context for each request:
 
 ```kotlin title="demoapps/starwars/common/src/main/kotlin/com/example/starwars/common/SecurityAccessContext.kt"
 @RequestScope
@@ -70,14 +64,11 @@ class CreateCharacterMutation @Inject constructor(
 - Integrates naturally with other DI-managed beans (repositories, service clients, etc.)
 - Works with any DI framework that has a request scope (Micronaut, Spring, Guice, etc.)
 
-This approach requires a `TenantModuleBootstrapper` that wires your DI container into
-Viaduct. See [Dependency Injection](../../service_engineers/dependency_injection/index.md).
+This approach requires a `TenantModuleBootstrapper` that wires your DI container into Viaduct. See [Dependency Injection](../../service_engineers/dependency_injection/index.md).
 
 ## Approach 2: ExecutionInput.requestContext
 
-For simpler setups, or when you don't have a DI container with a request scope, you can
-attach arbitrary data directly to `ExecutionInput` and read it inside resolvers via
-`ctx.requestContext`.
+For simpler setups, or when you don't have a DI container with a request scope, you can attach arbitrary data directly to `ExecutionInput` and read it inside resolvers via `ctx.requestContext`.
 
 Set it when building the input:
 
@@ -106,8 +97,7 @@ class CharacterResolver : CharacterQueryResolverBase() {
 }
 ```
 
-`requestContext` is typed as `Any?` on `ExecutionContext` — it's whatever object you passed
-in. A single typed wrapper class avoids scattered casts:
+`requestContext` is typed as `Any?` on `ExecutionContext` — it's whatever object you passed in. A single typed wrapper class avoids scattered casts:
 
 ```kotlin
 data class AppRequestContext(
@@ -131,13 +121,11 @@ val rc = ctx.requestContext as? AppRequestContext
 **Trade-offs:**
 
 - Requires a cast — if you pass the wrong type you get a runtime error, not a compile error
-- You are responsible for ensuring the object is immutable or thread-safe — resolvers for
-  the same request can execute concurrently
+- You are responsible for ensuring the object is immutable or thread-safe — resolvers for the same request can execute concurrently
 
 ## Testing
 
-Both approaches are testable via the resolver spec test utilities. Set `requestContext` on
-the spec to simulate request-scoped data:
+Both approaches are testable via the resolver spec test utilities. Set `requestContext` on the spec to simulate request-scoped data:
 
 ```kotlin
 val result = runFieldResolver(MyResolver()) {
@@ -146,8 +134,7 @@ val result = runFieldResolver(MyResolver()) {
 }
 ```
 
-For the DI approach, pass a pre-configured mock of your request-scoped bean via the
-resolver's constructor instead.
+For the DI approach, pass a pre-configured mock of your request-scoped bean via the resolver's constructor instead.
 
 ## See also
 

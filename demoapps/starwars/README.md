@@ -2,11 +2,9 @@
 
 > Doc type: Reference
 
-This is a sample GraphQL application built using [Viaduct](https://github.com/airbnb/viaduct), a composable GraphQL
-server in Kotlin.
+This is a sample GraphQL application built using [Viaduct](https://github.com/airbnb/viaduct), a composable GraphQL server in Kotlin.
 
-This app models the Star Wars universe with characters, films, species, planets, and starships. It demonstrates
-how to implement resolvers, field-level context, pagination, fragments, and mock data using Viaduct’s conventions.
+This app models the Star Wars universe with characters, films, species, planets, and starships. It demonstrates how to implement resolvers, field-level context, pagination, fragments, and mock data using Viaduct’s conventions.
 
 ## Requirements
 
@@ -49,11 +47,9 @@ query {
 
 #### Scoped queries
 
-The `ViaductGraphQLController.kt` applies scope metadata from the `X-Viaduct-Scopes` header
-into the GraphQL context.
+The `ViaductGraphQLController.kt` applies scope metadata from the `X-Viaduct-Scopes` header into the GraphQL context.
 
-Some fields—like `Species.culturalNotes` are marked with `@scope(to: ["extras"])`. These will only resolve
-if the `"extras"` scope is present in the context.
+Some fields—like `Species.culturalNotes` are marked with `@scope(to: ["extras"])`. These will only resolve if the `"extras"` scope is present in the context.
 
 Use a query like:
 
@@ -96,8 +92,7 @@ query {
 > Fields such as `filmCount` and `richSummary` are computed by Character resolvers. @See `CharacterResolvers.kt`,
 `SpeciesBatchResolver.kt` and `FilmCountBatchResolver.kt`.
 
-Resolution is batched by Viaduct’s resolver execution model (and/or DataLoaders if configured), which helps avoid N+1
-patterns when the query asks these derived fields across multiple characters.
+Resolution is batched by Viaduct’s resolver execution model (and/or DataLoaders if configured), which helps avoid N+1 patterns when the query asks these derived fields across multiple characters.
 
 #### Film query with characters
 
@@ -118,8 +113,7 @@ query {
 
 ## Nodes and global IDs
 
-A central concept in Viaduct is the `Node`: any object retrievable by a globally unique `ID`. Every `Node` has
-an `id` field.
+A central concept in Viaduct is the `Node`: any object retrievable by a globally unique `ID`. Every `Node` has an `id` field.
 
 Internally, a Viaduct `ID` consists of as base64-encoded string :
 

@@ -51,14 +51,12 @@ This creates an instance of the Viaduct engine using `BasicViaductFactory.create
 ### 2. Preparing the Query
 
 
-
 {{ codetag("demoapps/cli-starter/src/main/kotlin/com/example/viadapp/ViaductApplication.kt", "create-execution-input", lang="kotlin") }}
 
 
 This creates an `ExecutionInput` that wraps the GraphQL query to be executed. It takes the query from command-line arguments, or uses a default query if none is provided.
 
 ### 3. Executing the Query
-
 
 
 {{ codetag("demoapps/cli-starter/src/main/kotlin/com/example/viadapp/ViaductApplication.kt", "viaduct-execute-operation", lang="kotlin") }}
@@ -81,7 +79,6 @@ The `@Resolver` annotation specifies which other fields this resolver depends on
 ## Understanding the Build Configuration
 
 At the top of `build.gradle.kts` you'll see:
-
 
 
 {{ codetag("demoapps/cli-starter/build.gradle.kts", "plugins-config", lang="kotlin") }}

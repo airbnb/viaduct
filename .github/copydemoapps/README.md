@@ -1,8 +1,6 @@
 # Demo App Publisher
 
-This directory is a self-contained Gradle project for publishing Viaduct's demo
-applications to their standalone GitHub repositories in the
-[viaduct-dev](https://github.com/viaduct-dev) organization:
+This directory is a self-contained Gradle project for publishing Viaduct's demo applications to their standalone GitHub repositories in the [viaduct-dev](https://github.com/viaduct-dev) organization:
 
 - `demoapps/cli-starter` → `viaduct-dev/cli-starter`
 - `demoapps/jetty-starter` → `viaduct-dev/jetty-starter`
@@ -14,25 +12,15 @@ Publishing is part of the release process described in [.github/impldocs/release
 
 ## Theory of Operation
 
-[Copybara](https://github.com/google/copybara) runs in **SQUASH mode**. It does
-not replay individual commits from the Viaduct monorepo. Instead, given a source
-ref (e.g., `release/v0.7.0`), it:
+[Copybara](https://github.com/google/copybara) runs in **SQUASH mode**. It does not replay individual commits from the Viaduct monorepo. Instead, given a source ref (e.g., `release/v0.7.0`), it:
 
 1. Takes a snapshot of `demoapps/<app>/` at that ref
-2. Strips the `demoapps/<app>/` path prefix so files land at the root of the
-   destination repo
-3. Squashes everything into a single commit and pushes it to `main` of the
-   destination repo
+2. Strips the `demoapps/<app>/` path prefix so files land at the root of the destination repo
+3. Squashes everything into a single commit and pushes it to `main` of the destination repo
 
-The `--force` flag (always used here) tells Copybara to ignore any prior
-migration state and do a clean squash from scratch. This is intentional — the
-standalone repos are meant to be clean, self-contained starting points, not a
-replay of the monorepo's commit history.
+The `--force` flag (always used here) tells Copybara to ignore any prior migration state and do a clean squash from scratch. This is intentional — the standalone repos are meant to be clean, self-contained starting points, not a replay of the monorepo's commit history.
 
-Copybara is downloaded on demand from GitHub releases (always the latest
-release) and cached in `build/`. Run `./gradlew clean` to force a fresh
-download. The Gradle wrapper pulls Java 21 via the toolchain resolver if not
-already installed.
+Copybara is downloaded on demand from GitHub releases (always the latest release) and cached in `build/`. Run `./gradlew clean` to force a fresh download. The Gradle wrapper pulls Java 21 via the toolchain resolver if not already installed.
 
 ## Prerequisites
 
@@ -46,8 +34,7 @@ Expected: `Hi <username>! You've successfully authenticated...`
 
 If this fails, see the setup instructions in [.github/impldocs/release-runbook.md](../impldocs/release-runbook.md).
 
-**For CI/GitHub Actions:** set the `VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN`
-environment variable. The `copy` script will use HTTPS with that token.
+**For CI/GitHub Actions:** set the `VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN` environment variable. The `copy` script will use HTTPS with that token.
 
 
 ## Scripts
@@ -67,21 +54,17 @@ copy DEMOAPP [SOURCE_REF] [EXTRA_COPYBARA_ARGS...]
 
 ### `run` — low-level wrapper
 
-Invokes `./gradlew runCopybara` with the local `copy.bara.sky` config and repo
-root already set up. Accepts any Copybara command and arguments:
+Invokes `./gradlew runCopybara` with the local `copy.bara.sky` config and repo root already set up. Accepts any Copybara command and arguments:
 
 ```
 run migrate WORKFLOW SOURCE_REF [OPTIONS]
 ```
 
-Use `copy` for normal operations. `run` is there if you need to pass unusual
-options not covered by `copy`.
+Use `copy` for normal operations. `run` is there if you need to pass unusual options not covered by `copy`.
 
 ## Production Run
 
-This must be done on the release branch (e.g., `release/v0.7.0`). With no
-explicit SOURCE_REF, `copy` infers it from the current branch and rejects
-non-release branches with a hard error.
+This must be done on the release branch (e.g., `release/v0.7.0`). With no explicit SOURCE_REF, `copy` infers it from the current branch and rejects non-release branches with a hard error.
 
 ```bash
 cd ~/repos/viaduct-public
@@ -117,15 +100,11 @@ Shows what Copybara would do, but makes no changes to any repository.
 .github/copydemoapps/copy starwars release/v0.7.0 --dry-run
 ```
 
-This is useful for quickly checking that the config is syntactically valid and
-that the expected files are being selected, but it does **not** test git
-authentication or the actual push mechanism.
+This is useful for quickly checking that the config is syntactically valid and that the expected files are being selected, but it does **not** test git authentication or the actual push mechanism.
 
 ### Test branch run — full end-to-end without touching `main`
 
-For a true end-to-end test (including auth and the actual push), create a
-throwaway branch on the destination repo first, then run `copy` targeting that
-branch via the `--git-destination-push` and `--git-destination-fetch` flags.
+For a true end-to-end test (including auth and the actual push), create a throwaway branch on the destination repo first, then run `copy` targeting that branch via the `--git-destination-push` and `--git-destination-fetch` flags.
 
 **Step 1:** Clone the test branch to a temporary directory
 
@@ -167,9 +146,7 @@ gh api repos/viaduct-dev/starwars/git/refs \
 gh api -X DELETE repos/viaduct-dev/starwars/git/refs/heads/test/$(date +%Y%m%d)
 ```
 
-This procedure exercises the full pipeline — Copybara download, git auth, config
-resolution, file selection, and push — in a way that faithfully reproduces what a
-production run does.
+This procedure exercises the full pipeline — Copybara download, git auth, config resolution, file selection, and push — in a way that faithfully reproduces what a production run does.
 
 ## Adding a New Demo App
 

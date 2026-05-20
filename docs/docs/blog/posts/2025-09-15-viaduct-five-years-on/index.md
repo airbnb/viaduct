@@ -19,11 +19,9 @@ Before we talk about OSS, here’s a quick update on Viaduct’s adoption and ev
 
 Three principles have guided Viaduct since day one and still anchor the project: a **central schema** served by **hosted business logic** via a **re-entrant** API.
 
-**Central schema**
-Viaduct serves our central schema: a single, integrated schema connecting all of our domains across the company. While that schema is developed in a *decentralized* manner by many teams, it’s one, highly connected graph. Over 75% of Viaduct requests are internal because Viaduct has become a “one‑stop” data-oriented mesh connecting developers to all of our data and capabilities.
+**Central schema** Viaduct serves our central schema: a single, integrated schema connecting all of our domains across the company. While that schema is developed in a *decentralized* manner by many teams, it’s one, highly connected graph. Over 75% of Viaduct requests are internal because Viaduct has become a “one‑stop” data-oriented mesh connecting developers to all of our data and capabilities.
 
-**Hosted business logic**
-From the beginning, we’ve encouraged teams to host their business logic directly in Viaduct. This runs counter to what many consider to be best practices in GraphQL, which is that GraphQL servers should be a thin layer over microservices that host the real business logic. We’ve created a serverless platform for hosting business logic, allowing our developers to focus on writing business logic rather than on operational issues. As noted by Katie, an engineer on our Media team:
+**Hosted business logic** From the beginning, we’ve encouraged teams to host their business logic directly in Viaduct. This runs counter to what many consider to be best practices in GraphQL, which is that GraphQL servers should be a thin layer over microservices that host the real business logic. We’ve created a serverless platform for hosting business logic, allowing our developers to focus on writing business logic rather than on operational issues. As noted by Katie, an engineer on our Media team:
 
 As we migrate our media APIs into Viaduct, we’re looking forward to retiring a handful of standalone services. Centralizing everything means less overhead, fewer moving parts, and a much smoother developer experience\!
 

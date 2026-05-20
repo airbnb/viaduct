@@ -8,6 +8,7 @@ description: API Stability Annotations in Viaduct
 The api stability rules are defined in tenant/api (including generated code), service/api and service/wiring.
 
 A declaration may be annotated with **exactly one** of the following stability annotations:
+
 - `@StableApi`
 - `@ExperimentalApi`
 - `@InternalApi`
@@ -29,6 +30,7 @@ To keep semantics unambiguous, Viaduct enforces:
 `@Deprecated` is treated as a lifecycle state; when an API becomes deprecated, the previous stability annotation is removed (not combined).  Represents a lifecycle state (migration signal) for an API that was previously stable and is being retired.
 
 Project policy for public-facing APIs:
+
 - Deprecated APIs **do not** carry another stability annotation in combination.
 - When an API becomes deprecated, the previous stability annotation is removed.
 
@@ -66,14 +68,17 @@ Project policy for public-facing APIs:
 ### Enclosing scope behavior (coverage + BCV)
 
 **Enclosing stability counts as coverage for Detekt**:
+
 - A member is considered “covered” if it has a stability annotation itself **or** any enclosing declaration has one.
 
 **Enclosing non-public markers affect BCV `.api` output**:
+
 - A declaration appears in `.api` dumps only if it is public/protected **and** neither it nor any enclosing declaration has a `nonPublicMarker` (such as `@InternalApi` or `@VisibleForTest`).
 
 ### Overrides and private declarations
 
 The Detekt rule ignores:
+
 - private declarations,
 - overrides (stability is defined by the base declaration),
 - local declarations inside functions.
@@ -96,6 +101,7 @@ class PublicController {
 The Detekt rule will not complain about the stable member coverage pattern shown above.
 
 **What happens:**
+
 - `PublicController` and `publicEndpoint()` are part of the tracked public surface (BCV will dump them).
 - `internalHelper()` is treated as non-public for BCV (because `@InternalApi` is a non-public marker).
 
@@ -110,6 +116,7 @@ class InternalOnlyService {
 ```
 
 BCV behavior:
+
 - the class and its members do not appear in `.api` dumps because the enclosing class is a `nonPublicMarker`.
 
 ### Example C: Experimental API (opt-in warning for consumers)
@@ -120,6 +127,7 @@ fun newCapability(): String = "v2"
 ```
 
 Call-site behavior without opt-in:
+
 - `@ExperimentalApi` uses `@RequiresOptIn(level = WARNING)`, so consumers see a compiler warning unless they opt in.
 
 Consumer-like usage:

@@ -6,18 +6,11 @@ description: Testing Tenant Module Code
 
 ## Overview
 
-At their core, resolvers are functions: they take inputs and produce outputs. That makes them
-a natural fit for straightforward JUnit-style unit tests.
+At their core, resolvers are functions: they take inputs and produce outputs. That makes them a natural fit for straightforward JUnit-style unit tests.
 
-The catch is that resolver inputs are highly stylized. Rather than plain method parameters,
-a resolver receives an `ExecutionContext` whose shape — which arguments are present, what the
-parent object looks like, what query values are available — is determined by the resolver's
-`@Resolver` annotation and the schema fields it serves. Constructing a valid `ExecutionContext`
-by hand is tedious and error-prone.
+The catch is that resolver inputs are highly stylized. Rather than plain method parameters, a resolver receives an `ExecutionContext` whose shape — which arguments are present, what the parent object looks like, what query values are available — is determined by the resolver's `@Resolver` annotation and the schema fields it serves. Constructing a valid `ExecutionContext` by hand is tedious and error-prone.
 
-`ResolverTestBase` removes that friction. It provides a type-safe DSL for building
-`ExecutionContext` values that exactly match what a given resolver expects, so tests stay
-focused on behavior rather than wiring.
+`ResolverTestBase` removes that friction. It provides a type-safe DSL for building `ExecutionContext` values that exactly match what a given resolver expects, so tests stay focused on behavior rather than wiring.
 
 A minimal example:
 
@@ -44,8 +37,7 @@ The sections below cover each resolver type and the full set of available spec p
 
 ### Setup
 
-Extend `ResolverTestBase` — no additional configuration needed. Resolvers run in isolation with
-no HTTP, DI framework, or Spring startup. The schema loads automatically from classpath resources.
+Extend `ResolverTestBase` — no additional configuration needed. Resolvers run in isolation with no HTTP, DI framework, or Spring startup. The schema loads automatically from classpath resources.
 
 ```kotlin
 @OptIn(ExperimentalApi::class)
@@ -61,13 +53,11 @@ class FooResolverTest : ResolverTestBase() {
 }
 ```
 
-The spec lambda (`{ objectValue = ..., arguments = ... }`) is how you supply the resolver's
-inputs. The next section explains how to construct those values.
+The spec lambda (`{ objectValue = ..., arguments = ... }`) is how you supply the resolver's inputs. The next section explains how to construct those values.
 
 ### Constructing Test Inputs
 
-The `context: ExecutionContext` property is available in every test. Use it with the
-`Type.of(context) { … }` DSL to build GRT objects and arguments:
+The `context: ExecutionContext` property is available in every test. Use it with the `Type.of(context) { … }` DSL to build GRT objects and arguments:
 
 ```kotlin
 val foo = Foo.of(context) { name("bar") }                    // GRT object
@@ -90,8 +80,7 @@ Use `globalIDFor` directly on the test class — it is a convenience wrapper aro
 
 ### APIs
 
-Each method runs a specific resolver type via a typed **spec** lambda. The compiler enforces
-that you only set properties that match the resolver's declared types.
+Each method runs a specific resolver type via a typed **spec** lambda. The compiler enforces that you only set properties that match the resolver's declared types.
 
 | Method | Spec properties |
 |---|---|

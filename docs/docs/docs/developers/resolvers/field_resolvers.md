@@ -27,8 +27,7 @@ type Query {
 }
 ```
 
-That causes the generated resolver `Context` to expose `ctx.selections()`. Without `isSelective: true`, the generated field-resolver context does not expose selection access.
-On a field of a node type, this only affects that field resolver. It does not make the enclosing node resolver selective.
+That causes the generated resolver `Context` to expose `ctx.selections()`. Without `isSelective: true`, the generated field-resolver context does not expose selection access. On a field of a node type, this only affects that field resolver. It does not make the enclosing node resolver selective.
 
 ### When to use @resolver
 

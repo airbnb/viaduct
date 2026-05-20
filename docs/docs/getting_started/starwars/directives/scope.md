@@ -4,15 +4,11 @@ description: Control schema visibility and multi-module access with @scope; Star
 ---
 
 
-The `@scope` directive is part of **Viaduct’s security and multi-tenancy model**. It restricts which GraphQL types,
-fields, or directives are visible and executable to a given request, depending on the **active scopes** provided by
-your application to the Viaduct runtime.
+The `@scope` directive is part of **Viaduct’s security and multi-tenancy model**. It restricts which GraphQL types, fields, or directives are visible and executable to a given request, depending on the **active scopes** provided by your application to the Viaduct runtime.
 
 ## Purpose and context
 
-`@scope` enforces **visibility boundaries** within a schema. A single service can present different data surfaces for
-different modules, users, or environments — all from the same runtime. It is central to the security model of Viaduct,
-ensuring that clients only see and execute what their scopes permit.
+`@scope` enforces **visibility boundaries** within a schema. A single service can present different data surfaces for different modules, users, or environments — all from the same runtime. It is central to the security model of Viaduct, ensuring that clients only see and execute what their scopes permit.
 
 Typical use cases:
 
@@ -27,7 +23,6 @@ Typical use cases:
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "scope_example", lang="kotlin") }}
 
 
-
 {{ codetag("demoapps/starwars/modules/universe/src/main/viaduct/schema/Species.graphqls", "schemas_extras_example", lang="kotlin") }}
 
 
@@ -37,8 +32,7 @@ This demo app will hide `extras` for queries that do not include the header `X-V
 
 ## How scopes are evaluated
 
-At runtime, **your application** should determine which scopes apply to the request and passes them to Viaduct’s execution
-context. The framework then includes or excludes schema elements accordingly **at planning time**.
+At runtime, **your application** should determine which scopes apply to the request and passes them to Viaduct’s execution context. The framework then includes or excludes schema elements accordingly **at planning time**.
 
 In the **Star Wars demo only**, scopes are provided via this header:
 
@@ -52,8 +46,7 @@ In the **Star Wars demo only**, scopes are provided via this header:
 - Access is granted if **any** of the active scopes match the element’s `to:` list.
 - Non-matching fields are not planned or executed and are omitted from introspection.
 
-> If the header is absent in the demo, the app assumes `default`. In your service, choose the convention that fits
-> your auth model (for example, from JWT claims or request context).
+> If the header is absent in the demo, the app assumes `default`. In your service, choose the convention that fits your auth model (for example, from JWT claims or request context).
 
 
 ## How the Star Wars passes scopes to Viaduct
@@ -98,8 +91,7 @@ And runs the query, this is the entire logic of the controller:
 
 ## Multi-tenancy and security boundaries
 
-`@scope` provides a **soft isolation layer** between modules or schema segments. Unlike role-based access control, it
-operates at **schema compilation** and **execution-planning** levels — unauthorized elements are not planned nor run.
+`@scope` provides a **soft isolation layer** between modules or schema segments. Unlike role-based access control, it operates at **schema compilation** and **execution-planning** levels — unauthorized elements are not planned nor run.
 
 In the Star Wars demo:
 
@@ -121,8 +113,7 @@ In the Star Wars demo:
 ## Common mistakes
 
 ### 1. Treating the demo header as a platform requirement
-Viaduct does not require an HTTP header. The Star Wars header is **demo-specific**. Pick a mechanism aligned with your
-auth stack and bind it to the request context.
+Viaduct does not require an HTTP header. The Star Wars header is **demo-specific**. Pick a mechanism aligned with your auth stack and bind it to the request context.
 
 ### 2. Missing `default` scope
 If no scope is declared where you expected one, the field may be invisible to all requests.

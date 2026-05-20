@@ -4,17 +4,13 @@ description: Share pre-fetched data between sibling field resolvers to avoid dup
 ---
 
 
-The `@backingData` directive declares a field whose sole purpose is to fetch data once and share it with other
-resolvers on the same object. Viaduct guarantees the backing resolver runs **at most once** per parent object,
-regardless of how many sibling fields consume it.
+The `@backingData` directive declares a field whose sole purpose is to fetch data once and share it with other resolvers on the same object. Viaduct guarantees the backing resolver runs **at most once** per parent object, regardless of how many sibling fields consume it.
 
-Use `@backingData` when two or more field resolvers on the same type need the same upstream data and you want to
-avoid duplicate calls.
+Use `@backingData` when two or more field resolvers on the same type need the same upstream data and you want to avoid duplicate calls.
 
 ## Schema declaration
 
-Apply `@backingData` on a field typed as `BackingData` (a Viaduct built-in marker type, never exposed to clients).
-The `class` argument points to the Kotlin data class that holds the fetched data:
+Apply `@backingData` on a field typed as `BackingData` (a Viaduct built-in marker type, never exposed to clients). The `class` argument points to the Kotlin data class that holds the fetched data:
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Film.graphqls", "backing_data_schema", lang="graphql") }}
@@ -30,8 +26,7 @@ A simple data class holding the pre-fetched data. Keep it minimal, shared state 
 
 ## The backing data resolver
 
-A resolver that fetches the data once per parent object. It reads the parent's ID from the object value and calls
-the repository:
+A resolver that fetches the data once per parent object. It reads the parent's ID from the object value and calls the repository:
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCastDataResolver.kt", "backing_data_resolver", lang="kotlin") }}
@@ -39,15 +34,13 @@ the repository:
 
 ## Consuming the backing data
 
-Other resolvers declare `castData` in their `objectValueFragment` to receive the pre-fetched data. Viaduct
-automatically ensures the backing resolver completes before these consumers run:
+Other resolvers declare `castData` in their `objectValueFragment` to receive the pre-fetched data. Viaduct automatically ensures the backing resolver completes before these consumers run:
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCharactersResolver.kt", "backing_data_consumer", lang="kotlin") }}
 
 
-Multiple resolvers can share the same backing data, each declares it in their fragment, but the fetch happens
-only once:
+Multiple resolvers can share the same backing data, each declares it in their fragment, but the fetch happens only once:
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCharacterCountSummaryResolver.kt", "backing_data_consumer_2", lang="kotlin") }}

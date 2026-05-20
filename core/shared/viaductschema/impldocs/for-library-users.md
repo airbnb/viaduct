@@ -19,7 +19,6 @@ interface ViaductSchema {
 All operations go through this interface. You never need to work with implementation classes directly.
 
 
-
 ## Creating Schemas
 
 ViaductSchema provides several factory methods as extension functions on `ViaductSchema.Companion`. Choose based on your source data and requirements.

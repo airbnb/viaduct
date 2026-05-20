@@ -53,12 +53,10 @@ query ($id: ID!) {
 
 ## Schema hinting with `@idOf`
 
-Annotate `ID` fields and arguments with `@idOf` to bind them to a concrete GraphQL type, enabling type-safe handling in
-resolvers and tooling:
+Annotate `ID` fields and arguments with `@idOf` to bind them to a concrete GraphQL type, enabling type-safe handling in resolvers and tooling:
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "id_example", lang="kotlin") }}
-
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "character_type", lang="kotlin") }}
@@ -72,6 +70,5 @@ resolvers and tooling:
 - **Don’t** expose internal IDs at the network boundary or ask clients to decode Global IDs. Encoding and decoding happen inside Viaduct on both ends; clients treat them as opaque tokens.
 - **Don’t** embed business logic or access control information in IDs.
 
-> See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
-> For the encoding format, how to generate and consume `GlobalID` values in resolvers, and schema hints with `@idOf`, see the [Global IDs developer reference](../../../docs/developers/globalids/index.md).
+> See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference. For the encoding format, how to generate and consume `GlobalID` values in resolvers, and schema hints with `@idOf`, see the [Global IDs developer reference](../../../docs/developers/globalids/index.md).
 

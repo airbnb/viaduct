@@ -46,12 +46,14 @@ The `MicronautViaductFactory` (in the `dev` source set) starts only the Micronau
 ## Production vs Development
 
 ### Production Build
+
 - Only includes code from `src/main/kotlin` (the `production` package)
 - Does NOT include the `viaduct-serve` dependency
 - Does NOT include `MicronautViaductFactory`
 - Suitable for deployment with a full Micronaut HTTP server
 
 ### Development Build (serve task)
+
 - Includes both `src/main/kotlin` and `src/dev/kotlin`
 - Includes the `viaduct-serve` dependency
 - Uses `MicronautViaductFactory` for fast iteration with GraphiQL

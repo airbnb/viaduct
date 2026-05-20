@@ -72,7 +72,6 @@ mkdir -p src/main/viaduct/schema
 Create `src/main/viaduct/schema/schema.graphqls` with the following content:
 
 
-
 {{ codetag("demoapps/cli-starter/src/main/viaduct/schema/schema.graphqls", "schema-config", lang="kotlin") }}
 
 

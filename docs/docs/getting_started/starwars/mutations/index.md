@@ -4,13 +4,11 @@ description: Implementing mutation operations in the Star Wars demo app using Vi
 ---
 
 
-The Star Wars demo app includes several mutation operations that allow you to modify data. All mutations are available
-under the `Mutation` root type and demonstrate how to implement data modification operations in Viaduct.
+The Star Wars demo app includes several mutation operations that allow you to modify data. All mutations are available under the `Mutation` root type and demonstrate how to implement data modification operations in Viaduct.
 
 ## Mutation implementation patterns
 
-Mutations in Viaduct follow similar patterns to queries but focus on data modification operations. Each mutation
-resolver typically:
+Mutations in Viaduct follow similar patterns to queries but focus on data modification operations. Each mutation resolver typically:
 
 1. **Validates input data** using input types with appropriate constraints.
 2. **Performs the data modification** on the underlying data store.
@@ -23,7 +21,6 @@ resolver typically:
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "input_example", lang="kotlin") }}
-
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "mutation_example", lang="kotlin") }}

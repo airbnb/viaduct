@@ -4,6 +4,7 @@ A comprehensive, hands-on tutorial series that teaches you how to build GraphQL 
 
 
 ## Tutorial Notes
+
 -  Function: createGlobalIdString is a TEST-ONLY utility method provided by FeatureAppTestBase.
 -  Function: getInternalId is a TEST-ONLY utility method provided by FeatureAppTestBase.
 -  Each test scenario builds a new instance of viaduct.
@@ -34,6 +35,7 @@ Each tutorial file includes navigation comments:
 ### Tutorial Structure
 
 Each tutorial follows a consistent format:
+
 - **Learning Objectives** - What you'll master in this tutorial
 - **Viaduct Features Demonstrated** - Framework features you'll use
 - **Concepts Covered** - Technical concepts explained
@@ -47,6 +49,7 @@ Each tutorial follows a consistent format:
 **File:** [SimpleFieldResolverFeatureAppTest.kt](tutorial01/SimpleFieldResolverFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - The most basic Viaduct resolver pattern
 - How `@resolver` directive generates base classes
 - Relationship between SDL schema and Kotlin code
@@ -59,6 +62,7 @@ Each tutorial follows a consistent format:
 **File:** [SimpleNodeResolverFeatureAppTest.kt](tutorial02/SimpleNodeResolverFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - Node Resolvers for object-by-ID patterns
 - GlobalID system for type-safe object references
 - Integration between Field and Node Resolvers
@@ -71,6 +75,7 @@ Each tutorial follows a consistent format:
 **File:** [SimpleResolversFeatureAppTest.kt](tutorial03/SimpleResolversFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - Combining Node Resolvers and Field Resolvers in one schema
 - `objectValueFragment` for accessing parent object data
 - Computed fields that depend on other fields
@@ -83,6 +88,7 @@ Each tutorial follows a consistent format:
 **File:** [SimpleBackingDataFeatureAppTest.kt](tutorial04/SimpleBackingDataFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - Eliminating redundant expensive operations across multiple fields
 - Sharing complex Kotlin objects between field resolvers
 - `@backingData` directive and custom class specification
@@ -95,6 +101,7 @@ Each tutorial follows a consistent format:
 **File:** [SimpleMutationsFeatureAppTest.kt](tutorial05/SimpleMutationsFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - GraphQL mutations for data modification
 - ID extraction from mutation results for chaining operations
 - Node Resolver integration with mutations
@@ -107,6 +114,7 @@ Each tutorial follows a consistent format:
 **File:** [SimpleScopesFeatureAppTest.kt](tutorial06/SimpleScopesFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - API security through field-level access control
 - Deploying different API versions for different client types
 - Organizing GraphQL schemas by scope (USER, ADMIN, INTERNAL)
@@ -119,6 +127,7 @@ Each tutorial follows a consistent format:
 **File:** [SimpleBatchResolverFeatureAppTest.kt](tutorial07/SimpleBatchResolverFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - Solving the N+1 query problem for related data
 - Batching multiple field requests into single operations
 
@@ -130,6 +139,7 @@ Each tutorial follows a consistent format:
 **File:** [BatchNodeResolverFeatureAppTest.kt](tutorial08/BatchNodeResolverFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - Applying batching to Node Resolver operations
 - Optimizing multiple object lookups by GlobalID
 - Handling mixed valid/invalid IDs in batch operations
@@ -142,6 +152,7 @@ Each tutorial follows a consistent format:
 **File:** [VariablesDirectivesFeatureAppTest.kt](tutorial09/VariablesDirectivesFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - Controlling GraphQL directives (`@include`/`@skip`) dynamically
 - Using variables to conditionally fetch fields at runtime
 - Three patterns: declarative, VariablesProvider, and argument-based
@@ -154,6 +165,7 @@ Each tutorial follows a consistent format:
 **File:** [VariablesForArgumentsFeatureAppTest.kt](tutorial10/VariablesForArgumentsFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - Controlling GraphQL field arguments dynamically using variables
 - Dynamic argument injection into selection sets
 - Conditional argument passing based on business logic
@@ -166,6 +178,7 @@ Each tutorial follows a consistent format:
 **File:** [SimpleSubqueriesFeatureAppTest.kt](tutorial11/SimpleSubqueriesFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - Execute subqueries against the Query root from any resolver using `ctx.query()`
 - Execute submutations from mutation resolvers using `ctx.mutation()`
 - Pass variables to subqueries
@@ -179,6 +192,7 @@ Each tutorial follows a consistent format:
 **File:** [ConnectionsFeatureAppTest.kt](tutorial12/ConnectionsFeatureAppTest.kt)
 
 **What you'll learn:**
+
 - Building Relay-spec paginated APIs with Connection types
 - `ConnectionBuilder.fromList()` – hand over the full dataset, let the framework paginate
 - `ConnectionBuilder.fromSlice()` – fetch limit+1 rows yourself, pass `hasNextPage` explicitly
@@ -211,13 +225,14 @@ Each tutorial follows a consistent format:
 Each tutorial is self-contained with comprehensive examples and explanations. The code demonstrates production-ready patterns you can apply to your own Viaduct applications.
 
 For additional support:
+
 - Review the inline code comments for detailed explanations
 - Run the tests to see expected behavior
 - Experiment with the code to deepen understanding
 
 # Demo Applications
-For more detailed, real-world examples of Viaduct in action, explore the complete demo applications located
-in the demoapps directory at the root of the project. There you'll find two fully-functional applications:
+For more detailed, real-world examples of Viaduct in action, explore the complete demo applications located in the demoapps directory at the root of the project. There you'll find two fully-functional applications:
+
 - [Star Wars API](../../../../../../../demoapps/starwars) - A comprehensive GraphQL API demonstrating advanced Viaduct patterns
 - [CLI Starter](../../../../../../../demoapps/cli-starter) - Command-line application starter template
 

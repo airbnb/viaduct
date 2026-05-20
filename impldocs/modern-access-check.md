@@ -91,6 +91,7 @@ At tenant loading, `DispatcherRegistryFactory` iterates all object types in the 
 `ExecutorValidator` validates checker RSS during bootstrap: selections must be schematically valid, properly typed, and acyclic.
 
 **Key files:**
+
 - `engine/runtime/.../tenantloading/DispatcherRegistryFactory.kt`
 - `engine/runtime/.../tenantloading/ExecutorValidator.kt`
 - `engine/runtime/.../tenantloading/CheckerSelectionSetsAreProperlyTyped.kt`
@@ -98,6 +99,7 @@ At tenant loading, `DispatcherRegistryFactory` iterates all object types in the 
 ### Engine Assembly
 
 `EngineImpl` wires everything together:
+
 - Creates `AccessCheckRunner(coroutineInterop)`
 - Creates `FieldResolver(accessCheckRunner)`
 - Creates `FieldCompleter(exceptionHandler)`
@@ -108,10 +110,12 @@ At tenant loading, `DispatcherRegistryFactory` iterates all object types in the 
 ### Service-Level Configuration
 
 `StandardViaduct.Builder` provides the entry points for configuring checkers:
+
 - `withCheckerExecutorFactory()` — static factory
 - `withCheckerExecutorFactoryCreator()` — schema-aware factory (deferred creation)
 
 **Key files:**
+
 - `service/runtime/.../StandardViaduct.kt`
 - `service/runtime/.../StandardViaductModule.kt`
 
@@ -128,6 +132,7 @@ A `QueryPlan` is an intermediate representation of a GraphQL selection set. It m
 **Cycle detection and checker child plans:** During cycle detection, checker RSS fields are treated as not access-checked—they depend only on `RAW_VALUE_SLOT`—which ensures that checker execution cannot deadlock waiting for its own results. However, when building query plans, checker child plans are still constructed for checker RSS fields. This is because the raw and checker slots must be written at the same time (fields are memoized via OER), and a checker RSS field may also appear in the client query or a field resolver RSS, where the `ACCESS_CHECK_SLOT` is needed.
 
 **Key files:**
+
 - `engine/runtime/.../execution/QueryPlanFactory.kt` — plan building and caching
 - `engine/runtime/.../execution/QueryPlan.kt` — plan data structure
 
@@ -167,6 +172,7 @@ Each field in an `ObjectEngineResultImpl` has two slots:
 | `ACCESS_CHECK_SLOT` | Combined checker result (`CheckerResult`) | `FieldResolver` (from `combineWithTypeCheck`) |
 
 For client query fields, `FieldCompleter.combineValues()` reads both slots during completion and determines the final value:
+
 1. If raw value errored → use raw value (don't wait for checker)
 2. If checker errored → surface checker error
 3. If both succeed → use raw value
@@ -174,6 +180,7 @@ For client query fields, `FieldCompleter.combineValues()` reads both slots durin
 For field resolver RSS selections, slot access happens in `ProxyEngineObjectData` (see [CheckerProxyEngineObjectData](#checkerproxyengineobjectdata) below).
 
 **Key files:**
+
 - `engine/runtime/.../ObjectEngineResultImpl.kt` — slot constants, `setCheckerValue()` extension
 - `engine/runtime/.../execution/FieldCompleter.kt` — `combineValues()` method
 
@@ -193,6 +200,7 @@ When a checker declares RSS, the engine resolves that data and provides it as `E
 Checker execution is instrumented via `ViaductResolverInstrumentation.instrumentAccessChecker()`. The `InstrumentedCheckerExecutor` wraps the real executor, fires instrumentation callbacks, and wraps the `EngineObjectData` with `InstrumentedEngineObjectData` for observability.
 
 **Key files:**
+
 - `engine/api/.../instrumentation/resolver/ViaductResolverInstrumentation.kt`
 - `engine/runtime/.../instrumentation/resolver/InstrumentedCheckerExecutor.kt`
 - `engine/runtime/.../instrumentation/resolver/InstrumentedCheckerDispatcher.kt`

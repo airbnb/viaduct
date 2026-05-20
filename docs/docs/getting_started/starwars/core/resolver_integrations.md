@@ -4,8 +4,7 @@ description: How node and field resolvers work together in Viaduct.
 ---
 
 
-Resolvers in Viaduct form a **layered model** that separates entity retrieval from per-field computation. Node, field,
-and batch field resolvers each play a distinct role but integrate seamlessly during execution.
+Resolvers in Viaduct form a **layered model** that separates entity retrieval from per-field computation. Node, field, and batch field resolvers each play a distinct role but integrate seamlessly during execution.
 
 ```mermaid
 flowchart TD
@@ -17,8 +16,7 @@ flowchart TD
     Batch --> Response
 ```
 
-Each layer has a single responsibility: nodes fetch, fields compute, batch resolvers aggregate. Tenants compose them
-freely — a single query typically passes through all three.
+Each layer has a single responsibility: nodes fetch, fields compute, batch resolvers aggregate. Tenants compose them freely — a single query typically passes through all three.
 
 ## Standard entity pattern
 
@@ -46,8 +44,7 @@ Each entity type can typically implement:
 3. **Field resolution:** Viaduct invokes field resolvers for each selected field, batching them when possible.
 4. **Result assembly:** all results are merged into a single GraphQL response.
 
-This design isolates entity loading from field logic, ensures predictable performance, and enables resolver reuse across
-schemas and scopes.
+This design isolates entity loading from field logic, ensures predictable performance, and enables resolver reuse across schemas and scopes.
 
 ## Integration example
 
@@ -78,13 +75,11 @@ Execution flow for this query:
 
 ### 1. Duplicated lookups
 
-Avoid fetching the same entity in multiple resolvers. Node resolvers should load once, and related lookups should use
-field resolvers (batched when necessary).
+Avoid fetching the same entity in multiple resolvers. Node resolvers should load once, and related lookups should use field resolvers (batched when necessary).
 
 ### 2. Overfetching fragments
 
-Limit `objectValueFragment` to only the fields your resolver actually uses. Overly broad fragments increase query cost
-and memory use.
+Limit `objectValueFragment` to only the fields your resolver actually uses. Overly broad fragments increase query cost and memory use.
 
 ### 3. Missing batching opportunities
 
@@ -92,8 +87,7 @@ If a field resolver executes the same repository call per parent, migrate it to 
 
 ### 4. Misaligned ID handling
 
-Ensure all resolvers use `ctx.globalIDFor(Type.Reflection, internalId)` and consume IDs via `ctx.id.internalID`. Mixing
-raw IDs with Global IDs can cause type mismatches in queries.
+Ensure all resolvers use `ctx.globalIDFor(Type.Reflection, internalId)` and consume IDs via `ctx.id.internalID`. Mixing raw IDs with Global IDs can cause type mismatches in queries.
 
 ### 5. Incorrect nullability handling
 
@@ -106,5 +100,4 @@ Return `null` for missing relationships when the schema field is nullable, rathe
 - **Don’t** mix loading logic inside field resolvers.
 - **Don’t** assume execution order between independent resolvers — rely on field dependencies, not sequencing.
 
-> See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
-> For a comprehensive overview of the resolver model and generated APIs, see the [Resolvers developer reference](../../../docs/developers/resolvers/index.md).
+> See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference. For a comprehensive overview of the resolver model and generated APIs, see the [Resolvers developer reference](../../../docs/developers/resolvers/index.md).

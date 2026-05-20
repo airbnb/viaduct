@@ -3,16 +3,11 @@ title: Feature Flags
 description: Controlling Viaduct runtime behaviour with FlagManager.
 ---
 
-Viaduct exposes certain runtime behaviours as feature flags so that service engineers can
-control them without redeploying. The [`FlagManager`][FlagManager] SPI is the integration
-point: implement it to bridge Viaduct flags into your organisation's flag system, or use one
-of the built-in implementations when you don't need dynamic control.
+Viaduct exposes certain runtime behaviours as feature flags so that service engineers can control them without redeploying. The [`FlagManager`][FlagManager] SPI is the integration point: implement it to bridge Viaduct flags into your organisation's flag system, or use one of the built-in implementations when you don't need dynamic control.
 
 ## Default behaviour
 
-If you do not call `withFlagManager`, Viaduct uses `FlagManager.default`. The default
-enables flags that are considered safe and stable, and disables experimental or killswitch
-flags. See [Available flags](#available-flags) for the per-flag defaults.
+If you do not call `withFlagManager`, Viaduct uses `FlagManager.default`. The default enables flags that are considered safe and stable, and disables experimental or killswitch flags. See [Available flags](#available-flags) for the per-flag defaults.
 
 ## Available flags
 
@@ -26,8 +21,7 @@ All flags are defined in `FlagManager.Flags`.
 
 ## Wiring a FlagManager
 
-Pass your implementation to `ViaductBuilder.withFlagManager`. The StarWars demo wires
-Viaduct through `ViaductBuilder`; adding a flag manager follows the same pattern:
+Pass your implementation to `ViaductBuilder.withFlagManager`. The StarWars demo wires Viaduct through `ViaductBuilder`; adding a flag manager follows the same pattern:
 
 ```kotlin title="production/ViaductConfiguration.kt"
 import io.micronaut.context.annotation.Bean
@@ -54,9 +48,7 @@ class ViaductConfiguration(
 
 ## Implementing FlagManager
 
-`isEnabled` is called on the hot path during every query execution. Implementations must
-return quickly — do not perform I/O or blocking work inside `isEnabled`. Fetch flag state
-asynchronously and cache it; let `isEnabled` read from the cache.
+`isEnabled` is called on the hot path during every query execution. Implementations must return quickly — do not perform I/O or blocking work inside `isEnabled`. Fetch flag state asynchronously and cache it; let `isEnabled` read from the cache.
 
 ```kotlin
 class StarWarsFlagManager(
@@ -67,8 +59,7 @@ class StarWarsFlagManager(
 }
 ```
 
-Falling back to `FlagManager.default` for unknown flags means your service automatically
-picks up the recommended default for any flags added in future Viaduct releases.
+Falling back to `FlagManager.default` for unknown flags means your service automatically picks up the recommended default for any flags added in future Viaduct releases.
 
 ## Built-in implementations
 

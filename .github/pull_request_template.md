@@ -1,6 +1,5 @@
 <!--- Provide a summary of your changes in the Title above
-      using the Conventional Commit format. This is enforced by CI
-      https://www.conventionalcommits.org/en/v1.0.0/ -->
+      using the Conventional Commit format. This is enforced by CI https://www.conventionalcommits.org/en/v1.0.0/ -->
 
 ## Description
 <!-- Describe the why and what of this change. -->

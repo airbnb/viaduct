@@ -120,6 +120,7 @@ This example demonstrates:
 4. **Module-based Architecture**: Resolvers are organized as a Viaduct module with automatic schema generation
 
 The servlet supports:
+
 - POST requests with JSON body (`application/json`)
 - POST requests with GraphQL query body (`application/graphql`)
 - GET requests with query parameters
