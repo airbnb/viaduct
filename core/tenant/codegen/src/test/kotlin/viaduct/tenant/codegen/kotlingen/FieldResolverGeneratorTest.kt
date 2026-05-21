@@ -11,7 +11,6 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
-import viaduct.utils.test.lf
 
 // This test suite is useful for inspecting the results of resolver generation.
 // While each test case makes only a small number of assertions, they are useful places
@@ -29,7 +28,7 @@ class FieldResolverGeneratorTest {
         val schema = mkSchema(sdl)
         val type = schema.types[typeName] as ViaductSchema.Record
         val contents = genResolver(typeName, type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "Query", "Mutation")
-        return contents.toString().lf()
+        return contents.toString().replace("\r\n", "\n")
     }
 
     @Test

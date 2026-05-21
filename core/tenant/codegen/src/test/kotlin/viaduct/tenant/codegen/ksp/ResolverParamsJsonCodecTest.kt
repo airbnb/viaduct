@@ -3,8 +3,8 @@ package viaduct.tenant.codegen.ksp
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import viaduct.utils.test.assertEqualsLf
 
 class ResolverParamsJsonCodecTest {
     @Test
@@ -27,7 +27,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertEqualsLf(
+        assertThat(json).isEqualToNormalizingNewlines(
             """
                 {
                   "fields" : [ ],
@@ -43,7 +43,6 @@ class ResolverParamsJsonCodecTest {
                 }
 
             """.trimIndent(),
-            json,
         )
     }
 
@@ -124,7 +123,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertEqualsLf(
+        assertThat(json).isEqualToNormalizingNewlines(
             """
                 {
                   "fields" : [ {
@@ -143,7 +142,6 @@ class ResolverParamsJsonCodecTest {
                 }
 
             """.trimIndent(),
-            json,
         )
     }
 
@@ -179,7 +177,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertEqualsLf(
+        assertThat(json).isEqualToNormalizingNewlines(
             """
                 {
                   "fields" : [ {
@@ -207,7 +205,6 @@ class ResolverParamsJsonCodecTest {
                 }
 
             """.trimIndent(),
-            json,
         )
     }
 
@@ -238,7 +235,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertEqualsLf(
+        assertThat(json).isEqualToNormalizingNewlines(
             """
                 {
                   "fields" : [ {
@@ -265,7 +262,6 @@ class ResolverParamsJsonCodecTest {
                 }
 
             """.trimIndent(),
-            json,
         )
     }
 

@@ -46,7 +46,7 @@ dependencies {
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.javassist)
-    testImplementation(testFixtures(libs.viaduct.shared.utils))
+    testImplementation(libs.assertj.core)
     testImplementation(testFixtures(libs.viaduct.shared.viaductschema))
     testImplementation(testFixtures(libs.viaduct.tenant.api))
     testImplementation(libs.kotlinx.coroutines.test)

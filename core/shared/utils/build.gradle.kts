@@ -1,6 +1,5 @@
 plugins {
     id("conventions.kotlin")
-    `java-test-fixtures`
     id("conventions.kotlin-static-analysis")
     id("me.champeau.jmh").version("0.7.3")
     id("conventions.viaduct-publishing")
@@ -14,8 +13,6 @@ dependencies {
     implementation(libs.classgraph)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.slf4j.api)
-
-    testFixturesCompileOnly(libs.junit)
 
     testImplementation(libs.kotest.assertions.shared)
     testImplementation(libs.guava.testlib)
