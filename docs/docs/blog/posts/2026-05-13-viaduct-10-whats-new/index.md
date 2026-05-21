@@ -32,7 +32,6 @@ With the 1.0 release, [Viaduct](https://viaduct.airbnb.tech/about/), the open-so
 - **Build-time tenant wiring**: A KSP-based pipeline now extracts resolver and module metadata at compile time and emits config files that drive runtime bootstrap. Resolver discovery no longer scans the classpath at startup, which means faster cold starts, deterministic wiring, and missing-resolver errors that surface at build time instead of in production.
 - **Schema validation at build time**: The Gradle plugin's `validateViaductSchema` task fails fast on invalid schemas, and a CLI validator runs the same checks outside of Gradle for CI pipelines.
 - **`scaffold` task**: `./gradlew scaffold` generates a complete, runnable Ktor-based project skeleton, which is the intended "getting started" path.
-- **Built-in dev server**: `ViaductServer` starts a GraphQL endpoint, GraphiQL IDE, and health check, with zero web server setup required.
 - **Java support**: A complete Java API, with annotations, resolver base classes, and a Java code generator, gives JVM teams that don't use Kotlin a first-class development path.
 - **Agentic coding**: Viaduct's strongly typed, introspectable schema makes it well-suited for AI-driven coding workflows. Generated project skeletons embed `AGENTS.md` files describing Viaduct's resolver model, and we are building coding-agent support as a standalone capability, separate from our batteries-included work.
 
