@@ -48,7 +48,7 @@ class SimpleNodeExecutionContext(
         val codec = engineExecutionContext?.globalIDCodec
             ?: throw FrameworkException("getId requires engineExecutionContext.")
         val (_, internalId) = codec.deserialize(serializedId)
-        return JavaGlobalID(type = typeFromName(typeName), internalId = internalId)
+        return GlobalIDImpl(type = typeFromName(typeName), internalId = internalId)
     }
 
     override fun getRequestContext(): Any? = requestContext

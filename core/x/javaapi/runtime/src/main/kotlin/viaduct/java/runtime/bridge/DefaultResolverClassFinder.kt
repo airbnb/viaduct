@@ -4,11 +4,11 @@ import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.ResolverFor
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GRT
-import viaduct.java.runtime.bootstrap.JavaResolverClassFinder
+import viaduct.java.runtime.bootstrap.ResolverClassFinder
 import viaduct.utils.classgraph.ClassGraphScanner
 
 /**
- * Default implementation of [JavaResolverClassFinder] using [ClassGraphScanner] for classpath scanning.
+ * Default implementation of [ResolverClassFinder] using [ClassGraphScanner] for classpath scanning.
  *
  * This class provides efficient classpath scanning to discover resolver classes at runtime,
  * delegating to the shared [ClassGraphScanner] utility.
@@ -22,7 +22,7 @@ import viaduct.utils.classgraph.ClassGraphScanner
  * ## Example
  *
  * ```kotlin
- * val finder = DefaultJavaResolverClassFinder(
+ * val finder = DefaultResolverClassFinder(
  *     tenantPackage = "com.mycompany.resolvers",
  *     grtPackagePrefix = "com.mycompany.grts"
  * )
@@ -31,10 +31,10 @@ import viaduct.utils.classgraph.ClassGraphScanner
  * @param tenantPackage the package containing resolver classes (both bases and implementations)
  * @param grtPackagePrefix the package prefix for generated GRT and Arguments classes
  */
-class DefaultJavaResolverClassFinder(
+class DefaultResolverClassFinder(
     private val tenantPackage: String,
     private val grtPackagePrefix: String,
-) : JavaResolverClassFinder {
+) : ResolverClassFinder {
     private val scanner = ClassGraphScanner.optimizedForPackagePrefix(tenantPackage)
 
     override fun resolverClassesInPackage(): Set<Class<*>> = scanner.getTypesAnnotatedWith(ResolverFor::class.java, listOf(tenantPackage))

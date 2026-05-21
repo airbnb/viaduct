@@ -26,7 +26,7 @@ import viaduct.java.api.types.Arguments
  * `batchResolve(List<Context>): CompletableFuture<Map<Context, T>>`, and maps the results back
  * to the engine's selector-keyed format.
  */
-class JavaFieldBatchResolverExecutor(
+class FieldBatchResolverExecutorImpl(
     private val batchResolveFunction: (List<FieldExecutionContext<*, *, *, *>>) -> CompletableFuture<Map<FieldExecutionContext<*, *, *, *>, *>>,
     override val resolverId: String,
     private val resolverName: String,

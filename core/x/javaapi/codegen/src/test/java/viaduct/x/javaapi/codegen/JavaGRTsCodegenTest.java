@@ -159,18 +159,18 @@ class JavaGRTsCodegenTest {
     // Root types should use marker interfaces
     String queryContent = Files.readString(packageDir.resolve("Query.java"));
     assertThat(queryContent)
-        .contains("extends JavaObjectBase")
+        .contains("extends ObjectBase")
         .contains("implements viaduct.java.api.types.Query");
 
     String mutationContent = Files.readString(packageDir.resolve("Mutation.java"));
     assertThat(mutationContent)
-        .contains("extends JavaObjectBase")
+        .contains("extends ObjectBase")
         .contains("implements viaduct.java.api.types.Mutation");
 
-    // Regular types should extend JavaObjectBase (GraphQLObject is inherited)
+    // Regular types should extend ObjectBase (GraphQLObject is inherited)
     String userContent = Files.readString(packageDir.resolve("User.java"));
     assertThat(userContent)
-        .contains("extends JavaObjectBase")
+        .contains("extends ObjectBase")
         .doesNotContain("implements GraphQLObject");
   }
 

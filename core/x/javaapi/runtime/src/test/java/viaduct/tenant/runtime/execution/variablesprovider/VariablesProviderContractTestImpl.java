@@ -14,14 +14,14 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.variables.VariablesProvider;
-import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder;
-import viaduct.java.runtime.bridge.JavaModuleBootstrapper;
+import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
+import viaduct.java.runtime.bridge.ModuleBootstrapper;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.CodeInjector;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.tenant.runtime.execution.variablesprovider.resolverbases.QueryResolvers;
 
-public class JavaVariablesProviderContractTest extends VariablesProviderContractTest {
+public class VariablesProviderContractTestImpl extends VariablesProviderContractTest {
 
   /**
    * Counts how many times any nested {@link VariablesProvider} is instantiated. Tests assert this
@@ -30,11 +30,11 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
    */
   static final AtomicInteger PROVIDER_INSTANTIATIONS = new AtomicInteger(0);
 
-  private final DefaultJavaResolverClassFinder classFinder =
-      new DefaultJavaResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
+  private final DefaultResolverClassFinder classFinder =
+      new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
 
-  private final JavaModuleBootstrapper bootstrapper =
-      new JavaModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
+  private final ModuleBootstrapper bootstrapper =
+      new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
 
   @Override
   protected TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>

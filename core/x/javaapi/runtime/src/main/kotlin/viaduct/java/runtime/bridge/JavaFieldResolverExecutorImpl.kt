@@ -41,7 +41,7 @@ import viaduct.java.api.types.Arguments
  * @param graphqlSchema The GraphQL schema, used to look up object types when converting Java GRT
  *        objects returned by resolvers back into EngineObjectData for the engine.
  */
-class JavaFieldResolverExecutor(
+class JavaFieldResolverExecutorImpl(
     private val resolveFunction: (FieldExecutionContext<*, *, *, *>) -> CompletableFuture<*>,
     override val resolverId: String,
     private val resolverName: String,

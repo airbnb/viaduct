@@ -3,7 +3,10 @@ package viaduct.java.runtime.bridge
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.errors.FrameworkException
 import viaduct.java.api.context.VariablesProviderContext
+import viaduct.java.api.globalid.GlobalID
+import viaduct.java.api.reflect.Type
 import viaduct.java.api.types.Arguments
+import viaduct.java.api.types.NodeCompositeOutput
 
 /**
  * Minimal implementation of [VariablesProviderContext] for Java [viaduct.java.api.variables.VariablesProvider]
@@ -26,16 +29,16 @@ class SimpleVariablesProviderContext(
 
     override fun getRequestContext(): Any? = requestContext
 
-    override fun <T : viaduct.java.api.types.NodeCompositeOutput> globalIDFor(
-        type: viaduct.java.api.reflect.Type<T>,
+    override fun <T : NodeCompositeOutput> globalIDFor(
+        type: Type<T>,
         internalID: String
-    ): viaduct.java.api.globalid.GlobalID<T> {
+    ): GlobalID<T> {
         val codec = engineExecutionContext?.globalIDCodec
             ?: throw FrameworkException("globalIDFor requires engineExecutionContext.")
         return codec.createGlobalID(type, internalID)
     }
 
-    override fun <T : viaduct.java.api.types.NodeCompositeOutput> serialize(globalID: viaduct.java.api.globalid.GlobalID<T>): String {
+    override fun <T : NodeCompositeOutput> serialize(globalID: GlobalID<T>): String {
         val codec = engineExecutionContext?.globalIDCodec
             ?: throw FrameworkException("serialize requires engineExecutionContext.")
         return codec.serializeGlobalID(globalID)

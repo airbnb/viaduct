@@ -6,8 +6,8 @@ import viaduct.api.testing.featureapp.AbstractFeatureAppTestContractBase
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
-import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder
-import viaduct.java.runtime.bridge.JavaModuleBootstrapper
+import viaduct.java.runtime.bridge.DefaultResolverClassFinder
+import viaduct.java.runtime.bridge.ModuleBootstrapper
 import viaduct.service.api.SchemaId
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.CodeInjector
@@ -18,12 +18,12 @@ import viaduct.service.runtime.StandardViaduct
  * Contract test base class for Java tenant resolvers.
  *
  * Provides the Java-specific bootstrapper wiring: resolver class discovery via
- * [DefaultJavaResolverClassFinder] and bootstrapping via [JavaModuleBootstrapper].
+ * [DefaultResolverClassFinder] and bootstrapping via [ModuleBootstrapper].
  *
  * Extend this class in contract tests that define `@TestSchema` and `@Test` methods.
  * Subclasses provide Java resolver implementations.
  */
-abstract class JavaFeatureAppTestContractBase : AbstractFeatureAppTestContractBase() {
+abstract class FeatureAppTestContractBase : AbstractFeatureAppTestContractBase() {
     /**
      * Intentionally computed lazily instead of in a property initializer so the constructor
      * does not throw, which SpotBugs flags as CT_CONSTRUCTOR_THROW.
@@ -37,14 +37,14 @@ abstract class JavaFeatureAppTestContractBase : AbstractFeatureAppTestContractBa
     protected open fun grtPackagePrefix(): String = "${featureAppPackagePrefix()}.grt"
 
     private val classFinder by lazy {
-        DefaultJavaResolverClassFinder(
+        DefaultResolverClassFinder(
             tenantPackage = featureAppPackagePrefix(),
             grtPackagePrefix = grtPackagePrefix()
         )
     }
 
     private val bootstrapper by lazy {
-        JavaModuleBootstrapper(classFinder, CodeInjector.Naive)
+        ModuleBootstrapper(classFinder, CodeInjector.Naive)
     }
 
     override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> = MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(listOf(bootstrapper)))

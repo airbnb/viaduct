@@ -12,12 +12,12 @@ import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
 import viaduct.java.api.globalid.GlobalID
-import viaduct.java.api.internal.JavaObjectBase
+import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
-class TestNodeObject : JavaObjectBase, NodeObject {
+class TestNodeObject : ObjectBase, NodeObject {
     constructor(ref: NodeReference) : super(ref)
 }
 
@@ -48,11 +48,11 @@ class SimpleNodeExecutionContextTest {
         }
 
     @Test
-    fun `getId deserializes the serialized id and returns a JavaGlobalID`() {
+    fun `getId deserializes the serialized id and returns a GlobalIDImpl`() {
         val ctx = newContext()
         val id = ctx.getId()
         assertThat(id.getInternalID()).isEqualTo("tenant1")
-        assertThat(id).isInstanceOf(JavaGlobalID::class.java)
+        assertThat(id).isInstanceOf(GlobalIDImpl::class.java)
         assertThat(id.getType().name).isEqualTo("NodeObj")
     }
 
@@ -72,11 +72,11 @@ class SimpleNodeExecutionContextTest {
         val ctx = newContext()
         val gid: GlobalID<NodeObject> = ctx.globalIDFor(nodeType(), "abc")
         assertThat(gid.getInternalID()).isEqualTo("abc")
-        assertThat(gid).isInstanceOf(JavaGlobalID::class.java)
+        assertThat(gid).isInstanceOf(GlobalIDImpl::class.java)
     }
 
     @Test
-    fun `serialize returns serialized form for a JavaGlobalID`() {
+    fun `serialize returns serialized form for a GlobalIDImpl`() {
         val ctx = newContext()
         val gid = ctx.globalIDFor(nodeType(), "xyz")
         assertThat(ctx.serialize(gid)).isEqualTo(GlobalIDCodecDefault.serialize("NodeObj", "xyz"))
@@ -92,7 +92,7 @@ class SimpleNodeExecutionContextTest {
     @Test
     fun `nodeRef throws FrameworkException when engineExecutionContext is missing`() {
         val ctx = newContext(engineCtx = null)
-        assertThrows<FrameworkException> { ctx.nodeRef(JavaGlobalID(nodeType(), "abc")) }
+        assertThrows<FrameworkException> { ctx.nodeRef(GlobalIDImpl(nodeType(), "abc")) }
     }
 
     @Test
@@ -110,7 +110,7 @@ class SimpleNodeExecutionContextTest {
         val ctx = newContext(engineCtx = engineCtx)
 
         val ex = assertThrows<FrameworkException> {
-            ctx.nodeRef(JavaGlobalID(nodeType("Missing"), "abc"))
+            ctx.nodeRef(GlobalIDImpl(nodeType("Missing"), "abc"))
         }
         assertThat(ex.message).contains("GraphQL type 'Missing' not found in schema")
     }
@@ -138,7 +138,7 @@ class SimpleNodeExecutionContextTest {
                 override fun getJavaClass(): Class<out NodeObject> = TestNodeObject::class.java
             }
 
-        val result: NodeObject = ctx.nodeRef(JavaGlobalID(typedType, "abc"))
+        val result: NodeObject = ctx.nodeRef(GlobalIDImpl(typedType, "abc"))
 
         assertThat(result).isInstanceOf(TestNodeObject::class.java)
         assertThat((result as TestNodeObject).javaNodeReference).isSameAs(nodeRef)

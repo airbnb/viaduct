@@ -20,7 +20,7 @@ import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.resolvers.NodeResolverBase
-import viaduct.java.runtime.bootstrap.JavaResolverClassFinder
+import viaduct.java.runtime.bootstrap.ResolverClassFinder
 import viaduct.service.api.spi.CodeInjector
 
 /**
@@ -34,18 +34,18 @@ import viaduct.service.api.spi.CodeInjector
  * 1. Scans for all classes annotated with `@ResolverFor` (generated base classes)
  * 2. For each base class, finds subclasses annotated with `@Resolver`
  * 3. Validates that exactly one implementation exists per field
- * 4. Wraps each resolver in a [JavaFieldResolverExecutor]
+ * 4. Wraps each resolver in a [JavaFieldResolverExecutorImpl]
  * 5. Returns the mapping of field coordinates to executors
  *
  * ## Example Usage
  *
  * ```kotlin
- * val classFinder = DefaultJavaResolverClassFinder(
+ * val classFinder = DefaultResolverClassFinder(
  *     tenantPackage = "com.mycompany.resolvers",
  *     grtPackagePrefix = "com.mycompany.grts"
  * )
  *
- * val bootstrapper = JavaModuleBootstrapper(
+ * val bootstrapper = ModuleBootstrapper(
  *     classFinder = classFinder,
  *     injector = CodeInjector.Naive
  * )
@@ -63,16 +63,16 @@ import viaduct.service.api.spi.CodeInjector
  * @param classFinder the class finder for discovering resolver classes
  * @param injector the code injector for creating resolver instances
  */
-class JavaModuleBootstrapper(
-    private val classFinder: JavaResolverClassFinder,
+class ModuleBootstrapper(
+    private val classFinder: ResolverClassFinder,
     private val injector: CodeInjector,
 ) : LegacyTenantModuleBootstrapper {
     companion object {
-        private val log = LoggerFactory.getLogger(JavaModuleBootstrapper::class.java)
+        private val log = LoggerFactory.getLogger(ModuleBootstrapper::class.java)
     }
 
     // Factory for creating RequiredSelectionSets from @Resolver annotations
-    private val requiredSelectionSetFactory = JavaRequiredSelectionSetFactory()
+    private val requiredSelectionSetFactory = RequiredSelectionSetFactory()
 
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Pair<String, String>, FieldResolverExecutor>> {
         val result = mutableMapOf<Pair<String, String>, FieldResolverExecutor>()
@@ -194,7 +194,7 @@ class JavaModuleBootstrapper(
                     resolverName,
                     resolverClass.classLoader
                 )
-                JavaFieldBatchResolverExecutor(
+                FieldBatchResolverExecutorImpl(
                     batchResolveFunction = { ctxList -> invokeBatchResolver(resolverProvider, batchResolveMethod, ctxList) },
                     resolverId = resolverId,
                     resolverName = resolverName,
@@ -218,7 +218,7 @@ class JavaModuleBootstrapper(
                     resolverName,
                     resolverClass.classLoader
                 )
-                JavaFieldResolverExecutor(
+                JavaFieldResolverExecutorImpl(
                     resolveFunction = { ctx -> invokeResolver(resolverProvider, resolveMethod, ctx) },
                     resolverId = resolverId,
                     resolverName = resolverName,
@@ -340,7 +340,7 @@ class JavaModuleBootstrapper(
                         "Node resolver class $resolverClass is annotated with isBatching=true but does not have a 'batchResolve' method"
                     )
                 log.info("- Adding node batch resolver entry for '{}' to '{}'.", typeName, resolverName)
-                JavaNodeBatchResolverExecutor(
+                NodeBatchResolverExecutorImpl(
                     batchResolveFunction = { ctxList -> invokeNodeBatchResolver(resolverProvider, batchResolveMethod, ctxList) },
                     typeName = typeName,
                     resolverName = resolverName,
@@ -353,7 +353,7 @@ class JavaModuleBootstrapper(
                         "Node resolver class $resolverClass does not have a 'resolve' method"
                     )
                 log.info("- Adding node resolver entry for '{}' to '{}'.", typeName, resolverName)
-                JavaNodeResolverExecutor(
+                JavaNodeResolverExecutorImpl(
                     resolveFunction = { ctx -> invokeNodeResolver(resolverProvider, resolveMethod, ctx) },
                     typeName = typeName,
                     resolverName = resolverName,

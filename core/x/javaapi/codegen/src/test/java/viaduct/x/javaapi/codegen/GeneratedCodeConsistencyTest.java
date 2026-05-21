@@ -24,38 +24,38 @@ class GeneratedCodeConsistencyTest {
   }
 
   @Test
-  void objectGenerator_usesJavaObjectBase() {
+  void objectGenerator_usesObjectBase() {
     ObjectModel model =
         new ObjectModel("com.example", "TestObject", List.of(), List.of(), null, false, false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertThat(generated)
-        .contains("import viaduct.java.api.internal.JavaObjectBase;")
-        .contains("extends JavaObjectBase");
+        .contains("import viaduct.java.api.internal.ObjectBase;")
+        .contains("extends ObjectBase");
   }
 
   @Test
-  void objectGenerator_usesJavaNodeObjectBase_forNodeTypes() {
+  void objectGenerator_usesNodeObjectBase_forNodeTypes() {
     ObjectModel model =
         new ObjectModel("com.example", "TestNode", List.of("Node"), List.of(), null, false, true);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertThat(generated)
-        .contains("import viaduct.java.api.internal.JavaNodeObjectBase;")
-        .contains("extends JavaNodeObjectBase");
+        .contains("import viaduct.java.api.internal.NodeObjectBase;")
+        .contains("extends NodeObjectBase");
   }
 
   @Test
-  void inputGenerator_usesJavaInputBase() {
+  void inputGenerator_usesInputBase() {
     InputModel model = new InputModel("com.example", "TestInput", List.of(), null);
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
     assertThat(generated)
-        .contains("import viaduct.java.api.internal.JavaInputBase;")
-        .contains("extends JavaInputBase");
+        .contains("import viaduct.java.api.internal.InputBase;")
+        .contains("extends InputBase");
   }
 
   @Test

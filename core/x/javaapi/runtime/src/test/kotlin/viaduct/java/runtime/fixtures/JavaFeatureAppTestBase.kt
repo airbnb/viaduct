@@ -5,8 +5,8 @@ package viaduct.java.runtime.fixtures
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
-import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder
-import viaduct.java.runtime.bridge.JavaModuleBootstrapper
+import viaduct.java.runtime.bridge.DefaultResolverClassFinder
+import viaduct.java.runtime.bridge.ModuleBootstrapper
 import viaduct.service.api.SchemaId
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.CodeInjector
@@ -79,7 +79,7 @@ abstract class JavaFeatureAppTestBase : AbstractFeatureAppTestBase() {
 
     // Class finder for discovering Java resolvers in the feature app's packages
     private val classFinder by lazy {
-        DefaultJavaResolverClassFinder(
+        DefaultResolverClassFinder(
             tenantPackage = featureAppPackagePrefix(),
             grtPackagePrefix = grtPackagePrefix()
         )
@@ -87,7 +87,7 @@ abstract class JavaFeatureAppTestBase : AbstractFeatureAppTestBase() {
 
     // Bootstrapper for Java resolvers
     private val bootstrapper by lazy {
-        JavaModuleBootstrapper(classFinder, CodeInjector.Naive)
+        ModuleBootstrapper(classFinder, CodeInjector.Naive)
     }
 
     override fun sdl(): String = getSdl()

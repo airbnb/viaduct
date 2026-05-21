@@ -27,11 +27,11 @@ import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
 import viaduct.java.api.types.NodeObject
 import viaduct.java.api.types.Query
-import viaduct.java.runtime.bootstrap.JavaResolverClassFinder
+import viaduct.java.runtime.bootstrap.ResolverClassFinder
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
-class JavaModuleBootstrapperTest {
+class ModuleBootstrapperTest {
     // Test fixtures
     interface TestQuery : Query
 
@@ -91,10 +91,10 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `fieldResolverExecutors returns empty when no resolvers found`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.resolverClassesInPackage() } returns emptySet()
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchema()
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
@@ -104,10 +104,10 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `fieldResolverExecutors skips resolvers for undefined types`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.resolverClassesInPackage() } returns setOf(TestResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         // Schema without TestType
         val schema = createMockSchema()
 
@@ -119,7 +119,7 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `fieldResolverExecutors registers resolver for valid field`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.resolverClassesInPackage() } returns setOf(
             TestResolverBase::class.java,
             SelectiveResolverBase::class.java
@@ -133,7 +133,7 @@ class JavaModuleBootstrapperTest {
             )
         every { mockClassFinder.grtClassForName(any()) } throws ClassNotFoundException("test")
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithTestType()
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
@@ -211,10 +211,10 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors returns empty when no node resolver classes found`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.nodeResolverForClassesInPackage() } returns emptySet()
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
 
         val executors = bootstrapper.nodeResolverExecutors(createMockSchema()).toList()
 
@@ -223,12 +223,12 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors registers resolver for valid Node type`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(TestNodeResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
             setOf(TestNodeResolver::class.java, TestNodeResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
 
         val executors = bootstrapper.nodeResolverExecutors(createMockSchemaWithNodeType()).toList()
 
@@ -238,10 +238,10 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors skips resolver for type not in schema`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(TestNodeResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
 
         val executors = bootstrapper.nodeResolverExecutors(createMockSchema()).toList()
 
@@ -250,12 +250,12 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors wires executor that invokes the tenant resolve method`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(TestNodeResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
             setOf(TestNodeResolver::class.java, TestNodeResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithNodeType()
         val executors = bootstrapper.nodeResolverExecutors(schema).toList()
 
@@ -280,7 +280,7 @@ class JavaModuleBootstrapperTest {
             executor.resolve(listOf(selector), engineCtx)
         }
         // The lambda was invoked (a Result is produced regardless of conversion outcome). The
-        // tenant resolver returns a TestNodeObj that doesn't extend JavaObjectBase, so the engine
+        // tenant resolver returns a TestNodeObj that doesn't extend ObjectBase, so the engine
         // bridge will surface a conversion failure — what we're verifying here is that the
         // executor lambda chain (resolveFunction -> invokeNodeResolver -> reflective invoke) is
         // wired correctly.
@@ -290,12 +290,12 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors wires batch executor when isBatching is true`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(TestBatchNodeResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
             setOf(TestBatchNodeResolver::class.java, TestBatchNodeResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithNodeTypes("TestBatchNodeType")
         val executors = bootstrapper.nodeResolverExecutors(schema).toList()
 
@@ -324,7 +324,7 @@ class JavaModuleBootstrapperTest {
             executor.resolve(selectors, engineCtx)
         }
         // Lambda invocation succeeded; conversion may produce a failed Result for TestNodeObj
-        // (not a JavaObjectBase), but each selector gets a Result entry.
+        // (not a ObjectBase), but each selector gets a Result entry.
         assertThat(result).hasSize(2)
         assertThat(result[selectors[0]]).isNotNull
         assertThat(result[selectors[1]]).isNotNull
@@ -332,12 +332,12 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors throws when subclass exists without Resolver annotation`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(OrphanNodeResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
             setOf(OrphanNodeSubclassWithoutResolverAnnotation::class.java, OrphanNodeResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
 
         val schema = createMockSchemaWithNodeTypes("OrphanNodeType")
         assertThrows<TenantModuleException> {
@@ -347,7 +347,7 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors throws when multiple Resolver implementations exist`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(DuplicateNodeResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
             setOf(
@@ -356,7 +356,7 @@ class JavaModuleBootstrapperTest {
                 DuplicateNodeResolverBase::class.java,
             )
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
 
         val schema = createMockSchemaWithNodeTypes("DuplicateNodeType")
         assertThrows<TenantModuleException> {
@@ -366,12 +366,12 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors throws when node Resolver declares objectValueFragment`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.nodeResolverForClassesInPackage() } returns setOf(ForbiddenAnnotationNodeResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(NodeResolverBase::class.java) } returns
             setOf(NodeResolverWithObjectValueFragment::class.java, ForbiddenAnnotationNodeResolverBase::class.java)
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
 
         val schema = createMockSchemaWithNodeTypes("ForbiddenAnnotationNodeType")
         assertThrows<TenantModuleException> {
@@ -381,13 +381,13 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `fieldResolverExecutors creates executor with objectSelectionSet from annotation`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.resolverClassesInPackage() } returns setOf(PersonFullNameResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(FieldResolverBase::class.java) } returns
             setOf(PersonFullNameResolver::class.java, PersonFullNameResolverBase::class.java)
         every { mockClassFinder.grtClassForName(any()) } throws ClassNotFoundException("test")
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithPerson()
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
@@ -403,13 +403,13 @@ class JavaModuleBootstrapperTest {
 
     @Test
     fun `fieldResolverExecutors creates executor with empty selections for plain Resolver annotation`() {
-        val mockClassFinder = mockk<JavaResolverClassFinder>()
+        val mockClassFinder = mockk<ResolverClassFinder>()
         every { mockClassFinder.resolverClassesInPackage() } returns setOf(PersonAgeResolverBase::class.java)
         every { mockClassFinder.getSubTypesOf(FieldResolverBase::class.java) } returns
             setOf(PersonAgeResolver::class.java, PersonAgeResolverBase::class.java)
         every { mockClassFinder.grtClassForName(any()) } throws ClassNotFoundException("test")
 
-        val bootstrapper = JavaModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
+        val bootstrapper = ModuleBootstrapper(mockClassFinder, CodeInjector.Naive)
         val schema = createMockSchemaWithPerson()
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()

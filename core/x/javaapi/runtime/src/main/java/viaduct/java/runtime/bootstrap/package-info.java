@@ -7,11 +7,11 @@
  * <h2>Key Components</h2>
  *
  * <ul>
- *   <li>{@link viaduct.java.runtime.bootstrap.JavaResolverClassFinder} - Interface for discovering
+ *   <li>{@link viaduct.java.runtime.bootstrap.ResolverClassFinder} - Interface for discovering
  *       resolver classes via classpath scanning
- *   <li>{@code viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder} - Default implementation
+ *   <li>{@code viaduct.java.runtime.bridge.DefaultResolverClassFinder} - Default implementation
  *       using ClassGraphScanner (Kotlin)
- *   <li>{@code viaduct.java.runtime.bridge.JavaModuleBootstrapper} - Bootstrapper that implements
+ *   <li>{@code viaduct.java.runtime.bridge.ModuleBootstrapper} - Bootstrapper that implements
  *       {@code LegacyTenantModuleBootstrapper} for Java resolvers (Kotlin)
  * </ul>
  *
@@ -19,13 +19,13 @@
  *
  * <pre>{@code
  * // Create the class finder for your resolver package
- * JavaResolverClassFinder classFinder = new DefaultJavaResolverClassFinder(
+ * ResolverClassFinder classFinder = new DefaultResolverClassFinder(
  *     "com.mycompany.resolvers",  // Package containing @Resolver classes
  *     "com.mycompany.grts"        // Package containing generated GRT classes
  * );
  *
  * // Create the bootstrapper
- * LegacyTenantModuleBootstrapper bootstrapper = new JavaModuleBootstrapper(
+ * LegacyTenantModuleBootstrapper bootstrapper = new ModuleBootstrapper(
  *     classFinder,
  *     CodeInjector.Naive  // Or use your DI framework's injector
  * );
@@ -44,7 +44,7 @@
  *   <li>Developers extend these base classes and annotate with {@code @Resolver}
  *   <li>At bootstrap, the class finder scans for all {@code @ResolverFor} classes
  *   <li>For each base class, it finds subclasses annotated with {@code @Resolver}
- *   <li>The bootstrapper wraps each resolver in a {@code JavaFieldResolverExecutor}
+ *   <li>The bootstrapper wraps each resolver in a {@code JavaFieldResolverExecutorImpl}
  * </ol>
  */
 package viaduct.java.runtime.bootstrap;

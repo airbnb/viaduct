@@ -17,7 +17,7 @@ import viaduct.errors.TenantUsageException
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.NodeExecutionContext
-import viaduct.java.api.internal.JavaObjectBase
+import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.resolvers.FieldValue
 
 /**
@@ -33,7 +33,7 @@ import viaduct.java.api.resolvers.FieldValue
  * error. Per-element errors surface to the engine as failed [Result]s without aborting the entire
  * batch.
  */
-class JavaNodeBatchResolverExecutor(
+class NodeBatchResolverExecutorImpl(
     private val batchResolveFunction: (List<NodeExecutionContext<*>>) -> CompletableFuture<*>,
     override val typeName: String,
     private val resolverName: String,
@@ -100,7 +100,7 @@ class JavaNodeBatchResolverExecutor(
             }
         ) {
             val raw = fieldValue.get()
-            if (raw !is JavaObjectBase) {
+            if (raw !is ObjectBase) {
                 throw TenantUsageException("Unexpected result type that is not a GRT for a node object: $raw")
             }
             if (raw.javaNodeReference != null) {

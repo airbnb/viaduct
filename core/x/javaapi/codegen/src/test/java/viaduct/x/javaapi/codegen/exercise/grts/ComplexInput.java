@@ -3,10 +3,10 @@ package viaduct.x.javaapi.codegen.exercise.grts;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import viaduct.java.api.internal.JavaInputBase;
+import viaduct.java.api.internal.InputBase;
 
 /** An input with enum and list fields. */
-public class ComplexInput extends JavaInputBase {
+public class ComplexInput extends InputBase {
 
   public ComplexInput(Map<String, Object> data) {
     super(data);

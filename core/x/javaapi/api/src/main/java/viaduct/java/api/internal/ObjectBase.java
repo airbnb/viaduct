@@ -35,7 +35,7 @@ import viaduct.java.api.types.GraphQLObject;
  * <p>Field access is cached using a {@link ConcurrentHashMap} with a {@code NULL_VALUE} sentinel to
  * represent null values (identical to Kotlin's {@code OBJECTBASE_GRT_NULL} pattern).
  */
-public abstract class JavaObjectBase implements GraphQLObject {
+public abstract class ObjectBase implements GraphQLObject {
 
   // Used to represent null in the field cache, since ConcurrentHashMap does not allow null values.
   // Mirrors Kotlin's OBJECTBASE_GRT_NULL sentinel.
@@ -51,7 +51,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
    *
    * <p>Like Kotlin: {@code ObjectBase(context, engineObject)}
    */
-  protected JavaObjectBase(EngineObjectData.Sync engineData) {
+  protected ObjectBase(EngineObjectData.Sync engineData) {
     this.engineData = engineData;
     this.mapData = null;
     this.nodeReference = null;
@@ -62,7 +62,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
    *
    * <p>Like Kotlin: {@code build() -> buildEngineObjectData() -> constructor}
    */
-  protected JavaObjectBase(Map<String, Object> mapData) {
+  protected ObjectBase(Map<String, Object> mapData) {
     this.engineData = null;
     this.mapData = mapData;
     this.nodeReference = null;
@@ -73,7 +73,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
    *
    * <p>Used by {@code ctx.nodeRef()} to create a lazy reference that the engine resolves later.
    */
-  protected JavaObjectBase(NodeReference nodeReference) {
+  protected ObjectBase(NodeReference nodeReference) {
     this.engineData = null;
     this.mapData = null;
     this.nodeReference = nodeReference;
@@ -123,7 +123,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
           null);
     } else {
       throw new FrameworkException(
-          "Cannot access field '" + fieldName + "': JavaObjectBase has no backing data.", null);
+          "Cannot access field '" + fieldName + "': ObjectBase has no backing data.", null);
     }
   }
 
@@ -137,7 +137,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
   @SuppressWarnings("unchecked")
   protected <T> T fetchScalar(String fieldName) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchScalar: " + fieldName,
+        "ObjectBase.fetchScalar: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -163,7 +163,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
   @SuppressWarnings("unchecked")
   protected <T> T fetchScalar(String fieldName, String scalarType) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchScalar: " + fieldName,
+        "ObjectBase.fetchScalar: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -189,7 +189,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
   @SuppressWarnings("unchecked")
   protected <T> List<T> fetchScalarList(String fieldName) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchScalarList: " + fieldName,
+        "ObjectBase.fetchScalarList: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -223,7 +223,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
   @SuppressWarnings("unchecked")
   protected <T> List<T> fetchScalarList(String fieldName, String scalarType) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchScalarList: " + fieldName,
+        "ObjectBase.fetchScalarList: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -255,14 +255,14 @@ public abstract class JavaObjectBase implements GraphQLObject {
    * wrapObject()}.
    *
    * <p>If the raw value is {@link EngineObjectData.Sync}, wraps it using the provided constructor.
-   * If already a {@link JavaObjectBase} (builder path), returns as-is.
+   * If already a {@link ObjectBase} (builder path), returns as-is.
    */
   @Nullable
   @SuppressWarnings("unchecked")
-  protected <T extends JavaObjectBase> T fetchObject(
+  protected <T extends ObjectBase> T fetchObject(
       String fieldName, Function<EngineObjectData.Sync, T> constructor) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchObject: " + fieldName,
+        "ObjectBase.fetchObject: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -275,7 +275,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
           } else if (raw instanceof EngineObjectData.Sync syncData) {
             toCache = constructor.apply(syncData);
           } else {
-            // Builder path: value is already a JavaObjectBase instance
+            // Builder path: value is already a ObjectBase instance
             toCache = raw;
           }
           Object prev = fieldCache.putIfAbsent(fieldName, toCache);
@@ -290,10 +290,10 @@ public abstract class JavaObjectBase implements GraphQLObject {
    */
   @Nullable
   @SuppressWarnings("unchecked")
-  protected <T extends JavaObjectBase> List<T> fetchObjectList(
+  protected <T extends ObjectBase> List<T> fetchObjectList(
       String fieldName, Function<EngineObjectData.Sync, T> constructor) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchObjectList: " + fieldName,
+        "ObjectBase.fetchObjectList: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -311,7 +311,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
               } else if (element instanceof EngineObjectData.Sync syncData) {
                 wrapped.add(constructor.apply(syncData));
               } else {
-                // Builder path: elements are already JavaObjectBase instances
+                // Builder path: elements are already ObjectBase instances
                 wrapped.add((T) element);
               }
             }
@@ -340,7 +340,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
   @SuppressWarnings("unchecked")
   protected <T> T fetchAbstractObject(String fieldName, Class<T> interfaceClass) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchAbstractObject: " + fieldName,
+        "ObjectBase.fetchAbstractObject: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -370,7 +370,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
   @SuppressWarnings("unchecked")
   protected <T> List<T> fetchAbstractObjectList(String fieldName, Class<T> interfaceClass) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchAbstractObjectList: " + fieldName,
+        "ObjectBase.fetchAbstractObjectList: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -439,7 +439,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
   @SuppressWarnings("unchecked")
   protected <E extends Enum<E>> E fetchEnum(String fieldName, Class<E> enumClass) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchEnum: " + fieldName,
+        "ObjectBase.fetchEnum: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -470,7 +470,7 @@ public abstract class JavaObjectBase implements GraphQLObject {
   @SuppressWarnings("unchecked")
   protected <E extends Enum<E>> List<E> fetchEnumList(String fieldName, Class<E> enumClass) {
     return HandleErrors.framework(
-        "JavaObjectBase.fetchEnumList: " + fieldName,
+        "ObjectBase.fetchEnumList: " + fieldName,
         () -> {
           Object cached = fieldCache.get(fieldName);
           if (cached != null) {
@@ -511,12 +511,12 @@ public abstract class JavaObjectBase implements GraphQLObject {
    * @param scalarType the GraphQL scalar type name, or null for no coercion
    * @return the coerced value
    */
-  // Accessed by JavaInputBase (same package) for input argument coercion.
+  // Accessed by InputBase (same package) for input argument coercion.
   // Wrapped so direct callers (and tests) don't need to declare `throws FrameworkException`;
   // intentional FrameworkException throws from coerceTo* helpers pass through unchanged.
   static Object coerceScalar(@Nullable Object raw, @Nullable String scalarType) {
     return HandleErrors.framework(
-        "JavaObjectBase.coerceScalar: " + scalarType,
+        "ObjectBase.coerceScalar: " + scalarType,
         () -> {
           if (raw == null || scalarType == null) {
             return raw;

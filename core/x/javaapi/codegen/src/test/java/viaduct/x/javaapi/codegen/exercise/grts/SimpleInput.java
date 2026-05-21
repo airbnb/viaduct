@@ -2,10 +2,10 @@ package viaduct.x.javaapi.codegen.exercise.grts;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import viaduct.java.api.internal.JavaInputBase;
+import viaduct.java.api.internal.InputBase;
 
 /** A simple input with basic fields. */
-public class SimpleInput extends JavaInputBase {
+public class SimpleInput extends InputBase {
 
   public SimpleInput(Map<String, Object> data) {
     super(data);

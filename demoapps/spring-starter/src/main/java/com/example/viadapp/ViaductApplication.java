@@ -7,9 +7,9 @@ import java.util.Collections;
 import java.util.List;
 import org.slf4j.LoggerFactory;
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
-import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder;
-import viaduct.java.runtime.bridge.JavaModuleBootstrapper;
+import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
 import viaduct.java.runtime.bridge.JavaTenantAPIBootstrapper;
+import viaduct.java.runtime.bridge.ModuleBootstrapper;
 import viaduct.service.api.ExecutionInput;
 import viaduct.service.api.ExecutionResult;
 import viaduct.service.api.SchemaId;
@@ -27,10 +27,10 @@ public class ViaductApplication {
     Logger rootLogger = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
     rootLogger.setLevel(Level.ERROR);
 
-    DefaultJavaResolverClassFinder classFinder =
-        new DefaultJavaResolverClassFinder(TENANT_PACKAGE, TENANT_PACKAGE);
-    JavaModuleBootstrapper bootstrapper =
-        new JavaModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
+    DefaultResolverClassFinder classFinder =
+        new DefaultResolverClassFinder(TENANT_PACKAGE, TENANT_PACKAGE);
+    ModuleBootstrapper bootstrapper =
+        new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
 
     TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> bootstrapperBuilder =
         () -> new JavaTenantAPIBootstrapper(List.of(bootstrapper));

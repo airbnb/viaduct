@@ -14,7 +14,7 @@ import viaduct.errors.TenantUsageException
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.NodeExecutionContext
-import viaduct.java.api.internal.JavaObjectBase
+import viaduct.java.api.internal.ObjectBase
 
 /**
  * Kotlin bridge that wraps an unbatched Java node resolver and implements [NodeResolverExecutor].
@@ -23,7 +23,7 @@ import viaduct.java.api.internal.JavaObjectBase
  * from the selector's serialized GlobalID, invokes the tenant's `resolve(Context)` method, and
  * unwraps the Java GRT result back to [EngineObjectData].
  */
-class JavaNodeResolverExecutor(
+class JavaNodeResolverExecutorImpl(
     private val resolveFunction: (NodeExecutionContext<*>) -> CompletableFuture<*>,
     override val typeName: String,
     private val resolverName: String,
@@ -70,7 +70,7 @@ class JavaNodeResolverExecutor(
     }
 
     private fun unwrapNodeResult(result: Any?): EngineObjectData {
-        if (result !is JavaObjectBase) {
+        if (result !is ObjectBase) {
             throw TenantUsageException("Unexpected result type that is not a GRT for a node object: $result")
         }
         if (result.javaNodeReference != null) {

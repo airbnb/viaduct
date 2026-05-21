@@ -105,8 +105,8 @@ public final class JavaGRTGenerator {
 
             import viaduct.engine.api.EngineObjectData;
             import viaduct.engine.api.NodeReference;
-            import viaduct.java.api.internal.JavaNodeObjectBase;
-            import viaduct.java.api.internal.JavaObjectBase;
+            import viaduct.java.api.internal.NodeObjectBase;
+            import viaduct.java.api.internal.ObjectBase;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
@@ -119,7 +119,7 @@ public final class JavaGRTGenerator {
              * <mdl.description>
              */
             <endif>
-            public class <mdl.className> extends <if(mdl.isNodeType)>JavaNodeObjectBase<else>JavaObjectBase<endif><if(mdl.hasImplementsClause)> implements <mdl.implementsClause><endif> {
+            public class <mdl.className> extends <if(mdl.isNodeType)>NodeObjectBase<else>ObjectBase<endif><if(mdl.hasImplementsClause)> implements <mdl.implementsClause><endif> {
 
                 public <mdl.className>(EngineObjectData.Sync data) {
                     super(data);
@@ -198,7 +198,7 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
-            import viaduct.java.api.internal.JavaInputBase;
+            import viaduct.java.api.internal.InputBase;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
@@ -211,7 +211,7 @@ public final class JavaGRTGenerator {
              * <mdl.description>
              */
             <endif>
-            public class <mdl.className> extends JavaInputBase {
+            public class <mdl.className> extends InputBase {
 
                 public <mdl.className>(Map\\<String, Object> data) {
                     super(data);
@@ -337,10 +337,10 @@ public final class JavaGRTGenerator {
             import java.util.List;
             import java.util.Map;
             import viaduct.java.api.types.Arguments;
-            import viaduct.java.api.internal.JavaInputBase;
+            import viaduct.java.api.internal.InputBase;
 
             /** Generated arguments class for resolver field. */
-            public class <mdl.className> extends JavaInputBase implements Arguments {
+            public class <mdl.className> extends InputBase implements Arguments {
 
                 public <mdl.className>(Map\\<String, Object> data) {
                     super(data);

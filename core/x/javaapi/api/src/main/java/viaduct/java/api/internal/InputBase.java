@@ -20,11 +20,11 @@ import viaduct.java.api.types.GraphQLInput;
  * wrapped using the provided constructor function (like Kotlin's {@code
  * grtConvFactory.createForInputField()}).
  */
-public abstract class JavaInputBase implements GraphQLInput {
+public abstract class InputBase implements GraphQLInput {
 
   private final Map<String, Object> inputData;
 
-  protected JavaInputBase(Map<String, Object> inputData) {
+  protected InputBase(Map<String, Object> inputData) {
     this.inputData = inputData;
   }
 
@@ -38,7 +38,7 @@ public abstract class JavaInputBase implements GraphQLInput {
   @SuppressWarnings("unchecked")
   protected <T> T get(String fieldName) {
     return HandleErrors.framework(
-        "JavaInputBase.get: " + fieldName, () -> (T) inputData.get(fieldName));
+        "InputBase.get: " + fieldName, () -> (T) inputData.get(fieldName));
   }
 
   /**
@@ -52,10 +52,10 @@ public abstract class JavaInputBase implements GraphQLInput {
   @SuppressWarnings("unchecked")
   protected <T> T get(String fieldName, String scalarType) {
     return HandleErrors.framework(
-        "JavaInputBase.get: " + fieldName,
+        "InputBase.get: " + fieldName,
         () -> {
           Object raw = inputData.get(fieldName);
-          return (T) JavaObjectBase.coerceScalar(raw, scalarType);
+          return (T) ObjectBase.coerceScalar(raw, scalarType);
         });
   }
 
@@ -67,7 +67,7 @@ public abstract class JavaInputBase implements GraphQLInput {
   @SuppressWarnings("unchecked")
   protected <T> List<T> getScalarList(String fieldName) {
     return HandleErrors.framework(
-        "JavaInputBase.getScalarList: " + fieldName,
+        "InputBase.getScalarList: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
           if (value == null) {
@@ -93,7 +93,7 @@ public abstract class JavaInputBase implements GraphQLInput {
   @SuppressWarnings("unchecked")
   protected <T> List<T> getScalarList(String fieldName, String scalarType) {
     return HandleErrors.framework(
-        "JavaInputBase.getScalarList: " + fieldName,
+        "InputBase.getScalarList: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
           if (value == null) {
@@ -102,7 +102,7 @@ public abstract class JavaInputBase implements GraphQLInput {
           if (value instanceof List<?> list) {
             List<Object> coerced = new ArrayList<>(list.size());
             for (Object element : list) {
-              coerced.add(JavaObjectBase.coerceScalar(element, scalarType));
+              coerced.add(ObjectBase.coerceScalar(element, scalarType));
             }
             return (List<T>) coerced;
           }
@@ -118,16 +118,16 @@ public abstract class JavaInputBase implements GraphQLInput {
    */
   @Nullable
   @SuppressWarnings("unchecked")
-  protected <T extends JavaInputBase> T getInput(
+  protected <T extends InputBase> T getInput(
       String fieldName, Function<Map<String, Object>, T> constructor) {
     return HandleErrors.framework(
-        "JavaInputBase.getInput: " + fieldName,
+        "InputBase.getInput: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
           if (value == null) {
             return null;
           }
-          if (value instanceof JavaInputBase) {
+          if (value instanceof InputBase) {
             return (T) value;
           }
           if (value instanceof Map<?, ?> map) {
@@ -142,10 +142,10 @@ public abstract class JavaInputBase implements GraphQLInput {
    */
   @Nullable
   @SuppressWarnings("unchecked")
-  protected <T extends JavaInputBase> List<T> getInputList(
+  protected <T extends InputBase> List<T> getInputList(
       String fieldName, Function<Map<String, Object>, T> constructor) {
     return HandleErrors.framework(
-        "JavaInputBase.getInputList: " + fieldName,
+        "InputBase.getInputList: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
           if (value == null) {
@@ -156,7 +156,7 @@ public abstract class JavaInputBase implements GraphQLInput {
             for (Object element : list) {
               if (element == null) {
                 wrapped.add(null);
-              } else if (element instanceof JavaInputBase) {
+              } else if (element instanceof InputBase) {
                 wrapped.add((T) element);
               } else if (element instanceof Map<?, ?> map) {
                 wrapped.add(constructor.apply((Map<String, Object>) map));
@@ -178,7 +178,7 @@ public abstract class JavaInputBase implements GraphQLInput {
   @SuppressWarnings("unchecked")
   protected <E extends Enum<E>> E getEnum(String fieldName, Class<E> enumClass) {
     return HandleErrors.framework(
-        "JavaInputBase.getEnum: " + fieldName,
+        "InputBase.getEnum: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
           if (value == null) {
@@ -196,7 +196,7 @@ public abstract class JavaInputBase implements GraphQLInput {
   @SuppressWarnings("unchecked")
   protected <E extends Enum<E>> List<E> getEnumList(String fieldName, Class<E> enumClass) {
     return HandleErrors.framework(
-        "JavaInputBase.getEnumList: " + fieldName,
+        "InputBase.getEnumList: " + fieldName,
         () -> {
           Object value = inputData.get(fieldName);
           if (value == null) {

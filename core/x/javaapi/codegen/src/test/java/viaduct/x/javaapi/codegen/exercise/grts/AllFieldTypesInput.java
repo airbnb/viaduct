@@ -3,10 +3,10 @@ package viaduct.x.javaapi.codegen.exercise.grts;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import viaduct.java.api.internal.JavaInputBase;
+import viaduct.java.api.internal.InputBase;
 
 /** An input with all field types. */
-public class AllFieldTypesInput extends JavaInputBase {
+public class AllFieldTypesInput extends InputBase {
 
   public AllFieldTypesInput(Map<String, Object> data) {
     super(data);

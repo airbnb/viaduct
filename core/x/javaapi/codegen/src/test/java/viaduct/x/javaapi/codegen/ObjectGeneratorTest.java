@@ -26,7 +26,7 @@ class ObjectGeneratorTest {
 
     assertThat(generated)
         .contains("package com.example.types;")
-        .contains("public class User extends JavaObjectBase")
+        .contains("public class User extends ObjectBase")
         .doesNotContain("implements GraphQLObject")
         .contains("public String getId()")
         .contains("return fetchScalar(\"id\")")
@@ -74,7 +74,7 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertThat(generated)
-        .contains("public class Human extends JavaObjectBase implements Character, Node");
+        .contains("public class Human extends ObjectBase implements Character, Node");
   }
 
   @Test

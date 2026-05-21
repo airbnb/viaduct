@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.errors.FrameworkException
-import viaduct.java.api.internal.JavaObjectBase
+import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.types.GraphQLObject
 
 /**
@@ -13,13 +13,13 @@ import viaduct.java.api.types.GraphQLObject
  * and the engine's [EngineObjectData] format.
  */
 
-private val logger = LoggerFactory.getLogger("viaduct.java.runtime.bridge.JavaGRTConverter")
+private val logger = LoggerFactory.getLogger("viaduct.java.runtime.bridge.GRTConverter")
 
 /**
  * Converts a Java resolver result to a form the engine can process.
  *
  * Java GRT objects (implementing [GraphQLObject]) now wrap [EngineObjectData.Sync] directly
- * (via [JavaObjectBase]). This function extracts the backing data without reflection.
+ * (via [ObjectBase]). This function extracts the backing data without reflection.
  *
  * Lists are converted element-by-element. Scalars and nulls are returned as-is.
  */
@@ -29,14 +29,14 @@ internal fun convertResult(
 ): Any? {
     return when (result) {
         null -> null
-        is JavaObjectBase -> {
+        is ObjectBase -> {
             // Node reference path: pass NodeReference directly to the engine
             result.javaNodeReference?.let { return it }
             convertJavaGRTToEngineObjectData(result, graphqlSchema)
         }
         is GraphQLObject -> throw FrameworkException(
-            "Resolver returned a GraphQLObject that does not extend JavaObjectBase: ${result.javaClass.name}. " +
-                "All Java GRT object types must extend JavaObjectBase."
+            "Resolver returned a GraphQLObject that does not extend ObjectBase: ${result.javaClass.name}. " +
+                "All Java GRT object types must extend ObjectBase."
         )
         is List<*> -> result.map { convertResult(it, graphqlSchema) }
         else -> result
@@ -44,13 +44,13 @@ internal fun convertResult(
 }
 
 /**
- * Converts a [JavaObjectBase] GRT to [EngineObjectData.Sync].
+ * Converts a [ObjectBase] GRT to [EngineObjectData.Sync].
  *
  * For engine-path GRTs (created from engine data), returns the backing [EngineObjectData.Sync] directly.
  * For builder-path GRTs (created via builder), converts the backing map to [ResolvedEngineObjectData].
  */
 internal fun convertJavaGRTToEngineObjectData(
-    grt: JavaObjectBase,
+    grt: ObjectBase,
     graphqlSchema: GraphQLSchema?
 ): EngineObjectData.Sync? {
     // Engine-provided data: pass through directly (no copying needed)
@@ -80,13 +80,13 @@ private fun convertValue(
 ): Any? =
     when (value) {
         null -> null
-        is JavaObjectBase -> {
+        is ObjectBase -> {
             // Node reference path: pass NodeReference directly to the engine
             value.javaNodeReference ?: convertJavaGRTToEngineObjectData(value, schema)
         }
         is GraphQLObject -> throw FrameworkException(
-            "Nested value is a GraphQLObject that does not extend JavaObjectBase: ${value.javaClass.name}. " +
-                "All Java GRT object types must extend JavaObjectBase."
+            "Nested value is a GraphQLObject that does not extend ObjectBase: ${value.javaClass.name}. " +
+                "All Java GRT object types must extend ObjectBase."
         )
         is List<*> -> value.map { convertValue(it, schema) }
         else -> value

@@ -1,8 +1,8 @@
 package viaduct.java.runtime.example;
 
 import org.junit.jupiter.api.Test;
-import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder;
-import viaduct.java.runtime.bridge.JavaModuleBootstrapper;
+import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
+import viaduct.java.runtime.bridge.ModuleBootstrapper;
 import viaduct.java.runtime.example.resolverbases.QueryResolvers;
 import viaduct.java.runtime.test.JavaFeatureTestHelper;
 import viaduct.service.api.spi.CodeInjector;
@@ -15,7 +15,7 @@ import viaduct.service.api.spi.CodeInjector;
  * <ul>
  *   <li>Define a GraphQL schema
  *   <li>Create a Java resolver that returns CompletableFuture
- *   <li>Bootstrap the resolver using {@link JavaModuleBootstrapper} with automatic discovery
+ *   <li>Bootstrap the resolver using {@link ModuleBootstrapper} with automatic discovery
  *   <li>Execute a GraphQL query through the engine
  *   <li>Verify the response
  * </ul>
@@ -40,12 +40,12 @@ public class GreetingResolverE2ETest {
   @Test
   public void greetingResolverReturnsHelloWorldThroughEngine() {
     // Create the class finder that scans for resolver classes
-    DefaultJavaResolverClassFinder classFinder =
-        new DefaultJavaResolverClassFinder(TENANT_PACKAGE, GRT_PACKAGE);
+    DefaultResolverClassFinder classFinder =
+        new DefaultResolverClassFinder(TENANT_PACKAGE, GRT_PACKAGE);
 
     // Create the bootstrapper with automatic resolver discovery
-    JavaModuleBootstrapper bootstrapper =
-        new JavaModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
+    ModuleBootstrapper bootstrapper =
+        new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
 
     // Run the feature test
     JavaFeatureTestHelper.run(

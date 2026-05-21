@@ -23,7 +23,7 @@ class InputGeneratorTest {
 
     assertThat(generated)
         .contains("package com.example.types;")
-        .contains("public class CreateUserInput extends JavaInputBase")
+        .contains("public class CreateUserInput extends InputBase")
         .doesNotContain("implements GraphQLInput")
         .contains("public CreateUserInput(Map<String, Object> data)")
         .contains("private final Map<String, Object> data = new LinkedHashMap<>")

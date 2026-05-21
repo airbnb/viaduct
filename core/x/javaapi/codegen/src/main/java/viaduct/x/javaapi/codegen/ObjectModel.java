@@ -48,9 +48,9 @@ public record ObjectModel(
   /**
    * Returns true if the class declaration needs an implements clause.
    *
-   * <p>Since all generated object classes now extend {@code JavaObjectBase} (which implements
-   * {@code GraphQLObject}), an implements clause is only needed when there are additional
-   * interfaces (root type marker or user-defined interfaces).
+   * <p>Since all generated object classes now extend {@code ObjectBase} (which implements {@code
+   * GraphQLObject}), an implements clause is only needed when there are additional interfaces (root
+   * type marker or user-defined interfaces).
    */
   public boolean getHasImplementsClause() {
     return isRootType || (implementedInterfaces != null && !implementedInterfaces.isEmpty());
@@ -58,8 +58,8 @@ public record ObjectModel(
 
   /**
    * Returns the implements clause for the class declaration (without GraphQLObject, which is
-   * inherited from JavaObjectBase). For root types, uses the appropriate marker interface. For
-   * other types, uses any implemented interfaces only.
+   * inherited from ObjectBase). For root types, uses the appropriate marker interface. For other
+   * types, uses any implemented interfaces only.
    */
   public String getImplementsClause() {
     if (isRootType) {
@@ -74,7 +74,7 @@ public record ObjectModel(
     }
 
     // Non-root types: only list user-defined interfaces (GraphQLObject is inherited from
-    // JavaObjectBase)
+    // ObjectBase)
     if (implementedInterfaces == null || implementedInterfaces.isEmpty()) {
       return "";
     }

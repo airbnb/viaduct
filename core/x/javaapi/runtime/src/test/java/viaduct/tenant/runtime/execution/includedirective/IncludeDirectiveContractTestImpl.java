@@ -5,8 +5,8 @@ import java.util.concurrent.CompletableFuture;
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper;
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
 import viaduct.java.api.annotations.Resolver;
-import viaduct.java.runtime.bridge.DefaultJavaResolverClassFinder;
-import viaduct.java.runtime.bridge.JavaModuleBootstrapper;
+import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
+import viaduct.java.runtime.bridge.ModuleBootstrapper;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.CodeInjector;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
@@ -14,13 +14,13 @@ import viaduct.tenant.runtime.execution.includedirective.resolverbases.FooResolv
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.ThrowerResolvers;
 
-public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTest {
+public class IncludeDirectiveContractTestImpl extends IncludeDirectiveContractTest {
 
-  private final DefaultJavaResolverClassFinder classFinder =
-      new DefaultJavaResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
+  private final DefaultResolverClassFinder classFinder =
+      new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
 
-  private final JavaModuleBootstrapper bootstrapper =
-      new JavaModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
+  private final ModuleBootstrapper bootstrapper =
+      new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
 
   @Override
   protected TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>

@@ -12,7 +12,7 @@ import viaduct.java.api.types.CompositeOutput
 import viaduct.java.api.types.GRT
 import viaduct.java.api.types.Query
 
-class DefaultJavaResolverClassFinderTest {
+class DefaultResolverClassFinderTest {
     // Test fixtures - these are scanned by ClassGraphScanner when scanning the bridge package
 
     interface TestQuery : Query
@@ -35,7 +35,7 @@ class DefaultJavaResolverClassFinderTest {
     class TestGrt : GRT
 
     // ClassFinder configured to scan this test's package
-    private val classFinder = DefaultJavaResolverClassFinder(
+    private val classFinder = DefaultResolverClassFinder(
         tenantPackage = "viaduct.java.runtime.bridge",
         grtPackagePrefix = "viaduct.java.runtime.bridge"
     )
@@ -83,10 +83,10 @@ class DefaultJavaResolverClassFinderTest {
     @Test
     fun `grtClassForName loads GRT class by type name`() {
         // Use nested class name format for inner classes
-        val grtClass = classFinder.grtClassForName("DefaultJavaResolverClassFinderTest\$TestGrt")
+        val grtClass = classFinder.grtClassForName("DefaultResolverClassFinderTest\$TestGrt")
 
         assertThat(grtClass.name).isEqualTo(
-            "viaduct.java.runtime.bridge.DefaultJavaResolverClassFinderTest\$TestGrt"
+            "viaduct.java.runtime.bridge.DefaultResolverClassFinderTest\$TestGrt"
         )
     }
 
@@ -99,7 +99,7 @@ class DefaultJavaResolverClassFinderTest {
     @Test
     fun `grtClassForName throws IllegalArgumentException for non-GRT class`() {
         // Create a finder that points to a package with non-GRT classes
-        val badFinder = DefaultJavaResolverClassFinder(
+        val badFinder = DefaultResolverClassFinder(
             tenantPackage = "viaduct.java.runtime.bridge",
             grtPackagePrefix = "java.lang" // String exists but is not a GRT
         )

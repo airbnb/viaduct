@@ -22,7 +22,7 @@ import viaduct.java.api.types.GRT;
  * <h2>Example Usage</h2>
  *
  * <pre>{@code
- * JavaResolverClassFinder finder = new DefaultJavaResolverClassFinder(
+ * ResolverClassFinder finder = new DefaultResolverClassFinder(
  *     "com.mycompany.resolvers",
  *     "com.mycompany.grts"
  * );
@@ -35,7 +35,7 @@ import viaduct.java.api.types.GRT;
  *     finder.getSubTypesOf(UserProfilePictureBase.class);
  * }</pre>
  */
-public interface JavaResolverClassFinder {
+public interface ResolverClassFinder {
 
   /**
    * Discovers all {@code @ResolverFor} annotated classes in the configured package.

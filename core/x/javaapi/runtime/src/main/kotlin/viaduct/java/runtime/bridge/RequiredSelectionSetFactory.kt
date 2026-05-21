@@ -29,7 +29,7 @@ import viaduct.service.api.spi.CodeInjector
  * converts [Variable] annotations to [SelectionSetVariable] instances, and discovers nested
  * [VariablesProvider] classes (annotated with [Variables]) for dynamic variable provisioning.
  */
-class JavaRequiredSelectionSetFactory {
+class RequiredSelectionSetFactory {
     /**
      * Create a [RequiredSelectionSets] from the provided [Resolver] annotation.
      *
@@ -134,14 +134,14 @@ class JavaRequiredSelectionSetFactory {
 
     /**
      * Discover a nested [VariablesProvider] class on [resolverClass] (annotated with [Variables])
-     * and return a [JavaVariablesProviderExecutor] that adapts it to the engine SPI. Returns null
+     * and return a [VariablesProviderExecutorImpl] that adapts it to the engine SPI. Returns null
      * if no nested provider is found.
      */
     private fun mkVariablesProviderExecutor(
         resolverClass: Class<*>,
         injector: CodeInjector,
         argumentsClass: Class<out Arguments>?,
-    ): JavaVariablesProviderExecutor? {
+    ): VariablesProviderExecutorImpl? {
         val candidate = resolverClass.declaredClasses.firstOrNull { it.isAnnotationPresent(Variables::class.java) }
             ?: return null
         require(VariablesProvider::class.java.isAssignableFrom(candidate)) {
@@ -150,7 +150,7 @@ class JavaRequiredSelectionSetFactory {
         val variableNames = candidate.getAnnotation(Variables::class.java).asNameSet()
         @Suppress("UNCHECKED_CAST")
         val provider: Provider<out VariablesProvider<*>> = injector.getProvider(candidate) as Provider<out VariablesProvider<*>>
-        return JavaVariablesProviderExecutor(
+        return VariablesProviderExecutorImpl(
             variableNames = variableNames,
             provider = provider,
             argumentsClass = argumentsClass,

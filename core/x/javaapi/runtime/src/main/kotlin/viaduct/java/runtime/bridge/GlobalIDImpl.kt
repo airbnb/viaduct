@@ -2,7 +2,7 @@ package viaduct.java.runtime.bridge
 
 import viaduct.engine.api.NodeReference
 import viaduct.java.api.globalid.GlobalID
-import viaduct.java.api.internal.JavaObjectBase
+import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.java.api.types.NodeObject
@@ -15,7 +15,7 @@ import viaduct.service.api.spi.GlobalIDCodec
  * [SimpleNodeExecutionContext] for node resolver contexts and by [SimpleFieldExecutionContext]
  * for field resolvers that call [globalIDFor].
  */
-internal data class JavaGlobalID<T : NodeCompositeOutput>(
+internal data class GlobalIDImpl<T : NodeCompositeOutput>(
     private val type: Type<T>,
     private val internalId: String,
 ) : GlobalID<T> {
@@ -44,23 +44,23 @@ internal fun <T : NodeCompositeOutput> typeFromName(name: String): Type<T> =
 internal fun <T : NodeCompositeOutput> GlobalIDCodec.createGlobalID(
     typeName: String,
     internalID: String,
-): GlobalID<T> = JavaGlobalID(type = typeFromName(typeName), internalId = internalID)
+): GlobalID<T> = GlobalIDImpl(type = typeFromName(typeName), internalId = internalID)
 
 /** Creates a typed [GlobalID] from a [Type] and internal id, preserving the concrete GRT class. */
 internal fun <T : NodeCompositeOutput> GlobalIDCodec.createGlobalID(
     type: Type<T>,
     internalID: String,
-): GlobalID<T> = JavaGlobalID(type = type, internalId = internalID)
+): GlobalID<T> = GlobalIDImpl(type = type, internalId = internalID)
 
 /** Serializes a [GlobalID] to its string representation using this codec. */
 internal fun <T : NodeCompositeOutput> GlobalIDCodec.serializeGlobalID(globalID: GlobalID<T>): String = serialize(globalID.getType().name, globalID.getInternalID())
 
 /**
- * A minimal [JavaObjectBase] subclass wrapping a [NodeReference].
+ * A minimal [ObjectBase] subclass wrapping a [NodeReference].
  *
  * Used by [SimpleFieldExecutionContext.nodeRef] to return a node reference to the engine.
- * [JavaGRTConverter.convertResult] detects this via [JavaObjectBase.getJavaNodeReference] and
+ * [GRTConverter.convertResult] detects this via [ObjectBase.getJavaNodeReference] and
  * passes the [NodeReference] directly to the engine instead of converting to
  * [viaduct.engine.api.EngineObjectData.Sync].
  */
-internal class JavaNodeRefWrapper(nodeReference: NodeReference) : JavaObjectBase(nodeReference)
+internal class NodeRefWrapper(nodeReference: NodeReference) : ObjectBase(nodeReference)

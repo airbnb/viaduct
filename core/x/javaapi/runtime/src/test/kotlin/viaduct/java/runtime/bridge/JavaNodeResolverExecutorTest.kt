@@ -16,11 +16,11 @@ import viaduct.engine.api.NodeReference
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
-import viaduct.java.api.internal.JavaObjectBase
+import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.resolvers.FieldValue
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
-private class TestNodeGRT : JavaObjectBase {
+private class TestNodeGRT : ObjectBase {
     constructor(data: EngineObjectData.Sync) : super(data)
     constructor(ref: NodeReference) : super(ref)
 }
@@ -40,7 +40,7 @@ class JavaNodeResolverExecutorTest {
         runBlocking {
             val engineData = mockk<EngineObjectData.Sync>()
             val grt = TestNodeGRT(engineData)
-            val executor = JavaNodeResolverExecutor(
+            val executor = JavaNodeResolverExecutorImpl(
                 resolveFunction = { CompletableFuture.completedFuture(grt) },
                 typeName = "TestType",
                 resolverName = "TestNodeResolver",
@@ -60,7 +60,7 @@ class JavaNodeResolverExecutorTest {
             val serializedId = GlobalIDCodecDefault.serialize("TestType", "abc-456")
             var capturedInternalId: String? = null
 
-            val executor = JavaNodeResolverExecutor(
+            val executor = JavaNodeResolverExecutorImpl(
                 resolveFunction = { ctx ->
                     capturedInternalId = ctx.getId().getInternalID()
                     CompletableFuture.completedFuture(TestNodeGRT(mockk<EngineObjectData.Sync>()))
@@ -80,7 +80,7 @@ class JavaNodeResolverExecutorTest {
             val failedFuture = CompletableFuture<Any?>()
             failedFuture.completeExceptionally(RuntimeException("node fetch failed"))
 
-            val executor = JavaNodeResolverExecutor(
+            val executor = JavaNodeResolverExecutorImpl(
                 resolveFunction = { failedFuture },
                 typeName = "TestType",
                 resolverName = "TestNodeResolver",
@@ -98,7 +98,7 @@ class JavaNodeResolverExecutorTest {
 
     @Test
     fun `executor has correct metadata`() {
-        val executor = JavaNodeResolverExecutor(
+        val executor = JavaNodeResolverExecutorImpl(
             resolveFunction = { CompletableFuture.completedFuture(mockk<EngineObjectData.Sync>()) },
             typeName = "TestType",
             resolverName = "TestNodeResolver",
@@ -118,9 +118,9 @@ class JavaNodeResolverExecutorTest {
             val engineData1 = mockk<EngineObjectData.Sync>()
             val engineData2 = mockk<EngineObjectData.Sync>()
 
-            val executor = JavaNodeBatchResolverExecutor(
+            val executor = NodeBatchResolverExecutorImpl(
                 batchResolveFunction = { _ ->
-                    val results = listOf<FieldValue<JavaObjectBase>>(
+                    val results = listOf<FieldValue<ObjectBase>>(
                         FieldValue.ofValue(TestNodeGRT(engineData1)),
                         FieldValue.ofValue(TestNodeGRT(engineData2)),
                     )
@@ -147,9 +147,9 @@ class JavaNodeResolverExecutorTest {
             val id2 = GlobalIDCodecDefault.serialize("TestType", "2")
             val engineData1 = mockk<EngineObjectData.Sync>()
 
-            val executor = JavaNodeBatchResolverExecutor(
+            val executor = NodeBatchResolverExecutorImpl(
                 batchResolveFunction = { _ ->
-                    val results = listOf<FieldValue<JavaObjectBase>>(
+                    val results = listOf<FieldValue<ObjectBase>>(
                         FieldValue.ofValue(TestNodeGRT(engineData1)),
                         FieldValue.ofError(RuntimeException("boom")),
                     )
@@ -173,7 +173,7 @@ class JavaNodeResolverExecutorTest {
 
     @Test
     fun `batch executor has correct metadata`() {
-        val executor = JavaNodeBatchResolverExecutor(
+        val executor = NodeBatchResolverExecutorImpl(
             batchResolveFunction = { CompletableFuture.completedFuture(emptyList<FieldValue<*>>()) },
             typeName = "TestType",
             resolverName = "TestBatchNodeResolver",
@@ -187,7 +187,7 @@ class JavaNodeResolverExecutorTest {
     @Test
     fun `batch executor throws when result size mismatches selectors`(): Unit =
         runBlocking {
-            val executor = JavaNodeBatchResolverExecutor(
+            val executor = NodeBatchResolverExecutorImpl(
                 batchResolveFunction = { _ ->
                     CompletableFuture.completedFuture(emptyList<FieldValue<*>>())
                 },
@@ -203,7 +203,7 @@ class JavaNodeResolverExecutorTest {
     @Test
     fun `batch executor throws when result is not a List`(): Unit =
         runBlocking {
-            val executor = JavaNodeBatchResolverExecutor(
+            val executor = NodeBatchResolverExecutorImpl(
                 batchResolveFunction = { _ -> CompletableFuture.completedFuture("not-a-list") },
                 typeName = "TestType",
                 resolverName = "TestBatchNodeResolver",
@@ -215,9 +215,9 @@ class JavaNodeResolverExecutorTest {
         }
 
     @Test
-    fun `resolve fails with TenantUsageException when result is not a JavaObjectBase GRT`(): Unit =
+    fun `resolve fails with TenantUsageException when result is not a ObjectBase GRT`(): Unit =
         runBlocking {
-            val executor = JavaNodeResolverExecutor(
+            val executor = JavaNodeResolverExecutorImpl(
                 resolveFunction = { CompletableFuture.completedFuture("not-a-grt") },
                 typeName = "TestType",
                 resolverName = "TestNodeResolver",
@@ -236,7 +236,7 @@ class JavaNodeResolverExecutorTest {
         runBlocking {
             val nodeRef = mockk<NodeReference>()
             val grt = TestNodeGRT(nodeRef)
-            val executor = JavaNodeResolverExecutor(
+            val executor = JavaNodeResolverExecutorImpl(
                 resolveFunction = { CompletableFuture.completedFuture(grt) },
                 typeName = "TestType",
                 resolverName = "TestNodeResolver",
@@ -253,7 +253,7 @@ class JavaNodeResolverExecutorTest {
     @Test
     fun `batch executor fails per-element with TenantResolverException when entry is not a FieldValue`(): Unit =
         runBlocking {
-            val executor = JavaNodeBatchResolverExecutor(
+            val executor = NodeBatchResolverExecutorImpl(
                 batchResolveFunction = { _ ->
                     CompletableFuture.completedFuture(listOf("not-a-field-value"))
                 },
@@ -270,9 +270,9 @@ class JavaNodeResolverExecutorTest {
         }
 
     @Test
-    fun `batch executor fails per-element with TenantResolverException when entry value is not a JavaObjectBase`(): Unit =
+    fun `batch executor fails per-element with TenantResolverException when entry value is not a ObjectBase`(): Unit =
         runBlocking {
-            val executor = JavaNodeBatchResolverExecutor(
+            val executor = NodeBatchResolverExecutorImpl(
                 batchResolveFunction = { _ ->
                     val results = listOf<FieldValue<Any>>(FieldValue.ofValue("not-a-grt"))
                     CompletableFuture.completedFuture(results)
@@ -294,9 +294,9 @@ class JavaNodeResolverExecutorTest {
         runBlocking {
             val nodeRef = mockk<NodeReference>()
             val grt = TestNodeGRT(nodeRef)
-            val executor = JavaNodeBatchResolverExecutor(
+            val executor = NodeBatchResolverExecutorImpl(
                 batchResolveFunction = { _ ->
-                    val results = listOf<FieldValue<JavaObjectBase>>(FieldValue.ofValue(grt))
+                    val results = listOf<FieldValue<ObjectBase>>(FieldValue.ofValue(grt))
                     CompletableFuture.completedFuture(results)
                 },
                 typeName = "TestType",

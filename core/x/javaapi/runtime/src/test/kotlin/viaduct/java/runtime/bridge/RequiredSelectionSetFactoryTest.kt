@@ -14,9 +14,10 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.variableNames
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.Variable
+import viaduct.service.api.spi.CodeInjector
 
 /**
- * Tests for [JavaRequiredSelectionSetFactory] - verifies that the factory correctly
+ * Tests for [RequiredSelectionSetFactory] - verifies that the factory correctly
  * parses Java @Resolver annotations and creates RequiredSelectionSets.
  *
  * WHAT THESE TESTS ARE TESTING:
@@ -29,8 +30,8 @@ import viaduct.java.api.annotations.Variable
  * - VariablesProvider support (not implemented for Java API)
  * - Actual runtime variable resolution (tested via feature app tests)
  */
-class JavaRequiredSelectionSetFactoryTest {
-    private val factory = JavaRequiredSelectionSetFactory()
+class RequiredSelectionSetFactoryTest {
+    private val factory = RequiredSelectionSetFactory()
 
     private val defaultSchema = MockSchema.mk(
         """
@@ -68,8 +69,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Query",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertThat(result).isEqualTo(RequiredSelectionSets.empty())
@@ -88,8 +89,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Query",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertThat(result).isEqualTo(RequiredSelectionSets.empty())
@@ -109,8 +110,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Person",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertThat(result.objectSelections).isNotNull
@@ -129,8 +130,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Person",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertThat(result.objectSelections).isNotNull
@@ -151,8 +152,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Person",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertNull(result.objectSelections)
@@ -170,8 +171,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Person",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertThat(result.objectSelections).isNotNull
@@ -195,8 +196,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Query",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertThat(result.objectSelections).isNotNull
@@ -220,8 +221,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Query",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertThat(result.objectSelections).isNotNull
@@ -246,8 +247,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Query",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertThat(result.objectSelections).isNotNull
@@ -273,8 +274,8 @@ class JavaRequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 annotation = annotation,
                 resolverForType = "Query",
-                resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-                injector = viaduct.service.api.spi.CodeInjector.Naive,
+                resolverClass = RequiredSelectionSetFactoryTest::class.java,
+                injector = CodeInjector.Naive,
             )
         }
     }
@@ -297,8 +298,8 @@ class JavaRequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 annotation = annotation,
                 resolverForType = "Query",
-                resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-                injector = viaduct.service.api.spi.CodeInjector.Naive,
+                resolverClass = RequiredSelectionSetFactoryTest::class.java,
+                injector = CodeInjector.Naive,
             )
         }
 
@@ -325,8 +326,8 @@ class JavaRequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 annotation = annotation,
                 resolverForType = "Query",
-                resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-                injector = viaduct.service.api.spi.CodeInjector.Naive,
+                resolverClass = RequiredSelectionSetFactoryTest::class.java,
+                injector = CodeInjector.Naive,
             )
         }
     }
@@ -349,8 +350,8 @@ class JavaRequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 annotation = annotation,
                 resolverForType = "Query",
-                resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-                injector = viaduct.service.api.spi.CodeInjector.Naive,
+                resolverClass = RequiredSelectionSetFactoryTest::class.java,
+                injector = CodeInjector.Naive,
             )
         }
 
@@ -373,8 +374,8 @@ class JavaRequiredSelectionSetFactoryTest {
                 schema = defaultSchema,
                 annotation = annotation,
                 resolverForType = "Query",
-                resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-                injector = viaduct.service.api.spi.CodeInjector.Naive,
+                resolverClass = RequiredSelectionSetFactoryTest::class.java,
+                injector = CodeInjector.Naive,
             )
         }
 
@@ -402,8 +403,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Query",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertEquals(
@@ -430,8 +431,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Query",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         // Both selection sets should have the shared variable
@@ -454,8 +455,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Person",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         assertThat(result.objectSelections).isNotNull
@@ -474,8 +475,8 @@ class JavaRequiredSelectionSetFactoryTest {
             schema = defaultSchema,
             annotation = annotation,
             resolverForType = "Query",
-            resolverClass = JavaRequiredSelectionSetFactoryTest::class.java,
-            injector = viaduct.service.api.spi.CodeInjector.Naive,
+            resolverClass = RequiredSelectionSetFactoryTest::class.java,
+            injector = CodeInjector.Naive,
         )
 
         // Should return empty result without errors

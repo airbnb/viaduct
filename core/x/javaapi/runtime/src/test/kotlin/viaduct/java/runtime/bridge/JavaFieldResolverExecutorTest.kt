@@ -24,7 +24,7 @@ class JavaFieldResolverExecutorTest {
     fun `simple resolver returns expected value`(): Unit =
         runBlocking {
             // Wrap a simple resolve function in the bridge executor
-            val executor = JavaFieldResolverExecutor(
+            val executor = JavaFieldResolverExecutorImpl(
                 resolveFunction = { CompletableFuture.completedFuture("Hello, World!") },
                 resolverId = "Query.greeting",
                 resolverName = "GreetingResolver"
@@ -57,7 +57,7 @@ class JavaFieldResolverExecutorTest {
 
     @Test
     fun `executor has correct metadata`() {
-        val executor = JavaFieldResolverExecutor(
+        val executor = JavaFieldResolverExecutorImpl(
             resolveFunction = { CompletableFuture.completedFuture("test") },
             resolverId = "Query.greeting",
             resolverName = "GreetingResolver"
@@ -78,7 +78,7 @@ class JavaFieldResolverExecutorTest {
             val failedFuture = CompletableFuture<Any?>()
             failedFuture.completeExceptionally(RuntimeException("Test error"))
 
-            val executor = JavaFieldResolverExecutor(
+            val executor = JavaFieldResolverExecutorImpl(
                 resolveFunction = { failedFuture },
                 resolverId = "Query.failing",
                 resolverName = "FailingResolver"
@@ -113,7 +113,7 @@ class JavaFieldResolverExecutorTest {
     fun `resolver cancellation propagates instead of becoming failure result`() {
         val blockedFuture = CompletableFuture<Any?>()
 
-        val executor = JavaFieldResolverExecutor(
+        val executor = JavaFieldResolverExecutorImpl(
             resolveFunction = { blockedFuture },
             resolverId = "Query.cancelled",
             resolverName = "CancelledResolver"
@@ -151,7 +151,7 @@ class JavaFieldResolverExecutorTest {
             ExecutionAttribution.fromResolver("TestResolver")
         )
 
-        val executor = JavaFieldResolverExecutor(
+        val executor = JavaFieldResolverExecutorImpl(
             resolveFunction = { CompletableFuture.completedFuture("test") },
             resolverId = "Person.fullName",
             resolverName = "FullNameResolver",
@@ -173,7 +173,7 @@ class JavaFieldResolverExecutorTest {
             ExecutionAttribution.fromResolver("TestResolver")
         )
 
-        val executor = JavaFieldResolverExecutor(
+        val executor = JavaFieldResolverExecutorImpl(
             resolveFunction = { CompletableFuture.completedFuture("test") },
             resolverId = "Person.greeting",
             resolverName = "GreetingResolver",
@@ -204,7 +204,7 @@ class JavaFieldResolverExecutorTest {
             attribution
         )
 
-        val executor = JavaFieldResolverExecutor(
+        val executor = JavaFieldResolverExecutorImpl(
             resolveFunction = { CompletableFuture.completedFuture("test") },
             resolverId = "Person.computed",
             resolverName = "ComputedResolver",

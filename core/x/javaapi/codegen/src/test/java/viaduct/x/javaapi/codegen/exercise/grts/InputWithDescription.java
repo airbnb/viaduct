@@ -2,10 +2,10 @@ package viaduct.x.javaapi.codegen.exercise.grts;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import viaduct.java.api.internal.JavaInputBase;
+import viaduct.java.api.internal.InputBase;
 
 /** An input with a description to test Javadoc generation. */
-public class InputWithDescription extends JavaInputBase {
+public class InputWithDescription extends InputBase {
 
   public InputWithDescription(Map<String, Object> data) {
     super(data);

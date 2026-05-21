@@ -8,7 +8,7 @@ import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.java.api.context.VariablesProviderContext
 import viaduct.java.api.globalid.GlobalID
-import viaduct.java.api.internal.JavaInputBase
+import viaduct.java.api.internal.InputBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.variables.VariablesProvider
 
@@ -17,12 +17,12 @@ import viaduct.java.api.variables.VariablesProvider
  *
  * Each invocation creates a fresh provider instance via [provider], builds a typed
  * [VariablesProviderContext] from the engine's per-invocation data, and post-processes the
- * returned values so that [GlobalID] and [JavaInputBase] are normalised to the raw forms the
+ * returned values so that [GlobalID] and [InputBase] are normalised to the raw forms the
  * engine expects (serialized id strings and underlying input maps respectively).
  *
  * Mirrors the Kotlin equivalent [viaduct.tenant.runtime.execution.VariablesProviderExecutor].
  */
-class JavaVariablesProviderExecutor(
+class VariablesProviderExecutorImpl(
     override val variableNames: Set<String>,
     private val provider: Provider<out VariablesProvider<*>>,
     private val argumentsClass: Class<out Arguments>? = null,
@@ -49,7 +49,7 @@ class JavaVariablesProviderExecutor(
 
     /**
      * Convert tenant-returned values to the raw forms the engine expects, recursing through
-     * nested input maps and lists. [GlobalID] becomes a serialized id string and [JavaInputBase]
+     * nested input maps and lists. [GlobalID] becomes a serialized id string and [InputBase]
      * becomes its underlying map (with nested inputs likewise unwrapped).
      */
     private fun normalize(
@@ -59,7 +59,7 @@ class JavaVariablesProviderExecutor(
         when (value) {
             null -> null
             is GlobalID<*> -> context.globalIDCodec.serialize(value.type.name, value.internalID)
-            is JavaInputBase -> value.getInputData().mapValues { (_, v) -> normalize(v, context) }
+            is InputBase -> value.getInputData().mapValues { (_, v) -> normalize(v, context) }
             is Map<*, *> -> value.mapValues { (_, v) -> normalize(v, context) }
             is List<*> -> value.map { normalize(it, context) }
             else -> value
