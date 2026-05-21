@@ -60,9 +60,6 @@ include(":shared:codegen")
 include(":shared:mapping")
 include(":shared:errors")
 
-// Serve module (development server runtime)
-include(":service:serve")
-
 // Override the default group (com.airbnb.viaduct from settings.common) with path-based
 // subgroups. This must happen at settings time so that composite build auto-substitution
 // registers the correct group:name coordinates for each project.

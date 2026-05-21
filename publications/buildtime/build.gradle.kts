@@ -14,7 +14,6 @@ viaductPublishing {
 
 dependencies {
     api(libs.viaduct.tenant.codegen)
-    api(libs.viaduct.serve)
 }
 
 tasks.named<ShadowJar>("shadowJar") {

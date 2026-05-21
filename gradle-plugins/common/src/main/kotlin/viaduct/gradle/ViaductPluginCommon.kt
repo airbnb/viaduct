@@ -99,9 +99,6 @@ object ViaductPluginCommon {
      */
     fun Project.createOrGetJavaGRTCompileClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductJavaGRTCompileClasspath", "com.airbnb.viaduct:javaapi-api:$pluginVersion")
 
-    /** Serve tool classpath: resolves `com.airbnb.viaduct:buildtime`. */
-    fun Project.createOrGetServeClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductServeClasspath", "com.airbnb.viaduct:buildtime:$pluginVersion")
-
     fun Project.configureIdeaIntegration(generateGRTsTask: TaskProvider<*>) {
         pluginManager.apply("org.jetbrains.gradle.plugin.idea-ext")
 

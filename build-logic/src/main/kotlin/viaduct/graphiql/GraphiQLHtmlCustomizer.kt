@@ -154,6 +154,7 @@ query {
             plugins,
             visiblePlugin: explorer,
             defaultQuery,
+            storageKey,
             defaultEditorToolsVisibility: true,
           });
         }

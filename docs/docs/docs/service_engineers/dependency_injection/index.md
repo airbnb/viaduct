@@ -181,8 +181,6 @@ class MicronautViaductFactory : ViaductFactory {
 }
 ```
 
-See [Development Server](../../developers/serve/index.md) for full details.
-
 ## Summary
 
 | Scenario | Approach |
@@ -193,5 +191,4 @@ See [Development Server](../../developers/serve/index.md) for full details.
 
 ## See also
 
-- [Development Server](../../developers/serve/index.md)
 - [Multi-tenancy](../multi_tenancy/index.md)

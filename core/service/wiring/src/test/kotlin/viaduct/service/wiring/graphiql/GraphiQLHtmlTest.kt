@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 
 internal class GraphiQLHtmlTest {
     @Test
-    fun `graphiQLHtml returns non-empty HTML content`() {
+    fun `graphiQLHtml returns HTML containing graphiql`() {
         val html = graphiQLHtml()
         assertTrue(html.isNotBlank())
         assertTrue(html.contains("graphiql", ignoreCase = true))

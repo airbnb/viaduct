@@ -4,7 +4,6 @@ import centralSchemaDirectory
 import grtClassesDirectory
 import javaGrtClassesDirectory
 import javaGrtSourcesDirectory
-import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.attributes.Category
@@ -20,7 +19,6 @@ import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaGRTCompileClasspath
-import viaduct.gradle.ViaductPluginCommon.createOrGetServeClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
@@ -33,7 +31,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                 "Apply 'com.airbnb.viaduct.application-gradle-plugin' only to the root project."
             }
 
-            val appExt = extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
+            extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
 
             val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
@@ -58,8 +56,6 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             // (main + tests) can reference generated types. Java-specific root projects can
             // depend on generateViaductJavaGRTs explicitly.
             this.dependencies.add("api", files(kotlinGRTJar.flatMap { it.archiveFile }))
-
-            setupServeTask(appExt, kotlinGRTJar, javaGRTJar)
         }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
@@ -198,78 +194,6 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                 )
             }
             outgoing.artifact(artifact)
-        }
-    }
-
-    private fun Project.setupServeTask(
-        appExt: ViaductApplicationExtension,
-        kotlinGRTJar: TaskProvider<Jar>,
-        javaGRTJar: TaskProvider<Jar>
-    ) {
-        // Capture configuration-time values for use in task (configuration cache safe)
-        val isContinuousMode = gradle.startParameter.isContinuous
-        // Allow property overrides, but default to extension values
-        val servePortProp = project.findProperty("serve.port")?.toString()
-        val servePort = if (servePortProp != null) {
-            servePortProp.toIntOrNull()
-                ?: throw GradleException(
-                    "Invalid value '$servePortProp' for project property 'serve.port': expected an integer " +
-                        "(e.g. -Pserve.port=8080)."
-                )
-        } else {
-            appExt.servePort.get()
-        }
-        val serveHost = project.findProperty("serve.host")?.toString() ?: appExt.serveHost.get()
-
-        // Serve is an external tool artifact resolved explicitly by version.
-        // Gradle resolves viaduct-serve and all transitive deps (Ktor, Jackson, ClassGraph, Logback).
-        // In composite builds Gradle auto-substitutes with the local serve project.
-        val serveClasspath = createOrGetServeClasspath(
-            pluginVersion(ViaductApplicationPlugin::class.java)
-        )
-
-        tasks.register<org.gradle.api.tasks.JavaExec>("serve") {
-            group = "viaduct"
-            description = "Start the Viaduct development server with GraphiQL IDE. Use: ./gradlew --continuous serve"
-
-            // Ensure GRTs are generated and classes are compiled before starting
-            dependsOn(kotlinGRTJar, javaGRTJar)
-            dependsOn("classes")
-
-            mainClass.set("viaduct.serve.ServeServerKt")
-
-            // Configure classpath to include:
-            // 1. Serve runtime (viaduct-serve + transitive Ktor/Jackson/etc.)
-            // 2. App classes
-            // 3. Runtime classpath (app dependencies)
-            classpath = files(
-                serveClasspath,
-                project.extensions.getByType(org.gradle.api.tasks.SourceSetContainer::class.java)
-                    .getByName("main").output,
-                configurations.getByName("runtimeClasspath")
-            )
-
-            // Pass system properties for port, host, and package prefix from extension
-            systemProperty("serve.port", servePort)
-            systemProperty("serve.host", serveHost)
-
-            // Use modulePackagePrefix from extension if set
-            appExt.modulePackagePrefix.orNull?.let { packagePrefix ->
-                systemProperty("serve.packagePrefix", packagePrefix)
-            }
-
-            // Enable standard I/O
-            standardInput = System.`in`
-
-            doFirst {
-                logger.lifecycle("Starting Viaduct Development Server...")
-                logger.lifecycle("GraphiQL IDE will be available at: http://$serveHost:$servePort/graphiql")
-                if (!isContinuousMode) {
-                    logger.lifecycle("")
-                    logger.lifecycle("TIP: Run with --continuous flag for automatic reload on code changes:")
-                    logger.lifecycle("     ./gradlew --continuous serve")
-                }
-            }
         }
     }
 
