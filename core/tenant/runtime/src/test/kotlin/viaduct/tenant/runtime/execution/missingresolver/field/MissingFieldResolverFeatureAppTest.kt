@@ -6,7 +6,7 @@ import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.missingresolver.field.resolverbases.QueryResolvers
 
 /**
- * Tests that FeatureAppTestBase validates resolver completeness at build time,
+ * Tests that MissingFieldResolverContractTest validates resolver completeness at build time,
  * producing a clear error message when a @resolver-declared field
  * is missing its @Resolver implementation class.
  */

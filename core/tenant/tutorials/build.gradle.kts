@@ -1,13 +1,10 @@
 plugins {
     id("conventions.kotlin")
-    id("test-feature-app")
     id("feature-app-contracts")
     id("feature-app-contract-tests")
     id("conventions.kotlin-static-analysis")
     `java-test-fixtures`
 }
-
-viaductFeatureApp {}
 
 viaductFeatureAppContracts {
     contractsFrom(":tenant:tutorials")

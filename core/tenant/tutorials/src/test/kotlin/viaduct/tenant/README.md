@@ -5,8 +5,8 @@ A comprehensive, hands-on tutorial series that teaches you how to build GraphQL 
 
 ## Tutorial Notes
 
--  Function: createGlobalIdString is a TEST-ONLY utility method provided by FeatureAppTestBase.
--  Function: getInternalId is a TEST-ONLY utility method provided by FeatureAppTestBase.
+-  Function: createGlobalIdString is a TEST-ONLY utility method provided by KotlinFeatureAppTestContractBase.
+-  Function: getInternalId is a TEST-ONLY utility method provided by KotlinFeatureAppTestContractBase.
 -  Each test scenario builds a new instance of viaduct.
 
 ## Prerequisites

@@ -7,7 +7,6 @@ plugins {
     id("conventions.dokka")
     id("conventions.bcv-api")
     id("conventions.viaduct-publishing")
-    id("test-feature-app")
     id("feature-app-contracts")
     id("feature-app-contract-tests")
     id("me.champeau.jmh").version("0.7.3")
@@ -17,8 +16,6 @@ viaductPublishing {
     name.set("Tenant API")
     description.set("Viaduct Tenant API")
 }
-
-viaductFeatureApp {}
 
 viaductFeatureAppContracts {
     contractsFrom(":tenant:api")

@@ -56,7 +56,7 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.shared.graphql))
     testImplementation(libs.graphql.java)
 
-    // Dependencies for JavaFeatureAppTestBase
+    // Dependencies for JavaFeatureAppTestContractBase
     testImplementation(libs.viaduct.service.runtime)
     testImplementation(libs.viaduct.service.wiring)
     testImplementation(testFixtures(libs.viaduct.service.api))
