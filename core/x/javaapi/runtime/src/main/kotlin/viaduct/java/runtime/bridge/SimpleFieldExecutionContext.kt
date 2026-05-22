@@ -126,7 +126,7 @@ class SimpleFieldExecutionContext(
                 val selectionSet = engineCtx.engineSelectionSetFactory.engineSelectionSet(
                     queryTypeName,
                     selections,
-                    variables
+                    JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(variables, engineCtx)
                 )
                 val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
                 @Suppress("UNCHECKED_CAST")
@@ -153,7 +153,7 @@ class SimpleFieldExecutionContext(
                 val selectionSet = engineCtx.engineSelectionSetFactory.engineSelectionSet(
                     mutationType.name,
                     selections,
-                    variables
+                    JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(variables, engineCtx)
                 )
                 val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.MUTATION)
                 @Suppress("UNCHECKED_CAST")
