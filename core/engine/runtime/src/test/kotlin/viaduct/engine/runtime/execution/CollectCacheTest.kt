@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.hasSize
 import strikt.assertions.isEqualTo
+import strikt.assertions.isNotSameInstanceAs
 import strikt.assertions.isSameInstanceAs
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.ViaductSchema
@@ -82,5 +83,96 @@ class CollectCacheTest {
 
         val fooResultAgain = cache.collect(schema, fooSelectionSet, emptyVars, fooType, plan.fragments)
         expectThat(fooResultAgain).isSameInstanceAs(fooResult)
+    }
+
+    @Test
+    fun `collect keys nested selection sets on enclosing directive variables but ignores enclosing argument variables`() {
+        val schema = """
+            type Query { user(id: ID): User }
+            type User { id: ID, name: String }
+        """.trimIndent().asSchema
+        val plan = buildPlan(
+            """
+                query(${'$'}includeUser: Boolean!, ${'$'}id: ID) {
+                    user(id: ${'$'}id) @include(if: ${'$'}includeUser) {
+                        id
+                        name
+                    }
+                }
+            """.trimIndent(),
+            ViaductSchema(schema)
+        )
+        val userField = plan.selectionSet.selections.single() as QueryPlan.Field
+        val userSelectionSet = userField.selectionSet!!
+        val userType = schema.getObjectType("User")
+        val cache = CollectCache()
+
+        val includeUserResult =
+            cache.collect(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to true, "id" to "1")), userType, plan.fragments)
+        val sameDirectiveDifferentArgumentResult =
+            cache.collect(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to true, "id" to "2")), userType, plan.fragments)
+        val skipUserResult =
+            cache.collect(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to false, "id" to "1")), userType, plan.fragments)
+
+        expectThat(includeUserResult.selections.map { (it as QueryPlan.CollectedField).responseKey }).isEqualTo(listOf("id", "name"))
+        expectThat(sameDirectiveDifferentArgumentResult).isSameInstanceAs(includeUserResult)
+        expectThat(skipUserResult).isNotSameInstanceAs(includeUserResult)
+        expectThat(skipUserResult.selections).hasSize(0)
+    }
+
+    @Test
+    fun `collect keys on directive variables but ignores argument-only variables`() {
+        val schema = "type Query { x(id: ID): Int, y: Int }".asSchema
+        val plan = buildPlan("{ x(id: ${'$'}id) @include(if: ${'$'}directive), y @skip(if: ${'$'}directive) }", ViaductSchema(schema))
+        val cache = CollectCache()
+
+        val firstResult =
+            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to true, "id" to "1")), schema.queryType, plan.fragments)
+        val sameDirectiveDifferentArgumentResult =
+            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to true, "id" to "2")), schema.queryType, plan.fragments)
+        val differentDirectiveResult =
+            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to false, "id" to "1")), schema.queryType, plan.fragments)
+
+        expectThat((firstResult.selections.single() as QueryPlan.CollectedField).responseKey).isEqualTo("x")
+        expectThat(sameDirectiveDifferentArgumentResult).isSameInstanceAs(firstResult)
+        expectThat(differentDirectiveResult).isNotSameInstanceAs(firstResult)
+        expectThat((differentDirectiveResult.selections.single() as QueryPlan.CollectedField).responseKey).isEqualTo("y")
+    }
+
+    @Test
+    fun `collect ignores directive variables in type-pruned fragments`() {
+        val schema = """
+            interface Node { id: ID }
+            type User implements Node { id: ID, name: String }
+            type Listing implements Node { id: ID, title: String }
+            type Query { node: Node }
+        """.trimIndent().asSchema
+        val plan = buildPlan(
+            """
+                query {
+                    node {
+                        id
+                        ...UserFields
+                    }
+                }
+
+                fragment UserFields on User {
+                    name @include(if: ${'$'}includeName)
+                }
+            """.trimIndent(),
+            ViaductSchema(schema)
+        )
+        val nodeField = plan.selectionSet.selections.single() as QueryPlan.Field
+        val nodeSelectionSet = nodeField.selectionSet!!
+        val listingType = schema.getObjectType("Listing")
+        val cache = CollectCache()
+
+        val includeNameResult =
+            cache.collect(schema, nodeSelectionSet, CoercedVariables.of(mapOf("includeName" to true)), listingType, plan.fragments)
+        val skipNameResult =
+            cache.collect(schema, nodeSelectionSet, CoercedVariables.of(mapOf("includeName" to false)), listingType, plan.fragments)
+
+        expectThat((includeNameResult.selections.single() as QueryPlan.CollectedField).responseKey).isEqualTo("id")
+        expectThat(skipNameResult).isSameInstanceAs(includeNameResult)
     }
 }

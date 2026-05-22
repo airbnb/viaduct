@@ -9,6 +9,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
@@ -342,6 +343,73 @@ class RequiredSelectionsTest {
             runQuery("{userGreeting}")
                 .assertJson("""{"data": {"userGreeting": "Hello, Alice!"}}""")
         }
+
+    @Test
+    fun `objectSelections conditional directives honor per-item variables`() {
+        val selectedValueCount = AtomicInteger()
+
+        MockLegacyTenantModuleBootstrapper(
+            """
+            extend type Query {
+                items: [Item!]!
+            }
+
+            type Item {
+                includeSelectedValue: Boolean!
+                selectedValue: String
+                summary: String
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "items") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        listOf(
+                            createEngineObjectData(
+                                schema.schema.getObjectType("Item"),
+                                mapOf("includeSelectedValue" to true)
+                            ),
+                            createEngineObjectData(
+                                schema.schema.getObjectType("Item"),
+                                mapOf("includeSelectedValue" to false)
+                            )
+                        )
+                    }
+                }
+            }
+            field("Item" to "selectedValue") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        selectedValueCount.incrementAndGet()
+                        "selected"
+                    }
+                }
+            }
+            field("Item" to "summary") {
+                resolver {
+                    objectSelections("includeSelectedValue selectedValue @include(if: ${'$'}includeSelectedValue)") {
+                        variables("includeSelectedValue", rss = createRSS("Item", "includeSelectedValue")) { resolveCtx, _ ->
+                            mapOf(
+                                "includeSelectedValue" to resolveCtx.objectData.fetchAs<Boolean>("includeSelectedValue")
+                            )
+                        }
+                    }
+                    fn { _, obj, _, _, _ ->
+                        if (obj.fetchAs<Boolean>("includeSelectedValue")) {
+                            obj.fetchAs<String>("selectedValue")
+                        } else {
+                            "skipped"
+                        }
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ items { summary } }")
+                .assertJson("""{"data": {"items": [{"summary": "selected"}, {"summary": "skipped"}]}}""")
+        }
+
+        assertEquals(1, selectedValueCount.get())
+    }
 
     @Test
     fun `resolve field with queryValueFragment - with aliases`() =
