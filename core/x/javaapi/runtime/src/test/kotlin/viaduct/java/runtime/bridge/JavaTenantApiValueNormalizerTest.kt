@@ -1,10 +1,24 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.java.runtime.bridge
 
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.Codepoint
+import io.kotest.property.arbitrary.alphanumeric
+import io.kotest.property.arbitrary.arbitrary
+import io.kotest.property.arbitrary.bind
+import io.kotest.property.arbitrary.boolean
+import io.kotest.property.arbitrary.int
+import io.kotest.property.arbitrary.string
+import io.kotest.property.checkAll
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import viaduct.arbitrary.common.NormalizedValue
+import viaduct.arbitrary.common.normalizedVariables
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.internal.InputBase
@@ -65,6 +79,15 @@ class JavaTenantApiValueNormalizerTest {
     }
 
     @Test
+    fun `normalizes arbitrary nested Java Tenant API values for engine variables`(): Unit =
+        runBlocking {
+            Arb.normalizedVariables(javaTenantApiLeaf()).checkAll { case ->
+                assertThat(JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(case.raw, engineContext))
+                    .isEqualTo(case.normalized)
+            }
+        }
+
+    @Test
     fun `rejects unsupported Java Tenant API GRT values`() {
         assertThatThrownBy {
             JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(
@@ -75,13 +98,34 @@ class JavaTenantApiValueNormalizerTest {
             .hasMessageContaining("Unsupported Java Tenant API value in engine variables")
     }
 
+    private fun javaTenantApiLeaf(): Arb<NormalizedValue> =
+        arbitrary {
+            val kind = Arb.int(0..5).bind()
+            val text = Arb.string(8, Codepoint.alphanumeric()).bind()
+            val number = Arb.int().bind()
+            val bool = Arb.boolean().bind()
+
+            when (kind) {
+                0 -> NormalizedValue(null, null)
+                1 -> NormalizedValue(text, text)
+                2 -> NormalizedValue(number, number)
+                3 -> NormalizedValue(bool, bool)
+                4 -> NormalizedValue(TestStatus.ACTIVE, "ACTIVE")
+                else -> NormalizedValue(
+                    GlobalIDImpl(type = nodeType("User"), internalId = text),
+                    GlobalIDCodecDefault.serialize("User", text),
+                )
+            }
+        }
+
     private enum class TestStatus : GraphQLEnum {
         ACTIVE,
     }
 
+    @Suppress("UNCHECKED_CAST")
     private class TestJavaInput(
-        inputData: Map<String, Any>,
-    ) : InputBase(inputData)
+        inputData: Map<String, Any?>,
+    ) : InputBase(inputData as Map<String, Any>)
 
     private fun nodeType(name: String): Type<NodeObject> =
         object : Type<NodeObject> {
