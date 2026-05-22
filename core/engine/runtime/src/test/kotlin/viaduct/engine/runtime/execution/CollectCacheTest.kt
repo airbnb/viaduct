@@ -140,6 +140,38 @@ class CollectCacheTest {
     }
 
     @Test
+    fun `collect keys on directive variables from fragment spreads and fragment bodies`() {
+        val schema = "type Query { x: Int, y: Int }".asSchema
+        val plan = buildPlan(
+            """
+                query(${'$'}spread: Boolean!, ${'$'}field: Boolean!) {
+                    y
+                    ...F @skip(if: ${'$'}spread)
+                }
+
+                fragment F on Query {
+                    x @include(if: ${'$'}field)
+                }
+            """.trimIndent(),
+            ViaductSchema(schema)
+        )
+        val cache = CollectCache()
+
+        val includeFragmentResult =
+            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to false, "field" to true)), schema.queryType, plan.fragments)
+        val excludeFragmentFieldResult =
+            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to false, "field" to false)), schema.queryType, plan.fragments)
+        val skipFragmentResult =
+            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to true, "field" to true)), schema.queryType, plan.fragments)
+
+        expectThat(includeFragmentResult.selections.map { (it as QueryPlan.CollectedField).responseKey }).isEqualTo(listOf("y", "x"))
+        expectThat(excludeFragmentFieldResult).isNotSameInstanceAs(includeFragmentResult)
+        expectThat(excludeFragmentFieldResult.selections.map { (it as QueryPlan.CollectedField).responseKey }).isEqualTo(listOf("y"))
+        expectThat(skipFragmentResult).isNotSameInstanceAs(includeFragmentResult)
+        expectThat(skipFragmentResult.selections.map { (it as QueryPlan.CollectedField).responseKey }).isEqualTo(listOf("y"))
+    }
+
+    @Test
     fun `collect ignores directive variables in type-pruned fragments`() {
         val schema = """
             interface Node { id: ID }

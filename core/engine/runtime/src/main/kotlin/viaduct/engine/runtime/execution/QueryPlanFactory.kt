@@ -1,8 +1,9 @@
 package viaduct.engine.runtime.execution
 
 import com.github.benmanes.caffeine.cache.Caffeine
-import graphql.language.AbstractNode
+import graphql.language.Argument as GJArgument
 import graphql.language.AstPrinter
+import graphql.language.Directive as GJDirective
 import graphql.language.Document
 import graphql.language.Field as GJField
 import graphql.language.FragmentDefinition as GJFragmentDefinition
@@ -31,6 +32,8 @@ import viaduct.engine.api.gj
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
 import viaduct.engine.runtime.execution.QueryPlan.Field
+import viaduct.engine.runtime.execution.QueryPlan.SelectionVariableReference
+import viaduct.engine.runtime.execution.QueryPlan.SelectionVariableReference.Kind
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.asNamedElement
@@ -308,6 +311,10 @@ private class QueryPlanBuilder(
         val parentType: GraphQLCompositeType,
         val constraints: Constraints,
         val childPlans: List<QueryPlan>,
+        // @skip/@include variable references from the selection that owns this selection set.
+        // Field collection later sees only the child SelectionSet, so these boundary facts need to
+        // travel with it.
+        val selectionSetEnclosingVariableReferences: List<SelectionVariableReference> = emptyList(),
         val resolverCoordinate: Coordinate? = null
     )
 
@@ -357,18 +364,20 @@ private class QueryPlanBuilder(
     private fun buildState(
         selectionSet: GJSelectionSet,
         state: State,
-    ): State =
-        with(state) {
-            selectionSet.selections
-                .fold(state) { acc, sel ->
-                    when (sel) {
-                        is GJField -> processField(sel, acc)
-                        is GJInlineFragment -> processInlineFragment(sel, acc)
-                        is GJFragmentSpread -> processFragmentSpread(sel, acc)
-                        else -> throw IllegalStateException("Unexpected selection type: ${sel.javaClass}")
-                    }
+    ): State {
+        val result = selectionSet.selections
+            .fold(state) { acc, sel ->
+                when (sel) {
+                    is GJField -> processField(sel, acc)
+                    is GJInlineFragment -> processInlineFragment(sel, acc)
+                    is GJFragmentSpread -> processFragmentSpread(sel, acc)
+                    else -> throw IllegalStateException("Unexpected selection type: ${sel.javaClass}")
                 }
-        }
+            }
+        return result.copy(
+            selectionSet = result.selectionSet.withEnclosingVariableReferences(state.selectionSetEnclosingVariableReferences)
+        )
+    }
 
     private fun buildRequiredSelectionSetPlans(
         possibleParentTypes: MaskedSet<GraphQLObjectType>,
@@ -415,16 +424,61 @@ private class QueryPlanBuilder(
         return requiredSelectionSets.mapNotNull { rss -> buildRssPlan(rss) }
     }
 
-    /** Build a QueryPlan for each variable referenced by a node */
-    private fun buildVariablesPlans(selection: AbstractNode<*>): List<QueryPlan> {
-        val varRefs = selection.collectVariableReferences()
-        if (varRefs.isEmpty()) return emptyList()
+    /**
+     * Build QueryPlans for variable references owned by the current selection.
+     *
+     * The builder already recurses into field subselections and fragment bodies, so this must not
+     * walk a whole selection subtree. Nested variable child plans flow back through [State.childPlans].
+     */
+    private fun buildVariablesPlans(variableReferences: Set<String>): List<QueryPlan> {
+        if (variableReferences.isEmpty()) return emptyList()
 
-        return varRefs.mapNotNull { varRef ->
+        return variableReferences.mapNotNull { varRef ->
             val vResolver = variableToResolver[varRef] ?: return@mapNotNull null
             // if the variable resolver has a required selection set, build a QueryPlan for that selection set
             vResolver.requiredSelectionSet?.let { rss -> buildRssPlan(rss) }
         }
+    }
+
+    private data class SelectionVariableReferences(
+        val references: List<SelectionVariableReference>,
+        val variablePlanNames: Set<String>,
+        val collectionVariableReferences: List<SelectionVariableReference>
+    )
+
+    private fun GJField.variableReferences(): SelectionVariableReferences = variableReferencesIn(arguments, directives)
+
+    private fun GJInlineFragment.variableReferences(): SelectionVariableReferences = variableReferencesIn(directives = directives)
+
+    private fun GJFragmentSpread.variableReferences(): SelectionVariableReferences = variableReferencesIn(directives = directives)
+
+    private fun GJFragmentDefinition.variableReferences(): SelectionVariableReferences = variableReferencesIn(directives = directives)
+
+    private fun variableReferencesIn(
+        arguments: List<GJArgument> = emptyList(),
+        directives: List<GJDirective> = emptyList()
+    ): SelectionVariableReferences {
+        val references = linkedSetOf<SelectionVariableReference>()
+
+        arguments.forEach { argument ->
+            argument.collectVariableReferences().forEach { variableName ->
+                references += SelectionVariableReference(variableName, Kind.FIELD_ARGUMENT)
+            }
+        }
+        directives.forEach { directive ->
+            val conditionalVariableName = Constraints.conditionalDirectiveVariableName(directive)
+            when {
+                conditionalVariableName != null -> references += SelectionVariableReference(conditionalVariableName, Kind.CONDITIONAL_DIRECTIVE)
+                Constraints.isConditionalDirective(directive) -> Unit
+                else -> directive.collectVariableReferences().forEach { variableName ->
+                    references += SelectionVariableReference(variableName, Kind.DIRECTIVE)
+                }
+            }
+        }
+
+        val variablePlanNames = references.mapTo(linkedSetOf()) { it.name }
+        val collectionVariableReferences = references.filter { it.kind == Kind.CONDITIONAL_DIRECTIVE }
+        return SelectionVariableReferences(references.toList(), variablePlanNames, collectionVariableReferences)
     }
 
     private fun buildRssPlan(rss: RequiredSelectionSet): QueryPlan? = buildRssPlan(parameters, rssBuildContext, rss)
@@ -453,8 +507,9 @@ private class QueryPlanBuilder(
                 return state
             }
 
+            val variableReferences = sel.variableReferences()
             val fieldChildPlans = buildRequiredSelectionSetPlans(possibleParentTypes, sel)
-            val planChildPlans = buildVariablesPlans(sel)
+            val planChildPlans = buildVariablesPlans(variableReferences.variablePlanNames)
             val fieldTypeChildPlans = buildFieldTypeChildPlans(fieldType)
 
             val resolverCoordinate = if (parameters.dispatcherRegistry.getFieldResolverDispatcher(parentType.name, sel.name) != null) {
@@ -472,10 +527,12 @@ private class QueryPlanBuilder(
                 )
                 buildState(
                     ss,
-                    state.copy(
+                    State(
                         selectionSet = QueryPlan.SelectionSet.empty,
                         parentType = fieldType,
                         constraints = subSelectionConstraints,
+                        childPlans = emptyList(),
+                        selectionSetEnclosingVariableReferences = variableReferences.collectionVariableReferences,
                         resolverCoordinate = resolverCoordinate
                     ),
                 )
@@ -488,12 +545,13 @@ private class QueryPlanBuilder(
                 selectionSet = subSelectionState?.selectionSet,
                 childPlans = fieldChildPlans,
                 fieldTypeChildPlans = fieldTypeChildPlans,
-                metadata = if (resolverCoordinate != null) QueryPlan.FieldMetadata(resolverCoordinate) else QueryPlan.FieldMetadata.empty
+                metadata = if (resolverCoordinate != null) QueryPlan.FieldMetadata(resolverCoordinate) else QueryPlan.FieldMetadata.empty,
+                variableReferences = variableReferences.references
             )
 
             state.copy(
                 selectionSet = selectionSet + field,
-                childPlans = (childPlans + planChildPlans).distinct()
+                childPlans = (childPlans + planChildPlans + (subSelectionState?.childPlans ?: emptyList())).distinct()
             )
         }
 
@@ -517,17 +575,23 @@ private class QueryPlanBuilder(
                 return state
             }
 
+            val variableReferences = sel.variableReferences()
+            val fragmentSelectionSetEnclosingReferences = selectionSetEnclosingVariableReferences + variableReferences.collectionVariableReferences
             val fragmentResult = processFragment(
                 sel.selectionSet,
                 typeConditionName,
-                state.copy(
+                State(
                     selectionSet = QueryPlan.SelectionSet.empty,
-                    constraints = newConstraints
+                    parentType = state.parentType,
+                    constraints = newConstraints,
+                    childPlans = emptyList(),
+                    selectionSetEnclosingVariableReferences = fragmentSelectionSetEnclosingReferences,
+                    resolverCoordinate = resolverCoordinate
                 ),
             )
 
-            val inlineFragment = QueryPlan.InlineFragment(fragmentResult.selectionSet, newConstraints)
-            val variablesPlans = buildVariablesPlans(sel)
+            val inlineFragment = QueryPlan.InlineFragment(fragmentResult.selectionSet, newConstraints, variableReferences.references)
+            val variablesPlans = buildVariablesPlans(variableReferences.variablePlanNames)
             copy(
                 selectionSet = selectionSet + inlineFragment,
                 childPlans = (childPlans + variablesPlans + fragmentResult.childPlans).distinct()
@@ -544,6 +608,7 @@ private class QueryPlanBuilder(
             val fragType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(gjdef.typeCondition.name)
 
             if (name !in fragments) {
+                val fragmentVariableReferences = gjdef.variableReferences()
                 val fragState = buildState(
                     gjdef.selectionSet,
                     State(
@@ -553,10 +618,17 @@ private class QueryPlanBuilder(
                         childPlans = emptyList()
                     ),
                 )
-                fragments[name] = QueryPlan.FragmentDefinition(fragState.selectionSet, gjdef, fragState.childPlans)
-                fragState.childPlans
+                val fragmentChildPlans =
+                    (buildVariablesPlans(fragmentVariableReferences.variablePlanNames) + fragState.childPlans).distinct()
+                fragments[name] = QueryPlan.FragmentDefinition(
+                    fragState.selectionSet,
+                    gjdef,
+                    fragmentChildPlans,
+                    fragmentVariableReferences.references
+                )
+                fragmentChildPlans
             }
-            val fragChildPlans = fragments[name]!!.childPlans
+            val fragmentDefinition = fragments.getValue(name)
 
             val newConstraints = constraints
                 .withDirectives(sel.directives)
@@ -569,11 +641,12 @@ private class QueryPlanBuilder(
                 return state
             }
 
-            val variablesPlans = buildVariablesPlans(sel)
+            val variableReferences = sel.variableReferences()
+            val variablesPlans = buildVariablesPlans(variableReferences.variablePlanNames)
 
             copy(
-                selectionSet = selectionSet + QueryPlan.FragmentSpread(name, newConstraints),
-                childPlans = (childPlans + variablesPlans + fragChildPlans).distinct()
+                selectionSet = selectionSet + QueryPlan.FragmentSpread(name, newConstraints, variableReferences.references),
+                childPlans = (childPlans + variablesPlans + fragmentDefinition.childPlans).distinct()
             )
         }
 

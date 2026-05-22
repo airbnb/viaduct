@@ -121,6 +121,21 @@ class ConstraintsTest {
     }
 
     @Test
+    fun `isConditionalDirective only matches skip and include constraints`() {
+        assertTrue(Constraints.isConditionalDirective(skip("skip".varRef)))
+        assertTrue(Constraints.isConditionalDirective(include("include".varRef)))
+        assertFalse(Constraints.isConditionalDirective(customDirective("notConditional", "ignored".varRef)))
+    }
+
+    @Test
+    fun `conditionalDirectiveVariableName returns variable names from skip and include constraints`() {
+        assertEquals("skip", Constraints.conditionalDirectiveVariableName(skip("skip".varRef)))
+        assertEquals("include", Constraints.conditionalDirectiveVariableName(include("include".varRef)))
+        assertNull(Constraints.conditionalDirectiveVariableName(include(true.value)))
+        assertNull(Constraints.conditionalDirectiveVariableName(customDirective("notConditional", "ignored".varRef)))
+    }
+
+    @Test
     fun `narrowTypes -- returns Drop for unsatisfiable narrowings`() {
         assertEquals(
             Constraints.Drop,
@@ -265,6 +280,15 @@ class ConstraintsTest {
     private fun skip(value: Value<*>): Directive = mkDir("skip", value)
 
     private fun include(value: Value<*>): Directive = mkDir("include", value)
+
+    private fun customDirective(
+        name: String,
+        value: Value<*>
+    ): Directive =
+        Directive.newDirective()
+            .name(name)
+            .argument(Argument("value", value))
+            .build()
 
     private fun mkDir(
         name: String,

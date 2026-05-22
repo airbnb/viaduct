@@ -60,14 +60,6 @@ interface Constraints {
     /** Solve the current Constraints using the provided [Ctx] */
     fun solve(ctx: Ctx): Resolution
 
-    /**
-     * Variables referenced by @skip/@include constraints.
-     *
-     * Field collection only reads variables through conditional directives; field argument
-     * variables are resolved later by field execution and must not affect collection caching.
-     */
-    fun conditionalDirectiveVariableNames(): Set<String>
-
     /** narrow the current type constraints to be bounded by the provided [possibleTypes] */
     fun narrowTypes(possibleTypes: MaskedSet<GraphQLObjectType>): Constraints
 
@@ -135,6 +127,7 @@ interface Constraints {
                         val isSkip = dir.name == SkipDirective.name
                         ConditionalDirective(ifValue, isSkip)
                     }
+
                     else -> null
                 }
         }
@@ -144,8 +137,6 @@ interface Constraints {
         /** A [Constraints] that will always solve with [Resolution.Collect] */
         val Unconstrained: Constraints = object : Constraints {
             override fun solve(ctx: Ctx): Resolution = Resolution.Collect
-
-            override fun conditionalDirectiveVariableNames(): Set<String> = emptySet()
 
             override fun narrowTypes(possibleTypes: MaskedSet<GraphQLObjectType>): Constraints = Impl(directives = emptyList(), possibleTypes = possibleTypes)
 
@@ -157,14 +148,18 @@ interface Constraints {
         val Drop: Constraints = object : Constraints {
             override fun solve(ctx: Ctx): Resolution = Resolution.Drop
 
-            override fun conditionalDirectiveVariableNames(): Set<String> = emptySet()
-
             override fun narrowTypes(possibleTypes: MaskedSet<GraphQLObjectType>): Constraints = this
 
             override fun clearTypes(): Constraints = this
 
             override fun withDirective(directive: Directive): Constraints = this
         }
+
+        /** True when [directive] is a GraphQL conditional directive modeled by [Constraints]. */
+        fun isConditionalDirective(directive: Directive): Boolean = directive.name == SkipDirective.name || directive.name == IncludeDirective.name
+
+        /** Variable name referenced by a GraphQL conditional directive, or null for literals/non-conditional directives. */
+        fun conditionalDirectiveVariableName(directive: Directive): String? = ConditionalDirective.fromDirective(directive)?.variableName
 
         /**
          * A simple implementation of [Constraints].
@@ -194,8 +189,6 @@ interface Constraints {
                     Resolution.Collect
                 }
             }
-
-            override fun conditionalDirectiveVariableNames(): Set<String> = directives.mapNotNullTo(linkedSetOf()) { it.variableName }
 
             private fun solveTypes(ctx: Ctx): Resolution {
                 // a null possibleTypes signals no type constraints

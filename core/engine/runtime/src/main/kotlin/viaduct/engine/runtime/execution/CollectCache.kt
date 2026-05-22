@@ -5,6 +5,7 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.runtime.execution.QueryPlan.Selection
+import viaduct.engine.runtime.execution.QueryPlan.SelectionVariableReference
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.utils.collections.MaskedSet
 
@@ -103,8 +104,9 @@ internal class CollectCache {
     /**
      * Runtime variable names that can affect shallow field collection for [selectionSet].
      *
-     * Field collection only reads variables through @skip/@include constraints. Field argument
-     * variables are resolved later by field execution and must not affect collection caching.
+     * Query plans record variable references on selections and fragment definitions, but field
+     * collection only reads variables through @skip/@include constraints. Field argument variables
+     * are resolved later by field execution and must not affect collection caching.
      */
     private fun QueryPlan.SelectionSet.collectionVariableNames(
         parentType: GraphQLObjectType,
@@ -114,29 +116,37 @@ internal class CollectCache {
             findCollectionVariableNames(parentType, fragments)
         }
 
+    /**
+     * Walk the same shallow selection surface that [CollectFields] will inspect for [parentType].
+     * Fields contribute their own variable references, but not references from their subselections.
+     * Inline fragments and fragment spreads are expanded because their children are collected into
+     * this same result. Each selection is solved with a variables-free [Constraints.Ctx] first, so
+     * type-pruned branches and literal @skip/@include directives cannot add irrelevant variables to
+     * the cache key.
+     */
     private fun QueryPlan.SelectionSet.findCollectionVariableNames(
         parentType: GraphQLObjectType,
         fragments: QueryPlan.Fragments
     ): Set<String> =
         buildSet {
-            forEachSelectionVisibleToCollection(parentType, fragments) { selection ->
-                addAll(selection.constraints.conditionalDirectiveVariableNames())
+            addCollectionVariableNames(enclosingVariableReferences)
+            forEachVariableReferencesVisibleToCollection(parentType, fragments) { references ->
+                addCollectionVariableNames(references)
             }
         }
 
-    /**
-     * Visit the selections that can affect shallow field collection for [parentType].
-     *
-     * This mirrors the collection boundary: fields contribute their own constraints but do not
-     * recurse into subselections, while inline fragments and fragment spreads are expanded because
-     * their child selections are collected into the same shallow result. Constraints are solved with
-     * runtime variables unavailable so type constraints and constant directives can prune work, but
-     * variable-dependent directives remain visible and contribute to the cache key.
-     */
-    private fun QueryPlan.SelectionSet.forEachSelectionVisibleToCollection(
+    private fun MutableSet<String>.addCollectionVariableNames(references: List<SelectionVariableReference>) {
+        references.forEach { reference ->
+            if (reference.kind == SelectionVariableReference.Kind.CONDITIONAL_DIRECTIVE) {
+                add(reference.name)
+            }
+        }
+    }
+
+    private fun QueryPlan.SelectionSet.forEachVariableReferencesVisibleToCollection(
         parentType: GraphQLObjectType,
         fragments: QueryPlan.Fragments,
-        visit: (Selection) -> Unit
+        visit: (List<SelectionVariableReference>) -> Unit
     ) {
         val ctx = Constraints.Ctx(variables = null, parentTypes = MaskedSet(listOf(parentType)))
         val visitedFragments = mutableSetOf<String>()
@@ -148,20 +158,22 @@ internal class CollectCache {
 
                 is QueryPlan.Field -> {
                     if (selection.isDroppedFor(ctx)) continue
-                    visit(selection)
+                    visit(selection.variableReferences)
                 }
 
                 is QueryPlan.InlineFragment -> {
                     if (selection.isDroppedFor(ctx)) continue
-                    visit(selection)
+                    visit(selection.variableReferences)
                     queue.addAll(0, selection.selectionSet.selections)
                 }
 
                 is QueryPlan.FragmentSpread -> {
                     if (selection.isDroppedFor(ctx)) continue
-                    visit(selection)
+                    visit(selection.variableReferences)
                     if (visitedFragments.add(selection.name)) {
-                        queue.addAll(0, requireNotNull(fragments[selection.name]) { "Fragment `${selection.name}` is not defined" }.selectionSet.selections)
+                        val fragmentDefinition = requireNotNull(fragments[selection.name]) { "Fragment `${selection.name}` is not defined" }
+                        visit(fragmentDefinition.variableReferences)
+                        queue.addAll(0, fragmentDefinition.selectionSet.selections)
                     }
                 }
             }

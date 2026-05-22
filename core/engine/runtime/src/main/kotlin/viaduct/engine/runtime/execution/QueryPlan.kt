@@ -69,6 +69,25 @@ data class QueryPlan(
     )
 
     /**
+     * A variable reference found while building the query plan.
+     *
+     * Query planning records where each variable was referenced so runtime code can answer
+     * narrower questions without rewalking the graphql-java AST. For example, [CollectCache]
+     * only cares about variables used by conditional directives, while child-plan construction
+     * also needs variables used in field arguments and other directives.
+     */
+    data class SelectionVariableReference(
+        val name: String,
+        val kind: Kind
+    ) {
+        enum class Kind {
+            FIELD_ARGUMENT,
+            CONDITIONAL_DIRECTIVE,
+            DIRECTIVE
+        }
+    }
+
+    /**
      * A Selection models any kind of element that may appear in a QueryPlan SelectionSet.
      *
      * Selection comes in some of the same flavors as graphql-java's [graphql.language.Selection],
@@ -76,6 +95,7 @@ data class QueryPlan(
      */
     sealed interface Selection {
         val constraints: Constraints
+        val variableReferences: List<SelectionVariableReference> get() = emptyList()
     }
 
     /**
@@ -121,21 +141,29 @@ data class QueryPlan(
         val childPlans: List<QueryPlan>,
         val fieldTypeChildPlans: Map<GraphQLObjectType, Lazy<List<QueryPlan>>>,
         val metadata: FieldMetadata? = FieldMetadata.empty,
+        override val variableReferences: List<SelectionVariableReference> = emptyList(),
     ) : Selection {
         override fun toString(): String = AstPrinter.printAst(field)
     }
 
     data class FragmentSpread(
         val name: String,
-        override val constraints: Constraints
+        override val constraints: Constraints,
+        override val variableReferences: List<SelectionVariableReference> = emptyList()
     ) : Selection
 
     data class InlineFragment(
         val selectionSet: SelectionSet,
-        override val constraints: Constraints
+        override val constraints: Constraints,
+        override val variableReferences: List<SelectionVariableReference> = emptyList()
     ) : Selection
 
-    data class FragmentDefinition(val selectionSet: SelectionSet, val gjDef: GJFragmentDefinition, val childPlans: List<QueryPlan>)
+    data class FragmentDefinition(
+        val selectionSet: SelectionSet,
+        val gjDef: GJFragmentDefinition,
+        val childPlans: List<QueryPlan>,
+        val variableReferences: List<SelectionVariableReference> = emptyList(),
+    )
 
     data class Fragments(val map: Map<String, FragmentDefinition>) : Map<String, FragmentDefinition> by map {
         operator fun plus(other: Fragments): Fragments = copy(map + other.map)
@@ -147,10 +175,38 @@ data class QueryPlan(
         }
     }
 
-    data class SelectionSet(val selections: List<Selection>) {
+    /**
+     * A set of query-plan selections at one execution level.
+     *
+     * [enclosingVariableReferences] are variable references from the selection that owns this
+     * selection set, rather than from one of the child selections. Field collection can be invoked
+     * directly on a nested selection set, such as the body of `user @include(if: $show) { id }`.
+     * Carrying the enclosing references with the child selection set keeps that boundary visible
+     * without forcing collection to know which field or inline fragment led to the selection set.
+     */
+    class SelectionSet private constructor(
+        val selections: List<Selection>,
+        val enclosingVariableReferences: List<SelectionVariableReference>
+    ) {
+        constructor(selections: List<Selection>) : this(selections, emptyList())
+
         constructor(vararg selections: Selection) : this(listOf(*selections))
 
-        operator fun plus(selection: Selection): SelectionSet = copy(selections = selections + selection)
+        operator fun plus(selection: Selection): SelectionSet = SelectionSet(selections + selection, enclosingVariableReferences)
+
+        internal fun withEnclosingVariableReferences(enclosingVariableReferences: List<SelectionVariableReference>): SelectionSet {
+            return SelectionSet(selections, enclosingVariableReferences)
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is SelectionSet) return false
+            return selections == other.selections
+        }
+
+        override fun hashCode(): Int = selections.hashCode()
+
+        override fun toString(): String = "SelectionSet(selections=$selections)"
 
         companion object {
             val empty: SelectionSet = SelectionSet(emptyList())

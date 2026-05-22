@@ -35,8 +35,10 @@ import strikt.assertions.withSingle
 import strikt.assertions.withValue
 import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromObjectFieldVariable
+import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
@@ -53,6 +55,8 @@ import viaduct.engine.runtime.execution.QueryPlan.Fragments
 import viaduct.engine.runtime.execution.QueryPlan.InlineFragment
 import viaduct.engine.runtime.execution.QueryPlan.Selection
 import viaduct.engine.runtime.execution.QueryPlan.SelectionSet
+import viaduct.engine.runtime.execution.QueryPlan.SelectionVariableReference
+import viaduct.engine.runtime.execution.QueryPlan.SelectionVariableReference.Kind
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.graphql.utils.ParsedSelections
 
@@ -96,6 +100,8 @@ class QueryPlanTest {
                     )
                 )
             }
+            expectThat((plan.selectionSet.selections.single() as Field).variableReferences)
+                .isEqualTo(listOf(conditionalDirectiveReference("var")))
             expectThat(plan.variableDefinitions.map { it.name }).equals(listOf("var"))
         }
     }
@@ -189,6 +195,43 @@ class QueryPlanTest {
     }
 
     @Test
+    fun `QueryPlanBuilder -- stores collection variable facts for fragment spreads`() {
+        Fixture("type Query { x:Int }") {
+            val plan = buildPlan(
+                """
+                    query(${'$'}spread: Boolean!, ${'$'}field: Boolean!) { ... F @skip(if: ${'$'}spread) }
+                    fragment F on Query { x @include(if: ${'$'}field) }
+                """.trimIndent()
+            )
+
+            expectThat((plan.selectionSet.selections.single() as FragmentSpread).variableReferences)
+                .isEqualTo(listOf(conditionalDirectiveReference("spread")))
+            expectThat((plan.fragments.getValue("F").selectionSet.selections.single() as Field).variableReferences)
+                .isEqualTo(listOf(conditionalDirectiveReference("field")))
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- stores variable facts for fragment definitions`() {
+        Fixture(
+            """
+                directive @definitionDirective(arg: Boolean) on FRAGMENT_DEFINITION
+                type Query { x:Int }
+            """.trimIndent()
+        ) {
+            val plan = buildPlan(
+                """
+                    query(${'$'}definition: Boolean!) { ... F }
+                    fragment F on Query @definitionDirective(arg: ${'$'}definition) { x }
+                """.trimIndent()
+            )
+
+            expectThat(plan.fragments.getValue("F").variableReferences)
+                .isEqualTo(listOf(directiveReference("definition")))
+        }
+    }
+
+    @Test
     fun `QueryPlanBuilder -- builds child plans for field required selection sets`() {
         Fixture(
             "type Query { x:Int, y:Int }",
@@ -263,7 +306,121 @@ class QueryPlanTest {
                     )
                 )
             }
+            val yField = ((plan.selectionSet.selections.single() as Field).childPlans.single().selectionSet.selections.single() as Field)
+            expectThat(yField.variableReferences).isEqualTo(listOf(fieldArgumentReference("vara")))
             expectThat(plan.variableDefinitions.map { it.name }).equals(listOf("vara"))
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- propagates variable child plans from nested field selections without rescanning parent field`() {
+        val varResolver = CountingRequiredSelectionSetResolver(
+            "vara",
+            RequiredSelectionSet(
+                SelectionsParser.parse("Query", "z"),
+                emptyList(),
+                forChecker = false,
+            )
+        )
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry(
+                "Query" to "x",
+                "container { y(a:\$vara) }",
+                listOf(varResolver)
+            )
+            .build()
+
+        Fixture(
+            """
+                type Query { x:Int, container:Container, z:Int }
+                type Container { y(a:Int):Int }
+            """.trimIndent(),
+            reg
+        ) {
+            val plan = buildPlan("{x}")
+            val rssPlan = (plan.selectionSet.selections.single() as Field).childPlans.single()
+
+            expectThat(rssPlan.childPlans).withSingle {
+                get { selectionSet.selections }.single().isA<Field>().get { resultKey }.isEqualTo("z")
+            }
+            expectThat(varResolver.requiredSelectionSetReads).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- propagates variable child plans from nested inline fragments without rescanning parent fragment`() {
+        val varResolver = CountingRequiredSelectionSetResolver(
+            "vara",
+            RequiredSelectionSet(
+                SelectionsParser.parse("Query", "z"),
+                emptyList(),
+                forChecker = false,
+            )
+        )
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry(
+                "Query" to "x",
+                "container { ... { y(a:\$vara) } }",
+                listOf(varResolver)
+            )
+            .build()
+
+        Fixture(
+            """
+                type Query { x:Int, container:Container, z:Int }
+                type Container { y(a:Int):Int }
+            """.trimIndent(),
+            reg
+        ) {
+            val plan = buildPlan("{x}")
+            val rssPlan = (plan.selectionSet.selections.single() as Field).childPlans.single()
+
+            expectThat(rssPlan.childPlans).withSingle {
+                get { selectionSet.selections }.single().isA<Field>().get { resultKey }.isEqualTo("z")
+            }
+            expectThat(varResolver.requiredSelectionSetReads).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- propagates variable child plans from nested fragment spreads`() {
+        val varResolver = CountingRequiredSelectionSetResolver(
+            "vara",
+            RequiredSelectionSet(
+                SelectionsParser.parse("Query", "z"),
+                emptyList(),
+                forChecker = false,
+            )
+        )
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry(
+                "Query" to "x",
+                """
+                    fragment Main on Query {
+                      container { ...ContainerFields }
+                    }
+                    fragment ContainerFields on Container {
+                      y(a: ${'$'}vara)
+                    }
+                """.trimIndent(),
+                listOf(varResolver)
+            )
+            .build()
+
+        Fixture(
+            """
+                type Query { x:Int, container:Container, z:Int }
+                type Container { y(a:Int):Int }
+            """.trimIndent(),
+            reg
+        ) {
+            val plan = buildPlan("{x}")
+            val rssPlan = (plan.selectionSet.selections.single() as Field).childPlans.single()
+
+            expectThat(rssPlan.childPlans).withSingle {
+                get { selectionSet.selections }.single().isA<Field>().get { resultKey }.isEqualTo("z")
+            }
+            expectThat(varResolver.requiredSelectionSetReads).isEqualTo(1)
         }
     }
 
@@ -1115,6 +1272,27 @@ class QueryPlanTest {
     }
 }
 
+private class CountingRequiredSelectionSetResolver(
+    variableName: String,
+    private val backingRequiredSelectionSet: RequiredSelectionSet,
+) : VariablesResolver {
+    var requiredSelectionSetReads = 0
+        private set
+
+    override val variableNames: Set<String> = setOf(variableName)
+
+    override val requiredSelectionSet: RequiredSelectionSet
+        get() {
+            requiredSelectionSetReads += 1
+            return backingRequiredSelectionSet
+        }
+
+    override suspend fun resolve(
+        ctx: VariablesResolver.ResolveCtx,
+        context: EngineExecutionContext,
+    ): Map<String, Any?> = error("not used")
+}
+
 internal fun Assertion.Builder<QueryPlan>.checkEquals(exp: QueryPlan): Assertion.Builder<QueryPlan> =
     and {
         get { selectionSet }.checkEquals(exp.selectionSet)
@@ -1223,6 +1401,7 @@ internal fun Assertion.Builder<List<QueryPlan>>.checkEquals(exp: List<QueryPlan>
 internal fun Assertion.Builder<FragmentDefinition>.checkEquals(exp: FragmentDefinition): Assertion.Builder<FragmentDefinition> =
     and {
         get { selectionSet }.checkEquals(exp.selectionSet)
+        get { variableReferences }.isEqualTo(exp.variableReferences)
     }
 
 internal fun <T : Node<*>> Assertion.Builder<T>.checkEquals(exp: T): Assertion.Builder<T> =
@@ -1288,5 +1467,11 @@ private fun mkField(
     childPlans = childPlans,
     fieldTypeChildPlans = fieldTypeChildPlans.mapValues { (_, v) -> lazy { v } }
 )
+
+private fun conditionalDirectiveReference(name: String) = SelectionVariableReference(name, Kind.CONDITIONAL_DIRECTIVE)
+
+private fun fieldArgumentReference(name: String) = SelectionVariableReference(name, Kind.FIELD_ARGUMENT)
+
+private fun directiveReference(name: String) = SelectionVariableReference(name, Kind.DIRECTIVE)
 
 private fun typeConstraint(type: GraphQLObjectType) = Constraints(emptyList(), listOf(type))
