@@ -8,8 +8,8 @@ plugins {
 detekt {
     source.setFrom("src/main/kotlin", "src/test/kotlin")
     config.setFrom(
-        layout.projectDirectory.dir("../..").file("detekt.yml"),
-        layout.projectDirectory.dir("../..").file("detekt-viaduct.yml"),
+        layout.projectDirectory.dir("../../..").file("detekt.yml"),
+        layout.projectDirectory.dir("../../..").file("detekt-viaduct.yml"),
     )
     ignoreFailures = true
 }

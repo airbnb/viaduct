@@ -78,5 +78,5 @@ tasks.withType<BaseKtLintCheckTask>().configureEach {
 }
 
 dependencies {
-    add("ktlintRuleset", "com.airbnb.viaduct:build-common")
+    add("ktlintRuleset", "com.airbnb.viaduct:build-ktlint")
 }

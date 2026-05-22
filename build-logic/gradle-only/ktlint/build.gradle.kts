@@ -8,14 +8,15 @@ group = "com.airbnb.viaduct"
 
 detekt {
     source.setFrom("src/main/kotlin", "src/test/kotlin")
-    config.setFrom(layout.projectDirectory.dir("../..").file("detekt.yml"))
+    config.setFrom(layout.projectDirectory.dir("../../..").file("detekt.yml"))
     ignoreFailures = true
 }
 
 dependencies {
-    compileOnly(libs.detekt.api)
-    testImplementation(libs.detekt.api)
-    testImplementation(libs.detekt.test)
+    compileOnly(libs.ktlint.rule.engine.core)
+    compileOnly(libs.ktlint.cli.ruleset.core)
+    testImplementation(libs.ktlint.rule.engine.core)
+    testImplementation(libs.ktlint.cli.ruleset.core)
     testImplementation(libs.assertj.core)
     testImplementation(libs.junit)
     testRuntimeOnly(libs.junit.engine)
