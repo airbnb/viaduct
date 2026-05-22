@@ -1,8 +1,6 @@
 package viaduct.tenant.runtime.execution
 
 import viaduct.api.context.VariablesProviderContext
-import viaduct.api.globalid.GlobalID
-import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.internal
 import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
@@ -11,6 +9,7 @@ import viaduct.apiannotations.AttributionContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver
 import viaduct.errors.handleTenantErrorsSuspend
+import viaduct.tenant.runtime.TenantApiInputValueNormalizer.normalizeVariablesForEngine
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
@@ -35,14 +34,7 @@ class VariablesProviderExecutor(
         val providedVars = handleTenantErrorsSuspend("VariablesProvider") {
             provideVariables(provider, variablesProviderCtx)
         }
-        return providedVars.mapValues {
-            // The Viaduct engine expects the values to be scalar types or maps, so converting InputLikeBase and GlobalID to their internal representations
-            when (val value = it.value) {
-                is GlobalID<*> -> variablesProviderCtx.internal.globalIDCodec.serialize(value.type.name, value.internalID)
-                is InputLikeBase -> value.inputData
-                else -> value
-            }
-        }
+        return normalizeVariablesForEngine(providedVars, variablesProviderCtx.internal.globalIDCodec)
     }
 
     @Attribution(AttributionContext.TENANT)

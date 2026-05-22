@@ -6,9 +6,12 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.select.Selections
 import viaduct.api.types.CompositeOutput
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.tenant.runtime.TenantApiInputValueNormalizer.normalizeVariablesForEngine
 
 class SelectionSetFactoryImpl(
-    private val engineSelectionSetFactory: EngineSelectionSet.Factory
+    private val engineSelectionSetFactory: EngineSelectionSet.Factory,
+    private val globalIDCodec: GlobalIDCodec,
 ) : SelectionSetFactory {
     override fun <T : CompositeOutput> selectionsOn(
         type: Type<T>,
@@ -17,6 +20,10 @@ class SelectionSetFactoryImpl(
     ): SelectionSet<T> =
         SelectionSetImpl(
             type,
-            engineSelectionSetFactory.engineSelectionSet(typeName = type.name, selections, variables)
+            engineSelectionSetFactory.engineSelectionSet(
+                typeName = type.name,
+                selections,
+                normalizeVariablesForEngine(variables, globalIDCodec),
+            )
         )
 }

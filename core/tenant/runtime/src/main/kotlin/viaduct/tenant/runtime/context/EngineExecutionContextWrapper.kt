@@ -1,6 +1,7 @@
 package viaduct.tenant.runtime.context
 
 import viaduct.api.globalid.GlobalID
+import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
 import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
@@ -17,6 +18,7 @@ import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
+import viaduct.tenant.runtime.TenantApiInputValueNormalizer.normalizeVariablesForEngine
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.toObjectGRT
 
@@ -94,7 +96,11 @@ class EngineExecutionContextWrapperImpl(
         handleFrameworkErrors("selectionsFor") {
             SelectionSetImpl(
                 type,
-                engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(typeName = type.name, selections, variables)
+                engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
+                    typeName = type.name,
+                    selections,
+                    normalizeVariablesForEngine(variables, engineExecutionContext.globalIDCodec)
+                )
             )
         }
 
@@ -121,7 +127,7 @@ class EngineExecutionContextWrapperImpl(
             val graphqlType = ctx.schema.schema.getObjectType(field.type.name)
             val argsMap = when (arguments) {
                 is Arguments.NoArguments -> emptyMap()
-                is viaduct.api.internal.InputLikeBase -> arguments.inputData
+                is InputLikeBase -> arguments.inputData
                 else -> throw IllegalArgumentException(
                     "Expected Arguments class to be NoArguments or an instance of InputLikeBase, got $arguments"
                 )

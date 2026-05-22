@@ -9,8 +9,10 @@ import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
+import viaduct.api.mocks.MockType
 import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.types.Arguments
@@ -76,8 +78,9 @@ class EngineExecutionContextWrapperImplTest {
     }
 
     @Test
-    fun `rootFieldRef with InputLikeBase calls createRootFieldReference with inputData`() {
-        val inputData = mapOf("key" to "value")
+    fun `rootFieldRef with InputLikeBase passes inputData through unchanged`() {
+        val userType = MockType.mkNodeObject("User")
+        val inputData = mapOf("key" to GlobalID(userType, "1234"))
         val args = mockk<TestInputArgs> {
             every { this@mockk.inputData } returns inputData
         }

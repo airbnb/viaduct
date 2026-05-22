@@ -179,7 +179,11 @@ abstract class ResolverTestBase {
             override val arguments: T = arguments
         }
 
-    protected fun mkSelectionSetFactory(): SelectionSetFactory = SelectionSetFactoryImpl(EngineSelectionSetFactoryImpl(getSchema()))
+    protected fun mkSelectionSetFactory(): SelectionSetFactory =
+        SelectionSetFactoryImpl(
+            EngineSelectionSetFactoryImpl(getSchema()),
+            GlobalIDCodecDefault,
+        )
 
     fun <R, T : ObjectBase.Builder<R>> T.put(
         name: String,

@@ -88,9 +88,8 @@ class VariablesProviderExecutorTest {
         }
 
     /**
-     * Tests that VariablesProviderExecutor correctly unwraps special return value types:
-     * - InputLikeBase -> unwrapped to its inputData map
-     * - GlobalID -> serialized to string format via globalIDCodec
+     * Tests that VariablesProviderExecutor normalizes special return value types before the
+     * engine passes them through GraphQL Java variable coercion.
      *
      * Does NOT test:
      * - Context creation (delegated to argumentsFactory)
@@ -99,16 +98,28 @@ class VariablesProviderExecutorTest {
     @Test
     fun resolveUnwrapping(): Unit =
         runBlocking {
-            class MockInputType(override val context: InternalContext, override val graphQLInputObjectType: GraphQLInputObjectType) : InputLikeBase() {
-                override val inputData: Map<String, Any?>
-                    get() = mapOf("a" to 10, "b" to 14)
+            class MockInputType(
+                override val context: InternalContext,
+                override val graphQLInputObjectType: GraphQLInputObjectType,
+                override val inputData: Map<String, Any?>,
+            ) : InputLikeBase() {
+                constructor(inputData: Map<String, Any?>) : this(
+                    MockInternalContext(MockSchema.minimal, globalIDCodec, reflectionLoader),
+                    GraphQLInputObjectType.newInputObject().name("MockInputType").build(),
+                    inputData,
+                )
             }
-            val mockInput = MockInputType(
-                MockInternalContext(MockSchema.minimal, globalIDCodec, reflectionLoader),
-                GraphQLInputObjectType.newInputObject().name("MockInputType").build()
-            )
             val userType = MockType.mkNodeObject("User")
             val mockGlobalID = GlobalID(userType, "1234")
+            val serializedGlobalID = userType.testGlobalId("1234")
+            val mockInput = MockInputType(
+                mapOf(
+                    "a" to 10,
+                    "nested" to mapOf("id" to serializedGlobalID),
+                    "ids" to listOf(serializedGlobalID),
+                    "status" to "ACTIVE",
+                ),
+            )
 
             val adapter = VariablesProviderExecutor(
                 variablesProvider = VariablesProviderInfo(setOf("foo", "bar")) {
@@ -120,7 +131,15 @@ class VariablesProviderExecutorTest {
             )
 
             assertEquals(
-                mapOf("foo" to mapOf("a" to 10, "b" to 14), "bar" to userType.testGlobalId("1234")),
+                mapOf(
+                    "foo" to mapOf(
+                        "a" to 10,
+                        "nested" to mapOf("id" to serializedGlobalID),
+                        "ids" to listOf(serializedGlobalID),
+                        "status" to "ACTIVE",
+                    ),
+                    "bar" to serializedGlobalID,
+                ),
                 adapter.resolve(
                     VariablesResolver.ResolveCtx(
                         objectData,
