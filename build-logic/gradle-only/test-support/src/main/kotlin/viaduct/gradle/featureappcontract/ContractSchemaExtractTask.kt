@@ -28,7 +28,7 @@ import org.objectweb.asm.Opcodes
  * ```
  */
 @CacheableTask
-abstract class ViaductContractSchemaExtractTask : DefaultTask() {
+abstract class ContractSchemaExtractTask : DefaultTask() {
     /** Compiled testFixtures class directories. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)

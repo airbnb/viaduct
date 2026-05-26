@@ -14,14 +14,14 @@ tasks.test {
 tasks.register<JavaExec>("run") {
     description = "Run the BSchema CLI"
     mainClass.set("viaduct.graphql.schema.binary.cli.CLIKt")
-    classpath = sourceSets["testFixtures"].runtimeClasspath
+    classpath = sourceSets.named("testFixtures").get().runtimeClasspath
 }
 
 // Schema CLI run task - for schema2csv and other schema analysis tools
 tasks.register<JavaExec>("runSchemaCli") {
     description = "Run the Schema CLI (schema2csv, etc.)"
     mainClass.set("viaduct.graphql.schema.cli.CLIKt")
-    classpath = sourceSets["testFixtures"].runtimeClasspath
+    classpath = sourceSets.named("testFixtures").get().runtimeClasspath
 }
 
 dependencies {

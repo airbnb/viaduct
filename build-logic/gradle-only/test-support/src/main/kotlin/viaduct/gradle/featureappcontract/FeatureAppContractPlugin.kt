@@ -14,24 +14,21 @@ import viaduct.gradle.defaultschema.DefaultSchemaPlugin
  *
  * Resolves schemas from a publisher project's `contractSchemas` configuration and
  * runs Java codegen (source GRTs + resolver base sources) via a single
- * [ViaductJavaContractCodegenTask].
+ * [JavaContractCodegenTask].
  *
  * No `afterEvaluate`. No per-file task registration. One codegen task total.
  */
-class ViaductFeatureAppContractPlugin : Plugin<Project> {
+class FeatureAppContractPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val codegenClasspath = project.getOrCreateCodegenClasspath()
         DefaultSchemaPlugin.ensureApplied(project)
-
-        val javaExtension = project.extensions.getByType<JavaPluginExtension>()
-        val testSrcSet = javaExtension.sourceSets.getByName("test")
 
         val contractSchemas = project.configurations.create("javaContractSchemasResolved") {
             isCanBeConsumed = false
             isCanBeResolved = true
         }
 
-        val codegenTask = project.tasks.register<ViaductJavaContractCodegenTask>(
+        val codegenTask = project.tasks.register<JavaContractCodegenTask>(
             "generateJavaContractTestSources"
         ) {
             group = "viaduct-feature-app"
@@ -49,14 +46,15 @@ class ViaductFeatureAppContractPlugin : Plugin<Project> {
             )
         }
 
-        // Wire Java GRT sources to the test source set (they're .java source files,
-        // not bytecode, so srcDir is correct here)
-        testSrcSet.java.srcDir(codegenTask.flatMap { it.grtOutputDir })
+        project.extensions.getByType<JavaPluginExtension>().sourceSets.named("test").configure {
+            // Wire Java GRT sources to the test source set (they're .java source files,
+            // not bytecode, so srcDir is correct here)
+            java.srcDir(codegenTask.flatMap { it.grtOutputDir })
+            // Wire generated resolver base sources to the test source set
+            java.srcDir(codegenTask.flatMap { it.tenantOutputDir })
+        }
 
-        // Wire generated resolver base sources to the test source set
-        testSrcSet.java.srcDir(codegenTask.flatMap { it.tenantOutputDir })
-
-        project.extensions.create<ViaductFeatureAppContractsExtension>(
+        project.extensions.create<FeatureAppContractsExtension>(
             "viaductJavaFeatureAppContracts",
             project,
             contractSchemas

@@ -11,7 +11,7 @@ import org.objectweb.asm.Opcodes
 
 /**
  * Layer 1: unit tests for [extractSchemaFromClassFile].
- * Layer 2: task-level tests that exercise the real [ViaductContractSchemaExtractTask]
+ * Layer 2: task-level tests that exercise the real [ContractSchemaExtractTask]
  *          via Gradle's [ProjectBuilder].
  *
  * Test fixtures are synthesized at test time using ASM [ClassWriter] so there is no
@@ -162,7 +162,7 @@ class ContractSchemaExtractTest {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /**
-     * Creates a real [ViaductContractSchemaExtractTask] via [ProjectBuilder] and executes
+     * Creates a real [ContractSchemaExtractTask] via [ProjectBuilder] and executes
      * its task action, exercising the actual Gradle task rather than a reimplementation.
      */
     private fun executeTask(
@@ -172,7 +172,7 @@ class ContractSchemaExtractTest {
         val project = ProjectBuilder.builder().build()
         val task = project.tasks.create(
             "extractContractSchemas",
-            ViaductContractSchemaExtractTask::class.java
+            ContractSchemaExtractTask::class.java
         )
         task.classesDirs.from(classesDir)
         task.outputDir.set(outputDir)

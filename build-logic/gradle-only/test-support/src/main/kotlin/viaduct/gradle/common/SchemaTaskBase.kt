@@ -2,6 +2,7 @@ package viaduct.gradle.common
 
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
@@ -19,25 +20,31 @@ import org.gradle.workers.WorkerExecutor
 import viaduct.gradle.shared.BuildFlags
 
 /**
- * Base class for tenant generation tasks.
+ * Base class for schema generation tasks.
  * Contains common functionality shared between viaduct-schema and viaduct-feature-app plugins.
  */
 @CacheableTask
-abstract class ViaductTenantTaskBase : DefaultTask() {
-    @get:Input
-    abstract val featureAppTest: Property<Boolean>
+abstract class SchemaTaskBase : DefaultTask() {
+    @get:Inject
+    abstract val workerExecutor: WorkerExecutor
 
     @get:Input
-    abstract val tenantName: Property<String>
+    abstract val schemaName: Property<String>
+
+    @get:Input
+    abstract val packageName: Property<String>
 
     @get:Input
     abstract val buildFlags: MapProperty<String, String>
 
     @get:Input
-    abstract val packageNamePrefix: Property<String>
+    abstract val workerNumber: Property<Int>
 
     @get:Input
-    abstract val tenantFromSourceNameRegex: Property<String>
+    abstract val workerCount: Property<Int>
+
+    @get:Input
+    abstract val includeIneligibleForTesting: Property<Boolean>
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -51,39 +58,17 @@ abstract class ViaductTenantTaskBase : DefaultTask() {
     abstract val codegenClasspath: ConfigurableFileCollection
 
     @get:OutputDirectory
-    abstract val modernModuleSrcDir: DirectoryProperty
-
-    @get:OutputDirectory
-    abstract val resolverSrcDir: DirectoryProperty
-
-    @get:OutputDirectory
-    abstract val metaInfSrcDir: DirectoryProperty
-
-    @get:Inject
-    abstract val workerExecutor: WorkerExecutor
+    abstract val generatedSrcDir: DirectoryProperty
 
     /**
-     * Common tenant generation logic that can be called by subclasses
+     * Common schema generation logic that can be called by subclasses
      */
-    protected fun executeTenantGeneration() {
+    protected fun executeSchemaGeneration() {
         require(!codegenClasspath.isEmpty) {
             "Project '${project.path}' has an empty viaductCodegenClasspath. " +
                 "Add viaductCodegenClasspath(libs.viaduct.tenant.codegen) to your dependencies block."
         }
-        // Get temporary generation directories
-        val modernModuleSrcDirFile = modernModuleSrcDir.get().asFile
-        val resolverSrcDirFile = resolverSrcDir.get().asFile
-        val metaInfSrcDirFile = metaInfSrcDir.get().asFile
-
-        // Ensure directories exist
-        modernModuleSrcDirFile.mkdirs()
-        resolverSrcDirFile.mkdirs()
-        metaInfSrcDirFile.mkdirs()
-
-        // Skip if no schema files
-        if (schemaFiles.isEmpty) {
-            return
-        }
+        val outputDir = generatedSrcDir.get().asFile
 
         // Write build flags to temporary file
         val flagFile = temporaryDir.resolve("viaduct_build_flags")
@@ -94,6 +79,10 @@ abstract class ViaductTenantTaskBase : DefaultTask() {
             .getSchemaFilesIncludingDefault(schemaFiles, defaultSchemaFile.get().asFile, logger)
             .toList()
             .sortedBy { it.absolutePath }
+        val schemaFilesArg = allSchemaFiles.joinToString(",") { it.absolutePath }
+        val workerNumberArg = workerNumber.get().toString()
+        val workerCountArg = workerCount.get().toString()
+        val includeEligibleForTesting = includeIneligibleForTesting.get()
 
         // Generate binary schema file via isolated classloader
         val binarySchemaFile = temporaryDir.resolve("schema.bgql")
@@ -108,39 +97,43 @@ abstract class ViaductTenantTaskBase : DefaultTask() {
             )
         )
 
-        // Build arguments for code generation
+        // Clean and prepare directories
+        if (outputDir.exists()) outputDir.deleteRecursively()
+        outputDir.mkdirs()
+
         val baseArgs = mutableListOf(
-            "--tenant_pkg",
-            tenantName.get(),
+            "--generated_directory",
+            outputDir.absolutePath,
             "--schema_files",
-            allSchemaFiles.joinToString(",") { it.absolutePath },
+            schemaFilesArg,
             "--binary_schema_file",
             binarySchemaFile.absolutePath,
             "--flag_file",
             flagFile.absolutePath,
-            "--modern_module_generated_directory",
-            modernModuleSrcDirFile.absolutePath,
-            "--resolver_generated_directory",
-            resolverSrcDirFile.absolutePath,
-            "--metainf_generated_directory",
-            metaInfSrcDirFile.absolutePath,
-            "--tenant_package_prefix",
-            packageNamePrefix.get(),
-            "--tenant_from_source_name_regex",
-            tenantFromSourceNameRegex.get()
+            "--bytecode_worker_number",
+            workerNumberArg,
+            "--bytecode_worker_count",
+            workerCountArg,
+            "--pkg_for_generated_classes",
+            packageName.get()
         )
 
-        val finalArgs = if (featureAppTest.get()) {
-            baseArgs + "--isFeatureAppTest"
+        val finalArgs = if (includeEligibleForTesting) {
+            baseArgs + "--include_ineligible_for_testing_only"
         } else {
             baseArgs
         }
 
-        // Run tenant codegen via isolated classloader
+        // Run schema codegen via isolated classloader
         workerExecutor.runCodegen(
             codegenClasspath,
-            CodegenWorkAction.MainClasses.VIADUCT_GENERATOR,
+            CodegenWorkAction.MainClasses.SCHEMA_OBJECTS_BYTECODE,
             finalArgs
         )
+
+        // Ensure the generated directory has content
+        if (!outputDir.exists() || (outputDir.listFiles()?.isEmpty() != false)) {
+            throw GradleException("Schema generation failed - no classes generated in ${outputDir.absolutePath}")
+        }
     }
 }

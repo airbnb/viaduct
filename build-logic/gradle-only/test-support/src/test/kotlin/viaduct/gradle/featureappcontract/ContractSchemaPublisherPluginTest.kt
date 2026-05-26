@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 /**
- * Layer 3: Gradle TestKit functional tests for [ViaductContractSchemaPublisherPlugin].
+ * Layer 3: Gradle TestKit functional tests for [ContractSchemaPublisherPlugin].
  *
  * Validates that:
  * - `extractContractSchemas` runs after testFixtures compilation

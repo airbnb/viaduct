@@ -14,14 +14,14 @@ import viaduct.gradle.defaultschema.DefaultSchemaPlugin
 import viaduct.gradle.shared.BuildFlags
 import viaduct.gradle.utils.capitalize
 
-abstract class ViaductClassDiffPlugin : Plugin<Project> {
+abstract class ClassDiffPlugin : Plugin<Project> {
     companion object {
         private const val PLUGIN_GROUP = "viaduct-classdiff"
         private const val GENERATED_SOURCES_PATH = "generated-sources/classdiff"
     }
 
     override fun apply(project: Project) {
-        val ext = project.extensions.create<ViaductClassDiffExtension>("viaductClassDiff", project)
+        val ext = project.extensions.create<ClassDiffExtension>("viaductClassDiff", project)
 
         val codegenClasspath = project.getOrCreateCodegenClasspath()
 
@@ -36,31 +36,30 @@ abstract class ViaductClassDiffPlugin : Plugin<Project> {
             val g = configureSchemaGenerationTasks(project, this, codegenClasspath)
 
             val javaExt = project.extensions.getByType(JavaPluginExtension::class.java)
-            val targetJavaSS = javaExt.sourceSets.getByName(ssName)
             val classesTaskName = "${ssName}Classes"
             val compileKotlinTaskName = "compile${ssName.capitalize()}Kotlin"
 
             // 1) SCHEMA task (bytecode): add its classes dir to the *output* of the target source set
             //    This puts the produced .class files on both compile & runtime classpaths.
-            targetJavaSS.output.dir(
-                mapOf("builtBy" to g.schema),
-                g.schema.flatMap { it.generatedSrcDir }
-            )
+            javaExt.sourceSets.named(ssName).configure {
+                output.dir(mapOf("builtBy" to g.schema), g.schema.flatMap { it.generatedSrcDir })
+                java.srcDir(g.grt.flatMap { it.generatedSrcDir })
+            }
             project.tasks.named(classesTaskName).configure { dependsOn(g.schema) }
 
-            // 2) GRT task (Kotlin sources): add as sources to target (both Kotlin + Java for IDEs)
-            targetJavaSS.java.srcDir(g.grt.flatMap { it.generatedSrcDir })
             project.plugins.withId("org.jetbrains.kotlin.jvm") {
                 project.tasks.named(compileKotlinTaskName).configure { dependsOn(g.schema) }
                 val kext = project.extensions.getByType(KotlinJvmProjectExtension::class.java)
-                kext.sourceSets.getByName(ssName).kotlin.srcDir(g.grt.flatMap { it.generatedSrcDir })
+                kext.sourceSets.named(ssName).configure {
+                    kotlin.srcDir(g.grt.flatMap { it.generatedSrcDir })
+                }
             }
         }
     }
 
     private data class GenTasks(
-        val schema: TaskProvider<ViaductClassDiffSchemaTask>,
-        val grt: TaskProvider<ViaductClassDiffGRTKotlinTask>
+        val schema: TaskProvider<ClassDiffSchemaTask>,
+        val grt: TaskProvider<ClassDiffGRTKotlinTask>
     )
 
     private fun configureSchemaGenerationTasks(
@@ -84,8 +83,8 @@ abstract class ViaductClassDiffPlugin : Plugin<Project> {
         schemaDiff: SchemaDiff,
         schemaFiles: FileCollection,
         codegenClasspath: Configuration
-    ): TaskProvider<ViaductClassDiffSchemaTask> =
-        project.tasks.register<ViaductClassDiffSchemaTask>(
+    ): TaskProvider<ClassDiffSchemaTask> =
+        project.tasks.register<ClassDiffSchemaTask>(
             "generateSchemaDiff${schemaDiff.name.capitalize()}SchemaObjects"
         ) {
             group = PLUGIN_GROUP
@@ -109,8 +108,8 @@ abstract class ViaductClassDiffPlugin : Plugin<Project> {
         schemaDiff: SchemaDiff,
         schemaFiles: FileCollection,
         codegenClasspath: Configuration
-    ): TaskProvider<ViaductClassDiffGRTKotlinTask> =
-        project.tasks.register<ViaductClassDiffGRTKotlinTask>(
+    ): TaskProvider<ClassDiffGRTKotlinTask> =
+        project.tasks.register<ClassDiffGRTKotlinTask>(
             "generateSchemaDiff${schemaDiff.name.capitalize()}KotlinGrts"
         ) {
             group = PLUGIN_GROUP

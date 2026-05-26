@@ -13,8 +13,8 @@ viaductFeatureAppContracts {
 val testFileBasedBootstrap by tasks.registering(Test::class) {
     description = "Runs all contract tests using the file-based bootstrap"
     group = "verification"
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
+    testClassesDirs = sourceSets.named("test").get().output.classesDirs
+    classpath = sourceSets.named("test").get().runtimeClasspath
     useJUnitPlatform {
         includeTags("feature-app-contract-test")
     }

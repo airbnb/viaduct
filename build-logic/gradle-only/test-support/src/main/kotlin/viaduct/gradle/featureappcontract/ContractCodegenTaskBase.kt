@@ -31,7 +31,7 @@ import org.gradle.workers.WorkerExecutor
  * then merged into shared output roots for compilation.
  */
 @CacheableTask
-abstract class ViaductContractCodegenTaskBase : DefaultTask() {
+abstract class ContractCodegenTaskBase : DefaultTask() {
     @get:Incremental
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)

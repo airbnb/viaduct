@@ -1,4 +1,4 @@
-package viaduct.gradle.common
+package viaduct.gradle.classdiff
 
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
@@ -16,35 +16,26 @@ import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkerExecutor
+import viaduct.gradle.common.CodegenWorkAction
+import viaduct.gradle.common.DefaultSchemaUtil
+import viaduct.gradle.common.runCodegen
 import viaduct.gradle.shared.BuildFlags
 
 /**
- * Base class for schema generation tasks.
- * Contains common functionality shared between viaduct-schema and viaduct-feature-app plugins.
+ * Task to generate Kotlin GRT (GraphQL Runtime Types) for ClassDiff tests.
  */
 @CacheableTask
-abstract class ViaductSchemaTaskBase : DefaultTask() {
+abstract class ClassDiffGRTKotlinTask : DefaultTask() {
     @get:Inject
     abstract val workerExecutor: WorkerExecutor
-
-    @get:Input
-    abstract val schemaName: Property<String>
 
     @get:Input
     abstract val packageName: Property<String>
 
     @get:Input
     abstract val buildFlags: MapProperty<String, String>
-
-    @get:Input
-    abstract val workerNumber: Property<Int>
-
-    @get:Input
-    abstract val workerCount: Property<Int>
-
-    @get:Input
-    abstract val includeIneligibleForTesting: Property<Boolean>
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -60,14 +51,8 @@ abstract class ViaductSchemaTaskBase : DefaultTask() {
     @get:OutputDirectory
     abstract val generatedSrcDir: DirectoryProperty
 
-    /**
-     * Common schema generation logic that can be called by subclasses
-     */
-    protected fun executeSchemaGeneration() {
-        require(!codegenClasspath.isEmpty) {
-            "Project '${project.path}' has an empty viaductCodegenClasspath. " +
-                "Add viaductCodegenClasspath(libs.viaduct.tenant.codegen) to your dependencies block."
-        }
+    @TaskAction
+    protected fun executeGRTGeneration() {
         val outputDir = generatedSrcDir.get().asFile
 
         // Write build flags to temporary file
@@ -80,9 +65,6 @@ abstract class ViaductSchemaTaskBase : DefaultTask() {
             .toList()
             .sortedBy { it.absolutePath }
         val schemaFilesArg = allSchemaFiles.joinToString(",") { it.absolutePath }
-        val workerNumberArg = workerNumber.get().toString()
-        val workerCountArg = workerCount.get().toString()
-        val includeEligibleForTesting = includeIneligibleForTesting.get()
 
         // Generate binary schema file via isolated classloader
         val binarySchemaFile = temporaryDir.resolve("schema.bgql")
@@ -98,10 +80,12 @@ abstract class ViaductSchemaTaskBase : DefaultTask() {
         )
 
         // Clean and prepare directories
-        if (outputDir.exists()) outputDir.deleteRecursively()
+        if (outputDir.exists()) {
+            outputDir.deleteRecursively()
+        }
         outputDir.mkdirs()
 
-        val baseArgs = mutableListOf(
+        val generationArgs = listOf(
             "--generated_directory",
             outputDir.absolutePath,
             "--schema_files",
@@ -110,30 +94,22 @@ abstract class ViaductSchemaTaskBase : DefaultTask() {
             binarySchemaFile.absolutePath,
             "--flag_file",
             flagFile.absolutePath,
-            "--bytecode_worker_number",
-            workerNumberArg,
-            "--bytecode_worker_count",
-            workerCountArg,
             "--pkg_for_generated_classes",
             packageName.get()
         )
 
-        val finalArgs = if (includeEligibleForTesting) {
-            baseArgs + "--include_ineligible_for_testing_only"
-        } else {
-            baseArgs
-        }
-
-        // Run schema codegen via isolated classloader
+        // Run GRT codegen via isolated classloader
         workerExecutor.runCodegen(
             codegenClasspath,
-            CodegenWorkAction.MainClasses.SCHEMA_OBJECTS_BYTECODE,
-            finalArgs
+            CodegenWorkAction.MainClasses.KOTLIN_GRTS_GENERATOR,
+            generationArgs
         )
 
-        // Ensure the generated directory has content
+        // Validate generation was successful
         if (!outputDir.exists() || (outputDir.listFiles()?.isEmpty() != false)) {
-            throw GradleException("Schema generation failed - no classes generated in ${outputDir.absolutePath}")
+            throw GradleException("Kotlin GRT generation failed - no classes generated in ${outputDir.absolutePath}")
         }
+
+        logger.info("Successfully generated Kotlin GRTs in package '${packageName.get()}' at ${outputDir.absolutePath}")
     }
 }

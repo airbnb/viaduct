@@ -13,7 +13,7 @@ import org.gradle.api.artifacts.Configuration
  * Each consumer consumes from exactly one publisher project — multi-publisher is
  * not supported.
  */
-open class ViaductFeatureAppContractsExtension(
+open class FeatureAppContractsExtension(
     private val project: Project,
     private val contractSchemas: Configuration
 ) {
@@ -47,7 +47,7 @@ open class ViaductFeatureAppContractsExtension(
             // This establishes task ordering automatically via the provider.
             val extractTask = project.tasks.named(
                 "extractContractSchemas",
-                ViaductContractSchemaExtractTask::class.java
+                ContractSchemaExtractTask::class.java
             )
             project.dependencies.add(
                 contractSchemas.name,

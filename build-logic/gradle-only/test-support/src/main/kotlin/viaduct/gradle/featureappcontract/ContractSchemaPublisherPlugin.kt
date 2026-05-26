@@ -16,7 +16,7 @@ import org.gradle.kotlin.dsl.register
  * time), but task registration is deferred via `plugins.withId("java-test-fixtures")` until
  * the testFixtures source set exists.
  */
-class ViaductContractSchemaPublisherPlugin : Plugin<Project> {
+class ContractSchemaPublisherPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         // Create the outgoing configuration eagerly — consumers need it to exist
         project.configurations.create("contractSchemas") {
@@ -27,16 +27,16 @@ class ViaductContractSchemaPublisherPlugin : Plugin<Project> {
         // Defer task registration until java-test-fixtures plugin is applied
         // (the testFixtures source set doesn't exist until then)
         project.plugins.withId("java-test-fixtures") {
-            val javaExtension = project.extensions.getByType<JavaPluginExtension>()
-            val testFixturesSS = javaExtension.sourceSets.getByName("testFixtures")
+            val testFixturesSS = project.extensions.getByType<JavaPluginExtension>()
+                .sourceSets.named("testFixtures")
 
-            val extractTask = project.tasks.register<ViaductContractSchemaExtractTask>(
+            val extractTask = project.tasks.register<ContractSchemaExtractTask>(
                 "extractContractSchemas"
             ) {
                 group = "viaduct-feature-app"
                 description = "Extracts GraphQL schemas from @TestSchema annotations in compiled testFixtures"
 
-                classesDirs.from(testFixturesSS.output.classesDirs)
+                classesDirs.from(testFixturesSS.map { it.output.classesDirs })
                 outputDir.set(
                     project.layout.buildDirectory.dir("extracted-contract-schemas")
                 )

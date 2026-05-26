@@ -16,7 +16,7 @@ import viaduct.gradle.common.runCodegen
  * once keeping GRTs (discarding resolvers), once keeping resolvers (discarding GRTs).
  */
 @CacheableTask
-abstract class ViaductJavaContractCodegenTask : ViaductContractCodegenTaskBase() {
+abstract class JavaContractCodegenTask : ContractCodegenTaskBase() {
     override fun generateForSchema(
         schemaFile: File,
         pkg: String,

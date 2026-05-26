@@ -1,7 +1,7 @@
-import viaduct.gradle.classdiff.ViaductClassDiffPlugin
+import viaduct.gradle.classdiff.ClassDiffPlugin
 
 /**
  * This is convention-based plugin with zero configuration.
  * id("test-classdiff")
  */
-apply<ViaductClassDiffPlugin>()
+apply<ClassDiffPlugin>()

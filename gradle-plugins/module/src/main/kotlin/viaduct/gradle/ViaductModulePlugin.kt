@@ -10,6 +10,7 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
@@ -178,9 +179,16 @@ class ViaductModulePlugin : Plugin<Project> {
         pluginManager.withPlugin("com.google.devtools.ksp") {
             dependencies.add("ksp", "com.airbnb.viaduct:buildtime:$version")
 
-            val descriptorRoot = layout.buildDirectory.dir(
-                "generated/ksp/main/resources/viaduct-registry"
-            )
+            // Bridge task: isolates KSP's internal output path so assembleTask depends
+            // on a typed task reference rather than a string "dependsOn".
+            // KSP registers kspKotlin lazily, so the string form is still required here.
+            val extractKspDescriptors = tasks.register<Sync>(
+                "extractKspRegistryDescriptors"
+            ) {
+                from(layout.buildDirectory.dir("generated/ksp/main/resources/viaduct-registry"))
+                into(layout.buildDirectory.dir("intermediates/viaduct-registry-descriptors"))
+                dependsOn("kspKotlin")
+            }
 
             val assembleTask = tasks.register<AssembleTenantModuleConfigFileTask>(
                 "assembleViaductModuleConfigFile"
@@ -188,22 +196,23 @@ class ViaductModulePlugin : Plugin<Project> {
                 group = "viaduct"
                 description = "Assembles tenant module config from KSP descriptors"
 
-                descriptorDir.set(descriptorRoot)
+                descriptorDir.set(layout.buildDirectory.dir("intermediates/viaduct-registry-descriptors"))
                 executorFactory.set(AssembleTenantModuleConfigFileTask.EXECUTOR_FACTORY)
                 this.codegenClasspath.from(codegenClasspath)
                 outputDir.set(
                     project.layout.buildDirectory.dir("generated-resources/viaduct-registry")
                 )
 
-                dependsOn("kspKotlin")
+                dependsOn(extractKspDescriptors)
             }
 
             // Wire assembly output into main resources so it lands in the module's JAR
             pluginManager.withPlugin("java") {
-                val mainSourceSet = project.extensions
+                project.extensions
                     .getByType(JavaPluginExtension::class.java)
-                    .sourceSets.getByName("main")
-                mainSourceSet.resources.srcDir(assembleTask.flatMap { it.outputDir })
+                    .sourceSets.named("main").configure {
+                        resources.srcDir(assembleTask.flatMap { it.outputDir })
+                    }
             }
 
             // Wire tenant package (needs afterEvaluate to read appExt)

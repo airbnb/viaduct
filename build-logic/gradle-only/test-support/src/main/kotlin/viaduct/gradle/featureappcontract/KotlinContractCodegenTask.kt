@@ -19,7 +19,7 @@ import viaduct.gradle.common.runCodegen
  * `QueryResolvers.kt`).
  */
 @CacheableTask
-abstract class ViaductKotlinContractCodegenTask : ViaductContractCodegenTaskBase() {
+abstract class KotlinContractCodegenTask : ContractCodegenTaskBase() {
     /**
      * ViaductGenerator writes flat — all files land directly in `tenantDir`.
      * Override the merge to place each contract's files in a per-package subdirectory

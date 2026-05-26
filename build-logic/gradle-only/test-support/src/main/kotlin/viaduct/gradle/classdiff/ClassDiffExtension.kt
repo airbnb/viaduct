@@ -16,7 +16,7 @@ import org.gradle.api.tasks.SourceSetContainer
  * packages and schema resources. The plugin will generate code for each configured
  * schema diff independently.
  */
-open class ViaductClassDiffExtension(private val project: Project) {
+open class ClassDiffExtension(private val project: Project) {
     /**
      * Container of schema diff configurations. Each call to [schemaDiff] registers
      * tasks immediately — no afterEvaluate needed.
