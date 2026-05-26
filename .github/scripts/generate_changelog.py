@@ -180,6 +180,26 @@ def _has_pr_ref(description: str) -> bool:
     return bool(_PR_REF_RE.search(description))
 
 
+def _get_base_commit_keys(tag1: str, tag2: str) -> set[tuple[str, tuple[str, ...]]]:
+    """
+    Collect (normalized_description, authors) keys for commits unique to tag1
+    (reachable from tag1 but not tag2). These represent cherry-picks and
+    release-specific commits on the previous release branch.
+    """
+    keys: set[tuple[str, tuple[str, ...]]] = set()
+    for commit in get_commits_between_tags(tag2, tag1):
+        if not should_include_commit(commit.message):
+            continue
+        cleaned = clean_commit_message(commit.message)
+        cleaned = replace_airbnb_marker(cleaned, commit.sha)
+        description = strip_conventional_prefix(cleaned)
+        normalized = _normalize_for_dedup(description)
+        authors = tuple(sorted(extract_authors(commit)))
+        if normalized:
+            keys.add((normalized, authors))
+    return keys
+
+
 def dedupe_entries(entries: list[ChangelogEntry]) -> list[ChangelogEntry]:
     """
     Drop PR-merge entries that duplicate a SHA-tagged entry.
@@ -467,6 +487,13 @@ def generate_changelog(tag1: str, tag2: str) -> str:
         entry = parse_commit(commit, parser)
         if entry:
             entries.append(entry)
+
+    # Drop commits already delivered via cherry-pick on the previous release branch
+    base_keys = _get_base_commit_keys(tag1, tag2)
+    entries = [
+        e for e in entries
+        if (_normalize_for_dedup(e.description), tuple(sorted(e.authors))) not in base_keys
+    ]
 
     # Drop PR-merge duplicates of SHA-tagged entries (see dedupe_entries)
     entries = dedupe_entries(entries)

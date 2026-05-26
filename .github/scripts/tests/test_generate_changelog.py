@@ -24,6 +24,7 @@ from generate_changelog import (
     generate_changelog,
     capitalize_first,
     dedupe_entries,
+    _get_base_commit_keys,
     CommitInfo,
     ChangelogEntry,
     BOT_USERNAMES,
@@ -549,6 +550,91 @@ class TestCapitalizeFirst(unittest.TestCase):
         self.assertEqual(capitalize_first("(scope) fix"), "(scope) fix")
 
 
+class TestCherryPickDedup(unittest.TestCase):
+    """Tests for cherry-pick deduplication via _get_base_commit_keys."""
+
+    def _commit(self, sha, message, author_email="john.doe@example.com"):
+        return CommitInfo(
+            sha=sha, message=message, body="",
+            author_email=author_email, co_authors_raw="",
+        )
+
+    @patch("generate_changelog.get_commits_between_tags")
+    def test_get_base_commit_keys_collects_normalized_keys(self, mock_get_commits):
+        mock_get_commits.return_value = iter([
+            self._commit("aaa111", "feat: add widget (AIRBNB)"),
+            self._commit("bbb222", "fix: parser crash (AIRBNB)"),
+        ])
+        keys = _get_base_commit_keys("origin/release/v1.0.0", "HEAD")
+        # Called with reversed args: get_commits_between_tags("HEAD", "origin/release/v1.0.0")
+        mock_get_commits.assert_called_once_with("HEAD", "origin/release/v1.0.0")
+        # Descriptions are normalized: conventional prefix stripped, trailing (sha) stripped
+        self.assertIn(("add widget", ("@john.doe",)), keys)
+        self.assertIn(("parser crash", ("@john.doe",)), keys)
+
+    @patch("generate_changelog.get_commits_between_tags")
+    def test_get_base_commit_keys_skips_ignored_commits(self, mock_get_commits):
+        mock_get_commits.return_value = iter([
+            self._commit("aaa111", "ignore: test only"),
+            self._commit("bbb222", "feat: real change (AIRBNB)"),
+        ])
+        keys = _get_base_commit_keys("tag1", "tag2")
+        self.assertEqual(len(keys), 1)
+        self.assertIn(("real change", ("@john.doe",)), keys)
+
+    @patch("generate_changelog.get_commits_between_tags")
+    def test_cherry_pick_filtered_from_changelog(self, mock_get_commits):
+        """A commit cherry-picked onto the prev release is excluded from the next changelog."""
+        base_cherry_pick = self._commit("aaa1111", "feat: add widget (AIRBNB)")
+        original_on_main = self._commit("bbb2222", "feat: add widget (AIRBNB)")
+        new_commit = self._commit("ccc3333", "feat: new thing (AIRBNB)")
+
+        def side_effect(tag1, tag2):
+            if tag1 == "HEAD" and tag2 == "origin/release/v1.0.0":
+                # Reverse range: commits unique to previous release branch
+                return iter([base_cherry_pick])
+            else:
+                # Forward range: commits in the new release
+                return iter([original_on_main, new_commit])
+
+        mock_get_commits.side_effect = side_effect
+        changelog = generate_changelog("origin/release/v1.0.0", "HEAD")
+        self.assertIn("New thing", changelog)
+        self.assertNotIn("Add widget", changelog)
+
+    @patch("generate_changelog.get_commits_between_tags")
+    def test_cherry_pick_not_filtered_when_authors_differ(self, mock_get_commits):
+        """Same message but different author is NOT filtered (author protection)."""
+        base_cherry_pick = self._commit("aaa1111", "feat: add widget (AIRBNB)", author_email="alice@example.com")
+        original_on_main = self._commit("bbb2222", "feat: add widget (AIRBNB)", author_email="bob@example.com")
+
+        def side_effect(tag1, tag2):
+            if tag1 == "HEAD" and tag2 == "origin/release/v1.0.0":
+                return iter([base_cherry_pick])
+            else:
+                return iter([original_on_main])
+
+        mock_get_commits.side_effect = side_effect
+        changelog = generate_changelog("origin/release/v1.0.0", "HEAD")
+        self.assertIn("Add widget", changelog)
+
+    @patch("generate_changelog.get_commits_between_tags")
+    def test_cherry_pick_with_pr_ref_still_filtered(self, mock_get_commits):
+        """Cherry-pick on release has (AIRBNB), original on main has (#123) — still deduped."""
+        base_cherry_pick = self._commit("aaa1111", "feat: add widget (AIRBNB)")
+        original_on_main = self._commit("bbb2222", "feat: add widget (#123)")
+
+        def side_effect(tag1, tag2):
+            if tag1 == "HEAD" and tag2 == "origin/release/v1.0.0":
+                return iter([base_cherry_pick])
+            else:
+                return iter([original_on_main])
+
+        mock_get_commits.side_effect = side_effect
+        changelog = generate_changelog("origin/release/v1.0.0", "HEAD")
+        self.assertNotIn("Add widget", changelog)
+
+
 class TestGenerateChangelog(unittest.TestCase):
     def _commit(self, sha, message, author_email="john.doe@example.com", body="", co_authors_raw=""):
         return CommitInfo(
@@ -561,9 +647,12 @@ class TestGenerateChangelog(unittest.TestCase):
 
     @patch("generate_changelog.get_commits_between_tags")
     def test_omits_version_header(self, mock_get_commits):
-        mock_get_commits.return_value = iter([
-            self._commit("abc1234", "feat: add a thing"),
-        ])
+        def side_effect(tag1, tag2):
+            if tag1 == "HEAD" and tag2 == "v0.31.0":
+                return iter([])  # no cherry-picks on previous release
+            return iter([self._commit("abc1234", "feat: add a thing")])
+
+        mock_get_commits.side_effect = side_effect
         changelog = generate_changelog("v0.31.0", "HEAD")
         self.assertNotIn("# Version", changelog)
 
