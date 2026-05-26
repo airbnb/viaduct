@@ -10,7 +10,7 @@ This application implements a comprehensive GraphQL API for the Star Wars univer
 
 - Java 17+ and `git` (see [Project Setup](../setup/index.md) for the full compatibility matrix).
 - A clone of [github.com/viaduct-dev/starwars](https://github.com/viaduct-dev/starwars). Read the repo's README for any framework-specific setup steps.
-- Linux or Mac (Windows support coming soon)
+- Linux, Mac, or Windows
 
 ## What you'll find
 

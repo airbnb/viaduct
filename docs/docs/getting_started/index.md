@@ -13,7 +13,7 @@ Before you start, make sure you have:
 
 - Java JDK 17 or newer
 - Git
-- Linux or Mac (Windows support coming soon)
+- Linux, Mac, or Windows
 
 Then clone the starter:
 
