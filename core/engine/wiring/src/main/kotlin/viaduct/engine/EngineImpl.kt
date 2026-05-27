@@ -28,8 +28,11 @@ import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextExtensions.selectiveOERKeysEnabled
 import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
@@ -37,11 +40,13 @@ import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.AccessCheckRunner
 import viaduct.engine.runtime.execution.ExecutionParameters
+import viaduct.engine.runtime.execution.ExecutionSelections
 import viaduct.engine.runtime.execution.FieldCompleter
 import viaduct.engine.runtime.execution.FieldExecutionHelpers
 import viaduct.engine.runtime.execution.FieldResolver
 import viaduct.engine.runtime.execution.QueryPlan
 import viaduct.engine.runtime.execution.QueryPlanFactory
+import viaduct.engine.runtime.execution.QueryPlanIndex
 import viaduct.engine.runtime.execution.ViaductExecutionStrategy
 import viaduct.engine.runtime.execution.WrappedCoroutineExecutionStrategy
 import viaduct.engine.runtime.execution.asExecutionParameters
@@ -65,6 +70,7 @@ class EngineImpl(
     documentProvider: PreparsedDocumentProvider,
     private val fullSchema: ViaductSchema,
     private val queryPlanFactory: QueryPlanFactory,
+    private val queryPlanIndexFactory: QueryPlanIndex.Factory = QueryPlanIndex.Factory.Cached(),
 ) : Engine, EngineGraphQLJavaCompat {
     private val coroutineInterop: CoroutineInterop = config.coroutineInterop
     private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = config.temporaryBypassAccessCheck
@@ -112,7 +118,8 @@ class EngineImpl(
         ViaductExecutionStrategy.Factory.Impl(
             dataFetcherExceptionHandler,
             ExecutionParameters.Factory(
-                queryPlanFactory
+                queryPlanFactory,
+                queryPlanIndexFactory,
             ),
             accessCheckRunner,
             coroutineInterop,
@@ -170,12 +177,19 @@ class EngineImpl(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
     ): EngineObjectData {
-        val targetOER = executeSelectionSet(executionHandle, selectionSet, options)
+        val parentParams = executionHandle.asExecutionParameters()
+        val subqueryExecution = executeSelectionSet(executionHandle, selectionSet, options)
+        val isResolverSelective = IsResolverSelective.fromRegistry(
+            parentParams.engineExecutionContext.dispatcherRegistry,
+            parentParams.engineExecutionContext.selectiveOERKeysEnabled,
+        )
 
         return ProxyEngineObjectData(
-            targetOER,
+            subqueryExecution.targetOER,
             "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result",
             selectionSet,
+            isResolverSelective,
+            subqueryExecution.selections,
         )
     }
 
@@ -184,14 +198,21 @@ class EngineImpl(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
     ): EngineObjectData.Sync {
-        val targetOER = executeSelectionSet(executionHandle, selectionSet, options)
+        val parentParams = executionHandle.asExecutionParameters()
+        val subqueryExecution = executeSelectionSet(executionHandle, selectionSet, options)
+        val isResolverSelective = IsResolverSelective.fromRegistry(
+            parentParams.engineExecutionContext.dispatcherRegistry,
+            parentParams.engineExecutionContext.selectiveOERKeysEnabled,
+        )
 
         val errorMessage = "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result"
 
         return SyncEngineObjectDataFactory.resolve(
-            objectEngineResult = targetOER,
+            objectEngineResult = subqueryExecution.targetOER,
             errorMessage = errorMessage,
             selectionSet = selectionSet,
+            isResolverSelective = isResolverSelective,
+            selections = subqueryExecution.selections,
         )
     }
 
@@ -205,7 +226,7 @@ class EngineImpl(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
-    ): ObjectEngineResultImpl {
+    ): SubqueryExecution {
         val parentParams = executionHandle.asExecutionParameters()
 
         // Determine root type from operation type
@@ -268,8 +289,19 @@ class EngineImpl(
             throw SubqueryExecutionException.fieldResolutionFailed(e)
         }
 
-        return targetOER
+        return SubqueryExecution(
+            targetOER = targetOER,
+            selections = ExecutionSelections.fromParameters(
+                schema = fullSchema.schema,
+                parameters = selectionParams,
+            ),
+        )
     }
+
+    private data class SubqueryExecution(
+        val targetOER: ObjectEngineResultImpl,
+        val selections: ObjectEngineResult.Selections,
+    )
 
     override suspend fun completeSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,

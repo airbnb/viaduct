@@ -18,6 +18,7 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.mocks.FeatureTest
+import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
@@ -1305,6 +1306,208 @@ class SubqueryExecutionTest {
                     }
                     """
                 )
+        }
+    }
+
+    @Test
+    fun `ctx query preserves selective resolver keying in returned EngineObjectData`() {
+        MockLegacyTenantModuleBootstrapper(
+            """
+            extend type Query {
+                details: Details
+                container: Container
+            }
+
+            type Details {
+                a: Int
+                b: Int
+            }
+
+            type Container {
+                selectiveValue: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "details") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        isSelective = true,
+                        resolverId = resolverId,
+                        unbatchedResolveFn = { _, _, _, selections, _ ->
+                            val requestedSelections = selections
+                                ?.selections()
+                                ?.map { it.selectionName }
+                                ?.toSet()
+                                .orEmpty()
+                            createEngineObjectData(
+                                schema.schema.getObjectType("Details"),
+                                buildMap {
+                                    if ("a" in requestedSelections) put("a", 1)
+                                    if ("b" in requestedSelections) put("b", 2)
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "selectiveValue") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "details { a }", emptyMap())
+
+                        val queryResult = ctx.query(selectionSet = rss)
+
+                        withTimeout(1_000) {
+                            queryResult
+                                .fetchAs<EngineObjectData>("details")
+                                .fetchAs<Int>("a")
+                        }
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ container { selectiveValue } }")
+                .assertJson("""{"data": {"container": {"selectiveValue": 1}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query preserves selective resolver keying for merged root selections in returned EngineObjectData`() {
+        MockLegacyTenantModuleBootstrapper(
+            """
+            extend type Query {
+                details: Details
+                container: Container
+            }
+
+            type Details {
+                a: Int
+                b: Int
+            }
+
+            type Container {
+                selectiveValue: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "details") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        isSelective = true,
+                        resolverId = resolverId,
+                        unbatchedResolveFn = { _, _, _, selections, _ ->
+                            val requestedSelections = selections
+                                ?.selections()
+                                ?.map { it.selectionName }
+                                ?.toSet()
+                                .orEmpty()
+                            createEngineObjectData(
+                                schema.schema.getObjectType("Details"),
+                                buildMap {
+                                    if ("a" in requestedSelections) put("a", 1)
+                                    if ("b" in requestedSelections) put("b", 2)
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "selectiveValue") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory.engineSelectionSet(
+                            "Query",
+                            "details { a } details { b }",
+                            emptyMap()
+                        )
+
+                        val queryResult = ctx.query(selectionSet = rss)
+
+                        withTimeout(1_000) {
+                            val details = queryResult.fetchAs<EngineObjectData>("details")
+                            details.fetchAs<Int>("a") + details.fetchAs<Int>("b")
+                        }
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ container { selectiveValue } }")
+                .assertJson("""{"data": {"container": {"selectiveValue": 3}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query into selective field with nested composite does not hang`() {
+        MockLegacyTenantModuleBootstrapper(
+            """
+            extend type Query {
+                foo: Foo
+                entry: Int
+            }
+
+            type Foo { bar: Bar }
+
+            type Bar { baz: Int }
+            """.trimIndent()
+        ) {
+            field("Query" to "foo") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        isSelective = true,
+                        resolverId = resolverId,
+                        unbatchedResolveFn = { _, _, _, _, _ ->
+                            createEngineObjectData(
+                                schema.schema.getObjectType("Foo"),
+                                mapOf("bar" to mapOf("baz" to 7))
+                            )
+                        }
+                    )
+                }
+            }
+
+            field("Query" to "entry") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "foo { bar { baz } }", emptyMap())
+                        val queryResult = ctx.query(selectionSet = rss)
+                        withTimeout(1_000) {
+                            queryResult
+                                .fetchAs<EngineObjectData>("foo")
+                                .fetchAs<EngineObjectData>("bar")
+                                .fetchAs<Int>("baz")
+                        }
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ entry }")
+                .assertJson("""{"data": {"entry": 7}}""")
         }
     }
 

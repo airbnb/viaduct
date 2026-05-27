@@ -19,6 +19,8 @@ import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
+import viaduct.engine.runtime.execution.QueryPlanFactory
+import viaduct.engine.runtime.execution.QueryPlanIndex
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
@@ -141,14 +143,30 @@ internal class SchemaScopedModule(
 
     @Provides
     @Singleton
+    fun providesQueryPlanFactory(): QueryPlanFactory {
+        return QueryPlanFactory.Cached()
+    }
+
+    @Provides
+    @Singleton
+    fun providesQueryPlanIndexFactory(): QueryPlanIndex.Factory {
+        return QueryPlanIndex.Factory.Cached()
+    }
+
+    @Provides
+    @Singleton
     fun providesEngineFactory(
         config: EngineConfiguration,
         dispatcherRegistry: DispatcherRegistry,
         tenantNameResolver: TenantNameResolver,
+        queryPlanFactory: QueryPlanFactory,
+        queryPlanIndexFactory: QueryPlanIndex.Factory,
     ): EngineFactory {
         return EngineFactory(
             config = config.copy(tenantNameResolver = tenantNameResolver),
             dispatcherRegistry = dispatcherRegistry,
+            queryPlanFactory = queryPlanFactory,
+            queryPlanIndexFactory = queryPlanIndexFactory,
         )
     }
 }

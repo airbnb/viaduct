@@ -6,9 +6,13 @@ import graphql.GraphQLError
 import graphql.schema.GraphQLObjectType
 import graphql.validation.ValidationError
 import graphql.validation.ValidationErrorType
+import io.mockk.every
+import io.mockk.mockk
 import kotlin.test.assertContains
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
@@ -17,8 +21,11 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
+import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldErrorsException
 import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.FieldResolverDispatcher
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.newCell
@@ -35,10 +42,29 @@ import viaduct.errors.UnsetFieldException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProxyEngineObjectDataTest {
+    /**
+     * Test implementation of [ObjectEngineResult.Selections] that maps response keys
+     * to child selections. Uses referential equality for OER key matching.
+     */
+    private class TestSelections(
+        private val children: Map<String, TestSelections> = emptyMap()
+    ) : ObjectEngineResult.Selections {
+        override fun selectionSetForSelection(
+            parentType: GraphQLObjectType,
+            responseKey: String
+        ): TestSelections? = children[responseKey]
+    }
+
     private inner class Fixture(sdl: String, test: suspend Fixture.() -> Unit) {
         val schema = createSchema(sdl)
 
         private val selectionSetFactory = EngineSelectionSetFactoryImpl(schema)
+
+        fun mkSelectionSet(
+            typename: String,
+            fragment: String,
+            variables: Map<String, Any?> = emptyMap()
+        ) = selectionSetFactory.engineSelectionSet(typename, fragment, variables)
 
         fun mkOER(
             typename: String,
@@ -61,7 +87,9 @@ class ProxyEngineObjectDataTest {
             typename: String,
             resultMap: Map<String, Any?> = emptyMap(),
             errors: List<Pair<String, Throwable>> = emptyList(),
-            variables: Map<String, Any?> = emptyMap()
+            variables: Map<String, Any?> = emptyMap(),
+            isResolverSelective: IsResolverSelective = IsResolverSelective.Never,
+            selections: ObjectEngineResult.Selections? = null,
         ): ProxyEngineObjectData {
             val selectionSet =
                 fragment?.let {
@@ -75,7 +103,7 @@ class ProxyEngineObjectDataTest {
                 schema,
                 selectionSet ?: createEngineSelectionSet(typename, "id", emptyMap(), schema)
             )
-            return ProxyEngineObjectData(oer, "error msg", selectionSet)
+            return ProxyEngineObjectData(oer, "error msg", selectionSet, isResolverSelective, selections)
         }
 
         @JvmName("mkProxy2")
@@ -84,7 +112,9 @@ class ProxyEngineObjectDataTest {
             typename: String,
             resultMap: Map<ObjectEngineResult.Key, Any?> = emptyMap(),
             errors: List<Pair<ObjectEngineResult.Key, Throwable>> = emptyList(),
-            variables: Map<String, Any?> = emptyMap()
+            variables: Map<String, Any?> = emptyMap(),
+            isResolverSelective: IsResolverSelective = IsResolverSelective.Never,
+            selections: ObjectEngineResult.Selections? = null,
         ): ProxyEngineObjectData {
             val selectionSet =
                 fragment?.let {
@@ -98,7 +128,7 @@ class ProxyEngineObjectDataTest {
                 schema,
                 selectionSet ?: createEngineSelectionSet(typename, "id", emptyMap(), schema)
             )
-            return ProxyEngineObjectData(oer, "error", selectionSet)
+            return ProxyEngineObjectData(oer, "error", selectionSet, isResolverSelective, selections)
         }
 
         @JvmName("mkProxy3")
@@ -107,15 +137,17 @@ class ProxyEngineObjectDataTest {
             oer: ObjectEngineResult,
             variables: Map<String, Any?> = emptyMap(),
             applyAccessChecks: Boolean = true,
+            isResolverSelective: IsResolverSelective = IsResolverSelective.Never,
+            selections: ObjectEngineResult.Selections? = null,
         ): ProxyEngineObjectData {
             val selectionSet =
                 fragment?.let {
                     selectionSetFactory.engineSelectionSet(oer.type.name, fragment, variables)
                 }
             if (!applyAccessChecks) {
-                return CheckerProxyEngineObjectData(oer, "error", selectionSet)
+                return CheckerProxyEngineObjectData(oer, "error", selectionSet, isResolverSelective, selections)
             }
-            return ProxyEngineObjectData(oer, "error", selectionSet)
+            return ProxyEngineObjectData(oer, "error", selectionSet, isResolverSelective, selections)
         }
 
         init {
@@ -156,6 +188,361 @@ class ProxyEngineObjectDataTest {
             assertEquals(setOf("stringField", "object2"), o1.fetchSelections().toSet())
             val o2 = o1.fetch("object2") as ProxyEngineObjectData
             assertEquals(setOf("intField"), o2.fetchSelections().toSet())
+        }
+    }
+
+    @Test
+    fun `fetch selective nested object uses selection-set-aware key`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { intField: Int, otherField: Int }
+            """.trimIndent()
+        ) {
+            // Two different selection identity objects for "object2" sub-selections
+            val requestedSubSelections = TestSelections()
+            val otherSubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to requestedSubSelections))
+
+            val o1 = mkProxy(
+                "fragment _ on O1 { object2 { intField } }",
+                "O1",
+                mapOf(
+                    ObjectEngineResult.Key(
+                        "object2",
+                        selectionSet = requestedSubSelections
+                    ) to mapOf("intField" to 1),
+                    ObjectEngineResult.Key(
+                        "object2",
+                        selectionSet = otherSubSelections
+                    ) to mapOf("otherField" to 2)
+                ),
+                isResolverSelective = IsResolverSelective.Always,
+                selections = parentSelections,
+            )
+
+            val o2 = o1.fetch("object2") as ProxyEngineObjectData
+            assertEquals(1, o2.fetch("intField"))
+            assertThrows<UnsetFieldException> { o2.fetch("otherField") }
+        }
+    }
+
+    @Test
+    fun `fetch selective field times out when stored and read selection identities differ`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { otherField: Int }
+            """.trimIndent()
+        ) {
+            // Store with one selection identity, but parent provides a different one
+            val storedSubSelections = TestSelections()
+            val readSubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to readSubSelections))
+
+            val o1 = mkProxy(
+                "object2 { otherField }",
+                "O1",
+                mapOf(
+                    ObjectEngineResult.Key(
+                        "object2",
+                        selectionSet = storedSubSelections
+                    ) to mapOf("clientField" to 2)
+                ),
+                isResolverSelective = IsResolverSelective.Always,
+                selections = parentSelections,
+            )
+
+            assertThrows<TimeoutCancellationException> {
+                withTimeout(1000) { o1.fetch("object2") }
+            }
+        }
+    }
+
+    @Test
+    fun `fetch selective interface field uses concrete type coordinate for key selectivity`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                interface Container { profile: Profile }
+                type ConcreteContainer implements Container { profile: Profile }
+                type Profile { name: String }
+            """.trimIndent()
+        ) {
+            val interfaceSelectionSet = mkSelectionSet("Container", "profile { name }")
+            val profileSubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("profile" to profileSubSelections))
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("ConcreteContainer"),
+                mapOf(
+                    ObjectEngineResult.Key(
+                        "profile",
+                        selectionSet = profileSubSelections
+                    ) to mapOf("name" to "Ada")
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                interfaceSelectionSet
+            )
+            val proxy = ProxyEngineObjectData(
+                oer,
+                "error",
+                interfaceSelectionSet,
+                isResolverSelective = IsResolverSelective.fromRegistry(
+                    DispatcherRegistry.Impl(
+                        fieldResolverDispatchers = mapOf(
+                            ("ConcreteContainer" to "profile") to mockk<FieldResolverDispatcher> {
+                                every { isSelective } returns true
+                            }
+                        ),
+                        nodeResolverDispatchers = emptyMap(),
+                        fieldCheckerDispatchers = emptyMap(),
+                        typeCheckerDispatchers = emptyMap(),
+                    ),
+                    true,
+                ),
+                selections = parentSelections,
+            )
+
+            val profile = withTimeout(1000) { proxy.fetch("profile") as ProxyEngineObjectData }
+
+            assertEquals("Ada", withTimeout(1000) { profile.fetch("name") })
+        }
+    }
+
+    @Test
+    fun `fetch selective interface field preserves declared resolver coordinate for key selectivity`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                interface Container { profile: Profile }
+                type ConcreteContainer implements Container { profile: Profile }
+                type Profile { name: String }
+            """.trimIndent()
+        ) {
+            val interfaceSelectionSet = mkSelectionSet("Container", "profile { name }")
+            val profileSubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("profile" to profileSubSelections))
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("ConcreteContainer"),
+                mapOf(
+                    ObjectEngineResult.Key(
+                        "profile",
+                        selectionSet = profileSubSelections
+                    ) to mapOf("name" to "Ada")
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                interfaceSelectionSet
+            )
+            val proxy = ProxyEngineObjectData(
+                oer,
+                "error",
+                interfaceSelectionSet,
+                isResolverSelective = IsResolverSelective.fromRegistry(
+                    DispatcherRegistry.Impl(
+                        fieldResolverDispatchers = mapOf(
+                            ("ConcreteContainer" to "profile") to mockk<FieldResolverDispatcher> {
+                                every { isSelective } returns true
+                            }
+                        ),
+                        nodeResolverDispatchers = emptyMap(),
+                        fieldCheckerDispatchers = emptyMap(),
+                        typeCheckerDispatchers = emptyMap(),
+                    ),
+                    true
+                ),
+                selections = parentSelections,
+            )
+
+            val profile = withTimeout(1000) { proxy.fetch("profile") as ProxyEngineObjectData }
+
+            assertEquals("Ada", withTimeout(1000) { profile.fetch("name") })
+        }
+    }
+
+    @Test
+    fun `fetch selective field requires selections on proxy to match write-side key`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { intField: Int }
+            """.trimIndent()
+        ) {
+            val object2SubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to object2SubSelections))
+
+            // Write-side: store with selective key (non-null selections)
+            val o1 = mkProxy(
+                "fragment _ on O1 { object2 { intField } }",
+                "O1",
+                mapOf(
+                    ObjectEngineResult.Key(
+                        "object2",
+                        selectionSet = object2SubSelections
+                    ) to mapOf("intField" to 42)
+                ),
+                isResolverSelective = IsResolverSelective.Always,
+                // Proxy WITHOUT selections — simulates queryValue today
+                selections = null,
+            )
+
+            // Read-side: proxy has no selections, so it builds a key with null selections.
+            // The OER only has an entry with non-null selections. This should time out.
+            assertThrows<TimeoutCancellationException> {
+                withTimeout(200) { o1.fetch("object2") }
+            }
+        }
+    }
+
+    @Test
+    fun `fetch selective field succeeds when proxy has matching selections`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { intField: Int }
+            """.trimIndent()
+        ) {
+            val object2SubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to object2SubSelections))
+
+            val o1 = mkProxy(
+                "fragment _ on O1 { object2 { intField } }",
+                "O1",
+                mapOf(
+                    ObjectEngineResult.Key(
+                        "object2",
+                        selectionSet = object2SubSelections
+                    ) to mapOf("intField" to 42)
+                ),
+                isResolverSelective = IsResolverSelective.Always,
+                // Proxy WITH selections — simulates the fix
+                selections = parentSelections,
+            )
+
+            val o2 = o1.fetch("object2") as ProxyEngineObjectData
+            assertEquals(42, o2.fetch("intField"))
+        }
+    }
+
+    @Test
+    fun `fetch selective field at second nesting level traverses child selections`() {
+        Fixture(
+            """
+                type Query { root: O1, empty: Int }
+                type O1 { object2: O2 }
+                type O2 { object3: O3 }
+                type O3 { value: Int }
+            """.trimIndent()
+        ) {
+            val object3Selections = TestSelections()
+            val object2Selections = TestSelections(mapOf("object3" to object3Selections))
+            val o1Selections = TestSelections(mapOf("object2" to object2Selections))
+
+            val o1 = mkProxy(
+                "fragment _ on O1 { object2 { object3 { value } } }",
+                "O1",
+                mapOf(
+                    ObjectEngineResult.Key(
+                        "object2",
+                        selectionSet = object2Selections
+                    ) to mapOf(
+                        ObjectEngineResult.Key(
+                            "object3",
+                            selectionSet = object3Selections
+                        ) to mapOf("value" to 99)
+                    ),
+                ),
+                isResolverSelective = IsResolverSelective.Always,
+                selections = o1Selections,
+            )
+
+            val o2 = o1.fetch("object2") as ProxyEngineObjectData
+            val o3 = withTimeout(200) { o2.fetch("object3") } as ProxyEngineObjectData
+            assertEquals(99, withTimeout(200) { o3.fetch("value") })
+        }
+    }
+
+    @Test
+    fun `fetch non-selective nested object ignores selection set in key`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { intField: Int }
+            """.trimIndent()
+        ) {
+            val o1 = mkProxy(
+                "fragment _ on O1 { object2 { intField } }",
+                "O1",
+                mapOf(
+                    ObjectEngineResult.Key("object2") to mapOf("intField" to 1)
+                ),
+                isResolverSelective = IsResolverSelective.Never,
+            )
+
+            val o2 = o1.fetch("object2") as ProxyEngineObjectData
+            assertEquals(1, o2.fetch("intField"))
+        }
+    }
+
+    @Test
+    fun `fetch preserves exact alias match when lookup selection set contains ambiguous candidates`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { bar: Int }
+            """.trimIndent()
+        ) {
+            val selectionSet = mkSelectionSet("O1", "bar aliasedBar: bar")
+            val proxy = mkProxy(
+                "bar aliasedBar: bar",
+                "O1",
+                mapOf(
+                    ObjectEngineResult.Key("bar") to 1,
+                    ObjectEngineResult.Key("bar", alias = "aliasedBar") to 2,
+                ),
+            )
+
+            assertEquals(1, proxy.fetch("bar"))
+            assertEquals(2, proxy.fetch("aliasedBar"))
+        }
+    }
+
+    @Test
+    fun `fetch preserves exact alias match when visible selection is narrower than lookup selection set`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { bar: Int }
+            """.trimIndent()
+        ) {
+            val lookupSelectionSet = mkSelectionSet("O1", "bar aliasedBar: bar")
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O1"),
+                mapOf(
+                    ObjectEngineResult.Key("bar") to 1,
+                    ObjectEngineResult.Key("bar", alias = "aliasedBar") to 2,
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                lookupSelectionSet
+            )
+
+            val proxy = mkProxy(
+                "aliasedBar: bar",
+                oer,
+            )
+
+            assertEquals(2, proxy.fetch("aliasedBar"))
+            assertEquals(setOf("aliasedBar"), proxy.fetchSelections().toSet())
         }
     }
 
@@ -394,6 +781,122 @@ class ProxyEngineObjectDataTest {
     }
 
     @Test
+    fun `fetch preserves exact alias and arguments match when visible selection is narrower than lookup selection set`() {
+        Fixture("type Query { field(x: Int): Int }") {
+            val lookupSelectionSet = mkSelectionSet(
+                "Query",
+                "field(x: 1) aliasedField: field(x: 1) otherArg: field(x: 2)"
+            )
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("Query"),
+                mapOf(
+                    ObjectEngineResult.Key("field", null, mapOf("x" to 1)) to 1,
+                    ObjectEngineResult.Key("field", "aliasedField", mapOf("x" to 1)) to 2,
+                    ObjectEngineResult.Key("field", "otherArg", mapOf("x" to 2)) to 3,
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                lookupSelectionSet
+            )
+
+            val proxy = mkProxy(
+                "aliasedField: field(x: 1)",
+                oer,
+            )
+
+            assertEquals(2, proxy.fetch("aliasedField"))
+            assertEquals(setOf("aliasedField"), proxy.fetchSelections().toSet())
+        }
+    }
+
+    @Test
+    fun `fetch nested proxy preserves exact alias and arguments match when visible and stored selection shapes match`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { field(x: Int): Int }
+            """.trimIndent()
+        ) {
+            val lookupSelectionSet = mkSelectionSet(
+                "O1",
+                "object2 { aliasedField: field(x: 1) }"
+            )
+            val object2SubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to object2SubSelections))
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O1"),
+                mapOf(
+                    ObjectEngineResult.Key("object2", selectionSet = object2SubSelections) to mapOf(
+                        ObjectEngineResult.Key("field", "aliasedField", mapOf("x" to 1)) to 2,
+                    )
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                lookupSelectionSet
+            )
+
+            val proxy = mkProxy(
+                "object2 { aliasedField: field(x: 1) }",
+                oer,
+                isResolverSelective = IsResolverSelective.Always,
+                selections = parentSelections,
+            )
+
+            val object2 = proxy.fetch("object2") as ProxyEngineObjectData
+
+            assertEquals(2, object2.fetch("aliasedField"))
+            assertEquals(setOf("aliasedField"), object2.fetchSelections().toSet())
+        }
+    }
+
+    @Test
+    fun `fetch nested proxy times out when visible and stored selection shapes differ`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { field(x: Int): Int }
+            """.trimIndent()
+        ) {
+            val lookupSelectionSet = mkSelectionSet(
+                "O1",
+                "object2 { field(x: 1) aliasedField: field(x: 1) otherArg: field(x: 2) }"
+            )
+            val storedObject2SubSelections = TestSelections()
+            val readObject2SubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to readObject2SubSelections))
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O1"),
+                mapOf(
+                    ObjectEngineResult.Key("object2", selectionSet = storedObject2SubSelections) to mapOf(
+                        ObjectEngineResult.Key("field", null, mapOf("x" to 1)) to 1,
+                        ObjectEngineResult.Key("field", "aliasedField", mapOf("x" to 1)) to 2,
+                        ObjectEngineResult.Key("field", "otherArg", mapOf("x" to 2)) to 3,
+                    )
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                lookupSelectionSet
+            )
+
+            val proxy = mkProxy(
+                "object2 { aliasedField: field(x: 1) }",
+                oer,
+                isResolverSelective = IsResolverSelective.Always,
+                selections = parentSelections,
+            )
+
+            assertThrows<TimeoutCancellationException> {
+                withTimeout(1000) { proxy.fetch("object2") }
+            }
+        }
+    }
+
+    @Test
     fun `fetch invalid field`() {
         Fixture("type Query { x: Int }") {
             val o1 = mkProxy(null, "Query", emptyMap<String, Any>())
@@ -452,7 +955,6 @@ class ProxyEngineObjectDataTest {
             """.trimIndent()
         ) {
             val oer = mkOER("O1")
-
             ObjectEngineResult.Key("object2").also { key ->
                 oer.computeIfAbsent(key) { slotSetter ->
                     slotSetter.setRawValue(
@@ -610,8 +1112,15 @@ class ProxyEngineObjectDataTest {
                 "__type(name:\"__Schema\") { __typename  }, a:__type(name:\"__Schema\") { __typename  }",
                 "Query",
                 mapOf(
-                    ObjectEngineResult.Key("__type", arguments = mapOf("name" to "__Schema")) to emptyMap<String, Any?>(),
-                    ObjectEngineResult.Key("__type", "a", mapOf("name" to "__Schema")) to emptyMap<String, Any?>()
+                    ObjectEngineResult.Key(
+                        "__type",
+                        arguments = mapOf("name" to "__Schema")
+                    ) to emptyMap<String, Any?>(),
+                    ObjectEngineResult.Key(
+                        "__type",
+                        "a",
+                        mapOf("name" to "__Schema")
+                    ) to emptyMap<String, Any?>()
                 )
             ).let { proxy ->
                 assertInstanceOf(ProxyEngineObjectData::class.java, proxy.fetch("__type"))

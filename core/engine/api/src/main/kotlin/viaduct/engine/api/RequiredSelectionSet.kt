@@ -19,6 +19,10 @@ class RequiredSelectionSet(
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
     val executionCondition: QueryPlanExecutionCondition = ALWAYS_EXECUTE,
 ) {
+    class Id internal constructor()
+
+    val id: Id = Id()
+
     init {
         val refs = selections.selections.collectVariableReferences()
         val resolvers = variablesResolvers.flatMap { it.variableNames }

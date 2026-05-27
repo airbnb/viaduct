@@ -27,6 +27,9 @@ object EngineExecutionContextExtensions {
     val EngineExecutionContext.executeAccessChecksInModstrat: Boolean
         get() = asImpl().executeAccessChecksInModstrat
 
+    val EngineExecutionContext.selectiveOERKeysEnabled: Boolean
+        get() = asImpl().selectiveOERKeysEnabled
+
     val EngineExecutionContext.dispatcherRegistry: DispatcherRegistry
         get() = asImpl().dispatcherRegistry
 

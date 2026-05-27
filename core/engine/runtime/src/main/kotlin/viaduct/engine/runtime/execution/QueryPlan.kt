@@ -11,6 +11,7 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.DispatcherRegistry
@@ -33,6 +34,7 @@ import viaduct.engine.runtime.execution.constraints.Constraints
  * @property attribution Execution attribution for tracing and instrumentation.
  * @property executionCondition Condition that controls whether this plan executes at runtime.
  * @property variableDefinitions Pre-computed variable definitions for this plan.
+ * @property requiredSelectionSetId The id of the RequiredSelectionSet instance that produced this child plan.
  */
 data class QueryPlan(
     val selectionSet: SelectionSet,
@@ -44,6 +46,7 @@ data class QueryPlan(
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
     val executionCondition: QueryPlanExecutionCondition,
     val variableDefinitions: List<VariableDefinition>,
+    val requiredSelectionSetId: RequiredSelectionSet.Id? = null,
 ) {
     /**
      * Configuration for building a QueryPlan.
@@ -215,10 +218,15 @@ data class QueryPlan(
 
     /**
      * Metadata of the field.
-     * @property resolverCoordinate This is the field coordinate points the resolver which resolves the current field
+     * @property resolvedByCoordinate The field coordinate for the resolver that produced the current object scope.
+     * Set to the field's own coordinate when that field has a resolver, otherwise propagated from the parent
+     * selection. Used by observability to attribute trivial field fetches to the resolver that created the
+     * parent object. Not used to decide whether a field itself is selectively resolved — that is derived at
+     * runtime from [DispatcherRegistry] using the concrete object type, since resolvers are only bound to
+     * concrete-object field coordinates.
      */
     data class FieldMetadata(
-        val resolverCoordinate: Coordinate?
+        val resolvedByCoordinate: Coordinate?,
     ) {
         companion object {
             val empty: FieldMetadata = FieldMetadata(null)

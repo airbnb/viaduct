@@ -32,11 +32,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
+import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolutionResult
@@ -399,6 +402,24 @@ class ExecutionParametersTest {
     }
 
     @Test
+    fun `forChildPlan indexes dynamically built child plans without changing constants`() {
+        val rss = createRSS("Query", "foo")
+        val indexedPlan = queryPlanFor(type = queryType, requiredSelectionSetId = rss.id)
+        val dynamicPlan = queryPlanFor(type = queryType, childPlans = listOf(indexedPlan))
+        val parameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id"))),
+            queryPlan = queryPlanFor(type = fooType),
+        )
+
+        val result = parameters.forChildPlan(dynamicPlan, emptyVariables)
+
+        assertNull(parameters.queryPlanIndex.find(rss.id))
+        assertSame(indexedPlan, result.queryPlanIndex.find(rss.id))
+        assertSame(parameters.constants, result.constants)
+    }
+
+    @Test
     fun `forField builds execution step info for collected field`() {
         val baseParameters = createExecutionParameters(
             source = defaultRootValue,
@@ -575,6 +596,8 @@ class ExecutionParametersTest {
             queryEngineResult = queryEngineResult,
             coercedVariables = emptyVariables,
             queryPlan = queryPlan,
+            queryPlanIndex = QueryPlanIndex.Factory.Default.create(queryPlan),
+            queryPlanIndexFactory = QueryPlanIndex.Factory.Default,
             localContext = localContext,
             source = source,
             executionStepInfo = executionStepInfo,
@@ -605,18 +628,21 @@ class ExecutionParametersTest {
     private fun queryPlanFor(
         type: GraphQLOutputType,
         astSelectionSet: GJSelectionSet = emptyAstSelectionSet,
-        attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT
+        attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
+        childPlans: List<QueryPlan> = emptyList(),
+        requiredSelectionSetId: RequiredSelectionSet.Id? = null,
     ): QueryPlan =
         QueryPlan(
             selectionSet = QueryPlan.SelectionSet.empty,
             fragments = QueryPlan.Fragments.empty,
             variablesResolvers = emptyList(),
             parentType = type,
-            childPlans = emptyList(),
+            childPlans = childPlans,
             astSelectionSet = astSelectionSet,
             attribution = attribution,
             executionCondition = QueryPlanExecutionCondition.ALWAYS_EXECUTE,
-            variableDefinitions = emptyList()
+            variableDefinitions = emptyList(),
+            requiredSelectionSetId = requiredSelectionSetId,
         )
 
     private fun executionStepInfoForField(

@@ -53,6 +53,13 @@ interface FlagManager {
         /** Controls whether access-check directives are enforced during execution. */
         EXECUTE_ACCESS_CHECKS("execute_access_checks_in_modern_execution_strategy"),
 
+        /**
+         * Controls whether selective resolvers use subselection-aware OER keys.
+         *
+         * When disabled, selective resolvers are effectively treated as non-selective for OER keying.
+         */
+        ENABLE_SELECTIVE_OER_KEYS("enable_selective_oer_keys"),
+
         /** Killswitch for non-blocking enqueue flush in the coroutine dispatcher. */
         KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH("common.kotlin.nextTickDispatcher.killswitch.nonBlockingEnqueueFlush"),
     }

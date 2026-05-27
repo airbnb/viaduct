@@ -41,11 +41,12 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 
 class ObjectEngineResultImplTest {
-    private data class TestSelections(
-        override val type: String,
-        override val document: String,
-        override val variables: Map<String, Any?> = emptyMap(),
-    ) : ObjectEngineResult.Selections
+    private class TestSelections : ObjectEngineResult.Selections {
+        override fun selectionSetForSelection(
+            parentType: GraphQLObjectType,
+            responseKey: String
+        ): ObjectEngineResult.Selections? = null
+    }
 
     private val testScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private val graphQLObjectType: GraphQLObjectType = mockk()
@@ -207,8 +208,8 @@ class ObjectEngineResultImplTest {
     fun `test fetch with selection set`() {
         runBlocking {
             val engine = newOER()
-            val selectionSet1 = TestSelections(type = "Query", document = "fragment _ on Query { test { a } }")
-            val selectionSet2 = TestSelections(type = "Query", document = "fragment _ on Query { test { b } }")
+            val selectionSet1 = TestSelections()
+            val selectionSet2 = TestSelections()
             val key1 = ObjectEngineResult.Key("test", selectionSet = selectionSet1)
             val key2 = ObjectEngineResult.Key("test", selectionSet = selectionSet2)
 
@@ -227,34 +228,16 @@ class ObjectEngineResultImplTest {
     }
 
     @Test
-    fun `test key equality with selection set`() {
-        val key1 = ObjectEngineResult.Key(
-            "test",
-            selectionSet = TestSelections(
-                type = "Query",
-                document = "fragment _ on Query { test { a } }",
-                variables = mapOf("x" to 1)
-            )
-        )
-        val key2 = ObjectEngineResult.Key(
-            "test",
-            selectionSet = TestSelections(
-                type = "Query",
-                document = "fragment _ on Query { test { a } }",
-                variables = mapOf("x" to 1)
-            )
-        )
-        val key3 = ObjectEngineResult.Key(
-            "test",
-            selectionSet = TestSelections(
-                type = "Query",
-                document = "fragment _ on Query { test { b } }",
-                variables = mapOf("x" to 1)
-            )
-        )
+    fun `test key equality with selection set -- referential equality`() {
+        val sharedSelections = TestSelections()
+        val key1 = ObjectEngineResult.Key("test", selectionSet = sharedSelections)
+        val key2 = ObjectEngineResult.Key("test", selectionSet = sharedSelections)
+        val key3 = ObjectEngineResult.Key("test", selectionSet = TestSelections())
 
+        // Same instance -> equal keys
         assertEquals(key1, key2)
         assertEquals(key1.hashCode(), key2.hashCode())
+        // Different instances -> different keys (referential equality)
         assertNotEquals(key1, key3)
     }
 
@@ -824,6 +807,12 @@ class ObjectEngineResultImplTest {
                     "friends.0.name" to RuntimeException("Name not available"),
                     "posts" to RuntimeException("Posts not accessible")
                 )
+                val selectionSet = createEngineSelectionSet(
+                    "User",
+                    "id name friends { id name } posts { id title }",
+                    emptyMap(),
+                    schema
+                )
 
                 val result = ObjectEngineResultTestHelper.newFromMap(
                     userType,
@@ -831,7 +820,7 @@ class ObjectEngineResultImplTest {
                     errors,
                     emptyList(),
                     schema,
-                    createEngineSelectionSet("User", "id name friends { id name } posts { id title }", emptyMap(), schema)
+                    selectionSet
                 )
 
                 // Test successful fields
@@ -839,7 +828,12 @@ class ObjectEngineResultImplTest {
                 assertEquals("Alice", result.fetch(ObjectEngineResult.Key("name"), RAW_VALUE_SLOT))
 
                 // Test nested ObjectEngineResult
-                val friends = result.fetch(ObjectEngineResult.Key("friends"), RAW_VALUE_SLOT) as List<*>
+                val friends = result.fetch(
+                    ObjectEngineResult.Key(
+                        "friends"
+                    ),
+                    RAW_VALUE_SLOT
+                ) as List<*>
                 val friend = (friends[0] as Cell).fetch(RAW_VALUE_SLOT) as ObjectEngineResultImpl
                 assertEquals("456", friend.fetch(ObjectEngineResult.Key("id"), RAW_VALUE_SLOT))
 
@@ -849,7 +843,12 @@ class ObjectEngineResultImplTest {
                 }
 
                 assertFailsWith<RuntimeException>("Posts not accessible") {
-                    result.fetch(ObjectEngineResult.Key("posts"), RAW_VALUE_SLOT)
+                    result.fetch(
+                        ObjectEngineResult.Key(
+                            "posts"
+                        ),
+                        RAW_VALUE_SLOT
+                    )
                 }
             }
         }
@@ -880,6 +879,21 @@ class ObjectEngineResultImplTest {
                     "friendCount" to 10,
                     "socialMedia" to "https://example.com"
                 )
+                val selectionSet = createEngineSelectionSet(
+                    "User",
+                    """
+                        id
+                        nickname: name
+                        friends(onlyDirect: true) {
+                            id
+                            name
+                        }
+                        friendCount
+                        socialMedia(siteName: ${'$'}siteVar)
+                    """.trimIndent(),
+                    mapOf("siteVar" to "example"),
+                    schema
+                )
 
                 val result = ObjectEngineResultTestHelper.newFromMap(
                     userType,
@@ -887,21 +901,7 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    createEngineSelectionSet(
-                        "User",
-                        """
-                            id
-                            nickname: name
-                            friends(onlyDirect: true) {
-                                id
-                                name
-                            }
-                            friendCount
-                            socialMedia(siteName: ${'$'}siteVar)
-                        """.trimIndent(),
-                        mapOf("siteVar" to "example"),
-                        schema
-                    )
+                    selectionSet
                 )
 
                 // Test successful fields
@@ -909,7 +909,13 @@ class ObjectEngineResultImplTest {
                 assertEquals("Alice", result.fetch(ObjectEngineResult.Key("name", "nickname"), RAW_VALUE_SLOT))
 
                 // Test nested ObjectEngineResult with argument explicit specified
-                val friends = result.fetch(ObjectEngineResult.Key("friends", null, mapOf("onlyDirect" to true)), RAW_VALUE_SLOT) as List<*>
+                val friends = result.fetch(
+                    ObjectEngineResult.Key(
+                        "friends",
+                        arguments = mapOf("onlyDirect" to true)
+                    ),
+                    RAW_VALUE_SLOT
+                ) as List<*>
                 val friend = (friends[0] as Cell).fetch(RAW_VALUE_SLOT) as ObjectEngineResultImpl
                 assertEquals("456", friend.fetch(ObjectEngineResult.Key("id"), RAW_VALUE_SLOT))
 
@@ -936,6 +942,15 @@ class ObjectEngineResultImplTest {
                     "b1" to mapOf("a" to 12),
                     "b2" to mapOf("b" to 21)
                 )
+                val selectionSet = createEngineSelectionSet(
+                    "Foo",
+                    """
+                        b1: bar(id: 1) { a }
+                        b2: bar(id: 2) { b }
+                    """.trimIndent(),
+                    emptyMap(),
+                    schema
+                )
 
                 val result = ObjectEngineResultTestHelper.newFromMap(
                     fooType,
@@ -943,20 +958,26 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    createEngineSelectionSet(
-                        "Foo",
-                        """
-                            b1: bar(id: 1) { a }
-                            b2: bar(id: 2) { b }
-                        """.trimIndent(),
-                        emptyMap(),
-                        schema
-                    )
+                    selectionSet
                 )
 
                 // Test successful fields
-                val b1 = result.fetch(ObjectEngineResult.Key("bar", "b1", mapOf("id" to 1)), RAW_VALUE_SLOT) as ObjectEngineResultImpl
-                val b2 = result.fetch(ObjectEngineResult.Key("bar", "b2", mapOf("id" to 2)), RAW_VALUE_SLOT) as ObjectEngineResultImpl
+                val b1 = result.fetch(
+                    ObjectEngineResult.Key(
+                        "bar",
+                        "b1",
+                        mapOf("id" to 1)
+                    ),
+                    RAW_VALUE_SLOT
+                ) as ObjectEngineResultImpl
+                val b2 = result.fetch(
+                    ObjectEngineResult.Key(
+                        "bar",
+                        "b2",
+                        mapOf("id" to 2)
+                    ),
+                    RAW_VALUE_SLOT
+                ) as ObjectEngineResultImpl
                 assertEquals(12, b1.fetch(ObjectEngineResult.Key("a"), RAW_VALUE_SLOT))
                 assertEquals(21, b2.fetch(ObjectEngineResult.Key("b"), RAW_VALUE_SLOT))
             }
@@ -1059,6 +1080,12 @@ class ObjectEngineResultImplTest {
                         type Foo implements I { x:Int, y:Int }
                     """
                 )
+                val selectionSet = createEngineSelectionSet(
+                    "Query",
+                    "i { ... on Foo { y } }",
+                    emptyMap(),
+                    schema
+                )
 
                 val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
@@ -1066,16 +1093,14 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    createEngineSelectionSet(
-                        "Query",
-                        "i { ... on Foo { y } }",
-                        emptyMap(),
-                        schema
-                    )
+                    selectionSet
                 )
 
                 // Test successful fields
-                val i = result.fetch(ObjectEngineResult.Key("i"), RAW_VALUE_SLOT) as ObjectEngineResult
+                val i = result.fetch(
+                    ObjectEngineResult.Key("i"),
+                    RAW_VALUE_SLOT
+                ) as ObjectEngineResult
                 val y = i.fetch(ObjectEngineResult.Key("y"), RAW_VALUE_SLOT)
                 assertEquals(42, y)
             }
@@ -1092,6 +1117,12 @@ class ObjectEngineResultImplTest {
                         type Foo { x:Int }
                     """
                 )
+                val selectionSet = createEngineSelectionSet(
+                    "Query",
+                    "u { ... on Foo { x } }",
+                    emptyMap(),
+                    schema
+                )
 
                 val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
@@ -1099,16 +1130,14 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    createEngineSelectionSet(
-                        "Query",
-                        "u { ... on Foo { x } }",
-                        emptyMap(),
-                        schema
-                    )
+                    selectionSet
                 )
 
                 // Test successful fields
-                val us = result.fetch(ObjectEngineResult.Key("u"), RAW_VALUE_SLOT) as List<Cell>
+                val us = result.fetch(
+                    ObjectEngineResult.Key("u"),
+                    RAW_VALUE_SLOT
+                ) as List<Cell>
                 assertEquals(1, us.size)
                 val u = us[0].fetch(RAW_VALUE_SLOT) as ObjectEngineResultImpl
                 assertEquals(42, u.fetch(ObjectEngineResult.Key("x"), RAW_VALUE_SLOT))
@@ -1126,6 +1155,12 @@ class ObjectEngineResultImplTest {
                         type Bar { x:Int }
                     """
                 )
+                val selectionSet = createEngineSelectionSet(
+                    "Query",
+                    "u { ... on Foo { bar { x } } }",
+                    emptyMap(),
+                    schema
+                )
 
                 val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
@@ -1133,18 +1168,19 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    createEngineSelectionSet(
-                        "Query",
-                        "u { ... on Foo { bar { x } } }",
-                        emptyMap(),
-                        schema
-                    )
+                    selectionSet
                 )
 
                 // Test successful fields
-                val foo = result.fetch(ObjectEngineResult.Key("u"), RAW_VALUE_SLOT) as ObjectEngineResultImpl
+                val foo = result.fetch(
+                    ObjectEngineResult.Key("u"),
+                    RAW_VALUE_SLOT
+                ) as ObjectEngineResultImpl
                 assertEquals("Foo", foo.type.name)
-                val bar = foo.fetch(ObjectEngineResult.Key("bar"), RAW_VALUE_SLOT) as ObjectEngineResultImpl
+                val bar = foo.fetch(
+                    ObjectEngineResult.Key("bar"),
+                    RAW_VALUE_SLOT
+                ) as ObjectEngineResultImpl
                 assertEquals(42, bar.fetch(ObjectEngineResult.Key("x"), RAW_VALUE_SLOT))
             }
         }
@@ -1160,6 +1196,12 @@ class ObjectEngineResultImplTest {
                         type Bar implements I { x:Int }
                     """
                 )
+                val selectionSet = createEngineSelectionSet(
+                    "Query",
+                    "i { ... on Bar { x } }",
+                    emptyMap(),
+                    schema
+                )
 
                 val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
@@ -1167,15 +1209,13 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    createEngineSelectionSet(
-                        "Query",
-                        "i { ... on Bar { x } }",
-                        emptyMap(),
-                        schema
-                    )
+                    selectionSet
                 )
 
-                val i = result.fetch(ObjectEngineResult.Key("i"), RAW_VALUE_SLOT)
+                val i = result.fetch(
+                    ObjectEngineResult.Key("i"),
+                    RAW_VALUE_SLOT
+                )
                 assertNotNull(i)
             }
         }
@@ -1190,6 +1230,12 @@ class ObjectEngineResultImplTest {
                         type Foo { x:Int }
                     """
                 )
+                val selectionSet = createEngineSelectionSet(
+                    "Query",
+                    "u { __typename }",
+                    emptyMap(),
+                    schema
+                )
 
                 val result = ObjectEngineResultTestHelper.newFromMap(
                     schema.schema.queryType,
@@ -1197,15 +1243,13 @@ class ObjectEngineResultImplTest {
                     emptyList<Pair<String, Throwable>>().toMutableList(),
                     emptyList(),
                     schema,
-                    createEngineSelectionSet(
-                        "Query",
-                        "u { __typename }",
-                        emptyMap(),
-                        schema
-                    )
+                    selectionSet
                 )
 
-                val u = result.fetch(ObjectEngineResult.Key("u"), RAW_VALUE_SLOT)
+                val u = result.fetch(
+                    ObjectEngineResult.Key("u"),
+                    RAW_VALUE_SLOT
+                )
                 u as ObjectEngineResultImpl
                 assertEquals("Foo", u.fetch(ObjectEngineResult.Key("__typename"), RAW_VALUE_SLOT))
             }

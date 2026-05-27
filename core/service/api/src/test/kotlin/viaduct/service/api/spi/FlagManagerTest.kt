@@ -17,4 +17,9 @@ class FlagManagerTest {
     fun `FlagManager_default returns true for select flags`() {
         assertTrue(FlagManager.default.isEnabled(Flags.EXECUTE_ACCESS_CHECKS))
     }
+
+    @Test
+    fun `FlagManager_default returns false for selective oer keys`() {
+        assertFalse(FlagManager.default.isEnabled(Flags.ENABLE_SELECTIVE_OER_KEYS))
+    }
 }

@@ -3,11 +3,16 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.ResultPath
+import graphql.schema.GraphQLObjectType
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -21,8 +26,11 @@ import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.mocks.MockCheckerErrorResult
+import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldErrorsException
 import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.FieldResolverDispatcher
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
@@ -38,6 +46,37 @@ import viaduct.engine.runtime.execution.ProxyEngineObjectDataTest.Companion.mkOe
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 
 class SyncEngineObjectDataFactoryTest {
+    /**
+     * Test implementation of [ObjectEngineResult.Selections] that maps response keys
+     * to child selections. Uses referential equality for OER key matching.
+     */
+    private class TestSelections(
+        private val children: Map<String, TestSelections> = emptyMap()
+    ) : ObjectEngineResult.Selections {
+        override fun selectionSetForSelection(
+            parentType: GraphQLObjectType,
+            responseKey: String
+        ): TestSelections? = children[responseKey]
+    }
+
+    private suspend fun resolveSyncData(
+        objectEngineResult: ObjectEngineResult,
+        errorMessage: String,
+        selectionSet: viaduct.engine.api.EngineSelectionSet? = null,
+        parentPath: ResultPath? = null,
+        isResolverSelective: IsResolverSelective = IsResolverSelective.Never,
+        selections: ObjectEngineResult.Selections? = null,
+    ): SyncProxyEngineObjectData {
+        return SyncEngineObjectDataFactory.resolve(
+            objectEngineResult = objectEngineResult,
+            errorMessage = errorMessage,
+            selectionSet = selectionSet,
+            parentPath = parentPath,
+            isResolverSelective = isResolverSelective,
+            selections = selections,
+        )
+    }
+
     private inner class Fixture(sdl: String, test: suspend Fixture.() -> Unit) {
         val schema = createSchema(sdl)
         private val selectionSetFactory = EngineSelectionSetFactoryImpl(schema)
@@ -78,7 +117,7 @@ class SyncEngineObjectDataFactoryTest {
         Fixture("type Query { x: Int }") {
             val oer = mkOER("Query", mapOf("x" to 1), selections = "x")
 
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", null)
+            val syncData = resolveSyncData(oer, "error", null)
 
             assertEquals(emptySet<String>(), syncData.getSelections().toSet())
         }
@@ -90,7 +129,7 @@ class SyncEngineObjectDataFactoryTest {
             val oer = mkOER("Query", mapOf("x" to 42, "y" to "hello"), selections = "x y")
             val selectionSet = mkSelectionSet("Query", "x y")
 
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             assertEquals(42, syncData.get("x"))
             assertEquals("hello", syncData.get("y"))
@@ -121,13 +160,370 @@ class SyncEngineObjectDataFactoryTest {
             )
             val selectionSet = mkSelectionSet("O1", "stringField object2 { intField }")
 
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             assertEquals("hello", syncData.get("stringField"))
 
             val nested = syncData.get("object2")
             assertInstanceOf(SyncProxyEngineObjectData::class.java, nested)
             assertEquals(42, (nested as EngineObjectData.Sync).get("intField"))
+        }
+    }
+
+    @Test
+    fun `resolve selective nested object uses selection-set-aware key`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { intField: Int, otherField: Int }
+            """.trimIndent()
+        ) {
+            val requestedSelectionSet = mkSelectionSet("O1", "object2 { intField }")
+            val requestedSubSelections = TestSelections()
+            val otherSubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to requestedSubSelections))
+
+            val requestedNestedOer = mkOER("O2", mapOf("intField" to 1), selections = "intField")
+            val otherNestedOer = mkOER("O2", mapOf("otherField" to 2), selections = "otherField")
+            val outerOer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("O1"))
+
+            outerOer.computeIfAbsent(
+                ObjectEngineResult.Key(
+                    "object2",
+                    selectionSet = requestedSubSelections
+                )
+            ) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            requestedNestedOer,
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "object2"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            outerOer.computeIfAbsent(
+                ObjectEngineResult.Key(
+                    "object2",
+                    selectionSet = otherSubSelections
+                )
+            ) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            otherNestedOer,
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "object2"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            val syncData = resolveSyncData(
+                outerOer,
+                "error",
+                requestedSelectionSet,
+                isResolverSelective = IsResolverSelective.Always,
+                selections = parentSelections,
+            )
+            val nested = syncData.get("object2") as EngineObjectData.Sync
+
+            assertEquals(1, nested.get("intField"))
+        }
+    }
+
+    @Test
+    fun `resolve selective interface field uses concrete type coordinate for key selectivity`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                interface Container { profile: Profile }
+                type ConcreteContainer implements Container { profile: Profile }
+                type Profile { name: String }
+            """.trimIndent()
+        ) {
+            val interfaceSelectionSet = mkSelectionSet("Container", "profile { name }")
+            val profileSubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("profile" to profileSubSelections))
+            val nestedOer = mkOER("Profile", mapOf("name" to "Ada"), selections = "name")
+            val outerOer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("ConcreteContainer"))
+
+            outerOer.computeIfAbsent(
+                ObjectEngineResult.Key(
+                    "profile",
+                    selectionSet = profileSubSelections
+                )
+            ) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            nestedOer,
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "profile"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            val syncData = resolveSyncData(
+                outerOer,
+                "error",
+                interfaceSelectionSet,
+                isResolverSelective = IsResolverSelective.fromRegistry(
+                    DispatcherRegistry.Impl(
+                        fieldResolverDispatchers = mapOf(
+                            ("ConcreteContainer" to "profile") to mockk<FieldResolverDispatcher> {
+                                every { isSelective } returns true
+                            }
+                        ),
+                        nodeResolverDispatchers = emptyMap(),
+                        fieldCheckerDispatchers = emptyMap(),
+                        typeCheckerDispatchers = emptyMap(),
+                    ),
+                    selectiveResolverOerKeyingEnabled = true,
+                ),
+                selections = parentSelections,
+            )
+            val profile = syncData.get("profile") as EngineObjectData.Sync
+
+            assertEquals("Ada", profile.get("name"))
+        }
+    }
+
+    @Test
+    fun `resolve selective interface field preserves declared resolver coordinate for key selectivity`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                interface Container { profile: Profile }
+                type ConcreteContainer implements Container { profile: Profile }
+                type Profile { name: String }
+            """.trimIndent()
+        ) {
+            val interfaceSelectionSet = mkSelectionSet("Container", "profile { name }")
+            val profileSubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("profile" to profileSubSelections))
+            val outerOer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("ConcreteContainer"))
+
+            outerOer.computeIfAbsent(
+                ObjectEngineResult.Key(
+                    "profile",
+                    selectionSet = profileSubSelections
+                )
+            ) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            mkOER("Profile", mapOf("name" to "Ada"), selections = "name"),
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "profile"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            val syncData = resolveSyncData(
+                outerOer,
+                "error",
+                interfaceSelectionSet,
+                isResolverSelective = IsResolverSelective.fromRegistry(
+                    DispatcherRegistry.Impl(
+                        fieldResolverDispatchers = mapOf(
+                            ("Container" to "profile") to mockk<FieldResolverDispatcher> {
+                                every { isSelective } returns true
+                            }
+                        ),
+                        nodeResolverDispatchers = emptyMap(),
+                        fieldCheckerDispatchers = emptyMap(),
+                        typeCheckerDispatchers = emptyMap(),
+                    ),
+                    selectiveResolverOerKeyingEnabled = true,
+                ),
+                selections = parentSelections,
+            )
+            val profile = syncData.get("profile") as EngineObjectData.Sync
+
+            assertEquals("Ada", profile.get("name"))
+        }
+    }
+
+    @Test
+    fun `resolve selective nested object times out when visible and stored selection shapes differ`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { otherField: Int }
+            """.trimIndent()
+        ) {
+            val visibleSelectionSet = mkSelectionSet("O1", "object2 { otherField }")
+            val executionSelectionSet = mkSelectionSet("O1", "object2 { clientField: otherField }")
+            val storedSubSelections = TestSelections()
+            val readSubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to readSubSelections))
+            val nestedOer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O2"),
+                mapOf(
+                    ObjectEngineResult.Key("otherField", alias = "clientField") to 2
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                executionSelectionSet.selectionSetForSelection("O1", "object2")
+            )
+            val outerOer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("O1"))
+
+            outerOer.computeIfAbsent(
+                ObjectEngineResult.Key(
+                    "object2",
+                    selectionSet = storedSubSelections
+                )
+            ) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            nestedOer,
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "object2"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            assertThrows<TimeoutCancellationException> {
+                withTimeout(200) {
+                    resolveSyncData(
+                        outerOer,
+                        "error",
+                        visibleSelectionSet,
+                        isResolverSelective = IsResolverSelective.Always,
+                        selections = parentSelections,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `resolve non-selective nested object ignores selection set in key`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { intField: Int }
+            """.trimIndent()
+        ) {
+            val selectionSet = mkSelectionSet("O1", "object2 { intField }")
+            val nestedOer = mkOER("O2", mapOf("intField" to 1), selections = "intField")
+            val outerOer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("O1"))
+
+            outerOer.computeIfAbsent(ObjectEngineResult.Key("object2")) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            nestedOer,
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "object2"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            val syncData = resolveSyncData(
+                outerOer,
+                "error",
+                selectionSet,
+                isResolverSelective = IsResolverSelective.Never,
+            )
+            val nested = syncData.get("object2") as EngineObjectData.Sync
+
+            assertEquals(1, nested.get("intField"))
+        }
+    }
+
+    @Test
+    fun `resolve preserves exact alias match when lookup selection set contains ambiguous candidates`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { bar: Int }
+            """.trimIndent()
+        ) {
+            val selectionSet = mkSelectionSet("O1", "bar aliasedBar: bar")
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O1"),
+                mapOf(
+                    ObjectEngineResult.Key("bar") to 1,
+                    ObjectEngineResult.Key("bar", alias = "aliasedBar") to 2,
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                selectionSet
+            )
+
+            val syncData = resolveSyncData(
+                oer,
+                "error",
+                selectionSet,
+            )
+
+            assertEquals(1, syncData.get("bar"))
+            assertEquals(2, syncData.get("aliasedBar"))
+        }
+    }
+
+    @Test
+    fun `resolve preserves exact alias match when visible selection is narrower than lookup selection set`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { bar: Int }
+            """.trimIndent()
+        ) {
+            val visibleSelectionSet = mkSelectionSet("O1", "aliasedBar: bar")
+            val lookupSelectionSet = mkSelectionSet("O1", "bar aliasedBar: bar")
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O1"),
+                mapOf(
+                    ObjectEngineResult.Key("bar") to 1,
+                    ObjectEngineResult.Key("bar", alias = "aliasedBar") to 2,
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                lookupSelectionSet
+            )
+
+            val syncData = resolveSyncData(
+                oer,
+                "error",
+                visibleSelectionSet,
+            )
+
+            assertEquals(2, syncData.get("aliasedBar"))
+            assertEquals(setOf("aliasedBar"), syncData.getSelections().toSet())
         }
     }
 
@@ -152,7 +548,7 @@ class SyncEngineObjectDataFactoryTest {
             )
             val selectionSet = mkSelectionSet("O1", "o2 { o3 { value } }")
 
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             val o2 = syncData.get("o2") as EngineObjectData.Sync
             val o3 = o2.get("o3") as EngineObjectData.Sync
@@ -176,7 +572,7 @@ class SyncEngineObjectDataFactoryTest {
             )
             val selectionSet = mkSelectionSet("O1", "object2 { intField }")
 
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             assertEquals(null, syncData.get("object2"))
         }
@@ -192,7 +588,7 @@ class SyncEngineObjectDataFactoryTest {
             val (oer, err) = mkOerWithListFieldError(schema.schema.getObjectType("Query"))
 
             val selectionSet = mkSelectionSet("Query", "listField")
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             // Accessing the list field should throw because element 1 has an error
             val exc = assertThrows<FieldErrorsException> {
@@ -228,7 +624,7 @@ class SyncEngineObjectDataFactoryTest {
             }
 
             val selectionSet = mkSelectionSet("Query", "stringField")
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             // The selection should be present
             assertTrue(syncData.getSelections().toList().contains("stringField"))
@@ -262,7 +658,7 @@ class SyncEngineObjectDataFactoryTest {
             }
 
             val selectionSet = mkSelectionSet("Query", "stringField")
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             assertEquals("allowed", syncData.get("stringField"))
         }
@@ -293,7 +689,7 @@ class SyncEngineObjectDataFactoryTest {
             }
 
             val selectionSet = mkSelectionSet("Query", "field(x: 1)")
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             assertEquals(42, syncData.get("field"))
         }
@@ -334,11 +730,171 @@ class SyncEngineObjectDataFactoryTest {
             }
 
             val selectionSet = mkSelectionSet("Query", "f1: field(x: 1) f2: field(x: 2)")
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             assertEquals(11, syncData.get("f1"))
             assertEquals(22, syncData.get("f2"))
             assertEquals(setOf("f1", "f2"), syncData.getSelections().toSet())
+        }
+    }
+
+    @Test
+    fun `resolve preserves exact alias and arguments match when visible selection is narrower than lookup selection set`() {
+        Fixture("type Query { field(x: Int): Int }") {
+            val visibleSelectionSet = mkSelectionSet("Query", "aliasedField: field(x: 1)")
+            val lookupSelectionSet = mkSelectionSet(
+                "Query",
+                "field(x: 1) aliasedField: field(x: 1) otherArg: field(x: 2)"
+            )
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("Query"),
+                mapOf(
+                    ObjectEngineResult.Key("field", null, mapOf("x" to 1)) to 1,
+                    ObjectEngineResult.Key("field", "aliasedField", mapOf("x" to 1)) to 2,
+                    ObjectEngineResult.Key("field", "otherArg", mapOf("x" to 2)) to 3,
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                lookupSelectionSet
+            )
+
+            val syncData = resolveSyncData(
+                oer,
+                "error",
+                visibleSelectionSet,
+            )
+
+            assertEquals(2, syncData.get("aliasedField"))
+            assertEquals(setOf("aliasedField"), syncData.getSelections().toSet())
+        }
+    }
+
+    @Test
+    fun `resolve nested proxy succeeds when visible and stored selection shapes match`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { field(x: Int): Int }
+            """.trimIndent()
+        ) {
+            val lookupSelectionSet = mkSelectionSet(
+                "O1",
+                "object2 { aliasedField: field(x: 1) }"
+            )
+            val childLookupEngineSelectionSet = lookupSelectionSet.selectionSetForSelection("O1", "object2")
+            val object2SubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to object2SubSelections))
+            val nestedOer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O2"),
+                mapOf(
+                    ObjectEngineResult.Key("field", "aliasedField", mapOf("x" to 1)) to 2,
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                childLookupEngineSelectionSet
+            )
+            val outerOer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("O1"))
+
+            outerOer.computeIfAbsent(
+                ObjectEngineResult.Key(
+                    "object2",
+                    selectionSet = object2SubSelections
+                )
+            ) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            nestedOer,
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "object2"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            val syncData = resolveSyncData(
+                outerOer,
+                "error",
+                lookupSelectionSet,
+                isResolverSelective = IsResolverSelective.Always,
+                selections = parentSelections,
+            )
+            val object2 = syncData.get("object2") as EngineObjectData.Sync
+
+            assertEquals(2, object2.get("aliasedField"))
+            assertEquals(setOf("aliasedField"), object2.getSelections().toSet())
+        }
+    }
+
+    @Test
+    fun `resolve nested proxy times out when visible and stored selection shapes differ`() {
+        Fixture(
+            """
+                type Query { empty: Int }
+                type O1 { object2: O2 }
+                type O2 { field(x: Int): Int }
+            """.trimIndent()
+        ) {
+            val visibleSelectionSet = mkSelectionSet("O1", "object2 { aliasedField: field(x: 1) }")
+            val lookupSelectionSet = mkSelectionSet(
+                "O1",
+                "object2 { field(x: 1) aliasedField: field(x: 1) otherArg: field(x: 2) }"
+            )
+            val childLookupEngineSelectionSet = lookupSelectionSet.selectionSetForSelection("O1", "object2")
+            val storedObject2SubSelections = TestSelections()
+            val readObject2SubSelections = TestSelections()
+            val parentSelections = TestSelections(mapOf("object2" to readObject2SubSelections))
+            val nestedOer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O2"),
+                mapOf(
+                    ObjectEngineResult.Key("field", null, mapOf("x" to 1)) to 1,
+                    ObjectEngineResult.Key("field", "aliasedField", mapOf("x" to 1)) to 2,
+                    ObjectEngineResult.Key("field", "otherArg", mapOf("x" to 2)) to 3,
+                ),
+                mutableListOf(),
+                emptyList(),
+                schema,
+                childLookupEngineSelectionSet
+            )
+            val outerOer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("O1"))
+
+            outerOer.computeIfAbsent(
+                ObjectEngineResult.Key(
+                    "object2",
+                    selectionSet = storedObject2SubSelections
+                )
+            ) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            nestedOer,
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "object2"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            assertThrows<TimeoutCancellationException> {
+                withTimeout(200) {
+                    resolveSyncData(
+                        outerOer,
+                        "error",
+                        visibleSelectionSet,
+                        isResolverSelective = IsResolverSelective.Always,
+                        selections = parentSelections,
+                    )
+                }
+            }
         }
     }
 
@@ -363,7 +919,7 @@ class SyncEngineObjectDataFactoryTest {
             }
 
             val selectionSet = mkSelectionSet("Query", "field(x: \$varX)", mapOf("varX" to 99))
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             assertEquals(99, syncData.get("field"))
         }
@@ -394,7 +950,7 @@ class SyncEngineObjectDataFactoryTest {
 
             val ctx = ResolverInstrumentationContext(instrumentation, state)
             val syncData = withContext(ctx) {
-                SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+                resolveSyncData(oer, "error", selectionSet)
             }
 
             assertEquals(42, syncData.get("x"))
@@ -409,7 +965,7 @@ class SyncEngineObjectDataFactoryTest {
             val oer = mkOER("Query", mapOf("x" to 42, "y" to "hello"), selections = "x y")
             val selectionSet = mkSelectionSet("Query", "x y")
 
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             assertEquals(42, syncData.get("x"))
             assertEquals("hello", syncData.get("y"))
@@ -450,7 +1006,7 @@ class SyncEngineObjectDataFactoryTest {
 
             val ctx = ResolverInstrumentationContext(instrumentation, state)
             val syncData = withContext(ctx) {
-                SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+                resolveSyncData(oer, "error", selectionSet)
             }
 
             assertEquals("hello", syncData.get("stringField"))
@@ -485,7 +1041,7 @@ class SyncEngineObjectDataFactoryTest {
             val parentPath = ResultPath.parse("/query/user")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
             val syncData = withContext(ctx) {
-                SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet, parentPath = parentPath)
+                resolveSyncData(oer, "error", selectionSet, parentPath = parentPath)
             }
 
             assertEquals(42, syncData.get("x"))
@@ -520,7 +1076,7 @@ class SyncEngineObjectDataFactoryTest {
 
             val ctx = ResolverInstrumentationContext(instrumentation, state)
             val syncData = withContext(ctx) {
-                SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+                resolveSyncData(oer, "error", selectionSet)
             }
 
             assertEquals(42, syncData.get("x"))
@@ -563,7 +1119,7 @@ class SyncEngineObjectDataFactoryTest {
             val parentPath = ResultPath.parse("/query/user")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
             val syncData = withContext(ctx) {
-                SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet, parentPath = parentPath)
+                resolveSyncData(oer, "error", selectionSet, parentPath = parentPath)
             }
 
             assertEquals("hello", syncData.get("stringField"))
@@ -595,6 +1151,7 @@ class SyncEngineObjectDataFactoryTest {
                 selections = "value"
             )
             val outerOer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("O1"))
+            val selectionSet = mkSelectionSet("O1", "object2 { value }")
             outerOer.computeIfAbsent(ObjectEngineResult.Key("object2")) { slotSetter ->
                 slotSetter.setRawValue(
                     Value.fromValue(
@@ -609,8 +1166,6 @@ class SyncEngineObjectDataFactoryTest {
                 )
                 slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
             }
-
-            val selectionSet = mkSelectionSet("O1", "object2 { value }")
 
             val recordedPaths = mutableMapOf<String, ResultPath?>()
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
@@ -628,7 +1183,7 @@ class SyncEngineObjectDataFactoryTest {
             val parentPath = ResultPath.parse("/query/parent")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
             val syncData = withContext(ctx) {
-                SyncEngineObjectDataFactory.resolve(outerOer, "error", selectionSet, parentPath = parentPath)
+                resolveSyncData(outerOer, "error", selectionSet, parentPath = parentPath)
             }
 
             val nested = syncData.get("object2") as EngineObjectData.Sync
@@ -658,7 +1213,7 @@ class SyncEngineObjectDataFactoryTest {
 
             // Innermost: O3
             val o3Oer = mkOER("O3", mapOf("value" to 99), selections = "value")
-
+            val selectionSet = mkSelectionSet("O1", "name o2 { label o3 { value } }")
             // Middle: O2, with o3 wrapped in FieldResolutionResult + Cell
             val o2Oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("O2"))
             o2Oer.computeIfAbsent(ObjectEngineResult.Key("label")) { slotSetter ->
@@ -721,8 +1276,6 @@ class SyncEngineObjectDataFactoryTest {
                 slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
             }
 
-            val selectionSet = mkSelectionSet("O1", "name o2 { label o3 { value } }")
-
             // Record both selection name and resultPath for each instrumented fetch
             data class Recorded(val selection: String, val parentType: String?, val path: ResultPath?)
             val recorded = mutableListOf<Recorded>()
@@ -741,7 +1294,7 @@ class SyncEngineObjectDataFactoryTest {
             val parentPath = ResultPath.parse("/query/root")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
             val syncData = withContext(ctx) {
-                SyncEngineObjectDataFactory.resolve(o1Oer, "error", selectionSet, parentPath = parentPath)
+                resolveSyncData(o1Oer, "error", selectionSet, parentPath = parentPath)
             }
 
             // Verify values resolved correctly through the chain
@@ -789,7 +1342,7 @@ class SyncEngineObjectDataFactoryTest {
             )
             val selectionSet = mkSelectionSet("Query", "__typename x")
 
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             assertEquals("Query", syncData.get("__typename"))
             assertEquals(1, syncData.get("x"))
@@ -815,7 +1368,7 @@ class SyncEngineObjectDataFactoryTest {
             )
             val selectionSet = mkSelectionSet("O1", "child { __typename value }")
 
-            val syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+            val syncData = resolveSyncData(oer, "error", selectionSet)
 
             val nested = syncData.get("child") as EngineObjectData.Sync
             assertEquals("O2", nested.get("__typename"))
@@ -867,7 +1420,12 @@ class SyncEngineObjectDataFactoryTest {
                     deferredB.complete(makeResult("beta", "b"))
                     deferredC.complete(makeResult("gamma", "c"))
                 }
-                syncData = SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet)
+                syncData = SyncEngineObjectDataFactory.resolve(
+                    objectEngineResult = oer,
+                    errorMessage = "error",
+                    selectionSet = selectionSet,
+                    isResolverSelective = IsResolverSelective.Never,
+                )
             }
 
             assertEquals("alpha", syncData.get("a"))
@@ -885,18 +1443,21 @@ class SyncEngineObjectDataFactoryTest {
                 type Item { name: String }
             """.trimIndent()
         ) {
-            val oer = mkOER(
-                "O1",
+            val selectionSet = mkSelectionSet("O1", "items { name }")
+            val oer = ObjectEngineResultTestHelper.newFromMap(
+                schema.schema.getObjectType("O1"),
                 mapOf(
-                    "items" to listOf(
+                    ObjectEngineResult.Key("items") to listOf(
                         mapOf("name" to "first"),
                         mapOf("name" to "second"),
                         mapOf("name" to "third")
                     )
                 ),
-                selections = "items { name }"
+                mutableListOf(),
+                emptyList(),
+                schema,
+                selectionSet
             )
-            val selectionSet = mkSelectionSet("O1", "items { name }")
 
             // Record ALL instrumentation calls (not just by selection name, since "name"
             // appears once per list element with different paths)
@@ -917,7 +1478,7 @@ class SyncEngineObjectDataFactoryTest {
             val parentPath = ResultPath.parse("/query/root")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
             val syncData = withContext(ctx) {
-                SyncEngineObjectDataFactory.resolve(oer, "error", selectionSet, parentPath = parentPath)
+                resolveSyncData(oer, "error", selectionSet, parentPath = parentPath)
             }
 
             // Verify data resolved correctly

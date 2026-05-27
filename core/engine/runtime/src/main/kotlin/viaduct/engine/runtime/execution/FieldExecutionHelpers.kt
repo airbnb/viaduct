@@ -30,7 +30,6 @@ import graphql.schema.GraphQLSchema
 import graphql.util.FpKit
 import java.util.Locale
 import java.util.function.Supplier
-import kotlin.collections.plus
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
@@ -40,8 +39,10 @@ import viaduct.engine.api.gj
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextExtensions.selectiveOERKeysEnabled
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
@@ -69,7 +70,36 @@ object FieldExecutionHelpers {
     fun buildOERKeyForField(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField
-    ): ObjectEngineResult.Key = ObjectEngineResult.Key(field.fieldName, field.alias, parameters.executionStepInfo.arguments)
+    ): ObjectEngineResult.Key {
+        val isResolverSelective = IsResolverSelective.fromRegistry(
+            parameters.engineExecutionContext.dispatcherRegistry,
+            parameters.engineExecutionContext.selectiveOERKeysEnabled,
+        )
+
+        val runtimeResolverCoordinate = parameters.executionStepInfo.objectType.name to field.fieldName
+        val hasSelectiveResolver = isResolverSelective(runtimeResolverCoordinate)
+
+        val selectionSet = if (hasSelectiveResolver) {
+            field.selectionSet?.let {
+                ExecutionSelections(
+                    parameters.graphQLSchema,
+                    it,
+                    parameters.queryPlan.fragments,
+                    parameters.coercedVariables,
+                    parameters.constants.collectCache
+                )
+            }
+        } else {
+            null
+        }
+
+        return ObjectEngineResult.Key(
+            field.fieldName,
+            field.alias,
+            parameters.executionStepInfo.arguments,
+            selectionSet
+        )
+    }
 
     /**
      * Builds a DataFetchingEnvironment for the given field execution.
@@ -111,7 +141,7 @@ object FieldExecutionHelpers {
             parameters.executionContext.graphQLContext,
             parameters.executionContext.locale
         )
-        val fieldResolverMetadata = field.collectedFieldMetadata?.resolverCoordinate?.let {
+        val fieldResolverMetadata = field.collectedFieldMetadata?.resolvedByCoordinate?.let {
             parameters.engineExecutionContext.dispatcherRegistry.getFieldResolverDispatcher(it.first, it.second)?.resolverMetadata
         }
         val localContext = parameters.localContext.let { ctx ->
@@ -163,6 +193,25 @@ object FieldExecutionHelpers {
         }
         val updatedEngineExecCtx = parameters.engineExecutionContext.copy(fieldScopeSupplier = fieldScope)
         return ViaductDataFetchingEnvironmentImpl(dfe, updatedEngineExecCtx)
+    }
+
+    internal suspend fun createOERSelections(
+        rss: RequiredSelectionSet,
+        variables: CoercedVariables,
+        engineExecutionContext: EngineExecutionContext,
+    ): ObjectEngineResult.Selections {
+        val executionParameters = engineExecutionContext.executionHandle!!.asExecutionParameters()
+
+        val childPlan = checkNotNull(executionParameters.queryPlanIndex.find(rss.id)) {
+            "QueryPlanIndex does not contain a plan for RSS `${rss.id}`"
+        }
+        return ExecutionSelections(
+            engineExecutionContext.fullSchema.schema,
+            childPlan.selectionSet,
+            childPlan.fragments,
+            variables,
+            executionParameters.constants.collectCache,
+        )
     }
 
     fun createExecutionStepInfo(
@@ -317,6 +366,10 @@ object FieldExecutionHelpers {
         locale: Locale
     ): CoercedVariables =
         variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
+            val isResolverSelective = IsResolverSelective.fromRegistry(
+                engineExecutionContext.dispatcherRegistry,
+                engineExecutionContext.selectiveOERKeysEnabled,
+            )
             val variablesData: EngineObjectData = vr.requiredSelectionSet?.let { vrss ->
                 // VariablesResolvers may have required selection sets which have their own variables resolvers.
                 // Recursively resolve them
@@ -334,6 +387,11 @@ object FieldExecutionHelpers {
                     vrss.selections,
                     variables = innerVariables.toMap()
                 )
+                val selectionContext = createOERSelections(
+                    vrss,
+                    innerVariables,
+                    engineExecutionContext,
+                )
 
                 val engineResult = if (vrss.selections.typeName == engineExecutionContext.fullSchema.schema.queryType.name) {
                     queryEngineData
@@ -344,11 +402,11 @@ object FieldExecutionHelpers {
                     currentEngineData
                 }
                 if (vrss.forChecker) {
-                    CheckerProxyEngineObjectData(engineResult, "missing from variable RSS", vss)
+                    CheckerProxyEngineObjectData(engineResult, "missing from variable RSS", vss, isResolverSelective, selectionContext)
                 } else {
-                    ProxyEngineObjectData(engineResult, "missing from variable RSS", vss)
+                    ProxyEngineObjectData(engineResult, "missing from variable RSS", vss, isResolverSelective, selectionContext)
                 }
-            } ?: ProxyEngineObjectData(currentEngineData, "missing from variable RSS", null)
+            } ?: ProxyEngineObjectData(currentEngineData, "missing from variable RSS", null, isResolverSelective)
 
             val resolved = vr.resolve(VariablesResolver.ResolveCtx(variablesData, arguments), engineExecutionContext)
             acc + resolved

@@ -258,6 +258,50 @@ class QueryPlanTest {
     }
 
     @Test
+    fun `QueryPlanBuilder -- builds child plans for concrete fields inside inline fragments`() {
+        Fixture(
+            """
+                type Query { entity: Entity }
+                interface Entity { id: ID! }
+                type User implements Entity { id: ID!, restricted: String }
+                type Admin implements Entity { id: ID!, restricted: String }
+            """.trimIndent(),
+            MockRequiredSelectionSetRegistry.builder()
+                .fieldResolverEntry("User" to "restricted", "id")
+                .fieldResolverEntry("Admin" to "restricted", "id")
+                .build()
+        ) {
+            val plan = buildPlan(
+                """
+                    {
+                        entity {
+                            ... on User { restricted }
+                            ... on Admin { restricted }
+                        }
+                    }
+                """.trimIndent()
+            )
+
+            val entityField = plan.selectionSet.selections.single() as Field
+            val entitySelections = entityField.selectionSet!!
+
+            val userRestricted = (entitySelections.selections[0] as InlineFragment)
+                .selectionSet
+                .selections
+                .single() as Field
+            val adminRestricted = (entitySelections.selections[1] as InlineFragment)
+                .selectionSet
+                .selections
+                .single() as Field
+
+            expectThat(userRestricted.childPlans).hasSize(1)
+            expectThat(userRestricted.childPlans.single().parentType).isEqualTo(schema.getObjectType("User"))
+            expectThat(adminRestricted.childPlans).hasSize(1)
+            expectThat(adminRestricted.childPlans.single().parentType).isEqualTo(schema.getObjectType("Admin"))
+        }
+    }
+
+    @Test
     fun `QueryPlanBuilder -- builds child plans for variables with required selection sets`() {
         val varResolvers = VariablesResolver.fromSelectionSetVariables(
             SelectionsParser.parse("Query", "z"),
@@ -783,7 +827,7 @@ class QueryPlanTest {
             query = "{x{id} y{id}}",
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = false,
+            executeAccessChecksInModstrat = true,
         )
         val objectA = schema.schema.getObjectType("ObjectA")!!
         runExecutionTest {
@@ -814,7 +858,7 @@ class QueryPlanTest {
             query = "{x}",
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = false,
+            executeAccessChecksInModstrat = true,
         )
         runExecutionTest {
             // Build with {x} — triggers a cache miss for the top-level plan
@@ -833,6 +877,37 @@ class QueryPlanTest {
     }
 
     @Test
+    fun `QueryPlanFactory_Cached -- equivalent RSS instances get distinct requiredSelectionSetIds`() {
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldCheckerEntry("Query" to "x", "z")
+            .fieldCheckerEntry("Query" to "y", "z")
+            .build()
+        val factory = QueryPlanFactory.Cached()
+        val schema = ViaductSchema("type Query { x:Int y:Int z:Int }".asSchema)
+        val params = QueryPlan.Parameters(
+            query = "{x y}",
+            schema = schema,
+            registry = reg,
+            executeAccessChecksInModstrat = true,
+        )
+        val xRss = reg.getFieldCheckerRequiredSelectionSets("Query", "x", true).single()
+        val yRss = reg.getFieldCheckerRequiredSelectionSets("Query", "y", true).single()
+
+        runExecutionTest {
+            val plan = factory.build(params, "{x y}".asDocument)
+
+            val xField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
+            val yField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "y" }
+            val xPlan = xField.childPlans.single()
+            val yPlan = yField.childPlans.single()
+
+            expectThat(xPlan.requiredSelectionSetId).isSameInstanceAs(xRss.id)
+            expectThat(yPlan.requiredSelectionSetId).isSameInstanceAs(yRss.id)
+            expectThat(xPlan).isNotSameInstanceAs(yPlan)
+        }
+    }
+
+    @Test
     fun `QueryPlanFactory_Cached -- cycle prevention still works with RSS cache (direct self-reference)`() {
         // Same as the Default cycle test but using the Cached factory.
         // x's checker RSS selects x itself — must not cause infinite recursion.
@@ -845,7 +920,7 @@ class QueryPlanTest {
             query = "{x}",
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = false,
+            executeAccessChecksInModstrat = true,
         )
         runExecutionTest {
             val plan = factory.build(params, "{x}".asDocument)
@@ -878,7 +953,7 @@ class QueryPlanTest {
             query = "{x{z}}",
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = false,
+            executeAccessChecksInModstrat = true,
         )
         runExecutionTest {
             // Must complete without stack overflow or infinite recursion
@@ -923,7 +998,7 @@ class QueryPlanTest {
         val params = QueryPlan.Parameters(
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = false,
+            executeAccessChecksInModstrat = true,
         )
         runExecutionTest {
             // Build {a} — RSS1 is cached globally; RSS2 is built locally within RSS1 (truncated)
@@ -1448,8 +1523,14 @@ internal fun mkQPParameters(
         doc,
         schema,
         requiredSelectionSetRegistry,
-        // passing false here as it is not relevant for the tests we are running here given empty RSS registry
-        executeAccessChecksInModstrat = false
+        executeAccessChecksInModstrat = when (requiredSelectionSetRegistry) {
+            is MockRequiredSelectionSetRegistry ->
+                requiredSelectionSetRegistry.entries.any {
+                    it is MockRequiredSelectionSetRegistry.FieldCheckerEntry ||
+                        it is MockRequiredSelectionSetRegistry.TypeCheckerEntry
+                }
+            else -> false
+        }
     )
 
 private fun mkField(

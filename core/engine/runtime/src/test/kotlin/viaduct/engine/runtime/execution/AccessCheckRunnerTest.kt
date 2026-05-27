@@ -2,16 +2,23 @@
 
 package viaduct.engine.runtime.execution
 
+import graphql.GraphQLContext
 import graphql.execution.ExecutionContext
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.verify
+import java.util.Locale
 import java.util.function.Supplier
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -217,12 +224,94 @@ class AccessCheckRunnerTest {
             }
         }
 
+    @Test
+    fun `typeCheck augments parameters before launching field type child plans`(): Unit =
+        runBlocking {
+            withThreadLocalCoroutineContext {
+                val mockChildPlan = mockk<QueryPlan> {
+                    every { executionCondition } returns QueryPlanExecutionCondition.ALWAYS_EXECUTE
+                    every { selectionSet } returns mockk(relaxed = true)
+                    every { requiredSelectionSetId } returns null
+                    every { childPlans } returns emptyList()
+                }
+                val typeChecks = mapOf("Foo" to CheckerDispatcherImpl(successCheckerExecutor))
+                val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), typeChecks)
+                val engineExecutionContext = mockk<EngineExecutionContextImpl> {
+                    every { impl } returns this
+                    every { dispatcherRegistry } returns registry
+                    every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns emptyFooSelectionSet
+                    every { activeSchema } returns mockk()
+                    every { fieldScopeSupplier } returns mockk()
+                    every { dataFetchingEnvironment } returns null
+                    every { copy(any(), any(), any(), any(), any()) } returns this
+                    every { executeAccessChecksInModstrat } returns true
+                    every { selectiveOERKeysEnabled } returns false
+                }
+                val params = createMockExecutionParameters(engineExecutionContext)
+                val typeCheckParameters = createMockExecutionParameters(engineExecutionContext)
+                val baseQueryPlanIndex = mockk<QueryPlanIndex>()
+                val overrideQueryPlanIndex = mockk<QueryPlanIndex>()
+                val typeCheckQueryPlanIndex = mockk<QueryPlanIndex>()
+                val queryPlanIndexFactory = mockk<QueryPlanIndex.Factory> {
+                    every { create(mockChildPlan) } returns overrideQueryPlanIndex
+                }
+                every { params.field } returns mockk {
+                    every { fieldName } returns "testField"
+                    every { fieldTypeChildPlans } returns mapOf(fooObjectType to lazy { listOf(mockChildPlan) })
+                }
+                every { params.queryPlanIndex } returns baseQueryPlanIndex
+                every { params.queryPlanIndexFactory } returns queryPlanIndexFactory
+                every { baseQueryPlanIndex.merge(overrideQueryPlanIndex) } returns typeCheckQueryPlanIndex
+                stubCopyWithQueryPlanIndex(params, typeCheckQueryPlanIndex, typeCheckParameters)
+                val fieldResolver = mockk<FieldResolver> {
+                    every { launchQueryPlan(any(), any(), any(), any()) } just Runs
+                }
+                val oer = objectEngineResult {
+                    type = fooObjectType
+                    data = emptyMap()
+                }
+                val fieldResolutionResult = FieldResolutionResult(
+                    engineResult = oer,
+                    emptyList(),
+                    ContextMocks().localContext,
+                    emptyMap(),
+                    null,
+                )
+
+                val result = runner.typeCheck(
+                    params,
+                    mockSupplier,
+                    oer,
+                    fieldResolutionResult,
+                    fieldResolver,
+                )
+
+                assertSame(CheckerResult.Success, result.await())
+                verify {
+                    fieldResolver.launchQueryPlan(
+                        typeCheckParameters,
+                        mockChildPlan,
+                        mockDataFetchingEnvironment,
+                        any(),
+                    )
+                }
+            }
+        }
+
     private suspend fun checkTypeWithExecutionCondition(executionCondition: QueryPlanExecutionCondition): Boolean {
         var childPlanLaunched = false
         val mockChildPlan = mockk<QueryPlan> {
             every { this@mockk.executionCondition } returns executionCondition
             every { selectionSet } returns mockk(relaxed = true)
+            every { requiredSelectionSetId } returns null
+            every { childPlans } returns emptyList()
         }
+        val baseQueryPlanIndex = mockk<QueryPlanIndex>()
+        val overrideQueryPlanIndex = mockk<QueryPlanIndex>()
+        val queryPlanIndexFactory = mockk<QueryPlanIndex.Factory> {
+            every { create(mockChildPlan) } returns overrideQueryPlanIndex
+        }
+        every { baseQueryPlanIndex.merge(overrideQueryPlanIndex) } returns mockk()
 
         val typeChecks = mapOf("Foo" to CheckerDispatcherImpl(successCheckerExecutor))
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), typeChecks)
@@ -233,8 +322,9 @@ class AccessCheckRunnerTest {
             every { activeSchema } returns mockk()
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
-            every { copy(any(), any(), any(), any()) } returns this
+            every { copy(any(), any(), any(), any(), any()) } returns this
             every { executeAccessChecksInModstrat } returns true
+            every { selectiveOERKeysEnabled } returns false
         }
         val oer = objectEngineResult {
             type = fooObjectType
@@ -249,6 +339,9 @@ class AccessCheckRunnerTest {
         )
         val params = mockk<ExecutionParameters> {
             every { this@mockk.engineExecutionContext } returns engineExecutionContext
+            every { queryPlanIndex } returns baseQueryPlanIndex
+            every { this@mockk.queryPlanIndexFactory } returns queryPlanIndexFactory
+            stubCopyWithAnyQueryPlanIndex(this@mockk, this@mockk)
             every { instrumentation } returns mockk {
                 every { instrumentAccessCheck(any(), any(), any(), any()) } answers { firstArg() }
             }
@@ -267,19 +360,19 @@ class AccessCheckRunnerTest {
                 every { fieldName } returns "testField"
                 every { fieldTypeChildPlans } returns mapOf(fooObjectType to lazy { listOf(mockChildPlan) })
             }
-        }
-        val mockFieldResolver = mockk<FieldResolver> {
-            every { launchQueryPlan(any(), any(), any(), any()) } answers {
+            every { launchOnRootScope(any()) } answers {
                 childPlanLaunched = true
+                mockk<Job>(relaxed = true)
             }
         }
+        val fieldResolver = FieldResolver(runner)
 
         val result = runner.typeCheck(
             params,
             mockSupplier,
             oer,
             fieldResolutionResult,
-            mockFieldResolver
+            fieldResolver
         )
 
         result.await()
@@ -299,8 +392,9 @@ class AccessCheckRunnerTest {
             every { activeSchema } returns mockk()
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
-            every { copy(any(), any(), any(), any()) } returns this
+            every { copy(any(), any(), any(), any(), any()) } returns this
             every { executeAccessChecksInModstrat } returns isEnabled
+            every { selectiveOERKeysEnabled } returns false
         }
         val oer = objectEngineResult {
             type = mockk { every { name } returns "Foo" }
@@ -331,8 +425,9 @@ class AccessCheckRunnerTest {
                 every { activeSchema } returns mockk()
                 every { fieldScopeSupplier } returns mockk()
                 every { dataFetchingEnvironment } returns null
-                every { copy(any(), any(), any(), any()) } returns this
+                every { copy(any(), any(), any(), any(), any()) } returns this
                 every { executeAccessChecksInModstrat } returns isEnabled
+                every { selectiveOERKeysEnabled } returns false
             }
         ).engineExecutionContext as? EngineExecutionContextImpl
         val params = createMockExecutionParameters(context)
@@ -342,7 +437,11 @@ class AccessCheckRunnerTest {
             every { objectType.name } returns "Foo"
             every { arguments } returns emptyMap()
         }
-        every { params.field?.fieldName } returns "bar"
+        every { params.field } returns mockk {
+            every { fieldName } returns "bar"
+            every { childPlans } returns emptyList()
+            every { fieldTypeChildPlans } returns emptyMap()
+        }
         every { params.parentEngineResult } returns mockk<ObjectEngineResultImpl>()
         val dataFetchingEnvironmentProvider = mockk<Supplier<DataFetchingEnvironment>> {
             every { get() } returns mockk()
@@ -358,6 +457,8 @@ class AccessCheckRunnerTest {
             }
             every { executionContext } returns mockk<ExecutionContext> {
                 every { instrumentationState } returns mockk()
+                every { graphQLContext } returns GraphQLContext.getDefault()
+                every { locale } returns Locale.US
             }
             every { executionContextWithLocalContext } returns mockk {
                 every { instrumentationState } returns mockk()
@@ -368,10 +469,71 @@ class AccessCheckRunnerTest {
             }
             every { gjParameters } returns mockk()
             every { queryEngineResult } returns mockk()
+            every { queryPlanIndex } returns mockk()
+            every { queryPlanIndexFactory } returns QueryPlanIndex.Factory.Default
+            stubCopyWithAnyQueryPlanIndex(this@mockk, this@mockk)
             every { field } returns mockk {
+                every { childPlans } returns emptyList()
                 every { fieldTypeChildPlans } returns emptyMap()
             }
         }
+    }
+
+    private fun stubCopyWithAnyQueryPlanIndex(
+        parameters: ExecutionParameters,
+        result: ExecutionParameters
+    ) {
+        every {
+            parameters.copy(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns result
+    }
+
+    private fun stubCopyWithQueryPlanIndex(
+        parameters: ExecutionParameters,
+        queryPlanIndex: QueryPlanIndex,
+        result: ExecutionParameters
+    ) {
+        every {
+            parameters.copy(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                queryPlanIndex,
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns result
     }
 
     companion object {

@@ -1,5 +1,7 @@
 package viaduct.engine.api
 
+import viaduct.apiannotations.VisibleForTest
+
 /**
  * Classifies a resolver by its structural role in the GraphQL schema.
  *
@@ -35,6 +37,7 @@ data class ResolverMetadata(
             tenantMetadata: TenantModuleMetadata? = null,
         ): ResolverMetadata = ResolverMetadata("modern", name, resolverType, tenantMetadata)
 
+        @VisibleForTest
         fun forMock(name: String): ResolverMetadata = ResolverMetadata("mock", name, ResolverType.MOCK)
     }
 }

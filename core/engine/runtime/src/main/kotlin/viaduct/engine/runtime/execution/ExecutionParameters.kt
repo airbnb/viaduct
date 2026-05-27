@@ -58,6 +58,8 @@ import viaduct.utils.slf4j.logger
  * @property parentEngineResult Parent ObjectEngineResult for field execution (changes during traversal)
  * @property coercedVariables Coerced variables for the current execution context
  * @property queryPlan Current query plan being executed
+ * @property queryPlanIndex Index over currently materialized query plans for RSS lookup during subquery execution
+ * @property queryPlanIndexFactory Factory for indexing runtime-materialized query plans
  * @property localContext Local context for the current execution scope
  * @property source The source object for the current execution step
  * @property executionStepInfo Current position in the query execution tree
@@ -76,6 +78,8 @@ data class ExecutionParameters(
     val queryEngineResult: ObjectEngineResultImpl,
     val coercedVariables: CoercedVariables,
     val queryPlan: QueryPlan,
+    val queryPlanIndex: QueryPlanIndex,
+    val queryPlanIndexFactory: QueryPlanIndex.Factory,
     val localContext: CompositeLocalContext,
     val source: Any?,
     val executionStepInfo: ExecutionStepInfo,
@@ -370,11 +374,17 @@ data class ExecutionParameters(
             // For object plans, we use the current local context
             localContext
         }
+        val childQueryPlanIndex = if (childPlan.requiredSelectionSetId == null) {
+            queryPlanIndex.merge(queryPlanIndexFactory.create(childPlan))
+        } else {
+            queryPlanIndex
+        }
 
         return copy(
             constants = newConstants,
             coercedVariables = variables,
             queryPlan = childPlan,
+            queryPlanIndex = childQueryPlanIndex,
             selectionSet = childPlan.selectionSet,
             parent = this,
             errorAccumulator = ErrorAccumulator(),
@@ -429,6 +439,7 @@ data class ExecutionParameters(
         @Inject
         constructor(
             private val queryPlanFactory: QueryPlanFactory,
+            private val queryPlanIndexFactory: QueryPlanIndex.Factory,
         ) {
             companion object {
                 private val log by logger()
@@ -490,6 +501,8 @@ data class ExecutionParameters(
                     queryEngineResult = queryEngineResult,
                     coercedVariables = executionContext.coercedVariables,
                     queryPlan = queryPlan,
+                    queryPlanIndex = queryPlanIndexFactory.create(queryPlan),
+                    queryPlanIndexFactory = queryPlanIndexFactory,
                     source = executionContext.getRoot(),
                     localContext = executionContext.getLocalContext(),
                     executionStepInfo = parameters.executionStepInfo,
@@ -516,6 +529,7 @@ data class ExecutionParameters(
      * @property rootEngineResult Root ObjectEngineResult for the entire request
      * @property supervisorScopeFactory Coroutine scope factory for the entire execution. Creates a CoroutineScope supervised by the execution.
      * @property rootCoroutineContext Root coroutine context for async operations
+     * @property collectCache Cache for collected fields during execution
      */
     data class Constants(
         val executionContext: ExecutionContext,
@@ -523,10 +537,6 @@ data class ExecutionParameters(
         val supervisorScopeFactory: (CoroutineContext) -> CoroutineScope,
         val rootCoroutineContext: CoroutineContext,
     ) {
-        /**
-         * Cache for collected fields during execution (shared between [FieldResolver] and [FieldCompleter])
-         * to avoid redundant work.
-         */
         internal val collectCache: CollectCache = CollectCache()
 
         /**

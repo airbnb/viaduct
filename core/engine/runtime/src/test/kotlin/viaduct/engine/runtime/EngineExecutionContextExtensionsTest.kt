@@ -175,7 +175,7 @@ class EngineExecutionContextExtensionsTest {
         val context: EngineExecutionContext = createContext()
         val newFieldScope = EngineExecutionContextImpl.FieldExecutionScopeImpl(
             fragments = mapOf("TestFragment" to mockk(relaxed = true)),
-            variables = mapOf("testVar" to "testValue")
+            variables = mapOf("testVar" to "testValue"),
         )
         val newSupplier = Supplier<EngineExecutionContext.FieldExecutionScope> { newFieldScope }
 

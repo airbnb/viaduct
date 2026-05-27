@@ -315,7 +315,8 @@ private class QueryPlanBuilder(
         // Field collection later sees only the child SelectionSet, so these boundary facts need to
         // travel with it.
         val selectionSetEnclosingVariableReferences: List<SelectionVariableReference> = emptyList(),
-        val resolverCoordinate: Coordinate? = null
+        val resolverCoordinate: Coordinate? = null,
+        val resolvedByCoordinate: Coordinate? = null,
     )
 
     // Builders may cache results that are only valid for the specific input they were
@@ -328,6 +329,7 @@ private class QueryPlanBuilder(
         parentType: GraphQLCompositeType,
         attribution: ExecutionAttribution?,
         executionCondition: QueryPlanExecutionCondition,
+        requiredSelectionSetId: RequiredSelectionSet.Id? = null,
     ): QueryPlan {
         check(!built) { "Builder cannot be reused" }
         built = true
@@ -357,7 +359,8 @@ private class QueryPlanBuilder(
             astSelectionSet = selectionSet,
             attribution = attribution,
             executionCondition = executionCondition,
-            variableDefinitions = variableDefinitions
+            variableDefinitions = variableDefinitions,
+            requiredSelectionSetId = requiredSelectionSetId,
         )
     }
 
@@ -512,10 +515,10 @@ private class QueryPlanBuilder(
             val planChildPlans = buildVariablesPlans(variableReferences.variablePlanNames)
             val fieldTypeChildPlans = buildFieldTypeChildPlans(fieldType)
 
-            val resolverCoordinate = if (parameters.dispatcherRegistry.getFieldResolverDispatcher(parentType.name, sel.name) != null) {
+            val resolvedByCoordinate = if (parameters.dispatcherRegistry.getFieldResolverDispatcher(parentType.name, sel.name) != null) {
                 coord
             } else {
-                state.resolverCoordinate
+                state.resolvedByCoordinate
             }
 
             val subSelectionState = sel.selectionSet?.let { ss ->
@@ -533,7 +536,8 @@ private class QueryPlanBuilder(
                         constraints = subSelectionConstraints,
                         childPlans = emptyList(),
                         selectionSetEnclosingVariableReferences = variableReferences.collectionVariableReferences,
-                        resolverCoordinate = resolverCoordinate
+                        resolverCoordinate = resolverCoordinate,
+                        resolvedByCoordinate = resolvedByCoordinate,
                     ),
                 )
             }
@@ -545,7 +549,11 @@ private class QueryPlanBuilder(
                 selectionSet = subSelectionState?.selectionSet,
                 childPlans = fieldChildPlans,
                 fieldTypeChildPlans = fieldTypeChildPlans,
-                metadata = if (resolverCoordinate != null) QueryPlan.FieldMetadata(resolverCoordinate) else QueryPlan.FieldMetadata.empty,
+                metadata = if (resolvedByCoordinate != null) {
+                    QueryPlan.FieldMetadata(resolvedByCoordinate = resolvedByCoordinate)
+                } else {
+                    QueryPlan.FieldMetadata.empty
+                },
                 variableReferences = variableReferences.references
             )
 
@@ -586,7 +594,8 @@ private class QueryPlanBuilder(
                     constraints = newConstraints,
                     childPlans = emptyList(),
                     selectionSetEnclosingVariableReferences = fragmentSelectionSetEnclosingReferences,
-                    resolverCoordinate = resolverCoordinate
+                    resolverCoordinate = resolverCoordinate,
+                    resolvedByCoordinate = resolvedByCoordinate
                 ),
             )
 
@@ -697,9 +706,16 @@ private fun buildRssPlan(
     rssBuildContext: RssBuildContext,
     rss: RequiredSelectionSet,
 ): QueryPlan? {
-    val key = RssCacheKey(rss, parameters.schema.hashCode(), parameters.executeAccessChecksInModstrat)
+    val requiredSelectionSetId = rss.id
+    val key = RssCacheKey(
+        requiredSelectionSetId = rss.id,
+        schemaHashCode = parameters.schema.hashCode(),
+        executeAccessChecksInModstrat = parameters.executeAccessChecksInModstrat,
+    )
     rssBuildContext.cache[key]?.let { return it }
-    if (rss in rssBuildContext.building) return null // cycle within this local build tree
+    if (rss in rssBuildContext.building) {
+        return null
+    }
 
     val localBuildContext = if (rssBuildContext.building.isEmpty()) {
         // Top-level: use a fresh local cache so sub-RSS plans built transitively are not stored
@@ -714,7 +730,13 @@ private fun buildRssPlan(
     localBuildContext.building.add(rss)
     val parentType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(rss.selections.typeName)
     val plan = QueryPlanBuilder(parameters, rss.selections.fragmentMap, rss.variablesResolvers, localBuildContext)
-        .build(rss.selections.selections, parentType, rss.attribution, rss.executionCondition)
+        .build(
+            rss.selections.selections,
+            parentType,
+            rss.attribution,
+            rss.executionCondition,
+            rss.id,
+        )
     localBuildContext.building.remove(rss)
     rssBuildContext.cache.putIfAbsent(key, plan)
     // Populates the local cache so that fieldTypeChildPlans lazies (which capture localBuildContext)
@@ -743,7 +765,7 @@ sealed class DocumentKey {
 
 /** Cache key for globally-shared RSS plan entries in [QueryPlanFactory.Cached]. */
 data class RssCacheKey(
-    val rss: RequiredSelectionSet,
+    val requiredSelectionSetId: RequiredSelectionSet.Id,
     val schemaHashCode: Int,
     val executeAccessChecksInModstrat: Boolean,
 )

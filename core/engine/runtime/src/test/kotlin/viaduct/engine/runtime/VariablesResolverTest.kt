@@ -1,6 +1,8 @@
 package viaduct.engine.runtime
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -180,6 +182,35 @@ class VariablesResolverTest {
             }
         }.runFeatureTest {
             runQuery("{ foo }").assertJson("{data: {foo: 25}}")
+        }
+    }
+
+    @Test
+    fun `variables resolver throwing surfaces as error at resolver field`() {
+        // Covers the catch (e: Exception) branch in FieldResolver.launchQueryPlan, which
+        // propagates the exception so the resolver's subsequent
+        // await on that slot re-throws the variable-resolution error at the resolver's field.
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar(x: Int!): Int! }") {
+            field("Query" to "foo") {
+                resolver {
+                    objectSelections("bar(x:\$varx)") {
+                        variables("varx") { _, _ -> throw RuntimeException("variable resolver boom") }
+                    }
+                    fn { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") }
+                }
+            }
+            field("Query" to "bar") {
+                resolver {
+                    fn { args, _, _, _, _ -> args.getAs<Int>("x") }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ foo }")
+            assertEquals(mapOf("foo" to null), result.getData())
+            assertEquals(1, result.errors.size)
+            val error = result.errors[0]
+            assertEquals(listOf("foo"), error.path)
+            assertTrue(error.message.contains("variable resolver boom"))
         }
     }
 }

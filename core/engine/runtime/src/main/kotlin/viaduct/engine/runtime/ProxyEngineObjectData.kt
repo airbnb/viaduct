@@ -12,7 +12,9 @@ import viaduct.errors.UnsetFieldException
 /**
  * A proxy that handles projecting the given tenant selection set onto a lazy [EngineObjectData].
  * @param objectEngineResult Parent engine result
- * @param selectionSet The selection set required by the resolver
+ * @param selectionSet The caller-visible projection. It controls which selections may be fetched from this proxy
+ * and which subselections are exposed on nested proxy instances.
+ * @param isResolverSelective Indicates whether a field's OER key should include its subselections.
  *
  * TODO (https://app.asana.com/1/150975571430/project/1203659453427089/task/1211379042763526?focus=true):
  * move errorMessage out and provide this information in the tenant API instead
@@ -21,43 +23,45 @@ open class ProxyEngineObjectData(
     private val objectEngineResult: ObjectEngineResult,
     private val errorMessage: String,
     private val selectionSet: EngineSelectionSet? = null,
+    private val isResolverSelective: IsResolverSelective,
+    private val selections: ObjectEngineResult.Selections? = null,
 ) : EngineObjectData {
     override val type = objectEngineResult.type
 
     protected open fun createInstance(
         objectEngineResult: ObjectEngineResult,
         errorMessage: String,
-        selectionSet: EngineSelectionSet?
-    ): ProxyEngineObjectData {
-        return ProxyEngineObjectData(objectEngineResult, errorMessage, selectionSet)
-    }
+        selectionSet: EngineSelectionSet?,
+        isResolverSelective: IsResolverSelective,
+        selections: ObjectEngineResult.Selections?,
+    ): ProxyEngineObjectData = ProxyEngineObjectData(objectEngineResult, errorMessage, selectionSet, isResolverSelective, selections)
 
     /**
      * @param selection A field or alias name
      */
     override suspend fun fetch(selection: String): Any? {
-        val selections = checkSelectionIsInSelectionSet(selection)
-        val subselections = maybeSubselections(selection, selections)
-        val key = buildOerKey(selection, selections)
+        val engineSelectionSet = checkSelectionIsInSelectionSet(selection)
+        val subselections = maybeSubselections(selection, engineSelectionSet)
+        val key = buildOerKey(selection, engineSelectionSet)
         val value = objectEngineResult.fetchCheckedValue(key)
 
-        return marshal(value, subselections)
+        return marshal(value, subselections, selections?.selectionSetForSelection(objectEngineResult.type, selection))
     }
 
     /**
      * @param selection A field or alias name
      */
     override suspend fun fetchOrNull(selection: String): Any? {
-        val selections = if (selectionSet == null || !selectionSet.containsSelection(type.name, selection)) {
+        val engineSelectionSet = if (selectionSet == null || !selectionSet.containsSelection(type.name, selection)) {
             return null
         } else {
             selectionSet
         }
-        val subselections = maybeSubselections(selection, selections)
-        val key = buildOerKey(selection, selections)
+        val subselections = maybeSubselections(selection, engineSelectionSet)
+        val key = buildOerKey(selection, engineSelectionSet)
         val value = objectEngineResult.fetchCheckedValue(key)
 
-        return marshal(value, subselections)
+        return marshal(value, subselections, selections?.selectionSetForSelection(objectEngineResult.type, selection))
     }
 
     override suspend fun fetchSelections(): Iterable<String> {
@@ -72,16 +76,29 @@ open class ProxyEngineObjectData(
     }
 
     /**
-     * @param selection A field or alias name
+     * Builds the backing [ObjectEngineResult.Key] for a fetch.
+     *
+     * [selection] and [selections] describe the field as exposed through this proxy.
      */
     private fun buildOerKey(
         selection: String,
-        selections: EngineSelectionSet
+        engineSelectionSet: EngineSelectionSet,
     ): ObjectEngineResult.Key {
-        val engineSelection = selections.resolveSelection(objectEngineResult.type.name, selection)
-        val args = selections.argumentsOfSelection(engineSelection.typeCondition, engineSelection.selectionName)
+        val engineSelection = engineSelectionSet.resolveSelection(objectEngineResult.type.name, selection)
+        val args = engineSelectionSet.argumentsOfSelection(engineSelection.typeCondition, engineSelection.selectionName)
             ?: emptyMap()
-        return ObjectEngineResult.Key(engineSelection.fieldName, engineSelection.selectionName, args)
+        val hasSelectiveResolver = isResolverSelective(objectEngineResult.type.name to engineSelection.fieldName)
+        val oerKeySelections = if (hasSelectiveResolver) {
+            selections?.selectionSetForSelection(objectEngineResult.type, selection)
+        } else {
+            null
+        }
+        return ObjectEngineResult.Key(
+            engineSelection.fieldName,
+            engineSelection.selectionName,
+            args,
+            oerKeySelections
+        )
     }
 
     /** @throws UnsetFieldException if the field is not in the selection set */
@@ -113,7 +130,8 @@ open class ProxyEngineObjectData(
      */
     private suspend fun marshal(
         value: Any?,
-        subselections: EngineSelectionSet?
+        subselections: EngineSelectionSet?,
+        childSelections: ObjectEngineResult.Selections?,
     ): Any? {
         return when (value) {
             null -> null
@@ -121,15 +139,15 @@ open class ProxyEngineObjectData(
                 val exception = value.resolvedExceptionOrNull()
                 if (exception != null) throw exception
                 if (value.isResolvedToNull()) return null
-                createInstance(value, errorMessage, subselections)
+                createInstance(value, errorMessage, subselections, isResolverSelective, childSelections)
             }
-            is List<*> -> value.map { marshal(it, subselections) }
+            is List<*> -> value.map { marshal(it, subselections, childSelections) }
             is FieldResolutionResult -> {
                 // if a field was resolved with field errors, throw a FieldErrorsException with those errors
                 if (value.errors.isNotEmpty()) throw FieldErrorsException(value.errors)
-                marshal(value.engineResult, subselections)
+                marshal(value.engineResult, subselections, childSelections)
             }
-            is Cell -> marshal(value.fetchCheckedValue(), subselections)
+            is Cell -> marshal(value.fetchCheckedValue(), subselections, childSelections)
             else -> value
         }
     }

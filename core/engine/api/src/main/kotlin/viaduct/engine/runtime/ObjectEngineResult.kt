@@ -8,12 +8,19 @@ import graphql.schema.GraphQLObjectType
  */
 interface ObjectEngineResult {
     /**
-     * Canonical identity for selections that affect OER memoization.
+     * Selection context used for selective OER memoization and child traversal.
      */
     interface Selections {
-        val type: String
-        val document: String
-        val variables: Map<String, Any?>
+        /**
+         * Return the sub-selections for the field with the given [responseKey], or null if
+         * no such field exists or the field has no sub-selections.
+         *
+         * [parentType] is the concrete object type of the object whose field is being read.
+         */
+        fun selectionSetForSelection(
+            parentType: GraphQLObjectType,
+            responseKey: String
+        ): Selections?
     }
 
     /**
@@ -23,17 +30,8 @@ interface ObjectEngineResult {
         val name: String,
         val alias: String? = null,
         val arguments: Map<String, Any?> = emptyMap(),
-        val selectionSet: Selections? = null,
+        val selections: Selections? = null,
     ) {
-        private val canonicalSelectionSet =
-            selectionSet?.let { selectionSet ->
-                CanonicalSelectionSet(
-                    type = selectionSet.type,
-                    document = selectionSet.document,
-                    variables = selectionSet.variables
-                )
-            }
-
         companion object {
             operator fun invoke(
                 name: String,
@@ -67,7 +65,7 @@ interface ObjectEngineResult {
             if (name != other.name) return false
             if (alias != other.alias) return false
             if (arguments != other.arguments) return false
-            if (canonicalSelectionSet != other.canonicalSelectionSet) return false
+            if (selections != other.selections) return false
 
             return true
         }
@@ -76,19 +74,13 @@ interface ObjectEngineResult {
             var result = name.hashCode()
             result = 31 * result + (alias?.hashCode() ?: 0)
             result = 31 * result + arguments.hashCode()
-            result = 31 * result + (canonicalSelectionSet?.hashCode() ?: 0)
+            result = 31 * result + (selections?.hashCode() ?: 0)
             return result
         }
 
         override fun toString(): String {
-            return "Key(name='$name', alias='$alias', arguments=${arguments.entries.joinToString()}, selectionSet=$selectionSet)"
+            return "Key(name='$name', alias='$alias', arguments=${arguments.entries.joinToString()}, selections=$selections)"
         }
-
-        private data class CanonicalSelectionSet(
-            val type: String,
-            val document: String,
-            val variables: Map<String, Any?>,
-        )
     }
 
     val type: GraphQLObjectType

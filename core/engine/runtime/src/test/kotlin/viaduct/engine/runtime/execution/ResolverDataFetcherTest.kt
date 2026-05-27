@@ -3,6 +3,7 @@
 package viaduct.engine.runtime.execution
 
 import graphql.GraphQLContext
+import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ResultPath
 import graphql.execution.values.InputInterceptor
@@ -13,7 +14,9 @@ import io.mockk.mockk
 import java.util.Locale
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.assertEquals
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -37,6 +40,7 @@ import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandle
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolutionResult
@@ -67,7 +71,7 @@ class ResolverDataFetcherTest {
     private class Fixture(
         val expectedResult: Any?,
         val requiredSelectionSet: RequiredSelectionSet?,
-        val queryRequiredSelectionSet: RequiredSelectionSet? = null,
+        val querySelectionSet: RequiredSelectionSet? = null,
         val flagManager: FlagManager,
         val resolveWithException: Boolean = false,
         val testType: String = "TestType",
@@ -106,14 +110,14 @@ class ResolverDataFetcherTest {
         val executor = if (resolveWithException) {
             TestFieldUnbatchedResolverExecutor(
                 objectSelectionSet = requiredSelectionSet,
-                querySelectionSet = queryRequiredSelectionSet,
+                querySelectionSet = querySelectionSet,
                 resolverId = resolverId,
                 unbatchedResolveFn = { _, _, _, _, _ -> throw RuntimeException("test MockResolverExecutor") },
             )
         } else {
             TestFieldUnbatchedResolverExecutor(
                 objectSelectionSet = requiredSelectionSet,
-                querySelectionSet = queryRequiredSelectionSet,
+                querySelectionSet = querySelectionSet,
                 resolverId = resolverId,
                 unbatchedResolveFn = resolverFn ?: { _, receivedObjectValue, _, _, _ ->
                     resolverRan = true
@@ -135,13 +139,54 @@ class ResolverDataFetcherTest {
             rootEngineResult = ObjectEngineResultImpl.newForType(schema.schema.queryType),
             parentEngineResult = ObjectEngineResultImpl.newForType(testTypeObject),
             queryEngineResult = ObjectEngineResultImpl.newForType(schema.schema.queryType),
-            executionStrategyParams = mockk(),
-            executionContext = mockk()
+            executionStrategyParams = null,
+            executionContext = null
         )
-        val engineExecutionContextImpl = ContextMocks(
+        private val baseEngineExecutionContextImpl = ContextMocks(
             myFullSchema = schema,
             myFlagManager = flagManager,
         ).engineExecutionContextImpl
+
+        private val queryPlanParameters = QueryPlan.Parameters(
+            schema = schema,
+            registry = baseEngineExecutionContextImpl.dispatcherRegistry,
+            executeAccessChecksInModstrat = baseEngineExecutionContextImpl.executeAccessChecksInModstrat,
+            dispatcherRegistry = baseEngineExecutionContextImpl.dispatcherRegistry,
+        )
+
+        private fun allRequiredSelectionSets(rss: RequiredSelectionSet): List<RequiredSelectionSet> =
+            listOf(rss) + rss.variablesResolvers.flatMap { variablesResolver ->
+                variablesResolver.requiredSelectionSet?.let(::allRequiredSelectionSets).orEmpty()
+            }
+
+        private val indexedRssPlans = listOfNotNull(requiredSelectionSet, querySelectionSet)
+            .flatMap(::allRequiredSelectionSets)
+            .associate { rss ->
+                rss.id to runBlocking {
+                    QueryPlanFactory.Default.buildFromParsedSelections(
+                        parameters = queryPlanParameters,
+                        parsedSelections = rss.selections,
+                        attribution = rss.attribution,
+                        executionCondition = rss.executionCondition,
+                    )
+                }
+            }
+        private val queryPlanIndex = object : QueryPlanIndex {
+            override fun find(id: RequiredSelectionSet.Id): QueryPlan? = indexedRssPlans[id]
+        }
+
+        private val executionConstants = ExecutionParameters.Constants(
+            executionContext = mockk<ExecutionContext>(relaxed = true),
+            rootEngineResult = engineResultLocalContext.rootEngineResult,
+            supervisorScopeFactory = { CoroutineScope(it) },
+            rootCoroutineContext = EmptyCoroutineContext,
+        )
+        private val executionHandle = mockk<ExecutionParameters>(relaxed = true)
+        val engineExecutionContextImpl = baseEngineExecutionContextImpl.also {
+            every { executionHandle.constants } returns executionConstants
+            every { executionHandle.queryPlanIndex } returns queryPlanIndex
+            it.setExecutionHandle(executionHandle)
+        }
 
         init {
             every { dataFetchingEnvironment.engineExecutionContext } returns engineExecutionContextImpl
@@ -187,7 +232,7 @@ class ResolverDataFetcherTest {
                 Fixture(
                     expectedResult = null,
                     requiredSelectionSet = objectSelectionSet,
-                    queryRequiredSelectionSet = querySelectionSet,
+                    querySelectionSet = querySelectionSet,
                     flagManager = allDisabledFlags,
                     testFieldType = "Int",
                     resolverFn = { _, _, queryValue, _, _ ->

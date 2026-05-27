@@ -34,6 +34,7 @@ import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.runtime.Cell
+import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
@@ -87,6 +88,17 @@ class FieldResolver(
     companion object {
         private val log by logger()
     }
+
+    /**
+     * The values a field's fetch produces: its raw resolution result and its access-check result.
+     *
+     * @property result The [FieldResolutionResult] produced by the data fetcher.
+     * @property checkerResult The combined field + type access-check outcome.
+     */
+    private data class FieldFetchResult(
+        val result: Value<FieldResolutionResult>,
+        val checkerResult: Value<out CheckerResult?>,
+    )
 
     /**
      * Fetches an object by resolving all of its selected fields in parallel.
@@ -238,11 +250,24 @@ class FieldResolver(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField
     ): FieldDispatch {
-        field.childPlans.forEach {
+        val fieldResolverDispatcher =
+            parameters.engineExecutionContext.dispatcherRegistry.getFieldResolverDispatcher(
+                parameters.parentEngineResult.type.name,
+                field.fieldName,
+            )
+        val objectSelectionSetId = fieldResolverDispatcher?.objectSelectionSet?.id
+        val querySelectionSetId = fieldResolverDispatcher?.querySelectionSet?.id
+
+        field.childPlans.forEach { childPlan ->
             log.ifDebug {
-                debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${it.selectionSet}")
+                debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${childPlan.selectionSet}")
             }
-            launchQueryPlan(parameters, it)
+            val target = when (childPlan.requiredSelectionSetId) {
+                objectSelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitParentResult(parameters.parentEngineResult)
+                querySelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitParentResult(parameters.queryEngineResult)
+                else -> ExecutionParameters.ChildPlanTarget.FromContext
+            }
+            launchQueryPlan(parameters, childPlan, target = target)
         }
         return executeField(parameters)
     }
@@ -325,7 +350,6 @@ class FieldResolver(
 
         // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
         val parentOER = parameters.parentEngineResult
-        val oerKey = buildOERKeyForField(parameters, field)
         val executionStepInfoForField = parameters.executionStepInfo
 
         val fieldInstrumentationCtx = parameters.instrumentation.beginFieldExecution(
@@ -335,6 +359,7 @@ class FieldResolver(
 
         val dataFetchingEnvironmentProvider =
             FpKit.intraThreadMemoize { buildDataFetchingEnvironment(parameters, field, parentOER) }
+        val oerKey = buildOERKeyForField(parameters, field)
 
         fieldInstrumentationCtx.onDispatched()
 
@@ -343,9 +368,9 @@ class FieldResolver(
             log.ifDebug {
                 debug("Field @ {} with OER key: {} is not being fetched, fetching now...", parameters.path, oerKey)
             }
-            val (result, checkerResult) = fetchField(field, parameters, dataFetchingEnvironmentProvider)
-            slotSetter.setRawValue(result)
-            slotSetter.setCheckerValue(checkerResult)
+            val fieldFetchResult = fetchField(field, parameters, dataFetchingEnvironmentProvider)
+            slotSetter.setRawValue(fieldFetchResult.result)
+            slotSetter.setCheckerValue(fieldFetchResult.checkerResult)
         } as Value<FieldResolutionResult>
 
         val overall = fieldResolutionResultValue.thenCompose { v, e ->
@@ -367,7 +392,10 @@ class FieldResolver(
             }
         }
 
-        return FieldDispatch(fieldResolutionResultValue, overall)
+        return FieldDispatch(
+            immediate = fieldResolutionResultValue,
+            overall = overall
+        )
     }
 
     private val typeResolver = ResolveType()
@@ -633,7 +661,7 @@ class FieldResolver(
         field: QueryPlan.CollectedField,
         parameters: ExecutionParameters,
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
-    ): Pair<Value<FieldResolutionResult>, Value<out CheckerResult?>> =
+    ): FieldFetchResult =
         try {
             val fieldDef = parameters.executionStepInfo.fieldDefinition
             var dataFetcher = parameters.graphQLSchema.codeRegistry.getDataFetcher(
@@ -745,10 +773,16 @@ class FieldResolver(
                 completeFieldFetching()
             }
 
-            result to combinedCheckerResult
+            FieldFetchResult(
+                result = result,
+                checkerResult = combinedCheckerResult
+            )
         } catch (e: Exception) {
             val error = InternalEngineException.wrapWithPathAndLocation(e, parameters.path, field.sourceLocation)
-            Value.fromThrowable<FieldResolutionResult>(error) to Value.fromThrowable(error)
+            FieldFetchResult(
+                result = Value.fromThrowable(error),
+                checkerResult = Value.fromThrowable(error)
+            )
         }
 
     /**

@@ -12,8 +12,11 @@ import viaduct.engine.api.EngineObjectData as EngineObjectDataApi
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
+import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextExtensions.selectiveOERKeysEnabled
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolverDispatcher
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
@@ -64,83 +67,123 @@ class ResolverDataFetcher(
     private suspend fun resolveWithTenantContext(environment: DataFetchingEnvironment): Any? {
         val engineResults = getEngineResults(environment)
 
-        val engineExecutionContext = environment.engineExecutionContext
-        val localExecutionContext = engineExecutionContext.copy(
+        val resolverExecutionContext = environment.engineExecutionContext.copy(
             dataFetchingEnvironment = environment
         )
-
-        val engineObjectData = getFieldResolverDispatcherEOD(localExecutionContext, environment, engineResults)
-        return resolveField(environment, engineObjectData, localExecutionContext)
+        val engineObjectData = getFieldResolverDispatcherEOD(resolverExecutionContext, environment, engineResults)
+        return resolveField(environment, engineObjectData, resolverExecutionContext)
     }
 
+    /**
+     * Builds the objectValue and queryValue proxies for this resolver.
+     * It also picks the selection set each proxy should use for OER key lookups.
+     */
     private suspend fun getFieldResolverDispatcherEOD(
         localExecutionContext: EngineExecutionContext,
         environment: DataFetchingEnvironment,
         engineResults: EngineResults,
     ): EngineObjectData {
         val selectionSetFactory = localExecutionContext.engineSelectionSetFactory
+        val isResolverSelective = IsResolverSelective.fromRegistry(
+            localExecutionContext.dispatcherRegistry,
+            localExecutionContext.selectiveOERKeysEnabled,
+        )
 
         val objectErrorMessage =
             "add it to @Resolver's objectValueFragment before accessing it via Context.objectValue"
-        val objectSelectionSet = fieldResolverDispatcher.objectSelectionSet?.let { rss ->
-            val variables = resolveRSSVariables(
+        val objectRss = fieldResolverDispatcher.objectSelectionSet
+        val objectVariables = objectRss?.let { rss ->
+            resolveRSSVariables(
                 rss = rss,
                 arguments = environment.arguments,
                 currentEngineData = engineResults.parentResult,
                 queryEngineData = engineResults.queryResult,
                 engineExecutionContext = localExecutionContext,
                 environment.graphQlContext,
-                environment.locale
+                environment.locale,
             )
-            selectionSetFactory.engineSelectionSet(rss.selections, variables.toMap())
+        }
+        val objectEngineSelectionSet = objectVariables?.let { variables ->
+            selectionSetFactory.engineSelectionSet(objectRss.selections, variables.toMap())
+        }
+        val objectOERSelections: ObjectEngineResult.Selections? = objectVariables?.let { variables ->
+            FieldExecutionHelpers.createOERSelections(
+                objectRss,
+                variables,
+                localExecutionContext,
+            )
         }
         val objectValue = ProxyEngineObjectData(
             engineResults.parentResult,
             objectErrorMessage,
-            objectSelectionSet
+            objectEngineSelectionSet,
+            isResolverSelective,
+            objectOERSelections,
         )
         val syncObjectValueGetter: suspend () -> EngineObjectDataApi.Sync = {
             SyncEngineObjectDataFactory.resolve(
                 engineResults.parentResult,
                 objectErrorMessage,
-                objectSelectionSet,
-                parentPath = environment.executionStepInfo.path.parent
+                objectEngineSelectionSet,
+                parentPath = environment.executionStepInfo.path.parent,
+                isResolverSelective = isResolverSelective,
+                selections = objectOERSelections,
             )
         }
 
         val queryErrorMessage =
             "add it to @Resolver's queryValueFragment before accessing it via Context.queryValue"
-        val querySelectionSet = fieldResolverDispatcher.querySelectionSet?.let { rss ->
-            // queryValueFragment variables may still source values from the resolver's parent object,
-            // e.g. via fromObjectField on a non-root resolver.
-            val variables = resolveRSSVariables(
+        val queryRss = fieldResolverDispatcher.querySelectionSet
+        // queryValueFragment variables may still source values from the resolver's parent object,
+        // e.g. via fromObjectField on a non-root resolver.
+        val queryVariables = queryRss?.let { rss ->
+            resolveRSSVariables(
                 rss = rss,
                 arguments = environment.arguments,
                 currentEngineData = engineResults.parentResult,
                 queryEngineData = engineResults.queryResult,
                 engineExecutionContext = localExecutionContext,
                 environment.graphQlContext,
-                environment.locale
+                environment.locale,
             )
-            selectionSetFactory.engineSelectionSet(rss.selections, variables.toMap())
+        }
+        val queryEngineSelectionSet = queryVariables?.let { variables ->
+            selectionSetFactory.engineSelectionSet(queryRss.selections, variables.toMap())
+        }
+        val queryOERSelections: ObjectEngineResult.Selections? = queryVariables?.let { variables ->
+            FieldExecutionHelpers.createOERSelections(
+                queryRss,
+                variables,
+                localExecutionContext,
+            )
         }
         val queryValue = ProxyEngineObjectData(
             engineResults.queryResult,
             queryErrorMessage,
-            querySelectionSet
+            queryEngineSelectionSet,
+            isResolverSelective,
+            queryOERSelections,
         )
         val syncQueryValueGetter: suspend () -> EngineObjectDataApi.Sync = {
             SyncEngineObjectDataFactory.resolve(
                 engineResults.queryResult,
                 queryErrorMessage,
-                querySelectionSet,
-                parentPath = ResultPath.rootPath()
+                queryEngineSelectionSet,
+                parentPath = ResultPath.rootPath(),
+                isResolverSelective = isResolverSelective,
+                selections = queryOERSelections,
             )
         }
 
-        return EngineObjectData(objectValue, queryValue, syncObjectValueGetter, syncQueryValueGetter)
+        return EngineObjectData(
+            objectValue = objectValue,
+            queryValue = queryValue,
+            syncObjectValueGetter = syncObjectValueGetter,
+            syncQueryValueGetter = syncQueryValueGetter,
+        )
     }
 
+    /** Calls the tenant resolver with the proxy values and the current field selection set. */
     private suspend fun resolveField(
         environment: DataFetchingEnvironment,
         engineObjectData: EngineObjectData,
@@ -155,6 +198,7 @@ class ResolverDataFetcher(
         engineExecutionContext
     )
 
+    /** Gets the parent result and the root query result for this resolver call. */
     private fun getEngineResults(environment: DataFetchingEnvironment): EngineResults {
         val engineLoaderContext = environment.findLocalContextForType<EngineResultLocalContext>()
         val queryEngineResult = engineLoaderContext.queryEngineResult

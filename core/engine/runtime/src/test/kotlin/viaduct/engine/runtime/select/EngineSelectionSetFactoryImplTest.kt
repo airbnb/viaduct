@@ -121,6 +121,45 @@ class EngineSelectionSetFactoryImplTest {
     }
 
     @Test
+    fun `create from DataFetchingEnvironment -- produces key-compatible selections`() {
+        val fieldExecutionScope = mockk<EngineExecutionContext.FieldExecutionScope>()
+        every { fieldExecutionScope.fragments }.returns(emptyMap())
+        every { fieldExecutionScope.variables }.returns(emptyMap())
+        val engineExecutionContext = mockk<EngineExecutionContext>()
+        every { engineExecutionContext.fieldScope }.returns(fieldExecutionScope)
+        val env = mockk<ViaductDataFetchingEnvironment>()
+        val envField = Field(
+            "field",
+            SelectionSet(
+                listOf(
+                    Field("id"),
+                    Field(
+                        "fooSelf",
+                        SelectionSet(
+                            listOf(
+                                Field("fooId")
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        every { env.mergedField }.returns(MergedField.newMergedField(envField).build())
+        every { env.engineExecutionContext }.returns(engineExecutionContext)
+        every { env.executionStepInfo }.returns(
+            ExecutionStepInfo.newExecutionStepInfo()
+                .type(SelectTestSchemaFixture.schema.getObjectType("Foo"))
+                .build()
+        )
+
+        val fromDfe = requireNotNull(factory.engineSelectionSet(env))
+        val fromParsed = factory.engineSelectionSet("Foo", "id fooSelf { fooId }", emptyMap())
+
+        assertEquals(fromParsed.document, fromDfe.document)
+        assertEquals(fromParsed.variables, fromDfe.variables)
+    }
+
+    @Test
     fun `create from DataFetchingEnvironment -- not composite`() {
         val env = mockk<DataFetchingEnvironment>()
         every { env.executionStepInfo }.returns(

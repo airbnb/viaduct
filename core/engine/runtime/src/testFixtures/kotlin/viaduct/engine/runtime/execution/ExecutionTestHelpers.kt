@@ -190,10 +190,12 @@ object ExecutionTestHelpers {
         instrumentations: List<ViaductModernInstrumentation> = emptyList(),
         gjInstrumentations: List<Instrumentation> = emptyList(),
         coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
-        queryPlanFactory: QueryPlanFactory = QueryPlanFactory.Default
+        queryPlanFactory: QueryPlanFactory = QueryPlanFactory.Default,
+        queryPlanIndexFactory: QueryPlanIndex.Factory = QueryPlanIndex.Factory.Default,
     ): GraphQL {
         val execParamFactory = ExecutionParameters.Factory(
-            queryPlanFactory
+            queryPlanFactory,
+            queryPlanIndexFactory
         )
         val accessCheckRunner = AccessCheckRunner(coroutineInterop)
 

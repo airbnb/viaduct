@@ -18,6 +18,7 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.executeAccessChecksInModstrat
 import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
@@ -53,8 +54,14 @@ class AccessCheckRunner(
         val checkerDispatcher = engineExecutionContext.dispatcherRegistry.getFieldCheckerDispatcher(parentTypeName, fieldName)
             ?: return Value.nullValue // No access check for this field, return immediately
 
-        // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
-        return executeChecker(parameters, dataFetchingEnvironmentSupplier, checkerDispatcher, parameters.parentEngineResult, parameters.executionStepInfo.arguments, CheckerExecutor.CheckerType.FIELD)
+        return executeChecker(
+            parameters,
+            dataFetchingEnvironmentSupplier,
+            checkerDispatcher,
+            parameters.parentEngineResult,
+            parameters.executionStepInfo.arguments,
+            CheckerExecutor.CheckerType.FIELD,
+        )
     }
 
     /**
@@ -81,6 +88,18 @@ class AccessCheckRunner(
 
         // fetch the selection sets of any child plans for this type
         val fieldTypeChildPlans = field.fieldTypeChildPlans[objectEngineResult.type]?.value ?: emptyList()
+        val typeCheckParameters = if (fieldTypeChildPlans.isEmpty()) {
+            parameters
+        } else {
+            // QueryPlanIndex is used to convert RequiredSelectionSet's into a
+            // representation that can be used for OER keys. For perf reasons,
+            // QPI does not index fieldTypeChildPlans, so we do that here.
+            parameters.copy(
+                queryPlanIndex = fieldTypeChildPlans.fold(parameters.queryPlanIndex) { index, plan ->
+                    index.merge(parameters.queryPlanIndexFactory.create(plan))
+                }
+            )
+        }
         if (fieldTypeChildPlans.isNotEmpty()) {
             val env = dataFetchingEnvironmentSupplier.get()
             fieldTypeChildPlans.forEach { childPlan ->
@@ -88,7 +107,7 @@ class AccessCheckRunner(
                     debug("[AccessCheck] Pre-fetching field type child plan for field '${field.fieldName}' of type '$typeName', selection set: '${childPlan.selectionSet}'")
                 }
                 fieldResolver.launchQueryPlan(
-                    parameters,
+                    typeCheckParameters,
                     childPlan,
                     env,
                     ExecutionParameters.ChildPlanTarget.FieldType(
@@ -98,7 +117,14 @@ class AccessCheckRunner(
                 )
             }
         }
-        return executeChecker(parameters, dataFetchingEnvironmentSupplier, checkerDispatcher, objectEngineResult, emptyMap(), CheckerExecutor.CheckerType.TYPE)
+        return executeChecker(
+            typeCheckParameters,
+            dataFetchingEnvironmentSupplier,
+            checkerDispatcher,
+            objectEngineResult,
+            emptyMap(),
+            CheckerExecutor.CheckerType.TYPE,
+        )
     }
 
     /**
@@ -160,7 +186,7 @@ class AccessCheckRunner(
         checkerType: CheckerExecutor.CheckerType
     ): Value<out CheckerResult?> {
         val dataFetchingEnvironment = dataFetchingEnvironmentSupplier.get()
-        val localExecutionContext = parameters.engineExecutionContext.copy(
+        val baseExecutionContext = parameters.engineExecutionContext.copy(
             dataFetchingEnvironment = dataFetchingEnvironment
         )
         val instrumentedDispatcher = parameters.instrumentation.instrumentAccessCheck(
@@ -172,19 +198,32 @@ class AccessCheckRunner(
 
         val deferred = coroutineInterop.scopedAsync {
             val rssMap = instrumentedDispatcher.requiredSelectionSets
-            val proxyEODMap = rssMap.mapValues { (_, rss) ->
-                val selectionSet = rss?.let {
+            val rssData = rssMap.mapValues { (key, rss) ->
+                rss?.let {
                     val variables = resolveRSSVariables(
                         rss,
                         arguments,
                         objectEngineResult,
                         parameters.queryEngineResult,
-                        localExecutionContext,
+                        baseExecutionContext,
                         parameters.executionContext.graphQLContext,
                         parameters.executionContext.locale,
                     )
-                    localExecutionContext.engineSelectionSetFactory.engineSelectionSet(it.selections, variables.toMap())
+                    val oerSelections = FieldExecutionHelpers.createOERSelections(
+                        rss,
+                        variables,
+                        baseExecutionContext,
+                    )
+                    Pair(
+                        baseExecutionContext.engineSelectionSetFactory.engineSelectionSet(it.selections, variables.toMap()),
+                        oerSelections,
+                    )
                 }
+            }
+            val proxyEODMap = rssMap.mapValues { (key, rss) ->
+                val selectionData = rssData[key]
+                val visibleEngineSelectionSet = selectionData?.first
+                val oerSelections = selectionData?.second
                 val oerToWrap = if (rss != null && rss.selections.typeName == parameters.graphQLSchema.queryType.name) {
                     parameters.queryEngineResult
                 } else {
@@ -193,7 +232,12 @@ class AccessCheckRunner(
                 CheckerProxyEngineObjectData(
                     oerToWrap,
                     "missing from checker RSS",
-                    selectionSet,
+                    visibleEngineSelectionSet,
+                    IsResolverSelective.fromRegistry(
+                        baseExecutionContext.dispatcherRegistry,
+                        baseExecutionContext.selectiveOERKeysEnabled,
+                    ),
+                    oerSelections,
                 )
             }
             log.ifDebug {
@@ -207,7 +251,7 @@ class AccessCheckRunner(
             instrumentedDispatcher.execute(
                 arguments,
                 proxyEODMap,
-                localExecutionContext,
+                baseExecutionContext,
                 checkerType
             )
         }

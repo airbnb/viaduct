@@ -1,10 +1,10 @@
 package viaduct.engine.runtime
 
 import graphql.execution.ResultPath
+import graphql.schema.GraphQLObjectType
 import kotlin.coroutines.coroutineContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
-import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
@@ -34,7 +34,9 @@ object SyncEngineObjectDataFactory {
      *
      * @param objectEngineResult The engine result containing the raw data
      * @param errorMessage The error message template for UnsetFieldException
-     * @param selectionSet The selections to resolve; if null, returns empty data
+     * @param selectionSet The caller-visible selections to resolve; if null, returns empty data.
+     * @param parentPath Optional result path used for instrumentation/error attribution.
+     * @param isResolverSelective Indicates whether a field's OER key should include its subselections.
      * @return A [SyncProxyEngineObjectData] with all selections resolved
      */
     suspend fun resolve(
@@ -42,6 +44,8 @@ object SyncEngineObjectDataFactory {
         errorMessage: String,
         selectionSet: EngineSelectionSet? = null,
         parentPath: ResultPath? = null,
+        isResolverSelective: IsResolverSelective,
+        selections: ObjectEngineResult.Selections? = null,
     ): SyncProxyEngineObjectData {
         if (selectionSet == null) {
             return SyncProxyEngineObjectData(
@@ -55,7 +59,7 @@ object SyncEngineObjectDataFactory {
             "Expected ObjectEngineResultImpl, got ${objectEngineResult::class.qualifiedName}"
         }
 
-        return resolveImpl(objectEngineResult, errorMessage, selectionSet, parentPath)
+        return resolveImpl(objectEngineResult, errorMessage, selectionSet, parentPath, isResolverSelective, selections)
     }
 
     /**
@@ -79,11 +83,13 @@ object SyncEngineObjectDataFactory {
         errorMessage: String,
         selectionSet: EngineSelectionSet,
         parentPath: ResultPath? = null,
+        isResolverSelective: IsResolverSelective,
+        selections: ObjectEngineResult.Selections? = null,
     ): SyncProxyEngineObjectData {
         val data = mutableMapOf<String, Any?>()
         val instrumentationCtx = coroutineContext[ResolverInstrumentationContext]
 
-        val selections = selectionSet
+        val engineSelections = selectionSet
             .selectionSetForType(objectEngineResult.type.name)
             .selections()
 
@@ -95,17 +101,14 @@ object SyncEngineObjectDataFactory {
             val subselections: EngineSelectionSet?,
         )
 
-        val selectionStates = ArrayList<SelectionState>(selections.size)
+        val selectionStates = ArrayList<SelectionState>(engineSelections.size)
         val cellValues = mutableListOf<Value<Any?>>()
 
-        for (selection in selections) {
+        for (selection in engineSelections) {
             val selectionName = selection.selectionName
             val selectionPath = parentPath?.segment(selectionName)
 
-            val engineSelection = selectionSet.resolveSelection(
-                objectEngineResult.type.name,
-                selectionName
-            )
+            val engineSelection = selectionSet.resolveSelection(objectEngineResult.type.name, selectionName)
 
             val subselections = maybeSelections(
                 objectEngineResult,
@@ -114,7 +117,16 @@ object SyncEngineObjectDataFactory {
                 selectionName
             )
 
-            val cell = objectEngineResult.getCellOptimistically(oerKey(selectionSet, engineSelection))
+            val cell = objectEngineResult.getCellOptimistically(
+                oerKey(
+                    selectionSet = selectionSet,
+                    parentType = objectEngineResult.type,
+                    selectionName = selectionName,
+                    fieldName = engineSelection.fieldName,
+                    isResolverSelective = isResolverSelective,
+                    selections = selections,
+                )
+            )
             selectionStates += SelectionState(selectionName, selectionPath, cell, subselections)
 
             if (cell is Cell) {
@@ -131,6 +143,7 @@ object SyncEngineObjectDataFactory {
         // Phase 2: assemble results. Cell slots are now complete; unwrap() does not suspend
         // for the Cell case.
         for (state in selectionStates) {
+            val fieldChildSelections = selections?.selectionSetForSelection(objectEngineResult.type, state.selectionName)
             data[state.selectionName] = if (instrumentationCtx != null) {
                 val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
                     selection = state.selectionName,
@@ -138,12 +151,28 @@ object SyncEngineObjectDataFactory {
                     resultPath = state.selectionPath
                 )
                 instrumentationCtx.instrumentation.instrumentFetchSelection(
-                    FetchFunction { unwrap(state.cell, state.subselections, errorMessage, state.selectionPath) },
+                    FetchFunction {
+                        unwrap(
+                            state.cell,
+                            state.subselections,
+                            errorMessage,
+                            state.selectionPath,
+                            isResolverSelective,
+                            fieldChildSelections
+                        )
+                    },
                     params,
                     instrumentationCtx.state
                 ).fetch()
             } else {
-                unwrap(state.cell, state.subselections, errorMessage, state.selectionPath)
+                unwrap(
+                    state.cell,
+                    state.subselections,
+                    errorMessage,
+                    state.selectionPath,
+                    isResolverSelective,
+                    fieldChildSelections
+                )
             }
         }
 
@@ -173,6 +202,8 @@ object SyncEngineObjectDataFactory {
         subselections: EngineSelectionSet?,
         errorMessage: String,
         parentPath: ResultPath? = null,
+        isResolverSelective: IsResolverSelective,
+        childSelections: ObjectEngineResult.Selections? = null,
     ): Any? {
         return when (value) {
             null -> null
@@ -181,7 +212,7 @@ object SyncEngineObjectDataFactory {
             // to the `Cell` case. If any element has an error, return that error
             // as the value for the whole list (matching ProxyEngineObjectData behavior).
             is List<*> -> value.mapIndexed { index, it ->
-                val v = unwrap(it, subselections, errorMessage, parentPath?.segment(index))
+                val v = unwrap(it, subselections, errorMessage, parentPath?.segment(index), isResolverSelective, childSelections)
                 if (v is Exception) return v // non-local return from unwrap
                 v
             }
@@ -194,14 +225,14 @@ object SyncEngineObjectDataFactory {
                 val nestedSelections = requireNotNull(subselections) {
                     "Expected subselections for nested ObjectEngineResultImpl"
                 }
-                resolveImpl(value, errorMessage, nestedSelections, parentPath)
+                resolveImpl(value, errorMessage, nestedSelections, parentPath, isResolverSelective, childSelections)
             }
 
             is FieldResolutionResult -> {
                 if (value.errors.isNotEmpty()) {
                     return FieldErrorsException(value.errors) // Store exception, don't throw
                 }
-                unwrap(value.engineResult, subselections, errorMessage, parentPath)
+                unwrap(value.engineResult, subselections, errorMessage, parentPath, isResolverSelective, childSelections)
             }
 
             is Cell -> {
@@ -211,7 +242,7 @@ object SyncEngineObjectDataFactory {
                 if (checkerException != null) {
                     return checkerException // Store extracted exception, don't throw
                 }
-                unwrap(cellRaw, subselections, errorMessage, parentPath)
+                unwrap(cellRaw, subselections, errorMessage, parentPath, isResolverSelective, childSelections)
             }
 
             // The `else` case is for non-null simple types (scalars
@@ -265,16 +296,27 @@ object SyncEngineObjectDataFactory {
 
     private fun oerKey(
         selectionSet: EngineSelectionSet,
-        engineSelection: EngineSelection,
+        parentType: GraphQLObjectType,
+        selectionName: String,
+        fieldName: String,
+        isResolverSelective: IsResolverSelective,
+        selections: ObjectEngineResult.Selections?,
     ): ObjectEngineResult.Key {
-        val args = selectionSet.argumentsOfSelection(
-            engineSelection.typeCondition,
-            engineSelection.selectionName
-        ) ?: emptyMap()
+        val engineSelection = selectionSet.resolveSelection(parentType.name, selectionName)
+        val args = selectionSet.argumentsOfSelection(engineSelection.typeCondition, engineSelection.selectionName) ?: emptyMap()
+        val hasSelectiveResolver =
+            isResolverSelective(engineSelection.typeCondition to engineSelection.fieldName) ||
+                isResolverSelective(parentType.name to engineSelection.fieldName)
+        val oerKeySelections = if (hasSelectiveResolver) {
+            selections?.selectionSetForSelection(parentType, selectionName)
+        } else {
+            null
+        }
         return ObjectEngineResult.Key(
-            engineSelection.fieldName,
+            fieldName,
             engineSelection.selectionName,
-            args
+            args,
+            oerKeySelections
         )
     }
 }
