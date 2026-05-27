@@ -1,10 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    id("conventions.kotlin")
-    id("com.gradleup.shadow")
-    `maven-publish`
-    id("conventions.viaduct-publishing")
+    id("conventions.viaduct-fat-jar")
 }
 
 viaductPublishing {
@@ -18,11 +15,7 @@ dependencies {
     api(libs.viaduct.javaapi.api)
 }
 
-// Create shaded jar for publishing (fat jar with all dependencies)
 tasks.named<ShadowJar>("shadowJar") {
-    archiveClassifier.set("")  // Replace the main jar
-    mergeServiceFiles()
-
     // Use compileClasspath to get only compile-time API dependencies (not runtime)
     configurations = listOf(project.configurations.compileClasspath.get())
 
@@ -42,48 +35,4 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("com.google.guava", "viaduct.shaded.guava")
     relocate("com.fasterxml.jackson", "viaduct.shaded.jackson")
     relocate("org.slf4j", "viaduct.shaded.slf4j")
-}
-
-// Make the default jar task produce the shadow jar output
-tasks.named<Jar>("jar") {
-    enabled = false
-}
-
-// Configure apiElements and runtimeElements to use shadow jar.
-// The shadow jar is self-contained for all bundled Viaduct classes, so we suppress
-// transitive runtime dependencies to prevent old bundled versions (e.g. coroutines)
-// from leaking onto consumers' classpaths alongside the shadow jar.
-configurations {
-    named("apiElements") {
-        outgoing {
-            artifacts.clear()
-            artifact(tasks.shadowJar)
-        }
-    }
-    named("runtimeElements") {
-        outgoing {
-            artifacts.clear()
-            artifact(tasks.shadowJar)
-        }
-    }
-}
-
-// Suppress Gradle module metadata — the fat jar is self-contained and the standard
-// variants would reference internal viaduct coordinates that aren't published individually.
-tasks.withType<GenerateModuleMetadata> {
-    enabled = false
-}
-
-// Strip transitive dependencies from POM for Maven consumers.
-afterEvaluate {
-    publishing.publications.withType<MavenPublication>().configureEach {
-        pom.withXml {
-            val deps = asNode().get("dependencies") as groovy.util.NodeList
-            deps.forEach { (it as groovy.util.Node).parent().remove(it) }
-        }
-    }
-}
-
-tasks.named("assemble") {
-    dependsOn(tasks.shadowJar)
 }
