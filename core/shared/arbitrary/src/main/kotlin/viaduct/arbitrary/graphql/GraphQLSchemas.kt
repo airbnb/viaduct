@@ -123,41 +123,52 @@ internal class SchemaGenerator(val cfg: Config, val rs: RandomSource) {
             .makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING)
     }
 
-    fun finalize(schema: GraphQLSchema): GraphQLSchema =
-        schema
+    fun finalize(schema: GraphQLSchema): GraphQLSchema {
+        val vschema = ViaductSchema(schema)
+
+        /**
+         * Default values in a schema have different requirements than those used in a Document.
+         *
+         * For example, consider this schema with invalid default values:
+         *    input A { b:B = {} }
+         *    input B { a:A = {} }
+         *
+         * These definitions break the inhabitation property of the schema because their coerced
+         * default values are infinitely large.
+         *
+         * For the purposes of generating a default value in a schema, we need our graph of type cycles
+         * to include every possible edge, even edges from nullable or list-typed fields.
+         */
+        val irGen = IRGen(
+            vschema,
+            allEdgesGraph = CycleGroups.allInputCycles(vschema),
+            mandatoryEdgesGraph = CycleGroups.mandatoryInputCycles(vschema),
+            uncoercedValueWeight = cfg[SchemaUncoercedValueWeight],
+            cfg = cfg,
+            rs = rs
+        )
+
+        return schema
             .let {
-                val vschema = ViaductSchema(it)
                 // It's hard to generate default values at the same time that we're generating types.
                 // Generate default values as a separate pass
                 if (cfg[DefaultValueWeight] > 0.0) {
-                    SchemaTransformer.transformSchema(it, AddDefaults(vschema, cfg, rs))
+                    SchemaTransformer.transformSchema(it, AddDefaults(irGen, cfg, rs))
                 } else {
                     it
                 }
             }
             .let {
-                val vschema = ViaductSchema(it)
-                SchemaTransformer.transformSchema(it, AddAppliedDirectives(vschema, cfg, rs))
+                SchemaTransformer.transformSchema(it, AddAppliedDirectives(vschema, irGen, cfg, rs))
             }
+    }
 }
 
-internal class AddDefaults(private val schema: ViaductSchema, private val cfg: Config, private val rs: RandomSource) : GraphQLTypeVisitorStub() {
-    /**
-     * Default values in a schema have different requirements than those used in a Document.
-     *
-     * For example, consider this schema with invalid default values:
-     *    input A { b:B = {} }
-     *    input B { a:A = {} }
-     *
-     * These definitions break the inhabitation property of the schema because their coerced
-     * default values are infinitely large.
-     *
-     * For the purposes of generating a default value in a schema, we need our graph of type cycles
-     * to include every possible edge, even edges from nullable or list-typed fields.
-     */
-    private val allEdgesGraph = CycleGroups.allInputCycles(schema)
-    private val mandatoryEdgesGraph = CycleGroups.mandatoryInputCycles(schema)
-
+internal class AddDefaults(
+    private val irGen: IRGen,
+    private val cfg: Config,
+    private val rs: RandomSource
+) : GraphQLTypeVisitorStub() {
     // don't traverse into built-in directives
     override fun visitGraphQLDirective(
         node: GraphQLDirective,
@@ -207,13 +218,18 @@ internal class AddDefaults(private val schema: ViaductSchema, private val cfg: C
         return TraversalControl.CONTINUE
     }
 
-    private fun genDefaultValue(type: GraphQLInputType): Value<*> =
-        Arb.ir(schema, allEdgesGraph, mandatoryEdgesGraph, type, cfg).map { ir ->
-            GJValueConv(type).invert(ir)
-        }.next(rs)
+    private fun genDefaultValue(type: GraphQLInputType): Value<*> {
+        val ir = irGen.genValue(type)
+        return GJValueConv(type).invert(ir)
+    }
 }
 
-internal class AddAppliedDirectives(private val schema: ViaductSchema, private val cfg: Config, private val rs: RandomSource) : GraphQLTypeVisitorStub() {
+internal class AddAppliedDirectives(
+    private val schema: ViaductSchema,
+    private val irGen: IRGen,
+    private val cfg: Config,
+    private val rs: RandomSource
+) : GraphQLTypeVisitorStub() {
     private data class DirectiveDependencyInfo(
         val directives: Set<String>,
         val referencedInputLikeTypes: Set<String>
@@ -413,9 +429,8 @@ internal class AddAppliedDirectives(private val schema: ViaductSchema, private v
                     .toAppliedDirective()
                     .transform {
                         val args = dir.arguments.map { arg ->
-                            val value = Arb.ir(schema, arg.type, cfg)
-                                .map { ir -> GJValueConv(arg.type).invert(ir) }
-                                .next(rs)
+                            val ir = irGen.genValue(arg.type)
+                            val value = GJValueConv(arg.type).invert(ir)
                             arg.toAppliedArgument().transform { b ->
                                 b.valueLiteral(value)
                                 // to placate graphql-java's type-consistency checker, set the type to a GraphQLTypeReference

@@ -9,9 +9,11 @@ import graphql.language.Directive
 import graphql.language.DirectivesContainer
 import graphql.language.Document
 import graphql.language.Field
+import graphql.language.FloatValue
 import graphql.language.FragmentDefinition
 import graphql.language.FragmentSpread
 import graphql.language.InlineFragment
+import graphql.language.IntValue
 import graphql.language.NonNullType
 import graphql.language.OperationDefinition
 import graphql.language.VariableDefinition
@@ -58,6 +60,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
         aliasWeight: Double = 0.0,
         anonymousOperationWeight: Double = 0.0,
         banDirectiveNames: Set<String> = emptySet(),
+        documentUncoercedValueWeight: Double = 0.0,
         directiveWeight: CompoundingWeight = CompoundingWeight.Never,
         explicitNullValueWeight: Double = 0.0,
         fieldNameLength: Int = 4,
@@ -77,6 +80,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
             (AnonymousOperationWeight to anonymousOperationWeight) +
             (AppliedDirectiveWeight to directiveWeight) +
             (BanDirectiveNames to banDirectiveNames) +
+            (DocumentUncoercedValueWeight to documentUncoercedValueWeight) +
             (ExplicitNullValueWeight to explicitNullValueWeight) +
             (FieldNameLength to fieldNameLength.asIntRange()) +
             (FieldSelectionWeight to fieldSelectionWeight) +
@@ -331,6 +335,26 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
             mkConfig(directiveWeight = CompoundingWeight.Once).let { cfg ->
                 Arb.graphQLDocument(schema, cfg).forAll {
                     it.allChildrenOfType<DirectivesContainer<*>>().all { child -> child.directives.isNotEmpty() }
+                }
+            }
+        }
+
+    @Test
+    fun `DocumentUncoercedValueWeight`(): Unit =
+        runBlocking {
+            val schema = "extend type Query { field(arg: Float!):Int }".asViaductSchema
+
+            // disabled
+            mkConfig(documentUncoercedValueWeight = 0.0).let { cfg ->
+                Arb.graphQLDocument(schema, cfg).forAll {
+                    it.allChildrenOfType<Argument>().all { arg -> arg.value is FloatValue }
+                }
+            }
+
+            // enabled
+            mkConfig(documentUncoercedValueWeight = 1.0).let { cfg ->
+                Arb.graphQLDocument(schema, cfg).forAll {
+                    it.allChildrenOfType<Argument>().all { arg -> arg.value is IntValue }
                 }
             }
         }

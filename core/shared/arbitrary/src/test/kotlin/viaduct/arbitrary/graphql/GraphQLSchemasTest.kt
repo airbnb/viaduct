@@ -3,8 +3,11 @@
 package viaduct.arbitrary.graphql
 
 import graphql.Scalars
+import graphql.Scalars.GraphQLFloat
+import graphql.Scalars.GraphQLInt
 import graphql.introspection.Introspection
 import graphql.language.ArrayValue
+import graphql.language.IntValue
 import graphql.language.NullValue
 import graphql.language.ObjectValue
 import graphql.language.Value
@@ -32,6 +35,7 @@ import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.SchemaPrinter
 import graphql.util.TraversalControl
 import graphql.util.TraverserContext
+import io.kotest.inspectors.forAll
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
@@ -47,6 +51,7 @@ import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.gj
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 
@@ -126,6 +131,68 @@ class GraphQLSchemasTest : KotestPropertyBase() {
                         .defaultables
                     defaultables.all { it.isSet }
                 }
+        }
+
+    @Test
+    fun `adds default values -- SchemaUncoercedValueWeight`(): Unit =
+        runBlocking {
+            val cfg = Config.default +
+                (DefaultValueWeight to 1.0) +
+                (SchemaUncoercedValueWeight to 1.0)
+
+            // int for float
+            run {
+                val query = GraphQLObjectType.newObject()
+                    .name("Query")
+                    .field(
+                        GraphQLFieldDefinition.newFieldDefinition()
+                            .name("field")
+                            .argument(
+                                GraphQLArgument.newArgument().name("arg")
+                                    .type(GraphQLNonNull.nonNull(GraphQLFloat))
+                            )
+                            .type(GraphQLInt)
+                    )
+                    .build()
+
+                Arb.graphQLSchema(GraphQLTypes.empty.copy(objects = mapOf("Query" to query)), cfg)
+                    .forAll { schema ->
+                        val field = schema.getFieldDefinition(("Query" to "field").gj)
+                        val arg = field.getArgument("arg")
+                        val default = arg.argumentDefaultValue
+                        default.isSet && default.value is IntValue
+                    }
+            }
+
+            // singleton for list
+            run {
+                val query = GraphQLObjectType.newObject()
+                    .name("Query")
+                    .field(
+                        GraphQLFieldDefinition.newFieldDefinition()
+                            .name("field")
+                            .argument(
+                                GraphQLArgument.newArgument().name("arg")
+                                    .type(
+                                        GraphQLNonNull.nonNull(
+                                            GraphQLList(
+                                                GraphQLNonNull.nonNull(GraphQLInt)
+                                            )
+                                        )
+                                    )
+                            )
+                            .type(GraphQLInt)
+                    )
+                    .build()
+
+                Arb.graphQLSchema(GraphQLTypes.empty.copy(objects = mapOf("Query" to query)), cfg)
+                    .forAll { schema ->
+                        val field = schema.getFieldDefinition(("Query" to "field").gj)
+                        val arg = field.getArgument("arg")
+                        val default = arg.argumentDefaultValue
+                        default.isSet && default.value is IntValue
+                    }
+            }
         }
 
     @Test
@@ -561,7 +628,19 @@ class GraphQLSchemasTest : KotestPropertyBase() {
                 (AppliedDirectiveWeight to CompoundingWeight.Always) +
                 (DirectiveIsRepeatable to 0.0) +
                 (DefaultValueWeight to 0.0)
-    ): GraphQLSchema = SchemaTransformer.transformSchema(this, AddAppliedDirectives(ViaductSchema(this), cfg, RandomSource.seeded(seed)))
+    ): GraphQLSchema {
+        val vschema = ViaductSchema(this)
+        val rs = RandomSource.seeded(seed)
+        return SchemaTransformer.transformSchema(
+            this,
+            AddAppliedDirectives(
+                vschema,
+                IRGen(vschema, 0.0, cfg, rs),
+                cfg,
+                rs
+            )
+        )
+    }
 
     private fun GraphQLSchema.directiveArgumentAppliedDirectiveNames(
         directiveName: String,

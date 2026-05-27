@@ -19,7 +19,6 @@ import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
-import io.kotest.property.forAll
 import java.lang.Integer.max
 import java.time.Instant
 import java.time.LocalDate
@@ -84,6 +83,16 @@ class ArbIRTest : KotestPropertyBase() {
             Arb
                 .ir(emptySchema, Scalars.GraphQLFloat.nonNullable)
                 .forAll { it is IR.Value.Number && it.value is Double }
+        }
+
+    @Test
+    fun `generates scalar values -- Float -- uncoerced`(): Unit =
+        runBlocking {
+            val arb = arbitrary { rs ->
+                val gen = IRGen(emptySchema, uncoercedValueWeight = 1.0, Config.default, rs)
+                gen.genValue(Scalars.GraphQLFloat.nonNullable)
+            }
+            arb.forAll { it is IR.Value.Number && it.value is Int }
         }
 
     @Test
@@ -174,6 +183,16 @@ class ArbIRTest : KotestPropertyBase() {
             Arb
                 .ir(emptySchema, GraphQLList.list(Scalars.GraphQLInt).nonNullable)
                 .forAll { it is IR.Value.List }
+        }
+
+    @Test
+    fun `generates list values -- uncoerced`(): Unit =
+        runBlocking {
+            val arb = arbitrary { rs ->
+                val gen = IRGen(emptySchema, uncoercedValueWeight = 1.0, Config.default, rs)
+                gen.genValue(GraphQLList.list(Scalars.GraphQLInt.nonNullable).nonNullable)
+            }
+            arb.forAll { it is IR.Value.Number && it.value is Int }
         }
 
     @Test

@@ -53,7 +53,12 @@ internal class IRResultGen(
     private val rs: RandomSource,
 ) {
     private val enumGen = EnumValueGen(rs)
-    private val scalarGen = ScalarValueGen(cfg, rs)
+    private val scalarGen = ScalarValueGen(
+        // coercion is only applicable to input values -- result values should never require coercion
+        uncoercedValueWeight = 0.0,
+        cfg,
+        rs
+    )
 
     fun genValue(
         type: GraphQLOutputType,

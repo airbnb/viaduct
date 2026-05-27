@@ -11,7 +11,6 @@ import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.flatMap
-import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import viaduct.api.internal.EngineValueConv
@@ -53,6 +52,8 @@ private class GraphQLExecutionInputGen(
     val cfg: Config,
     val rs: RandomSource
 ) {
+    private val irGen = IRGen(schema, 0.0, cfg, rs)
+
     fun gen(doc: Document): ExecutionInput {
         val operations = doc.getDefinitionsOfType(OperationDefinition::class.java)
         val operation = Arb.of(operations).next(rs)
@@ -71,12 +72,9 @@ private class GraphQLExecutionInputGen(
                 acc
             } else {
                 val type = def.type.asSchemaType(schema)
-                val value = Arb.ir(schema, type, cfg)
-                    .map {
-                        val conv = EngineValueConv(schema, type, null)
-                        conv.invert(it)
-                    }
-                    .next(rs)
+                val ir = irGen.genValue(type)
+                val conv = EngineValueConv(schema, type, null)
+                val value = conv.invert(ir)
                 acc + (def.name to value)
             }
         }

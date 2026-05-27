@@ -163,6 +163,26 @@ object ExplicitNullValueWeight : ConfigKey<Double>(.1, WeightValidator)
 object ListValueSize : ConfigKey<IntRange>(0..3, IntRangeValidator(0..Int.MAX_VALUE))
 
 /**
+ * The probability that a value literal in a schema, when allowed, will require coercion to match the type at its location.
+ *
+ * Examples of allowed uncoerced values include:
+ * - ID-typed values may be provided as Int literals
+ * - Float-typed values may be provided as Int literals
+ * - Some List-typed values may be provided as the unwrapped list type
+ */
+object SchemaUncoercedValueWeight : ConfigKey<Double>(.25, WeightValidator)
+
+/**
+ * The probability that a value literal in a document, when allowed, will require coercion to match the type at its location.
+ *
+ * Examples of allowed uncoerced values include:
+ * - ID-typed values may be provided as Int literals
+ * - Float-typed values may be provided as Int literals
+ * - Some List-typed values may be provided as the unwrapped list type
+ */
+object DocumentUncoercedValueWeight : ConfigKey<Double>(.25, WeightValidator)
+
+/**
  * The approximate maximum depth of attempted value generation. When generating
  * values past this depth, the value generator will return null or empty values
  * when possible.

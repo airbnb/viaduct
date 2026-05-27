@@ -69,8 +69,22 @@ object GJValueConv {
     )
 
     private val float: Conv<Value<*>, IR.Value> = Conv(
-        forward = { IR.Value.Number((it as FloatValue).value.toDouble()) },
-        inverse = { FloatValue((it as IR.Value.Number).bigDecimal) },
+        forward = {
+            // GraphQL Floats may be coerced from Ints
+            if (it is IntValue) {
+                IR.Value.Number(it.value.intValueExact())
+            } else {
+                IR.Value.Number((it as FloatValue).value.toDouble())
+            }
+        },
+        inverse = {
+            // GraphQL Floats may be coerced from Ints
+            if ((it as IR.Value.Number).value is Int) {
+                IntValue(it.bigInteger)
+            } else {
+                FloatValue(it.bigDecimal)
+            }
+        },
         "float"
     )
 
@@ -152,10 +166,20 @@ object GJValueConv {
     private fun array(item: Conv<Value<*>, IR.Value>): Conv<Value<*>, IR.Value> =
         Conv(
             forward = {
-                IR.Value.List((it as ArrayValue).values.map(item))
+                // GraphQL Lists may be coerced from non-list values of the inner type
+                if (it !is ArrayValue) {
+                    item(it)
+                } else {
+                    IR.Value.List(it.values.map(item))
+                }
             },
             inverse = {
-                ArrayValue((it as IR.Value.List).value.map(item::invert))
+                // GraphQL Lists may be coerced from non-list values of the inner type
+                if (it !is IR.Value.List) {
+                    item.invert(it)
+                } else {
+                    ArrayValue(it.value.map(item::invert))
+                }
             },
             "array-$item"
         )

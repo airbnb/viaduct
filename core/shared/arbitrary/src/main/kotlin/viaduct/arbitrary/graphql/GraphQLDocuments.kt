@@ -44,7 +44,6 @@ import viaduct.arbitrary.common.Config
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.utils.allChildren
 import viaduct.mapping.graphql.GJValueConv
-import viaduct.mapping.graphql.IR
 
 /**
  * Generate an arbitrary GraphQL [Document] for the provided [ViaductSchema] and config.
@@ -82,8 +81,7 @@ private interface Env {
     val selectionSetGen: GraphQLSelectionSetGen
     val directiveGen: GraphQLDirectivesGen
     val argumentsGen: GraphQLArgumentsGen
-
-    fun genValue(type: GraphQLInputType): IR.Value = Arb.ir(schemas.viaductSchema, type, cfg).next(rs)
+    val irGen: IRGen
 
     fun checkDepth(depth: Int): Boolean = depth <= cfg[MaxSelectionSetDepth]
 
@@ -98,6 +96,7 @@ private interface Env {
             override val selectionSetGen = GraphQLSelectionSetGen(this)
             override val directiveGen = GraphQLDirectivesGen(this)
             override val argumentsGen = GraphQLArgumentsGen(this)
+            override val irGen: IRGen = IRGen(schemas.viaductSchema, cfg[DocumentUncoercedValueWeight], cfg, rs)
         }
 
         operator fun invoke(
@@ -510,7 +509,7 @@ private class GraphQLArgumentsGen(
             }
             VariableReference(variable.name)
         } else {
-            GJValueConv(type).invert(genValue(type))
+            GJValueConv(type).invert(irGen.genValue(type))
         }
     }
 
@@ -520,7 +519,7 @@ private class GraphQLArgumentsGen(
     ): VariableDefinition {
         val default =
             if (rs.sampleWeight(cfg[DefaultValueWeight])) {
-                GJValueConv(forType).invert(genValue(forType))
+                GJValueConv(forType).invert(irGen.genValue(forType))
             } else {
                 null
             }

@@ -22,7 +22,6 @@ import graphql.schema.idl.RuntimeWiring
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.int
-import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import viaduct.api.internal.EngineValueConv
@@ -97,7 +96,9 @@ private class ArbRuntimeWiringGen(
                 b.dataFetcher(f.name) { env: DataFetchingEnvironment ->
                     val rs = saltedRandom(env.hash)
                     maybeThrowResolverException(rs)
-                    genValue(env.fieldType, rs)
+
+                    val irGen = IRGen(schema, uncoercedValueWeight = 0.0, cfg, rs)
+                    genValue(irGen, env.fieldType, rs)
                 }
             }
         }
@@ -110,6 +111,7 @@ private class ArbRuntimeWiringGen(
     }
 
     private fun genValue(
+        irGen: IRGen,
         type: GraphQLOutputType,
         rs: RandomSource
     ): Any? {
@@ -125,16 +127,13 @@ private class ArbRuntimeWiringGen(
             is GraphQLList ->
                 buildList {
                     repeat(Arb.int(cfg[ListValueSize]).next(rs)) {
-                        add(genValue(GraphQLTypeUtil.unwrapOneAs(t), rs))
+                        add(genValue(irGen, GraphQLTypeUtil.unwrapOneAs(t), rs))
                     }
                 }
 
             is GraphQLScalarType -> {
-                Arb.ir(schema, type, cfg)
-                    .map {
-                        EngineValueConv(schema, type, null).invert(it)
-                    }
-                    .next(rs)
+                val ir = irGen.genValue(type)
+                EngineValueConv(schema, type, null).invert(ir)
             }
 
             is GraphQLEnumType ->

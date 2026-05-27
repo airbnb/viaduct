@@ -18,6 +18,7 @@ import graphql.schema.GraphQLType
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.bigInt
+import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.of
 import java.math.BigInteger
@@ -146,6 +147,28 @@ class GJValueConvTest : KotestPropertyBase() {
         checkRange("Int", Int.MIN_VALUE to Int.MAX_VALUE)
         checkRange("Long", Long.MIN_VALUE to Long.MAX_VALUE)
     }
+
+    @Test
+    fun `uncoerced Floats can be roundtripped`(): Unit =
+        runBlocking {
+            val conv = GJValueConv(Scalars.GraphQLFloat)
+            Arb.int().forAll { i ->
+                val gj = IntValue(i.toBigInteger())
+                val gj2 = conv.invert(conv(gj))
+                gj2 is IntValue && gj2.value.intValueExact() == i
+            }
+        }
+
+    @Test
+    fun `uncoerced Lists can be roundtripped`(): Unit =
+        runBlocking {
+            val conv = GJValueConv(GraphQLList.list(Scalars.GraphQLInt))
+            Arb.int().forAll { i ->
+                val gj = IntValue(i.toBigInteger())
+                val gj2 = conv.invert(conv(gj))
+                gj2 is IntValue && gj2.value.intValueExact() == i
+            }
+        }
 
     private fun checkRange(
         typeName: String,
