@@ -41,13 +41,13 @@ interface QueryPlanIndex {
                     for (selection in selectionSet.selections) {
                         when (selection) {
                             is QueryPlan.CollectedField -> {
-                                pendingPlans.addAll(selection.childPlans)
+                                pendingPlans.addAll(selection.childPlans.map { it.plan })
                                 selection.selectionSet?.let {
                                     enqueueSelectionSet(it, fragments, visitedFragments)
                                 }
                             }
                             is QueryPlan.Field -> {
-                                pendingPlans.addAll(selection.childPlans)
+                                pendingPlans.addAll(selection.childPlans.map { it.plan })
                                 selection.selectionSet?.let {
                                     enqueueSelectionSet(it, fragments, visitedFragments)
                                 }

@@ -260,14 +260,14 @@ class FieldResolver(
 
         field.childPlans.forEach { childPlan ->
             log.ifDebug {
-                debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${childPlan.selectionSet}")
+                debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${childPlan.plan.selectionSet}")
             }
-            val target = when (childPlan.requiredSelectionSetId) {
+            val target = when (childPlan.plan.requiredSelectionSetId) {
                 objectSelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitParentResult(parameters.parentEngineResult)
                 querySelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitParentResult(parameters.queryEngineResult)
                 else -> ExecutionParameters.ChildPlanTarget.FromContext
             }
-            launchQueryPlan(parameters, childPlan, target = target)
+            launchQueryPlan(parameters, childPlan.plan, target = target)
         }
         return executeField(parameters)
     }

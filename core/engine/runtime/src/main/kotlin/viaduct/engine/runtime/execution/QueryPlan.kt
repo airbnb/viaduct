@@ -113,7 +113,7 @@ data class QueryPlan(
         val responseKey: String,
         val selectionSet: SelectionSet?,
         val mergedField: MergedField,
-        val childPlans: List<QueryPlan>,
+        val childPlans: List<FieldChildPlan>,
         val fieldTypeChildPlans: Map<GraphQLObjectType, Lazy<List<QueryPlan>>>,
         val collectedFieldMetadata: FieldMetadata? = FieldMetadata.empty,
     ) : Selection {
@@ -141,7 +141,7 @@ data class QueryPlan(
         override val constraints: Constraints,
         val field: GJField,
         val selectionSet: SelectionSet?,
-        val childPlans: List<QueryPlan>,
+        val childPlans: List<FieldChildPlan>,
         val fieldTypeChildPlans: Map<GraphQLObjectType, Lazy<List<QueryPlan>>>,
         val metadata: FieldMetadata? = FieldMetadata.empty,
         override val variableReferences: List<SelectionVariableReference> = emptyList(),

@@ -385,14 +385,17 @@ private class QueryPlanBuilder(
     private fun buildRequiredSelectionSetPlans(
         possibleParentTypes: MaskedSet<GraphQLObjectType>,
         field: GJField,
-    ): List<QueryPlan> =
+    ): List<FieldChildPlan> =
         possibleParentTypes.flatMap { parentType ->
+            val originCoordinate: Coordinate = parentType.name to field.name
             buildList {
                 val resolverRsses = parameters.registry.getFieldResolverRequiredSelectionSets(parentType.name, field.name)
-                addAll(buildChildPlansFromRequiredSelectionSets(resolverRsses))
+                buildChildPlansFromRequiredSelectionSets(resolverRsses)
+                    .forEach { add(FieldChildPlan(it, originCoordinate)) }
 
                 val checkerRsses = parameters.registry.getFieldCheckerRequiredSelectionSets(parentType.name, field.name, parameters.executeAccessChecksInModstrat)
-                addAll(buildChildPlansFromRequiredSelectionSets(checkerRsses))
+                buildChildPlansFromRequiredSelectionSets(checkerRsses)
+                    .forEach { add(FieldChildPlan(it, originCoordinate)) }
             }
         }
 

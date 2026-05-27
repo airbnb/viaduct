@@ -154,7 +154,7 @@ class QueryPlanIndexTest {
                                     constraints = Constraints.Unconstrained,
                                     field = GJField("poly"),
                                     selectionSet = null,
-                                    childPlans = listOf(fragmentChildPlan),
+                                    childPlans = listOf(FieldChildPlan(fragmentChildPlan, "Query" to "poly")),
                                     fieldTypeChildPlans = mapOf(
                                         parentType to lazy {
                                             evaluatedFieldTypeChildPlans = true
@@ -203,7 +203,7 @@ class QueryPlanIndexTest {
                         constraints = Constraints.Unconstrained,
                         field = GJField("poly"),
                         selectionSet = null,
-                        childPlans = listOf(fieldMaterializedChildPlan),
+                        childPlans = listOf(FieldChildPlan(fieldMaterializedChildPlan, "Query" to "poly")),
                         fieldTypeChildPlans = mapOf(
                             parentType to lazy {
                                 evaluatedNestedFieldTypeChildPlans = true

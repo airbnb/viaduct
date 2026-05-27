@@ -31,8 +31,6 @@ import strikt.assertions.isNotSameInstanceAs
 import strikt.assertions.isNull
 import strikt.assertions.isSameInstanceAs
 import strikt.assertions.single
-import strikt.assertions.withSingle
-import strikt.assertions.withValue
 import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.EngineExecutionContext
@@ -247,7 +245,7 @@ class QueryPlanTest {
                             mkField(
                                 "x",
                                 typeConstraint(query),
-                                childPlans = listOf(buildPlan("{y}")),
+                                childPlans = mkFieldChildPlans("Query", "x", buildPlan("{y}")),
                             )
                         ),
                         parentType = query
@@ -295,9 +293,65 @@ class QueryPlanTest {
                 .single() as Field
 
             expectThat(userRestricted.childPlans).hasSize(1)
-            expectThat(userRestricted.childPlans.single().parentType).isEqualTo(schema.getObjectType("User"))
+            expectThat(userRestricted.childPlans.single().plan.parentType).isEqualTo(schema.getObjectType("User"))
             expectThat(adminRestricted.childPlans).hasSize(1)
-            expectThat(adminRestricted.childPlans.single().parentType).isEqualTo(schema.getObjectType("Admin"))
+            expectThat(adminRestricted.childPlans.single().plan.parentType).isEqualTo(schema.getObjectType("Admin"))
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- field child plans carry origin coordinate for resolver and checker RSS`() {
+        // For a field T.f with both a field-resolver RSS and a field-checker RSS registered,
+        // both produced FieldChildPlan entries should carry originCoordinate == (T, f).
+        // The resolver RSS selects {y}, the checker RSS selects {z} — assert both shapes are
+        // present so we'd catch a regression where one of the two RSSes was elided or replaced.
+        Fixture(
+            "type Query { x:Int, y:Int, z:Int }",
+            MockRequiredSelectionSetRegistry.builder()
+                .fieldResolverEntry("Query" to "x", "y")
+                .fieldCheckerEntry("Query" to "x", "z")
+                .build()
+        ) {
+            val plan = buildPlan("{x}")
+            val xField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
+            expectThat(xField.childPlans).hasSize(2)
+            xField.childPlans.forEach { fcp ->
+                expectThat(fcp.originCoordinate).isEqualTo("Query" to "x")
+            }
+            // The two RSS plans must contain both {y} (resolver) and {z} (checker) — exact set.
+            val rssSelectedFieldNames = xField.childPlans
+                .map { fcp ->
+                    fcp.plan.selectionSet.selections.filterIsInstance<Field>().single().resultKey
+                }
+                .toSet()
+            expectThat(rssSelectedFieldNames).isEqualTo(setOf("y", "z"))
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- interface field child plans pin origin to each implementor`() {
+        // For a field selected on an interface, RSS plans are expanded across each concrete
+        // implementor. Each FieldChildPlan's originCoordinate must be pinned to its own implementor,
+        // so that CollectFields can later drop sibling-implementor plans at runtime.
+        Fixture(
+            """
+                interface Node { id:Int }
+                type ImplA implements Node { id:Int a:Int }
+                type ImplB implements Node { id:Int b:Int }
+                type Query { node:Node }
+            """.trimIndent(),
+            MockRequiredSelectionSetRegistry.builder()
+                .fieldCheckerEntry("ImplA" to "id", "a")
+                .fieldCheckerEntry("ImplB" to "id", "b")
+                .build()
+        ) {
+            val plan = buildPlan("{node{id}}")
+            val nodeField = plan.selectionSet.selections.filterIsInstance<Field>().single { it.resultKey == "node" }
+            val idField = nodeField.selectionSet!!.selections.filterIsInstance<Field>().single { it.resultKey == "id" }
+            // Both implementor RSSes attach to the interface field selection
+            expectThat(idField.childPlans).hasSize(2)
+            val origins = idField.childPlans.map { it.originCoordinate }.toSet()
+            expectThat(origins).isEqualTo(setOf("ImplA" to "id", "ImplB" to "id"))
         }
     }
 
@@ -323,7 +377,9 @@ class QueryPlanTest {
                             mkField(
                                 "x",
                                 typeConstraint(query),
-                                childPlans = listOf(
+                                childPlans = mkFieldChildPlans(
+                                    "Query",
+                                    "x",
                                     mkQueryPlan(
                                         SelectionSet(
                                             mkField(
@@ -350,7 +406,7 @@ class QueryPlanTest {
                     )
                 )
             }
-            val yField = ((plan.selectionSet.selections.single() as Field).childPlans.single().selectionSet.selections.single() as Field)
+            val yField = ((plan.selectionSet.selections.single() as Field).childPlans.single().plan.selectionSet.selections.single() as Field)
             expectThat(yField.variableReferences).isEqualTo(listOf(fieldArgumentReference("vara")))
             expectThat(plan.variableDefinitions.map { it.name }).equals(listOf("vara"))
         }
@@ -382,11 +438,10 @@ class QueryPlanTest {
             reg
         ) {
             val plan = buildPlan("{x}")
-            val rssPlan = (plan.selectionSet.selections.single() as Field).childPlans.single()
+            val rssPlan = (plan.selectionSet.selections.single() as Field).childPlans.single().plan
 
-            expectThat(rssPlan.childPlans).withSingle {
-                get { selectionSet.selections }.single().isA<Field>().get { resultKey }.isEqualTo("z")
-            }
+            expectThat(rssPlan.childPlans).single().get { selectionSet.selections }
+                .single().isA<Field>().get { resultKey }.isEqualTo("z")
             expectThat(varResolver.requiredSelectionSetReads).isEqualTo(1)
         }
     }
@@ -417,11 +472,10 @@ class QueryPlanTest {
             reg
         ) {
             val plan = buildPlan("{x}")
-            val rssPlan = (plan.selectionSet.selections.single() as Field).childPlans.single()
+            val rssPlan = (plan.selectionSet.selections.single() as Field).childPlans.single().plan
 
-            expectThat(rssPlan.childPlans).withSingle {
-                get { selectionSet.selections }.single().isA<Field>().get { resultKey }.isEqualTo("z")
-            }
+            expectThat(rssPlan.childPlans).single().get { selectionSet.selections }
+                .single().isA<Field>().get { resultKey }.isEqualTo("z")
             expectThat(varResolver.requiredSelectionSetReads).isEqualTo(1)
         }
     }
@@ -459,11 +513,10 @@ class QueryPlanTest {
             reg
         ) {
             val plan = buildPlan("{x}")
-            val rssPlan = (plan.selectionSet.selections.single() as Field).childPlans.single()
+            val rssPlan = (plan.selectionSet.selections.single() as Field).childPlans.single().plan
 
-            expectThat(rssPlan.childPlans).withSingle {
-                get { selectionSet.selections }.single().isA<Field>().get { resultKey }.isEqualTo("z")
-            }
+            expectThat(rssPlan.childPlans).single().get { selectionSet.selections }
+                .single().isA<Field>().get { resultKey }.isEqualTo("z")
             expectThat(varResolver.requiredSelectionSetReads).isEqualTo(1)
         }
     }
@@ -488,23 +541,21 @@ class QueryPlanTest {
         Fixture("type Query { x:Int, y(a:Int):Int, z:Int }", reg) {
             val plan = buildPlan("{x}")
 
-            expectThat(plan) {
-                // plan should contain a single Field 'x'
-                val field = get { selectionSet.selections }.single().isA<Field>()
-
-                // field x should have one child plan for its RSS
-                field.get { childPlans }.withSingle {
-                    // child plan should contain a single plan for its variables
-                    get { childPlans }.withSingle {
-                        // the variable plan should contain a single field selection, 'z'
-                        val innerField = get { selectionSet.selections }.single().isA<Field>()
-                        innerField.get { resultKey }.isEqualTo("z")
-                    }
-
-                    // child plan should contain variables resolvers for "vara"
-                    get { variablesResolvers }.single().get { variableNames }.single().isEqualTo("vara")
-                }
-            }
+            val xField = plan.selectionSet.selections.filterIsInstance<Field>().single()
+            // field x should have one child plan for its RSS
+            expectThat(xField.childPlans).hasSize(1)
+            val rss = xField.childPlans.single()
+            // child plan's origin coordinate is Query.x
+            expectThat(rss.originCoordinate).isEqualTo("Query" to "x")
+            val rssPlan = rss.plan
+            // RSS plan should have its variables-plan child
+            expectThat(rssPlan.childPlans).hasSize(1)
+            val variablesPlan = rssPlan.childPlans.single()
+            // variables plan should select field z
+            val innerField = variablesPlan.selectionSet.selections.filterIsInstance<Field>().single()
+            expectThat(innerField.resultKey).isEqualTo("z")
+            // RSS plan should have variables resolver for "vara"
+            expectThat(rssPlan.variablesResolvers.single().variableNames.single()).isEqualTo("vara")
         }
     }
 
@@ -526,18 +577,21 @@ class QueryPlanTest {
             ).build()
 
         Fixture("type Query { x:Int, y:Int, z:Boolean }", reg) {
-            expectThat(buildPlan("{x}")) {
-                val fieldX = get { selectionSet.selections }.single().isA<Field>()
+            val plan = buildPlan("{x}")
+            val fieldX = plan.selectionSet.selections.single() as Field
 
-                // field x should have one child plan for its rss
-                fieldX.get { childPlans }.withSingle {
-                    // the rss plan should include a plan for its variables
-                    get { childPlans }.withSingle {
-                        // the variables plan should include a field selection on 'z'
-                        get { selectionSet.selections }.single().isA<Field>().get { resultKey }.isEqualTo("z")
-                    }
-                }
-            }
+            // field x should have one child plan for its RSS
+            expectThat(fieldX.childPlans).hasSize(1)
+            val rss = fieldX.childPlans.single()
+            // the child plan's origin coordinate is Query.x
+            expectThat(rss.originCoordinate).isEqualTo("Query" to "x")
+            val rssPlan = rss.plan
+
+            // the rss plan should include a plan for its variables, selecting 'z'
+            expectThat(rssPlan.childPlans).hasSize(1)
+            val variablesPlan = rssPlan.childPlans.single()
+            val innerField = variablesPlan.selectionSet.selections.single() as Field
+            expectThat(innerField.resultKey).isEqualTo("z")
         }
     }
 
@@ -559,35 +613,33 @@ class QueryPlanTest {
                 varResolvers
             ).build()
         Fixture("type Query { x:Int, y(a:Int):Int, z:Int }", reg) {
-            expectThat(buildPlan("{x}")) {
-                // plan should have a single field selection
-                val fieldX = get { selectionSet.selections }.single().isA<Field>()
-                // the field should have result key "x"
-                fieldX.get { resultKey }.isEqualTo("x")
+            val plan = buildPlan("{x}")
+            // plan should have a single field selection
+            val fieldX = plan.selectionSet.selections.single() as Field
+            expectThat(fieldX.resultKey).isEqualTo("x")
 
-                // the field should have a single child plan
-                fieldX.get { childPlans }.withSingle {
-                    // the child plan should have a fragment spread on T
-                    val spread = get { selectionSet.selections }.single().isA<FragmentSpread>()
-                    spread.get { name }.isEqualTo("T")
+            // the field should have a single child plan whose origin is Query.x
+            expectThat(fieldX.childPlans).hasSize(1)
+            val rss = fieldX.childPlans.single()
+            expectThat(rss.originCoordinate).isEqualTo("Query" to "x")
 
-                    // fragment T should be in the child plans fragment map
-                    get { fragments }.withValue("T") {
-                        get { selectionSet.selections }.single()
-                            .isA<Field>()
-                            .get { resultKey }.isEqualTo("y")
-                    }
+            // the child plan should have a fragment spread on T
+            val rssPlan = rss.plan
+            val spread = rssPlan.selectionSet.selections.single() as FragmentSpread
+            expectThat(spread.name).isEqualTo("T")
 
-                    // the current child plan should have a variable resolver for variable "vara"
-                    get { variablesResolvers }.single().get { variableNames }.single().isEqualTo("vara")
+            // fragment T should be in the child plan's fragment map and contain field 'y'
+            val tFrag = rssPlan.fragments["T"]
+            checkNotNull(tFrag)
+            expectThat((tFrag.selectionSet.selections.single() as Field).resultKey).isEqualTo("y")
 
-                    // the current child plan should have its own child plan for vara
-                    get { childPlans }.withSingle {
-                        // the variables child plan should have a single selection on field 'z'
-                        get { selectionSet.selections }.single().isA<Field>().get { resultKey }.isEqualTo("z")
-                    }
-                }
-            }
+            // the child plan should have a variable resolver for variable "vara"
+            expectThat(rssPlan.variablesResolvers.single().variableNames.single()).isEqualTo("vara")
+
+            // the child plan should have its own child plan for vara, selecting 'z'
+            expectThat(rssPlan.childPlans).hasSize(1)
+            val varaPlan = rssPlan.childPlans.single()
+            expectThat((varaPlan.selectionSet.selections.single() as Field).resultKey).isEqualTo("z")
         }
     }
 
@@ -609,31 +661,28 @@ class QueryPlanTest {
             ).build()
 
         Fixture("type Query { x:Int, y:Int, z:Boolean }", reg) {
-            expectThat(buildPlan("{x}")) {
-                // plan should contain a single selection
-                get { selectionSet.selections }.withSingle {
-                    // the selection should be a field with result key 'x'
-                    val field = isA<Field>()
-                    field.get { resultKey } isEqualTo ("x")
+            val plan = buildPlan("{x}")
+            // plan should contain a single field 'x'
+            val fieldX = plan.selectionSet.selections.single() as Field
+            expectThat(fieldX.resultKey).isEqualTo("x")
 
-                    // the selection has a single child plan
-                    field.get { childPlans }.withSingle {
-                        // the child plan contains a single fragment spread on "T"
-                        val spread = get { selectionSet.selections }.single().isA<FragmentSpread>()
-                        spread.get { name }.isEqualTo("T")
+            // the field has a single child plan whose origin is Query.x
+            expectThat(fieldX.childPlans).hasSize(1)
+            val rss = fieldX.childPlans.single()
+            expectThat(rss.originCoordinate).isEqualTo("Query" to "x")
+            val rssPlan = rss.plan
 
-                        // the child plan should have a variables resolver for 'z'
-                        get { variablesResolvers }.single().get { variableNames }.single().isEqualTo("z")
+            // the child plan contains a single fragment spread on "T"
+            val spread = rssPlan.selectionSet.selections.single() as FragmentSpread
+            expectThat(spread.name).isEqualTo("T")
 
-                        // the child plan should contain a variables plan
-                        get { childPlans }.withSingle {
-                            // the variables plan should have a selection on 'z'
-                            get { selectionSet.selections }.single().isA<Field>()
-                                .get { resultKey }.isEqualTo("z")
-                        }
-                    }
-                }
-            }
+            // the child plan should have a variables resolver for 'z'
+            expectThat(rssPlan.variablesResolvers.single().variableNames.single()).isEqualTo("z")
+
+            // the child plan should contain a variables plan that selects 'z'
+            expectThat(rssPlan.childPlans).hasSize(1)
+            val varaPlan = rssPlan.childPlans.single()
+            expectThat((varaPlan.selectionSet.selections.single() as Field).resultKey).isEqualTo("z")
         }
     }
 
@@ -871,8 +920,11 @@ class QueryPlanTest {
             val xField2 = plan2.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
             expectThat(xField1.childPlans).hasSize(1)
             expectThat(xField2.childPlans).hasSize(1)
-            // Both top-level plans share the same RSS child plan instance
-            expectThat(xField1.childPlans.first()).isSameInstanceAs(xField2.childPlans.first())
+            // Both top-level plans share the same RSS child plan instance (compare underlying QueryPlan)
+            expectThat(xField1.childPlans.first().plan).isSameInstanceAs(xField2.childPlans.first().plan)
+            // Both also carry the same origin coordinate, pinned to Query.x
+            expectThat(xField1.childPlans.first().originCoordinate).isEqualTo("Query" to "x")
+            expectThat(xField2.childPlans.first().originCoordinate).isEqualTo("Query" to "x")
         }
     }
 
@@ -901,9 +953,9 @@ class QueryPlanTest {
             val xPlan = xField.childPlans.single()
             val yPlan = yField.childPlans.single()
 
-            expectThat(xPlan.requiredSelectionSetId).isSameInstanceAs(xRss.id)
-            expectThat(yPlan.requiredSelectionSetId).isSameInstanceAs(yRss.id)
-            expectThat(xPlan).isNotSameInstanceAs(yPlan)
+            expectThat(xPlan.plan.requiredSelectionSetId).isSameInstanceAs(xRss.id)
+            expectThat(yPlan.plan.requiredSelectionSetId).isSameInstanceAs(yRss.id)
+            expectThat(xPlan.plan).isNotSameInstanceAs(yPlan.plan)
         }
     }
 
@@ -927,7 +979,9 @@ class QueryPlanTest {
             val xField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
             // Checker RSS for x produces one child plan (the cycle is broken at that level)
             expectThat(xField.childPlans).hasSize(1)
-            val checkerPlan = xField.childPlans.first()
+            // Origin coordinate is preserved across the RSS-cache lookup
+            expectThat(xField.childPlans.first().originCoordinate).isEqualTo("Query" to "x")
+            val checkerPlan = xField.childPlans.first().plan
             // The checker plan contains field x but no further child plans (cycle broken)
             val innerX = checkerPlan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
             expectThat(innerX.childPlans).hasSize(0)
@@ -1005,10 +1059,14 @@ class QueryPlanTest {
             val planA = factory.build(params.copy(query = "{a}"), "{a}".asDocument)
             val aField = planA.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "a" }
             expectThat(aField.childPlans).hasSize(1) // RSS1 attached to a
-            val rss1Plan = aField.childPlans.first()
+            // RSS1 was attached to Query.a; origin is pinned regardless of cycle truncation
+            expectThat(aField.childPlans.first().originCoordinate).isEqualTo("Query" to "a")
+            val rss1Plan = aField.childPlans.first().plan
             val bInRss1 = rss1Plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "b" }
             expectThat(bInRss1.childPlans).hasSize(1) // RSS2-truncated embedded in RSS1
-            val aInRss2Truncated = bInRss1.childPlans.first().selectionSet.selections
+            // RSS2 was attached to Query.b inside RSS1; origin is preserved across truncation
+            expectThat(bInRss1.childPlans.first().originCoordinate).isEqualTo("Query" to "b")
+            val aInRss2Truncated = bInRss1.childPlans.first().plan.selectionSet.selections
                 .filterIsInstance<Field>().first { it.resultKey == "a" }
             expectThat(aInRss2Truncated.childPlans).hasSize(0) // cycle truncated here
 
@@ -1016,11 +1074,15 @@ class QueryPlanTest {
             val planB = factory.build(params.copy(query = "{b}"), "{b}".asDocument)
             val bField = planB.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "b" }
             expectThat(bField.childPlans).hasSize(1) // RSS2-fresh attached to b
-            val aInRss2Fresh = bField.childPlans.first().selectionSet.selections
+            // Fresh build of RSS2 keeps origin pinned to Query.b
+            expectThat(bField.childPlans.first().originCoordinate).isEqualTo("Query" to "b")
+            val aInRss2Fresh = bField.childPlans.first().plan.selectionSet.selections
                 .filterIsInstance<Field>().first { it.resultKey == "a" }
             // RSS2 built fresh: a has RSS1 as child (cycle broken at RSS1's level, not RSS2's)
             // Fails with flat context: RSS2 was globally cached during RSS1's build with a having no children
             expectThat(aInRss2Fresh.childPlans).hasSize(1)
+            // Nested RSS1 origin is also Query.a
+            expectThat(aInRss2Fresh.childPlans.first().originCoordinate).isEqualTo("Query" to "a")
         }
     }
 
@@ -1078,7 +1140,9 @@ class QueryPlanTest {
                             mkField(
                                 "x",
                                 typeConstraint(query),
-                                childPlans = listOf(
+                                childPlans = mkFieldChildPlans(
+                                    "Query",
+                                    "x",
                                     mkQueryPlan(
                                         SelectionSet(
                                             mkField(
@@ -1144,7 +1208,9 @@ class QueryPlanTest {
                             mkField(
                                 "x",
                                 typeConstraint(query),
-                                childPlans = listOf(
+                                childPlans = mkFieldChildPlans(
+                                    "Query",
+                                    "x",
                                     // Checker RSS for x selects x, but x has no child plans (cycle broken)
                                     mkQueryPlan(
                                         SelectionSet(
@@ -1294,7 +1360,10 @@ class QueryPlanTest {
 
             // Verify child plans have ALWAYS_EXECUTE (the default from RSS), not the custom condition from parameters
             val field = plan.selectionSet.selections.first() as QueryPlan.Field
-            val childPlan = field.childPlans.first()
+            val childPlanEntry = field.childPlans.first()
+            // Origin coordinate is set even on plans built with custom ExecutionCondition
+            expectThat(childPlanEntry.originCoordinate).isEqualTo("Query" to "x")
+            val childPlan = childPlanEntry.plan
             expectThat(childPlan.executionCondition).isEqualTo(ALWAYS_EXECUTE)
             expectThat(childPlan.executionCondition.shouldExecute(null)).isEqualTo(true)
         }
@@ -1473,6 +1542,20 @@ internal fun Assertion.Builder<List<QueryPlan>>.checkEquals(exp: List<QueryPlan>
         }
     }
 
+@JvmName("checkEqualsFieldChildPlanList")
+internal fun Assertion.Builder<List<FieldChildPlan>>.checkEquals(exp: List<FieldChildPlan>): Assertion.Builder<List<FieldChildPlan>> =
+    and {
+        hasSize(exp.size)
+        exp.zip(subject).forEach { (expCp, actCp) ->
+            with({ actCp.plan }) {
+                checkEquals(expCp.plan)
+            }
+            with({ actCp.originCoordinate }) {
+                isEqualTo(expCp.originCoordinate)
+            }
+        }
+    }
+
 internal fun Assertion.Builder<FragmentDefinition>.checkEquals(exp: FragmentDefinition): Assertion.Builder<FragmentDefinition> =
     and {
         get { selectionSet }.checkEquals(exp.selectionSet)
@@ -1538,7 +1621,7 @@ private fun mkField(
     constraints: Constraints,
     field: GJField? = null,
     selectionSet: SelectionSet? = null,
-    childPlans: List<QueryPlan> = emptyList(),
+    childPlans: List<FieldChildPlan> = emptyList(),
     fieldTypeChildPlans: Map<GraphQLObjectType, List<QueryPlan>> = emptyMap()
 ) = QueryPlan.Field(
     resultKey = resultKey,
@@ -1554,5 +1637,24 @@ private fun conditionalDirectiveReference(name: String) = SelectionVariableRefer
 private fun fieldArgumentReference(name: String) = SelectionVariableReference(name, Kind.FIELD_ARGUMENT)
 
 private fun directiveReference(name: String) = SelectionVariableReference(name, Kind.DIRECTIVE)
+
+/**
+ * Test helper: wrap a list of [QueryPlan]s as [FieldChildPlan]s with a given origin coordinate.
+ *
+ * Used when the plan tree is built outside the registry (via `mkQueryPlan` / `buildPlan`) and we
+ * want to pin the origin coordinate manually for `checkEquals` comparisons. Requires at least
+ * one plan; an empty `mkFieldChildPlans(...)` call is almost certainly a typo (`emptyList()`
+ * is the right way to express "no child plans").
+ */
+internal fun mkFieldChildPlans(
+    originParentType: String,
+    originFieldName: String,
+    vararg plans: QueryPlan,
+): List<FieldChildPlan> {
+    require(plans.isNotEmpty()) {
+        "mkFieldChildPlans requires at least one plan; use emptyList<FieldChildPlan>() if you intend no child plans."
+    }
+    return plans.map { FieldChildPlan(it, originParentType to originFieldName) }
+}
 
 private fun typeConstraint(type: GraphQLObjectType) = Constraints(emptyList(), listOf(type))

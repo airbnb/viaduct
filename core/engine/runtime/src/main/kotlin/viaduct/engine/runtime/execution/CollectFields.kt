@@ -123,7 +123,7 @@ object CollectFields {
                             // filter child plans to those that apply to the constrained type or root types
                             childPlans = sel.childPlans.filter {
                                 val types = state.constrainedTypes()
-                                types == null || types.contains(it.parentType) || it.parentType.isRootType(state.schema)
+                                types == null || types.contains(it.plan.parentType) || it.plan.parentType.isRootType(state.schema)
                             },
                             fieldTypeChildPlans = sel.fieldTypeChildPlans,
                             collectedFieldMetadata = sel.metadata

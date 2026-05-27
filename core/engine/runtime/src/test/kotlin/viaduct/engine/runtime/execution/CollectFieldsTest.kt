@@ -224,13 +224,13 @@ class CollectFieldsTest {
 
         expectThat(collectedRestricted.childPlans)
             .hasSize(2)
-            .map { it.parentType }
+            .map { it.plan.parentType }
             .and {
                 contains(userType)
                 contains(queryType)
             }
 
-        expectThat(collectedRestricted.childPlans.map { it.parentType })
+        expectThat(collectedRestricted.childPlans.map { it.plan.parentType })
             .not()
             .contains(adminType)
 
