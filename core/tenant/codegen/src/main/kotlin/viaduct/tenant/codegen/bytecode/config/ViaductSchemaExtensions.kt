@@ -268,7 +268,8 @@ fun ViaductSchema.TypeDef.pathFromQueryRoot(
 
 val ViaductSchema.SourceLocation.tenantModule: String?
     get() = this.sourceName.let {
-        cfg.moduleExtractor.find(it)?.groups?.get(1)?.value
+        // Normalize Windows backslashes so the slash-only moduleExtractor regex matches on every OS.
+        cfg.moduleExtractor.find(it.replace('\\', '/'))?.groups?.get(1)?.value
     }?.substringBefore("/src/")
 
 /**

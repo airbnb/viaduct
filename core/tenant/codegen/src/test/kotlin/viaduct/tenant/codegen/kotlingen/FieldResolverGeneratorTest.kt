@@ -28,7 +28,7 @@ class FieldResolverGeneratorTest {
         val schema = mkSchema(sdl)
         val type = schema.types[typeName] as ViaductSchema.Record
         val contents = genResolver(typeName, type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "Query", "Mutation")
-        return contents.toString()
+        return contents.toString().replace("\r\n", "\n")
     }
 
     @Test

@@ -1,6 +1,7 @@
 package viaduct.codegen.st
 
 import java.io.File
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -30,7 +31,7 @@ class STUtilsTest {
               c
             }
         """.trimIndent()
-        assertEquals(exp, contents.toString())
+        assertThat(contents.toString()).isEqualToNormalizingNewlines(exp)
     }
 
     @Test
