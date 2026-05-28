@@ -1,7 +1,6 @@
 package viaduct.tenant.codegen.bytecode.config
 
 import java.io.File
-import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -658,75 +657,6 @@ class ViaductSchemaExtensionsTest {
         val obj = schema.typedef("RegularObject") as ViaductSchema.Object
 
         assertFalse(obj.isPagedConnection)
-    }
-
-    // ---- builderFields ----
-
-    @Test
-    fun `builderFields returns all fields when allowExtObjectSetters is true`() {
-        val dir = Files.createTempDirectory("schema").toFile()
-        dir.deleteOnExit()
-        val schema = mkSchema(
-            """
-            type Obj { baseField: String }
-            extend type Obj { extField: String }
-            """.trimIndent(),
-            schemaFilePath = "modules/module-a/schema/obj.graphqls",
-            repoRoot = dir,
-        )
-        val obj = schema.typedef("Obj") as ViaductSchema.Object
-        val names = obj.builderFields(allowExtObjectSetters = true).map { it.name }.toSet()
-        assertEquals(setOf("baseField", "extField"), names)
-    }
-
-    @Test
-    fun `builderFields restricts to defining module when allowExtObjectSetters is false`() {
-        val dir = Files.createTempDirectory("schema").toFile()
-        dir.deleteOnExit()
-        // Both the base type and its extension live in two separate files, each
-        // tracked under a different module path so tenantModule resolves differently.
-        val baseFile = dir.resolve("modules/module-a/schema/obj.graphqls").also {
-            it.parentFile.mkdirs()
-            it.writeText("type Obj { baseField: String }\n")
-        }
-        val extFile = dir.resolve("modules/module-b/schema/obj_ext.graphqls").also {
-            it.parentFile.mkdirs()
-            it.writeText("extend type Obj { extField: String }\n")
-        }
-        val schema = ViaductSchema.fromTypeDefinitionRegistry(listOf(baseFile, extFile))
-        val obj = schema.typedef("Obj") as ViaductSchema.Object
-        val names = obj.builderFields(allowExtObjectSetters = false).map { it.name }.toSet()
-        assertEquals(setOf("baseField"), names)
-    }
-
-    @Test
-    fun `builderFields includes fields whose tenantModule is null when allowExtObjectSetters is false`() {
-        val dir = Files.createTempDirectory("schema").toFile()
-        dir.deleteOnExit()
-        // Base type is under a known module path; the extension has no extractable module
-        // (path does not match BUILD_TIME_MODULE_EXTRACTOR).
-        val baseFile = dir.resolve("modules/module-a/schema/obj.graphqls").also {
-            it.parentFile.mkdirs()
-            it.writeText("type Obj { baseField: String }\n")
-        }
-        val extFile = dir.resolve("unrecognised-path/obj_ext.graphqls").also {
-            it.parentFile.mkdirs()
-            it.writeText("extend type Obj { unknownModuleField: String }\n")
-        }
-        val schema = ViaductSchema.fromTypeDefinitionRegistry(listOf(baseFile, extFile))
-        val obj = schema.typedef("Obj") as ViaductSchema.Object
-        val names = obj.builderFields(allowExtObjectSetters = false).map { it.name }.toSet()
-        // unknownModuleField has null tenantModule and must not be silently dropped
-        assertEquals(setOf("baseField", "unknownModuleField"), names)
-    }
-
-    @Test
-    fun `builderFields returns all fields when no base extension exists`() {
-        // No isBase extension means definingModule is null → fall through and return all fields
-        val schema = createSchema("type Obj { f1: String f2: Int }")
-        val obj = schema.typedef("Obj") as ViaductSchema.Object
-        val names = obj.builderFields(allowExtObjectSetters = false).map { it.name }.toSet()
-        assertEquals(setOf("f1", "f2"), names)
     }
 
     @Test

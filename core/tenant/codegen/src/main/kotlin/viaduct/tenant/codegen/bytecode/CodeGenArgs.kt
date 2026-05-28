@@ -13,5 +13,4 @@ data class CodeGenArgs(
     val workerCount: Int,
     val timer: Timer,
     val baseTypeMapper: BaseTypeMapper,
-    val allowExtObjectSetters: Boolean
 )

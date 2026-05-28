@@ -141,7 +141,6 @@ class ParameterizedSchemaDrivenTests {
                 workerCount = 1,
                 timer = Timer(),
                 baseTypeMapper = ViaductBaseTypeMapper(schema),
-                allowExtObjectSetters = false,
             )
 
             val builder = GRTClassFilesBuilder(args)

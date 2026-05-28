@@ -31,7 +31,6 @@ abstract class GRTClassFilesBuilderBase protected constructor(
     protected val args: CodeGenArgs,
 ) {
     internal val baseTypeMapper: BaseTypeMapper get() = args.baseTypeMapper
-    internal val allowExtObjectSetters: Boolean get() = args.allowExtObjectSetters
 
     protected val ViaductSchema.TypeDef.isInShard
         get() =
