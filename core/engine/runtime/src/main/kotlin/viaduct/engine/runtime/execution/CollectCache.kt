@@ -58,7 +58,8 @@ internal class CollectCache {
         selectionSet: QueryPlan.SelectionSet,
         variables: CoercedVariables,
         parentType: GraphQLObjectType,
-        fragments: QueryPlan.Fragments
+        fragments: QueryPlan.Fragments,
+        fieldRssOriginFilteringKillSwitchEnabled: Boolean,
     ): QueryPlan.SelectionSet {
         val key = CollectKey(
             parentType,
@@ -66,7 +67,14 @@ internal class CollectCache {
             collectionVariableValues(selectionSet, variables, parentType, fragments)
         )
         return map.computeIfAbsent(key) {
-            CollectFields.shallowStrictCollect(schema, selectionSet, variables, parentType, fragments)
+            CollectFields.shallowStrictCollect(
+                schema,
+                selectionSet,
+                variables,
+                parentType,
+                fragments,
+                fieldRssOriginFilteringKillSwitchEnabled,
+            )
         }
     }
 

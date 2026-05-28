@@ -35,6 +35,7 @@ import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
@@ -257,8 +258,24 @@ class FieldResolver(
             )
         val objectSelectionSetId = fieldResolverDispatcher?.objectSelectionSet?.id
         val querySelectionSetId = fieldResolverDispatcher?.querySelectionSet?.id
+        val runtimeObjectType = checkNotNull(parameters.executionStepInfo.objectType) {
+            "Expected executionStepInfo.objectType to be non-null while resolving ${field.fieldName}"
+        }
+        val fieldRssOriginFilteringKillSwitchEnabled =
+            parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled
 
         field.childPlans.forEach { childPlan ->
+            if (!fieldRssOriginFilteringKillSwitchEnabled) {
+                val (originParentType, originFieldName) = childPlan.originCoordinate
+                if (originFieldName != field.fieldName ||
+                    originParentType != runtimeObjectType.name
+                ) {
+                    error(
+                        "FieldChildPlan with originCoordinate=${childPlan.originCoordinate} leaked into resolution of " +
+                            "${runtimeObjectType.name}.${field.fieldName}"
+                    )
+                }
+            }
             log.ifDebug {
                 debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${childPlan.plan.selectionSet}")
             }

@@ -30,7 +30,8 @@ object CollectFields {
         selectionSet: SelectionSet,
         variables: CoercedVariables,
         parentType: GraphQLObjectType,
-        fragments: Fragments
+        fragments: Fragments,
+        fieldRssOriginFilteringKillSwitchEnabled: Boolean,
     ): SelectionSet {
         val result = collect(
             State(
@@ -40,7 +41,8 @@ object CollectFields {
                 spreadFragments = emptySet(),
                 fragments = fragments,
                 constraintsCtx = Constraints.Ctx(variables, MaskedSet(listOf(parentType)))
-            )
+            ),
+            fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
         )
         return result.asSelectionSet()
     }
@@ -68,7 +70,10 @@ object CollectFields {
      *
      * @see Constraints
      */
-    private fun collect(state: State): State {
+    private fun collect(
+        state: State,
+        fieldRssOriginFilteringKillSwitchEnabled: Boolean,
+    ): State {
         val visitedFragments = state.spreadFragments.toMutableSet()
         val acc = ArrayList<Selection>(state.pending.size)
 
@@ -120,10 +125,25 @@ object CollectFields {
                             sel.resultKey,
                             sel.selectionSet,
                             MergedField.newMergedField(sel.field).build(),
-                            // filter child plans to those that apply to the constrained type or root types
-                            childPlans = sel.childPlans.filter {
+                            childPlans = sel.childPlans.filter { fcp ->
                                 val types = state.constrainedTypes()
-                                types == null || types.contains(it.plan.parentType) || it.plan.parentType.isRootType(state.schema)
+                                val planParentApplies =
+                                    types == null ||
+                                        types.contains(fcp.plan.parentType) ||
+                                        fcp.plan.parentType.isRootType(state.schema)
+
+                                // If killswitch enabled, fall back to more permissive filtering
+                                // without field rss origin.
+                                if (fieldRssOriginFilteringKillSwitchEnabled) {
+                                    return@filter planParentApplies
+                                }
+
+                                val (originParentType, originFieldName) = fcp.originCoordinate
+                                val originApplies =
+                                    originFieldName == sel.field.name &&
+                                        (types == null || types.any { it.name == originParentType })
+
+                                planParentApplies && originApplies
                             },
                             fieldTypeChildPlans = sel.fieldTypeChildPlans,
                             collectedFieldMetadata = sel.metadata

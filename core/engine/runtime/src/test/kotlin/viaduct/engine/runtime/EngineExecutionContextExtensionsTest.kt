@@ -27,11 +27,14 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvironment
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.executeAccessChecksInModstrat
+import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.hasResolver
 import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandle
 import viaduct.engine.runtime.execution.ExecutionTestHelpers
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 class EngineExecutionContextExtensionsTest {
     private val testSchema = ExecutionTestHelpers.createSchema(
@@ -46,11 +49,13 @@ class EngineExecutionContextExtensionsTest {
 
     private fun createContext(
         schema: ViaductSchema = testSchema,
-        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty
+        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
+        flagManager: FlagManager = MockFlagManager.Enabled,
     ): EngineExecutionContextImpl {
         return ContextMocks(
             myFullSchema = schema,
-            myDispatcherRegistry = dispatcherRegistry
+            myDispatcherRegistry = dispatcherRegistry,
+            myFlagManager = flagManager,
         ).engineExecutionContextImpl
     }
 
@@ -60,6 +65,28 @@ class EngineExecutionContextExtensionsTest {
         val impl = context as EngineExecutionContextImpl
 
         assertEquals(impl.executeAccessChecksInModstrat, context.executeAccessChecksInModstrat)
+    }
+
+    @Test
+    fun `fieldRssOriginFilteringKillSwitchEnabled delegates to impl`() {
+        val context: EngineExecutionContext = createContext(
+            flagManager = MockFlagManager.create(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING)
+        )
+        val impl = context as EngineExecutionContextImpl
+
+        assertEquals(impl.fieldRssOriginFilteringKillSwitchEnabled, context.fieldRssOriginFilteringKillSwitchEnabled)
+    }
+
+    @Test
+    fun `fieldRssOriginFilteringKillSwitchEnabled delegates through internal wrapper`() {
+        val delegateImpl = createContext(
+            flagManager = MockFlagManager.create(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING)
+        )
+        val wrappedContext: EngineExecutionContext = object : InternalEngineExecutionContext by delegateImpl {
+            override val impl: EngineExecutionContextImpl = delegateImpl
+        }
+
+        assertTrue(wrappedContext.fieldRssOriginFilteringKillSwitchEnabled)
     }
 
     @Test
@@ -143,6 +170,7 @@ class EngineExecutionContextExtensionsTest {
         assertSame(impl.activeSchema, copied.activeSchema)
         assertSame(impl.dispatcherRegistry, copied.dispatcherRegistry)
         assertSame(impl.resolverInstrumentation, copied.resolverInstrumentation)
+        assertEquals(impl.fieldRssOriginFilteringKillSwitchEnabled, copied.fieldRssOriginFilteringKillSwitchEnabled)
     }
 
     @Test

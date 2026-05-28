@@ -7,6 +7,7 @@ import strikt.api.expectThat
 import strikt.assertions.contains
 import strikt.assertions.hasSize
 import strikt.assertions.isEmpty
+import strikt.assertions.isEqualTo
 import strikt.assertions.map
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.ViaductSchema
@@ -31,7 +32,8 @@ class CollectFieldsTest {
             plan.selectionSet,
             emptyVars,
             schema.queryType,
-            plan.fragments
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
         expectThat(collected) {
@@ -61,7 +63,8 @@ class CollectFieldsTest {
             plan.selectionSet,
             trueVars,
             schema.queryType,
-            plan.fragments
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
         expectThat(collected) {
@@ -83,7 +86,8 @@ class CollectFieldsTest {
             plan.selectionSet,
             emptyVars,
             schema.queryType,
-            plan.fragments
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
         expectThat(collected) {
@@ -118,7 +122,8 @@ class CollectFieldsTest {
             plan.selectionSet,
             emptyVars,
             schema.queryType,
-            plan.fragments
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
         expectThat(collected) {
@@ -155,7 +160,8 @@ class CollectFieldsTest {
             plan.selectionSet,
             emptyVars,
             schema.queryType,
-            plan.fragments
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
         expectThat(collected) {
@@ -217,7 +223,8 @@ class CollectFieldsTest {
             entityField.selectionSet!!,
             emptyVars,
             userType,
-            plan.fragments
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
         val collectedRestricted = collected.selections[0] as CollectedField
@@ -235,5 +242,153 @@ class CollectFieldsTest {
             .contains(adminType)
 
         expectThat(collectedRestricted.fieldTypeChildPlans).isEmpty()
+    }
+
+    /**
+     * Schema and registry shared across the origin-coordinate regression tests below.
+     * Mirrors the prod-observed shape: an interface field selected via concrete-type spread,
+     * with one implementor's RSS rooted on Query (the leaker) and the other's rooted on
+     * its own type.
+     */
+    private data class OriginCoordinateFixture(
+        val rawSchema: graphql.schema.GraphQLSchema,
+        val schema: ViaductSchema,
+        val nodeField: Field,
+        val nodeSelectionSet: SelectionSet,
+        val fragments: QueryPlan.Fragments,
+        val hiveTable: graphql.schema.GraphQLObjectType,
+        val otherNode: graphql.schema.GraphQLObjectType,
+    )
+
+    private fun buildOriginCoordinateFixture(): OriginCoordinateFixture {
+        val rawSchema = """
+            type Query { node: Node }
+
+            interface Node { id: ID! }
+
+            type HiveTable implements Node {
+                id: ID!
+                urn: String
+            }
+
+            type OtherNode implements Node {
+                id: ID!
+            }
+        """.asSchema
+        val schema = ViaductSchema(rawSchema)
+
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            // OtherNode.id checker RSS is rooted on Query — matches the prod-observed leaker.
+            .fieldCheckerEntry("OtherNode" to "id", "node { __typename }", selectionsType = "Query")
+            // HiveTable.id checker RSS is rooted on HiveTable.
+            .fieldCheckerEntry("HiveTable" to "id", "urn")
+            .build()
+
+        val plan = buildPlan("{node { id ... on HiveTable { urn } }}", schema, reg)
+        val nodeField = plan.selectionSet.selections.single() as Field
+        return OriginCoordinateFixture(
+            rawSchema = rawSchema,
+            schema = schema,
+            nodeField = nodeField,
+            nodeSelectionSet = nodeField.selectionSet!!,
+            fragments = plan.fragments,
+            hiveTable = rawSchema.getObjectType("HiveTable"),
+            otherNode = rawSchema.getObjectType("OtherNode"),
+        )
+    }
+
+    @Test
+    fun `shallowStrictCollect drops sibling-implementor RSS when origin-coordinate enforcement is on`() {
+        val fx = buildOriginCoordinateFixture()
+
+        // Runtime type is HiveTable. With origin-coordinate enforcement on (the default),
+        // the OtherNode.id RSS — even though it's rooted on Query (a root type that the
+        // legacy filter would have permissively allowed) — must be dropped.
+        val collected = CollectFields.shallowStrictCollect(
+            fx.rawSchema,
+            fx.nodeSelectionSet,
+            emptyVars,
+            fx.hiveTable,
+            fx.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
+        )
+
+        val collectedId = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "id" }
+        // Only the HiveTable.id RSS should survive.
+        expectThat(collectedId.childPlans).hasSize(1)
+        expectThat(collectedId.childPlans.single().originCoordinate).isEqualTo("HiveTable" to "id")
+    }
+
+    @Test
+    fun `shallowStrictCollect keeps sibling-implementor RSS when killswitch reverts to legacy filter`() {
+        val fx = buildOriginCoordinateFixture()
+
+        // Killswitch enabled reverts to legacy behavior: the OtherNode.id RSS rooted on Query
+        // slips through (this is the bug we're fixing, pinned here to prove the toggle works).
+        val collected = CollectFields.shallowStrictCollect(
+            fx.rawSchema,
+            fx.nodeSelectionSet,
+            emptyVars,
+            fx.hiveTable,
+            fx.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = true,
+        )
+
+        val collectedId = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "id" }
+        // Both RSS entries are kept under legacy filter — HiveTable's matches by parentType,
+        // OtherNode's slips through via the root-type permissive clause.
+        expectThat(collectedId.childPlans).hasSize(2)
+        val origins = collectedId.childPlans.map { it.originCoordinate }.toSet()
+        expectThat(origins).isEqualTo(setOf("HiveTable" to "id", "OtherNode" to "id"))
+    }
+
+    @Test
+    fun `shallowStrictCollect keeps own-implementor RSS when collecting that implementor`() {
+        val fx = buildOriginCoordinateFixture()
+
+        // Runtime type is OtherNode. The OtherNode.id RSS should survive, the HiveTable.id one
+        // should be dropped.
+        val collected = CollectFields.shallowStrictCollect(
+            fx.rawSchema,
+            fx.nodeSelectionSet,
+            emptyVars,
+            fx.otherNode,
+            fx.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
+        )
+
+        val collectedId = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "id" }
+        expectThat(collectedId.childPlans).hasSize(1)
+        expectThat(collectedId.childPlans.single().originCoordinate).isEqualTo("OtherNode" to "id")
+    }
+
+    @Test
+    fun `shallowStrictCollect keeps Query-rooted RSS whose origin matches the runtime field`() {
+        // Regression guard for the "isRootType clause is durable" rule: a legitimate
+        // matching-origin RSS can be Query-rooted (e.g., its required fragment selects
+        // root fields). The origin-coordinate filter must not drop it.
+        val rawSchema = """
+            type Query { x: Int z: Int }
+        """.asSchema
+        val schema = ViaductSchema(rawSchema)
+
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            // Field-checker for Query.x with an RSS rooted on Query.
+            .fieldCheckerEntry("Query" to "x", "z")
+            .build()
+
+        val plan = buildPlan("{x}", schema, reg)
+        val collected = CollectFields.shallowStrictCollect(
+            rawSchema,
+            plan.selectionSet,
+            emptyVars,
+            rawSchema.queryType,
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
+        )
+
+        val collectedX = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "x" }
+        expectThat(collectedX.childPlans).hasSize(1)
+        expectThat(collectedX.childPlans.single().originCoordinate).isEqualTo("Query" to "x")
     }
 }

@@ -62,5 +62,13 @@ interface FlagManager {
 
         /** Killswitch for non-blocking enqueue flush in the coroutine dispatcher. */
         KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH("common.kotlin.nextTickDispatcher.killswitch.nonBlockingEnqueueFlush"),
+
+        /**
+         * Killswitch for origin filtering on field-level RSS child plans in `CollectFields`.
+         * When killswitch enabled, falling back to the legacy permissive filter that
+         * does not check the origin coordinate of attached child plans.
+         * Default to be false (i.e., new origin-coordinate filter is on).
+         */
+        KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING("killswitch.field_rss_origin_filtering"),
     }
 }

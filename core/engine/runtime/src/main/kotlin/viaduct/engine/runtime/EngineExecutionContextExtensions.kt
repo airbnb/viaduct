@@ -30,6 +30,9 @@ object EngineExecutionContextExtensions {
     val EngineExecutionContext.selectiveOERKeysEnabled: Boolean
         get() = asImpl().selectiveOERKeysEnabled
 
+    val EngineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled: Boolean
+        get() = asImpl().fieldRssOriginFilteringKillSwitchEnabled
+
     val EngineExecutionContext.dispatcherRegistry: DispatcherRegistry
         get() = asImpl().dispatcherRegistry
 

@@ -57,6 +57,7 @@ class EngineExecutionContextFactory(
             ConcurrentHashMap<String, NodeDataLoader>(),
             flagManager.isEnabled(FlagManager.Flags.EXECUTE_ACCESS_CHECKS),
             flagManager.isEnabled(FlagManager.Flags.ENABLE_SELECTIVE_OER_KEYS),
+            flagManager.isEnabled(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING),
             engine,
             globalIDCodec,
             flagManager,
@@ -98,6 +99,7 @@ class EngineExecutionContextImpl(
     internal val nodeDataLoaders: ConcurrentHashMap<String, NodeDataLoader>,
     val executeAccessChecksInModstrat: Boolean,
     val selectiveOERKeysEnabled: Boolean,
+    val fieldRssOriginFilteringKillSwitchEnabled: Boolean,
     override val engine: Engine,
     override val globalIDCodec: GlobalIDCodec,
     private val flagManager: FlagManager,
@@ -276,6 +278,7 @@ class EngineExecutionContextImpl(
         dataFetchingEnvironment: DataFetchingEnvironment? = this.dataFetchingEnvironment,
         executeAccessChecksInModstrat: Boolean = this.executeAccessChecksInModstrat,
         selectiveOERKeysEnabled: Boolean = this.selectiveOERKeysEnabled,
+        fieldRssOriginFilteringKillSwitchEnabled: Boolean = this.fieldRssOriginFilteringKillSwitchEnabled,
     ): EngineExecutionContextImpl {
         return EngineExecutionContextImpl(
             fullSchema = this.fullSchema,
@@ -289,6 +292,7 @@ class EngineExecutionContextImpl(
             nodeDataLoaders = this.nodeDataLoaders,
             executeAccessChecksInModstrat = executeAccessChecksInModstrat,
             selectiveOERKeysEnabled = selectiveOERKeysEnabled,
+            fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
             engine = this.engine,
             globalIDCodec = this.globalIDCodec,
             flagManager = this.flagManager,

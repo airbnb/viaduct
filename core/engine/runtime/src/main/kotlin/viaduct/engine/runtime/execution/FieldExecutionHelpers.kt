@@ -39,6 +39,7 @@ import viaduct.engine.api.gj
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.selectiveOERKeysEnabled
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
@@ -86,7 +87,8 @@ object FieldExecutionHelpers {
                     it,
                     parameters.queryPlan.fragments,
                     parameters.coercedVariables,
-                    parameters.constants.collectCache
+                    parameters.constants.collectCache,
+                    parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
                 )
             }
         } else {
@@ -211,6 +213,7 @@ object FieldExecutionHelpers {
             childPlan.fragments,
             variables,
             executionParameters.constants.collectCache,
+            engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
         )
     }
 
@@ -301,7 +304,9 @@ object FieldExecutionHelpers {
             parameters.selectionSet,
             parameters.coercedVariables,
             objectType,
-            parameters.queryPlan.fragments
+            parameters.queryPlan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled =
+                parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
         )
 
     /**

@@ -3,6 +3,7 @@ package viaduct.engine.runtime.execution
 import graphql.execution.CoercedVariables
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
+import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.ObjectEngineResult
 
 /**
@@ -17,6 +18,7 @@ class ExecutionSelections internal constructor(
     private val fragments: QueryPlan.Fragments,
     private val variables: CoercedVariables,
     private val collectCache: CollectCache,
+    private val fieldRssOriginFilteringKillSwitchEnabled: Boolean,
 ) : ObjectEngineResult.Selections {
     private val variableMap = variables.toMap()
 
@@ -24,7 +26,14 @@ class ExecutionSelections internal constructor(
         parentType: GraphQLObjectType,
         responseKey: String
     ): ObjectEngineResult.Selections? {
-        val collected = collectCache.collect(schema, selectionSet, variables, parentType, fragments)
+        val collected = collectCache.collect(
+            schema,
+            selectionSet,
+            variables,
+            parentType,
+            fragments,
+            fieldRssOriginFilteringKillSwitchEnabled,
+        )
         val childSelectionSet = collected.selections
             .firstNotNullOfOrNull { selection ->
                 (selection as? QueryPlan.CollectedField)
@@ -32,7 +41,14 @@ class ExecutionSelections internal constructor(
                     ?.selectionSet
             }
             ?: return null
-        return ExecutionSelections(schema, childSelectionSet, fragments, variables, collectCache)
+        return ExecutionSelections(
+            schema,
+            childSelectionSet,
+            fragments,
+            variables,
+            collectCache,
+            fieldRssOriginFilteringKillSwitchEnabled,
+        )
     }
 
     override fun equals(other: Any?): Boolean {
@@ -54,6 +70,7 @@ class ExecutionSelections internal constructor(
                 fragments = parameters.queryPlan.fragments,
                 variables = parameters.coercedVariables,
                 collectCache = parameters.constants.collectCache,
+                fieldRssOriginFilteringKillSwitchEnabled = parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
             )
     }
 }

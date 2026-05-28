@@ -1,6 +1,8 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
+import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLSchema
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.hasSize
@@ -20,8 +22,8 @@ class CollectCacheTest {
 
         val cache = CollectCache()
 
-        val result1 = cache.collect(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
-        val result2 = cache.collect(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
+        val result1 = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
+        val result2 = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
 
         expectThat(result1.selections).hasSize(2)
         expectThat(result2).isSameInstanceAs(result1)
@@ -38,8 +40,8 @@ class CollectCacheTest {
 
         val cache = CollectCache()
 
-        val queryResult = cache.collect(schema, queryPlan.selectionSet, emptyVars, schema.queryType, queryPlan.fragments)
-        val mutationResult = cache.collect(schema, mutationPlan.selectionSet, emptyVars, schema.mutationType!!, mutationPlan.fragments)
+        val queryResult = cache.collectForTest(schema, queryPlan.selectionSet, emptyVars, schema.queryType, queryPlan.fragments)
+        val mutationResult = cache.collectForTest(schema, mutationPlan.selectionSet, emptyVars, schema.mutationType!!, mutationPlan.fragments)
 
         expectThat(queryResult.selections).hasSize(1)
         expectThat(mutationResult.selections).hasSize(1)
@@ -54,9 +56,9 @@ class CollectCacheTest {
 
         val cache = CollectCache()
 
-        val result1 = cache.collect(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
-        val result2 = cache.collect(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
-        val result3 = cache.collect(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
+        val result1 = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
+        val result2 = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
+        val result3 = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
 
         expectThat(result1).isSameInstanceAs(result2)
         expectThat(result2).isSameInstanceAs(result3)
@@ -75,13 +77,13 @@ class CollectCacheTest {
 
         val cache = CollectCache()
 
-        val queryResult = cache.collect(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
-        val fooResult = cache.collect(schema, fooSelectionSet, emptyVars, fooType, plan.fragments)
+        val queryResult = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
+        val fooResult = cache.collectForTest(schema, fooSelectionSet, emptyVars, fooType, plan.fragments)
 
         expectThat(queryResult.selections).hasSize(1)
         expectThat(fooResult.selections).hasSize(2)
 
-        val fooResultAgain = cache.collect(schema, fooSelectionSet, emptyVars, fooType, plan.fragments)
+        val fooResultAgain = cache.collectForTest(schema, fooSelectionSet, emptyVars, fooType, plan.fragments)
         expectThat(fooResultAgain).isSameInstanceAs(fooResult)
     }
 
@@ -108,11 +110,11 @@ class CollectCacheTest {
         val cache = CollectCache()
 
         val includeUserResult =
-            cache.collect(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to true, "id" to "1")), userType, plan.fragments)
+            cache.collectForTest(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to true, "id" to "1")), userType, plan.fragments)
         val sameDirectiveDifferentArgumentResult =
-            cache.collect(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to true, "id" to "2")), userType, plan.fragments)
+            cache.collectForTest(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to true, "id" to "2")), userType, plan.fragments)
         val skipUserResult =
-            cache.collect(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to false, "id" to "1")), userType, plan.fragments)
+            cache.collectForTest(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to false, "id" to "1")), userType, plan.fragments)
 
         expectThat(includeUserResult.selections.map { (it as QueryPlan.CollectedField).responseKey }).isEqualTo(listOf("id", "name"))
         expectThat(sameDirectiveDifferentArgumentResult).isSameInstanceAs(includeUserResult)
@@ -127,11 +129,11 @@ class CollectCacheTest {
         val cache = CollectCache()
 
         val firstResult =
-            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to true, "id" to "1")), schema.queryType, plan.fragments)
+            cache.collectForTest(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to true, "id" to "1")), schema.queryType, plan.fragments)
         val sameDirectiveDifferentArgumentResult =
-            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to true, "id" to "2")), schema.queryType, plan.fragments)
+            cache.collectForTest(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to true, "id" to "2")), schema.queryType, plan.fragments)
         val differentDirectiveResult =
-            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to false, "id" to "1")), schema.queryType, plan.fragments)
+            cache.collectForTest(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to false, "id" to "1")), schema.queryType, plan.fragments)
 
         expectThat((firstResult.selections.single() as QueryPlan.CollectedField).responseKey).isEqualTo("x")
         expectThat(sameDirectiveDifferentArgumentResult).isSameInstanceAs(firstResult)
@@ -158,11 +160,11 @@ class CollectCacheTest {
         val cache = CollectCache()
 
         val includeFragmentResult =
-            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to false, "field" to true)), schema.queryType, plan.fragments)
+            cache.collectForTest(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to false, "field" to true)), schema.queryType, plan.fragments)
         val excludeFragmentFieldResult =
-            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to false, "field" to false)), schema.queryType, plan.fragments)
+            cache.collectForTest(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to false, "field" to false)), schema.queryType, plan.fragments)
         val skipFragmentResult =
-            cache.collect(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to true, "field" to true)), schema.queryType, plan.fragments)
+            cache.collectForTest(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to true, "field" to true)), schema.queryType, plan.fragments)
 
         expectThat(includeFragmentResult.selections.map { (it as QueryPlan.CollectedField).responseKey }).isEqualTo(listOf("y", "x"))
         expectThat(excludeFragmentFieldResult).isNotSameInstanceAs(includeFragmentResult)
@@ -200,11 +202,27 @@ class CollectCacheTest {
         val cache = CollectCache()
 
         val includeNameResult =
-            cache.collect(schema, nodeSelectionSet, CoercedVariables.of(mapOf("includeName" to true)), listingType, plan.fragments)
+            cache.collectForTest(schema, nodeSelectionSet, CoercedVariables.of(mapOf("includeName" to true)), listingType, plan.fragments)
         val skipNameResult =
-            cache.collect(schema, nodeSelectionSet, CoercedVariables.of(mapOf("includeName" to false)), listingType, plan.fragments)
+            cache.collectForTest(schema, nodeSelectionSet, CoercedVariables.of(mapOf("includeName" to false)), listingType, plan.fragments)
 
         expectThat((includeNameResult.selections.single() as QueryPlan.CollectedField).responseKey).isEqualTo("id")
         expectThat(skipNameResult).isSameInstanceAs(includeNameResult)
     }
 }
+
+private fun CollectCache.collectForTest(
+    schema: GraphQLSchema,
+    selectionSet: QueryPlan.SelectionSet,
+    variables: CoercedVariables,
+    parentType: GraphQLObjectType,
+    fragments: QueryPlan.Fragments,
+): QueryPlan.SelectionSet =
+    collect(
+        schema,
+        selectionSet,
+        variables,
+        parentType,
+        fragments,
+        fieldRssOriginFilteringKillSwitchEnabled = false,
+    )
