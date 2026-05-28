@@ -84,6 +84,8 @@ internal class ProjectedEngineSelectionSet(
 
     override fun selections(): List<EngineSelection> = projectedSelections.map { it.toEngineSelection() }
 
+    override fun conditionallyExcludedResultKeys(): Set<String> = sourceImpl.conditionallyExcludedResultKeys()
+
     override fun traversableSelections(): List<EngineSelection> =
         projectedSelections.mapNotNull { sel ->
             // Guard against reprojections (e.g., union widening then narrowing to a different

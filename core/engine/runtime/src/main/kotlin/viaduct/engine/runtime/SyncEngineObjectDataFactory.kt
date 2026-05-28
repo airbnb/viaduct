@@ -89,9 +89,9 @@ object SyncEngineObjectDataFactory {
         val data = mutableMapOf<String, Any?>()
         val instrumentationCtx = coroutineContext[ResolverInstrumentationContext]
 
-        val engineSelections = selectionSet
-            .selectionSetForType(objectEngineResult.type.name)
-            .selections()
+        val projectedSelectionSet = selectionSet.selectionSetForType(objectEngineResult.type.name)
+        val engineSelections = projectedSelectionSet.selections()
+        val conditionallyExcludedResultKeys = projectedSelectionSet.conditionallyExcludedResultKeys()
 
         // Phase 1: collect per-selection state and pre-fetch cell slot Values (non-suspending).
         data class SelectionState(
@@ -179,7 +179,8 @@ object SyncEngineObjectDataFactory {
         return SyncProxyEngineObjectData(
             objectEngineResult.type,
             data,
-            errorMessage
+            errorMessage,
+            conditionallyExcludedResultKeys,
         )
     }
 

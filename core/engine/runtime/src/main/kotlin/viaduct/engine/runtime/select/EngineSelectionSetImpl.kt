@@ -86,7 +86,27 @@ data class EngineSelectionSetImpl(
     /** active Constraints for statically pruning unreachable selections at construction time */
     val constraints: Constraints,
     /** contextual data for this selection set */
-    val ctx: EngineSelectionSetContext
+    val ctx: EngineSelectionSetContext,
+    /**
+     * Result keys of field selections dropped by a definite @skip/@include directive evaluation,
+     * mapped to the set of type conditions under which they were dropped.
+     *
+     * A set is used because the same result key can be dropped under multiple type conditions
+     * (e.g. `... on Foo { id @skip(if:true) } ... on Bar { id @skip(if:true) }` produces
+     * `{ "id" -> {Foo, Bar} }`). Using a single-value map would silently overwrite the earlier
+     * entry and corrupt type-projection filtering.
+     *
+     * Populated during [withTypedSelections] when a [Field] (or a field inside a dropped
+     * inline fragment / fragment spread) resolves to [Constraints.Resolution.Drop].
+     *
+     * The type conditions are used in [selectionSetForType] to filter out excluded keys that do
+     * not apply to the projected concrete type: a key is kept in the filtered set only if at
+     * least one of its type conditions is spreadable to the target type (e.g., a key dropped
+     * under `... on Foo` should not be treated as excluded for `Bar`).
+     *
+     * @see [EngineSelectionSet.conditionallyExcludedResultKeys]
+     */
+    val conditionallyExcludedResultKeysByType: Map<String, Set<GraphQLCompositeType>> = emptyMap(),
 ) : EngineSelectionSet {
     override val type: String get() = def.name
 
@@ -116,6 +136,8 @@ data class EngineSelectionSetImpl(
     }
 
     override fun selections(): List<EngineSelection> = selections.map { it.toEngineSelection() }
+
+    override fun conditionallyExcludedResultKeys(): Set<String> = conditionallyExcludedResultKeysByType.keys
 
     override fun traversableSelections(): List<EngineSelection> {
         val type = compositeType(type)
@@ -153,13 +175,20 @@ data class EngineSelectionSetImpl(
             }
         }
         val newCtx = this.ctx.copy(variables = this.ctx.variables + variables)
-        val newSelections = selections.filter { sel ->
-            !sel.constraints.solve(newCtx.constraintsCtx).isDrop
+        val (newSelections, newDroppedSelections) = selections.partition {
+            !it.constraints.solve(newCtx.constraintsCtx).isDrop
         }
+        val newDropped = newDroppedSelections
+            .groupBy({ it.field.resultKey }, { it.typeCondition })
+            .mapValues { (_, types) -> types.toSet() }
         return this.copy(
             ctx = newCtx,
             selections = newSelections,
-            constraints = constraints
+            constraints = constraints,
+            conditionallyExcludedResultKeysByType = mergeExcluded(
+                conditionallyExcludedResultKeysByType,
+                newDropped
+            ),
         )
     }
 
@@ -243,47 +272,65 @@ data class EngineSelectionSetImpl(
         selectionSet: GJSelectionSet,
         parentConstraints: Constraints = this.constraints,
         spreadFragments: Set<String> = emptySet()
-    ): EngineSelectionSetImpl =
-        selectionSet.selections
-            .fold(this) { acc, sel ->
-                val childConstraints = parentConstraints.descend(sel)
-                if (childConstraints.solve(ctx.constraintsCtx).isDrop) return@fold acc
+    ): EngineSelectionSetImpl {
+        val newSelections = mutableListOf<FieldSelection>()
+        val newRequestedTypes = mutableSetOf<GraphQLCompositeType>()
+        val newExcluded = mutableMapOf<String, MutableSet<GraphQLCompositeType>>()
 
+        fun collectDropped(
+            type: GraphQLCompositeType,
+            sel: Selection<*>
+        ) {
+            when (sel) {
+                is Field -> newExcluded.getOrPut(sel.resultKey) { mutableSetOf() } += type
+                is InlineFragment -> sel.selectionSet.selections.forEach {
+                    collectDropped(inlineFragmentType(sel, type), it)
+                }
+                is FragmentSpread -> getFragmentDefinition(sel.name).let { frag ->
+                    frag.selectionSet.selections.forEach {
+                        collectDropped(compositeType(frag.typeCondition.name), it)
+                    }
+                }
+            }
+        }
+
+        fun collect(
+            type: GraphQLCompositeType,
+            ss: GJSelectionSet,
+            constraints: Constraints,
+            spread: Set<String>
+        ) {
+            newRequestedTypes += type
+            for (sel in ss.selections) {
+                val child = constraints.descend(sel)
+                if (child.solve(ctx.constraintsCtx).isDrop) {
+                    collectDropped(type, sel)
+                    continue
+                }
                 when (sel) {
-                    is Field ->
-                        acc.copy(
-                            selections = acc.selections + FieldSelection(sel, type, childConstraints)
-                        )
-
-                    is InlineFragment -> {
-                        val u =
-                            if (sel.typeCondition == null) {
-                                type
-                            } else {
-                                compositeType(sel.typeCondition.name)
-                            }
-                        acc.withTypedSelections(u, sel.selectionSet, childConstraints, spreadFragments)
-                    }
-
+                    is Field -> newSelections += FieldSelection(sel, type, child)
+                    is InlineFragment -> collect(inlineFragmentType(sel, type), sel.selectionSet, child, spread)
                     is FragmentSpread -> {
-                        require(sel.name !in spreadFragments) {
-                            "Cyclic fragment spreads detected"
-                        }
-
+                        require(sel.name !in spread) { "Cyclic fragment spreads detected" }
                         val frag = getFragmentDefinition(sel.name)
-                        val u = compositeType(frag.typeCondition.name)
-                        acc.withTypedSelections(
-                            u,
-                            frag.selectionSet,
-                            childConstraints,
-                            spreadFragments + sel.name
-                        )
+                        collect(compositeType(frag.typeCondition.name), frag.selectionSet, child, spread + sel.name)
                     }
-
                     else -> throw IllegalArgumentException("Unsupported Selection type: $sel")
                 }
             }
-            .let { rss -> rss.copy(requestedTypes = rss.requestedTypes + type) }
+        }
+
+        collect(type, selectionSet, parentConstraints, spreadFragments)
+
+        return copy(
+            selections = selections + newSelections,
+            requestedTypes = requestedTypes + newRequestedTypes,
+            conditionallyExcludedResultKeysByType = mergeExcluded(
+                conditionallyExcludedResultKeysByType,
+                newExcluded,
+            ),
+        )
+    }
 
     override fun requestsType(type: String): Boolean {
         val u = compositeType(type)
@@ -369,13 +416,16 @@ data class EngineSelectionSetImpl(
         val newConstraints = constraints.narrowTypes(ctx.schema.rels.possibleObjectTypes(u))
         val filteredSelections = selections.filter { ctx.schema.rels.isSpreadable(it.typeCondition, u) }
         val filteredRequestedTypes = requestedTypes.filter { ctx.schema.rels.isSpreadable(it, u) }.toSet()
+        val filteredExcluded = conditionallyExcludedResultKeysByType
+            .filter { (_, typeConditions) -> typeConditions.any { ctx.schema.rels.isSpreadable(it, u) } }
 
         if (u is GraphQLObjectType) {
             val sourceImpl = copy(
                 def = u,
                 selections = filteredSelections,
                 requestedTypes = filteredRequestedTypes,
-                constraints = newConstraints
+                constraints = newConstraints,
+                conditionallyExcludedResultKeysByType = filteredExcluded,
             )
             return ProjectedEngineSelectionSet.from(u, filteredSelections, ctx, sourceImpl)
         }
@@ -384,7 +434,8 @@ data class EngineSelectionSetImpl(
             def = u,
             selections = filteredSelections,
             requestedTypes = filteredRequestedTypes,
-            constraints = newConstraints
+            constraints = newConstraints,
+            conditionallyExcludedResultKeysByType = filteredExcluded,
         )
     }
 
@@ -535,6 +586,11 @@ data class EngineSelectionSetImpl(
             .takeIf { it.isNotEmpty() }
             ?.let(::GJSelectionSet)
 
+    private fun inlineFragmentType(
+        sel: InlineFragment,
+        enclosing: GraphQLCompositeType
+    ): GraphQLCompositeType = if (sel.typeCondition == null) enclosing else compositeType(sel.typeCondition.name)
+
     private fun getFragmentDefinition(name: String): FragmentDefinition =
         requireNotNull(ctx.fragmentDefinitions[name]) {
             "Missing fragment definition: $name"
@@ -549,6 +605,23 @@ data class EngineSelectionSetImpl(
 
     companion object {
         private val emptyGraphQLContext = GraphQLContext.getDefault()
+
+        /**
+         * Merge two [conditionallyExcludedResultKeysByType] maps, unioning the type-condition sets
+         * for keys that appear in both.
+         */
+        internal fun mergeExcluded(
+            existing: Map<String, Set<GraphQLCompositeType>>,
+            incoming: Map<String, Set<GraphQLCompositeType>>,
+        ): Map<String, Set<GraphQLCompositeType>> {
+            if (existing.isEmpty()) return incoming
+            if (incoming.isEmpty()) return existing
+            val merged = LinkedHashMap<String, Set<GraphQLCompositeType>>(existing)
+            for ((key, types) in incoming) {
+                merged[key] = merged[key]?.let { it + types } ?: types
+            }
+            return merged
+        }
 
         fun create(
             parsedSelections: ParsedSelections,

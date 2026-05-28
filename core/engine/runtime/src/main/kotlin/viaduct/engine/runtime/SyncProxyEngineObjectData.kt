@@ -20,11 +20,14 @@ import viaduct.errors.UnsetFieldException
  * @param data a map of data keyed by selection name; values may be [Exception] to indicate
  *        a field-level error that should be thrown when accessed
  * @param errorMessageTemplate optional custom error message template for [UnsetFieldException]
+ * @param conditionallyExcludedResultKeys result keys absent because @skip/@include evaluated to
+ *        a definite drop; [get] returns null for these rather than throwing [UnsetFieldException]
  */
 class SyncProxyEngineObjectData(
     override val type: GraphQLObjectType,
     private val data: Map<String, Any?>,
     private val errorMessageTemplate: String? = null,
+    private val conditionallyExcludedResultKeys: Set<String> = emptySet(),
 ) : EngineObjectData.Sync {
     override suspend fun fetch(selection: String) = get(selection)
 
@@ -36,6 +39,7 @@ class SyncProxyEngineObjectData(
 
     override fun get(selection: String): Any? {
         if (!data.containsKey(selection)) {
+            if (selection in conditionallyExcludedResultKeys) return null
             val message = errorMessageTemplate
                 ?: "Please set a value for $selection using the builder for ${type.name}"
             throw UnsetFieldException(

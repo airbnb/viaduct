@@ -1990,4 +1990,131 @@ class EngineSelectionSetImplTest {
                     }
             }
     }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- empty when no fields are skipped`() {
+        val ss = mk("Foo", "id int")
+        assertTrue(ss.conditionallyExcludedResultKeys().isEmpty())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- includes field dropped by static skip directive`() {
+        val ss = mk("Foo", "id @skip(if:true) int")
+        assertEquals(setOf("id"), ss.conditionallyExcludedResultKeys())
+        assertEquals(setOf(EngineSelection("Foo", "int", "int")), ss.selections().toSet())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- includes field dropped by static include directive`() {
+        val ss = mk("Foo", "id @include(if:false) int")
+        assertEquals(setOf("id"), ss.conditionallyExcludedResultKeys())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- alias is used as result key`() {
+        val ss = mk("Foo", "aliasedId: id @skip(if:true) int")
+        assertEquals(setOf("aliasedId"), ss.conditionallyExcludedResultKeys())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- unbound variable does not exclude field`() {
+        val ss = mk("Foo", "id @skip(if:\$var)")
+        assertTrue(ss.conditionallyExcludedResultKeys().isEmpty())
+        assertEquals(listOf(EngineSelection("Foo", "id", "id")), ss.selections())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- addVariables excludes field when variable drops it`() {
+        val ss = mk("Foo", "id @skip(if:\$var)")
+        val withVar = ss.addVariables(mapOf("var" to true))
+        assertEquals(setOf("id"), withVar.conditionallyExcludedResultKeys())
+        assertTrue(withVar.selections().isEmpty())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- addVariables does not exclude field when variable keeps it`() {
+        val ss = mk("Foo", "id @skip(if:\$var)")
+        val withVar = ss.addVariables(mapOf("var" to false))
+        assertTrue(withVar.conditionallyExcludedResultKeys().isEmpty())
+        assertEquals(listOf(EngineSelection("Foo", "id", "id")), withVar.selections())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- addVariables accumulates with pre-existing excluded keys`() {
+        val ss = mk("Foo", "id @skip(if:true) int @skip(if:\$var)")
+        assertEquals(setOf("id"), ss.conditionallyExcludedResultKeys())
+        val withVar = ss.addVariables(mapOf("var" to true))
+        assertEquals(setOf("id", "int"), withVar.conditionallyExcludedResultKeys())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- inline fragment skip tracks child fields as excluded`() {
+        // @skip on an inline fragment drops all child fields; their result keys are tracked
+        val ss = mk("Foo", "id ... on Foo @skip(if:true) { int }")
+        assertFalse(ss.containsField("Foo", "int"))
+        assertTrue(ss.conditionallyExcludedResultKeys().contains("int"))
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- fragment spread skip tracks child fields as excluded`() {
+        val ss = mk(
+            "Foo",
+            """
+                fragment Main on Foo { id ...FooFrag @skip(if:true) }
+                fragment FooFrag on Foo { int }
+            """.trimIndent()
+        )
+        assertFalse(ss.containsField("Foo", "int"))
+        assertTrue(ss.conditionallyExcludedResultKeys().contains("int"))
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- ProjectedEngineSelectionSet delegates to source`() {
+        // selectionSetForType on an interface returns a ProjectedEngineSelectionSet; verify it surfaces excluded keys
+        val ss = mk(
+            "FooOrStruct",
+            "... on Foo { id @skip(if:true) int }",
+        )
+        val projected = ss.selectionSetForType("Foo")
+        assertTrue(projected is ProjectedEngineSelectionSet)
+        assertEquals(setOf("id"), projected.conditionallyExcludedResultKeys())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- type-specific exclusion does not leak across projection`() {
+        // id @skip under ... on Foo should not appear as excluded when projected to Bar
+        val ss = mk(
+            "ForkIface",
+            "... on ForkFoo { id @skip(if:true) int } ... on ForkBar { id int }",
+            sdl = """
+                extend type Query { placeholder: Int }
+                interface ForkIface { id: ID! }
+                type ForkFoo implements ForkIface { id: ID!, int: Int }
+                type ForkBar implements ForkIface { id: ID!, int: Int }
+            """.trimIndent()
+        )
+        val fooProjection = ss.selectionSetForType("ForkFoo")
+        assertEquals(setOf("id"), fooProjection.conditionallyExcludedResultKeys())
+        val barProjection = ss.selectionSetForType("ForkBar")
+        assertTrue(barProjection.conditionallyExcludedResultKeys().isEmpty())
+    }
+
+    @Test
+    fun `conditionallyExcludedResultKeys -- same result key dropped under two type conditions both tracked`() {
+        // id @skip under both ... on ForkFoo and ... on ForkBar; both projections must see id as excluded
+        val ss = mk(
+            "ForkIface",
+            "... on ForkFoo { id @skip(if:true) int } ... on ForkBar { id @skip(if:true) int }",
+            sdl = """
+                extend type Query { placeholder: Int }
+                interface ForkIface { id: ID! }
+                type ForkFoo implements ForkIface { id: ID!, int: Int }
+                type ForkBar implements ForkIface { id: ID!, int: Int }
+            """.trimIndent()
+        )
+        val fooProjection = ss.selectionSetForType("ForkFoo")
+        assertEquals(setOf("id"), fooProjection.conditionallyExcludedResultKeys())
+        val barProjection = ss.selectionSetForType("ForkBar")
+        assertEquals(setOf("id"), barProjection.conditionallyExcludedResultKeys())
+    }
 }

@@ -65,6 +65,16 @@ interface EngineSelectionSet {
     fun selections(): List<EngineSelection>
 
     /**
+     * Return the result keys (aliases or field names) of selections that were excluded from
+     * this selection set because an @skip or @include directive evaluated to a definite drop.
+     *
+     * These keys are absent from [selections] and will not appear in resolved data, but
+     * are distinct from fields that were never part of the original fragment — callers can
+     * treat accesses to these keys as intentional null rather than a developer error.
+     */
+    fun conditionallyExcludedResultKeys(): Set<String> = emptySet()
+
+    /**
      * Return the [EngineSelection]s immediately selected by this EngineSelectionSet that can be traversed
      * using [selectionSetForField].
      *

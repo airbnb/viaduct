@@ -298,6 +298,59 @@ class SyncProxyEngineObjectDataTest {
         }
 
     // ============================================================================
+    // conditionallyExcludedResultKeys tests
+    // ============================================================================
+
+    @Test
+    fun `get -- returns null for excluded key instead of throwing UnsetFieldException`() {
+        // Excluded keys are never fetched, so they are absent from data entirely.
+        val eod = SyncProxyEngineObjectData(
+            obj,
+            mapOf("x" to 1),
+            conditionallyExcludedResultKeys = setOf("y")
+        )
+
+        assertNull(eod.get("y"))
+    }
+
+    @Test
+    fun `get -- throws UnsetFieldException for key absent from both data and excludedKeys`() {
+        val eod = SyncProxyEngineObjectData(
+            obj,
+            mapOf("x" to 1),
+            conditionallyExcludedResultKeys = setOf("y")
+        )
+
+        assertThrows<UnsetFieldException> {
+            eod.get("missing")
+        }
+    }
+
+    @Test
+    fun `get -- multiple excluded keys all return null`() {
+        val eod = SyncProxyEngineObjectData(
+            obj,
+            emptyMap(),
+            conditionallyExcludedResultKeys = setOf("x", "y")
+        )
+
+        assertNull(eod.get("x"))
+        assertNull(eod.get("y"))
+    }
+
+    @Test
+    fun `fetch -- returns null for excluded key`() =
+        runBlocking {
+            val eod = SyncProxyEngineObjectData(
+                obj,
+                mapOf("x" to 1),
+                conditionallyExcludedResultKeys = setOf("y")
+            )
+
+            assertNull(eod.fetch("y"))
+        }
+
+    // ============================================================================
     // toString test
     // ============================================================================
 
