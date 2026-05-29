@@ -18,6 +18,11 @@ internal class ResolverDescriptorProcessor(
             return false
         }
 
+        // aggregating = false → isolation mode: KSP declares this output depends on exactly one
+        // source file. This enables per-file incremental processing (changed file → only its
+        // descriptor is regenerated) and automatic stale-output cleanup (deleted file → KSP
+        // removes the corresponding descriptor without any manual bookkeeping).
+        // See impldocs/execution-registry-ksp-pipeline.md for the full pipeline explanation.
         val dependencies = Dependencies(
             aggregating = false,
             sources = arrayOf(sourceFile),

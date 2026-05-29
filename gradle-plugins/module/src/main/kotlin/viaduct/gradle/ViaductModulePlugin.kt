@@ -179,9 +179,17 @@ class ViaductModulePlugin : Plugin<Project> {
         pluginManager.withPlugin("com.google.devtools.ksp") {
             dependencies.add("ksp", "com.airbnb.viaduct:buildtime:$version")
 
-            // Bridge task: isolates KSP's internal output path so assembleTask depends
-            // on a typed task reference rather than a string "dependsOn".
-            // KSP registers kspKotlin lazily, so the string form is still required here.
+            // Bridge task: copies KSP's descriptor output to a stable intermediates directory.
+            //
+            // Two reasons for this indirection:
+            // 1. KSP registers kspKotlin lazily, so the assembly task can't take a typed
+            //    TaskProvider dependency on it; the string "dependsOn" below is the only option.
+            //    The Sync wraps that into a typed provider that assembleTask can depend on safely.
+            // 2. Gradle's Sync tracks its OutputDirectory, so when KSP removes a descriptor
+            //    (because the upstream source file was deleted), the Sync re-runs and the
+            //    deleted descriptor is not copied — propagating the deletion into intermediates.
+            //
+            // See impldocs/execution-registry-ksp-pipeline.md for the full pipeline explanation.
             val extractKspDescriptors = tasks.register<Sync>(
                 "extractKspRegistryDescriptors"
             ) {

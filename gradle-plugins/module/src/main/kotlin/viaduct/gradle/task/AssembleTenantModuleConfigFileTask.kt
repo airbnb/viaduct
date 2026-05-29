@@ -64,9 +64,14 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
     @get:Inject
     abstract val workerExecutor: WorkerExecutor
 
+    // Assembly is intentionally non-incremental: it aggregates all descriptors into a single
+    // output file, so any change to the descriptor set requires a full reconcile. Gradle's
+    // up-to-date mechanism (driven by the @InputFiles fingerprint on descriptorDir) still
+    // skips this task entirely when no descriptors changed, so the cost is only paid when
+    // something actually changed. See impldocs/execution-registry-ksp-pipeline.md.
+    //
     // TODO: Re-enable task-internal incrementality after execution-style tests cover
     // Gradle directory add/remove events and tenant-package rename cleanup.
-    // For now, always reconcile outputs from the full descriptor set when this task runs.
     @TaskAction
     fun assemble(
         @Suppress("UNUSED_PARAMETER") inputChanges: InputChanges
