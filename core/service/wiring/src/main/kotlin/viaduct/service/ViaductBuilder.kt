@@ -221,5 +221,7 @@ class SchemaScopeInfo private constructor(
     val scopesToApply: Set<String>
         get() = (schemaId as SchemaId.Scoped).scopeIds
 
+    override fun toString(): String = "SchemaScopeInfo(id=${schemaId.id}, scopesToApply=$scopesToApply)"
+
     internal fun toScopeConfig(): SchemaConfiguration.ScopeConfig = SchemaConfiguration.ScopeConfig(schemaId.id, scopesToApply)
 }

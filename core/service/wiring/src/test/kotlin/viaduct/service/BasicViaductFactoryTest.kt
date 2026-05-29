@@ -48,6 +48,20 @@ internal class BasicViaductFactoryTest {
         }
 
         @Test
+        fun `toString should include id and scopesToApply`() {
+            val scopeInfo = SchemaScopeInfo("my-schema", setOf("admin", "user"))
+
+            assertEquals("SchemaScopeInfo(id=my-schema, scopesToApply=[admin, user])", scopeInfo.toString())
+        }
+
+        @Test
+        fun `toString should show empty scopesToApply for unscoped schema`() {
+            val scopeInfo = SchemaScopeInfo("full-schema")
+
+            assertEquals("SchemaScopeInfo(id=full-schema, scopesToApply=[])", scopeInfo.toString())
+        }
+
+        @Test
         fun `toScopeConfig should produce correct ScopeConfig`() {
             val scopeInfo = SchemaScopeInfo("public", setOf("scope1", "scope2"))
 
