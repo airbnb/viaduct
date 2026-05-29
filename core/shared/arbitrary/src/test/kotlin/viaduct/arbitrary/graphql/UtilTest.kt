@@ -1,4 +1,5 @@
 @file:Suppress("ForbiddenImport")
+@file:OptIn(ExperimentalTime::class)
 
 package viaduct.arbitrary.graphql
 
@@ -16,6 +17,7 @@ import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.intRange
+import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.orNull
 import io.kotest.property.arbitrary.pair
@@ -24,15 +26,22 @@ import io.kotest.property.arbitrary.string
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
 import io.kotest.property.forNone
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.CompoundingWeight
+import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.ConfigKey
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.WeightValidator
 import viaduct.graphql.utils.allChildrenOfType
 
 class UtilTest : KotestPropertyBase() {
@@ -47,6 +56,34 @@ class UtilTest : KotestPropertyBase() {
                 val checkHi = if (i < Int.MAX_VALUE) !range.contains(i + 1) else true
 
                 !isEmpty && checkLo && containsI && checkHi
+            }
+        }
+
+    @Test
+    fun `Int asLongRange`(): Unit =
+        runBlocking {
+            Arb.int().forAll { i ->
+                val range = i.asLongRange()
+                val isEmpty = range.isEmpty()
+                val containsI = range.contains(i)
+                val checkLo = !range.contains(i.toLong() - 1)
+                val checkHi = !range.contains(i.toLong() + 1)
+
+                !isEmpty && checkLo && containsI && checkHi
+            }
+        }
+
+    @Test
+    fun `Long asLongRange()`(): Unit =
+        runBlocking {
+            Arb.long().forAll { l ->
+                val range = l.asLongRange()
+                val isEmpty = range.isEmpty()
+                val containsL = range.contains(l)
+                val checkLo = if (l > Long.MIN_VALUE) !range.contains(l - 1) else true
+                val checkHi = if (l < Long.MAX_VALUE) !range.contains(l + 1) else true
+
+                !isEmpty && checkLo && containsL && checkHi
             }
         }
 
@@ -277,6 +314,102 @@ class UtilTest : KotestPropertyBase() {
     fun `String asDocument`() {
         val sdl = "type Query {x: Int}"
         assertEquals(sdl, AstPrinter.printAstCompact(sdl.asDocument))
+    }
+
+    @Test
+    fun `maybeDelay`(): Unit =
+        runBlocking {
+            // no delay
+            run {
+                val time = measureTime {
+                    randomSource.maybeDelay(0.asLongRange())
+                }
+                // pick a number greater than 0 to accommodate slow CI machines
+                assertTrue(time < 50.milliseconds)
+            }
+
+            // delay
+            run {
+                val time = measureTime {
+                    randomSource.maybeDelay(100.asLongRange())
+                }
+                assertTrue(time >= 100.milliseconds)
+            }
+        }
+
+    @Test
+    fun `maybeThrowResolverException`(): Unit =
+        runBlocking {
+            // does not throw
+            val key = object : ConfigKey<Double>(0.0, WeightValidator) {}
+            assertDoesNotThrow {
+                maybeThrowResolverException(Config.default, key, randomSource)
+            }
+
+            // throws
+            val err = assertThrows<ResolverException> {
+                maybeThrowResolverException(Config.default + (key to 1.0), key, randomSource)
+            }
+            assertEquals(key, err.key)
+            assertTrue(key.javaClass.name in err.message)
+        }
+
+    @Test
+    fun `ViaductSchema objects`() {
+        val schema = """
+            extend type Query { x:Int }
+            type Obj { x:Int }
+            union Union = Obj
+            interface I { x:Int }
+        """.asViaductSchema
+
+        val objNames = schema.objects.map { it.name }.toSet()
+        assertTrue(objNames.containsAll(setOf("Obj", "Query")))
+        assertTrue(objNames.intersect(setOf("Union", "I", "Int", "__Type")).isEmpty())
+    }
+
+    @Test
+    fun `ViaductSchema objectCoordinates`() {
+        val schema = """
+            extend type Query { x:Int }
+            type Obj implements I { x:Int }
+            union Union = Obj
+            interface I { x:Int }
+        """.asViaductSchema
+
+        val coords = schema.objectCoordinates
+        assertTrue(
+            coords.containsAll(
+                setOf(
+                    "Query" to "x",
+                    "Obj" to "x"
+                )
+            )
+        )
+
+        assertTrue(
+            coords.intersect(
+                setOf(
+                    "I" to "x",
+                    "Obj" to "__typename",
+                    "__Type" to "name"
+                )
+            ).isEmpty()
+        )
+
+        // interface
+        assertEquals(
+            setOf("Obj" to "x"),
+            schema.objectCoordinates(schema.schema.getTypeAs("I"))
+                .toSet()
+        )
+
+        // union
+        assertEquals(
+            setOf("Obj" to "x"),
+            schema.objectCoordinates(schema.schema.getTypeAs("Union"))
+                .toSet()
+        )
     }
 }
 

@@ -12,6 +12,7 @@ import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLFieldsContainer
 import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
+import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
@@ -40,7 +41,12 @@ import java.time.OffsetTime
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.ConfigKey
 import viaduct.engine.api.ViaductSchema
+import viaduct.graphql.globalIDType
+import viaduct.graphql.hasIdOfDirective
+import viaduct.graphql.isGlobalID
 import viaduct.mapping.graphql.IR
+import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 /**
  * Return an [Arb] that can generate an [IR.Value.Object] for
@@ -58,6 +64,7 @@ import viaduct.mapping.graphql.IR
  *   - [ExplicitNullValueWeight]
  *   - [MaxValueDepth]
  *   - [TypenameValueWeight]
+ *   - [IDValueGen]
  */
 fun Arb.Companion.objectIR(
     schema: ViaductSchema,
@@ -124,29 +131,32 @@ fun Arb.Companion.ir(
     cfg: Config = Config.default
 ): Arb<IR.Value> {
     val fragments = mutableMapOf<String, FragmentDefinition>()
-    val operations = mutableListOf<OperationDefinition>()
+    val operationRoots = mutableMapOf<OperationDefinition, GraphQLObjectType>()
+
     document.definitions.forEach {
         when (it) {
             is FragmentDefinition -> fragments[it.name] = it
-            is OperationDefinition -> operations += it
+            is OperationDefinition -> {
+                when (it.operation) {
+                    OperationDefinition.Operation.QUERY ->
+                        operationRoots[it] = schema.schema.queryType
+
+                    OperationDefinition.Operation.MUTATION ->
+                        operationRoots[it] = requireNotNull(schema.schema.mutationType) {
+                            "mutation operation requested but schema does not define a mutation type"
+                        }
+
+                    OperationDefinition.Operation.SUBSCRIPTION ->
+                        operationRoots[it] = requireNotNull(schema.schema.subscriptionType) {
+                            "subscription operation requested but schema does not define a subscription type"
+                        }
+                }
+            }
         }
     }
 
-    return Arb.of(operations).flatMap {
-        val type = when (it.operation) {
-            OperationDefinition.Operation.QUERY -> schema.schema.queryType
-            OperationDefinition.Operation.MUTATION ->
-                checkNotNull(schema.schema.mutationType) {
-                    "mutation operation requested but schema does not define a mutation type"
-                }
-            OperationDefinition.Operation.SUBSCRIPTION ->
-                checkNotNull(schema.schema.subscriptionType) {
-                    "subscription operation requested but schema does not define a subscription type"
-                }
-            null -> throw IllegalStateException("Operation can't be null")
-        }
-
-        ir(schema, GraphQLNonNull(type), it.selectionSet, fragments, cfg)
+    return Arb.of(operationRoots.entries).flatMap { (operation, type) ->
+        ir(schema, GraphQLNonNull(type), operation.selectionSet, fragments, cfg)
     }
 }
 
@@ -189,7 +199,7 @@ internal class IRGen(
     private val rs: RandomSource,
 ) {
     private val enumGen = EnumValueGen(rs)
-    private val scalarGen = ScalarValueGen(uncoercedValueWeight, cfg, rs)
+    private val scalarGen = ScalarValueGen(schema, cfg, rs, uncoercedValueWeight)
 
     private data class Ctx(
         val tc: TypeCtx,
@@ -284,7 +294,7 @@ internal class IRGen(
                     }
                 }
 
-                tc.type is GraphQLScalarType -> scalarGen.gen(tc.type)
+                tc.type is GraphQLScalarType -> scalarGen.gen(tc)
 
                 tc.type is GraphQLEnumType -> enumGen.gen(tc.type)
 
@@ -391,20 +401,24 @@ internal class EnumValueGen(private val rs: RandomSource) {
 }
 
 internal class ScalarValueGen(
-    private val uncoercedValueWeight: Double,
+    private val schema: ViaductSchema,
     private val cfg: Config,
-    private val rs: RandomSource
+    private val rs: RandomSource,
+    private val uncoercedValueWeight: Double = 0.0
 ) {
-    fun gen(type: GraphQLScalarType): IR.Value {
+    private val idValueGen by lazy {
+        cfg[IDValueGenFactory](IDValueGen.Factory.Params(schema, cfg, rs))
+    }
+
+    fun gen(typeCtx: TypeCtx): IR.Value {
+        val type = typeCtx.type as GraphQLScalarType
         val arbOverride = cfg[ScalarValueOverrides][type.name]
         if (arbOverride != null) {
             return arbOverride.next(rs)
         }
 
         return when (type.name) {
-            "BackingData" ->
-                IR.Value.Null
-
+            "BackingData" -> IR.Value.Null
             "Boolean" -> IR.Value.Boolean(Arb.boolean().next(rs))
             "Byte" -> IR.Value.Number(Arb.byte().next(rs))
             "Date" -> IR.Value.Time(Arb.localDate().next(rs))
@@ -418,7 +432,7 @@ internal class ScalarValueGen(
                     IR.Value.Number(Arb.double().next(rs))
                 }
             }
-            "ID" -> IR.Value.String(Arb.string(cfg[StringValueSize]).next(rs))
+            "ID" -> idValueGen.gen(typeCtx)
             "Int" -> IR.Value.Number(Arb.int().next(rs))
             "JSON" -> IR.Value.String("{}")
             "Long" -> IR.Value.Number(Arb.long().next(rs))
@@ -431,6 +445,90 @@ internal class ScalarValueGen(
                     .let(IR.Value::Time)
 
             else -> throw UnsupportedOperationException("Unsupported scalar type: ${type.name}")
+        }
+    }
+}
+
+/**
+ * A generator that can produce values for ID scalars.
+ * @see IDValueGen
+ */
+fun interface IDValueGen {
+    fun gen(typeCtx: TypeCtx): IR.Value.String
+
+    /** A Factory for producing [IDValueGen]s */
+    fun interface Factory {
+        data class Params(val schema: ViaductSchema, val cfg: Config, val rs: RandomSource)
+
+        operator fun invoke(params: Params): IDValueGen
+
+        /** A [Factory] for a generator that returns arbitrary string with sizes bounded by [StringValueSize] */
+        object ArbString : Factory {
+            override fun invoke(params: Params): IDValueGen =
+                IDValueGen {
+                    IR.Value.String(
+                        Arb.string(params.cfg[StringValueSize]).next(params.rs)
+                    )
+                }
+        }
+
+        /**
+         * A [Factory] for a generator that returns ID values using a provided [GlobalIDCodec]
+         *
+         * The returned ID values will always have a "localID" part that is a randomly
+         * generated String value.
+         *
+         * The returned ID values will have a "typeName" part subject that is subject to these
+         * conditions:
+         * - If the requested field is for the "id" field on an implementation of Node, then the
+         *   typeName will be the same as the implementing type's name
+         * - If the requested type has an @idOf directive, then the typeName will be the same as
+         *   the @idOf directive's `type` argument.
+         *
+         * If neither of these conditions are met, then the typeName part of the returned ID
+         * will be for any available implementation of Node.
+         */
+        class GlobalID(private val codec: GlobalIDCodec) : Factory {
+            override fun invoke(params: Params): IDValueGen {
+                val arbString = ArbString(params)
+
+                fun concretizeType(name: String): String {
+                    val type = params.schema.schema.getTypeAs<GraphQLCompositeType>(name)
+                    if (type is GraphQLObjectType) return name
+
+                    val impls = params.schema.rels.possibleObjectTypes(type)
+                    return Arb.of(impls.toList()).next(params.rs).name
+                }
+
+                return IDValueGen { typeCtx ->
+                    // check for NodeImpl.id, or @idOf on an output object
+                    val typeName = if (typeCtx.fieldParent is GraphQLObjectType &&
+                        typeCtx.field is GraphQLFieldDefinition &&
+                        isGlobalID(typeCtx.field, typeCtx.fieldParent)
+                    ) {
+                        val annotatedType = globalIDType(typeCtx.field, typeCtx.fieldParent)
+                        concretizeType(annotatedType)
+                    } else if (typeCtx.field is GraphQLInputObjectField && typeCtx.field.hasIdOfDirective) {
+                        val annotatedType = globalIDType(typeCtx.field)
+                        concretizeType(annotatedType)
+                    } else {
+                        val nodeType = params.schema.schema.getTypeAs<GraphQLInterfaceType>("Node")
+                        if (nodeType == null) {
+                            return@IDValueGen arbString.gen(typeCtx)
+                        }
+                        concretizeType(nodeType.name)
+                    }
+
+                    val localId = Arb.string(params.cfg[StringValueSize]).next(params.rs)
+                    val idStr = codec.serialize(typeName, localId)
+                    IR.Value.String(idStr)
+                }
+            }
+        }
+
+        companion object {
+            /** returns GlobalID-encoded strings using [GlobalIDCodecDefault] */
+            val default: Factory = GlobalID(GlobalIDCodecDefault)
         }
     }
 }

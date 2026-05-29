@@ -59,7 +59,14 @@ private class Flatten<T>(
 ) : Arb<T>() {
     private var chunk: Iterator<T>? = null
 
-    override fun edgecase(rs: RandomSource): T? = null
+    override fun edgecase(rs: RandomSource): T? {
+        // Don't interrupt an active chunk — items within a chunk must remain consecutive.
+        if (chunk?.hasNext() == true) return null
+        val iter = underlying.edgecase(rs) ?: return null
+        if (!iter.hasNext()) return null
+        chunk = iter
+        return chunk!!.next()
+    }
 
     override fun sample(rs: RandomSource): Sample<T> {
         while (chunk == null || chunk?.hasNext() == false) {

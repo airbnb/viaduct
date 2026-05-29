@@ -1,4 +1,5 @@
 @file:Suppress("ForbiddenImport")
+@file:OptIn(VisibleForTest::class)
 
 package viaduct.arbitrary.graphql
 
@@ -30,9 +31,12 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
+import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.CompoundingWeight
+import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.asSequence
 import viaduct.arbitrary.common.minViolation
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.utils.GraphQLTypeRelations
@@ -60,6 +64,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
         aliasWeight: Double = 0.0,
         anonymousOperationWeight: Double = 0.0,
         banDirectiveNames: Set<String> = emptySet(),
+        banSelectionCoordinates: Set<TypeOrFieldCoordinate> = emptySet(),
         documentUncoercedValueWeight: Double = 0.0,
         directiveWeight: CompoundingWeight = CompoundingWeight.Never,
         explicitNullValueWeight: Double = 0.0,
@@ -80,6 +85,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
             (AnonymousOperationWeight to anonymousOperationWeight) +
             (AppliedDirectiveWeight to directiveWeight) +
             (BanDirectiveNames to banDirectiveNames) +
+            (BanSelectionCoordinates to banSelectionCoordinates) +
             (DocumentUncoercedValueWeight to documentUncoercedValueWeight) +
             (ExplicitNullValueWeight to explicitNullValueWeight) +
             (FieldNameLength to fieldNameLength.asIntRange()) +
@@ -320,6 +326,31 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
             }
         }
     }
+
+    @Test
+    fun BanSelectionCoordinates(): Unit =
+        runBlocking {
+            val schema = "type Query { x:Int }".asSchema
+
+            // disabled
+            mkConfig(banSelectionCoordinates = emptySet()).let { cfg ->
+                Arb.graphQLDocument(schema, cfg)
+                    .asSequence(randomSource)
+                    .take(1000)
+                    .any {
+                        val fields = it.allChildrenOfType<Field>()
+                        fields.any { it.name == "x" }
+                    }
+            }
+
+            // enabled
+            mkConfig(banSelectionCoordinates = setOf("Query" to "x")).let { cfg ->
+                Arb.graphQLDocument(schema, cfg).forAll {
+                    val fields = it.allChildrenOfType<Field>()
+                    fields.none { it.name == "x" }
+                }
+            }
+        }
 
     @Test
     fun DirectiveWeight(): Unit =

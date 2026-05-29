@@ -1,4 +1,5 @@
 @file:Suppress("ForbiddenImport")
+@file:OptIn(VisibleForTest::class)
 
 package viaduct.arbitrary.graphql
 
@@ -23,6 +24,7 @@ import io.kotest.property.arbitrary.pair
 import io.kotest.property.arbitrary.set
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase

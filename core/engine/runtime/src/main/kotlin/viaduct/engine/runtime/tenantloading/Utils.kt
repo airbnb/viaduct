@@ -2,16 +2,10 @@
 
 package viaduct.engine.runtime.tenantloading
 
-import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
-import viaduct.engine.api.Coordinate
-import viaduct.engine.api.EngineSelection
-import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
-import viaduct.graphql.utils.GraphQLTypeRelation
 import viaduct.graphql.utils.VariableUsageInfo
 
 internal data class Type(
@@ -65,22 +59,6 @@ internal val GraphQLType.isListish: Boolean get() =
         is GraphQLNonNull -> wrappedType.isListish
         else -> false
     }
-
-/** return a [Coordinate] representation of a [EngineSelection] */
-internal val EngineSelection.coord: Coordinate get() = this.typeCondition to this.fieldName
-
-/**
- * return a [GraphQLTypeRelation.Relation] that describes the relationship
- * between this EngineSelectionSet and the type condition of the provided [selection]
- */
-internal fun EngineSelectionSet.relation(
-    schema: ViaductSchema,
-    selection: EngineSelection
-): GraphQLTypeRelation.Relation {
-    val ssType = schema.schema.getTypeAs<GraphQLCompositeType>(type)
-    val selectionType = schema.schema.getTypeAs<GraphQLCompositeType>(selection.typeCondition)
-    return schema.rels.relation(ssType, selectionType)
-}
 
 /**
  * Return true if [variableType] can be coerced to [locationType]

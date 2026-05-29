@@ -3,6 +3,7 @@ package viaduct.arbitrary.graphql
 import graphql.Directives
 import graphql.ExecutionInput
 import graphql.Scalars
+import graphql.introspection.Introspection
 import graphql.language.Document
 import graphql.language.ListType
 import graphql.language.NonNullType
@@ -11,12 +12,14 @@ import graphql.language.TypeName
 import graphql.parser.Parser
 import graphql.parser.ParserEnvironment
 import graphql.parser.ParserOptions
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLDirective
 import graphql.schema.GraphQLInputType
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLNonNull
+import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLType
@@ -33,19 +36,28 @@ import io.kotest.property.arbitrary.filter
 import io.kotest.property.arbitrary.filterNot
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.int
+import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.map
+import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.pair
 import io.kotest.property.arbitrary.shuffle
 import java.lang.IllegalArgumentException
 import kotlin.collections.filter
+import kotlin.collections.flatMap
 import kotlin.collections.map
+import kotlin.collections.toSet
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.delay
 import viaduct.arbitrary.common.CompoundingWeight
+import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.ConfigKey
 import viaduct.arbitrary.common.WeightValidator
 import viaduct.engine.SchemaFactory
+import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.gj
 import viaduct.graphql.utils.allChildren
 
 internal fun Set<GraphQLInterfaceType>.nonConflicting(): Set<GraphQLInterfaceType> {
@@ -149,6 +161,12 @@ fun <T> Set<T>.arbSubset(range: IntRange? = null): Arb<Set<T>> = Arb.constant(th
 
 /** Return an IntRange containing only this Int */
 fun Int.asIntRange(): IntRange = IntRange(this, this)
+
+/** Return a LongRange containing only this Int */
+fun Int.asLongRange(): LongRange = this.toLong().asLongRange()
+
+/** Return a LongRange containing only this Long */
+fun Long.asLongRange(): LongRange = LongRange(this, this)
 
 /**
  * Filter an Arb<IntRange> to only yield non-empty IntRange values.
@@ -329,3 +347,68 @@ val ExecutionInputComparator: Comparator<ExecutionInput> =
 /** A [Comparator] that orders [Document]s by their node count */
 val DocumentComparator: Comparator<Document> =
     Comparator.comparingInt { it.allChildren.size }
+
+/** suspend for a value of milliseconds bounded by  [latencyMillis] */
+internal suspend fun RandomSource.maybeDelay(latencyMillis: LongRange) {
+    if (latencyMillis.last > 0) {
+        val latencyMillis = Arb.long(latencyMillis).next(this)
+        delay(latencyMillis)
+    }
+}
+
+/** throw [ResolverException] if sampling the weight described by [key] returns true */
+internal fun maybeThrowResolverException(
+    cfg: Config,
+    key: ConfigKey<Double>,
+    rs: RandomSource
+) {
+    if (rs.sampleWeight(cfg[key])) {
+        throw ResolverException(key)
+    }
+}
+
+/** return all object types in the current schema */
+internal val ViaductSchema.objects: List<GraphQLObjectType>
+    get() =
+        this.schema.typeMap.mapNotNull { (name, type) ->
+            if (type is GraphQLObjectType && !Introspection.isIntrospectionTypes(name)) {
+                type
+            } else {
+                null
+            }
+        }
+
+/** return all object coordinates in the current schema */
+internal val ViaductSchema.objectCoordinates: Set<Coordinate>
+    get() = objects.flatMap { it.objectCoordinates }.toSet()
+
+/** return all coordinates for the given type in the current schema */
+internal fun ViaductSchema.objectCoordinates(type: GraphQLCompositeType): Set<Coordinate> =
+    rels.possibleObjectTypes(type)
+        .flatMap(GraphQLObjectType::objectCoordinates)
+        .toSet()
+
+internal val GraphQLObjectType.objectCoordinates: Set<Coordinate>
+    get() = fields.map { f -> name to f.name }.toSet()
+
+internal val ViaductSchema.nodeImpls: Set<String>
+    get() {
+        val nodeType = schema.getType("Node")
+            ?.let { it as? GraphQLInterfaceType }
+            ?: return emptySet()
+
+        return rels.possibleObjectTypes(nodeType)
+            .map { it.name }
+            .toSet()
+    }
+
+internal fun Coordinate.supportsSubselections(schema: ViaductSchema): Boolean = GraphQLTypeUtil.unwrapAll(schema.schema.getFieldDefinition(this.gj).type) is GraphQLCompositeType
+
+class ResolverException(val key: ConfigKey<*>) : Exception() {
+    override val message: String =
+        "This is a synthetic ResolverException configured by ${key.javaClass.name}"
+}
+
+fun RandomSource.fork(): RandomSource = RandomSource.seeded(random.nextLong())
+
+typealias TypeOrFieldCoordinate = Pair<String, String?>

@@ -21,10 +21,13 @@ import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.of
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.mapping.graphql.IR
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 class ArbIRResultTest : KotestPropertyBase() {
     private val minimalSchema = "extend type Query { x:Int }".asViaductSchema
@@ -75,6 +78,64 @@ class ArbIRResultTest : KotestPropertyBase() {
                     check.isSameInstanceAs(IR.Value.Null, value, "expected enull")
                 } else {
                     check.isNotEqualTo(IR.Value.Null, value, "expected non enull value")
+                }
+            }
+        }
+
+    @Test
+    fun `ir -- ID scalars`(): Unit =
+        runBlocking {
+            val codec = GlobalIDCodecDefault
+            val schema = """
+                type Foo implements Node {
+                    id:ID!
+                    barId:ID! @idOf(type:"Bar")
+                    barIds:[ID!]! @idOf(type:"Bar")
+                    anyId:ID! @idOf(type:"Node")
+                }
+                type Bar implements Node { id:ID! }
+            """.asViaductSchema
+            val cfg = Config.default +
+                (ExplicitNullValueWeight to 0.0) +
+                (ListValueSize to 2.asIntRange())
+
+            val arb = Arb.ir(
+                schema = schema,
+                type = schema.schema.getObjectType("Foo"),
+                selections = parseSelections("fragment Main on Foo { id barId barIds anyId }"),
+                cfg = cfg
+            )
+
+            arb.checkAll { value ->
+                value as IR.Value.Object
+
+                // id field
+                run {
+                    val id = (value.fields["id"] as IR.Value.String).value
+                    assertEquals("Foo", codec.deserialize(id).first)
+                }
+
+                // barId field
+                run {
+                    val id = (value.fields["barId"] as IR.Value.String).value
+                    assertEquals("Bar", codec.deserialize(id).first)
+                }
+
+                // barIds field
+                run {
+                    val ids = (value.fields["barIds"] as IR.Value.List).value
+                    for (id in ids) {
+                        id as IR.Value.String
+                        assertEquals("Bar", codec.deserialize(id.value).first)
+                    }
+                }
+
+                // anyId field
+                run {
+                    val id = (value.fields["anyId"] as IR.Value.String).value
+                    val idType = codec.deserialize(id).first
+
+                    assertTrue(idType in setOf("Foo", "Bar"))
                 }
             }
         }

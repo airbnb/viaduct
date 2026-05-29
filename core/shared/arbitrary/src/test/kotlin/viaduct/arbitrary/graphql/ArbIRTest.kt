@@ -3,6 +3,7 @@
 package viaduct.arbitrary.graphql
 
 import graphql.Scalars
+import graphql.Scalars.GraphQLInt
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
@@ -24,10 +25,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.asSequence
@@ -104,6 +106,23 @@ class ArbIRTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `generates scalar values -- ID with custom IDValueGen Factory`(): Unit =
+        runBlocking {
+            val factory = IDValueGen.Factory {
+                IDValueGen {
+                    IR.Value.String("str")
+                }
+            }
+
+            Arb
+                .ir(
+                    emptySchema,
+                    Scalars.GraphQLID.nonNullable,
+                    Config.default + (IDValueGenFactory to factory)
+                ).forAll { it == IR.Value.String("str") }
+        }
+
+    @Test
     fun `generates scalar values -- Int`(): Unit =
         runBlocking {
             Arb
@@ -111,13 +130,12 @@ class ArbIRTest : KotestPropertyBase() {
                 .forAll { it is IR.Value.Number && it.value is Int }
         }
 
-    @Disabled("https://app.asana.com/1/150975571430/project/1211295233988904/task/1211549203021234")
     @Test
     fun `generates scalar values -- JSON`(): Unit =
         runBlocking {
             Arb
                 .ir(emptySchema, emptySchema.schema.scalar("JSON").nonNullable)
-                .forAll { false }
+                .forAll { it == IR.Value.String("{}") }
         }
 
     @Test
@@ -549,6 +567,77 @@ class ArbIRTest : KotestPropertyBase() {
         }
 
     @Nested
+    inner class FromDocumentTests {
+        @Test
+        fun `generates values from Document -- fragments`(): Unit =
+            runBlocking {
+                val schema = "extend type Query { x:Int! }".asViaductSchema
+                val doc = """
+                    fragment F on Query { x }
+                    query { ...F }
+                """.trimIndent().asDocument
+
+                Arb.ir(schema, doc).forAll {
+                    it is IR.Value.Object && "x" in it.fields
+                }
+            }
+
+        @Test
+        fun `generates values from Document -- query`(): Unit =
+            runBlocking {
+                val schema = "extend type Query { x:Int! }".asViaductSchema
+                val doc = "{x}".asDocument
+                Arb.ir(schema, doc).forAll {
+                    it is IR.Value.Object && "x" in it.fields
+                }
+            }
+
+        @Test
+        fun `generates values from Document -- mutation`(): Unit =
+            runBlocking {
+                val schema = """
+                    extend type Query { empty:Int! }
+                    extend type Mutation { x:Int! }
+                """.trimIndent().asViaductSchema
+                val doc = "mutation {x}".asDocument
+
+                Arb.ir(schema, doc).forAll {
+                    it is IR.Value.Object && "x" in it.fields
+                }
+            }
+
+        @Test
+        fun `generates values from Document -- unsupported mutation`(): Unit =
+            runBlocking {
+                assertThrows<IllegalArgumentException> {
+                    Arb.ir(emptySchema, "mutation {x}".asDocument)
+                }
+            }
+
+        @Test
+        fun `generates values from Document -- subscription`(): Unit =
+            runBlocking {
+                val schema = """
+                    extend type Query { empty:Int! }
+                    extend type Subscription { x:Int! }
+                """.trimIndent().asViaductSchema
+                val doc = "subscription {x}".asDocument
+
+                Arb.ir(schema, doc).forAll {
+                    it is IR.Value.Object && "x" in it.fields
+                }
+            }
+
+        @Test
+        fun `generates values from Document -- unsupported subscription`(): Unit =
+            runBlocking {
+                assertThrows<IllegalArgumentException> {
+                    Arb.ir(emptySchema, "subscription {x}".asDocument)
+                }
+            }
+    }
+
+    @Nested
     inner class CyclicInputTests {
         private fun test(
             sdl: String,
@@ -629,6 +718,58 @@ class ArbIRTest : KotestPropertyBase() {
                     input E { a:[A!]! } # list escape
                 """.trimIndent(),
                 expDepth = 5
+            )
+        }
+    }
+
+    @Nested
+    inner class TypeCtxTests {
+        private val schema = """
+            directive @dir on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+            extend type Query { x:Int }
+            type Obj { x:Int @dir }
+            input Inp { x:Int @dir }
+        """.trimIndent().asViaductSchema.schema
+
+        @Test
+        fun `object traversal`() {
+            val obj = schema.getObjectType("Obj")
+            val field = obj.getField("x")
+            val ctx = TypeCtx(obj).traverse(field)
+
+            assertEquals(
+                TypeCtx(type = GraphQLInt, field = field, fieldParent = obj),
+                ctx
+            )
+
+            assertEquals(listOf("dir"), ctx.appliedDirectives.map { it.name })
+        }
+
+        @Test
+        fun `input traversal`() {
+            val inp = schema.getTypeAs<GraphQLInputObjectType>("Inp")
+            val field = inp.getField("x")
+            val ctx = TypeCtx(inp).traverse(field)
+
+            assertEquals(
+                TypeCtx(type = GraphQLInt, field = field, fieldParent = inp),
+                ctx
+            )
+            assertEquals(listOf("dir"), ctx.appliedDirectives.map { it.name })
+        }
+
+        @Test
+        fun `appliedDirectives -- no field in ctx`() {
+            assertEquals(emptyList<Any>(), TypeCtx(schema.queryType).appliedDirectives)
+        }
+
+        @Test
+        fun `appliedDirectives -- no directives on field`() {
+            assertEquals(
+                emptyList<Any>(),
+                TypeCtx(schema.queryType)
+                    .traverse(schema.queryType.getField("x"))
+                    .appliedDirectives
             )
         }
     }

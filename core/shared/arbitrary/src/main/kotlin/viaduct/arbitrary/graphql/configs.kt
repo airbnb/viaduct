@@ -301,3 +301,112 @@ object InputObjectValueWeight : ConfigKey<Double>(1.0, WeightValidator)
 
 /** The probability that any generated [IR.Value.Object] will be for an introspection type */
 object IntrospectionObjectValueWeight : ConfigKey<Double>(0.0, WeightValidator)
+
+/**
+ * The probability that a field resolver will be generated for a field that does not apply
+ * a `@resolver` directive.
+ */
+object UndeclaredFieldResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
+
+/**
+ * The probability that a node resolver will be configured for a Node type that does not apply
+ * a `@resolver` directive
+ **/
+object UndeclaredNodeResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
+
+/** The [NodeResolver.Factory] to use when constructing [viaduct.engine.api.NodeResolverExecutor] instances */
+object NodeResolverFactory : ConfigKey<NodeResolver.Factory>(NodeResolver.Factory.Arbitrary, Unvalidated)
+
+/**
+ * The probability that a generated NodeResolver will throw an exception.
+ *
+ * This is sampled on every invocation of a node resolver.
+ */
+object NodeResolverExceptionWeight : ConfigKey<Double>(0.05, WeightValidator)
+
+/** The [FieldResolver.Factory] to use when constructing [viaduct.engine.api.FieldResolverExecutor] instances */
+object FieldResolverFactory : ConfigKey<FieldResolver.Factory>(FieldResolver.Factory.Arbitrary, Unvalidated)
+
+/**
+ * The probability that a generated FieldResolver will throw an exception
+ *
+ * This is sampled on every invocation of a field resolver.
+ */
+object FieldResolverExceptionWeight : ConfigKey<Double>(0.05, WeightValidator)
+
+/** The [VariablesResolver.Factory] to use when constructing [viaduct.engine.api.VariablesResolver] instances */
+object VariablesResolverFactory : ConfigKey<VariablesResolver.Factory>(VariablesResolver.Factory.Arbitrary, Unvalidated)
+
+/**
+ * The probability that a generated VariablesResolver will throw an exception
+ *
+ * This is sampled on every invocation of a VariablesResolver.
+ */
+object VariablesResolverExceptionWeight : ConfigKey<Double>(0.05, WeightValidator)
+
+/**
+ * The probability that a generated field or node resolver will return only the values requested in its
+ * selection set, rather than its entire output selection set.
+ *
+ * This key is sampled once when a resolver is created and applies for the lifetime of the resolver.
+ */
+object SelectiveResolverWeight : ConfigKey<Double>(0.2, WeightValidator)
+
+/**
+ * The probability that a field resolver, variables resolver, or checker executor will have a required selection set.
+ *
+ * This is sampled independently for object and query types, meaning that a weight of .50 will have a
+ * 50% chance of having an RSS on its object type, and a 50% chance of having an
+ * RSS on its query type. The probability of having *any* RSS with this weight would be 75%.
+ *
+ * A RequiredSelectionSet may include 1 or more VariablesResolvers that contain their own RequiredSelectionSets --
+ * the depth of this nesting is limited by the weight max value.
+ */
+object RequiredSelectionSetWeight : ConfigKey<CompoundingWeight>(CompoundingWeight(.5, 5), CompoundingWeightValidator)
+
+/**
+ * The probability that a field resolver, variables resolver, or checker executor will read values from its
+ * required selection sets.
+ *
+ * This key is sampled once when a resolver is created and applies for the lifetime of the resolver.
+ */
+object ExerciseRequiredSelectionsWeight : ConfigKey<Double>(1.0, WeightValidator)
+
+/** A set of [TypeOrFieldCoordinate]s that a generator may not generate selections for. */
+object BanSelectionCoordinates : ConfigKey<Set<TypeOrFieldCoordinate>>(emptySet(), Unvalidated)
+
+/**
+ * A range of milliseconds that a field resolver, node resolver, variables resolver,
+ * or checker will delay before returning a result.
+ *
+ * This key is sampled on every invocation of a resolver.
+ */
+object ResolverLatencyMillis : ConfigKey<LongRange>(0L..0L, Unvalidated)
+
+/** The [CheckerExecutor.Factory] to use when constructing [CheckerExecutor] instances */
+object CheckerExecutorFactory : ConfigKey<CheckerExecutor.Factory>(CheckerExecutor.Factory.Arbitrary, Unvalidated)
+
+/** The probability that a GraphQL object field will have a Checker generated for it */
+object FieldCheckerWeight : ConfigKey<Double>(.1, WeightValidator)
+
+/** The probability that a GraphQL object type will have a Checker generated for it */
+object TypeCheckerWeight : ConfigKey<Double>(.1, WeightValidator)
+
+/**
+ * The probability that a Checker will throw an uncaught exception while executing,
+ * before it is able to return a [viaduct.engine.api.CheckerResult] to the engine
+ *
+ * This weight is sampled independently of [CheckerErrorWeight]
+ */
+object CheckerExceptionWeight : ConfigKey<Double>(.05, WeightValidator)
+
+/**
+ * The probability that a Checker will return an error while executing, indicating that a
+ * resource is not allowed.
+ *
+ * This weight is sampled independently of [CheckerExceptionWeight]
+ */
+object CheckerErrorWeight : ConfigKey<Double>(.3, WeightValidator)
+
+/** The generator to use when generating a value for ID scalar */
+object IDValueGenFactory : ConfigKey<IDValueGen.Factory>(IDValueGen.Factory.default, Unvalidated)

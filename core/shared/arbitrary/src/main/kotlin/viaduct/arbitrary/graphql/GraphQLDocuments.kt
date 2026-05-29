@@ -65,14 +65,14 @@ fun Arb.Companion.graphQLDocument(
     cfg: Config = Config.default,
 ): Arb<Document> =
     arbitrary { rs ->
-        Env(schema, cfg, rs).documentGen.gen()
+        DocumentGenEnv(schema, cfg, rs).documentGen.gen()
     }
 
 /**
- * Env provides an environment for component wiring, allowing for dependency cycles
+ * [DocumentGenEnv] provides an environment for component wiring, allowing for dependency cycles
  * This is declared as an interface to allow for kotlin-delegation inheritance
  */
-private interface Env {
+internal interface DocumentGenEnv {
     val schemas: Schemas
     val cfg: Config
     val rs: RandomSource
@@ -90,7 +90,7 @@ private interface Env {
             override val schemas: Schemas,
             override val cfg: Config,
             override val rs: RandomSource
-        ) : Env {
+        ) : DocumentGenEnv {
             override val documentGen = GraphQLDocumentGen(this)
             override val operationGen = GraphQLOperationGen(this)
             override val selectionSetGen = GraphQLSelectionSetGen(this)
@@ -103,11 +103,17 @@ private interface Env {
             schema: GraphQLSchema,
             cfg: Config,
             rs: RandomSource
-        ): Env = Impl(Schemas(schema), cfg, rs)
+        ): DocumentGenEnv = this(Schemas(schema), cfg, rs)
+
+        operator fun invoke(
+            schemas: Schemas,
+            cfg: Config,
+            rs: RandomSource
+        ): DocumentGenEnv = Impl(schemas, cfg, rs)
     }
 }
 
-private data class Ctx(
+internal data class DocumentGenCtx(
     val schemas: Schemas,
     val sb: SelectionsBuilder,
     val typeCondition: GraphQLCompositeType,
@@ -122,11 +128,22 @@ private data class Ctx(
 
     val typeAsImplementingType: GraphQLImplementingType get() = typeCondition as GraphQLImplementingType
 
-    val selectableFields: List<GraphQLFieldDefinition> get() =
+    fun selectableFields(cfg: Config): List<GraphQLFieldDefinition> =
         when {
-            isSubscriptionSelection -> typeAsImplementingType.fields
             typeCondition is GraphQLUnionType -> listOf(TypeNameMetaFieldDef)
-            else -> typeAsImplementingType.fields + TypeNameMetaFieldDef
+            else ->
+                typeAsImplementingType.fields
+                    .let {
+                        if (!isSubscriptionSelection) {
+                            it + TypeNameMetaFieldDef
+                        } else {
+                            it
+                        }
+                    }
+                    .filter { field ->
+                        val coord = typeCondition.name to field.name
+                        coord !in cfg[BanSelectionCoordinates]
+                    }
         }
 
     val keepGenerating: Boolean get() =
@@ -139,17 +156,35 @@ private data class Ctx(
     fun push(
         sb: SelectionsBuilder,
         typeCondition: GraphQLCompositeType
-    ): Ctx =
+    ): DocumentGenCtx =
         copy(
             sb = sb,
             typeCondition = typeCondition,
             depth = depth + 1
         )
+
+    companion object {
+        operator fun invoke(
+            schemas: Schemas,
+            typeCondition: GraphQLCompositeType,
+            isSubscriptionOperation: Boolean = false
+        ): DocumentGenCtx =
+            DocumentGenCtx(
+                schemas,
+                SelectionsBuilder(),
+                typeCondition,
+                Fragments(schemas),
+                Variables(schemas),
+                IncrementalLabels(),
+                isSubscriptionOperation = isSubscriptionOperation,
+                depth = 0
+            )
+    }
 }
 
-private class GraphQLDocumentGen(
-    env: Env
-) : Env by env {
+internal class GraphQLDocumentGen(
+    env: DocumentGenEnv
+) : DocumentGenEnv by env {
     fun gen(): Document {
         val db = DocumentBuilder(schemas)
 
@@ -178,9 +213,9 @@ private class GraphQLDocumentGen(
     }
 }
 
-private class GraphQLOperationGen(
-    env: Env
-) : Env by env {
+internal class GraphQLOperationGen(
+    env: DocumentGenEnv
+) : DocumentGenEnv by env {
     /** generate a document that contains exactly 1 operation definition and any number of fragment definitions */
     fun gen(
         db: DocumentBuilder,
@@ -205,7 +240,7 @@ private class GraphQLOperationGen(
             OperationDefinition.Operation.SUBSCRIPTION -> DirectiveLocation.SUBSCRIPTION
         }
 
-        val ctx = Ctx(schemas, SelectionsBuilder(), objectType, db.fragments, variables, db.incrementalLabels, isSubscriptionOperation = objectType == schemas.schema.subscriptionType)
+        val ctx = DocumentGenCtx(schemas, SelectionsBuilder(), objectType, db.fragments, variables, db.incrementalLabels, isSubscriptionOperation = objectType == schemas.schema.subscriptionType)
 
         return OperationDefinition
             .newOperationDefinition()
@@ -218,11 +253,11 @@ private class GraphQLOperationGen(
     }
 }
 
-private class GraphQLSelectionSetGen(
-    env: Env
-) : Env by env {
-    /** generate a SelectionSet for the given [Ctx] */
-    fun gen(ctx: Ctx): SelectionSet {
+internal class GraphQLSelectionSetGen(
+    env: DocumentGenEnv
+) : DocumentGenEnv by env {
+    /** generate a SelectionSet for the given [DocumentGenCtx] */
+    fun gen(ctx: DocumentGenCtx): SelectionSet {
         // check depth and return early
         if (checkDepth(ctx.depth)) {
             // fragments are more likely to be spreadable when applied to an empty selection set.
@@ -236,7 +271,7 @@ private class GraphQLSelectionSetGen(
             // add unfragmented field selections
             repeat(depthAdjustedCount(ctx, cfg[FieldSelectionWeight])) {
                 if (ctx.keepGenerating) {
-                    val field = Arb.of(ctx.selectableFields).next(rs)
+                    val field = Arb.of(ctx.selectableFields(cfg)).next(rs)
                     genField(ctx, field)
                 }
             }
@@ -259,17 +294,19 @@ private class GraphQLSelectionSetGen(
     }
 
     private fun depthAdjustedCount(
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         cw: CompoundingWeight
     ): Int {
         val adjustedWeight = cw.copy(max = max(cw.max - ctx.depth, 0))
         return rs.count(adjustedWeight)
     }
 
-    private fun fallbackFields(ctx: Ctx): List<GraphQLFieldDefinition> = ctx.selectableFields.filter { GraphQLTypeUtil.unwrapAll(it.type) !is GraphQLCompositeType }
+    private fun fallbackFields(ctx: DocumentGenCtx): List<GraphQLFieldDefinition> =
+        ctx.selectableFields(cfg)
+            .filter { GraphQLTypeUtil.unwrapAll(it.type) !is GraphQLCompositeType }
 
     private fun genField(
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         field: GraphQLFieldDefinition
     ) {
         val arguments = argumentsGen.gen(field.arguments, ctx)
@@ -299,7 +336,7 @@ private class GraphQLSelectionSetGen(
     }
 
     private fun withAlias(
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         key: FieldKey,
         aliasNameSize: IntRange
     ): FieldKey {
@@ -308,7 +345,7 @@ private class GraphQLSelectionSetGen(
         // which is one of a small number of Arb methods that do not ignore edge cases
         val keyWithAlias = Arb
             .graphQLName(aliasNameSize)
-            .withEdgecases(ctx.selectableFields.map { it.name })
+            .withEdgecases(ctx.selectableFields(cfg).map { it.name })
             .generate(rs)
             .take(100)
             .map { key.copy(alias = it.value) }
@@ -325,7 +362,7 @@ private class GraphQLSelectionSetGen(
         return withAlias(ctx, key, newAliasNameSize)
     }
 
-    private fun genInlineFragment(ctx: Ctx) {
+    private fun genInlineFragment(ctx: DocumentGenCtx) {
         val spreadableTypes = schemas.rels.spreadableTypes(ctx.typeCondition)
         if (spreadableTypes.isEmpty()) return
 
@@ -347,7 +384,7 @@ private class GraphQLSelectionSetGen(
         ctx.sb.add(selection)
     }
 
-    private fun genFragmentSpread(ctx: Ctx) {
+    private fun genFragmentSpread(ctx: DocumentGenCtx) {
         val spreadableFragments = ctx.fragments
             .spreadableFragments(ctx.sb, ctx.typeCondition)
             .filter { frag ->
@@ -396,7 +433,7 @@ private class GraphQLSelectionSetGen(
 
     /** generate a fragment definition that is spreadable in the selections of Ctx */
     private fun genFragmentDef(
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         typeCondition: GraphQLCompositeType
     ): FragmentDef {
         val fragmentScope = ctx.sb.newFragmentScope()
@@ -429,7 +466,7 @@ private class GraphQLSelectionSetGen(
      * of any referenced fragments or variables (which can also refer to other variables)
      */
     private fun extractVariables(
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         node: Node<*>
     ): List<VariableDefinition> {
         val seen = mutableSetOf<Node<*>>()
@@ -455,17 +492,17 @@ private class GraphQLSelectionSetGen(
     }
 
     private fun genDirectives(
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         location: DirectiveLocation
     ): List<Directive> = directiveGen.gen(location, ctx)
 }
 
-private class GraphQLArgumentsGen(
-    env: Env
-) : Env by env {
+internal class GraphQLArgumentsGen(
+    env: DocumentGenEnv
+) : DocumentGenEnv by env {
     fun gen(
         args: List<GraphQLArgument>,
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         canUseVariables: Boolean = true
     ): List<Argument> = args.mapNotNull { gen(it, ctx, canUseVariables) }
 
@@ -475,7 +512,7 @@ private class GraphQLArgumentsGen(
      */
     fun gen(
         arg: GraphQLArgument,
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         canUseVariables: Boolean = true
     ): Argument? {
         val canInull = arg.hasSetDefaultValue() || GraphQLTypeUtil.isNullable(arg.type)
@@ -495,7 +532,7 @@ private class GraphQLArgumentsGen(
 
     private fun genValue(
         type: GraphQLInputType,
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         locationDefault: Value<*>?,
         canUseVariables: Boolean
     ): Value<*> {
@@ -515,7 +552,7 @@ private class GraphQLArgumentsGen(
 
     private fun genVariable(
         forType: GraphQLInputType,
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
     ): VariableDefinition {
         val default =
             if (rs.sampleWeight(cfg[DefaultValueWeight])) {
@@ -543,16 +580,16 @@ private class GraphQLArgumentsGen(
     }
 }
 
-private class GraphQLDirectivesGen(
-    env: Env
-) : Env by env {
+internal class GraphQLDirectivesGen(
+    env: DocumentGenEnv
+) : DocumentGenEnv by env {
     // a set of directives that are known to require const argument values
     private val incrementalDirs = setOf("stream", "defer")
     private val conditionalDirs = setOf("skip", "include")
 
     fun gen(
         location: DirectiveLocation,
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         canUseVariables: Boolean = true,
     ): List<Directive> {
         val directiveWeight = cfg[AppliedDirectiveWeight]
@@ -603,7 +640,7 @@ private class GraphQLDirectivesGen(
 
     private fun genArguments(
         defs: List<GraphQLArgument>,
-        ctx: Ctx,
+        ctx: DocumentGenCtx,
         canUseVariables: Boolean,
         isIncremental: Boolean
     ): List<Argument> {

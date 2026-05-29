@@ -31,6 +31,7 @@ import viaduct.mapping.graphql.IR
  *
  * This generator knows how to handle these [ConfigKey]s:
  * - [ExplicitNullValueWeight]
+ * - [IDValueGenFactory]
  * - [ListValueSize]
  * - [ScalarValueOverrides]
  * - [SelectedTypeBias]
@@ -54,17 +55,18 @@ internal class IRResultGen(
 ) {
     private val enumGen = EnumValueGen(rs)
     private val scalarGen = ScalarValueGen(
-        // coercion is only applicable to input values -- result values should never require coercion
-        uncoercedValueWeight = 0.0,
+        schema,
         cfg,
-        rs
+        rs,
+        // coercion is only applicable to input values -- result values should never require coercion
+        uncoercedValueWeight = 0.0
     )
 
     fun genValue(
         type: GraphQLOutputType,
         selections: SelectionSet?,
         fragments: Map<String, FragmentDefinition>,
-    ): IR.Value = gen(type, selections, fragments, true)
+    ): IR.Value = gen(TypeCtx(type), selections, fragments, true)
 
     private fun enullOr(
         nullable: Boolean,
@@ -76,52 +78,69 @@ internal class IRResultGen(
     }
 
     private fun gen(
-        type: GraphQLOutputType,
+        tc: TypeCtx,
         selections: SelectionSet?,
         fragments: Map<String, FragmentDefinition>,
         nullable: Boolean
     ): IR.Value =
-        when (type) {
-            is GraphQLNonNull -> gen(GraphQLTypeUtil.unwrapOneAs(type), selections, fragments, false)
+        when (tc.type) {
+            is GraphQLNonNull ->
+                gen(
+                    tc.traverse(GraphQLTypeUtil.unwrapOne(tc.type)),
+                    selections,
+                    fragments,
+                    false
+                )
+
             is GraphQLList ->
                 enullOr(nullable) {
                     val listSize = Arb.int(cfg[ListValueSize]).next(rs)
                     val items = List(listSize) {
-                        gen(GraphQLTypeUtil.unwrapOneAs(type), selections, fragments, true)
+                        gen(
+                            tc.traverse(GraphQLTypeUtil.unwrapOne(tc.type)),
+                            selections,
+                            fragments,
+                            true
+                        )
                     }
                     IR.Value.List(items)
                 }
 
             is GraphQLObjectType ->
                 enullOr(nullable) {
-                    genObject(type, requireNotNull(selections), fragments)
+                    genObject(tc, requireNotNull(selections), fragments)
                 }
 
             is GraphQLCompositeType ->
                 enullOr(nullable) {
-                    val concreteType = concretizeType(type, requireNotNull(selections), fragments)
-                    gen(concreteType, selections, fragments, nullable)
+                    val concreteType = concretizeType(tc.type, requireNotNull(selections), fragments)
+                    gen(
+                        tc.traverse(concreteType),
+                        selections,
+                        fragments,
+                        nullable
+                    )
                 }
 
             is GraphQLEnumType ->
                 enullOr(nullable) {
-                    enumGen.gen(type)
+                    enumGen.gen(tc.type)
                 }
 
             is GraphQLScalarType ->
                 enullOr(nullable) {
-                    scalarGen.gen(type)
+                    scalarGen.gen(tc)
                 }
 
-            else -> throw IllegalArgumentException("Unsupported type: $type")
+            else -> throw IllegalArgumentException("Unsupported type: ${tc.type}")
         }
 
     private fun genObject(
-        type: GraphQLCompositeType,
+        tc: TypeCtx,
         selections: SelectionSet,
         fragments: Map<String, FragmentDefinition>
     ): IR.Value.Object {
-        val concreteType = concretizeType(type, selections, fragments)
+        val concreteType = concretizeType(tc.type as GraphQLCompositeType, selections, fragments)
 
         return selections.selections.fold(IR.Value.Object(concreteType.name)) { acc, sel ->
             when (sel) {
@@ -132,7 +151,16 @@ internal class IRResultGen(
                         val fieldDef = requireNotNull(concreteType.getField(sel.name)) {
                             "unexpected field: ${concreteType.name}.${sel.name}"
                         }
-                        val value = gen(fieldDef.type, sel.selectionSet, fragments, true)
+                        val value = gen(
+                            tc.copy(
+                                type = fieldDef.type,
+                                field = fieldDef,
+                                fieldParent = tc.type
+                            ),
+                            sel.selectionSet,
+                            fragments,
+                            true
+                        )
                         acc + (sel.resultKey to value)
                     }
                 }
@@ -141,7 +169,11 @@ internal class IRResultGen(
                     val fragment = requireNotNull(fragments[sel.name]) { "missing fragment `${sel.name}`" }
                     val fragmentType = schema.schema.getTypeAs<GraphQLCompositeType>(fragment.typeCondition.name)
                     if (schema.rels.isSpreadable(concreteType, fragmentType)) {
-                        val fragmentResult = genObject(concreteType, fragment.selectionSet, fragments)
+                        val fragmentResult = genObject(
+                            tc.traverse(concreteType),
+                            fragment.selectionSet,
+                            fragments
+                        )
                         acc.copy(fields = acc.fields + fragmentResult.fields)
                     } else {
                         acc
@@ -153,7 +185,11 @@ internal class IRResultGen(
                         ?.let { schema.schema.getTypeAs<GraphQLCompositeType>(it) }
                         ?: concreteType
                     if (schema.rels.isSpreadable(concreteType, fragmentType)) {
-                        val fragmentResult = genObject(concreteType, sel.selectionSet, fragments)
+                        val fragmentResult = genObject(
+                            tc.traverse(concreteType),
+                            sel.selectionSet,
+                            fragments
+                        )
                         acc.copy(fields = acc.fields + fragmentResult.fields)
                     } else {
                         acc

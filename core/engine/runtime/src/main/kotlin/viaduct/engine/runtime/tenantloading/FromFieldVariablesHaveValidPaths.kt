@@ -12,6 +12,8 @@ import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
+import viaduct.engine.runtime.select.coord
+import viaduct.engine.runtime.select.relation
 import viaduct.engine.runtime.validation.Validator
 import viaduct.graphql.utils.GraphQLTypeRelation
 import viaduct.graphql.utils.VariableUsageInfo

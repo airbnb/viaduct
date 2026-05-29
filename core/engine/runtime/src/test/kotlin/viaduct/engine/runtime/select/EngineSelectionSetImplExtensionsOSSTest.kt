@@ -17,12 +17,14 @@ import java.util.Locale
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
 import viaduct.engine.api.fragment.FragmentVariables
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.execution.constraints.Constraints
+import viaduct.graphql.utils.GraphQLTypeRelation
 
 class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
     private val schema =
@@ -426,6 +428,211 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
             expectedFragment.variables.asMap(),
             fragment.variables.asMap()
         )
+    }
+
+    @Test
+    fun `allCoords -- leaf fields on object type`() {
+        assertEquals(
+            setOf("Foo" to "id", "Foo" to "int"),
+            mk("Foo", "id int").allCoords(ViaductSchema(schema))
+        )
+    }
+
+    @Test
+    fun `allCoords -- introspection fields are included`() {
+        // __typename is an introspection meta-field; allCoords must include it
+        // and must not throw when looking up its field definition.
+        assertEquals(
+            setOf("Foo" to "__typename"),
+            mk("Foo", "__typename").allCoords(ViaductSchema(schema))
+        )
+    }
+
+    @Test
+    fun `allCoords -- interface type condition expands to all concrete types`() {
+        assertEquals(
+            setOf("Foo" to "id", "Bar" to "id"),
+            mk("Node", "id").allCoords(ViaductSchema(schema))
+        )
+    }
+
+    @Test
+    fun `allCoords -- traversable field recurses into nested selections`() {
+        assertEquals(
+            setOf(
+                "Foo" to "node",
+                "Foo" to "id",
+                "Bar" to "id",
+            ),
+            mk("Foo", "node { id }").allCoords(ViaductSchema(schema))
+        )
+    }
+
+    @Test
+    fun `allCoords -- empty selection returns empty set`() {
+        // All selections skipped via directive → no coords
+        assertEquals(
+            emptySet<Pair<String, String>>(),
+            mk("Foo", "__typename @skip(if: true)").allCoords(ViaductSchema(schema))
+        )
+    }
+
+    @Test
+    fun `allCoords -- abstract field recursion includes all concrete branches`() {
+        val polymorphicSchema = mkSchema(
+            """
+            type Query { placeholder: Int }
+            interface I { child:I }
+
+            type A implements I { child:A, leaf:Int }
+            type B implements I { child:B, leaf:Int }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            setOf(
+                "A" to "child",
+                "B" to "child",
+                "A" to "leaf",
+                "B" to "leaf",
+            ),
+            mk(
+                "I",
+                """
+                child {
+                  ... on A { leaf }
+                  ... on B { leaf }
+                }
+                """.trimIndent(),
+                schema = polymorphicSchema,
+            ).allCoords(ViaductSchema(polymorphicSchema))
+        )
+    }
+
+    @Test
+    fun `reachableObjects -- leaf fields return empty set`() {
+        assertEquals(
+            emptySet<String>(),
+            mk("Foo", "id int").reachableObjects(ViaductSchema(schema))
+        )
+    }
+
+    @Test
+    fun `reachableObjects -- traversable field includes nested concrete types`() {
+        assertEquals(
+            setOf("Foo", "Bar"),
+            mk("Foo", "node { id }").reachableObjects(ViaductSchema(schema))
+        )
+    }
+
+    @Test
+    fun `reachableObjects -- empty selection returns empty set`() {
+        assertEquals(
+            emptySet<String>(),
+            mk("Foo", "__typename @skip(if: true)").reachableObjects(ViaductSchema(schema))
+        )
+    }
+
+    @Test
+    fun `reachableObjects -- abstract field recursion includes all concrete branches`() {
+        val polymorphicSchema = mkSchema(
+            """
+            type Query { placeholder: Int }
+            interface I { child:I }
+
+            type A implements I { child:A, leaf:Int }
+            type B implements I { child:B, leaf:Int }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            setOf("A", "B"),
+            mk(
+                "I",
+                """
+                child {
+                  ... on A { leaf }
+                  ... on B { leaf }
+                }
+                """.trimIndent(),
+                schema = polymorphicSchema,
+            ).reachableObjects(ViaductSchema(polymorphicSchema))
+        )
+    }
+
+    // ─── coord ────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `coord -- returns typeCondition to fieldName`() {
+        val sel = EngineSelection(typeCondition = "Foo", fieldName = "id", selectionName = "id")
+        assertEquals("Foo" to "id", sel.coord)
+    }
+
+    @Test
+    fun `coord -- uses fieldName not selectionName for aliases`() {
+        val sel = EngineSelection(typeCondition = "Foo", fieldName = "id", selectionName = "myAlias")
+        assertEquals("Foo" to "id", sel.coord)
+    }
+
+    // ─── coordinates ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `coordinates -- leaf fields`() {
+        assertEquals(
+            setOf("Foo" to "id", "Foo" to "int"),
+            mk("Foo", "id int").coordinates
+        )
+    }
+
+    @Test
+    fun `coordinates -- aliased field uses fieldName`() {
+        assertEquals(
+            setOf("Foo" to "id"),
+            mk("Foo", "myId: id").coordinates
+        )
+    }
+
+    @Test
+    fun `coordinates -- inline fragment preserves type condition`() {
+        assertEquals(
+            setOf("Foo" to "int"),
+            mk("Node", "... on Foo { int }").coordinates
+        )
+    }
+
+    @Test
+    fun `coordinates -- empty selection set`() {
+        assertEquals(
+            emptySet<Pair<String, String>>(),
+            mk("Foo", "__typename @skip(if: true)").coordinates
+        )
+    }
+
+    // ─── relation ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun `relation -- same type returns Same`() {
+        val ess = mk("Foo", "id")
+        val sel = EngineSelection(typeCondition = "Foo", fieldName = "id", selectionName = "id")
+        assertEquals(GraphQLTypeRelation.Same, ess.relation(ViaductSchema(schema), sel))
+    }
+
+    @Test
+    fun `relation -- interface condition on concrete ESS returns NarrowerThan`() {
+        // ESS is Foo (concrete), selection typeCondition is Node (interface Foo implements).
+        // relation(Foo, Node): Foo is narrower than Node → NarrowerThan.
+        val ess = mk("Foo", "id")
+        val sel = EngineSelection(typeCondition = "Node", fieldName = "id", selectionName = "id")
+        assertEquals(GraphQLTypeRelation.NarrowerThan, ess.relation(ViaductSchema(schema), sel))
+    }
+
+    @Test
+    fun `relation -- concrete condition on interface ESS returns WiderThan`() {
+        // ESS is Node (interface), selection typeCondition is Foo (concrete type).
+        // relation(Node, Foo): Node is wider than Foo → WiderThan.
+        val ess = mk("Node", "id")
+        val sel = EngineSelection(typeCondition = "Foo", fieldName = "id", selectionName = "id")
+        assertEquals(GraphQLTypeRelation.WiderThan, ess.relation(ViaductSchema(schema), sel))
     }
 
     fun mkSchema(sdl: String): GraphQLSchema {

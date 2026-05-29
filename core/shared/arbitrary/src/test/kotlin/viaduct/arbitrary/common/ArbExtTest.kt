@@ -5,6 +5,7 @@ package viaduct.arbitrary.common
 
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
+import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.char
 import io.kotest.property.arbitrary.constant
 import io.kotest.property.arbitrary.int
@@ -14,6 +15,7 @@ import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.take
 import io.kotest.property.exhaustive.exhaustive
+import io.kotest.property.forAll
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.util.UUID
@@ -23,8 +25,11 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import viaduct.apiannotations.VisibleForTest
 
+@OptIn(VisibleForTest::class)
 class ArbExtTest : KotestPropertyBase() {
     @Test
     fun `Gen_asSequence`(): Unit =
@@ -85,6 +90,25 @@ class ArbExtTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `Arb_flatten -- edge case delegates to underlying`() {
+        val arb = Arb.constant(listOf(1, 2, 3)).flatten()
+        val edge = arb.edgecase(RandomSource.seeded(0))
+        // edgecase returns first element from underlying's edgecase iterator
+        assertTrue(edge != null && edge in listOf(1, 2, 3))
+    }
+
+    @Test
+    fun `Arb_mapNotNull`(): Unit =
+        runBlocking {
+            Arb.int(0..100)
+                .mapNotNull {
+                    it.takeIf { it % 2 == 0 }?.toString()
+                }.forAll {
+                    (it.toInt() % 2 == 0)
+                }
+        }
+
+    @Test
     fun `Any_failProperty -- failure message includes seed when provided`() {
         // no seed value is provided
         assertThrows<AssertionError> {
@@ -128,18 +152,64 @@ class ArbExtTest : KotestPropertyBase() {
     }
 
     @Test
-    fun `seedMarch returns null when no failure`() {
-        val result = Arb.int().seedMarch(maxIter = 100)
-        assertNull(result)
+    fun `Arb_seedMarch -- succeeds`(): Unit =
+        runBlocking {
+            val seenSeeds = mutableListOf<Long>()
+            val result = Arb.constant(Unit)
+                .seedMarch(0, 10) { seed ->
+                    seenSeeds += seed
+                }
+
+            assertNull(result)
+            assertEquals((0L..9L).toList(), seenSeeds)
+        }
+
+    @Test
+    fun `Arb_seedMarch -- returns failures`(): Unit =
+        runBlocking {
+            val err = RuntimeException("test exception")
+            val arb = arbitrary { rs ->
+                if (rs.seed == 3L) throw err
+            }
+
+            val seenSeeds = mutableListOf<Long>()
+            val result = arb.seedMarch(0L, maxIter = 10) { seed ->
+                seenSeeds += seed
+            }
+
+            assertEquals((3L to err), result)
+            assertEquals((0L..3L).toList(), seenSeeds)
+        }
+
+    @Test
+    fun `Arb_printSeedMarch -- succeeds`() {
+        assertDoesNotThrow {
+            Arb.constant(Unit)
+                .printSeedMarch(0L, maxIter = 5, printEvery = 2)
+        }
     }
 
     @Test
-    fun `printSeedMarch prints seed progress`() {
-        val baos = ByteArrayOutputStream()
-        val out = PrintStream(baos)
-        Arb.int().printSeedMarch(maxIter = 10, printEvery = 5, out = out)
-        val output = baos.toString()
-        assertTrue(output.contains("Seed 0"))
-        assertTrue(output.contains("Seed 5"))
-    }
+    fun `Arb_printSeedMarch -- fails`(): Unit =
+        runBlocking {
+            val err = RuntimeException("test exception")
+            val arb = arbitrary { rs ->
+                if (rs.seed == 3L) throw err
+            }
+
+            val bytes = ByteArrayOutputStream()
+            val out = PrintStream(bytes)
+            runCatching {
+                arb.printSeedMarch(0L, maxIter = 10, printEvery = 2, out)
+            }
+            assertEquals(
+                """
+                Seed 0...
+                Seed 2...
+                Failed on seed: 3
+
+                """.trimIndent(),
+                bytes.toString()
+            )
+        }
 }
