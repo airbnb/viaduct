@@ -185,6 +185,11 @@ registerSubprojectAggregate(
     description = "[orchestration] Runs findWarningsForCleanup on all SUBPROJECTS in THIS build.",
     taskNames = setOf("findWarningsForCleanup")
 )
+registerSubprojectAggregate(
+    aggregateName = "orchestrationSecurityScanAll",
+    description = "[orchestration] Runs CVE/SBOM/license scans on all SUBPROJECTS in THIS build.",
+    taskNames = setOf("securityScan")
+)
 
 // CI-oriented aggregate: compile main + test sources without running tests or producing jars
 registerSubprojectAggregate(
@@ -273,6 +278,12 @@ if (gradle.parent != null) {
         group = "verification",
         description = "Runs findWarningsForCleanup on all subprojects in this included build."
     )
+    aliasConventionalTaskToAggregate(
+        conventionalName = "securityScan",
+        aggregateName = "orchestrationSecurityScanAll",
+        group = "verification",
+        description = "Runs CVE/SBOM/license scans on all subprojects in this included build."
+    )
 }
 
 // ---------------- Workspace-wide tasks (ROOT ONLY) ----------------
@@ -336,6 +347,12 @@ if (gradle.parent == null) {
     ensureTask("findWarningsForCleanup", "verification", "Runs findWarningsForCleanup across root and participating included builds.") {
         dependsOn(tasksNamedInSubprojects("findWarningsForCleanup"))
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationFindWarningsForCleanupAll") })
+    }
+
+    // securityScan: root subprojects + included builds' aggregate
+    ensureTask("securityScan", "verification", "Runs CVE/SBOM/license scans across root and participating included builds.") {
+        dependsOn(tasksNamedInSubprojects("securityScan"))
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationSecurityScanAll") })
     }
 
     // buildRepoForCI: compile main + test classes across the repo (no test execution, no jars)

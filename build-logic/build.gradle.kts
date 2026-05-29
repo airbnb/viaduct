@@ -26,6 +26,8 @@ dependencies {
     implementation(plugin(libs.plugins.dokkaJavaDoc))
     implementation(plugin(libs.plugins.spotbugs))
     implementation(plugin(libs.plugins.shadow))
+    implementation(plugin(libs.plugins.cyclonedx.bom))
+    implementation(plugin(libs.plugins.jk1.license.report))
     compileOnly(libs.detekt.api)
 
     // settings dependencies

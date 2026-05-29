@@ -1,0 +1,49 @@
+{
+  "_comment": "Viaduct OSS license allowlist consumed by jk1 dependency-license-report (`checkLicense` task). Format: https://github.com/jk1/Gradle-License-Report#license-checks. Set `moduleLicenseRegex: true` to interpret moduleLicense as a regex.",
+  "allowedLicenses": [
+    { "moduleLicense": "Apache License, Version 2.0" },
+    { "moduleLicense": "Apache 2.0" },
+    { "moduleLicense": "Apache-2.0" },
+    { "moduleLicense": "The Apache Software License, Version 2.0" },
+    { "moduleLicense": "Apache License 2.0" },
+
+    { "moduleLicense": "MIT" },
+    { "moduleLicense": "MIT License" },
+    { "moduleLicense": "The MIT License" },
+
+    { "moduleLicense": "BSD-2-Clause" },
+    { "moduleLicense": "BSD-3-Clause" },
+    { "moduleLicense": "The 2-Clause BSD License" },
+    { "moduleLicense": "The 3-Clause BSD License" },
+    { "moduleLicense": "The New BSD License" },
+    { "moduleLicense": "BSD New license" },
+    { "moduleLicense": "BSD License 3" },
+
+    { "moduleLicense": "ISC" },
+    { "moduleLicense": "ISC License" },
+
+    { "moduleLicense": "EPL-1.0" },
+    { "moduleLicense": "EPL-2.0" },
+    { "moduleLicense": "Eclipse Public License - v 1.0" },
+    { "moduleLicense": "Eclipse Public License - v 2.0" },
+    { "moduleLicense": "Eclipse Public License v2.0" },
+
+    { "moduleLicense": "MPL 2.0" },
+    { "moduleLicense": "MPL-2.0" },
+    { "moduleLicense": "Mozilla Public License Version 2.0" },
+
+    { "moduleLicense": "CDDL-1.0" },
+    { "moduleLicense": "CDDL-1.1" },
+    { "moduleLicense": "Common Development and Distribution License 1.0" },
+    { "moduleLicense": "Common Development and Distribution License 1.1" },
+
+    { "moduleLicense": "CC0-1.0" },
+    { "moduleLicense": "CC0 1.0 Universal" },
+
+    { "moduleLicense": "Public Domain" },
+    { "moduleLicense": "Public Domain, per Creative Commons CC0" },
+
+    { "moduleLicense": "GPL2 w/ CPE" },
+    { "moduleLicense": "GNU General Public License, version 2 with the Classpath Exception" }
+  ]
+}

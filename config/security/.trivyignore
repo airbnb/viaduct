@@ -1,0 +1,12 @@
+# Viaduct OSS Trivy ignore file.
+#
+# Each entry MUST be preceded by a comment block including:
+#   - GitHub handle of the suppressor and ISO date
+#   - Reason (link to upstream issue, internal triage doc, or short justification)
+# Use the `exp:YYYY-MM-DD` suffix to set automatic expiry (≤ 90 days from suppression).
+# Lines starting with # are comments. Blank lines are ignored.
+#
+# Example (delete on first real entry):
+# geovanne_duarte 2026-05-26: false-positive — only affects guava server module
+# which Viaduct doesn't bundle. https://github.com/google/guava/issues/XXXX
+# CVE-XXXX-YYYYY exp:2026-08-24
