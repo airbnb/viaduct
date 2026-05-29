@@ -286,7 +286,7 @@ data class EngineSelectionSetImpl(
                 is InlineFragment -> sel.selectionSet.selections.forEach {
                     collectDropped(inlineFragmentType(sel, type), it)
                 }
-                is FragmentSpread -> getFragmentDefinition(sel.name).let { frag ->
+                is FragmentSpread -> ctx.fragmentDefinitions[sel.name]?.let { frag ->
                     frag.selectionSet.selections.forEach {
                         collectDropped(compositeType(frag.typeCondition.name), it)
                     }
@@ -302,6 +302,11 @@ data class EngineSelectionSetImpl(
         ) {
             newRequestedTypes += type
             for (sel in ss.selections) {
+                if (sel is FragmentSpread && constraints.isDroppedByDirectives(sel)) {
+                    collectDropped(type, sel)
+                    continue
+                }
+
                 val child = constraints.descend(sel)
                 if (child.solve(ctx.constraintsCtx).isDrop) {
                     collectDropped(type, sel)
@@ -471,6 +476,16 @@ data class EngineSelectionSetImpl(
 
             else -> throw IllegalArgumentException("Unsupported Selection type: $sel")
         }
+
+    private fun Constraints.isDroppedByDirectives(sel: Selection<*>): Boolean {
+        val directives = when (sel) {
+            is Field -> sel.directives
+            is InlineFragment -> sel.directives
+            is FragmentSpread -> sel.directives
+            else -> throw IllegalArgumentException("Unsupported Selection type: $sel")
+        }
+        return withDirectives(directives).clearTypes().solve(ctx.constraintsCtx).isDrop
+    }
 
     override fun isEmpty(): Boolean = selections.isEmpty()
 

@@ -18,6 +18,7 @@ import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.graphql.utils.ParsedSelections
 
 class EngineSelectionSetImplTest {
     private val defaultSdl =
@@ -49,6 +50,21 @@ class EngineSelectionSetImplTest {
         MockSchema.mk(sdl).let { schema ->
             EngineSelectionSetImpl.create(
                 SelectionsParser.parse(typename, selections),
+                vars,
+                schema,
+            )
+        }
+
+    private fun mkWithPrunedFragments(
+        typename: String,
+        selections: String,
+        sdl: String = defaultSdl,
+        vars: Map<String, Any?> = mapOf(),
+    ): EngineSelectionSetImpl =
+        MockSchema.mk(sdl).let { schema ->
+            val parsed = SelectionsParser.parse(typename, selections)
+            EngineSelectionSetImpl.create(
+                ParsedSelections(parsed.typeName, parsed.selections, emptyMap()),
                 vars,
                 schema,
             )
@@ -270,6 +286,58 @@ class EngineSelectionSetImplTest {
     fun `create -- missing fragment definition`() {
         assertThrows<IllegalArgumentException> {
             mk("Node", "... MissingFragment")
+        }
+    }
+
+    @Test
+    fun `create -- skipped inline fragment tolerates pruned nested fragment definition`() {
+        val ss = mkWithPrunedFragments(
+            "Foo",
+            """
+                fragment Main on Foo {
+                  id
+                  ... on Foo @skip(if:true) {
+                    ... FooFrag
+                  }
+                }
+                fragment FooFrag on Foo { int }
+            """.trimIndent(),
+        )
+
+        assertTrue(ss.containsField("Foo", "id"))
+        assertFalse(ss.containsField("Foo", "int"))
+    }
+
+    @Test
+    fun `create -- skipped fragment spread tolerates pruned fragment definition`() {
+        val ss = mkWithPrunedFragments(
+            "Foo",
+            """
+                fragment Main on Foo {
+                  id
+                  ... FooFrag @skip(if:true)
+                }
+                fragment FooFrag on Foo { int }
+            """.trimIndent(),
+        )
+
+        assertTrue(ss.containsField("Foo", "id"))
+        assertFalse(ss.containsField("Foo", "int"))
+    }
+
+    @Test
+    fun `create -- active fragment spread still requires fragment definition`() {
+        assertThrows<IllegalArgumentException> {
+            mkWithPrunedFragments(
+                "Foo",
+                """
+                    fragment Main on Foo {
+                      id
+                      ... FooFrag
+                    }
+                    fragment FooFrag on Foo { int }
+                """.trimIndent(),
+            )
         }
     }
 
