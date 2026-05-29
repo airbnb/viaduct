@@ -196,17 +196,34 @@ jobs:
           }
         shell: bash
 
+      - name: Generate hierarchical coverage index
+        if: always() && matrix.project == 'core'
+        run: |
+          python3 .github/scripts/generate_coverage_index.py core core/build/reports/coverage || {
+            echo "::warning::Coverage index generation failed"
+          }
+        shell: bash
+
       - name: Verify coverage thresholds
         if: always() && matrix.project == 'core'
         run: |
           # TODO: remove the || { ... } to make threshold violations a hard failure
-          ./gradlew -p core jacocoTestCoverageVerification --no-configuration-cache --scan || {
+          ./gradlew -p core testCodeCoverageVerification --no-configuration-cache --scan || {
             echo "::warning::Coverage thresholds not met — check the coverage report"
           }
         shell: bash
 
+      - name: Upload coverage reports (core)
+        if: always() && matrix.project == 'core'
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-core
+          path: |
+            core/**/build/reports/jacoco
+            core/build/reports/coverage
+
       - name: Upload coverage reports
-        if: always()
+        if: always() && matrix.project != 'core'
         uses: actions/upload-artifact@v6
         with:
           name: coverage-${{ matrix.project }}

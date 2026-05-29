@@ -57,3 +57,9 @@ val checkSharedFileSync by tasks.registering {
 tasks.named("test") {
     dependsOn(checkSharedFileSync)
 }
+
+tasks.register("testCodeCoverageVerification") {
+    group = "verification"
+    description = "Verifies aggregated coverage thresholds via the core included build."
+    dependsOn(gradle.includedBuild("core").task(":testCodeCoverageVerification"))
+}
