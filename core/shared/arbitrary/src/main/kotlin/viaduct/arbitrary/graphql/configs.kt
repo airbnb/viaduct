@@ -350,7 +350,7 @@ object VariablesResolverExceptionWeight : ConfigKey<Double>(0.05, WeightValidato
  *
  * This key is sampled once when a resolver is created and applies for the lifetime of the resolver.
  */
-object SelectiveResolverWeight : ConfigKey<Double>(0.2, WeightValidator)
+object SelectiveResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
 
 /**
  * The probability that a field resolver, variables resolver, or checker executor will have a required selection set.
