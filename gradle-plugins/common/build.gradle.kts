@@ -9,6 +9,10 @@ plugins {
 dependencies {
     api(gradleApi())
 
+    // ViaductApplicationExtension exposes Provider<SchemaScoping> from service-api as the
+    // canonical scope-state surface, so the type must be on the api classpath.
+    api(libs.viaduct.service.api)
+
     implementation(libs.idea.gradle.plugin)
 }
 
