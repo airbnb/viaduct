@@ -204,22 +204,11 @@ class ViaductModernExecutorFactory(
         fqn: String,
         context: String,
     ): Class<out T> {
-        // KSP emits '.' as separator for nested classes; Class.forName requires '$'.
-        // Try progressively moving the '.' → '$' boundary from the right until one resolves.
-        // TODO KSP output should be fixed as this is not a robust way of solving this problem.
-        // https://app.asana.com/1/150975571430/project/1207604899751448/task/1214403842090320?focus=true
-        val parts = fqn.split('.')
-        var lastCause: ClassNotFoundException? = null
-        for (splitAt in parts.indices.reversed()) {
-            val candidate = parts.take(splitAt + 1).joinToString(".") +
-                if (splitAt < parts.lastIndex) "$" + parts.drop(splitAt + 1).joinToString("$") else ""
-            try {
-                return Class.forName(candidate) as Class<out T>
-            } catch (e: ClassNotFoundException) {
-                lastCause = e
-            }
+        try {
+            return Class.forName(fqn) as Class<out T>
+        } catch (e: ClassNotFoundException) {
+            throw ClassNotFoundException("Cannot load class '$fqn' for $context", e)
         }
-        throw ClassNotFoundException("Cannot load class '$fqn' for $context", lastCause)
     }
 
     companion object {

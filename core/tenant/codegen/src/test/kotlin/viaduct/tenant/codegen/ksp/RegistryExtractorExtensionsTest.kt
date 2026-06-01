@@ -57,7 +57,7 @@ class RegistryExtractorExtensionsTest {
         assertTrue(result is ResolverParams.Node)
         assertEquals("com.example.feature.resolvers.ExampleNodeResolver", result.implFqn)
         assertEquals("ExampleNode", result.typeName)
-        assertEquals("com.example.feature.resolverbases.NodeResolvers.ExampleNode", result.resolverBaseClass)
+        assertEquals("com.example.feature.resolverbases.NodeResolvers\$ExampleNode", result.resolverBaseClass)
         assertEquals("ExampleNodeResolver", result.attribution)
         assertEquals(false, result.isBatching)
         assertEquals(false, result.isSelective)
@@ -1087,6 +1087,50 @@ class RegistryExtractorExtensionsTest {
         val result = resolverDeclaration.toResolverParams(logger) as? ResolverParams.Field
 
         assertEquals("ExampleNode", result?.returnTypeName)
+    }
+
+    @Test
+    fun `toResolverParams uses dollar separator for nested base class in default package`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to false, "isSelective" to false),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "",
+            superDeclarations = listOf(baseDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "",
+                        "queryValueFragment" to "",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
+            declarations = emptyList(),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertTrue(result is ResolverParams.Node)
+        assertEquals("ExampleNodeResolver", result.implFqn)
+        assertEquals("NodeResolvers\$ExampleNode", result.resolverBaseClass)
+        assertTrue(logger.warns.isEmpty(), logger.warns.joinToString("\n"))
+        assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }
 
     @Test

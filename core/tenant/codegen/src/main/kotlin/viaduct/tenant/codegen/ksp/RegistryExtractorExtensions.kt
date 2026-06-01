@@ -38,13 +38,14 @@ internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverPar
         logger = logger,
     ) ?: return null
 
-    val resolverBaseClass = directBaseDeclaration.qualifiedName?.asString() ?: run {
+    if (directBaseDeclaration.qualifiedName == null) {
         logger.warnRegistryExtractor(
             "Skipping {} because base class has no qualified name",
             implFqn,
         )
         return null
     }
+    val resolverBaseClass = directBaseDeclaration.jvmBinaryName()
 
     val nodeResolverAnnotation = directBaseDeclaration.firstAnnotationNamed(nodeResolverForAnnotationName)
     if (nodeResolverAnnotation != null) {
@@ -337,13 +338,28 @@ internal fun KSClassDeclaration.qualifiedResolverName(logger: KSPLogger): String
         return null
     }
 
-    return qualifiedName?.asString() ?: run {
+    if (qualifiedName == null) {
         logger.errorRegistryExtractor(
             "@Resolver must have a qualified name: {}",
             simpleName.asString(),
         )
-        null
+        return null
     }
+
+    return jvmBinaryName()
+}
+
+/**
+ * Returns the JVM binary name for this class (e.g. `com.example.Outer$Inner`) by replacing
+ * the `.` separators in the class-path segment with `$`. KSP's [qualifiedName] uses `.` for
+ * all separators; `Class.forName` requires `$` for nested classes.
+ */
+private fun KSClassDeclaration.jvmBinaryName(): String {
+    val pkg = packageName.asString()
+    val qualName = requireNotNull(qualifiedName).asString()
+    if (pkg.isEmpty()) return qualName.replace('.', '$')
+    val classPath = qualName.removePrefix("$pkg.").replace('.', '$')
+    return "$pkg.$classPath"
 }
 
 /**
