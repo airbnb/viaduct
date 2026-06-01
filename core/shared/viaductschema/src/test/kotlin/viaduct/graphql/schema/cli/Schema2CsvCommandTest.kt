@@ -118,17 +118,17 @@ class Schema2CsvCommandTest {
         )
 
     /**
-     * Schema demonstrating root field detection through singletons.
+     * Schema demonstrating root field detection through namespace containers.
      */
     private fun rootFieldsSchema() =
         createSchema(
             """
-        directive @singleton on OBJECT
-        type Viewer @singleton {
+        directive @namespaceType on OBJECT
+        type Viewer @namespaceType {
             currentUser: User
             settings: Settings
         }
-        type Settings @singleton {
+        type Settings @namespaceType {
             theme: Theme
         }
         type User {
@@ -298,7 +298,7 @@ class Schema2CsvCommandTest {
     // ========== Root Field Detection Tests ==========
 
     @Test
-    fun `detects root fields through singletons`() {
+    fun `detects root fields through namespace containers`() {
         val schema = rootFieldsSchema()
         val (_, fields) = generateCsvTables(schema)
 
@@ -312,18 +312,18 @@ class Schema2CsvCommandTest {
             "directUser should be marked as root (IsRoot=true)"
         )
 
-        // currentUser through Viewer singleton should be a root
+        // currentUser through Viewer namespaceType should be a root
         val currentUserLine = lines.find { it.contains(",Viewer,") && it.contains(",currentUser,") }
         assertTrue(
             currentUserLine?.contains(",true,currentUser,") == true,
-            "currentUser should be marked as root (accessible through singleton)"
+            "currentUser should be marked as root (accessible through namespaceType)"
         )
 
-        // theme through Settings singleton (nested) should be a root
+        // theme through Settings namespaceType (nested) should be a root
         val themeLine = lines.find { it.contains(",Settings,") && it.contains(",theme,") }
         assertTrue(
             themeLine?.contains(",true,theme,") == true,
-            "theme should be marked as root (accessible through nested singletons)"
+            "theme should be marked as root (accessible through nested namespaceTypes)"
         )
 
         // createUser on Mutation should be a root
