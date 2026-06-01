@@ -117,6 +117,7 @@ nav:
     - Generated Code: docs/developers/generated_code/index.md
     - Global IDs: docs/developers/globalids/index.md
     - Pagination: docs/developers/pagination/index.md
+    - Namespace Types: docs/developers/namespace_types/index.md
     - Request Context: docs/developers/request_context/index.md
     - API Stability: docs/developers/api_stability/index.md
     - Scopes: docs/developers/scopes/index.md

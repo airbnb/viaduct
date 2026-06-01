@@ -68,11 +68,30 @@ type UserProfile {
 }
 ```
 
-**Use cases:**
+### @namespaceType
 
-- Mapping GraphQL types to internal data models
-- Providing type information for fields derived from backing data
-- Enabling Viaduct to automatically resolve fields from backing data without custom resolvers
+Groups related fields under a dedicated type that acts as an organizational namespace on the root query type. The engine auto-resolves fields that return a namespace type — no resolver is needed for the namespace field itself.
+
+**Locations:** `OBJECT`
+
+**Example:**
+
+```graphql
+type Query {
+  listings: Listings
+}
+
+type Listings @namespaceType {
+  availableRoomTypes: [RoomType] @resolver
+  pricing: ListingsPricing
+}
+
+type ListingsPricing @namespaceType {
+  currencyOptions: [Currency] @resolver
+}
+```
+
+See [Namespace Types](../namespace_types/index.md) for detailed documentation.
 
 ### @scope
 
@@ -100,18 +119,11 @@ type InternalMetrics @scope(to: ["internal"]) {
 }
 ```
 
-**Use cases:**
-
-- Creating public vs. internal API variants from the same codebase
-- Feature flagging schema elements
-- Multi-tenant schema visibility
-- Gradual rollout of new features
-
 See [Scopes](../scopes/index.md) for detailed documentation on using scopes.
 
 ### @idOf
 
-Declares that a field represents a Global ID for a specific GraphQL type. This enables type-safe ID handling.
+Declares that a field represents a Global ID for a specific GraphQL type. When a field has `@idOf`, Viaduct generates code using `GlobalID<T>` instead of `String` in the resolver signature. This enables type-safe ID handling.
 
 **Locations:** `FIELD_DEFINITION`, `INPUT_FIELD_DEFINITION`, `ARGUMENT_DEFINITION`
 
@@ -133,13 +145,7 @@ input UpdateUserInput {
 }
 ```
 
-**Use cases:**
-
-- Type-safe Global ID handling in resolvers
-- Node interface implementations
-- Cross-type references with compile-time validation
-
-When a field has `@idOf`, Viaduct generates code using `GlobalID<T>` instead of `String` in the resolver signature. See [Global IDs](../globalids/index.md) for more information.
+See [Global IDs](../globalids/index.md) for more information.
 
 ## Built-in Types
 
@@ -277,7 +283,8 @@ extend type Mutation {
 | Directive | Locations | Purpose | Generated Code Impact |
 |-----------|-----------|---------|----------------------|
 | `@resolver(isSelective: Boolean! = false, isBatching: Boolean! = false)` | FIELD_DEFINITION, OBJECT | Marks fields/types requiring custom resolution | Generates `resolve` (default) or `batchResolve` (`isBatching: true`) |
-| `@backingData(class: String!)` | FIELD_DEFINITION | Specifies backing data class | Enables automatic field resolution |
+| `@backingData(class: String!)` | FIELD_DEFINITION | Specifies backing data class | Allows access to arbitrary class from GRTs |
+| `@namespaceType` | OBJECT | Groups related fields under an organizational namespace | Engine auto-resolves the parent field |
 | `@scope(to: [String!]!)` | OBJECT, INTERFACE, UNION, ENUM, INPUT_OBJECT, FIELD_DEFINITION, ENUM_VALUE | Controls visibility by scope (repeatable) | Affects schema filtering |
 | `@idOf(type: String!)` | FIELD_DEFINITION, INPUT_FIELD_DEFINITION, ARGUMENT_DEFINITION | Declares Global ID type | Uses `GlobalID<T>` instead of `String` |
 
@@ -317,6 +324,7 @@ extend type Mutation {
 
 - [Resolvers](../resolvers/index.md) — Implementing resolvers for fields marked with `@resolver`
 - [Global IDs](../globalids/index.md) — Working with `@idOf` and the Node interface
+- [Namespace Types](../namespace_types/index.md) — Organizing root fields with `@namespaceType`
 - [Scopes](../scopes/index.md) — Advanced scope configuration with `@scope`
 - [Service Engineers: Schema Extensions](../../service_engineers/schema_extensions/index.md) — Defining application-wide custom directives and types
 - [Star Wars: Custom Directives](../../../getting_started/starwars/directives/index.md) — Examples from the Star Wars demo
