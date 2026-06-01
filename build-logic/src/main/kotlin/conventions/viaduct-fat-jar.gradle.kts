@@ -13,6 +13,18 @@ plugins {
 tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")
     mergeServiceFiles()
+
+    // Drop upstream JAR signing artifacts — relocating bundled classes invalidates them
+    // and leaving them in place causes "SecurityException: Invalid signature" at runtime.
+    exclude("META-INF/*.SF")
+    exclude("META-INF/*.DSA")
+    exclude("META-INF/*.RSA")
+    exclude("META-INF/INDEX.LIST")
+
+    // DO NOT exclude META-INF/maven/** — those per-artifact pom.properties files are how
+    // external CVE scanners (Trivy, Grype, GitHub dep graph) identify shaded transitive
+    // deps inside this fat JAR. Removing them blinds scanners to relocated CVE-bearing
+    // libraries and silently invalidates the fine-grained vs fat-JAR parity check in CI.
 }
 
 tasks.named<Jar>("jar") {
