@@ -5,12 +5,17 @@ import kotlin.reflect.full.primaryConstructor
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.mocks.PrebakedResults
+import viaduct.api.mocks.PrebakedRootFieldRefResults
+import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.testing.types.MutationForSelection
 import viaduct.api.testing.types.QueryForSelection
+import viaduct.api.testing.types.RootFieldRefStub
+import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
+import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
@@ -31,11 +36,24 @@ abstract class BaseResolverSpec {
     var requestContext: Any? = null
     var contextQueryValues: List<Query> = emptyList()
 
+    /**
+     * Pre-baked return values for `ctx.rootFieldRef(field, args)` calls made by the
+     * resolver under test. Each [RootFieldRefStub] declares the field, the arguments
+     * the resolver is expected to invoke it with, and the value to return.
+     *
+     * Lookups match on the exact `(field, arguments)` pair via structural equality
+     * on [Arguments]. If multiple stubs share the same key, the last one wins. Calls
+     * with no matching stub throw.
+     */
+    var rootFieldRefValues: List<RootFieldRefStub<*, *>> = emptyList()
+
     @OptIn(InternalApi::class)
     protected fun buildQueryResultsMap(
         internalContext: InternalContext,
         selectionSetFactory: SelectionSetFactory,
     ): PrebakedResults<Query> = buildContextQueryMap(contextQueryValues, internalContext, selectionSetFactory)
+
+    protected fun buildRootFieldRefResults(): PrebakedRootFieldRefResults = rootFieldRefResultsOf(rootFieldRefValues)
 
     @OptIn(InternalApi::class)
     protected inline fun <reified C : Any> getResolverContextKClass(resolverClass: Class<*>): KClass<out C> {
@@ -128,6 +146,36 @@ internal fun createSelectionSetKey(selectionSet: SelectionSet<*>): String {
         is SelectionSetImpl -> selectionSet.engineSelectionSet.printAsFieldSet()
         SelectionSet.NoSelections -> BLANK_CONTEXT_QUERY_SELECTION_KEY
         else -> error("Unexpected SelectionSet type: ${selectionSet::class.qualifiedName}")
+    }
+}
+
+/**
+ * Builds a stateless [PrebakedRootFieldRefResults] from a list of [RootFieldRefStub]s.
+ *
+ * Lookup keys on the exact `(pathFromQueryRoot, arguments)` pair via structural
+ * equality on [Arguments]. When multiple stubs share the same key, the last one
+ * wins — the same precedence rule as a Kotlin `Map` built from the list. Calls
+ * with no matching stub throw.
+ */
+fun rootFieldRefResultsOf(values: List<RootFieldRefStub<*, *>>): PrebakedRootFieldRefResults {
+    data class Key(val path: List<String>, val arguments: Arguments)
+    val byKey: Map<Key, Object> = values.associate { stub ->
+        Key(stub.field.pathFromQueryRoot, stub.arguments) to stub.value
+    }
+    return object : PrebakedRootFieldRefResults {
+        @Suppress("UNCHECKED_CAST")
+        override fun <A : Arguments, T : Object> get(
+            field: RootObjectField<*, T, A>,
+            arguments: A
+        ): T {
+            val key = Key(field.pathFromQueryRoot, arguments)
+            return (byKey[key] as? T)
+                ?: throw IllegalArgumentException(
+                    "No pre-baked rootFieldRef result for path '${key.path.joinToString(".")}' " +
+                        "with arguments $arguments. " +
+                        "Available stubs: ${byKey.keys.map { "${it.path.joinToString(".")} (args=${it.arguments})" }}"
+                )
+        }
     }
 }
 

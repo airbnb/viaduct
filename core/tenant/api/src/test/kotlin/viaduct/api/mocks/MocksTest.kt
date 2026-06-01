@@ -158,49 +158,6 @@ class MocksTest {
     }
 
     @Test
-    fun `RecordingRootFieldRefResults consumes stubs in declaration order for the same field`() {
-        val field = RootObjectFieldImpl<FooParent, FooResult, Arguments.NoArguments>(
-            "foo",
-            fooParent,
-            fooResult,
-            listOf("foo")
-        )
-        val first = FooResult()
-        val second = FooResult()
-        val recorder = RecordingRootFieldRefResults.of(field to first, field to second)
-        val ctx = MockResolverExecutionContext<Query>(
-            internalContext = MockInternalContext(MockSchema.minimal),
-            rootFieldRefResults = recorder,
-        )
-
-        assertSame(first, ctx.rootFieldRef(field, Arguments.NoArguments))
-        assertSame(second, ctx.rootFieldRef(field, Arguments.NoArguments))
-        Assertions.assertEquals(2, recorder.calls.size)
-    }
-
-    @Test
-    fun `RecordingRootFieldRefResults throws when a field is called more times than stubs were configured`() {
-        val field = RootObjectFieldImpl<FooParent, FooResult, Arguments.NoArguments>(
-            "foo",
-            fooParent,
-            fooResult,
-            listOf("foo")
-        )
-        val recorder = RecordingRootFieldRefResults.of(field to FooResult())
-        val ctx = MockResolverExecutionContext<Query>(
-            internalContext = MockInternalContext(MockSchema.minimal),
-            rootFieldRefResults = recorder,
-        )
-
-        ctx.rootFieldRef(field, Arguments.NoArguments)
-        val ex = assertThrows<IllegalStateException> {
-            ctx.rootFieldRef(field, Arguments.NoArguments)
-        }
-        Assertions.assertTrue(ex.message!!.contains("foo"))
-        Assertions.assertTrue(ex.message!!.contains("2 times"))
-    }
-
-    @Test
     fun `MockFieldExecutionContext propagates rootFieldRefResults`() {
         val field = RootObjectFieldImpl<FooParent, FooResult, Arguments.NoArguments>(
             "foo",

@@ -26,6 +26,7 @@ class NodeBatchResolverSpec<T : NodeObject> : BaseNodeSpec<T>() {
         val ctxKClass = getNodeContextKClass(resolverClass)
         val queryResultsMap = buildQueryResultsMap(internalContext, selectionSetFactory)
 
+        val rootFieldRefResults = buildRootFieldRefResults()
         return ids.map { id ->
             val innerCtx = MockNodeExecutionContext(
                 id = id,
@@ -34,6 +35,7 @@ class NodeBatchResolverSpec<T : NodeObject> : BaseNodeSpec<T>() {
                 internalContext = internalContext,
                 queryResults = queryResultsMap,
                 selectionSetFactory = selectionSetFactory,
+                rootFieldRefResults = rootFieldRefResults,
             )
             ctxKClass.wrapOrReturn(innerCtx)
         }

@@ -71,58 +71,6 @@ object EmptyPrebakedRootFieldRefResults : PrebakedRootFieldRefResults {
 }
 
 /**
- * A [PrebakedRootFieldRefResults] that records every `rootFieldRef` invocation made by a
- * resolver under test, returning configured stub values in declaration order.
- *
- * Stubs are matched by [RootObjectField.pathFromQueryRoot] and consumed in the order they
- * were declared. Multiple stubs for the same field are returned in sequence — declaring
- * `(foo to a, foo to b)` makes the first call to `foo` return `a` and the second return
- * `b`. Calling a field more times than there are stubs throws — this is intentional, so
- * that tests are explicit about expected call counts.
- *
- * Use [calls] to assert on the `(path, arguments)` tuples the resolver invoked.
- */
-class RecordingRootFieldRefResults(
-    private val stubs: List<Pair<List<String>, Object>>,
-) : PrebakedRootFieldRefResults {
-    data class Call(val path: List<String>, val arguments: Arguments)
-
-    private val _calls: MutableList<Call> = mutableListOf()
-    val calls: List<Call> get() = _calls.toList()
-
-    private val callCountsByPath: MutableMap<List<String>, Int> = mutableMapOf()
-
-    @Suppress("UNCHECKED_CAST")
-    override fun <A : Arguments, T : Object> get(
-        field: RootObjectField<*, T, A>,
-        arguments: A
-    ): T {
-        val path = field.pathFromQueryRoot
-        _calls.add(Call(path, arguments))
-        val stubsForPath = stubs.filter { it.first == path }.map { it.second }
-        if (stubsForPath.isEmpty()) {
-            throw IllegalArgumentException(
-                "No pre-baked rootFieldRef result for path '${path.joinToString(".")}'. " +
-                    "Available paths: ${stubs.map { it.first.joinToString(".") }.distinct()}"
-            )
-        }
-        val callIndex = callCountsByPath.getOrDefault(path, 0)
-        if (callIndex >= stubsForPath.size) {
-            throw IllegalStateException(
-                "Resolver called rootFieldRef for path '${path.joinToString(".")}' " +
-                    "${callIndex + 1} times, but only ${stubsForPath.size} stub(s) were configured."
-            )
-        }
-        callCountsByPath[path] = callIndex + 1
-        return stubsForPath[callIndex] as T
-    }
-
-    companion object {
-        fun of(vararg entries: Pair<RootObjectField<*, *, *>, Object>): RecordingRootFieldRefResults = RecordingRootFieldRefResults(entries.map { (field, value) -> field.pathFromQueryRoot to value })
-    }
-}
-
-/**
  * Minimal [NodeEngineObjectData] for use in tests.
  *
  * Only the `"id"` field is supported; any other field selection throws

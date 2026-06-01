@@ -12,15 +12,25 @@ The catch is that resolver inputs are highly stylized. Rather than plain method 
 
 `ResolverTestBase` removes that friction. It provides a type-safe DSL for building `ExecutionContext` values that exactly match what a given resolver expects, so tests stay focused on behavior rather than wiring.
 
+Consider the following schema, where `FooLabelResolver` derives `label` from the
+parent's `name`:
+
+```graphql
+type Foo {
+  name: String
+  label: String @resolver
+}
+```
+
 A minimal example:
 
 ```kotlin
 @OptIn(ExperimentalApi::class)
 class FooLabelResolverTest : ResolverTestBase() {
     @Test
-    fun `returns label`() = runBlocking {
+    fun `returns label`() = runTest {
         val result = runFieldResolver(FooLabelResolver()) {
-            objectValue = Foo.of(context) { label("bar") }
+            objectValue = Foo.of(context) { name("bar") }
         }
         assertEquals("bar", result)
     }
@@ -43,7 +53,7 @@ Extend `ResolverTestBase` — no additional configuration needed. Resolvers run 
 @OptIn(ExperimentalApi::class)
 class FooResolverTest : ResolverTestBase() {
     @Test
-    fun `name of test`() = runBlocking {
+    fun `name of test`() = runTest {
         val result = runFieldResolver(FooLabelResolver()) {
             objectValue = ...
             arguments = ...
@@ -57,11 +67,10 @@ The spec lambda (`{ objectValue = ..., arguments = ... }`) is how you supply the
 
 ### Constructing Test Inputs
 
-The `context: ExecutionContext` property is available in every test. Use it with the `Type.of(context) { … }` DSL to build GRT objects and arguments:
+The `context: ExecutionContext` property is available in every test. Use it with the `Type.of(context) { … }` DSL to build GRT objects:
 
 ```kotlin
-val foo = Foo.of(context) { name("bar") }                    // GRT object
-val args = Foo_MyField_Arguments.of(context) { limit(10) }   // arguments object
+val foo = Foo.of(context) { name("bar") }
 ```
 
 The builder form also works but is more verbose:
@@ -69,6 +78,8 @@ The builder form also works but is more verbose:
 ```kotlin
 val foo = Foo.Builder(context).name("bar").build()
 ```
+
+Fields that take arguments have a generated arguments type, built the same way — see [With arguments](#with-arguments).
 
 ### Building GlobalIDs
 
@@ -84,11 +95,11 @@ Each method runs a specific resolver type via a typed **spec** lambda. The compi
 
 | Method | Spec properties |
 |---|---|
-| `runFieldResolver` | `objectValue`, `queryValue`, `arguments`, `contextQueryValues` |
-| `runFieldBatchResolver` | `objectValues`, `queryValues` |
-| `runNodeResolver` | `id` *(required)* |
-| `runNodeBatchResolver` | `ids` |
-| `runMutationFieldResolver` | `queryValue`, `arguments`, `contextQueryValues`, `contextMutationValues` |
+| `runFieldResolver` | `objectValue`, `queryValue`, `arguments`, `contextQueryValues`, `rootFieldRefValues` |
+| `runFieldBatchResolver` | `objectValues`, `queryValues`, `rootFieldRefValues` |
+| `runNodeResolver` | `id` *(required)*, `rootFieldRefValues` |
+| `runNodeBatchResolver` | `ids`, `rootFieldRefValues` |
+| `runMutationFieldResolver` | `queryValue`, `arguments`, `contextQueryValues`, `contextMutationValues`, `rootFieldRefValues` |
 
 Every spec also has `requestContext` for seeding header/scope data.
 
@@ -98,19 +109,11 @@ Every spec also has `requestContext` for seeding header/scope data.
 
 Use `runFieldResolver` and set `objectValue` to a GRT built with `Type.of(context)`.
 
-Schema:
-
-```graphql
-type Foo {
-  label: String @resolver
-}
-```
-
 ```kotlin
 @Test
-fun `returns label`() = runBlocking {
+fun `returns label`() = runTest {
     val result = runFieldResolver(FooLabelResolver()) {
-        objectValue = Foo.of(context) { label("bar") }
+        objectValue = Foo.of(context) { name("bar") }
     }
     assertEquals("bar", result)
 }
@@ -124,19 +127,108 @@ Schema:
 
 ```graphql
 type Foo {
+  name: String
   label(uppercase: Boolean): String @resolver
 }
 ```
 
 ```kotlin
 @Test
-fun `returns uppercase label when flag is set`() = runBlocking {
+fun `returns uppercase label when flag is set`() = runTest {
     val result = runFieldResolver(FooLabelResolver()) {
-        objectValue = Foo.of(context) { label("bar") }
+        objectValue = Foo.of(context) { name("bar") }
         arguments = Foo_Label_Arguments.of(context) { uppercase(true) }
     }
     assertEquals("BAR", result)
 }
+```
+
+### Mocking `ctx.query`
+
+Set `contextQueryValues` to stub the results of `ctx.query(...)` calls the resolver
+makes during execution. Pass a single `Query` built with `Query.of(context)` to return
+the same value for every query the resolver issues; a `ctx.query(...)` call with no
+stubbed value throws.
+
+Schema:
+
+```graphql
+type Query {
+  node(id: ID!): Node @resolver
+}
+```
+
+```kotlin
+@Test
+fun `reads label from ctx query`() = runTest {
+    val queryValue = Query.of(context) {
+        node(Foo.of(context) { name("bar") })
+    }
+
+    val result = runFieldResolver(FooLabelResolver()) {
+        contextQueryValues = listOf(queryValue)
+    }
+
+    assertEquals("bar", result)
+}
+```
+
+To return different values depending on the selection set the resolver requests, wrap
+each `Query` in a `QueryForSelection(selections, query)`. Lookups match on the rendered
+selection set; an unwrapped `Query` acts as the fallback for any selection. At most one
+unwrapped `Query` may be supplied.
+
+```kotlin
+contextQueryValues = listOf(
+    QueryForSelection("node { id }", queryWithId),
+    QueryForSelection("node { label }", queryWithLabel),
+)
+```
+
+### Mocking `ctx.rootFieldRef`
+
+Set `rootFieldRefValues` to stub the values returned by `ctx.rootFieldRef(field, args)`
+calls the resolver makes during execution. A root field ref points at a field on a factory
+(namespace) type reachable from the root — for example `LabelFactory.format`, exposed via
+`Query.labelFactory`. Each `RootFieldRefStub` declares that field, the arguments the
+resolver is expected to invoke it with, and the value to return. Lookups match exactly on
+the field and arguments; calls without a matching stub throw.
+
+Schema:
+
+```graphql
+extend type Query {
+  labelFactory: LabelFactory
+}
+
+type LabelFactory @namespaceType {
+  format(text: String!): FormattedLabel @resolver
+}
+```
+
+```kotlin
+@Test
+fun `uses formatted label from rootFieldRef`() = runTest {
+    val args = LabelFactory_Format_Arguments.of(context) { text("bar") }
+    val formatted = FormattedLabel.of(context) { value("BAR") }
+
+    val result = runFieldResolver(FooLabelResolver()) {
+        objectValue = Foo.of(context) { name("bar") }
+        rootFieldRefValues = listOf(
+            RootFieldRefStub(LabelFactory.Fields.format, args, formatted),
+        )
+    }
+
+    assertEquals("BAR", result)
+}
+```
+
+For argument-less factory fields, pass `Arguments.NoArguments`:
+
+```kotlin
+rootFieldRefValues = listOf(
+    RootFieldRefStub(LabelFactory.Fields.create, Arguments.NoArguments, stub),
+)
 ```
 
 ---
@@ -149,14 +241,15 @@ Schema:
 
 ```graphql
 type Foo {
+  name: String
   label: String @resolver(isBatching: true)
 }
 ```
 
 ```kotlin
 @Test
-fun `resolves label for each foo in batch`() = runBlocking {
-    val foos = listOf("a", "b", "c").map { Foo.of(context) { id(globalIDFor(Foo.Reflection, it)) } }
+fun `resolves label for each foo in batch`() = runTest {
+    val foos = listOf("a", "b", "c").map { Foo.of(context) { name(it) } }
 
     val results = runFieldBatchResolver(FooLabelBatchResolver()) {
         objectValues = foos
@@ -180,13 +273,14 @@ Schema:
 ```graphql
 type Foo implements Node @resolver {
   id: ID!
+  name: String
   label: String
 }
 ```
 
 ```kotlin
 @Test
-fun `fetches foo by id`() = runBlocking {
+fun `fetches foo by id`() = runTest {
     val result = runNodeResolver(FooNodeResolver()) {
         id = globalIDFor(Foo.Reflection, "42")
     }
@@ -205,13 +299,14 @@ Schema:
 ```graphql
 type Foo implements Node @resolver(isBatching: true) {
   id: ID!
+  name: String
   label: String
 }
 ```
 
 ```kotlin
 @Test
-fun `fetches multiple foos by id`() = runBlocking {
+fun `fetches multiple foos by id`() = runTest {
     val ids = listOf("1", "2").map { globalIDFor(Foo.Reflection, it) }
 
     val results = runNodeBatchResolver(FooNodeResolver()) {
@@ -238,7 +333,7 @@ type Mutation {
 
 ```kotlin
 @Test
-fun `creates foo and returns it`() = runBlocking {
+fun `creates foo and returns it`() = runTest {
     val input = CreateFooInput.of(context) { label("bar") }
 
     val result = runMutationFieldResolver(CreateFooMutation()) {
