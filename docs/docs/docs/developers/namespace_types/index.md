@@ -10,7 +10,7 @@ As a GraphQL schema grows, the root query type accumulates fields from many team
 
 The `@namespaceType` directive solves this by letting you group related root fields under a dedicated type that acts purely as an organizational namespace. Namespace types don't represent domain entities — they exist only to provide structure in the schema hierarchy. The engine auto-resolves fields that return a namespace type (no resolver needed for the namespace field itself), so they add zero runtime cost.
 
-Namespace types also enable cross-tenant delegation patterns like factory functions. A namespace type can expose `@resolver` fields that other tenants invoke via `ctx.rootFieldRef()` without needing a direct code dependency on the owning tenant.
+Namespace types also enable cross-tenant delegation patterns like factory functions. A namespace type can expose `@resolver` fields that other tenants invoke via [`ctx.rootFieldRef()`](../resolvers/root_field_references.md) without needing a direct code dependency on the owning tenant.
 
 ## Usage
 

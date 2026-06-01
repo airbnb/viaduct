@@ -113,6 +113,7 @@ nav:
       - Batch Resolution: docs/developers/resolvers/batch_resolution.md
       - Mutations: docs/developers/resolvers/mutations.md
       - Node References: docs/developers/resolvers/node_references.md
+      - Root Field References: docs/developers/resolvers/root_field_references.md
       - Subqueries: docs/developers/resolvers/subqueries.md
     - Generated Code: docs/developers/generated_code/index.md
     - Global IDs: docs/developers/globalids/index.md
