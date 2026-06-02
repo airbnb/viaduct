@@ -80,6 +80,7 @@ object VariablesResolver {
             override fun createVariablesResolver(params: Params): EngineVariablesResolver =
                 object : EngineVariablesResolver {
                     override val variableNames: Set<String> = setOf(params.def.name)
+                    override val requiredSelectionSet: RequiredSelectionSet? = params.requiredSelectionSet
                     private val conv = EngineValueConv(
                         params.schema,
                         params.def.type.asSchemaType(params.schema),

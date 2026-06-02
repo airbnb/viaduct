@@ -103,15 +103,38 @@ internal interface ViaductGenEnv {
 }
 
 private class ViaductGen(private val env: ViaductGenEnv) {
-    fun gen(): Viaduct =
-        StandardViaduct.Builder()
+    fun gen(): Viaduct {
+        val fieldResolverExecutors = genFieldResolverExecutors()
+        val nodeResolverExecutors = genNodeResolverExecutors()
+        val fieldCheckerExecutors = genFieldCheckerExecutors()
+        val typeCheckerExecutors = genTypeCheckerExecutors()
+
+        val viaduct = StandardViaduct.Builder()
             .withSchemaConfiguration(SchemaConfiguration.fromSchema(env.schemas.viaductSchema))
-            .withTenantAPIBootstrapperBuilders(genTenantModuleBootstrapperBuilders())
-            .withCheckerExecutorFactory(genCheckerExecutorFactory())
+            .withTenantAPIBootstrapperBuilders(genTenantModuleBootstrapperBuilders(fieldResolverExecutors, nodeResolverExecutors))
+            .withCheckerExecutorFactory(genCheckerExecutorFactory(fieldCheckerExecutors, typeCheckerExecutors))
             .build()
 
-    private fun genTenantModuleBootstrapperBuilders(): List<TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>> {
-        val bootstrapper = genTenantApiBootstrapper()
+        val descriptorConfig = GeneratedViaductDescriptorConfig(
+            schema = env.schemas.viaductSchema,
+            fieldResolverExecutors = fieldResolverExecutors,
+            nodeResolverExecutors = nodeResolverExecutors,
+            fieldCheckerExecutors = fieldCheckerExecutors,
+            typeCheckerExecutors = typeCheckerExecutors,
+        )
+        return DescribedViaduct(
+            viaduct,
+            lazy {
+                ViaductDescriptor.fromGenerated(viaduct, descriptorConfig)
+            }
+        )
+    }
+
+    private fun genTenantModuleBootstrapperBuilders(
+        fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
+        nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
+    ): List<TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>> {
+        val bootstrapper = genTenantApiBootstrapper(fieldResolverExecutors, nodeResolverExecutors)
         return listOf(
             object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
                 override fun create() = bootstrapper
@@ -119,31 +142,39 @@ private class ViaductGen(private val env: ViaductGenEnv) {
         )
     }
 
-    private fun genTenantApiBootstrapper(): TenantAPIBootstrapper {
-        val tenantModuleBootstrappers = listOf(genTenantModuleBootstrapper())
+    private fun genTenantApiBootstrapper(
+        fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
+        nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
+    ): TenantAPIBootstrapper {
+        val tenantModuleBootstrappers = listOf(genTenantModuleBootstrapper(fieldResolverExecutors, nodeResolverExecutors))
 
         return object : TenantAPIBootstrapper {
             override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> = tenantModuleBootstrappers
         }
     }
 
-    private fun genTenantModuleBootstrapper(): LegacyTenantModuleBootstrapper {
-        val fieldResolverExecutors = env.resolverCoordinates.fieldResolvers.map { coord ->
-            coord to env.fieldResolverExecutorGen.gen(coord)
-        }
-        val nodeResolverExecutors = env.resolverCoordinates.nodeResolvers.map { tname ->
-            tname to env.nodeResolverExecutorGen.gen(tname)
-        }
-
-        return object : LegacyTenantModuleBootstrapper {
+    private fun genTenantModuleBootstrapper(
+        fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
+        nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
+    ): LegacyTenantModuleBootstrapper =
+        object : LegacyTenantModuleBootstrapper {
             override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> = fieldResolverExecutors
 
             override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = nodeResolverExecutors
         }
-    }
 
-    private fun genCheckerExecutorFactory(): EngineCheckerExecutorFactory {
-        val fieldCheckerExecutors = env.schemas.viaductSchema.objectCoordinates.mapNotNull { coord ->
+    private fun genFieldResolverExecutors(): List<Pair<Coordinate, FieldResolverExecutor>> =
+        env.resolverCoordinates.fieldResolvers.map { coord ->
+            coord to env.fieldResolverExecutorGen.gen(coord)
+        }
+
+    private fun genNodeResolverExecutors(): List<Pair<String, NodeResolverExecutor>> =
+        env.resolverCoordinates.nodeResolvers.map { tname ->
+            tname to env.nodeResolverExecutorGen.gen(tname)
+        }
+
+    private fun genFieldCheckerExecutors(): Map<Coordinate, CheckerExecutor> =
+        env.schemas.viaductSchema.objectCoordinates.mapNotNull { coord ->
             if (env.rs.sampleWeight(env.cfg[FieldCheckerWeight])) {
                 coord to env.checkerExecutorGen.gen(coord)
             } else {
@@ -151,7 +182,8 @@ private class ViaductGen(private val env: ViaductGenEnv) {
             }
         }.toMap()
 
-        val typeCheckerExecutors = env.schemas.viaductSchema.objects.mapNotNull { obj ->
+    private fun genTypeCheckerExecutors(): Map<String, CheckerExecutor> =
+        env.schemas.viaductSchema.objects.mapNotNull { obj ->
             if (env.rs.sampleWeight(env.cfg[TypeCheckerWeight])) {
                 obj.name to env.checkerExecutorGen.gen(obj.name to null)
             } else {
@@ -159,6 +191,10 @@ private class ViaductGen(private val env: ViaductGenEnv) {
             }
         }.toMap()
 
+    private fun genCheckerExecutorFactory(
+        fieldCheckerExecutors: Map<Coordinate, CheckerExecutor>,
+        typeCheckerExecutors: Map<String, CheckerExecutor>,
+    ): EngineCheckerExecutorFactory {
         return object : EngineCheckerExecutorFactory {
             override fun checkerExecutorForField(
                 schema: ViaductSchema,
@@ -172,4 +208,13 @@ private class ViaductGen(private val env: ViaductGenEnv) {
             ): CheckerExecutor? = typeCheckerExecutors[typeName]
         }
     }
+}
+
+/** render this [Viaduct] to a human-readable String */
+fun Viaduct.dump(): String {
+    val describedViaduct = this as? DescribedViaduct
+        ?: throw UnsupportedOperationException(
+            "Unsupported operation: only a Viaduct created by Arb.viaduct may be dumped"
+        )
+    return describedViaduct.descriptor.value.toString()
 }

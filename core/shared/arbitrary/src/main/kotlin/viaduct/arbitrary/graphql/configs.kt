@@ -314,7 +314,12 @@ object UndeclaredFieldResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
  **/
 object UndeclaredNodeResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
 
-/** The [NodeResolver.Factory] to use when constructing [viaduct.engine.api.NodeResolverExecutor] instances */
+/**
+ * The [NodeResolver.Factory] to use when constructing [viaduct.engine.api.NodeResolverExecutor] instances
+ *
+ * The default value of [NodeResolver.Factory.Arbitrary] is suitable for most use-cases,
+ * but see [NodeResolver.Factory.Instrumented] for a factory that allows inspecting the internal state of a NodeResolver.
+ */
 object NodeResolverFactory : ConfigKey<NodeResolver.Factory>(NodeResolver.Factory.Arbitrary, Unvalidated)
 
 /**
@@ -324,7 +329,12 @@ object NodeResolverFactory : ConfigKey<NodeResolver.Factory>(NodeResolver.Factor
  */
 object NodeResolverExceptionWeight : ConfigKey<Double>(0.05, WeightValidator)
 
-/** The [FieldResolver.Factory] to use when constructing [viaduct.engine.api.FieldResolverExecutor] instances */
+/**
+ * The [FieldResolver.Factory] to use when constructing [viaduct.engine.api.FieldResolverExecutor] instances.
+ *
+ * The default value of [FieldResolver.Factory.Arbitrary] is suitable for most use-cases,
+ * but see [FieldResolver.Factory.Instrumented] for a factory that allows inspecting the internal state of a FieldResolver
+ */
 object FieldResolverFactory : ConfigKey<FieldResolver.Factory>(FieldResolver.Factory.Arbitrary, Unvalidated)
 
 /**
@@ -334,7 +344,12 @@ object FieldResolverFactory : ConfigKey<FieldResolver.Factory>(FieldResolver.Fac
  */
 object FieldResolverExceptionWeight : ConfigKey<Double>(0.05, WeightValidator)
 
-/** The [VariablesResolver.Factory] to use when constructing [viaduct.engine.api.VariablesResolver] instances */
+/**
+ * The [VariablesResolver.Factory] to use when constructing [viaduct.engine.api.VariablesResolver] instances.
+ *
+ * The default value of [VariablesResolver.Factory.Arbitrary] is suitable for most use-cases,
+ * but see [VariablesResolver.Factory.Instrumented] for a factory that allows inspecting the internal state of a VariablesResolver.
+ */
 object VariablesResolverFactory : ConfigKey<VariablesResolver.Factory>(VariablesResolver.Factory.Arbitrary, Unvalidated)
 
 /**
@@ -383,7 +398,12 @@ object BanSelectionCoordinates : ConfigKey<Set<TypeOrFieldCoordinate>>(emptySet(
  */
 object ResolverLatencyMillis : ConfigKey<LongRange>(0L..0L, Unvalidated)
 
-/** The [CheckerExecutor.Factory] to use when constructing [CheckerExecutor] instances */
+/**
+ * The [CheckerExecutor.Factory] to use when constructing [CheckerExecutor] instances.
+ *
+ * The default value of [CheckerExecutor.Factory.Arbitrary] is suitable for most use-cases,
+ * but see [CheckerExecutor.Factory.Instrumented] for a factory that allows inspecting the internal state of a CheckerExecutor.
+ */
 object CheckerExecutorFactory : ConfigKey<CheckerExecutor.Factory>(CheckerExecutor.Factory.Arbitrary, Unvalidated)
 
 /** The probability that a GraphQL object field will have a Checker generated for it */
