@@ -22,3 +22,24 @@ jobs:
       ref: main
       run_ci_check: true
     secrets: inherit
+
+  windows-check:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        java: ["17", "21"]
+    name: Full Check (Windows, Java ${{ matrix.java }})
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+
+      - name: Check
+        run: ./gradlew check --scan
+        shell: bash

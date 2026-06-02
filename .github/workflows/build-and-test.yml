@@ -163,6 +163,27 @@ jobs:
           path: '**/build/test-results/test/*.xml'
 
 
+  core-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        java: ${{ fromJSON(inputs.java_versions || '["17", "21"]') }}
+    name: Core Check (Windows, Java ${{ matrix.java }})
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+
+      - name: Check core
+        run: ./gradlew -p core check --scan
+        shell: bash
+
   coverage-reports:
     runs-on: ${{ matrix.os }}
     strategy:
