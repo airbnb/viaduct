@@ -5,8 +5,10 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.service.api.scoping.SchemaScoping
 
+@OptIn(ExperimentalApi::class)
 open class ViaductApplicationExtension(objects: ObjectFactory) {
     /** Kotlin package name for generated GRT classes. */
     val grtPackageName = objects.property(String::class.java).convention("viaduct.api.grts")

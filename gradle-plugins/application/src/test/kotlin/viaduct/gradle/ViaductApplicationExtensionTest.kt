@@ -8,6 +8,7 @@ import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.service.api.scoping.SchemaScoping
 
 /**
@@ -18,6 +19,7 @@ import viaduct.service.api.scoping.SchemaScoping
  * ID-format, reserved-name, and subset validation are enforced elsewhere and are not covered
  * here.
  */
+@OptIn(ExperimentalApi::class)
 class ViaductApplicationExtensionTest {
     private lateinit var extension: ViaductApplicationExtension
 

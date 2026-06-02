@@ -8,7 +8,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.apiannotations.ExperimentalApi
 
+@OptIn(ExperimentalApi::class)
 class SchemaScopingTest {
     @Test
     fun `EMPTY has no universe, no scoped schemas, and current version`() {

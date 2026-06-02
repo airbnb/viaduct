@@ -1,7 +1,7 @@
 package viaduct.service.api.scoping
 
 import java.io.Serializable
-import viaduct.apiannotations.StableApi
+import viaduct.apiannotations.ExperimentalApi
 
 /**
  * Build-to-runtime contract describing the schema-scoping declarations of a Viaduct application.
@@ -18,7 +18,7 @@ import viaduct.apiannotations.StableApi
  *  set is an alias for the full schema.
  * @property version manifest schema version, used to evolve the on-disk JSON format.
  */
-@StableApi
+@ExperimentalApi
 data class SchemaScoping(
     val scopeUniverse: Set<String>,
     val scopedSchemas: Map<String, Set<String>>,
