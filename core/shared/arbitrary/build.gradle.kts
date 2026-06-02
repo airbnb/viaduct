@@ -36,4 +36,5 @@ dependencies {
     implementation(testFixtures(libs.viaduct.service.api))
 
     testImplementation(libs.kotest.assertions.shared)
+    testImplementation(libs.assertj.core)
 }
