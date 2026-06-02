@@ -6,6 +6,7 @@ import kotlin.test.assertContains
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.EngineConfiguration
@@ -583,6 +584,84 @@ class RequiredSelectionsTest {
 
         assertEquals(2, detailsCount.get())
         assertEquals(setOf("a", "b"), detailsSelections)
+    }
+
+    @Test
+    fun `object rss node selection ignores nested fragment on other implementation`() {
+        // Query.foo's object RSS reads Query.node with a selection whose outer fragment is on Bar,
+        // but the node resolves to Foo. The resolver-facing object value should therefore expose no
+        // child selections for the Foo node.
+        //
+        // This used to time out because EngineSelectionSet widened the nested `... on Node`
+        // fragment inside `... on Bar`, so fetching `id` through the Foo proxy waited on an OER
+        // field that the planned traversal correctly never wrote.
+        MockLegacyTenantModuleBootstrapper(
+            """
+                extend type Query { foo: Foo }
+                type Foo implements Node { id: ID! }
+                type Bar implements Node { id: ID! }
+            """.trimIndent()
+        ) {
+            field("Query" to "foo") {
+                resolverExecutor {
+                    val objectRss = createRSS(
+                        "Query",
+                        """
+                            fragment Main on Query {
+                              node(id: "Rm9vOlQrZw==") {
+                                ...BarNodeFields
+                              }
+                            }
+
+                            fragment BarNodeFields on Bar {
+                              ... on Node {
+                                id
+                              }
+                            }
+                        """.trimIndent()
+                    )
+                    MockFieldUnbatchedResolverExecutor(
+                        objectSelectionSet = objectRss,
+                        isSelective = false,
+                        resolverId = resolverId,
+                        unbatchedResolveFn = { _, obj, _, _, ctx ->
+                            val node = obj.fetchAs<EngineObjectData>("node")
+                            assertNull(withTimeout(1_000) { node.fetchOrNull("id") })
+                            ctx.createNodeReference("foo", schema.schema.getObjectType("Foo")!!)
+                        }
+                    )
+                }
+            }
+
+            type("Foo") {
+                nodeUnbatchedExecutor { id, _, _ ->
+                    createEngineObjectData(
+                        objectType,
+                        mapOf("id" to id)
+                    )
+                }
+            }
+        }.runFeatureTest {
+            runQuery(
+                """
+                    query {
+                      foo {
+                        __typename
+                      }
+                    }
+                """.trimIndent()
+            ).assertJson(
+                """
+                    {
+                      data: {
+                        foo: {
+                          __typename: "Foo"
+                        }
+                      }
+                    }
+                """.trimIndent()
+            )
+        }
     }
 
     @Test

@@ -400,6 +400,15 @@ class EngineSelectionSetImplTest {
     }
 
     @Test
+    fun `containsField -- widening inline fragment inherits enclosing type constraint`() {
+        val ss = mk("Node", "... on Baz { ... on Node { id } }")
+
+        assertTrue(ss.containsField("Node", "id"))
+        assertTrue(ss.containsField("Baz", "id"))
+        assertFalse(ss.containsField("Foo", "id"))
+    }
+
+    @Test
     fun `containsField -- simple type projections do not change contained fields`() {
         val ss = mk("Node", "id ... on Foo { bar }")
 
@@ -1227,6 +1236,16 @@ class EngineSelectionSetImplTest {
     }
 
     @Test
+    fun `selectionSetForSelection -- widening inline fragment keeps enclosing type constraint`() {
+        val ss = mk("Foo", "foo { ... on Node { id } }")
+            .selectionSetForSelection("Foo", "foo")
+
+        assertTrue(ss.containsField("Node", "id"))
+        assertTrue(ss.containsField("Foo", "id"))
+        assertFalse(ss.containsField("Baz", "id"))
+    }
+
+    @Test
     fun `selectionSetForType -- simple object`() {
         val ss = mk("Foo", "int").selectionSetForType("Foo")
         assertEquals(setOf("int"), ss.typeFields.keys)
@@ -1254,6 +1273,15 @@ class EngineSelectionSetImplTest {
 
         assertEquals(setOf("id", "int"), ss.selectionSetForType("Foo").typeFields.keys)
         assertEquals(setOf("id"), ss.selectionSetForType("Baz").typeFields.keys)
+    }
+
+    @Test
+    fun `selectionSetForType -- widening inline fragment keeps enclosing type constraint`() {
+        val ss = mk("Node", "... on Baz { ... on Node { id } }")
+
+        assertEquals(setOf("id"), ss.selectionSetForType("Node").typeFields.keys)
+        assertEquals(setOf("id"), ss.selectionSetForType("Baz").typeFields.keys)
+        assertEquals(emptySet<String>(), ss.selectionSetForType("Foo").typeFields.keys)
     }
 
     @Test

@@ -144,7 +144,7 @@ data class EngineSelectionSetImpl(
         return selections.mapNotNull { sel ->
             // a selection can be reprojected by widening and then narrowing to a different type.
             // Reject any selections that do not have spreadable type conditions
-            if (!ctx.schema.rels.isSpreadable(sel.typeCondition, type)) {
+            if (!sel.isSpreadableTo(type)) {
                 return@mapNotNull null
             }
 
@@ -242,10 +242,9 @@ data class EngineSelectionSetImpl(
         match: (Field) -> Boolean
     ): FieldSelection? {
         val u = compositeType(type)
-        return selections.find { (f, t) ->
-            if (!match(f)) return@find false
-            val rel = ctx.schema.rels.relationUnwrapped(t, u)
-            rel == GraphQLTypeRelation.Same || rel == GraphQLTypeRelation.WiderThan
+        return selections.find { sel ->
+            if (!match(sel.field)) return@find false
+            sel.isSelectableOn(u)
         }
     }
 
@@ -392,10 +391,9 @@ data class EngineSelectionSetImpl(
 
         val newSelections =
             selections
-                .filter { (f, ftc) ->
-                    if (!match(f)) return@filter false
-                    val rel = ctx.schema.rels.relationUnwrapped(ftc, selectionType)
-                    rel == GraphQLTypeRelation.WiderThan || rel == GraphQLTypeRelation.Same
+                .filter { sel ->
+                    if (!match(sel.field)) return@filter false
+                    sel.isSelectableOn(selectionType)
                 }
                 .mapNotNull { it.field.selectionSet }
 
@@ -419,7 +417,7 @@ data class EngineSelectionSetImpl(
         }
 
         val newConstraints = constraints.narrowTypes(ctx.schema.rels.possibleObjectTypes(u))
-        val filteredSelections = selections.filter { ctx.schema.rels.isSpreadable(it.typeCondition, u) }
+        val filteredSelections = selections.filter { it.isSpreadableTo(u) }
         val filteredRequestedTypes = requestedTypes.filter { ctx.schema.rels.isSpreadable(it, u) }.toSet()
         val filteredExcluded = conditionallyExcludedResultKeysByType
             .filter { (_, typeConditions) -> typeConditions.any { ctx.schema.rels.isSpreadable(it, u) } }
@@ -447,15 +445,16 @@ data class EngineSelectionSetImpl(
     /**
      * Compute child [Constraints] when descending into a selection node.
      *
-     * - [Field]: inherit directive constraints from the parent, clear type constraints (field
-     *   subselections have no relation to the parent type condition)
+     * - [Field]: inherit the parent type constraints and add field directive constraints. Field
+     *   subselections are collected later through [buildSubselections], where the base constraints
+     *   are reset to the field's output type.
      * - [InlineFragment]: narrow type constraints to the fragment's type condition; add directive constraints
      * - [FragmentSpread]: same as InlineFragment, resolved via fragment definition lookup
      */
     private fun Constraints.descend(sel: Selection<*>): Constraints =
         when (sel) {
             is Field ->
-                withDirectives(sel.directives).clearTypes()
+                withDirectives(sel.directives)
 
             is InlineFragment -> {
                 val typeCondition = if (sel.typeCondition == null) {
@@ -539,6 +538,18 @@ data class EngineSelectionSetImpl(
         requireNotNull(compositeType(name) as? GraphQLFieldsContainer) {
             "type $name is not a field container"
         }
+
+    private fun FieldSelection.isSelectableOn(type: GraphQLCompositeType): Boolean {
+        val rel = ctx.schema.rels.relationUnwrapped(typeCondition, type)
+        return (rel == GraphQLTypeRelation.Same || rel == GraphQLTypeRelation.WiderThan) &&
+            !constraints.solve(constraintsCtxFor(type)).isDrop
+    }
+
+    private fun FieldSelection.isSpreadableTo(type: GraphQLCompositeType): Boolean =
+        ctx.schema.rels.isSpreadable(typeCondition, type) &&
+            !constraints.solve(constraintsCtxFor(type)).isDrop
+
+    private fun constraintsCtxFor(type: GraphQLCompositeType): Constraints.Ctx = ctx.constraintsCtx.copy(parentTypes = ctx.schema.rels.possibleObjectTypes(type))
 
     private fun fieldDefinition(sel: FieldSelection): GraphQLFieldDefinition {
         val coord = (sel.typeCondition.name to sel.field.name).gj
