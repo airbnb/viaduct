@@ -7,12 +7,10 @@ import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.arbitrary.common.printSeedMarch
 import viaduct.arbitrary.graphql.GenInterfaceStubsIfNeeded
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.arbitrary.graphql.graphQLSchema
@@ -166,12 +164,6 @@ class DomainValidatorTest : KotestPropertyBase() {
             DomainValidator(IdentityDomain, schema, randomSource)
                 .check(IR.Value.Object("Query", emptyMap()))
         }
-    }
-
-    @Test
-    @Disabled("Local-only: run to hunt for the flaky seed. Remove @Disabled and run with --test_timeout=3600")
-    fun `seed march -- IdentityDomain`() {
-        Arb.graphQLSchema(cfg).printSeedMarch()
     }
 
     @Test

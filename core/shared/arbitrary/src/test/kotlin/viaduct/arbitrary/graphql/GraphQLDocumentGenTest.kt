@@ -29,15 +29,15 @@ import io.kotest.property.assume
 import kotlin.math.sqrt
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
 import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.CompoundingWeight
-import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.asSequence
-import viaduct.arbitrary.common.minViolation
+import viaduct.arbitrary.common.withCheck
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.utils.GraphQLTypeRelations
 import viaduct.graphql.utils.allChildren
@@ -676,7 +676,11 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
     private fun Arb<Document>.minInvalid(
         schema: GraphQLSchema,
         iter: Int = iterations
-    ): Document? = minViolation(DocumentComparator, randomSource, iter) { validate(schema, it).isEmpty() }
+    ): Document? {
+        return withCheck { assertTrue(validate(schema, it).isEmpty()) }
+            .minViolation(DocumentComparator, randomSource, iter)
+            ?.value
+    }
 }
 
 private fun validate(

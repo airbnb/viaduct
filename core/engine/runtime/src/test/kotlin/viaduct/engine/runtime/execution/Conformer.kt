@@ -34,7 +34,7 @@ import strikt.assertions.hasSize
 import strikt.assertions.isEqualTo
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.failProperty
-import viaduct.arbitrary.common.minViolation
+import viaduct.arbitrary.common.withCheck
 import viaduct.arbitrary.graphql.ExecutionInputComparator
 import viaduct.arbitrary.graphql.arbRuntimeWiring
 import viaduct.engine.api.ViaductSchema
@@ -134,12 +134,16 @@ internal class Conformer private constructor(
             checkInstrumentationsEqual = checkInstrumentationsEqual,
             extraChecks = extraChecks
         )
-        val failure = arb.minViolation(ExecutionInputComparator, random, iter) {
-            tryCheck(it, checkResult).isSuccess
-        }
-        failure?.let {
-            failProperty(it.dump(), tryCheck(it, checkResult).exceptionOrNull(), seed = random.seed)
-        }
+        arb
+            .withCheck { tryCheck(it, checkResult).getOrThrow() }
+            .minViolation(ExecutionInputComparator, random, iter)
+            ?.let { violation ->
+                failProperty(
+                    violation.value?.dump() ?: "ExecutionInput generation failed before producing a sample",
+                    violation.err,
+                    seed = violation.seed
+                )
+            }
     }
 
     /**
@@ -147,7 +151,7 @@ internal class Conformer private constructor(
      * Any ExecutionInput that fails a conformance check will be collected
      * and simplified, and the simplest input will be thrown as an assertion error.
      *
-     * For more on input simplification, see [Arb.minViolation]
+     * For more on input simplification, see [viaduct.arbitrary.common.CheckedArb.minViolation]
      */
     fun Arb<ExecutionInput>.checkAll(
         iter: Int = 1_000,

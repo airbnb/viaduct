@@ -6,11 +6,12 @@ import graphql.ExecutionInput
 import graphql.ParseAndValidate
 import io.kotest.property.Arb
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.arbitrary.common.minViolation
+import viaduct.arbitrary.common.withCheck
 
 class GraphQLExecutionInputGenTest : KotestPropertyBase() {
     private val schema =
@@ -98,15 +99,20 @@ class GraphQLExecutionInputGenTest : KotestPropertyBase() {
         }
 
     private fun Arb<ExecutionInput>.assertAllValid() {
-        val failure = minViolation(ExecutionInputComparator, randomSource, iterations) {
-            !ParseAndValidate.parseAndValidate(schema.schema, it).isFailure
-        }
-        assertNull(failure) {
-            failure!!
+        val violation = withCheck {
+            assertFalse(
+                ParseAndValidate.parseAndValidate(schema.schema, it).isFailure
+            )
+        }.minViolation(ExecutionInputComparator, randomSource, iterations)
+
+        assertNull(violation) {
+            violation!!
+            val failure = requireNotNull(violation.value)
+
             val result = ParseAndValidate.parseAndValidate(schema.schema, failure)
             buildString {
                 append("ExecutionInput failed validation:\n")
-                append("Seed: $seed\n")
+                append("Seed: ${violation.seed}\n")
                 result.errors.forEach { append("$it\n") }
                 append("Operation: ${failure.operationName}\n")
                 append("Variables: ${failure.variables}\n")

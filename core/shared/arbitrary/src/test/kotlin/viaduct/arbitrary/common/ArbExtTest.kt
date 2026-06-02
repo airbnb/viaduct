@@ -5,7 +5,6 @@ package viaduct.arbitrary.common
 
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
-import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.char
 import io.kotest.property.arbitrary.constant
 import io.kotest.property.arbitrary.int
@@ -14,18 +13,12 @@ import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.take
-import io.kotest.property.exhaustive.exhaustive
-import io.kotest.property.forAll
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
 import java.util.UUID
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.apiannotations.VisibleForTest
 
@@ -44,27 +37,6 @@ class ArbExtTest : KotestPropertyBase() {
                     seq.first() == arb.next(randomSource)
                 }
         }
-
-    @Test
-    fun `Gen_minViolation -- can succeed`() {
-        val failure = Arb.int(-10..10).minViolation(Comparator.naturalOrder(), randomSource) { true }
-        assertNull(failure)
-    }
-
-    @Test
-    fun `Gen_minViolation -- returns violation`() {
-        val failure = Arb.int(-10..10).minViolation(Comparator.naturalOrder(), randomSource) { it > 0 }
-        assertEquals(-10, failure)
-    }
-
-    @Test
-    fun `Gen_minViolation -- exhaustive`() {
-        val falsifier = (-10..10)
-            .toList()
-            .exhaustive()
-            .minViolation(Comparator.naturalOrder(), randomSource) { it > 0 }
-        assertEquals(-10, falsifier)
-    }
 
     @Test
     fun `Arb_flatten`(): Unit =
@@ -150,66 +122,4 @@ class ArbExtTest : KotestPropertyBase() {
         val values = arb.asSequence(randomSource).take(100).toSet()
         assertEquals(setOf(2, 4), values)
     }
-
-    @Test
-    fun `Arb_seedMarch -- succeeds`(): Unit =
-        runBlocking {
-            val seenSeeds = mutableListOf<Long>()
-            val result = Arb.constant(Unit)
-                .seedMarch(0, 10) { seed ->
-                    seenSeeds += seed
-                }
-
-            assertNull(result)
-            assertEquals((0L..9L).toList(), seenSeeds)
-        }
-
-    @Test
-    fun `Arb_seedMarch -- returns failures`(): Unit =
-        runBlocking {
-            val err = RuntimeException("test exception")
-            val arb = arbitrary { rs ->
-                if (rs.seed == 3L) throw err
-            }
-
-            val seenSeeds = mutableListOf<Long>()
-            val result = arb.seedMarch(0L, maxIter = 10) { seed ->
-                seenSeeds += seed
-            }
-
-            assertEquals((3L to err), result)
-            assertEquals((0L..3L).toList(), seenSeeds)
-        }
-
-    @Test
-    fun `Arb_printSeedMarch -- succeeds`() {
-        assertDoesNotThrow {
-            Arb.constant(Unit)
-                .printSeedMarch(0L, maxIter = 5, printEvery = 2)
-        }
-    }
-
-    @Test
-    fun `Arb_printSeedMarch -- fails`(): Unit =
-        runBlocking {
-            val err = RuntimeException("test exception")
-            val arb = arbitrary { rs ->
-                if (rs.seed == 3L) throw err
-            }
-
-            val bytes = ByteArrayOutputStream()
-            val out = PrintStream(bytes)
-            runCatching {
-                arb.printSeedMarch(0L, maxIter = 10, printEvery = 2, out)
-            }
-            assertEquals(
-                """
-                Seed 0...
-                Seed 2...
-                Failed on seed: 3
-
-                """.trimIndent(),
-                bytes.toString()
-            )
-        }
 }
