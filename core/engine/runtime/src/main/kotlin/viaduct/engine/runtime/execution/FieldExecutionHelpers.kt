@@ -74,9 +74,9 @@ object FieldExecutionHelpers {
         val isResolverSelective = parameters.engineExecutionContext.isResolverSelective
 
         val runtimeResolverCoordinate = parameters.executionStepInfo.objectType.name to field.fieldName
-        val hasSelectiveResolver = isResolverSelective(runtimeResolverCoordinate)
+        val includeSelectionsInKey = isResolverSelective(runtimeResolverCoordinate)
 
-        val selectionSet = if (hasSelectiveResolver) {
+        val selectionSet = if (includeSelectionsInKey) {
             field.selectionSet?.let {
                 ExecutionSelections(
                     parameters.graphQLSchema,
@@ -193,24 +193,51 @@ object FieldExecutionHelpers {
         return ViaductDataFetchingEnvironmentImpl(dfe, updatedEngineExecCtx)
     }
 
-    internal suspend fun createOERSelections(
-        rss: RequiredSelectionSet,
+    internal fun createOERSelections(
         variables: CoercedVariables,
         engineExecutionContext: EngineExecutionContext,
+        queryPlan: QueryPlan,
     ): ObjectEngineResult.Selections {
         val executionParameters = engineExecutionContext.executionHandle!!.asExecutionParameters()
 
-        val childPlan = checkNotNull(executionParameters.queryPlanIndex.find(rss.id)) {
-            "QueryPlanIndex does not contain a plan for RSS `${rss.id}`"
-        }
         return ExecutionSelections(
             engineExecutionContext.fullSchema.schema,
-            childPlan.selectionSet,
-            childPlan.fragments,
+            queryPlan.selectionSet,
+            queryPlan.fragments,
             variables,
             executionParameters.constants.collectCache,
             engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
         )
+    }
+
+    internal fun findRssQueryPlan(
+        rss: RequiredSelectionSet,
+        engineExecutionContext: EngineExecutionContext,
+        queryPlan: QueryPlan? = null,
+    ): QueryPlan =
+        findRssQueryPlan(
+            rss,
+            engineExecutionContext.executionHandle!!.asExecutionParameters(),
+            queryPlan,
+        )
+
+    internal fun findRssQueryPlan(
+        rss: RequiredSelectionSet,
+        executionParameters: ExecutionParameters,
+        queryPlan: QueryPlan? = null,
+    ): QueryPlan {
+        val plan = queryPlan
+            ?.index
+            ?.find(rss.id)
+            ?: executionParameters.field
+                ?.childPlans
+                ?.firstOrNull { it.plan.requiredSelectionSetId == rss.id }
+                ?.plan
+            // Fall back for RSS plans reached outside the current field's direct child plans.
+            ?: executionParameters.queryPlanIndex.find(rss.id)
+        return checkNotNull(plan) {
+            "Missing QueryPlan for RequiredSelectionSet ${rss.id}"
+        }
     }
 
     fun createExecutionStepInfo(
@@ -318,8 +345,7 @@ object FieldExecutionHelpers {
         locale: Locale,
     ): CoercedVariables =
         resolveVariables(
-            plan.variableDefinitions,
-            plan.variablesResolvers,
+            plan,
             arguments,
             currentEngineData,
             queryEngineData,
@@ -339,10 +365,10 @@ object FieldExecutionHelpers {
         engineExecutionContext: EngineExecutionContext,
         graphQLContext: GraphQLContext,
         locale: Locale,
+        queryPlan: QueryPlan
     ): CoercedVariables =
         resolveVariables(
-            rssVariableDefinitions(rss, engineExecutionContext.fullSchema.schema),
-            rss.variablesResolvers,
+            queryPlan,
             arguments,
             currentEngineData,
             queryEngineData,
@@ -357,8 +383,7 @@ object FieldExecutionHelpers {
      * after the dependee data have resolved.
      */
     private suspend fun resolveVariables(
-        variableDefinitions: List<VariableDefinition>,
-        variablesResolvers: List<VariablesResolver>,
+        queryPlan: QueryPlan,
         arguments: Map<String, Any?>,
         currentEngineData: ObjectEngineResult,
         queryEngineData: ObjectEngineResult,
@@ -366,14 +391,14 @@ object FieldExecutionHelpers {
         graphQLContext: GraphQLContext,
         locale: Locale
     ): CoercedVariables =
-        variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
+        queryPlan.variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
             val isResolverSelective = engineExecutionContext.isResolverSelective
             val variablesData: EngineObjectData = vr.requiredSelectionSet?.let { vrss ->
+                val childPlan = findRssQueryPlan(vrss, engineExecutionContext, queryPlan)
                 // VariablesResolvers may have required selection sets which have their own variables resolvers.
                 // Recursively resolve them
                 val innerVariables = resolveVariables(
-                    rssVariableDefinitions(vrss, engineExecutionContext.fullSchema.schema),
-                    vrss.variablesResolvers,
+                    childPlan,
                     arguments,
                     currentEngineData,
                     queryEngineData,
@@ -386,9 +411,9 @@ object FieldExecutionHelpers {
                     variables = innerVariables.toMap()
                 )
                 val selectionContext = createOERSelections(
-                    vrss,
                     innerVariables,
                     engineExecutionContext,
+                    childPlan,
                 )
 
                 val engineResult = if (vrss.selections.typeName == engineExecutionContext.fullSchema.schema.queryType.name) {
@@ -411,7 +436,7 @@ object FieldExecutionHelpers {
         }.let {
             ValuesResolver.coerceVariableValues(
                 engineExecutionContext.fullSchema.schema,
-                variableDefinitions,
+                queryPlan.variableDefinitions,
                 RawVariables(it),
                 graphQLContext,
                 locale

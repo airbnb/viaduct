@@ -87,8 +87,9 @@ class ResolverDataFetcher(
         val objectErrorMessage =
             "add it to @Resolver's objectValueFragment before accessing it via Context.objectValue"
         val objectRss = fieldResolverDispatcher.objectSelectionSet
-        val objectVariables = objectRss?.let { rss ->
-            resolveRSSVariables(
+        val objectRssData = objectRss?.let { rss ->
+            val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, localExecutionContext)
+            val variables = resolveRSSVariables(
                 rss = rss,
                 arguments = environment.arguments,
                 currentEngineData = engineResults.parentResult,
@@ -96,18 +97,19 @@ class ResolverDataFetcher(
                 engineExecutionContext = localExecutionContext,
                 environment.graphQlContext,
                 environment.locale,
+                queryPlan = queryPlan,
+            )
+            Pair(
+                selectionSetFactory.engineSelectionSet(rss.selections, variables.toMap()),
+                FieldExecutionHelpers.createOERSelections(
+                    variables,
+                    localExecutionContext,
+                    queryPlan
+                )
             )
         }
-        val objectEngineSelectionSet = objectVariables?.let { variables ->
-            selectionSetFactory.engineSelectionSet(objectRss.selections, variables.toMap())
-        }
-        val objectOERSelections: ObjectEngineResult.Selections? = objectVariables?.let { variables ->
-            FieldExecutionHelpers.createOERSelections(
-                objectRss,
-                variables,
-                localExecutionContext,
-            )
-        }
+        val objectEngineSelectionSet = objectRssData?.first
+        val objectOERSelections: ObjectEngineResult.Selections? = objectRssData?.second
         val objectValue = ProxyEngineObjectData(
             engineResults.parentResult,
             objectErrorMessage,
@@ -131,8 +133,9 @@ class ResolverDataFetcher(
         val queryRss = fieldResolverDispatcher.querySelectionSet
         // queryValueFragment variables may still source values from the resolver's parent object,
         // e.g. via fromObjectField on a non-root resolver.
-        val queryVariables = queryRss?.let { rss ->
-            resolveRSSVariables(
+        val queryRssData = queryRss?.let { rss ->
+            val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, localExecutionContext)
+            val variables = resolveRSSVariables(
                 rss = rss,
                 arguments = environment.arguments,
                 currentEngineData = engineResults.parentResult,
@@ -140,18 +143,19 @@ class ResolverDataFetcher(
                 engineExecutionContext = localExecutionContext,
                 environment.graphQlContext,
                 environment.locale,
+                queryPlan = queryPlan,
+            )
+            Pair(
+                selectionSetFactory.engineSelectionSet(rss.selections, variables.toMap()),
+                FieldExecutionHelpers.createOERSelections(
+                    variables,
+                    localExecutionContext,
+                    queryPlan
+                )
             )
         }
-        val queryEngineSelectionSet = queryVariables?.let { variables ->
-            selectionSetFactory.engineSelectionSet(queryRss.selections, variables.toMap())
-        }
-        val queryOERSelections: ObjectEngineResult.Selections? = queryVariables?.let { variables ->
-            FieldExecutionHelpers.createOERSelections(
-                queryRss,
-                variables,
-                localExecutionContext,
-            )
-        }
+        val queryEngineSelectionSet = queryRssData?.first
+        val queryOERSelections: ObjectEngineResult.Selections? = queryRssData?.second
         val queryValue = ProxyEngineObjectData(
             engineResults.queryResult,
             queryErrorMessage,

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
@@ -182,6 +183,32 @@ class VariablesResolverTest {
             }
         }.runFeatureTest {
             runQuery("{ foo }").assertJson("{data: {foo: 25}}")
+        }
+    }
+
+    @Test
+    fun `variables resolver rss without a selection reference is missing from query plan index`() {
+        var variableResolverCalls = 0
+        MockLegacyTenantModuleBootstrapper(
+            "extend type Query { a: Int, b: Int }"
+        ) {
+            field("Query" to "a") {
+                resolver {
+                    objectSelections("b @include(if: false) @skip(if: ${"$"}skipB)") {
+                        variables(
+                            "skipB",
+                            rss = createRSS("Query", "b")
+                        ) { _, _ ->
+                            variableResolverCalls++
+                            mapOf("skipB" to false)
+                        }
+                    }
+                    fn { _, _, _, _, _ -> 1 }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ a }").assertJson("{data: {a: 1}}")
+            assertEquals(0, variableResolverCalls)
         }
     }
 

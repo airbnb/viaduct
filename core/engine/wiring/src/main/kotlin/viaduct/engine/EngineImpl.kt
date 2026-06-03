@@ -329,26 +329,24 @@ class EngineImpl(
             }
         }
 
-        // 2. Resolve RSS variables from the parent's engine data
-        val variables = FieldExecutionHelpers.resolveRSSVariables(
-            rss = selectionSet,
-            arguments = arguments,
-            currentEngineData = parentParams.parentEngineResult,
-            queryEngineData = parentParams.queryEngineResult,
-            engineExecutionContext = parentParams.engineExecutionContext,
-            graphQLContext = parentParams.executionContext.graphQLContext,
-            locale = parentParams.executionContext.locale,
-        )
-
-        // 3. Build QueryPlan and child ExecutionParameters
+        // 2. Build QueryPlan and child ExecutionParameters
         val eecImpl = parentParams.engineExecutionContext as EngineExecutionContextImpl
 
         val childParams = try {
-            val queryPlan = queryPlanFactory.buildFromParsedSelections(
+            val queryPlan = queryPlanFactory.buildFromRequiredSelectionSet(
                 parameters = eecImpl.queryPlanParameters(),
-                parsedSelections = selectionSet.selections,
-                attribution = selectionSet.attribution,
-                executionCondition = selectionSet.executionCondition,
+                rss = selectionSet,
+            )
+
+            val variables = FieldExecutionHelpers.resolveRSSVariables(
+                rss = selectionSet,
+                arguments = arguments,
+                currentEngineData = parentParams.parentEngineResult,
+                queryEngineData = parentParams.queryEngineResult,
+                engineExecutionContext = parentParams.engineExecutionContext,
+                graphQLContext = parentParams.executionContext.graphQLContext,
+                locale = parentParams.executionContext.locale,
+                queryPlan = queryPlan
             )
 
             val target = if (options.isFieldTypePlan) {
@@ -366,7 +364,7 @@ class EngineImpl(
             throw SubqueryExecutionException.queryPlanBuildFailed(e)
         }
 
-        // 4. Complete and build ExecutionResult
+        // 3. Complete and build ExecutionResult
         val completionResult = runCatching {
             fieldCompleter.completeObject(childParams).await()
         }

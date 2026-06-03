@@ -75,6 +75,14 @@ interface QueryPlanFactory {
     ): QueryPlan
 
     /**
+     * Builds a [QueryPlan] from a [RequiredSelectionSet], preserving the RSS' variable resolvers.
+     */
+    suspend fun buildFromRequiredSelectionSet(
+        parameters: QueryPlan.Parameters,
+        rss: RequiredSelectionSet,
+    ): QueryPlan
+
+    /**
      * Convenience overload that extracts [ParsedSelections]-equivalent data from an
      * [EngineSelectionSet] and delegates to [buildFromParsedSelections].
      *
@@ -160,6 +168,14 @@ interface QueryPlanFactory {
                 rssBuildContext ?: RssBuildContext(ConcurrentHashMap())
             ).build(gjSelectionSet, parentType, attribution, executionCondition)
         }
+
+        override suspend fun buildFromRequiredSelectionSet(
+            parameters: QueryPlan.Parameters,
+            rss: RequiredSelectionSet,
+        ): QueryPlan =
+            checkNotNull(buildRssPlan(parameters, RssBuildContext(ConcurrentHashMap()), rss)) {
+                "RequiredSelectionSet plan build was skipped due to a cycle"
+            }
 
         /**
          * Determines the parent GraphQL type based on the given definition.
@@ -284,6 +300,15 @@ interface QueryPlanFactory {
                 cached.copy(executionCondition = executionCondition, attribution = attribution)
             }
         }
+
+        override suspend fun buildFromRequiredSelectionSet(
+            parameters: QueryPlan.Parameters,
+            rss: RequiredSelectionSet,
+        ): QueryPlan =
+            // This bypasses the document-plan cache but still uses the RSS plan cache.
+            checkNotNull(buildRssPlan(parameters, RssBuildContext(rssPlanCache), rss)) {
+                "RequiredSelectionSet plan build was skipped due to a cycle"
+            }
     }
 }
 

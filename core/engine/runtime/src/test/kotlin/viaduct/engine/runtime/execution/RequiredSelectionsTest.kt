@@ -1723,4 +1723,45 @@ class RequiredSelectionsTest {
             }.runFeatureTest { }
         }
     }
+
+    @Test
+    fun `query rss variable resolver is planned when repeated fragment spread has runtime directive`() {
+        // Query.a has a query RSS that spreads the same fragment twice: once behind a runtime
+        // directive whose variable comes from a variables resolver, and once unconditionally.
+        // The variables resolver has its own RSS selecting Query.b.
+        //
+        // Planning keeps Query.b through the unconditional fragment spread, but the child plan for
+        // the variables resolver RSS is not indexed. Runtime then fails before Query.a's resolver
+        // runs, while building the EngineObjectData passed to the variables resolver.
+        MockLegacyTenantModuleBootstrapper(
+            "extend type Query { a: Int, b: Int }"
+        ) {
+            field("Query" to "a") {
+                resolver {
+                    querySelections(
+                        """
+                            fragment Main on Query {
+                              ...Fragment_B @skip(if: ${"$"}skipB)
+                              ...Fragment_B
+                            }
+
+                            fragment Fragment_B on Query {
+                              b
+                            }
+                        """.trimIndent()
+                    ) {
+                        variables(
+                            "skipB",
+                            rss = createRSS("Query", "b")
+                        ) { _, _ ->
+                            mapOf("skipB" to false)
+                        }
+                    }
+                    fn { _, _, _, _, _ -> 1 }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ a }").assertJson("{data: {a: 1}}")
+        }
+    }
 }

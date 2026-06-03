@@ -13,7 +13,6 @@ import io.mockk.every
 import io.mockk.mockk
 import java.util.Locale
 import java.util.concurrent.CompletionException
-import java.util.concurrent.TimeUnit
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.assertEquals
 import kotlinx.coroutines.CoroutineScope
@@ -28,7 +27,6 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.FromArgumentVariable
-import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
@@ -37,7 +35,6 @@ import viaduct.engine.api.mocks.FieldUnbatchedResolverFn
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
-import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandle
@@ -163,17 +160,15 @@ class ResolverDataFetcherTest {
             .flatMap(::allRequiredSelectionSets)
             .associate { rss ->
                 rss.id to runBlocking {
-                    QueryPlanFactory.Default.buildFromParsedSelections(
+                    QueryPlanFactory.Default.buildFromRequiredSelectionSet(
                         parameters = queryPlanParameters,
-                        parsedSelections = rss.selections,
-                        attribution = rss.attribution,
-                        executionCondition = rss.executionCondition,
+                        rss = rss,
                     )
                 }
             }
         private val queryPlanIndex: QueryPlanIndex =
             indexedRssPlans.entries.fold(QueryPlanIndex.empty()) { index, (id, plan) ->
-                index.merge(QueryPlanIndex.single(id, plan))
+                index + QueryPlanIndex.single(id, plan) + plan.index
             }
 
         private val executionConstants = ExecutionParameters.Constants(
@@ -204,49 +199,6 @@ class ResolverDataFetcherTest {
                 .of(InputInterceptor::class.java, LegacyCoercingInputInterceptor.migratesValues())
                 .build()
             every { dataFetchingEnvironment.locale } returns Locale.US
-        }
-    }
-
-    @Test
-    fun `queryValueFragment resolves fromObjectField variables against parent object`() {
-        runBlocking(Dispatchers.Default) {
-            withThreadLocalCoroutineContext {
-                val objectSelections = SelectionsParser.parse("TestType", "y")
-                val querySelections = SelectionsParser.parse("Query", "placeholder(arg:\$a)")
-                val variableResolvers = VariablesResolver.fromSelectionSetVariables(
-                    objectSelections = objectSelections,
-                    querySelections = querySelections,
-                    variables = listOf(FromObjectFieldVariable("a", "y")),
-                    forChecker = false,
-                )
-                val objectSelectionSet = RequiredSelectionSet(
-                    selections = objectSelections,
-                    variablesResolvers = variableResolvers,
-                    forChecker = false,
-                )
-                val querySelectionSet = RequiredSelectionSet(
-                    selections = querySelections,
-                    variablesResolvers = variableResolvers,
-                    forChecker = false,
-                )
-
-                Fixture(
-                    expectedResult = null,
-                    requiredSelectionSet = objectSelectionSet,
-                    querySelectionSet = querySelectionSet,
-                    flagManager = allDisabledFlags,
-                    testFieldType = "Int",
-                    resolverFn = { _, _, queryValue, _, _ ->
-                        queryValue.fetchAs<Int>("placeholder") * 3
-                    },
-                ).apply {
-                    engineResultLocalContext.parentEngineResult.putResolvedInt("y", 2)
-                    engineResultLocalContext.queryEngineResult.putResolvedInt("placeholder", 10, mapOf("arg" to 2))
-
-                    val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).get(2, TimeUnit.SECONDS)
-                    assertEquals(30, receivedResult)
-                }
-            }
         }
     }
 

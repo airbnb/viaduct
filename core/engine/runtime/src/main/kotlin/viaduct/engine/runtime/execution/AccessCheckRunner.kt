@@ -198,8 +198,9 @@ class AccessCheckRunner(
 
         val deferred = coroutineInterop.scopedAsync {
             val rssMap = instrumentedDispatcher.requiredSelectionSets
-            val rssData = rssMap.mapValues { (key, rss) ->
+            val rssData = rssMap.mapValues { (_, rss) ->
                 rss?.let {
+                    val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, baseExecutionContext)
                     val variables = resolveRSSVariables(
                         rss,
                         arguments,
@@ -208,11 +209,12 @@ class AccessCheckRunner(
                         baseExecutionContext,
                         parameters.executionContext.graphQLContext,
                         parameters.executionContext.locale,
+                        queryPlan = queryPlan,
                     )
                     val oerSelections = FieldExecutionHelpers.createOERSelections(
-                        rss,
                         variables,
                         baseExecutionContext,
+                        queryPlan,
                     )
                     Pair(
                         baseExecutionContext.engineSelectionSetFactory.engineSelectionSet(it.selections, variables.toMap()),
