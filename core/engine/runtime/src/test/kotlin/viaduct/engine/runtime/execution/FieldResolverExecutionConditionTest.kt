@@ -54,12 +54,15 @@ class FieldResolverExecutionConditionTest {
             myFlagManager = FlagManager.default,
         ).engineExecutionContext
         val field = GJField.newField("id").build()
+        val childSelectionSet = QueryPlan.SelectionSet(emptyList())
+        val childFragments = QueryPlan.Fragments.empty
         val childPlan = QueryPlan(
-            selectionSet = QueryPlan.SelectionSet(emptyList()),
-            fragments = QueryPlan.Fragments.empty,
+            selectionSet = childSelectionSet,
+            fragments = childFragments,
             variablesResolvers = emptyList(),
             parentType = runtimeType,
             childPlans = emptyList(),
+            baseIndex = QueryPlanIndex.empty(),
             astSelectionSet = GJSelectionSet.newSelectionSet().build(),
             attribution = null,
             executionCondition = ALWAYS_EXECUTE,

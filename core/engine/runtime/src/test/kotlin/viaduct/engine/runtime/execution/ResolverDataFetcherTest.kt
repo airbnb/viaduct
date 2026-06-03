@@ -171,9 +171,10 @@ class ResolverDataFetcherTest {
                     )
                 }
             }
-        private val queryPlanIndex = object : QueryPlanIndex {
-            override fun find(id: RequiredSelectionSet.Id): QueryPlan? = indexedRssPlans[id]
-        }
+        private val queryPlanIndex: QueryPlanIndex =
+            indexedRssPlans.entries.fold(QueryPlanIndex.empty()) { index, (id, plan) ->
+                index.merge(QueryPlanIndex.single(id, plan))
+            }
 
         private val executionConstants = ExecutionParameters.Constants(
             executionContext = mockk<ExecutionContext>(relaxed = true),

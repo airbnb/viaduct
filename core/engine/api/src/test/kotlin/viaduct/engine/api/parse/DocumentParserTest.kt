@@ -20,9 +20,7 @@ class DocumentParserTest {
     //   ...
     //   t1000: __typename
     // }
-    private val NUM_SELECTIONS: Int = 10000
-
-    val largeDoc: String by lazy {
+    private val largeDoc: String by lazy {
         val longLabel = "x".repeat(1000)
         val b = StringBuilder()
         b.append("{")
@@ -42,7 +40,15 @@ class DocumentParserTest {
                 .selectionSet
                 .selections
 
-        assert(selections.size == NUM_SELECTIONS)
+        assertEquals(NUM_SELECTIONS, selections.size)
+    }
+
+    private fun assertDeepDocParsed(doc: Document) {
+        val operation =
+            doc.getDefinitionsOfType(OperationDefinition::class.java)
+                .first()
+
+        assertEquals(1, operation.selectionSet.selections.size)
     }
 
     @Test
@@ -84,12 +90,42 @@ class DocumentParserTest {
     }
 
     @Test
-    fun `defaultParserOptions are same as GJ default parser options, modulo max tokens`() {
+    fun `parse string -- parses deeply nested documents`() {
+        val deepDoc = buildString {
+            append("{")
+            repeat(DEEP_SELECTION_DEPTH) { depth ->
+                append(" level")
+                append(depth)
+                append(" {")
+            }
+            append(" leaf")
+            repeat(DEEP_SELECTION_DEPTH) {
+                append(" }")
+            }
+            append("}")
+        }
+
+        assertDeepDocParsed(
+            DocumentParser.parse(deepDoc)
+        )
+    }
+
+    @Test
+    fun `defaultParserOptions are same as GJ default parser options, modulo parser limits`() {
         val vopts = DocumentParser.defaultParserOptions
         val gjopts = ParserOptions.getDefaultParserOptions()
 
         assertEquals(gjopts.isCaptureIgnoredChars, vopts.isCaptureIgnoredChars)
         assertEquals(gjopts.isCaptureSourceLocation, vopts.isCaptureSourceLocation)
         assertEquals(gjopts.isCaptureLineComments, vopts.isCaptureLineComments)
+        assertEquals(Int.MAX_VALUE, vopts.maxCharacters)
+        assertEquals(Int.MAX_VALUE, vopts.maxTokens)
+        assertEquals(Int.MAX_VALUE, vopts.maxWhitespaceTokens)
+        assertEquals(Int.MAX_VALUE, vopts.maxRuleDepth)
+    }
+
+    private companion object {
+        const val NUM_SELECTIONS: Int = 10000
+        const val DEEP_SELECTION_DEPTH: Int = 600
     }
 }

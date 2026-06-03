@@ -59,7 +59,6 @@ import viaduct.utils.slf4j.logger
  * @property coercedVariables Coerced variables for the current execution context
  * @property queryPlan Current query plan being executed
  * @property queryPlanIndex Index over currently materialized query plans for RSS lookup during subquery execution
- * @property queryPlanIndexFactory Factory for indexing runtime-materialized query plans
  * @property localContext Local context for the current execution scope
  * @property source The source object for the current execution step
  * @property executionStepInfo Current position in the query execution tree
@@ -79,7 +78,6 @@ data class ExecutionParameters(
     val coercedVariables: CoercedVariables,
     val queryPlan: QueryPlan,
     val queryPlanIndex: QueryPlanIndex,
-    val queryPlanIndexFactory: QueryPlanIndex.Factory,
     val localContext: CompositeLocalContext,
     val source: Any?,
     val executionStepInfo: ExecutionStepInfo,
@@ -375,7 +373,7 @@ data class ExecutionParameters(
             localContext
         }
         val childQueryPlanIndex = if (childPlan.requiredSelectionSetId == null) {
-            queryPlanIndex.merge(queryPlanIndexFactory.create(childPlan))
+            queryPlanIndex.merge(childPlan.index)
         } else {
             queryPlanIndex
         }
@@ -439,7 +437,6 @@ data class ExecutionParameters(
         @Inject
         constructor(
             private val queryPlanFactory: QueryPlanFactory,
-            private val queryPlanIndexFactory: QueryPlanIndex.Factory,
         ) {
             companion object {
                 private val log by logger()
@@ -501,8 +498,7 @@ data class ExecutionParameters(
                     queryEngineResult = queryEngineResult,
                     coercedVariables = executionContext.coercedVariables,
                     queryPlan = queryPlan,
-                    queryPlanIndex = queryPlanIndexFactory.create(queryPlan),
-                    queryPlanIndexFactory = queryPlanIndexFactory,
+                    queryPlanIndex = queryPlan.index,
                     source = executionContext.getRoot(),
                     localContext = executionContext.getLocalContext(),
                     executionStepInfo = parameters.executionStepInfo,

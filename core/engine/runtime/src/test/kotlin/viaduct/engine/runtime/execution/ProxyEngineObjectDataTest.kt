@@ -314,7 +314,7 @@ class ProxyEngineObjectDataTest {
     }
 
     @Test
-    fun `fetch selective interface field preserves declared resolver coordinate for key selectivity`() {
+    fun `fetch selective interface field ignores abstract type condition for key selectivity`() {
         Fixture(
             """
                 type Query { empty: Int }
@@ -329,10 +329,7 @@ class ProxyEngineObjectDataTest {
             val oer = ObjectEngineResultTestHelper.newFromMap(
                 schema.schema.getObjectType("ConcreteContainer"),
                 mapOf(
-                    ObjectEngineResult.Key(
-                        "profile",
-                        selectionSet = profileSubSelections
-                    ) to mapOf("name" to "Ada")
+                    ObjectEngineResult.Key("profile") to mapOf("name" to "Ada")
                 ),
                 mutableListOf(),
                 emptyList(),
@@ -346,7 +343,7 @@ class ProxyEngineObjectDataTest {
                 isResolverSelective = IsResolverSelective.fromRegistry(
                     DispatcherRegistry.Impl(
                         fieldResolverDispatchers = mapOf(
-                            ("ConcreteContainer" to "profile") to mockk<FieldResolverDispatcher> {
+                            ("Container" to "profile") to mockk<FieldResolverDispatcher> {
                                 every { isSelective } returns true
                             }
                         ),

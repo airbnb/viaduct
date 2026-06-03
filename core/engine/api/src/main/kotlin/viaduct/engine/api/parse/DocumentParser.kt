@@ -11,8 +11,9 @@ import java.io.Reader
 /**
  * Stateless singleton that parses GraphQL document strings into [Document] ASTs.
  *
- * Configured with relaxed parser limits (effectively unlimited tokens, whitespace, and characters)
- * so that large auto-generated operations do not trigger the default GraphQL-Java size guards.
+ * Configured with relaxed parser limits (effectively unlimited tokens, whitespace, characters, and
+ * grammar rule depth) so that large auto-generated operations do not trigger the default
+ * GraphQL-Java size guards.
  * Prefer [CachedDocumentParser] for strings that are expected to be parsed repeatedly; use this
  * object directly only when caching is not desired or when working with a [java.io.Reader].
  */
@@ -23,6 +24,7 @@ object DocumentParser {
                 b.maxTokens(Int.MAX_VALUE)
                 b.maxWhitespaceTokens(Int.MAX_VALUE)
                 b.maxCharacters(Int.MAX_VALUE)
+                b.maxRuleDepth(Int.MAX_VALUE)
             }
 
     private val inst = Parser()

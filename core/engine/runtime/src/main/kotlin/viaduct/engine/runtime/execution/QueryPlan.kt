@@ -30,6 +30,7 @@ import viaduct.engine.runtime.execution.constraints.Constraints
  * @property variablesResolvers Resolvers that produce variable values at execution time.
  * @property parentType The GraphQL type that owns the fields in this plan.
  * @property childPlans Child QueryPlan objects resolved before any selections in this plan.
+ * @property baseIndex Index over this plan's eager child plans. [index] adds this plan itself.
  * @property astSelectionSet The original graphql-java AST selection set this plan was built from.
  * @property attribution Execution attribution for tracing and instrumentation.
  * @property executionCondition Condition that controls whether this plan executes at runtime.
@@ -42,12 +43,24 @@ data class QueryPlan(
     val variablesResolvers: List<VariablesResolver>,
     val parentType: GraphQLOutputType,
     val childPlans: List<QueryPlan>,
+    private val baseIndex: QueryPlanIndex,
     val astSelectionSet: GJSelectionSet,
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
     val executionCondition: QueryPlanExecutionCondition,
     val variableDefinitions: List<VariableDefinition>,
     val requiredSelectionSetId: RequiredSelectionSet.Id? = null,
 ) {
+    /** Index over this plan and its eager child plans. */
+    val index: QueryPlanIndex =
+        if (requiredSelectionSetId == null) {
+            baseIndex
+        } else {
+            Index.Builder<RequiredSelectionSet.Id, QueryPlan>()
+                .add(baseIndex)
+                .add(requiredSelectionSetId, this)
+                .build()
+        }
+
     /**
      * Configuration for building a QueryPlan.
      *
@@ -161,11 +174,19 @@ data class QueryPlan(
         override val variableReferences: List<SelectionVariableReference> = emptyList()
     ) : Selection
 
+    /**
+     * Planned fragment definition.
+     *
+     * @property index Index over child plans reachable from this fragment definition body.
+     *   Spread-site directive variable plans are not included here because they are specific to
+     *   each fragment spread.
+     */
     data class FragmentDefinition(
         val selectionSet: SelectionSet,
         val gjDef: GJFragmentDefinition,
         val childPlans: List<QueryPlan>,
         val variableReferences: List<SelectionVariableReference> = emptyList(),
+        val index: QueryPlanIndex,
     )
 
     data class Fragments(val map: Map<String, FragmentDefinition>) : Map<String, FragmentDefinition> by map {

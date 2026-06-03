@@ -29,6 +29,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
+import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcherImpl
 import viaduct.engine.runtime.DispatcherRegistry
@@ -249,20 +250,14 @@ class AccessCheckRunnerTest {
                 }
                 val params = createMockExecutionParameters(engineExecutionContext)
                 val typeCheckParameters = createMockExecutionParameters(engineExecutionContext)
-                val baseQueryPlanIndex = mockk<QueryPlanIndex>()
-                val overrideQueryPlanIndex = mockk<QueryPlanIndex>()
-                val typeCheckQueryPlanIndex = mockk<QueryPlanIndex>()
-                val queryPlanIndexFactory = mockk<QueryPlanIndex.Factory> {
-                    every { create(mockChildPlan) } returns overrideQueryPlanIndex
-                }
+                val overrideQueryPlanIndex = QueryPlanIndex.single(createRSS("Foo", "id").id, mockChildPlan)
+                every { mockChildPlan.index } returns overrideQueryPlanIndex
                 every { params.field } returns mockk {
                     every { fieldName } returns "testField"
                     every { fieldTypeChildPlans } returns mapOf(fooObjectType to lazy { listOf(mockChildPlan) })
                 }
-                every { params.queryPlanIndex } returns baseQueryPlanIndex
-                every { params.queryPlanIndexFactory } returns queryPlanIndexFactory
-                every { baseQueryPlanIndex.merge(overrideQueryPlanIndex) } returns typeCheckQueryPlanIndex
-                stubCopyWithQueryPlanIndex(params, typeCheckQueryPlanIndex, typeCheckParameters)
+                every { params.queryPlanIndex } returns QueryPlanIndex.empty()
+                stubCopyWithQueryPlanIndex(params, overrideQueryPlanIndex, typeCheckParameters)
                 val fieldResolver = mockk<FieldResolver> {
                     every { launchQueryPlan(any(), any(), any(), any()) } just Runs
                 }
@@ -306,12 +301,9 @@ class AccessCheckRunnerTest {
             every { requiredSelectionSetId } returns null
             every { childPlans } returns emptyList()
         }
-        val baseQueryPlanIndex = mockk<QueryPlanIndex>()
-        val overrideQueryPlanIndex = mockk<QueryPlanIndex>()
-        val queryPlanIndexFactory = mockk<QueryPlanIndex.Factory> {
-            every { create(mockChildPlan) } returns overrideQueryPlanIndex
-        }
-        every { baseQueryPlanIndex.merge(overrideQueryPlanIndex) } returns mockk()
+        val baseQueryPlanIndex: QueryPlanIndex = QueryPlanIndex.empty()
+        val overrideQueryPlanIndex = QueryPlanIndex.single(createRSS("Foo", "id").id, mockChildPlan)
+        every { mockChildPlan.index } returns overrideQueryPlanIndex
 
         val typeChecks = mapOf("Foo" to CheckerDispatcherImpl(successCheckerExecutor))
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), typeChecks)
@@ -340,7 +332,6 @@ class AccessCheckRunnerTest {
         val params = mockk<ExecutionParameters> {
             every { this@mockk.engineExecutionContext } returns engineExecutionContext
             every { queryPlanIndex } returns baseQueryPlanIndex
-            every { this@mockk.queryPlanIndexFactory } returns queryPlanIndexFactory
             stubCopyWithAnyQueryPlanIndex(this@mockk, this@mockk)
             every { instrumentation } returns mockk {
                 every { instrumentAccessCheck(any(), any(), any(), any()) } answers { firstArg() }
@@ -470,7 +461,6 @@ class AccessCheckRunnerTest {
             every { gjParameters } returns mockk()
             every { queryEngineResult } returns mockk()
             every { queryPlanIndex } returns mockk()
-            every { queryPlanIndexFactory } returns QueryPlanIndex.Factory.Default
             stubCopyWithAnyQueryPlanIndex(this@mockk, this@mockk)
             every { field } returns mockk {
                 every { childPlans } returns emptyList()
@@ -485,7 +475,6 @@ class AccessCheckRunnerTest {
     ) {
         every {
             parameters.copy(
-                any(),
                 any(),
                 any(),
                 any(),
@@ -521,7 +510,6 @@ class AccessCheckRunnerTest {
                 any(),
                 any(),
                 queryPlanIndex,
-                any(),
                 any(),
                 any(),
                 any(),

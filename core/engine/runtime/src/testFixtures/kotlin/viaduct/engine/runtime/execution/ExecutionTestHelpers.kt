@@ -191,11 +191,9 @@ object ExecutionTestHelpers {
         gjInstrumentations: List<Instrumentation> = emptyList(),
         coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
         queryPlanFactory: QueryPlanFactory = QueryPlanFactory.Default,
-        queryPlanIndexFactory: QueryPlanIndex.Factory = QueryPlanIndex.Factory.Default,
     ): GraphQL {
         val execParamFactory = ExecutionParameters.Factory(
             queryPlanFactory,
-            queryPlanIndexFactory
         )
         val accessCheckRunner = AccessCheckRunner(coroutineInterop)
 

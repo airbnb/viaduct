@@ -44,7 +44,6 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers
 import viaduct.engine.runtime.execution.FieldResolver
 import viaduct.engine.runtime.execution.QueryPlan
 import viaduct.engine.runtime.execution.QueryPlanFactory
-import viaduct.engine.runtime.execution.QueryPlanIndex
 import viaduct.engine.runtime.execution.ViaductExecutionStrategy
 import viaduct.engine.runtime.execution.WrappedCoroutineExecutionStrategy
 import viaduct.engine.runtime.execution.asExecutionParameters
@@ -68,7 +67,6 @@ class EngineImpl(
     documentProvider: PreparsedDocumentProvider,
     private val fullSchema: ViaductSchema,
     private val queryPlanFactory: QueryPlanFactory,
-    private val queryPlanIndexFactory: QueryPlanIndex.Factory = QueryPlanIndex.Factory.Cached(),
 ) : Engine, EngineGraphQLJavaCompat {
     private val coroutineInterop: CoroutineInterop = config.coroutineInterop
     private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = config.temporaryBypassAccessCheck
@@ -117,7 +115,6 @@ class EngineImpl(
             dataFetcherExceptionHandler,
             ExecutionParameters.Factory(
                 queryPlanFactory,
-                queryPlanIndexFactory,
             ),
             accessCheckRunner,
             coroutineInterop,

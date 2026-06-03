@@ -181,7 +181,8 @@ class QueryPlanTest {
                                             )
                                         )
                                         .build(),
-                                    emptyList()
+                                    emptyList(),
+                                    index = QueryPlanIndex.empty(),
                                 )
                             )
                         ),
@@ -409,6 +410,139 @@ class QueryPlanTest {
             val yField = ((plan.selectionSet.selections.single() as Field).childPlans.single().plan.selectionSet.selections.single() as Field)
             expectThat(yField.variableReferences).isEqualTo(listOf(fieldArgumentReference("vara")))
             expectThat(plan.variableDefinitions.map { it.name }).equals(listOf("vara"))
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- prunes variables from statically dropped fields`() {
+        val varResolver = CountingRequiredSelectionSetResolver(
+            "skipY",
+            RequiredSelectionSet(
+                SelectionsParser.parse("Query", "z"),
+                emptyList(),
+                forChecker = false,
+            )
+        )
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldResolverEntry(
+                "Query" to "x",
+                "y @include(if: false) @skip(if: ${'$'}skipY)",
+                listOf(varResolver)
+            )
+            .build()
+
+        Fixture("type Query { x:Int, y:Int, z:Boolean }", reg) {
+            val rssPlan = (buildPlan("{x}").selectionSet.selections.single() as Field)
+                .childPlans
+                .single()
+                .plan
+
+            expectThat(rssPlan.variableDefinitions.map { it.name }).isEqualTo(emptyList())
+            expectThat(rssPlan.variablesResolvers).hasSize(0)
+            expectThat(rssPlan.childPlans).hasSize(0)
+            expectThat(varResolver.requiredSelectionSetReads).isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- keeps variables from active conditional directives`() {
+        val varResolver = CountingRequiredSelectionSetResolver(
+            "skipY",
+            RequiredSelectionSet(
+                SelectionsParser.parse("Query", "z"),
+                emptyList(),
+                forChecker = false,
+            )
+        )
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldResolverEntry(
+                "Query" to "x",
+                "y @skip(if: ${'$'}skipY)",
+                listOf(varResolver)
+            )
+            .build()
+
+        Fixture("type Query { x:Int, y:Int, z:Boolean }", reg) {
+            val rssPlan = (buildPlan("{x}").selectionSet.selections.single() as Field)
+                .childPlans
+                .single()
+                .plan
+
+            expectThat(rssPlan.variableDefinitions.map { it.name }).isEqualTo(listOf("skipY"))
+            expectThat(rssPlan.variablesResolvers).isEqualTo(listOf(varResolver))
+            expectThat(rssPlan.childPlans).hasSize(1)
+            expectThat(varResolver.requiredSelectionSetReads).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- keeps variables from active field arguments`() {
+        val varResolver = CountingRequiredSelectionSetResolver(
+            "value",
+            RequiredSelectionSet(
+                SelectionsParser.parse("Query", "z"),
+                emptyList(),
+                forChecker = false,
+            )
+        )
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldResolverEntry(
+                "Query" to "x",
+                "y(arg: ${'$'}value)",
+                listOf(varResolver)
+            )
+            .build()
+
+        Fixture("type Query { x:Int, y(arg:Int):Int, z:Int }", reg) {
+            val rssPlan = (buildPlan("{x}").selectionSet.selections.single() as Field)
+                .childPlans
+                .single()
+                .plan
+
+            expectThat(rssPlan.variableDefinitions.map { it.name }).isEqualTo(listOf("value"))
+            expectThat(rssPlan.variablesResolvers).isEqualTo(listOf(varResolver))
+            expectThat(rssPlan.childPlans).hasSize(1)
+            expectThat(varResolver.requiredSelectionSetReads).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- prunes variables from statically skipped fragment spreads`() {
+        val varResolver = CountingRequiredSelectionSetResolver(
+            "value",
+            RequiredSelectionSet(
+                SelectionsParser.parse("Query", "z"),
+                emptyList(),
+                forChecker = false,
+            )
+        )
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldResolverEntry(
+                "Query" to "x",
+                """
+                    fragment Main on Query {
+                      ...Values @skip(if: true)
+                    }
+
+                    fragment Values on Query {
+                      y(arg: ${'$'}value)
+                    }
+                """.trimIndent(),
+                listOf(varResolver)
+            )
+            .build()
+
+        Fixture("type Query { x:Int, y(arg:Int):Int, z:Int }", reg) {
+            val rssPlan = (buildPlan("{x}").selectionSet.selections.single() as Field)
+                .childPlans
+                .single()
+                .plan
+
+            expectThat(rssPlan.variableDefinitions.map { it.name }).isEqualTo(emptyList())
+            expectThat(rssPlan.variablesResolvers).hasSize(0)
+            expectThat(rssPlan.childPlans).hasSize(0)
+            expectThat(rssPlan.fragments).hasSize(0)
+            expectThat(varResolver.requiredSelectionSetReads).isEqualTo(0)
         }
     }
 
@@ -1585,17 +1719,19 @@ internal fun mkQueryPlan(
     parentType: GraphQLOutputType,
     childPlans: List<QueryPlan> = emptyList(),
     attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
-) = QueryPlan(
-    selectionSet,
-    fragments,
-    variablesResolvers,
-    parentType,
-    childPlans,
-    astSelectionSet = mockk(),
-    attribution,
-    executionCondition = ALWAYS_EXECUTE,
-    variableDefinitions = emptyList()
-)
+): QueryPlan =
+    QueryPlan(
+        selectionSet,
+        fragments,
+        variablesResolvers,
+        parentType,
+        childPlans,
+        baseIndex = childPlans.fold(QueryPlanIndex.empty()) { index, plan -> plan.index.merge(index) },
+        astSelectionSet = mockk(),
+        attribution,
+        executionCondition = ALWAYS_EXECUTE,
+        variableDefinitions = emptyList()
+    )
 
 internal fun mkQPParameters(
     doc: String,

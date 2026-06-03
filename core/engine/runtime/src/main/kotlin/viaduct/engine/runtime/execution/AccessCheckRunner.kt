@@ -96,7 +96,7 @@ class AccessCheckRunner(
             // QPI does not index fieldTypeChildPlans, so we do that here.
             parameters.copy(
                 queryPlanIndex = fieldTypeChildPlans.fold(parameters.queryPlanIndex) { index, plan ->
-                    index.merge(parameters.queryPlanIndexFactory.create(plan))
+                    index.merge(plan.index)
                 }
             )
         }

@@ -5,9 +5,9 @@ import graphql.language.FragmentDefinition as GJFragmentDefinition
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.TypeName as GJTypeName
 import graphql.schema.GraphQLObjectType
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Nested
@@ -22,7 +22,7 @@ import viaduct.engine.runtime.QueryPlanExecutionCondition.Companion.ALWAYS_EXECU
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 import viaduct.engine.runtime.execution.constraints.Constraints
 
-class QueryPlanIndexTest {
+class IndexTest {
     private val parentType: GraphQLObjectType = GraphQLObjectType.newObject().name("Query").build()
     private val emptyAst: GJSelectionSet = GJSelectionSet.newSelectionSet().build()
 
@@ -30,6 +30,7 @@ class QueryPlanIndexTest {
         childPlans: List<QueryPlan> = emptyList(),
         selectionSet: QueryPlan.SelectionSet = QueryPlan.SelectionSet.empty,
         fragments: QueryPlan.Fragments = QueryPlan.Fragments.empty,
+        baseIndex: QueryPlanIndex = indexOf(childPlans),
         requiredSelectionSetId: viaduct.engine.api.RequiredSelectionSet.Id? = null,
     ): QueryPlan =
         QueryPlan(
@@ -38,6 +39,7 @@ class QueryPlanIndexTest {
             variablesResolvers = emptyList(),
             parentType = parentType,
             childPlans = childPlans,
+            baseIndex = baseIndex,
             astSelectionSet = emptyAst,
             attribution = ExecutionAttribution.DEFAULT,
             executionCondition = ALWAYS_EXECUTE,
@@ -45,35 +47,131 @@ class QueryPlanIndexTest {
             requiredSelectionSetId = requiredSelectionSetId,
         )
 
+    private companion object {
+        fun indexOf(plans: Iterable<QueryPlan>): QueryPlanIndex = plans.fold(QueryPlanIndex.empty()) { index, plan -> plan.index.merge(index) }
+
+        fun indexOf(vararg plans: QueryPlan): QueryPlanIndex = indexOf(plans.asIterable())
+    }
+
     @Nested
-    inner class FactoryTests {
+    inner class GenericIndexTests {
         @Test
-        fun `Default create indexes plans by RequiredSelectionSet Id`() {
+        fun `empty index returns null for unknown keys`() {
+            val index = Index.empty<String, Int>()
+
+            assertNull(index.find("missing"))
+            assertNull(index["missing"])
+        }
+
+        @Test
+        fun `builder indexes values by key`() {
+            val index = Index.Builder<String, Int>()
+                .add("one", 1)
+                .add("two", 2)
+                .build()
+
+            assertEquals(1, index.find("one"))
+            assertEquals(2, index.find("two"))
+            assertNull(index.find("three"))
+        }
+
+        @Test
+        fun `operator get returns the same value as find`() {
+            val index = Index.Builder<String, Int>()
+                .add("key", 1)
+                .build()
+
+            assertEquals(index.find("key"), index["key"])
+        }
+
+        @Test
+        fun `merge treats empty index as identity`() {
+            val index = Index.Builder<String, Int>()
+                .add("key", 1)
+                .build()
+
+            assertSame(index, Index.empty<String, Int>().merge(index))
+            assertSame(index, index.merge(Index.empty()))
+        }
+
+        @Test
+        fun `merge prefers overrides for duplicate keys`() {
+            val base = Index.Builder<String, Int>()
+                .add("key", 1)
+                .build()
+            val overrides = Index.Builder<String, Int>()
+                .add("key", 2)
+                .build()
+
+            val index = base.merge(overrides)
+
+            assertEquals(2, index["key"])
+        }
+    }
+
+    @Nested
+    inner class QueryPlanIndexTests {
+        @Test
+        fun `subtree index indexes plans by RequiredSelectionSet Id`() {
             val rss = createRSS("Query", "foo")
             val childPlan = queryPlan(requiredSelectionSetId = rss.id)
             val rootPlan = queryPlan(childPlans = listOf(childPlan))
 
-            val index = QueryPlanIndex.Factory.Default.create(rootPlan)
+            val index = rootPlan.index
 
             assertSame(childPlan, index.find(rss.id))
         }
 
         @Test
-        fun `Default create indexes nested child plans`() {
+        fun `subtree index indexes nested child plans`() {
             val rss1 = createRSS("Query", "foo")
             val rss2 = createRSS("Query", "bar")
             val grandchild = queryPlan(requiredSelectionSetId = rss2.id)
             val child = queryPlan(requiredSelectionSetId = rss1.id, childPlans = listOf(grandchild))
             val rootPlan = queryPlan(childPlans = listOf(child))
 
-            val index = QueryPlanIndex.Factory.Default.create(rootPlan)
+            val index = rootPlan.index
 
             assertSame(child, index.find(rss1.id))
             assertSame(grandchild, index.find(rss2.id))
         }
 
         @Test
-        fun `Default create indexes field child plans inside named fragments`() {
+        fun `subtree index prefers the nearest plan for duplicate RequiredSelectionSet Ids`() {
+            val rss = createRSS("Query", "foo")
+            val descendantPlan = queryPlan(requiredSelectionSetId = rss.id)
+            val directChildPlan = queryPlan(requiredSelectionSetId = rss.id, childPlans = listOf(descendantPlan))
+            val rootPlan = queryPlan(childPlans = listOf(directChildPlan))
+
+            val index = rootPlan.index
+
+            assertSame(directChildPlan, index.find(rss.id))
+        }
+
+        @Test
+        fun `subtree index prefers self for duplicate RequiredSelectionSet Ids`() {
+            val rss = createRSS("Query", "foo")
+            val childPlan = queryPlan(requiredSelectionSetId = rss.id)
+            val rootPlan = queryPlan(requiredSelectionSetId = rss.id, childPlans = listOf(childPlan))
+
+            val index = rootPlan.index
+
+            assertSame(rootPlan, index.find(rss.id))
+        }
+
+        @Test
+        fun `QueryPlan subtree index is scoped to the receiver plan`() {
+            val rss = createRSS("Query", "foo")
+            val descendantPlan = queryPlan(requiredSelectionSetId = rss.id)
+            val directChildPlan = queryPlan(requiredSelectionSetId = rss.id, childPlans = listOf(descendantPlan))
+            val rootPlan = queryPlan(childPlans = listOf(directChildPlan))
+
+            assertSame(directChildPlan, rootPlan.index.find(rss.id))
+            assertSame(descendantPlan, descendantPlan.index.find(rss.id))
+        }
+
+        @Test
+        fun `subtree index indexes field child plans inside named fragments`() {
             val registry = MockRequiredSelectionSetRegistry.builder()
                 .fieldResolverEntry("Query" to "x", "y")
                 .build()
@@ -99,13 +197,13 @@ class QueryPlanIndexTest {
                 )
             }
 
-            val index = QueryPlanIndex.Factory.Default.create(plan)
+            val index = plan.index
 
             assertNotNull(index.find(rss.id))
         }
 
         @Test
-        fun `Default create does not force root field type child plan indexing`() {
+        fun `subtree index does not force root field type child plan indexing`() {
             val rss = createRSS("Query", "foo")
             val fieldTypeChildPlan = queryPlan(requiredSelectionSetId = rss.id)
             var evaluatedFieldTypeChildPlans = false
@@ -127,18 +225,19 @@ class QueryPlanIndexTest {
                 ),
             )
 
-            val index = QueryPlanIndex.Factory.Default.create(rootPlan)
+            val index = rootPlan.index
 
             assertFalse(evaluatedFieldTypeChildPlans)
             assertNull(index.find(rss.id))
         }
 
         @Test
-        fun `Default create indexes fragment child plans without forcing field type child plans`() {
+        fun `subtree index indexes fragment child plans without forcing field type child plans`() {
             val fragmentRss = createRSS("Query", "fragment")
             val fieldTypeRss = createRSS("Query", "fieldType")
             val fragmentChildPlan = queryPlan(requiredSelectionSetId = fragmentRss.id)
             val fieldTypeChildPlan = queryPlan(requiredSelectionSetId = fieldTypeRss.id)
+            val fragmentIndex = indexOf(fragmentChildPlan)
             var evaluatedFieldTypeChildPlans = false
             val fragmentName = "QueryFragment"
             val rootPlan = queryPlan(
@@ -169,12 +268,14 @@ class QueryPlanIndexTest {
                                 .selectionSet(emptyAst)
                                 .build(),
                             childPlans = emptyList(),
+                            index = fragmentIndex,
                         ),
                     ),
                 ),
+                baseIndex = fragmentIndex,
             )
 
-            val index = QueryPlanIndex.Factory.Default.create(rootPlan)
+            val index = rootPlan.index
 
             assertSame(fragmentChildPlan, index.find(fragmentRss.id))
             assertFalse(evaluatedFieldTypeChildPlans)
@@ -182,7 +283,7 @@ class QueryPlanIndexTest {
         }
 
         @Test
-        fun `QueryPlanIndex merge indexes runtime forced plans and materialized descendants without forcing nested field type child plans`() {
+        fun `query plan index merge indexes runtime forced plans and materialized descendants without forcing nested field type child plans`() {
             val baseRss = createRSS("Query", "base")
             val runtimeRss = createRSS("Query", "runtime")
             val childRss = createRSS("Query", "child")
@@ -197,6 +298,7 @@ class QueryPlanIndexTest {
             val runtimePlan = queryPlan(
                 requiredSelectionSetId = runtimeRss.id,
                 childPlans = listOf(materializedChildPlan),
+                baseIndex = indexOf(materializedChildPlan, fieldMaterializedChildPlan),
                 selectionSet = QueryPlan.SelectionSet(
                     QueryPlan.Field(
                         resultKey = "poly",
@@ -213,8 +315,8 @@ class QueryPlanIndexTest {
                     ),
                 ),
             )
-            val baseIndex = QueryPlanIndex.Factory.Default.create(basePlan)
-            val runtimeIndex = QueryPlanIndex.Factory.Default.create(runtimePlan)
+            val baseIndex = basePlan.index
+            val runtimeIndex = runtimePlan.index
 
             val index = baseIndex.merge(runtimeIndex)
 
@@ -227,38 +329,57 @@ class QueryPlanIndexTest {
         }
 
         @Test
-        fun `Default create returns null for unknown id`() {
+        fun `empty index returns null for every RequiredSelectionSet Id`() {
+            val rss = createRSS("Query", "foo")
+            val index: QueryPlanIndex = QueryPlanIndex.empty()
+
+            assertNull(index.find(rss.id))
+        }
+
+        @Test
+        fun `merge treats empty index as identity`() {
+            val rss = createRSS("Query", "foo")
+            val plan = queryPlan(requiredSelectionSetId = rss.id)
+            val emptyIndex: QueryPlanIndex = QueryPlanIndex.empty()
+
+            assertSame(plan.index, emptyIndex.merge(plan.index))
+            assertSame(plan.index, plan.index.merge(emptyIndex))
+        }
+
+        @Test
+        fun `merge prefers overlay index when base and overlay contain same RequiredSelectionSet Id`() {
+            val rss = createRSS("Query", "foo")
+            val basePlan = queryPlan(requiredSelectionSetId = rss.id)
+            val overlayPlan = queryPlan(requiredSelectionSetId = rss.id)
+
+            val index = basePlan.index.merge(overlayPlan.index)
+
+            assertSame(overlayPlan, index.find(rss.id))
+        }
+
+        @Test
+        fun `flattenIndex indexes all plans`() {
+            val fooRss = createRSS("Query", "foo")
+            val barRss = createRSS("Query", "bar")
+            val fooPlan = queryPlan(requiredSelectionSetId = fooRss.id)
+            val barPlan = queryPlan(requiredSelectionSetId = barRss.id)
+
+            val index = listOf(fooPlan, barPlan).flattenIndex()
+
+            assertSame(fooPlan, index.find(fooRss.id))
+            assertSame(barPlan, index.find(barRss.id))
+        }
+
+        @Test
+        fun `subtree index returns null for unknown id`() {
             val rss = createRSS("Query", "foo")
             val unknownRss = createRSS("Query", "unknown")
             val childPlan = queryPlan(requiredSelectionSetId = rss.id)
             val rootPlan = queryPlan(childPlans = listOf(childPlan))
 
-            val index = QueryPlanIndex.Factory.Default.create(rootPlan)
+            val index = rootPlan.index
 
             assertNull(index.find(unknownRss.id))
-        }
-
-        @Test
-        fun `Cached create returns the same index instance for the same plan`() {
-            val rootPlan = queryPlan()
-            val factory = QueryPlanIndex.Factory.Cached()
-
-            val index1 = factory.create(rootPlan)
-            val index2 = factory.create(rootPlan)
-
-            assertSame(index1, index2)
-        }
-
-        @Test
-        fun `Cached create returns different instances for different plans`() {
-            val factory = QueryPlanIndex.Factory.Cached()
-            val plan1 = queryPlan()
-            val plan2 = queryPlan()
-
-            val index1 = factory.create(plan1)
-            val index2 = factory.create(plan2)
-
-            assertNotSame(index1, index2)
         }
     }
 }
