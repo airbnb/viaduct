@@ -333,4 +333,32 @@ class HelloWorldTest {
             }
         """.trimIndent()
     }
+
+    @Test
+    fun `Argument field greet returns personalised greeting`() {
+        val (statusCode, responseBody) = sendGraphQLRequest("""{ greet(name: "Viaduct") }""")
+
+        statusCode shouldBe 200
+        responseBody shouldEqualJson """
+            {
+              "data": {
+                "greet": "Hello, Viaduct!"
+              }
+            }
+        """.trimIndent()
+    }
+
+    @Test
+    fun `Echo mutation returns the message`() {
+        val (statusCode, responseBody) = sendGraphQLRequest("""mutation { echo(message: "hello world") }""")
+
+        statusCode shouldBe 200
+        responseBody shouldEqualJson """
+            {
+              "data": {
+                "echo": "hello world"
+              }
+            }
+        """.trimIndent()
+    }
 }
