@@ -69,8 +69,6 @@ data class QueryPlan(
      *   this is computed internally from the selection set — callers can omit it.
      * @property schema GraphQL schema used for type verification and field resolution.
      * @property registry Registry for looking up RequiredSelectionSets declared by resolvers and checkers.
-     * @property executeAccessChecksInModstrat Whether access checks should be executed in modstrat.
-     *   Affects which RequiredSelectionSets are included in the plan.
      * @property dispatcherRegistry Registry for looking up resolver and checker dispatchers.
      * @property executionCondition Condition under which QueryPlans built with these parameters
      *   should execute at runtime. Defaults to always execute.
@@ -79,7 +77,6 @@ data class QueryPlan(
         val query: String = "",
         val schema: ViaductSchema,
         val registry: RequiredSelectionSetRegistry,
-        val executeAccessChecksInModstrat: Boolean,
         val dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
         val executionCondition: QueryPlanExecutionCondition = ALWAYS_EXECUTE
     )

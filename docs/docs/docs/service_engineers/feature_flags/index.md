@@ -15,7 +15,6 @@ All flags are defined in `FlagManager.Flags`.
 
 | Flag | Default | Description |
 |---|---|---|
-| `EXECUTE_ACCESS_CHECKS` | **enabled** | Enforces access-check directives (`@scope`, etc.) during execution. Disable only as an emergency killswitch. |
 | `KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH` | disabled | Reverts the data-loader coroutine dispatcher to blocking enqueue flush. Enable to recover from a regression introduced by the non-blocking implementation. |
 | `ENABLE_SYNC_VALUE_COMPUTATION` | disabled | Allows resolvers to compute values synchronously where possible. Experimental — do not enable in production without guidance from the Viaduct team. |
 

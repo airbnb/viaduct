@@ -23,9 +23,9 @@ class RequiredSelectionsAreSchematicallyValid(private val schema: ViaductSchema)
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: RequiredSelectionsValidationCtx) {
         val requiredSelections = if (ctx.fieldName != null) {
-            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForField(ctx.typeName, ctx.fieldName, true)
+            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForField(ctx.typeName, ctx.fieldName)
         } else {
-            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForType(ctx.typeName, true)
+            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForType(ctx.typeName)
         }
         requiredSelections.forEach { rss -> validate(ctx.typeName, ctx.fieldName, rss) }
     }

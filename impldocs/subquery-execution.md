@@ -208,7 +208,7 @@ This matters for parallel subqueries. Without an isolated query result, two para
 
 Subqueries don't start from a full GraphQL document—they start from an `EngineSelectionSet` that already contains the parent type, selection AST, fragment definitions, and variables. `QueryPlanFactory.buildFromSelections()` feeds this directly into the plan builder, skipping re-parsing and document construction.
 
-Plan caching keys on selection text, document key, schema hash, and `executeAccessChecksInModstrat`. Variables are not part of the cache key—the plan only depends on field/argument structure, not specific values.
+Plan caching keys on selection text, document key, and schema hash. Variables are not part of the cache key—the plan only depends on field/argument structure, not specific values.
 
 **Key files:**
 

@@ -111,31 +111,20 @@ object ExecutionTestHelpers {
 
         override fun getFieldCheckerRequiredSelectionSets(
             typeName: String,
-            fieldName: String,
-            executeAccessChecksInModstrat: Boolean
+            fieldName: String
         ): List<RequiredSelectionSet> {
             val delegateResult =
-                rssDelegate.getFieldCheckerRequiredSelectionSets(typeName, fieldName, executeAccessChecksInModstrat)
+                rssDelegate.getFieldCheckerRequiredSelectionSets(typeName, fieldName)
             return delegateResult.ifEmpty {
-                delegate.getFieldCheckerRequiredSelectionSets(
-                    typeName,
-                    fieldName,
-                    executeAccessChecksInModstrat
-                )
+                delegate.getFieldCheckerRequiredSelectionSets(typeName, fieldName)
             }
         }
 
-        override fun getTypeCheckerRequiredSelectionSets(
-            typeName: String,
-            executeAccessChecksInModstrat: Boolean
-        ): List<RequiredSelectionSet> {
+        override fun getTypeCheckerRequiredSelectionSets(typeName: String): List<RequiredSelectionSet> {
             val delegateResult =
-                rssDelegate.getTypeCheckerRequiredSelectionSets(typeName, executeAccessChecksInModstrat)
+                rssDelegate.getTypeCheckerRequiredSelectionSets(typeName)
             return delegateResult.ifEmpty {
-                delegate.getTypeCheckerRequiredSelectionSets(
-                    typeName,
-                    executeAccessChecksInModstrat
-                )
+                delegate.getTypeCheckerRequiredSelectionSets(typeName)
             }
         }
     }

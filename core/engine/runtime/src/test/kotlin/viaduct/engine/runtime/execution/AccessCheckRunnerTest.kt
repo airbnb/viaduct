@@ -60,33 +60,26 @@ class AccessCheckRunnerTest {
     }
 
     @Test
-    fun `fieldCheck - flag disabled`(): Unit =
+    fun `fieldCheck - no checker`(): Unit =
         runBlocking {
-            val result = checkField(false)
+            val result = checkField()
             assertEquals(Value.nullValue, result)
         }
 
     @Test
-    fun `fieldCheck - flag enabled, no checker`(): Unit =
-        runBlocking {
-            val result = checkField(true)
-            assertEquals(Value.nullValue, result)
-        }
-
-    @Test
-    fun `fieldCheck - flag enabled, checker passes`(): Unit =
+    fun `fieldCheck - checker passes`(): Unit =
         runBlocking {
             withThreadLocalCoroutineContext {
-                val result = checkField(true, successCheckerExecutor)
+                val result = checkField(successCheckerExecutor)
                 assertEquals(CheckerResult.Success, result.await())
             }
         }
 
     @Test
-    fun `fieldCheck - flag enabled, checker fails`(): Unit =
+    fun `fieldCheck - checker fails`(): Unit =
         runBlocking {
             withThreadLocalCoroutineContext {
-                val result = checkField(true, errorCheckerExecutor)
+                val result = checkField(errorCheckerExecutor)
                 val error = result.await()?.asError?.error
                 assertTrue(error is IllegalAccessException)
                 assertEquals("denied", error.message)
@@ -94,33 +87,26 @@ class AccessCheckRunnerTest {
         }
 
     @Test
-    fun `typeCheck - flag disabled`(): Unit =
+    fun `typeCheck - no checker`(): Unit =
         runBlocking {
-            val result = checkType(false)
+            val result = checkType()
             assertEquals(Value.nullValue, result)
         }
 
     @Test
-    fun `typeCheck - flag enabled, no checker`(): Unit =
-        runBlocking {
-            val result = checkType(true)
-            assertEquals(Value.nullValue, result)
-        }
-
-    @Test
-    fun `typeCheck - flag enabled, checker passes`(): Unit =
+    fun `typeCheck - checker passes`(): Unit =
         runBlocking {
             withThreadLocalCoroutineContext {
-                val result = checkType(true, successCheckerExecutor)
+                val result = checkType(successCheckerExecutor)
                 assertEquals(CheckerResult.Success, result.await())
             }
         }
 
     @Test
-    fun `typeCheck - flag enabled, checker fails`(): Unit =
+    fun `typeCheck - checker fails`(): Unit =
         runBlocking {
             withThreadLocalCoroutineContext {
-                val result = checkType(true, errorCheckerExecutor)
+                val result = checkType(errorCheckerExecutor)
                 val error = result.await()?.asError?.error
                 assertTrue(error is IllegalAccessException)
                 assertEquals("denied", error.message)
@@ -245,7 +231,6 @@ class AccessCheckRunnerTest {
                     every { fieldScopeSupplier } returns mockk()
                     every { dataFetchingEnvironment } returns null
                     every { copy(any(), any(), any(), any(), any()) } returns this
-                    every { executeAccessChecksInModstrat } returns true
                     every { selectiveOERKeysEnabled } returns false
                 }
                 val params = createMockExecutionParameters(engineExecutionContext)
@@ -315,7 +300,6 @@ class AccessCheckRunnerTest {
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
             every { copy(any(), any(), any(), any(), any()) } returns this
-            every { executeAccessChecksInModstrat } returns true
             every { selectiveOERKeysEnabled } returns false
         }
         val oer = objectEngineResult {
@@ -370,10 +354,7 @@ class AccessCheckRunnerTest {
         return childPlanLaunched
     }
 
-    private fun checkType(
-        isEnabled: Boolean,
-        checker: CheckerExecutor? = null
-    ): Value<out CheckerResult?> {
+    private fun checkType(checker: CheckerExecutor? = null): Value<out CheckerResult?> {
         val checkerDispatchers = if (checker != null) mapOf("Foo" to CheckerDispatcherImpl(checker)) else emptyMap()
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), emptyMap(), checkerDispatchers)
         val engineExecutionContext = mockk<EngineExecutionContextImpl> {
@@ -384,7 +365,6 @@ class AccessCheckRunnerTest {
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
             every { copy(any(), any(), any(), any(), any()) } returns this
-            every { executeAccessChecksInModstrat } returns isEnabled
             every { selectiveOERKeysEnabled } returns false
         }
         val oer = objectEngineResult {
@@ -401,10 +381,7 @@ class AccessCheckRunnerTest {
         )
     }
 
-    private fun checkField(
-        isEnabled: Boolean,
-        checker: CheckerExecutor? = null
-    ): Value<out CheckerResult?> {
+    private fun checkField(checker: CheckerExecutor? = null): Value<out CheckerResult?> {
         val exec = AccessCheckRunner(DefaultCoroutineInterop)
         val checkerDispatchers = if (checker != null) mapOf("Foo" to "bar" to CheckerDispatcherImpl(checker)) else emptyMap()
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), checkerDispatchers, emptyMap())
@@ -417,7 +394,6 @@ class AccessCheckRunnerTest {
                 every { fieldScopeSupplier } returns mockk()
                 every { dataFetchingEnvironment } returns null
                 every { copy(any(), any(), any(), any(), any()) } returns this
-                every { executeAccessChecksInModstrat } returns isEnabled
                 every { selectiveOERKeysEnabled } returns false
             }
         ).engineExecutionContext as? EngineExecutionContextImpl

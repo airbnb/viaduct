@@ -191,7 +191,6 @@ class IndexTest {
                         query = document,
                         schema = ViaductSchema("type Query { x: Int y: Int }".asSchema),
                         registry = registry,
-                        executeAccessChecksInModstrat = false,
                     ),
                     document.asDocument,
                 )

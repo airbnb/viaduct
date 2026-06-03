@@ -48,11 +48,11 @@ class RequiredSelectionsAreAcyclic(
             registry.getFieldResolverRequiredSelectionSets(ctx.typeName, ctx.fieldName).forEach { rss ->
                 populate(graph, registry, rss, ctx.typeName to ctx.fieldName, visited)
             }
-            registry.getFieldCheckerRequiredSelectionSets(ctx.typeName, ctx.fieldName, executeAccessChecksInModstrat = true).forEach { rss ->
+            registry.getFieldCheckerRequiredSelectionSets(ctx.typeName, ctx.fieldName).forEach { rss ->
                 populate(graph, registry, rss, ctx.typeName to ctx.fieldName, visited)
             }
         } else {
-            registry.getTypeCheckerRequiredSelectionSets(ctx.typeName, executeAccessChecksInModstrat = true).forEach { rss ->
+            registry.getTypeCheckerRequiredSelectionSets(ctx.typeName).forEach { rss ->
                 populate(graph, registry, rss, ctx.typeName to ctx.fieldName, visited)
             }
         }
@@ -83,11 +83,11 @@ class RequiredSelectionsAreAcyclic(
                 registry.getFieldResolverRequiredSelectionSets(typeName, fieldName).forEach { childRss ->
                     populate(graph, registry, childRss, c, visited)
                 }
-                registry.getFieldCheckerRequiredSelectionSets(typeName, fieldName, executeAccessChecksInModstrat = true).forEach { childRss ->
+                registry.getFieldCheckerRequiredSelectionSets(typeName, fieldName).forEach { childRss ->
                     populate(graph, registry, childRss, c, visited)
                 }
             } else {
-                registry.getTypeCheckerRequiredSelectionSets(typeName, executeAccessChecksInModstrat = true).forEach { childRss ->
+                registry.getTypeCheckerRequiredSelectionSets(typeName).forEach { childRss ->
                     populate(graph, registry, childRss, c, visited)
                 }
             }

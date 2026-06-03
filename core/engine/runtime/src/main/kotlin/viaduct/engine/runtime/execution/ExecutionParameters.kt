@@ -469,7 +469,6 @@ data class ExecutionParameters(
                             executionContext.executionInput.query,
                             engineExecutionContext.activeSchema,
                             engineExecutionContext.dispatcherRegistry,
-                            engineExecutionContext.executeAccessChecksInModstrat,
                             engineExecutionContext.dispatcherRegistry
                         ),
                         executionContext.document,

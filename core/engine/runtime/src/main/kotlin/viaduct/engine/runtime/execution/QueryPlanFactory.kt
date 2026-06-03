@@ -227,7 +227,6 @@ interface QueryPlanFactory {
             val documentText: String,
             val documentKey: DocumentKey,
             val schemaHashCode: Int,
-            val executeAccessChecksInModstrat: Boolean,
         )
 
         private val cache = Caffeine.newBuilder()
@@ -258,7 +257,6 @@ interface QueryPlanFactory {
                 parameters.query,
                 resolvedKey,
                 parameters.schema.hashCode(),
-                parameters.executeAccessChecksInModstrat,
             )
             return cache.get(cacheKey) { _, _ ->
                 CoroutineScope(queryPlanBuilderDispatcher).future {
@@ -279,7 +277,6 @@ interface QueryPlanFactory {
                 queryText,
                 DocumentKey.Fragment("subquery:${parsedSelections.typeName}"),
                 parameters.schema.hashCode(),
-                parameters.executeAccessChecksInModstrat,
             )
             // Cache using ALWAYS_EXECUTE so that executionCondition (which may be a SAM lambda
             // with identity-based hashCode) doesn't prevent cache sharing across calls with
@@ -465,7 +462,7 @@ private class QueryPlanBuilder(
                 buildChildPlansFromRequiredSelectionSets(resolverRsses)
                     .forEach { add(FieldChildPlan(it, originCoordinate)) }
 
-                val checkerRsses = parameters.registry.getFieldCheckerRequiredSelectionSets(parentType.name, field.name, parameters.executeAccessChecksInModstrat)
+                val checkerRsses = parameters.registry.getFieldCheckerRequiredSelectionSets(parentType.name, field.name)
                 buildChildPlansFromRequiredSelectionSets(checkerRsses)
                     .forEach { add(FieldChildPlan(it, originCoordinate)) }
             }
@@ -486,7 +483,7 @@ private class QueryPlanBuilder(
 
         val entries = possibleFieldTypes.mapNotNull { type ->
             val requiredSelectionSets =
-                parameters.registry.getTypeCheckerRequiredSelectionSets(type.name, parameters.executeAccessChecksInModstrat)
+                parameters.registry.getTypeCheckerRequiredSelectionSets(type.name)
             if (requiredSelectionSets.isEmpty()) return@mapNotNull null
             type to lazy {
                 requiredSelectionSets.mapNotNull { rss -> buildRssPlan(capturedParameters, capturedContext, rss) }
@@ -799,7 +796,6 @@ private fun buildRssPlan(
     val key = RssCacheKey(
         requiredSelectionSetId = rss.id,
         schemaHashCode = parameters.schema.hashCode(),
-        executeAccessChecksInModstrat = parameters.executeAccessChecksInModstrat,
     )
     rssBuildContext.cache[key]?.let { return it }
     if (rss in rssBuildContext.building) {
@@ -856,7 +852,6 @@ sealed class DocumentKey {
 data class RssCacheKey(
     val requiredSelectionSetId: RequiredSelectionSet.Id,
     val schemaHashCode: Int,
-    val executeAccessChecksInModstrat: Boolean,
 )
 
 /**

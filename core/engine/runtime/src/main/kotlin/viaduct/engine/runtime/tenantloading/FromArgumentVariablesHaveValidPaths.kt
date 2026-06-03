@@ -28,7 +28,7 @@ class FromArgumentVariablesHaveValidPaths(
             return
         }
         ctx.requiredSelectionSetRegistry
-            .getRequiredSelectionSetsForField(ctx.typeName, ctx.fieldName, true)
+            .getRequiredSelectionSetsForField(ctx.typeName, ctx.fieldName)
             .forEach { selectionSet ->
                 validateFromArgumentVariables(ctx.typeName to ctx.fieldName, selectionSet)
             }

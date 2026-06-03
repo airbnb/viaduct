@@ -28,8 +28,6 @@ import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.service.api.spi.ErrorReporter
-import viaduct.service.api.spi.FlagManager.Flags
-import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
@@ -433,11 +431,6 @@ class FeatureTestBuilder(
         val standardViaduct = StandardViaduct.Builder()
             .withTenantAPIBootstrapperBuilders(builders)
             .withLenientResolverValidation()
-            .withFlagManager(
-                MockFlagManager.create(
-                    Flags.EXECUTE_ACCESS_CHECKS,
-                )
-            )
             .allowSubscriptions(true)
             .withSchemaConfiguration(schemaConfiguration)
             .withCheckerExecutorFactory(

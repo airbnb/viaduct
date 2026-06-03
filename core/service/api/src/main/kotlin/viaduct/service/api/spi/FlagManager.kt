@@ -1,7 +1,6 @@
 package viaduct.service.api.spi
 
 import viaduct.apiannotations.StableApi
-import viaduct.service.api.spi.FlagManager.Flags.EXECUTE_ACCESS_CHECKS
 
 /**
  * Interface for managing framework feature flags within the Viaduct runtime.
@@ -27,12 +26,7 @@ interface FlagManager {
     /** A [FlagManager] that uses the framework-default state for each flag. */
     @StableApi
     object default : FlagManager {
-        override fun isEnabled(flag: Flag): Boolean =
-            when (flag) {
-                EXECUTE_ACCESS_CHECKS -> true
-
-                else -> false
-            }
+        override fun isEnabled(flag: Flag): Boolean = false
     }
 
     /**
@@ -50,9 +44,6 @@ interface FlagManager {
     enum class Flags(
         override val flagName: String
     ) : Flag {
-        /** Controls whether access-check directives are enforced during execution. */
-        EXECUTE_ACCESS_CHECKS("execute_access_checks_in_modern_execution_strategy"),
-
         /**
          * Controls whether selective resolvers use subselection-aware OER keys.
          *

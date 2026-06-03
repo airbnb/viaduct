@@ -66,12 +66,8 @@ interface DispatcherRegistry : RequiredSelectionSetRegistry {
 
         override fun getFieldCheckerRequiredSelectionSets(
             typeName: String,
-            fieldName: String,
-            executeAccessChecksInModstrat: Boolean
+            fieldName: String
         ): List<RequiredSelectionSet> {
-            if (!executeAccessChecksInModstrat) {
-                return emptyList()
-            }
             val checkerRss = getFieldCheckerDispatcher(typeName, fieldName)?.requiredSelectionSets?.values?.filterNotNull()
             if (checkerRss.isNullOrEmpty()) return emptyList()
             return checkerRss
@@ -92,14 +88,9 @@ interface DispatcherRegistry : RequiredSelectionSetRegistry {
             }
         }
 
-        override fun getTypeCheckerRequiredSelectionSets(
-            typeName: String,
-            executeAccessChecksInModstrat: Boolean
-        ): List<RequiredSelectionSet> =
+        override fun getTypeCheckerRequiredSelectionSets(typeName: String): List<RequiredSelectionSet> =
             buildList {
-                if (executeAccessChecksInModstrat) {
-                    getTypeCheckerDispatcher(typeName)?.requiredSelectionSets?.values?.filterNotNull()?.let { addAll(it) }
-                }
+                getTypeCheckerDispatcher(typeName)?.requiredSelectionSets?.values?.filterNotNull()?.let { addAll(it) }
             }
 
         internal fun isEmpty() = fieldResolverDispatchers.isEmpty() && nodeResolverDispatchers.isEmpty() && fieldCheckerDispatchers.isEmpty() && typeCheckerDispatchers.isEmpty()

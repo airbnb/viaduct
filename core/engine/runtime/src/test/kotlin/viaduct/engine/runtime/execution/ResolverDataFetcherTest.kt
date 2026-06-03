@@ -58,11 +58,10 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ResolverDataFetcherTest {
+    // Access checks always run in the modern execution strategy; flag state no longer affects this.
     private val allDisabledFlags = MockFlagManager()
-    private val executeAccessChecksEnabled = MockFlagManager.create(FlagManager.Flags.EXECUTE_ACCESS_CHECKS)
     private val allFlagSets = listOf(
         allDisabledFlags,
-        executeAccessChecksEnabled,
     )
 
     private class Fixture(
@@ -147,7 +146,6 @@ class ResolverDataFetcherTest {
         private val queryPlanParameters = QueryPlan.Parameters(
             schema = schema,
             registry = baseEngineExecutionContextImpl.dispatcherRegistry,
-            executeAccessChecksInModstrat = baseEngineExecutionContextImpl.executeAccessChecksInModstrat,
             dispatcherRegistry = baseEngineExecutionContextImpl.dispatcherRegistry,
         )
 
@@ -231,7 +229,7 @@ class ResolverDataFetcherTest {
                         emptyList(),
                         forChecker = false
                     ),
-                    flagManager = executeAccessChecksEnabled
+                    flagManager = allDisabledFlags
                 ).apply {
                     val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
                     assertEquals(expectedResult, receivedResult)

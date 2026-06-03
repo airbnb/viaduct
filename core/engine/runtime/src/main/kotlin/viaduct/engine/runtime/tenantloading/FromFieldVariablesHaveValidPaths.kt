@@ -38,9 +38,9 @@ class FromFieldVariablesHaveValidPaths(
         //   2. Create a mapping of all variable sinks: "variableName" -> List<VariableUsageInfo>
         //   3. For each variable sink, lookup its source and validate that the source and sink are compatible
         val allSets = if (ctx.fieldName != null) {
-            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForField(ctx.typeName, ctx.fieldName, true)
+            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForField(ctx.typeName, ctx.fieldName)
         } else {
-            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForType(ctx.typeName, true)
+            ctx.requiredSelectionSetRegistry.getRequiredSelectionSetsForType(ctx.typeName)
         }
         val coord = ctx.typeName to ctx.fieldName
 

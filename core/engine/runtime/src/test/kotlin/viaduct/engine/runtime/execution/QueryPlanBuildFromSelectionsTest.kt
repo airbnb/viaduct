@@ -83,7 +83,6 @@ class QueryPlanBuildFromSelectionsTest {
             query = query,
             schema = schema,
             registry = RequiredSelectionSetRegistry.Empty,
-            executeAccessChecksInModstrat = false
         )
 
     private fun QueryPlan.parentTypeName(): String = (parentType as GraphQLNamedType).name

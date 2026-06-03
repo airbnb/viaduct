@@ -16,7 +16,6 @@ import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
-import viaduct.engine.runtime.EngineExecutionContextExtensions.executeAccessChecksInModstrat
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -46,7 +45,6 @@ class AccessCheckRunner(
         dataFetchingEnvironmentSupplier: Supplier<DataFetchingEnvironment>
     ): Value<out CheckerResult?> {
         val engineExecutionContext = parameters.engineExecutionContext
-        if (!engineExecutionContext.executeAccessChecksInModstrat) return Value.nullValue
 
         val field = checkNotNull(parameters.field) { "Expected field to be non-null." }
         val fieldName = field.fieldName
@@ -79,7 +77,6 @@ class AccessCheckRunner(
     ): Value<out CheckerResult?> {
         val field = checkNotNull(parameters.field) { "Expected parameters.field to be non-null." }
         val engineExecutionContext = parameters.engineExecutionContext
-        if (!engineExecutionContext.executeAccessChecksInModstrat) return Value.nullValue
 
         val typeName = objectEngineResult.type.name
         val checkerDispatcher = engineExecutionContext.dispatcherRegistry.getTypeCheckerDispatcher(typeName)

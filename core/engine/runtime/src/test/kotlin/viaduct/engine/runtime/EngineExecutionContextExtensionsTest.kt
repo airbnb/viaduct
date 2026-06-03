@@ -26,9 +26,9 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvironment
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
-import viaduct.engine.runtime.EngineExecutionContextExtensions.executeAccessChecksInModstrat
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.hasResolver
+import viaduct.engine.runtime.EngineExecutionContextExtensions.selectiveOERKeysEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandle
 import viaduct.engine.runtime.execution.ExecutionTestHelpers
 import viaduct.engine.runtime.mocks.ContextMocks
@@ -57,14 +57,6 @@ class EngineExecutionContextExtensionsTest {
             myDispatcherRegistry = dispatcherRegistry,
             myFlagManager = flagManager,
         ).engineExecutionContextImpl
-    }
-
-    @Test
-    fun `executeAccessChecksInModstrat delegates to impl`() {
-        val context: EngineExecutionContext = createContext()
-        val impl = context as EngineExecutionContextImpl
-
-        assertEquals(impl.executeAccessChecksInModstrat, context.executeAccessChecksInModstrat)
     }
 
     @Test
@@ -300,7 +292,7 @@ class EngineExecutionContextExtensionsTest {
         }
 
         val exception = assertFailsWith<IllegalStateException> {
-            fakeContext.executeAccessChecksInModstrat
+            fakeContext.selectiveOERKeysEnabled
         }
         assertTrue(exception.message!!.contains("Expected InternalEngineExecutionContext"))
     }

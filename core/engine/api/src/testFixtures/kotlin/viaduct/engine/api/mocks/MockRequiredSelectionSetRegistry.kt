@@ -79,25 +79,14 @@ class MockRequiredSelectionSetRegistry(
 
     override fun getFieldCheckerRequiredSelectionSets(
         typeName: String,
-        fieldName: String,
-        executeAccessChecksInModstrat: Boolean
+        fieldName: String
     ): List<RequiredSelectionSet> =
         entries
             .filterIsInstance<FieldCheckerEntry>()
             .filter { it.coord == (typeName to fieldName) }
             .map { it.rss }
 
-    fun getRequiredSelectionSetsForField(
-        typeName: String,
-        fieldName: String
-    ): List<RequiredSelectionSet> = getRequiredSelectionSetsForField(typeName, fieldName, true)
-
-    override fun getTypeCheckerRequiredSelectionSets(
-        typeName: String,
-        executeAccessChecksInModstrat: Boolean
-    ): List<RequiredSelectionSet> = getRequiredSelectionSetsForType(typeName)
-
-    fun getRequiredSelectionSetsForType(typeName: String): List<RequiredSelectionSet> =
+    override fun getTypeCheckerRequiredSelectionSets(typeName: String): List<RequiredSelectionSet> =
         entries
             .filterIsInstance<TypeCheckerEntry>()
             .filter { it.typeName == typeName }

@@ -37,7 +37,6 @@ import viaduct.engine.api.mocks.MockNodeBatchResolverExecutor
 import viaduct.engine.api.mocks.MockNodeUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.mocks.Samples
-import viaduct.engine.api.mocks.assertRequiredSelectionSetListEquals
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.select.SelectionsParser
@@ -151,11 +150,10 @@ class DispatcherRegistryTest {
     fun `test DispatcherRegistry getRequiredSelectionSet`() {
         val dispatcherRegistry = createDispatcherRegistry()
         // absent
-        assertEquals(listOf<RequiredSelectionSet>(), dispatcherRegistry.getRequiredSelectionSetsForField("Missing", "missing", true))
-        assertEquals(listOf<RequiredSelectionSet>(), dispatcherRegistry.getRequiredSelectionSetsForField("Missing", "missing", false))
+        assertEquals(listOf<RequiredSelectionSet>(), dispatcherRegistry.getRequiredSelectionSetsForField("Missing", "missing"))
 
         // present with required selections
-        val required = dispatcherRegistry.getRequiredSelectionSetsForField("TestType", "parameterizedField", true)
+        val required = dispatcherRegistry.getRequiredSelectionSetsForField("TestType", "parameterizedField")
         assertTrue(required.isNotEmpty())
         assertEquals(1, required.size)
         assertTrue(
@@ -163,13 +161,12 @@ class DispatcherRegistryTest {
                 .printAstCompact(required[0].selections.toDocument())
                 .contains("fragment _ on TestType")
         )
-        assertRequiredSelectionSetListEquals(required, dispatcherRegistry.getRequiredSelectionSetsForField("TestType", "parameterizedField", false))
     }
 
     @Test
-    fun `test getRequiredSelectionSet combined with field checker Rss when executeAccessChecksInModstrat is true`() {
+    fun `test getRequiredSelectionSet combined with field checker Rss`() {
         val dispatcherRegistry = createDispatcherRegistry()
-        val rss = dispatcherRegistry.getRequiredSelectionSetsForField("TestType", "aField", true)
+        val rss = dispatcherRegistry.getRequiredSelectionSetsForField("TestType", "aField")
         assertTrue(rss.isNotEmpty())
         assertEquals(1, rss.size)
         assertEquals("TestType", rss[0].selections.typeName)
@@ -181,22 +178,9 @@ class DispatcherRegistryTest {
     }
 
     @Test
-    fun `test getRequiredSelectionSet field checker Rss excluded when executeAccessChecksInModstrat is off`() {
+    fun `test getRequiredSelectionSetsForType includes type checker Rss`() {
         val dispatcherRegistry = createDispatcherRegistry()
-        val rss = dispatcherRegistry.getRequiredSelectionSetsForField("TestType", "aField", false)
-        assertTrue(rss.isEmpty())
-    }
-
-    @Test
-    fun `test getRequiredSelectionSetsForType with executeAccessChecksInModstrat off`() {
-        val dispatcherRegistry = createDispatcherRegistry()
-        assertTrue(dispatcherRegistry.getRequiredSelectionSetsForType("TestNode", false).isEmpty())
-    }
-
-    @Test
-    fun `test getRequiredSelectionSetsForType with executeAccessChecksInModstrat on`() {
-        val dispatcherRegistry = createDispatcherRegistry()
-        val rss = dispatcherRegistry.getRequiredSelectionSetsForType("TestNode", true)
+        val rss = dispatcherRegistry.getRequiredSelectionSetsForType("TestNode")
         assertTrue(rss.isNotEmpty())
         assertEquals(1, rss.size)
         assertEquals("TestNode", rss[0].selections.typeName)

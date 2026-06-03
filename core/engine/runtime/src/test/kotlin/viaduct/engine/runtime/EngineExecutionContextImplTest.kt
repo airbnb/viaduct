@@ -31,7 +31,6 @@ class EngineExecutionContextImplTest {
         val copyBatchNodeLoader = eecCopy.nodeDataLoader(resolver)
         assertSame(batchNodeLoader, copyBatchNodeLoader)
         assertSame(eec.engine, eecCopy.engine)
-        assertTrue(eecCopy.executeAccessChecksInModstrat)
         assertTrue(eecCopy.fieldRssOriginFilteringKillSwitchEnabled)
     }
 

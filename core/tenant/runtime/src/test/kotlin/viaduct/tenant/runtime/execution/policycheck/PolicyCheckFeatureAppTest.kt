@@ -15,8 +15,6 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.graphql.test.assertEquals
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.tenant.runtime.execution.policycheck.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.policycheck.resolverbases.QueryResolvers
 
@@ -156,11 +154,8 @@ class PolicyCheckFeatureAppTest : PolicyCheckContractTest() {
 
     @BeforeEach
     fun setupPolicyCheck() {
-        val mockFlagManager = MockFlagManager.create(FlagManager.Flags.EXECUTE_ACCESS_CHECKS)
-
         // Configure the viaduct builder with policy check support
         withViaductBuilder {
-            withFlagManager(mockFlagManager)
             withCheckerExecutorFactoryCreator { schema: ViaductSchema -> PolicyCheckExecutorFactory(schema) }
         }
     }

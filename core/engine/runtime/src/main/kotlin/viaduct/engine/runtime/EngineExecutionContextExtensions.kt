@@ -24,9 +24,6 @@ object EngineExecutionContextExtensions {
             ?: error("Expected InternalEngineExecutionContext but got ${this::class.qualifiedName}")
     }
 
-    val EngineExecutionContext.executeAccessChecksInModstrat: Boolean
-        get() = asImpl().executeAccessChecksInModstrat
-
     val EngineExecutionContext.selectiveOERKeysEnabled: Boolean
         get() = asImpl().selectiveOERKeysEnabled
 

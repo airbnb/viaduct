@@ -41,9 +41,6 @@ open class QueryPlanBenchmark {
             data.query,
             schema,
             registry,
-            // The benchmark isolates QueryPlan construction. QueryPlanFactory.Default does not use
-            // the top-level query plan cache, and field resolver RSS plans are eager either way.
-            executeAccessChecksInModstrat = false
         )
 
         fun toQueryPlan(): QueryPlan =
@@ -331,13 +328,9 @@ open class QueryPlanBenchmark {
 
         override fun getFieldCheckerRequiredSelectionSets(
             typeName: String,
-            fieldName: String,
-            executeAccessChecksInModstrat: Boolean
+            fieldName: String
         ): List<RequiredSelectionSet> = emptyList()
 
-        override fun getTypeCheckerRequiredSelectionSets(
-            typeName: String,
-            executeAccessChecksInModstrat: Boolean
-        ): List<RequiredSelectionSet> = emptyList()
+        override fun getTypeCheckerRequiredSelectionSets(typeName: String): List<RequiredSelectionSet> = emptyList()
     }
 }

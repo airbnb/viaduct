@@ -385,7 +385,6 @@ class EngineImpl(
         QueryPlan.Parameters(
             schema = fullSchema,
             registry = dispatcherRegistry,
-            executeAccessChecksInModstrat = executeAccessChecksInModstrat,
             dispatcherRegistry = dispatcherRegistry,
         )
 

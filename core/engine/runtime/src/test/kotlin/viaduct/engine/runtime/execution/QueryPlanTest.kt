@@ -1010,7 +1010,6 @@ class QueryPlanTest {
             query = "{x{id} y{id}}",
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = true,
         )
         val objectA = schema.schema.getObjectType("ObjectA")!!
         runExecutionTest {
@@ -1041,7 +1040,6 @@ class QueryPlanTest {
             query = "{x}",
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = true,
         )
         runExecutionTest {
             // Build with {x} — triggers a cache miss for the top-level plan
@@ -1074,10 +1072,9 @@ class QueryPlanTest {
             query = "{x y}",
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = true,
         )
-        val xRss = reg.getFieldCheckerRequiredSelectionSets("Query", "x", true).single()
-        val yRss = reg.getFieldCheckerRequiredSelectionSets("Query", "y", true).single()
+        val xRss = reg.getFieldCheckerRequiredSelectionSets("Query", "x").single()
+        val yRss = reg.getFieldCheckerRequiredSelectionSets("Query", "y").single()
 
         runExecutionTest {
             val plan = factory.build(params, "{x y}".asDocument)
@@ -1106,7 +1103,6 @@ class QueryPlanTest {
             query = "{x}",
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = true,
         )
         runExecutionTest {
             val plan = factory.build(params, "{x}".asDocument)
@@ -1141,7 +1137,6 @@ class QueryPlanTest {
             query = "{x{z}}",
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = true,
         )
         runExecutionTest {
             // Must complete without stack overflow or infinite recursion
@@ -1186,7 +1181,6 @@ class QueryPlanTest {
         val params = QueryPlan.Parameters(
             schema = schema,
             registry = reg,
-            executeAccessChecksInModstrat = true,
         )
         runExecutionTest {
             // Build {a} — RSS1 is cached globally; RSS2 is built locally within RSS1 (truncated)
@@ -1742,14 +1736,6 @@ internal fun mkQPParameters(
         doc,
         schema,
         requiredSelectionSetRegistry,
-        executeAccessChecksInModstrat = when (requiredSelectionSetRegistry) {
-            is MockRequiredSelectionSetRegistry ->
-                requiredSelectionSetRegistry.entries.any {
-                    it is MockRequiredSelectionSetRegistry.FieldCheckerEntry ||
-                        it is MockRequiredSelectionSetRegistry.TypeCheckerEntry
-                }
-            else -> false
-        }
     )
 
 private fun mkField(
