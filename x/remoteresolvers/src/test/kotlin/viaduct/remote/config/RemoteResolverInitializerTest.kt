@@ -18,6 +18,17 @@ class RemoteResolverInitializerTest {
         callbackEndpoint = callbackEndpoint,
     )
 
+    private fun networkCfg() =
+        RemoteResolverConfig(
+            enabled = true,
+            mode = RemoteResolverMode.NETWORK,
+            remoteTypes = emptySet(),
+            // Port 0 lets the OS pick a free callback port.
+            rrsHost = "localhost",
+            rrsPort = 0,
+            callbackPort = 0,
+        )
+
     @Test
     fun `disabled config returns NO_OP`() {
         val initializer = RemoteResolverInitializer(cfg(enabled = false))
@@ -56,6 +67,34 @@ class RemoteResolverInitializerTest {
     @Test
     fun `close before initialize still terminates the instance`() {
         val initializer = RemoteResolverInitializer(cfg(enabled = true))
+        initializer.close()
+        assertFailsWith<IllegalStateException> { initializer.initialize() }
+    }
+
+    @Test
+    fun `network mode produces a non-NO_OP factory and binds the callback port`() {
+        val initializer = RemoteResolverInitializer(networkCfg())
+        try {
+            assertTrue(initializer.initialize() !== ProxyResolverFactory.NO_OP)
+        } finally {
+            initializer.close()
+        }
+    }
+
+    @Test
+    fun `network mode initialize is idempotent`() {
+        val initializer = RemoteResolverInitializer(networkCfg())
+        try {
+            assertSame(initializer.initialize(), initializer.initialize())
+        } finally {
+            initializer.close()
+        }
+    }
+
+    @Test
+    fun `network mode initialize after close throws IllegalStateException`() {
+        val initializer = RemoteResolverInitializer(networkCfg())
+        initializer.initialize()
         initializer.close()
         assertFailsWith<IllegalStateException> { initializer.initialize() }
     }

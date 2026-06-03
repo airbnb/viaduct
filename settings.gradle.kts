@@ -35,9 +35,11 @@ includeBuild("core")
 includeBuild("publications")
 includeBuild("gradle-plugins")
 
-// experimental — remoteresolvers proxy library and rrp-server consumer.
+// experimental — remoteresolvers proxy library, rrp-server (engine side),
+// and rrs-server (resolver side, for NETWORK transport).
 includeBuild("x/remoteresolvers")
 includeBuild("x/remoteresolvers/rrp-server")
+includeBuild("x/remoteresolvers/rrs-server")
 
 // demo apps
 includeBuild("demoapps/cli-starter")

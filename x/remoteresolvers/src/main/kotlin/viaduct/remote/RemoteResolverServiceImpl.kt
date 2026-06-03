@@ -16,20 +16,22 @@ import viaduct.remote.grpc.RemoteResolverServiceGrpcKt
 import viaduct.remote.grpc.ResolvedNode
 import viaduct.remote.registry.ContextRegistry
 import viaduct.remote.registry.ExecutorRegistry
+import viaduct.remote.registry.SchemaRegistry
 import viaduct.remote.registry.SelectionsRegistry
 
 /**
  * gRPC service that executes node resolvers on behalf of a [RemoteNodeProxyExecutor].
  *
- * Looks up the [NodeResolverExecutor] and originating [EngineExecutionContext] by
- * handle, wraps the context so re-entrant queries route back to the caller over gRPC,
- * invokes the resolver, and serializes the results.
+ * Looks up the executor by handle, wraps the context so re-entrant queries route back
+ * to the caller over gRPC, invokes the resolver, and serializes the result. Network
+ * mode (handle absent from the local registry) falls back to a stub context fed by
+ * [SchemaRegistry] and an empty selection set.
  */
 open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineImplBase() {
     private val log = LoggerFactory.getLogger(RemoteResolverServiceImpl::class.java)
 
-    // One persistent callback channel per endpoint. Creating a ManagedChannel per request
-    // would instantiate a full Netty thread pool each time — unsustainable at load.
+    // Persistent per-endpoint channel — a fresh ManagedChannel per request would spin up a
+    // Netty thread pool each time.
     private val callbackChannelCache = ConcurrentHashMap<String, ManagedChannel>()
 
     override suspend fun batchResolveNode(request: BatchResolveNodeRequest): BatchResolveNodeResponse {
@@ -38,20 +40,25 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
         val executor = ExecutorRegistry.get(request.executorId)
             ?: throw notFound("executor", request.executorId)
         val originalContext = ContextRegistry.get(request.contextHandle)
-            ?: throw notFound("context", request.contextHandle)
 
         val callbackChannel = callbackChannelCache.computeIfAbsent(request.callbackEndpoint) { ep ->
             createCallbackChannel(ep)
         }
+        val localSchema = if (originalContext == null) SchemaRegistry.get() else null
         val remoteContext = RemoteEngineExecutionContext(
             delegate = originalContext,
             callbackChannel = callbackChannel,
-            contextHandle = request.contextHandle
+            contextHandle = request.contextHandle,
+            localSchema = localSchema
         )
 
+        // IN_PROCESS shares the JVM registry; NETWORK mode lacks it, so the resolver runs
+        // with an empty selection set and the proxy side projects requested fields client-
+        // side. Wire-level selection-set serialization would unlock RRS-side pruning but
+        // isn't required for correctness.
         val selectors = request.selectorsList.map { protoSelector ->
             val selections = SelectionsRegistry.get(protoSelector.selectionsHandle)
-                ?: throw notFound("selections", protoSelector.selectionsHandle)
+                ?: EmptyEngineSelectionSet(executor.typeName)
             NodeResolverExecutor.Selector(id = protoSelector.id, selections = selections)
         }
 
@@ -62,7 +69,7 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
             return buildErrorResponse(selectors, e)
         }
 
-        // For-loop (not map {}) because serialize is suspend.
+        // serialize is suspend — can't use map {} here.
         val protoResults = mutableListOf<ResolvedNode>()
         for ((selector, result) in results) {
             val node = if (result.isSuccess) {
@@ -92,7 +99,7 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
             .build()
     }
 
-    /** Shuts down cached callback channels. Intended to be called during RRS shutdown. */
+    /** Drains and clears the callback channel cache. Call during RRS shutdown. */
     fun shutdownChannels() {
         callbackChannelCache.values.forEach { channel ->
             channel.shutdown()
@@ -132,10 +139,7 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
             .build()
     }
 
-    /**
-     * Creates a channel matching the endpoint format: a "host:port" string maps to a
-     * network channel; anything else is treated as an in-process channel name.
-     */
+    // "host:port" → network channel; anything else → in-process channel name.
     private fun createCallbackChannel(endpoint: String): ManagedChannel {
         val networkParts = endpoint.split(":")
         return if (networkParts.size == 2 && networkParts[1].toIntOrNull() != null) {

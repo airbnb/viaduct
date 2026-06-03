@@ -17,76 +17,66 @@ import viaduct.remote.grpc.EngineCallbackServiceGrpcKt
 import viaduct.remote.grpc.QueryRequest
 import viaduct.remote.registry.SelectionsRegistry
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 /**
- * [EngineExecutionContext] that forwards [resolveSelectionSet] over gRPC to an
- * [EngineCallbackService] so resolvers running in a [RemoteResolverService] can
- * re-enter the engine. All other members delegate to [delegate] when present,
- * or throw [UnsupportedOperationException] otherwise.
+ * [EngineExecutionContext] used by [RemoteResolverService]. Forwards re-entrant
+ * [resolveSelectionSet] calls to the engine over gRPC. When [delegate] is `null`
+ * (cross-JVM mode) members that need local engine state throw; [localSchema] and
+ * [GlobalIDCodecDefault] cover the common cases.
  */
 class RemoteEngineExecutionContext(
     private val delegate: EngineExecutionContext?,
     private val callbackChannel: ManagedChannel,
-    private val contextHandle: String
+    private val contextHandle: String,
+    private val localSchema: ViaductSchema? = null
 ) : EngineExecutionContext {
     private val callbackStub = EngineCallbackServiceGrpcKt.EngineCallbackServiceCoroutineStub(callbackChannel)
 
-    private fun requireDelegate(operation: String): EngineExecutionContext =
-        delegate ?: throw UnsupportedOperationException(
-            "Operation '$operation' requires local context (delegate is null)."
-        )
+    private fun requireDelegate(operation: String): EngineExecutionContext = delegate ?: throw UnsupportedOperationException("'$operation' requires a local engine context")
 
-    // Schema properties - delegate to original context
     override val fullSchema: ViaductSchema
-        get() = requireDelegate("fullSchema").fullSchema
+        get() = localSchema ?: requireDelegate("fullSchema").fullSchema
 
     override val scopedSchema: ViaductSchema
-        get() = requireDelegate("scopedSchema").scopedSchema
+        get() = localSchema ?: requireDelegate("scopedSchema").scopedSchema
 
     override val activeSchema: ViaductSchema
-        get() = requireDelegate("activeSchema").activeSchema
+        get() = localSchema ?: requireDelegate("activeSchema").activeSchema
 
-    // Request context - delegate to original context
     override val requestContext: Any?
         get() = delegate?.requestContext
 
-    // Engine reference - delegate to original context
     override val engine: Engine
         get() = requireDelegate("engine").engine
 
-    // Execution handle - delegate to original context
     override val executionHandle: EngineExecutionContext.ExecutionHandle?
         get() = delegate?.executionHandle
 
-    // GlobalID codec - delegate to original context
+    // The default codec is stateless and uses the same format on both sides; safe to
+    // construct without round-tripping to the original context.
     override val globalIDCodec: GlobalIDCodec
-        get() = requireDelegate("globalIDCodec").globalIDCodec
+        get() = delegate?.globalIDCodec ?: GlobalIDCodecDefault
 
-    // Field execution scope - delegate to original context
     override val fieldScope: EngineExecutionContext.FieldExecutionScope
         get() = requireDelegate("fieldScope").fieldScope
 
-    // Factory for creating selection sets - delegate to original context
     override val engineSelectionSetFactory: EngineSelectionSet.Factory
         get() = requireDelegate("engineSelectionSetFactory").engineSelectionSetFactory
 
-    // Node reference creation - delegate to original context
     override fun createNodeReference(
         id: String,
         graphQLObjectType: GraphQLObjectType
     ): NodeReference = requireDelegate("createNodeReference").createNodeReference(id, graphQLObjectType)
 
-    // Root field reference creation - delegate to original context
     override fun createRootFieldReference(
         rootFieldPath: List<String>,
         type: GraphQLObjectType,
         args: Map<String, Any?>
     ): RootFieldReference = requireDelegate("createRootFieldReference").createRootFieldReference(rootFieldPath, type, args)
 
-    // Modern node resolver check - delegate to original context
     override fun hasModernNodeResolver(typeName: String): Boolean = delegate?.hasModernNodeResolver(typeName) ?: false
 
-    // completeSelectionSet - delegate to original context
     override suspend fun completeSelectionSet(
         selectionSet: RequiredSelectionSet,
         arguments: Map<String, Any?>,
@@ -100,7 +90,6 @@ class RemoteEngineExecutionContext(
         options: CompleteSelectionSetOptions
     ): graphql.ExecutionResult = requireDelegate("completeSelectionSet").completeSelectionSet(selectionSet, targetResult, arguments, options)
 
-    /** Forwards to the engine over gRPC via the callback channel. */
     override suspend fun resolveSelectionSet(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions
@@ -122,15 +111,14 @@ class RemoteEngineExecutionContext(
         return EngineObjectDataSerializer.deserialize(response.objectDataJson.toByteArray(), REMOTE_RESULT_TYPE)
     }
 
-    // Sync selection-set resolution - delegate to original context
     override suspend fun resolveSelectionSetSync(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions
     ): EngineObjectData.Sync = requireDelegate("resolveSelectionSetSync").resolveSelectionSetSync(selectionSet, options)
 
     private companion object {
-        // Type identity is not propagated over the wire; synthesize a minimal type once
-        // so the receiver-side builder has a name to attach.
+        // Type identity isn't propagated over the wire; the receiver-side builder just
+        // needs a name to attach to the deserialized result.
         private val REMOTE_RESULT_TYPE = graphql.schema.GraphQLObjectType.newObject()
             .name("RemoteQueryResult")
             .build()
