@@ -14,10 +14,10 @@ import viaduct.service.api.scoping.SchemaScoping
 /**
  * Tests for the schema-scoping DSL surface on ViaductApplicationExtension.
  *
- * The DSL accumulates declarations across calls and rejects duplicate IDs at setter time so
- * convention plugins composed with application code cannot silently shadow each other.
- * ID-format, reserved-name, and subset validation are enforced elsewhere and are not covered
- * here.
+ * The DSL is single-call immutable: each declaration setter may be invoked at most once and
+ * rejects empty inputs, so convention plugins composed with application code must compose at
+ * the call site rather than mutate across calls. ID-format, reserved-name, and subset
+ * validation are enforced elsewhere and are not covered here.
  */
 @OptIn(ExperimentalApi::class)
 class ViaductApplicationExtensionTest {
@@ -44,20 +44,39 @@ class ViaductApplicationExtensionTest {
     }
 
     @Test
-    fun `multiple declaredSchemaScopes calls accumulate into a single universe`() {
+    fun `second declaredSchemaScopes call is rejected`() {
         extension.declaredSchemaScopes(setOf("public"))
-        extension.declaredSchemaScopes(setOf("internal", "admin"))
-        assertEquals(
-            setOf("public", "internal", "admin"),
-            extension.schemaScoping.get().scopeUniverse,
+        val ex = assertThrows<GradleException> {
+            extension.declaredSchemaScopes(setOf("internal"))
+        }
+        // The message must name the single-call constraint so the caller understands the
+        // composition contract (compose at the call site, do not mutate via repeated calls).
+        assertTrue(
+            ex.message!!.contains("only be called once"),
+            "Expected message to explain the single-call constraint, got: ${ex.message}",
         )
     }
 
     @Test
-    fun `declaredScopedSchema records each scoped-schema entry`() {
+    fun `declaredSchemaScopes rejects an empty set`() {
+        val ex = assertThrows<GradleException> {
+            extension.declaredSchemaScopes(emptySet())
+        }
+        // "never set" is the way to express "no scoping". Explicitly setting an empty universe
+        // is forbidden so that the call itself carries semantic weight: present => scoping.
+        assertTrue(
+            ex.message!!.contains("at least one"),
+            "Expected message to direct caller to omit the call instead, got: ${ex.message}",
+        )
+    }
+
+    @Test
+    fun `declaredScopedSchemas records each scoped-schema entry`() {
         extension.declaredSchemaScopes(setOf("public", "internal"))
-        extension.declaredScopedSchema("PUBLIC_API", setOf("public"))
-        extension.declaredScopedSchema("INTERNAL_API", setOf("public", "internal"))
+        extension.declaredScopedSchemas(
+            "PUBLIC_API" to setOf("public"),
+            "INTERNAL_API" to setOf("public", "internal"),
+        )
 
         val schemas = extension.schemaScoping.get().scopedSchemas
         assertEquals(
@@ -70,9 +89,9 @@ class ViaductApplicationExtensionTest {
     }
 
     @Test
-    fun `declaredScopedSchema accepts an empty scope set as a full-schema alias`() {
+    fun `declaredScopedSchemas accepts an empty scope set as a full-schema alias`() {
         extension.declaredSchemaScopes(setOf("public"))
-        extension.declaredScopedSchema("FULL_ALIAS", emptySet())
+        extension.declaredScopedSchemas("FULL_ALIAS" to emptySet())
 
         val schemas = extension.schemaScoping.get().scopedSchemas
         assertTrue(schemas.containsKey("FULL_ALIAS"))
@@ -80,8 +99,50 @@ class ViaductApplicationExtensionTest {
     }
 
     @Test
+    fun `second declaredScopedSchemas call is rejected`() {
+        extension.declaredSchemaScopes(setOf("public", "internal"))
+        extension.declaredScopedSchemas("PUBLIC_API" to setOf("public"))
+        val ex = assertThrows<GradleException> {
+            extension.declaredScopedSchemas("INTERNAL_API" to setOf("internal"))
+        }
+        assertTrue(
+            ex.message!!.contains("only be called once"),
+            "Expected message to explain the single-call constraint, got: ${ex.message}",
+        )
+    }
+
+    @Test
+    fun `declaredScopedSchemas rejects an empty entries list`() {
+        extension.declaredSchemaScopes(setOf("public"))
+        val ex = assertThrows<GradleException> {
+            extension.declaredScopedSchemas()
+        }
+        // Symmetric with `declaredSchemaScopes` empty rejection: omitting the call is the way
+        // to express "no scoped schemas declared".
+        assertTrue(
+            ex.message!!.contains("at least one"),
+            "Expected message to direct caller to omit the call instead, got: ${ex.message}",
+        )
+    }
+
+    @Test
+    fun `duplicate scoped-schema IDs within a single declaredScopedSchemas call fail`() {
+        extension.declaredSchemaScopes(setOf("public", "internal"))
+        val ex = assertThrows<GradleException> {
+            extension.declaredScopedSchemas(
+                "PUBLIC_API" to setOf("public"),
+                "PUBLIC_API" to setOf("internal"),
+            )
+        }
+        assertTrue(
+            ex.message!!.contains("PUBLIC_API"),
+            "Expected message to name the duplicated schema id 'PUBLIC_API', got: ${ex.message}",
+        )
+    }
+
+    @Test
     fun `isScoped is false when no scopes have been declared`() {
-        extension.declaredScopedSchema("FULL_ALIAS", emptySet())
+        extension.declaredScopedSchemas("FULL_ALIAS" to emptySet())
         // The universe (not the scoped-schemas map) is the source of truth for `isScoped`,
         // so declaring a scoped schema in isolation still reads as unscoped here. Whether this
         // combination is rejected is the concern of validation layered on top of the DSL.
@@ -96,18 +157,17 @@ class ViaductApplicationExtensionTest {
 
     @Test
     fun `schemaScoping reflects state at the moment of get`() {
-        extension.declaredSchemaScopes(setOf("public"))
+        extension.declaredSchemaScopes(setOf("public", "internal"))
         val first = extension.schemaScoping.get()
 
-        extension.declaredSchemaScopes(setOf("internal"))
-        extension.declaredScopedSchema("PUBLIC_API", setOf("public"))
+        extension.declaredScopedSchemas("PUBLIC_API" to setOf("public"))
         val second = extension.schemaScoping.get()
 
-        // First snapshot retains the state it captured.
-        assertEquals(setOf("public"), first.scopeUniverse)
+        // First snapshot retains the state it captured: scoped-schemas map still empty.
+        assertEquals(setOf("public", "internal"), first.scopeUniverse)
         assertEquals(emptyMap(), first.scopedSchemas)
 
-        // Second snapshot reflects the additional declarations.
+        // Second snapshot reflects the additional declaration.
         assertEquals(setOf("public", "internal"), second.scopeUniverse)
         assertEquals(mapOf("PUBLIC_API" to setOf("public")), second.scopedSchemas)
     }
@@ -122,39 +182,13 @@ class ViaductApplicationExtensionTest {
     }
 
     @Test
-    fun `duplicate scope IDs across multiple declaredSchemaScopes calls fail`() {
-        extension.declaredSchemaScopes(setOf("public"))
-        val ex = assertThrows<GradleException> {
-            extension.declaredSchemaScopes(setOf("public", "internal"))
-        }
-        // The failure message must name the duplicated scope ID so the user can find it
-        // in their build script. Failing without naming the offender forces a guessing game
-        // when convention plugins and application code both contribute scopes.
-        assertTrue(
-            ex.message!!.contains("public"),
-            "Expected message to name the duplicated scope id 'public', got: ${ex.message}",
-        )
-    }
-
-    @Test
-    fun `duplicate schema IDs across multiple declaredScopedSchema calls fail`() {
-        extension.declaredSchemaScopes(setOf("public", "internal"))
-        extension.declaredScopedSchema("PUBLIC_API", setOf("public"))
-        val ex = assertThrows<GradleException> {
-            extension.declaredScopedSchema("PUBLIC_API", setOf("internal"))
-        }
-        assertTrue(
-            ex.message!!.contains("PUBLIC_API"),
-            "Expected message to name the duplicated schema id 'PUBLIC_API', got: ${ex.message}",
-        )
-    }
-
-    @Test
     fun `assembled scoping matches a directly-constructed SchemaScoping`() {
         extension.declaredSchemaScopes(setOf("public", "internal", "admin"))
-        extension.declaredScopedSchema("FULL_ALIAS", emptySet())
-        extension.declaredScopedSchema("PUBLIC_API", setOf("public"))
-        extension.declaredScopedSchema("INTERNAL_API", setOf("public", "internal"))
+        extension.declaredScopedSchemas(
+            "FULL_ALIAS" to emptySet(),
+            "PUBLIC_API" to setOf("public"),
+            "INTERNAL_API" to setOf("public", "internal"),
+        )
 
         val expected = SchemaScoping(
             scopeUniverse = setOf("public", "internal", "admin"),

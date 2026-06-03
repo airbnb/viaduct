@@ -22,9 +22,12 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
     private val scopedSchemasProperty: MapProperty<String, ScopedSchemaDefinition> =
         objects.mapProperty(String::class.java, ScopedSchemaDefinition::class.java)
 
+    private var scopeUniverseDeclared = false
+    private var scopedSchemasDeclared = false
+
     /**
      * Canonical view of the application's schema-scoping declarations, derived from the
-     * `declaredSchemaScopes` and `declaredScopedSchema` DSL methods. Re-evaluated on each `get()`,
+     * `declaredSchemaScopes` and `declaredScopedSchemas` DSL methods. Re-evaluated on each `get()`,
      * so successive snapshots reflect the state at the moment of resolution.
      */
     val schemaScoping: Provider<SchemaScoping> =
@@ -36,37 +39,60 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
         }
 
     /**
-     * Adds [scopes] to the declared scope universe. May be called multiple times; calls accumulate
-     * via set union. A scope ID that already appears in the universe from an earlier call is
-     * rejected with a [GradleException] naming the duplicate, so that convention plugins and
-     * application code can't silently shadow each other.
+     * Declares the scope universe for this application. May be called at most once with a
+     * non-empty set; the call is the single decision-point for what scopes exist. Omit the call
+     * entirely to express "no scoping". Convention plugins that contribute baseline scopes
+     * compose at the call site rather than via repeated mutation. An empty set or a second call
+     * is rejected with a [GradleException].
      */
     fun declaredSchemaScopes(scopes: Set<String>) {
-        val existing = scopeUniverseProperty.getOrElse(emptySet())
-        val duplicates = scopes intersect existing
-        if (duplicates.isNotEmpty()) {
+        if (scopeUniverseDeclared) {
             throw GradleException(
-                "Duplicate scope ID(s) declared via declaredSchemaScopes: " +
-                    "${duplicates.sorted()}. Each scope ID may only be declared once.",
+                "declaredSchemaScopes may only be called once. " +
+                    "Compose convention-plugin contributions into a single Set before the call.",
             )
         }
-        scopeUniverseProperty.addAll(scopes)
+        if (scopes.isEmpty()) {
+            throw GradleException(
+                "declaredSchemaScopes requires at least one scope ID. " +
+                    "Omit the call entirely if this application does not declare scopes.",
+            )
+        }
+        scopeUniverseDeclared = true
+        scopeUniverseProperty.set(scopes)
     }
 
     /**
-     * Declares that schema [id] is restricted to [scopes]. An empty [scopes] set is permitted and
-     * acts as an alias for the full schema. A schema ID that was already declared by an earlier
-     * call is rejected with a [GradleException] naming the duplicate, so that convention plugins
-     * and application code can't silently overwrite each other.
+     * Declares the application's scoped schemas as a fixed map from schema ID to its scope set.
+     * May be called at most once with at least one entry; the call is the single decision-point
+     * for which scoped schemas exist. An empty value set per entry (e.g. `"FULL_ALIAS" to
+     * emptySet()`) is allowed and acts as an alias for the full schema. A second call, an empty
+     * varargs list, or duplicate schema IDs within the single call are rejected with a
+     * [GradleException].
      */
-    fun declaredScopedSchema(id: String, scopes: Set<String>) {
-        val existing = scopedSchemasProperty.getOrElse(emptyMap())
-        if (id in existing) {
+    fun declaredScopedSchemas(vararg entries: Pair<String, Set<String>>) {
+        if (scopedSchemasDeclared) {
             throw GradleException(
-                "Duplicate scoped-schema ID declared via declaredScopedSchema: " +
-                    "'$id'. Each scoped-schema ID may only be declared once.",
+                "declaredScopedSchemas may only be called once. " +
+                    "Compose convention-plugin contributions into a single varargs invocation.",
             )
         }
-        scopedSchemasProperty.put(id, ScopedSchemaDefinition(scopes))
+        if (entries.isEmpty()) {
+            throw GradleException(
+                "declaredScopedSchemas requires at least one scoped-schema entry. " +
+                    "Omit the call entirely if this application does not declare scoped schemas.",
+            )
+        }
+        val duplicates = entries.groupBy { it.first }.filter { it.value.size > 1 }.keys.sorted()
+        if (duplicates.isNotEmpty()) {
+            throw GradleException(
+                "Duplicate scoped-schema ID(s) declared via declaredScopedSchemas: " +
+                    "$duplicates. Each scoped-schema ID may only appear once.",
+            )
+        }
+        scopedSchemasDeclared = true
+        scopedSchemasProperty.set(
+            entries.associate { (id, scopes) -> id to ScopedSchemaDefinition(scopes) },
+        )
     }
 }
