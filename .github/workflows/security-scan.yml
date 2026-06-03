@@ -1,0 +1,188 @@
+name: Security Scan
+
+# Advisory CVE-parity scan for the published fat JARs.
+#
+# Compares two views of each publication's dependencies:
+#   - fine-grained: `trivy sbom` over each publication's CycloneDX SBOM (full dep graph)
+#   - fat-JAR:      `trivy fs`  over each built shadow JAR (binary, via META-INF/maven/**)
+# and surfaces "parity gaps" — CVEs the fine-grained scan sees but the fat-JAR
+# binary scan misses (i.e. shaded transitives a consumer's SCA tooling can't see).
+#
+# ADVISORY ONLY: this workflow never blocks a PR (job + scan steps are
+# continue-on-error). Flipping to blocking is a deliberate later change.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write   # required to post/update the sticky comment
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+
+jobs:
+  cve-parity:
+    name: CVE parity (publications)
+    runs-on: ubuntu-latest
+    continue-on-error: true   # advisory — the run is never a required/blocking check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup build (JDK + Gradle)
+        uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install Trivy
+        # SHA-pinned: third-party action in a security workflow. Bump the comment on upgrade.
+        # `cache` here caches only the Trivy binary; the vuln DB is pulled fresh each run
+        # (fast via ghcr.io inside Actions, and a cached DB goes stale after ~6h anyway).
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514  # v0.2.6
+        with:
+          version: v0.68.2
+          cache: true
+
+      # Fine-grained: trivy sbom over each publication's CycloneDX SBOM.
+      # `securityScan` is advisory at the Gradle layer (isIgnoreExitValue=true);
+      # --continue ensures one module's failure doesn't abort the others.
+      - name: Fine-grained SBOM scans (publications)
+        continue-on-error: true
+        run: ./gradlew -p publications securityScan --no-daemon --continue
+
+      # Build the shadow (fat) JARs so we can scan them as binaries.
+      - name: Build fat JARs (publications)
+        continue-on-error: true
+        run: ./gradlew -p publications assemble --no-daemon
+
+      # Fat-JAR binary scan (net-new): trivy fs over each shadow JAR, honoring
+      # the same ignore file as the fine-grained scan. Resilient per-jar so one
+      # bad artifact doesn't stop the rest; nullglob avoids a literal-glob run
+      # when no jars were produced.
+      - name: Binary-scan fat JARs
+        continue-on-error: true
+        shell: bash
+        run: |
+          shopt -s nullglob
+          mkdir -p build/reports/trivy-fatjar
+          found=0
+          for jar in publications/*/build/libs/*.jar; do
+            case "$jar" in
+              *-sources.jar|*-javadoc.jar) continue ;;
+            esac
+            found=1
+            out="build/reports/trivy-fatjar/$(basename "$jar" .jar).json"
+            echo "Scanning $jar -> $out"
+            trivy fs --quiet --scanners vuln --format json \
+              --severity HIGH,CRITICAL \
+              --ignorefile config/security/.trivyignore \
+              --output "$out" "$jar" \
+              || echo "::warning::trivy fs failed for $jar"
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::warning::No fat JARs found under publications/*/build/libs/"
+          fi
+
+      # Diff fine-grained vs fat-JAR findings. Script exits 1 when gaps exist
+      # (advisory: swallow it) and writes the report before returning.
+      - name: Compare CVE parity
+        continue-on-error: true
+        shell: bash
+        run: |
+          python3 .github/scripts/compare_cve_findings.py \
+            --fine-grained publications/*/build/reports/trivy/cve-report.json \
+            --fat-jar build/reports/trivy-fatjar/*.json \
+            --severity-floor HIGH \
+            --output-format markdown \
+            --output security-scan-report.md || true
+          # The script writes the report on exit 0 and exit 1 (gaps found) but NOT on
+          # exit 2 — missing/invalid inputs, e.g. a glob that matched nothing (all scans
+          # failed, no fat jars) or a corrupt Trivy JSON. Without a report there is no PR
+          # comment, so a silently-broken scan would look identical to a clean one. Leave a
+          # visible signal instead. Guard on file-absence (not `|| ...`) so the real report
+          # from the exit-1 "gaps found" path is never clobbered.
+          if [ ! -f security-scan-report.md ]; then
+            {
+              echo '<!-- security-scan-summary -->'
+              echo '## Security scan: CVE parity report'
+              echo
+              echo '⚠️ The scan produced no report — inputs were missing or invalid (no scan'
+              echo 'outputs, or a corrupt Trivy JSON). See the Actions logs and the'
+              echo 'security-scan-reports artifact.'
+            } > security-scan-report.md
+          fi
+
+      - name: Upload scan reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: security-scan-reports
+          if-no-files-found: warn
+          path: |
+            security-scan-report.md
+            publications/*/build/reports/trivy/cve-report.json
+            build/reports/trivy-fatjar/*.json
+
+      # Sticky PR comment via github-script (the repo's PR-interaction convention;
+      # no peter-evans actions are used here). Finds the existing comment by the
+      # marker the script emits and updates it, else creates one.
+      - name: Post sticky PR comment
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- security-scan-summary -->';
+            let body;
+            try {
+              body = fs.readFileSync('security-scan-report.md', 'utf8');
+            } catch (err) {
+              core.info('No security-scan-report.md produced; skipping comment.');
+              return;
+            }
+            if (!body.includes(marker)) {
+              body = marker + '\n' + body;
+            }
+            // GitHub rejects comments over 65536 chars (422). The full report is in the
+            // uploaded artifact, so truncate the inline body rather than fail the post.
+            const MAX = 65000;
+            if (body.length > MAX) {
+              body = body.slice(0, MAX) +
+                '\n\n_…truncated; see the `security-scan-reports` artifact for the full report._';
+            }
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            if (!issue_number) {
+              core.info('No PR context; skipping comment.');
+              return;
+            }
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            );
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment(
+                { owner, repo, comment_id: existing.id, body },
+              );
+              core.info(`Updated sticky comment ${existing.id}`);
+            } else {
+              await github.rest.issues.createComment(
+                { owner, repo, issue_number, body },
+              );
+              core.info('Created sticky comment');
+            }
