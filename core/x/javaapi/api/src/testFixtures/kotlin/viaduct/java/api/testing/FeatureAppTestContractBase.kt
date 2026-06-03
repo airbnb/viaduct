@@ -26,7 +26,7 @@ import viaduct.service.runtime.StandardViaduct
 abstract class FeatureAppTestContractBase : AbstractFeatureAppTestContractBase() {
     /**
      * Intentionally computed lazily instead of in a property initializer so the constructor
-     * does not throw, which SpotBugs flags as CT_CONSTRUCTOR_THROW.
+     * does not throw.
      */
     private fun derivedClassPackage(): String =
         this::class.java.`package`?.name

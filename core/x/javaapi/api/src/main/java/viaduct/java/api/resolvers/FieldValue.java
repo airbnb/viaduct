@@ -1,7 +1,5 @@
 package viaduct.java.api.resolvers;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 /**
  * Represents the value of a resolved GraphQL field.
  *
@@ -40,10 +38,6 @@ public sealed interface FieldValue<T> permits FieldValue.Success, FieldValue.Err
     }
   }
 
-  @SuppressFBWarnings(
-      value = {"EI_EXPOSE_REP", "EI_EXPOSE_REP2"},
-      justification =
-          "Exception is intentionally stored and exposed by reference as the error payload.")
   record Error<T>(Exception error) implements FieldValue<T> {
     @Override
     public T get() {

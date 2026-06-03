@@ -17,7 +17,6 @@ dependencies {
     api(libs.viaduct.engine.api)
 
     compileOnly(libs.jspecify)
-    compileOnly(libs.spotbugs.annotations)
 
     /** Test fixtures - Viaduct dependencies **/
     testFixturesImplementation(testFixtures(libs.viaduct.engine.api))
