@@ -112,14 +112,36 @@ The demo applications in this directory serve as integration tests and usage exa
 
 The demo apps collectively verify the KSP registry-extractor processor across the supported Kotlin and KSP version matrix:
 
-| Demo App | Kotlin | KSP | Generation | Coverage goal |
-|---|---|---|---|---|
-| cli-starter | 1.9.24 | 1.9.24-1.0.20 | KSP1 | Oldest supported |
-| jetty-starter | 2.0.21 | 2.0.21-1.0.28 | KSP1 | KSP1 on 2.0 |
-| micronaut-starter | 2.1.20 | 2.1.20-1.0.32 | KSP1 | KSP1 on 2.1 |
-| ktor-starter | 2.1.20 | 2.1.20-2.0.1 | KSP2 | KSP2 on 2.1 (same Kotlin, different KSP) |
-| starwars | 2.2.21 | 2.2.21-2.0.5 | KSP2 | Latest |
+| Demo App | Kotlin | KSP | Generation | Gradle | Coverage goal |
+|---|---|---|---|---|---|
+| cli-starter | 1.9.24 | 1.9.24-1.0.20 | KSP1 | 9.1.0 | **Closest to treehouse** (internal pinned to 1.9.22) |
+| jetty-starter | 2.0.21 | 2.0.21-1.0.28 | KSP1 | 9.1.0 | KSP1 on 2.0 — OSS consumers only |
+| micronaut-starter | 2.1.20 | 2.1.20-1.0.32 | KSP1 | **8.11** | KSP1 on 2.1; Gradle 8.x coverage — OSS consumers only |
+| ktor-starter | 2.1.20 | 2.1.20-2.0.1 | KSP2 | 9.1.0 | KSP2 on 2.1 — OSS consumers only |
+| starwars | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Latest — OSS consumers only |
 
-Full transition to KSP2-only will occur after we deprecate Kotlin 1.9 support. Note that Kotlin 2.3+ uses a standalone KSP model (version-independent of the compiler), which will require a separate migration when we extend support past 2.2.
+> **Treehouse note**: Airbnb's internal monorepo is pinned to Kotlin **1.9.22**. Only `cli-starter` reflects close-to-internal conditions; all other demoapps validate external consumer scenarios. Kotlin 2.3+ support (standalone KSP) is an OSS-only goal and is blocked by treehouse's Kotlin ceiling. See `ksp-versioning.md` for details.
+
+`micronaut-starter` intentionally stays on Gradle 8.11 (matching the monorepo root) to verify Viaduct works with Gradle 8. All other apps use Gradle 9 to match the standard consumer setup. If `micronaut-starter` is ever bumped to Gradle 9, add a separate Gradle 8 variant to preserve that coverage.
+
+Full transition to KSP2-only will occur after we deprecate Kotlin 1.9 support. Note that Kotlin 2.3+ uses a standalone KSP model (version-independent of the compiler), which will require a separate migration when we extend support past 2.2 — and only after treehouse upgrades past Kotlin 1.9.
 
 For more on KSP versioning see `ksp-versioning.md`.
+
+## GraphQL Feature Coverage per Starter
+
+Each starter tests the following GraphQL capabilities in addition to its KSP/Kotlin/framework axis:
+
+| Feature | cli | jetty | ktor | micronaut | starwars |
+|---|---|---|---|---|---|
+| Basic queries | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Query arguments | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Mutations | ✅ | ✅ | ✅ | ✅ | ✅ |
+| HTTP transport | — | ✅ | ✅ | — | ✅ |
+| GraphiQL UI | — | ✅ | ✅ | — | ✅ |
+| Error handling | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Introspection | — | — | ✅ | — | — |
+| Batch resolvers | — | — | — | — | ✅ |
+| GlobalID / Node | — | — | — | — | ✅ |
+| Scoped fields | — | — | — | — | ✅ |
+| Multi-module | — | ✅ | ✅ | ✅ | ✅ |

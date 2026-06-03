@@ -51,6 +51,16 @@ The Viaduct module plugin does NOT apply KSP itself. The consumer ("service engi
 
 This avoids the version-coupling problem entirely — we never need to know the consumer's Kotlin version at publish time.
 
+## Treehouse (Airbnb-internal) Constraint
+
+Viaduct is developed simultaneously in this OSS repo and in Airbnb's internal monorepo ("treehouse"). As of 2026-06-02, treehouse is pinned to **Kotlin 1.9.22**. This has two practical consequences:
+
+1. **The internal Viaduct deployment only ever uses the KSP1/Kotlin 1.9 row** of the compatibility matrix. All Kotlin 2.x rows in the demoapp matrix are validated solely for external (OSS) consumers.
+
+2. **Kotlin 2.3+ support is blocked by treehouse** for the foreseeable future. Even when KSP 2.3+ (standalone versioning) becomes the norm for external users, it cannot be adopted in treehouse until treehouse upgrades past Kotlin 1.9. Treat any Kotlin 2.3+ planning as a long-range OSS-only goal.
+
+When evaluating whether a new Viaduct feature or dependency can be backported to the internal version, always check whether it requires Kotlin APIs above 1.9.22. If it does, it is OSS-only and must be clearly marked as such.
+
 ## What We've Tested
 
 The demo apps verify the full matrix:
