@@ -128,3 +128,100 @@ jobs:
       - name: Test starwars
         run: cd demoapps/starwars && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
         shell: bash
+
+  # ---------------------------------------------------------------------------
+  # Kotlin version matrix — re-run ktor-starter against prior Kotlin releases.
+  # ktor-starter's toml pins the *latest* supported version; this job covers
+  # older (kotlin, ksp) pairs so that a codegen regression in any supported
+  # Kotlin minor is caught without needing a separate full demoapp per version.
+  # Add a new entry here whenever a new Kotlin minor is released.
+  # ---------------------------------------------------------------------------
+  test-kotlin-matrix:
+    needs: publish-to-maven-local
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # KSP2 on Kotlin 2.1 — covers the overlap point where both KSP1 and KSP2
+          # were available.  ktor-starter's toml is pinned to the latest (2.2.x);
+          # this entry keeps prior-minor coverage without a separate app.
+          # Note: no stable KSP2 release exists for Kotlin 2.0.x, so the first
+          # valid KSP2 entry is 2.1.20.  Kotlin 2.0.x KSP1 is covered by jetty-starter.
+          - kotlin_version: "2.1.20"
+            ksp_version: "2.1.20-2.0.1"
+    name: Test ktor-starter (Kotlin ${{ matrix.kotlin_version }})
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '17'
+          cache-read-only: 'true'
+
+      - name: Download Maven Local repository
+        uses: actions/download-artifact@v7
+        with:
+          name: maven-local-repo
+          path: ~/.m2/repository
+
+      - name: Test ktor-starter (Kotlin ${{ matrix.kotlin_version }})
+        run: cd demoapps/ktor-starter && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
+        shell: bash
+        env:
+          KOTLIN_VERSION: ${{ matrix.kotlin_version }}
+          KSP_VERSION: ${{ matrix.ksp_version }}
+
+  # ---------------------------------------------------------------------------
+  # Gradle version matrix — re-run micronaut-starter against Gradle 9 as well
+  # as its native Gradle 8 wrapper, ensuring Viaduct's plugin works across
+  # both major Gradle generations without maintaining two full demoapp copies.
+  # ---------------------------------------------------------------------------
+  test-gradle-matrix:
+    needs: publish-to-maven-local
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - gradle_version: "8.11"
+            gradle_sha: "57dafb5c2622c6cc08b993c85b7c06956a2f53536432a30ead46166dbca0f1e9"
+          - gradle_version: "9.1.0"
+            gradle_sha: "a17ddd85a26b6a7f5ddb71ff8b05fc5104c0202c6e64782429790c933686c806"
+    name: Test micronaut-starter (Gradle ${{ matrix.gradle_version }})
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '17'
+          cache-read-only: 'true'
+
+      - name: Download Maven Local repository
+        uses: actions/download-artifact@v7
+        with:
+          name: maven-local-repo
+          path: ~/.m2/repository
+
+      - name: Override Gradle wrapper to ${{ matrix.gradle_version }}
+        # Edit gradle-wrapper.properties directly instead of running
+        # `./gradlew wrapper`, which would evaluate build.gradle.kts and try to
+        # resolve the Viaduct SNAPSHOT plugin before USE_MAVEN_LOCAL is in scope.
+        # Both the URL and the SHA256 checksum must be updated together.
+        run: |
+          sed -i \
+            -e 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-${{ matrix.gradle_version }}-bin.zip|' \
+            -e 's|distributionSha256Sum=.*|distributionSha256Sum=${{ matrix.gradle_sha }}|' \
+            demoapps/micronaut-starter/gradle/wrapper/gradle-wrapper.properties
+        shell: bash
+
+      - name: Test micronaut-starter (Gradle ${{ matrix.gradle_version }})
+        run: cd demoapps/micronaut-starter && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
+        shell: bash
