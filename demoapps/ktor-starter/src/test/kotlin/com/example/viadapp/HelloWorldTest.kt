@@ -248,4 +248,76 @@ class HelloWorldTest {
             }
             """.trimIndent()
         }
+
+    @Test
+    fun `Argument field greet returns personalised greeting`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                setBody("""{"query":"{ greet(name: \"Viaduct\") }"}""")
+            }
+
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldEqualJson """
+            {
+              "data": {
+                "greet": "Hello, Viaduct!"
+              }
+            }
+            """.trimIndent()
+        }
+
+    @Test
+    fun `Echo mutation returns the message`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                setBody("""{"query":"mutation { echo(message: \"hello world\") }"}""")
+            }
+
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldEqualJson """
+            {
+              "data": {
+                "echo": "hello world"
+              }
+            }
+            """.trimIndent()
+        }
+
+    @Test
+    fun `Introspection query returns expected types`(): Unit =
+        testApplication {
+            application {
+                module()
+            }
+
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                setBody("""{"query":"{ __schema { queryType { name } mutationType { name } } }"}""")
+            }
+
+            response.status shouldBe HttpStatusCode.OK
+            response.bodyAsText() shouldEqualJson """
+            {
+              "data": {
+                "__schema": {
+                  "queryType": { "name": "Query" },
+                  "mutationType": { "name": "Mutation" }
+                }
+              }
+            }
+            """.trimIndent()
+        }
 }

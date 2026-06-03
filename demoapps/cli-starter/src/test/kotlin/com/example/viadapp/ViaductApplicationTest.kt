@@ -137,4 +137,26 @@ class ViaductApplicationTest {
         val message = error["message"] as String
         assertTrue(message.contains("Invalid syntax") || message.contains("syntax"))
     }
+
+    @Test
+    fun testMainWithArgumentField() {
+        main(arrayOf("""{ greet(name: "Viaduct") }"""))
+
+        val result = getJsonOutput()
+        val data = result["data"] as Map<String, Any>
+
+        assertEquals("Hello, Viaduct!", data["greet"])
+        assertNull(result["errors"])
+    }
+
+    @Test
+    fun testMainWithMutation() {
+        main(arrayOf("""mutation { echo(message: "hello world") }"""))
+
+        val result = getJsonOutput()
+        val data = result["data"] as Map<String, Any>
+
+        assertEquals("hello world", data["echo"])
+        assertNull(result["errors"])
+    }
 }
