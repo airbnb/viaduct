@@ -1,10 +1,7 @@
-package viaduct.tenant.runtime.execution.enums;
-
-import static org.assertj.core.api.Assertions.assertThat;
+package viaduct.tenant.runtime.execution.invalidfragment.objectfragment;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.junit.jupiter.api.Test;
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper;
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
 import viaduct.java.api.annotations.Resolver;
@@ -13,9 +10,10 @@ import viaduct.java.runtime.bridge.ModuleBootstrapper;
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.CodeInjector;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
-import viaduct.tenant.runtime.execution.enums.resolverbases.QueryResolvers;
+import viaduct.tenant.runtime.execution.invalidfragment.objectfragment.resolverbases.FooResolvers;
+import viaduct.tenant.runtime.execution.invalidfragment.objectfragment.resolverbases.QueryResolvers;
 
-public class EnumContractTestImpl extends EnumContractTest {
+public class JavaInvalidObjectFragmentContractTest extends InvalidObjectFragmentContractTest {
 
   private final DefaultResolverClassFinder classFinder =
       new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
@@ -33,30 +31,27 @@ public class EnumContractTestImpl extends EnumContractTest {
   // --- Resolvers ---
 
   @Resolver
-  public static class CurrentStatusResolver extends QueryResolvers.CurrentStatus {
+  public static class GreetingResolver extends QueryResolvers.Greeting {
     @Override
-    public CompletableFuture<Status> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Status.ACTIVE);
+    public CompletableFuture<Foo> resolve(Context ctx) {
+      return CompletableFuture.completedFuture(Foo.builder().build());
     }
   }
 
   @Resolver
-  public static class StatusFromRequestContextResolver
-      extends QueryResolvers.StatusFromRequestContext {
+  public static class BazResolver extends FooResolvers.Baz {
     @Override
-    public CompletableFuture<Status> resolve(Context ctx) {
-      Object rc = ctx.getRequestContext();
-      return CompletableFuture.completedFuture(rc instanceof String s ? Status.valueOf(s) : null);
+    public CompletableFuture<String> resolve(Context ctx) {
+      return CompletableFuture.completedFuture("world");
     }
   }
 
-  // --- Java-only test ---
-
-  @Test
-  public void allEnumValuesAreAccessible() {
-    assertThat(Status.values()).hasSize(3);
-    assertThat(Status.valueOf("ACTIVE")).isEqualTo(Status.ACTIVE);
-    assertThat(Status.valueOf("INACTIVE")).isEqualTo(Status.INACTIVE);
-    assertThat(Status.valueOf("PENDING")).isEqualTo(Status.PENDING);
+  // Object value fragment is intentionally invalid: the schema for Foo only has bar/baz.
+  @Resolver(objectValueFragment = "horse")
+  public static class BarResolver extends FooResolvers.Bar {
+    @Override
+    public CompletableFuture<String> resolve(Context ctx) {
+      return CompletableFuture.completedFuture("unreachable");
+    }
   }
 }

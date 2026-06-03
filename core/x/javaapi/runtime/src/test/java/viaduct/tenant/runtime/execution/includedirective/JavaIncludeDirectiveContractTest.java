@@ -14,7 +14,7 @@ import viaduct.tenant.runtime.execution.includedirective.resolverbases.FooResolv
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.includedirective.resolverbases.ThrowerResolvers;
 
-public class IncludeDirectiveContractTestImpl extends IncludeDirectiveContractTest {
+public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTest {
 
   private final DefaultResolverClassFinder classFinder =
       new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());

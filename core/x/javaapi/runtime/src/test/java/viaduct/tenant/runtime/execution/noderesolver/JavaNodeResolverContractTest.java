@@ -14,7 +14,7 @@ import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.NodeResolvers;
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.QueryResolvers;
 
-public class NodeResolverContractTestImpl extends NodeResolverContractTest {
+public class JavaNodeResolverContractTest extends NodeResolverContractTest {
 
   private final DefaultResolverClassFinder classFinder =
       new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());

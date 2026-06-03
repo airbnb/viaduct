@@ -12,7 +12,7 @@ import viaduct.service.api.spi.CodeInjector;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.tenant.runtime.execution.inputtype.resolverbases.QueryResolvers;
 
-public class InputTypeContractTestImpl extends InputTypeContractTest {
+public class JavaInputTypeContractTest extends InputTypeContractTest {
 
   private final DefaultResolverClassFinder classFinder =
       new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());

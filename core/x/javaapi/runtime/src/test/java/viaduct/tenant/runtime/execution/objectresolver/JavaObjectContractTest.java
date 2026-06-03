@@ -23,7 +23,7 @@ import viaduct.tenant.runtime.execution.objectresolver.resolverbases.NestedFooRe
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.PersonResolvers;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.QueryResolvers;
 
-public class ObjectContractTestImpl extends ObjectContractTest {
+public class JavaObjectContractTest extends ObjectContractTest {
 
   private final DefaultResolverClassFinder classFinder =
       new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());

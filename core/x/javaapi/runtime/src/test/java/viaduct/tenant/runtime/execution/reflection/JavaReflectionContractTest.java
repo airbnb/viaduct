@@ -15,7 +15,7 @@ import viaduct.tenant.runtime.execution.reflection.resolverbases.CategoryResolve
 import viaduct.tenant.runtime.execution.reflection.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.reflection.resolverbases.ShelfResolvers;
 
-public class ReflectionContractTestImpl extends ReflectionContractTest {
+public class JavaReflectionContractTest extends ReflectionContractTest {
 
   private final DefaultResolverClassFinder classFinder =
       new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());

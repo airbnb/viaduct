@@ -15,7 +15,7 @@ import viaduct.tenant.runtime.execution.queryselections.resolverbases.MutationRe
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.UserResolvers;
 
-public class QuerySelectionsContractTestImpl extends QuerySelectionsContractTest {
+public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest {
 
   private final DefaultResolverClassFinder classFinder =
       new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());

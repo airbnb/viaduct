@@ -21,7 +21,7 @@ import viaduct.service.api.spi.CodeInjector;
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.tenant.runtime.execution.variablesprovider.resolverbases.QueryResolvers;
 
-public class VariablesProviderContractTestImpl extends VariablesProviderContractTest {
+public class JavaVariablesProviderContractTest extends VariablesProviderContractTest {
 
   /**
    * Counts how many times any nested {@link VariablesProvider} is instantiated. Tests assert this

@@ -20,7 +20,7 @@ import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.Mutation
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.UserResolvers;
 
-public class SubqueryExecutionContractTestImpl extends SubqueryExecutionContractTest {
+public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContractTest {
 
   private static int counter = 0;
 
