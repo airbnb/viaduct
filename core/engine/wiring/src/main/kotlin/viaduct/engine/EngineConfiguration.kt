@@ -8,6 +8,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
@@ -40,6 +41,7 @@ data class EngineConfiguration(
     val additionalInstrumentation: Instrumentation? = null,
     val chainInstrumentationWithDefaults: Boolean = false,
     val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
+    val fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
     val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
     val tenantNameResolver: TenantNameResolver = TenantNameResolver()
 ) {

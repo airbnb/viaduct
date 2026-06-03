@@ -9,6 +9,9 @@ fun interface IsResolverSelective {
     /** Returns true when the resolver at [coord] is selective. */
     operator fun invoke(coord: Coordinate): Boolean
 
+    /** Returns true when either this predicate or [other] returns true. */
+    infix fun or(other: IsResolverSelective): IsResolverSelective = IsResolverSelective { coord -> this(coord) || other(coord) }
+
     companion object {
         /** An instance of [IsResolverSelective] that never returns true. */
         val Never: IsResolverSelective = const(false)
@@ -40,6 +43,9 @@ fun interface IsResolverSelective {
     }
 
     private class FromRegistry(private val registry: DispatcherRegistry) : IsResolverSelective {
-        override fun invoke(coord: Coordinate): Boolean = registry.getFieldResolverDispatcher(coord.first, coord.second)?.isSelective == true
+        override fun invoke(coord: Coordinate): Boolean {
+            val dispatcher = registry.getFieldResolverDispatcher(coord.first, coord.second)
+            return dispatcher?.isSelective == true
+        }
     }
 }

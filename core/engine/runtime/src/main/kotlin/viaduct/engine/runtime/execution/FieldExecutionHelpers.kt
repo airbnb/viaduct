@@ -40,10 +40,9 @@ import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
-import viaduct.engine.runtime.EngineExecutionContextExtensions.selectiveOERKeysEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
-import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
@@ -72,10 +71,7 @@ object FieldExecutionHelpers {
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField
     ): ObjectEngineResult.Key {
-        val isResolverSelective = IsResolverSelective.fromRegistry(
-            parameters.engineExecutionContext.dispatcherRegistry,
-            parameters.engineExecutionContext.selectiveOERKeysEnabled,
-        )
+        val isResolverSelective = parameters.engineExecutionContext.isResolverSelective
 
         val runtimeResolverCoordinate = parameters.executionStepInfo.objectType.name to field.fieldName
         val hasSelectiveResolver = isResolverSelective(runtimeResolverCoordinate)
@@ -371,10 +367,7 @@ object FieldExecutionHelpers {
         locale: Locale
     ): CoercedVariables =
         variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
-            val isResolverSelective = IsResolverSelective.fromRegistry(
-                engineExecutionContext.dispatcherRegistry,
-                engineExecutionContext.selectiveOERKeysEnabled,
-            )
+            val isResolverSelective = engineExecutionContext.isResolverSelective
             val variablesData: EngineObjectData = vr.requiredSelectionSet?.let { vrss ->
                 // VariablesResolvers may have required selection sets which have their own variables resolvers.
                 // Recursively resolve them

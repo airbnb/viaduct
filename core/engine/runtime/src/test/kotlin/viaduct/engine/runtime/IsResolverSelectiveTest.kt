@@ -1,13 +1,11 @@
-@file:Suppress("ForbiddenImport")
-
 package viaduct.engine.runtime
 
-import io.mockk.every
-import io.mockk.mockk
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
+import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.runtime.mocks.createDispatcherRegistry
 
 class IsResolverSelectiveTest {
     private val coordinate = Coordinate("TestType", "testField")
@@ -37,16 +35,29 @@ class IsResolverSelectiveTest {
     }
 
     @Test
+    fun `or returns true when first predicate returns true`() {
+        val isResolverSelective = IsResolverSelective.const(true).or(IsResolverSelective.const(false))
+
+        assertTrue(isResolverSelective(coordinate))
+    }
+
+    @Test
+    fun `or returns true when second predicate returns true`() {
+        val isResolverSelective = IsResolverSelective.const(false).or(IsResolverSelective.const(true))
+
+        assertTrue(isResolverSelective(coordinate))
+    }
+
+    @Test
+    fun `or returns false when both predicates return false`() {
+        val isResolverSelective = IsResolverSelective.const(false).or(IsResolverSelective.const(false))
+
+        assertFalse(isResolverSelective(coordinate))
+    }
+
+    @Test
     fun `from registry returns true for selective resolver`() {
-        val dispatcher = mockk<FieldResolverDispatcher> {
-            every { isSelective } returns true
-        }
-        val dispatcherRegistry = DispatcherRegistry.Impl(
-            fieldResolverDispatchers = mapOf(coordinate to dispatcher),
-            nodeResolverDispatchers = emptyMap(),
-            fieldCheckerDispatchers = emptyMap(),
-            typeCheckerDispatchers = emptyMap(),
-        )
+        val dispatcherRegistry = dispatcherRegistryWithFieldResolver(isSelective = true)
 
         val isResolverSelective = IsResolverSelective.fromRegistry(
             dispatcherRegistry,
@@ -68,15 +79,7 @@ class IsResolverSelectiveTest {
 
     @Test
     fun `from registry returns false when selective resolver keying is disabled`() {
-        val dispatcher = mockk<FieldResolverDispatcher> {
-            every { isSelective } returns true
-        }
-        val dispatcherRegistry = DispatcherRegistry.Impl(
-            fieldResolverDispatchers = mapOf(coordinate to dispatcher),
-            nodeResolverDispatchers = emptyMap(),
-            fieldCheckerDispatchers = emptyMap(),
-            typeCheckerDispatchers = emptyMap(),
-        )
+        val dispatcherRegistry = dispatcherRegistryWithFieldResolver(isSelective = true)
 
         val isResolverSelective = IsResolverSelective.fromRegistry(
             dispatcherRegistry,
@@ -85,4 +88,26 @@ class IsResolverSelectiveTest {
 
         assertFalse(isResolverSelective(coordinate))
     }
+
+    @Test
+    fun `from registry returns false for non-selective resolver`() {
+        val dispatcherRegistry = dispatcherRegistryWithFieldResolver(isSelective = false)
+
+        val isResolverSelective = IsResolverSelective.fromRegistry(
+            dispatcherRegistry,
+            selectiveResolverOerKeyingEnabled = true,
+        )
+
+        assertFalse(isResolverSelective(coordinate))
+    }
+
+    private fun dispatcherRegistryWithFieldResolver(isSelective: Boolean): DispatcherRegistry =
+        createDispatcherRegistry(
+            fieldResolverExecutors = mapOf(
+                coordinate to MockFieldUnbatchedResolverExecutor(
+                    resolverId = "test-resolver",
+                    isSelective = isSelective,
+                )
+            )
+        )
 }

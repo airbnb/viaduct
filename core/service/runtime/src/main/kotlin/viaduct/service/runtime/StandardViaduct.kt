@@ -13,7 +13,6 @@ import graphql.GraphQLError as GJGraphQLError
 import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.instrumentation.Instrumentation
-import graphql.schema.GraphQLSchema
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.coroutineContext
@@ -26,6 +25,7 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TemporaryBypassAccessCheck
@@ -128,6 +128,7 @@ class StandardViaduct
             private var defaultQueryNodeResolversEnabled: Boolean = true
             private var meterRegistry: MeterRegistry? = null
             private var resolverInstrumentation: ViaductResolverInstrumentation? = null
+            private var fieldSelectivityProvider: FieldSelectivityProvider? = null
             private var allowSubscriptions: Boolean = false
             private var globalIDCodec: GlobalIDCodec? = null
             private var proxyResolverFactory: ProxyResolverFactory? = null
@@ -262,6 +263,14 @@ class StandardViaduct
                 }
 
             /**
+             * Supplies selectivity configuration for field coordinates that do not have dispatcher metadata.
+             */
+            fun withFieldSelectivityProvider(fieldSelectivityProvider: FieldSelectivityProvider): Builder =
+                apply {
+                    this.fieldSelectivityProvider = fieldSelectivityProvider
+                }
+
+            /**
              * Configures the GlobalIDCodec for serializing and deserializing GlobalIDs.
              * All tenant-API implementations within this Viaduct instance will share this codec
              * to ensure interoperability.
@@ -328,6 +337,7 @@ class StandardViaduct
                         additionalInstrumentation = builder.instrumentation ?: additionalInstrumentation,
                         chainInstrumentationWithDefaults = builder.chainInstrumentationWithDefaults,
                         resolverInstrumentation = builder.resolverInstrumentation ?: resolverInstrumentation,
+                        fieldSelectivityProvider = builder.fieldSelectivityProvider ?: fieldSelectivityProvider,
                         globalIDCodec = finalGlobalIDCodec,
                     )
                 }

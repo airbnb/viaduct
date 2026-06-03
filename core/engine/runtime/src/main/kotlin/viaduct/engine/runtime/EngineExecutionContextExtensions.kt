@@ -39,6 +39,9 @@ object EngineExecutionContextExtensions {
     val EngineExecutionContext.resolverInstrumentation: Instrumentation
         get() = asImpl().resolverInstrumentation
 
+    val EngineExecutionContext.isResolverSelective: IsResolverSelective
+        get() = asImpl().isResolverSelective
+
     var EngineExecutionContext.dataFetchingEnvironment: DataFetchingEnvironment?
         get() = asImpl().dataFetchingEnvironment
         set(value) {

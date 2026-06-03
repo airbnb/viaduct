@@ -21,6 +21,7 @@ import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.SubqueryExecutionException
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.service.api.spi.FlagManager
@@ -38,14 +39,26 @@ class EngineExecutionContextFactory(
     private val engine: Engine,
     private val globalIDCodec: GlobalIDCodec,
     private val meterRegistry: MeterRegistry?,
+    fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
 ) {
     // Constructing this is expensive, so do it just once per schema-version
     private val engineSelectionSetFactory: EngineSelectionSet.Factory = EngineSelectionSetFactoryImpl(fullSchema)
+    private val fieldSelectivity: IsResolverSelective = IsResolverSelective(fieldSelectivityProvider::isSelective)
 
     fun create(
         scopedSchema: ViaductSchema,
         requestContext: Any?
     ): EngineExecutionContext {
+        val selectiveOERKeysEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_SELECTIVE_OER_KEYS)
+        val isResolverSelective =
+            if (selectiveOERKeysEnabled) {
+                IsResolverSelective
+                    .fromRegistry(dispatcherRegistry, selectiveOERKeysEnabled)
+                    .or(fieldSelectivity)
+            } else {
+                IsResolverSelective.Never
+            }
+
         return EngineExecutionContextImpl(
             fullSchema,
             scopedSchema,
@@ -56,12 +69,13 @@ class EngineExecutionContextFactory(
             ConcurrentHashMap<String, FieldDataLoader>(),
             ConcurrentHashMap<String, NodeDataLoader>(),
             flagManager.isEnabled(FlagManager.Flags.EXECUTE_ACCESS_CHECKS),
-            flagManager.isEnabled(FlagManager.Flags.ENABLE_SELECTIVE_OER_KEYS),
+            selectiveOERKeysEnabled,
             flagManager.isEnabled(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING),
             engine,
             globalIDCodec,
             flagManager,
             meterRegistry,
+            isResolverSelective,
         )
     }
 }
@@ -104,6 +118,7 @@ class EngineExecutionContextImpl(
     override val globalIDCodec: GlobalIDCodec,
     private val flagManager: FlagManager,
     private val meterRegistry: MeterRegistry?,
+    val isResolverSelective: IsResolverSelective,
     var dataFetchingEnvironment: DataFetchingEnvironment? = null,
     override val activeSchema: ViaductSchema = fullSchema,
     internal val fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = FpKit.intraThreadMemoize { FieldExecutionScopeImpl() },
@@ -297,6 +312,7 @@ class EngineExecutionContextImpl(
             globalIDCodec = this.globalIDCodec,
             flagManager = this.flagManager,
             meterRegistry = this.meterRegistry,
+            isResolverSelective = this.isResolverSelective,
             dataFetchingEnvironment = dataFetchingEnvironment,
             fieldScopeSupplier = fieldScopeSupplier,
             executionHandle = this._executionHandle,

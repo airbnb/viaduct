@@ -28,11 +28,9 @@ import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.DispatcherRegistry
-import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
-import viaduct.engine.runtime.EngineExecutionContextExtensions.selectiveOERKeysEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
-import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ProxyEngineObjectData
@@ -160,6 +158,7 @@ class EngineImpl(
         this,
         config.globalIDCodec,
         meterRegistry,
+        config.fieldSelectivityProvider,
     )
 
     @Deprecated("Airbnb use only")
@@ -179,10 +178,7 @@ class EngineImpl(
     ): EngineObjectData {
         val parentParams = executionHandle.asExecutionParameters()
         val subqueryExecution = executeSelectionSet(executionHandle, selectionSet, options)
-        val isResolverSelective = IsResolverSelective.fromRegistry(
-            parentParams.engineExecutionContext.dispatcherRegistry,
-            parentParams.engineExecutionContext.selectiveOERKeysEnabled,
-        )
+        val isResolverSelective = parentParams.engineExecutionContext.isResolverSelective
 
         return ProxyEngineObjectData(
             subqueryExecution.targetOER,
@@ -200,10 +196,7 @@ class EngineImpl(
     ): EngineObjectData.Sync {
         val parentParams = executionHandle.asExecutionParameters()
         val subqueryExecution = executeSelectionSet(executionHandle, selectionSet, options)
-        val isResolverSelective = IsResolverSelective.fromRegistry(
-            parentParams.engineExecutionContext.dispatcherRegistry,
-            parentParams.engineExecutionContext.selectiveOERKeysEnabled,
-        )
+        val isResolverSelective = parentParams.engineExecutionContext.isResolverSelective
 
         val errorMessage = "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result"
 

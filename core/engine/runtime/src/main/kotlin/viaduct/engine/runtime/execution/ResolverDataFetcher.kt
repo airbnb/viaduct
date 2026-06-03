@@ -12,11 +12,9 @@ import viaduct.engine.api.EngineObjectData as EngineObjectDataApi
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
-import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
-import viaduct.engine.runtime.EngineExecutionContextExtensions.selectiveOERKeysEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolverDispatcher
-import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
@@ -84,10 +82,7 @@ class ResolverDataFetcher(
         engineResults: EngineResults,
     ): EngineObjectData {
         val selectionSetFactory = localExecutionContext.engineSelectionSetFactory
-        val isResolverSelective = IsResolverSelective.fromRegistry(
-            localExecutionContext.dispatcherRegistry,
-            localExecutionContext.selectiveOERKeysEnabled,
-        )
+        val isResolverSelective = localExecutionContext.isResolverSelective
 
         val objectErrorMessage =
             "add it to @Resolver's objectValueFragment before accessing it via Context.objectValue"
